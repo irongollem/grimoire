@@ -62,6 +62,10 @@ import type {
   ExtractedMonster,
   ExtractedStatBlock,
   ExtractedNpc,
+  ExtractedCanon,
+  ExtractedCanonClue,
+  ExtractedCanonPassage,
+  ExtractedDeity,
   ExtractedFactionStance,
   ExtractedNpcBond,
   ExtractedNpcKin,
@@ -72,7 +76,9 @@ import type {
   ImportEntityKind,
 } from "@/types/documentImport.types";
 import { structureStatBlock } from "@/rules/statBlock/structureStatBlock";
-import { PROSE_FIELD_LIMIT } from "@/types/documentImport.types";
+import { IMPORT_CANON_PARTS, IMPORT_PREMISE_KINDS, PROSE_FIELD_LIMIT } from "@/types/documentImport.types";
+import { KNOWLEDGE_MARKS, LORE_KINDS, type CanonEntry } from "@/types/canon.types";
+import type { DeityInsert } from "@/types/deity.types";
 import type { CombatantDef, EncounterInsert } from "@/types/encounter.types";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { FactionInsert } from "@/types/faction.types";
@@ -101,8 +107,20 @@ export interface ImportRowMap {
   spells: SpellInsert;
   quests: QuestInsert;
   factions: FactionInsert;
+  deities: DeityInsert;
+  canon: CanonImportRow;
   encounters: EncounterInsert;
 }
+
+/**
+ * What an imported canon entry writes: the columns a book can say. `line` and `veil` premise kinds, `chronicle`,
+ * `revealed_at`, the clock and the picture are never read from a book, so they are not here and stay at their
+ * column defaults.
+ */
+export type CanonImportRow = Pick<
+  CanonEntry,
+  "campaign_id" | "part" | "premise_kind" | "knowledge" | "title" | "body" | "wants" | "lore_kind" | "world_year" | "world_month" | "world_day" | "ai_provenance"
+>;
 
 /**
  * Raw names for entities this row refers to that could not be resolved to a
@@ -184,6 +202,22 @@ export interface EntityWorldLinks {
  * kinds) lives in `src/lib/quests/spine.ts` and is shared with the AI
  * generator. Doing it here as well would be two validators for one contract.
  */
+/**
+ * What a canon entry carries besides its own row (#1226): who knows a truth, a force's steps and quests, a secret's
+ * clues, a lore entry's passages. Names are resolved in the sweep's linking phase (`importSweepCanon.ts`), and only
+ * the children of the entry's own `part` are kept, so a stray `steps` on a truth never becomes a row.
+ */
+export interface EntityCanonLinks {
+  canon?: {
+    part: CanonEntry["part"];
+    known_to: string[];
+    steps: string[];
+    quests: string[];
+    clues: ExtractedCanonClue[];
+    passages: (ExtractedCanonPassage & { bodyJson: string | null })[];
+  };
+}
+
 export interface QuestSpinePayload {
   /**
    * `ExtractedQuestBeat[]`, not the bare `QuestSpineBeatResult[]` this
@@ -199,7 +233,7 @@ export interface QuestSpinePayload {
 
 export interface MappedEntity<K extends ImportEntityKind = ImportEntityKind> {
   row: ImportRowMap[K];
-  links: EntityLinks & EntityKinLinks & EntityWorldLinks;
+  links: EntityLinks & EntityKinLinks & EntityWorldLinks & EntityCanonLinks;
   questSpine?: QuestSpinePayload;
 }
 
@@ -733,6 +767,133 @@ export function mapExtractedFaction(
   };
 }
 
+// ── Deities ──────────────────────────────────────────────────────────────────
+
+/** The non-blank strings of a value that should be a list of them; the extraction is untrusted data. */
+function textList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const trimmed = item.trim();
+    if (trimmed !== "") out.push(trimmed);
+  }
+  return out;
+}
+
+function trimmedOrNull(value: unknown): string | null {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+
+export function mapExtractedDeity(
+  payload: ExtractedDeity,
+  campaignId: string,
+  provenance: AiProvenance,
+): MappedEntity<"deities"> {
+  const description = capProse(payload.description);
+  const row: DeityInsert = {
+    campaign_id: campaignId,
+    name: payload.name,
+    titles: trimmedOrNull(payload.titles),
+    alternate_names: textList(payload.alternate_names),
+    pantheon_id: null, // a book does not say which of the DM's pantheons a power belongs to
+    alignment: trimmedOrNull(payload.alignment),
+    symbol: trimmedOrNull(payload.symbol),
+    symbol_image_url: null,
+    portrait_url: null,
+    portrait_focal_point: null,
+    domains: textList(payload.domains),
+    portfolio: trimmedOrNull(payload.portfolio),
+    description: description ? toTiptapJson(description) : null,
+    tags: [],
+    player_visible_to: [],
+    ai_provenance: provenance,
+  };
+  return { row, links: {} };
+}
+
+// ── Canon ────────────────────────────────────────────────────────────────────
+
+/** An exact (case-insensitive) match against a closed set, else the fallback: "small" must not read as "all". */
+function pickExact<T extends string>(raw: unknown, candidates: readonly T[], fallback: T): T {
+  if (typeof raw !== "string") return fallback;
+  const word = raw.trim().toLowerCase();
+  return candidates.find((candidate) => candidate === word) ?? fallback;
+}
+
+function positiveInt(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 ? value : null;
+}
+
+/**
+ * A canon entry's row and its children. Each field is kept only on the `part` it belongs to (the database refuses
+ * `wants` on a truth, `lore_kind` off lore, a month without a year), and the three things a book can never say are
+ * never written: a premise `line` or `veil` (agreed with the players), the clock, and the reveal.
+ *
+ * An unknown `part` reads as `lore`, which is a title and a body and fits whatever the model meant; an unknown
+ * premise kind as `theme`; an unknown knowledge mark as `secret`, the one a table can only widen.
+ */
+export function mapExtractedCanon(
+  payload: ExtractedCanon,
+  campaignId: string,
+  provenance: AiProvenance,
+): MappedEntity<"canon"> {
+  const part = pickExact(payload.part, IMPORT_CANON_PARTS, "lore");
+  const text = trimmedOrNull(payload.text);
+  const year = part === "lore" ? (typeof payload.world_year === "number" && Number.isInteger(payload.world_year) ? payload.world_year : null) : null;
+  const month = year === null ? null : positiveInt(payload.world_month);
+  const day = month === null ? null : positiveInt(payload.world_day);
+
+  const row: CanonImportRow = {
+    campaign_id: campaignId,
+    part,
+    premise_kind: part === "premise" ? pickExact(payload.premise_kind, IMPORT_PREMISE_KINDS, "theme") : null,
+    knowledge: part === "truth" ? pickExact(payload.knowledge, KNOWLEDGE_MARKS, "secret") : null,
+    title: payload.title.trim(),
+    body: text ? toTiptapJson(text) : null,
+    wants: part === "force" ? trimmedOrNull(payload.wants) : null,
+    lore_kind: part === "lore" ? pickExact(payload.lore_kind, LORE_KINDS, "other") : null,
+    world_year: year,
+    world_month: month,
+    world_day: day,
+    ai_provenance: provenance,
+  };
+
+  const clues: ExtractedCanonClue[] = [];
+  if (part === "secret" && Array.isArray(payload.clues)) {
+    for (const clue of payload.clues) {
+      const title = trimmedOrNull(clue?.title);
+      if (title === null) continue;
+      const where = trimmedOrNull(clue.where);
+      clues.push(where ? { title, where } : { title });
+    }
+  }
+  const passages: NonNullable<EntityCanonLinks["canon"]>["passages"] = [];
+  if (part === "lore" && Array.isArray(payload.passages)) {
+    for (const passage of payload.passages) {
+      const title = trimmedOrNull(passage?.title);
+      if (title === null) continue;
+      const body = trimmedOrNull(passage.text);
+      const where = trimmedOrNull(passage.where);
+      passages.push({ title, ...(body ? { text: body } : {}), ...(where ? { where } : {}), bodyJson: body ? toTiptapJson(body) : null });
+    }
+  }
+
+  return {
+    row,
+    links: {
+      canon: {
+        part,
+        known_to: part === "truth" && row.knowledge === "some" ? textList(payload.known_to) : [],
+        steps: part === "force" ? textList(payload.steps) : [],
+        quests: part === "force" ? textList(payload.quests) : [],
+        clues,
+        passages,
+      },
+    },
+  };
+}
+
 // ── Encounters ───────────────────────────────────────────────────────────────
 
 /**
@@ -884,5 +1045,7 @@ export const ENTITY_MAPPERS = {
   spells: mapExtractedSpell,
   quests: mapExtractedQuest,
   factions: mapExtractedFaction,
+  deities: mapExtractedDeity,
+  canon: mapExtractedCanon,
   encounters: mapExtractedEncounter,
 } satisfies { [K in ImportEntityKind]: EntityMapper<K> };

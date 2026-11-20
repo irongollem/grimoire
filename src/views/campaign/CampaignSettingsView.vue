@@ -60,9 +60,6 @@
         <div v-else-if="activeTab === 'rules'" class="max-w-lg">
           <RulesTab />
         </div>
-        <div v-else-if="activeTab === 'currency'" class="max-w-lg">
-          <CurrencyTab />
-        </div>
         <div v-else-if="activeTab === 'classes'" class="max-w-lg">
           <ClassesTab />
         </div>
@@ -86,9 +83,6 @@
         </div>
         <div v-else-if="activeTab === 'openbook'" class="max-w-6xl">
           <OpenBookTab />
-        </div>
-        <div v-else-if="activeTab === 'import'" class="max-w-3xl">
-          <DocumentImportTab />
         </div>
         <DangerZoneTab v-else-if="activeTab === 'danger'" />
       </main>
@@ -126,7 +120,6 @@ const MembersTab = lazyPanel(() => import("@/components/campaign/MembersTab.vue"
 const InvitesTab = lazyPanel(() => import("@/components/campaign/InvitesTab.vue"));
 const SchedulingTab = lazyPanel(() => import("@/components/campaign/SchedulingTab.vue"));
 const RulesTab = lazyPanel(() => import("@/components/campaign/RulesTab.vue"));
-const CurrencyTab = lazyPanel(() => import("@/components/campaign/CurrencyTab.vue"));
 const ClassesTab = lazyPanel(() => import("@/components/campaign/ClassesTab.vue"));
 const SpeciesTab = lazyPanel(() => import("@/components/campaign/SpeciesTab.vue"));
 const AiTab = lazyPanel(() => import("@/components/campaign/AiTab.vue"));
@@ -135,14 +128,12 @@ const SpotifyTab = lazyPanel(() => import("@/components/campaign/SpotifyTab.vue"
 const BackupTab = lazyPanel(() => import("@/components/campaign/BackupTab.vue"));
 const WorldBundleTab = lazyPanel(() => import("@/components/campaign/WorldBundleTab.vue"));
 const OpenBookTab = lazyPanel(() => import("@/components/campaign/OpenBookTab.vue"));
-const DocumentImportTab = lazyPanel(() => import("@/components/campaign/DocumentImportTab.vue"));
 
 type SettingsTab =
   | "details"
   | "members"
   | "scheduling"
   | "rules"
-  | "currency"
   | "classes"
   | "species"
   | "ai"
@@ -151,12 +142,11 @@ type SettingsTab =
   | "backup"
   | "bundle"
   | "openbook"
-  | "import"
   | "danger";
 
 const VALID_TABS = new Set<SettingsTab>([
-  "details", "members", "scheduling", "rules", "currency", "classes", "species",
-  "ai", "connections", "spotify", "backup", "bundle", "openbook", "import", "danger",
+  "details", "members", "scheduling", "rules", "classes", "species",
+  "ai", "connections", "spotify", "backup", "bundle", "openbook", "danger",
 ]);
 
 const ALL_TABS: { id: SettingsTab; label: string }[] = [
@@ -164,7 +154,6 @@ const ALL_TABS: { id: SettingsTab; label: string }[] = [
   { id: "members", label: "Members & Invites" },
   { id: "scheduling", label: "Scheduling" },
   { id: "rules", label: "Rules" },
-  { id: "currency", label: "Currency" },
   { id: "classes", label: "Classes" },
   { id: "species", label: "Species" },
   { id: "ai", label: "AI Assistant" },
@@ -173,7 +162,6 @@ const ALL_TABS: { id: SettingsTab; label: string }[] = [
   { id: "backup", label: "Backup" },
   { id: "bundle", label: "World Bundle" },
   { id: "openbook", label: "Open Book" },
-  { id: "import", label: "Import Document" },
   { id: "danger", label: "Danger Zone" },
 ];
 
@@ -198,8 +186,6 @@ const SYSTEM_TABS: Partial<Record<SettingsTab, GameFeature>> = { classes: "chara
 const { offers } = useGameSystem();
 
 const tabs = computed(() => {
-  // Import Document stays visible with AI off: a wiki export is read without
-  // AI (#932), and the tab itself offers only that source until AI is on.
   return ALL_TABS.filter((t) => campaignStore.isOwner || !OWNER_ONLY_TABS.has(t.id))
     .filter((t) => {
       const feature = SYSTEM_TABS[t.id];

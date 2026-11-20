@@ -4,8 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { getCurrentUser, supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { toast } from "@/lib/toast";
+import { fetchCanonEntries } from "@/lib/canon/canonEntries";
+import { queueCanonEmbedding } from "@/composables/canon/queueCanonEmbedding";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
-import type { CanonEntry, KnowledgeMark, PremiseKind } from "@/types/canon.types";
+import type { CanonEntry, KnowledgeMark, LoreKind, PremiseKind } from "@/types/canon.types";
 
 export { CANON_KEY };
 
@@ -24,26 +26,18 @@ export type NewCanonEntry =
       /** Set when the entry came from an accepted AI suggestion. */
       ai_provenance?: AiProvenance | null;
     }
-  | { part: "truth"; knowledge: KnowledgeMark; title: string; sort_order?: number; ai_provenance?: AiProvenance | null };
+  | { part: "truth"; knowledge: KnowledgeMark; title: string; sort_order?: number; ai_provenance?: AiProvenance | null }
+  | { part: "force"; title: string; wants?: string | null; clock_size?: number | null; sort_order?: number; ai_provenance?: AiProvenance | null }
+  | { part: "secret"; title: string; sort_order?: number; ai_provenance?: AiProvenance | null }
+  | { part: "question"; title: string; sort_order?: number; ai_provenance?: AiProvenance | null }
+  | { part: "lore"; title: string; lore_kind?: LoreKind | null; sort_order?: number; ai_provenance?: AiProvenance | null };
 
 /**
  * A change to an entry. `ai_provenance` is written only when an accepted suggestion replaces the text; an edit by the
  * DM never sends it, and the database marks an AI-written entry edited when its words change
  * (`private.canon_entries_mark_edited`).
  */
-export type CanonEntryPatch = Partial<Pick<CanonEntry, "title" | "body" | "knowledge" | "player_visible_to" | "sort_order" | "ai_provenance">>;
-
-/** The campaign's whole canon, scoped in the query: RLS bounds who may read, it does not choose which campaign. */
-export async function fetchCanonEntries(campaignId: string): Promise<CanonEntry[]> {
-  const { data, error } = await supabase
-    .from("canon_entries")
-    .select("*")
-    .eq("campaign_id", campaignId)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  return data as CanonEntry[];
-}
+export type CanonEntryPatch = Partial<Pick<CanonEntry, "title" | "body" | "knowledge" | "player_visible_to" | "sort_order" | "ai_provenance" | "revealed_at" | "wants" | "clock_size" | "image_url" | "lore_kind" | "world_year" | "world_month" | "world_day">>;
 
 export async function createCanonEntry(campaignId: string, input: NewCanonEntry): Promise<CanonEntry> {
   const user = getCurrentUser();
@@ -54,14 +48,21 @@ export async function createCanonEntry(campaignId: string, input: NewCanonEntry)
     .select()
     .single();
   if (error) throw error;
-  return data as CanonEntry;
+  const created = data as CanonEntry;
+  // The by-meaning lookup reads the entry's words; a new entry has no vector until it is queued (#1226).
+  queueCanonEmbedding(created.id);
+  return created;
 }
+
+/** The columns an entry's embed text is built from; the rest of a patch never changes its vector. */
+const EMBEDDED_COLUMNS = ["title", "body", "wants"] as const;
 
 export async function updateCanonEntry(id: string, patch: CanonEntryPatch): Promise<void> {
   // RLS answers a write it refuses with no error and no row; asking for the row back is how that is told from a save.
   const { data, error } = await supabase.from("canon_entries").update(patch).eq("id", id).select("id");
   if (error) throw error;
   if (data.length === 0) throw new Error("That entry is gone, or you may not change it.");
+  if (EMBEDDED_COLUMNS.some((column) => column in patch)) queueCanonEmbedding(id);
 }
 
 export async function deleteCanonEntry(id: string): Promise<void> {

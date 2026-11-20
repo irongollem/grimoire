@@ -180,7 +180,7 @@
     :document-title="settings.draft.title"
     :chapter-count="chapterList.length"
     :page-count="layout?.pageCount ?? null"
-    :campaign-id="settings.draft.campaignId"
+    :campaign-id="exportCampaignId"
     :preselection="bundlePreselection(html.entityRefs.value, doc.id)"
     :run="runExport"
     :is-exporting="isExporting"
@@ -259,6 +259,7 @@ import { FOOTER_SETTINGS_KEY } from "@/scriptorium/lib/footerTitle";
 import { SCRIPTORIUM_THEME_KEY } from "@/scriptorium/lib/scriptoriumTheme";
 import type { BookLayoutResult, BookLayoutSettings } from "@/scriptorium/lib/bookLayout/types";
 import { useCampaignStore } from "@/stores/campaign";
+import { useCalendarStore } from "@/stores/calendar";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useScriptoriumUiStore } from "@/scriptorium/stores/ui";
 import type { JSONContent } from "@tiptap/core";
@@ -328,6 +329,7 @@ const { scriptoriumRailTab: railTab } = storeToRefs(useScriptoriumUiStore());
 
 // ── Chapters ────────────────────────────────────────────────────────────────
 const docId = computed(() => doc.id);
+const calendar = useCalendarStore();
 const { data: chapterData, isLoading: listLoading } = useBookChapterList(docId);
 const chapterList = computed(() => chapterData.value ?? []);
 
@@ -387,7 +389,17 @@ const html = useBookChapterHtml({
   liveVersion,
   // The layout runs whenever the book is open, so every body is always wanted.
   enabled: ref(true),
+  // A players' book is laid out from what the whole party may read, never from the DM's tables (#1226).
+  audience: computed(() => doc.audience),
+  campaignId: computed(() => settings.draft.campaignId),
+  worldDate: (year, month, day) => calendar.adapter.formatDate(year, month, day, null),
 });
+
+/**
+ * The campaign the export may bundle data from. A players' book never offers "Attach the campaign data": the bundle
+ * carries the DM's own rows of everything the book links, which is exactly what a players' book must not hand out.
+ */
+const exportCampaignId = computed(() => (doc.audience === "players" ? null : settings.draft.campaignId));
 
 function onEdit(json: JSONContent) {
   live.value = { id: currentId.value, json };

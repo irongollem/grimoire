@@ -40,6 +40,9 @@ import { prologueText, startPlace, type Prologue } from "../_shared/agent/prolog
 import { fightIsTold, fightRecordText, type FightPlan, type FightsInView, type FightState } from "../_shared/agent/fight.ts";
 import { askOf, declinedText, rollText, scoreRoll, type PendingRoll, type RollAsk, type Rolled } from "../_shared/agent/playerRoll.ts";
 import { makeTurnTools, type FiledFact } from "./turnTools.ts";
+import type { CanonStore } from "./canonIo.ts";
+import { NO_CANON_HERE, type BroughtOut, type CanonHere } from "../_shared/agent/canon.ts";
+import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import { narrationGate, type NarrationGate, type NarrationJudge } from "./narration.ts";
 import { AFTERMATH_TEXT, foeLineText, helperTurnText, OPENING_TEXT, parseBody, playerText } from "./turnBody.ts";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
@@ -362,7 +365,16 @@ export interface AgentTurnDeps {
   loadPeoples(campaignId: string): Promise<string[]>;
   /** The names of a planned fight's creatures that have no stat block; a fight with one of them is not started. */
   statlessFighters(campaignId: string, plan: FightPlan): Promise<string[]>;
+  /** The campaign's canon as the table reads it and adds to it (#1226): the world block, the last sitting, what lies here, the lookup, what an invention is held against. */
+  canon: CanonStore;
+  /**
+   * The judge the canon check asks (`canonCheck.ts`), or null without a judging key: an invention is then filed
+   * unchecked and the skip is logged. Like `judgeNarration`, an enhancement and never a gate.
+   */
+  judgeCanon: CanonJudge | null;
 }
+
+export type CanonJudge = (request: JudgeRequest) => Promise<JudgeResult>;
 
 export const MESSAGES = {
   badBody: "The request is not valid.",
@@ -597,7 +609,29 @@ export async function beginTurn(input: {
         } catch (error) {
           console.error("agent-turn: reading the world's peoples failed:", error);
         }
-        const system = systemWithSummary(systemFor({ campaign, character, peoples }), session.summary);
+        // The canon (#1226). The world block and the last sitting are standing text, so they sit in the instructions
+        // and stay the same for the whole sitting; what lies where the party stands is state. An unreadable part
+        // costs that part for a turn, never the turn.
+        let world = "";
+        try {
+          world = await deps.canon.worldText(campaign.id);
+        } catch (error) {
+          console.error("agent-turn: reading the world block failed:", error);
+        }
+        let previously = "";
+        try {
+          previously = await deps.canon.previously(campaign.id, session.campaign_session_id);
+        } catch (error) {
+          console.error("agent-turn: reading the last sitting's chronicle failed:", error);
+        }
+        let canonHere: CanonHere = NO_CANON_HERE;
+        try {
+          canonHere = await deps.canon.here(campaign.id, session.scene_location_id, scene === null ? [] : scene.characters.map((c) => ({ id: c.id, name: c.name })));
+        } catch (error) {
+          console.error("agent-turn: reading what the canon holds here failed:", error);
+        }
+        const broughtOut: BroughtOut[] = [];
+        const system = systemWithSummary(systemFor({ campaign, character, peoples, world, previously }), session.summary);
         const fightTurn = body.fightTurn === undefined ? null : body.fightTurn;
         // A fight fought out with no foe standing leaves its loot where it was fought, before what is within reach
         // is read: the narrator telling what comes of the fight can then say what lies there.
@@ -636,7 +670,7 @@ export async function beginTurn(input: {
         } catch (error) {
           console.error("agent-turn: reading the rest of the party failed:", error);
         }
-        const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts), companions: companionsSection(companions), sky: body.sky === undefined ? "" : skySection(body.sky) });
+        const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts), companions: companionsSection(companions), sky: body.sky === undefined ? "" : skySection(body.sky), canon: canonHere });
         // What changes hands this turn; moved only once the turn is kept.
         const handed: HandsChange[] = [];
         // What the narrator's ruling does to the fight on the board; carried out by the page once the turn is kept.
@@ -666,6 +700,13 @@ export async function beginTurn(input: {
           playedId: character ? character.id : undefined,
           partyIds: companions.map((c) => c.id),
           peoples,
+          canon: {
+            here: canonHere,
+            lookup: (query) => deps.canon.lookup(campaign.id, query),
+            material: () => deps.canon.material(campaign.id),
+            judge: deps.judgeCanon,
+            onBroughtOut: (brought) => { broughtOut.push(brought); },
+          },
           onIntroduce: (intro) => { introduced.push(intro); },
           // Not in a fight on the board: that is fought with what is on it.
           ...(fights !== null && fights.fight !== null && fights.fight.phase === "running" ? {} : { onHazard: (hazard: HazardRules) => { madeHazards.push(hazard); } }),
@@ -1000,6 +1041,11 @@ export async function beginTurn(input: {
           } catch (error) {
             console.error("agent-turn: changing the character's hit points failed:", error);
           }
+        }
+        // A clue that came out in play is found and a passage told, now that the turn is kept: a turn that was not
+        // kept leaves the canon as it was. One that cannot be written costs that mark, never the turn.
+        for (const brought of broughtOut) {
+          await safely(() => deps.canon.bringOut({ campaignId: campaign.id, campaignSessionId: session.campaign_session_id }, brought));
         }
         // The days the story told have passed: the page moves the campaign's date (its calendar lives with the app).
         if (daysPassed > 0) emit({ type: "days", days: daysPassed });

@@ -2,7 +2,7 @@
   <li class="flex min-w-0 items-center gap-2 border-b border-border px-3 py-1.5 last:border-b-0" :data-kind="entry.premise_kind">
     <span
       v-if="note"
-      class="shrink-0 border px-1.5 py-px text-label font-bold uppercase tracking-wide"
+      class="shrink-0 border px-1.5 py-px text-label font-bold uppercase"
       :class="entry.premise_kind === 'line' ? 'border-destructive/40 text-destructive' : 'border-border text-muted-foreground'"
     >
       {{ entry.premise_kind === "line" ? "Line" : "Veil" }}
@@ -30,11 +30,12 @@
  * players may be shown it through the reveal control, and a line and a veil read differently by word and by
  * type (struck through versus faded), never by colour alone.
  */
-import { computed, ref, watch } from "vue";
+import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import { useDeleteCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { useConfirm } from "@/composables/useConfirm";
 import { IconDelete } from "@/lib/icons";
 import type { CanonEntry } from "@/types/canon.types";
@@ -45,20 +46,7 @@ const { mutate: update } = useUpdateCanonEntry();
 const { mutate: destroy } = useDeleteCanonEntry();
 const { confirm } = useConfirm();
 
-const text = ref(entry.title);
-// A revert to the words the field already held changes nothing Vue can see, so the field is remade to drop what was typed.
-const revision = ref(0);
-watch(() => entry.title, (title) => { text.value = title; });
-// `.lazy` commits on blur or Enter, so this runs once per finished edit.
-watch(text, (next) => {
-  const title = next.trim();
-  if (title === "" || title === entry.title) {
-    text.value = entry.title;
-    revision.value++;
-    return;
-  }
-  update({ id: entry.id, patch: { title } });
-});
+const { text, revision } = useCommittedText(() => entry.title, (title) => update({ id: entry.id, patch: { title } }));
 
 const note = computed(() => {
   if (entry.premise_kind === "line") return "never in the story";

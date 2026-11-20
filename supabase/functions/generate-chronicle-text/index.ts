@@ -31,6 +31,7 @@ import {
   EmbeddingProviderConfigError,
 } from "../_shared/embeddings.ts";
 import { retrieveCampaignEntities, formatEntityBlock } from "../_shared/campaignEntityRetrieval.ts";
+import { CHRONICLER_NOTE_SCOPE } from "../_shared/campaignSearch.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
@@ -76,7 +77,6 @@ const PRIOR_NOTE_SNIPPET_CHAR_LIMIT = 600;
 
 interface PriorNoteCandidate {
   title: string;
-  category: string;
   session_number: number | null;
   snippet: string;
 }
@@ -94,11 +94,9 @@ interface PriorNoteCandidate {
  */
 function formatPriorChroniclesBlock(notes: PriorNoteCandidate[]): string {
   const lines = notes.map((n) => {
-    // Session number when the note has one; category ("session") as the
-    // fallback label for unnumbered session notes. Retrieval is restricted
-    // to category 'session' (see the RPC call's p_categories comment), so
-    // no other category can appear here.
-    const label = n.session_number != null ? `Session ${n.session_number} — ${n.title}` : `${n.category} — ${n.title}`;
+    // Session number when the session has one; "Session" for an unnumbered one. Retrieval is restricted to notes
+    // linked to a session (see the RPC call's p_session_notes_only comment), so no other note can appear here.
+    const label = n.session_number != null ? `Session ${n.session_number} — ${n.title}` : `Session — ${n.title}`;
     return `[${label}] ${n.snippet}`;
   });
   return (
@@ -321,26 +319,26 @@ serve(withCors(async (req: Request) => {
       p_owner_id:        campaign.user_id,
       p_embedding_model: embedProvider.model,
       p_exclude_id:      exclude_note_id,
-      // 'session' ONLY, though every note category is embedded. A chronicle
-      // is player-facing prose; session notes narrate what already happened
-      // at the table, while lore/quest/faction/location/general notes are
-      // the DM's planning material — an unrevealed twist retrieved from a
-      // lore note would surface in the recap as a "callback", leaking the
-      // spoiler in the DM's own voice. Spoiler containment, not relevance
-      // tuning: do not widen this without a per-note "revealed" signal.
-      p_categories:      ["session"],
+      // Notes linked to a session ONLY, though every note is embedded. A chronicle
+      // is player-facing prose; a session's note narrates what already happened
+      // at the table, while every other note is the DM's planning material, so
+      // an unrevealed twist retrieved from one would surface in the recap as a
+      // "callback", leaking the spoiler in the DM's own voice. Spoiler
+      // containment, not relevance tuning: do not widen this without a per-note
+      // "revealed" signal.
+      ...CHRONICLER_NOTE_SCOPE,
       match_count:       PRIOR_NOTE_MATCH_COUNT,
     });
     if (noteMatch.error) throw new Error(`match_campaign_notes: ${noteMatch.error.message}`);
     const matchedIds = ((noteMatch.data ?? []) as { id: string }[]).map((r) => r.id);
 
     if (matchedIds.length > 0) {
-      type NoteContentRow = { id: string; title: string; category: string; content: string | null; created_at: string; session: { number: number | null; title: string | null; played_on: string | null; started_at: string | null } | null };
+      type NoteContentRow = { id: string; title: string; content: string | null; created_at: string; session: { number: number | null; title: string | null; played_on: string | null; started_at: string | null } | null };
       // overrideTypes: without generated types supabase-js reads the many-to-one
       // `session` embed as an array; PostgREST returns one object (or null).
       const { data: noteRows, error: noteError } = await admin
         .from("notes")
-        .select("id, title, category, content, created_at, session:campaign_sessions(number, title, played_on, started_at)")
+        .select("id, title, content, created_at, session:campaign_sessions(number, title, played_on, started_at)")
         .in("id", matchedIds)
         .overrideTypes<NoteContentRow[], { merge: false }>();
       if (noteError) throw new Error(noteError.message);
@@ -367,7 +365,6 @@ serve(withCors(async (req: Request) => {
       if (sorted.length > 0) {
         priorChroniclesBlock = formatPriorChroniclesBlock(sorted.map((row) => ({
           title:       row.title,
-          category:    row.category,
           session_number: row.session?.number ?? null,
           snippet:     truncateAtWordBoundary(collapseWhitespace(toPlainText(row.content)), PRIOR_NOTE_SNIPPET_CHAR_LIMIT),
         })));

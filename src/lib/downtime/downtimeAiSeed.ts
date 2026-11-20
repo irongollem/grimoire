@@ -2,7 +2,6 @@ import { hasCoins, type Coins, type CurrencyConfig } from "@/lib/currency/curren
 import { CONDITIONS } from "@/rules/conditions";
 import { ITEM_RARITIES, ITEM_TYPES } from "@/types/item.types";
 import type { ItemRarity, ItemType } from "@/types/item.types";
-import type { NoteCategory } from "@/types/notes.types";
 import type { NpcRelationship } from "@/types/npc.types";
 import type {
   DowntimeEffect,
@@ -29,14 +28,6 @@ import type {
  */
 
 export class DowntimeAiParseError extends Error {}
-
-const NOTE_CATEGORIES: readonly NoteCategory[] = [
-  "general",
-  "session",
-  "lore",
-  "quest",
-  "faction",
-];
 
 const RELATIONSHIPS: readonly NpcRelationship[] = [
   "hostile",
@@ -213,7 +204,6 @@ export function rewardFromAi(raw: unknown, expected: DowntimeRewardType): Downti
         note: {
           title: requireString(note.title, "note title"),
           body: requireString(note.body, "note body"),
-          category: oneOf<NoteCategory>(note.category, NOTE_CATEGORIES, "general"),
           tags: stringArray(note.tags),
         },
       };

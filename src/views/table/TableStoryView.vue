@@ -55,16 +55,13 @@ import SoloCorrectDialog from "@/components/table/solo/SoloCorrectDialog.vue";
 import SoloRecordAdd from "@/components/table/solo/SoloRecordAdd.vue";
 import SoloRecordFact from "@/components/table/solo/SoloRecordFact.vue";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
-import { useLocationNames } from "@/composables/locations/useLocations";
-import { useNpcNames } from "@/composables/npcs/useNpcFields";
-import { useQuests } from "@/composables/quests/useQuests";
+import { useFactAbout } from "@/composables/table/useFactAbout";
 import { useStoryRecord } from "@/composables/table/useStoryRecord";
 import { useStoryRecordWrites } from "@/composables/table/useStoryRecordWrites";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { IconChevronLeft } from "@/lib/icons";
-import { searchRoute } from "@/lib/search/searchRoute";
-import { ABOUT_FALLBACK, factAbout, groupRecord, type SittingInfo, type StoryFact } from "@/lib/table/solo/storyRecord";
+import { groupRecord, type SittingInfo, type StoryFact } from "@/lib/table/solo/storyRecord";
 import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useTableUiStore } from "@/stores/ui/table";
@@ -89,7 +86,7 @@ const backTo = computed(() => {
 });
 
 const record = useStoryRecord();
-const facts = computed(() => (record.facts.data.value ?? []).filter((fact) => !asPlayer.value || fact.known_to_player));
+const facts = computed(() => (record.facts.data.value ?? []).filter((fact) => !asPlayer.value || (fact.known_to_player && fact.struck_at === null)));
 const isLoading = computed(() => record.facts.isLoading.value);
 const isError = computed(() => record.facts.isError.value);
 
@@ -100,31 +97,7 @@ const sittings = computed(
 );
 const groups = computed(() => groupRecord(facts.value, sittings.value, ui.storyRecordSearch));
 
-// Names come through the readers the rest of the app uses, once for the whole page and not once per fact.
-const linksByFact = computed(() => {
-  const map = new Map<string, NonNullable<typeof record.links.data.value>>();
-  for (const link of record.links.data.value ?? []) map.set(link.fact_id, [...(map.get(link.fact_id) ?? []), link]);
-  return map;
-});
-const aboutAll = computed(() => factAbout(record.links.data.value ?? []));
-const npcNames = useNpcNames(() => aboutAll.value.filter((a) => a.kind === "npc").map((a) => a.id));
-const placeIds = computed(() => [...new Set(aboutAll.value.filter((a) => a.kind === "location").map((a) => a.id))]);
-const placeNames = useLocationNames(placeIds);
-const quests = useQuests();
-
-function nameOf(kind: "npc" | "location" | "quest", id: string): string {
-  if (kind === "npc") return npcNames.data.value?.get(id) ?? ABOUT_FALLBACK.npc;
-  if (kind === "location") return placeNames.value.get(id) ?? ABOUT_FALLBACK.location;
-  return quests.data.value?.find((q) => q.id === id)?.title ?? ABOUT_FALLBACK.quest;
-}
-
-function aboutFor(factId: string) {
-  return factAbout(linksByFact.value.get(factId) ?? []).map((item) => ({
-    ...item,
-    label: nameOf(item.kind, item.id),
-    to: searchRoute(item.kind, item.id),
-  }));
-}
+const aboutFor = useFactAbout(() => record.links.data.value ?? []);
 
 function dayOf(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });

@@ -7,6 +7,8 @@ import type { Npc, NpcListRow } from "@/types/npc.types";
 
 const asked = vi.hoisted(() => [] as (string | null)[]);
 
+// The clues block reads canon through the query client; these tests are about the sheet around it.
+vi.mock("@/components/canon/CanonHere.vue", () => ({ default: { template: "<div />" } }));
 vi.mock("@/composables/locations/useLocations", () => ({
   // Answers only for the id the sheet asks for, as `useLocation` does: a place the sheet
   // did not ask by id (the old every-place read) never reaches it.

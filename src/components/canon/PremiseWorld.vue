@@ -22,7 +22,7 @@
  */
 import { ref, watch } from "vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
-import { WORLD_NAMES } from "./canonParts";
+import { WORLD_NAMES } from "@/lib/canon/canonParts";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { toast } from "@/lib/toast";

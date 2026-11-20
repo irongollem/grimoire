@@ -1,5 +1,5 @@
 <template>
-  <h2 class="m-0 flex items-center gap-2.5 font-cinzel text-heading-sm font-bold uppercase tracking-wider text-primary">
+  <h2 class="m-0 flex items-center gap-2.5 text-heading-sm font-bold uppercase tracking-wider text-primary">
     {{ numeral }} · {{ title }}
     <span aria-hidden="true" class="h-px flex-1 bg-linear-to-r from-primary/40 to-transparent" />
   </h2>

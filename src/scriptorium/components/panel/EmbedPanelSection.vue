@@ -91,6 +91,7 @@ const TYPE_LABELS: Record<EntityEmbedType, string> = {
   species: "Species",
   faction: "Faction",
   subclass: "Subclass",
+  canon: "Canon",
 };
 const entityType = computed(() => attrs.entityType as EntityEmbedType);
 const typeLabel = computed(() => TYPE_LABELS[entityType.value]);

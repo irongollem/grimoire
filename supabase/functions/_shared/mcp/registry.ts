@@ -811,6 +811,45 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
         },
         sort_order: { type: "number" },
         player_visible_to: { type: "uuid[]", description: "Party members who may see it." },
+        wants: { type: "text", description: "Only when part is force: what it wants, in one line." },
+        clock_size: { type: "number", description: "Only when part is force: how many ticks fill its clock, 2 to 12." },
+      },
+    },
+  },
+  canon_force_step: {
+    type: "canon_force_step",
+    label: "Canon force step",
+    table: "canon_force_steps",
+    nameField: "title",
+    searchFields: ["title"],
+    extraListColumns: ["force_id", "sort_order", "reached_at"],
+    campaignScope: "owned",
+    create: {
+      fields: {
+        campaign_id: { type: "uuid", required: true },
+        force_id: { type: "uuid", required: true, description: "The canon entry (part force) this step belongs to." },
+        title: { type: "text", required: true, description: "What the force does next, in a line." },
+        sort_order: { type: "number", description: "Its place in the force's steps, from 0." },
+      },
+    },
+  },
+  canon_clue: {
+    type: "canon_clue",
+    label: "Canon clue",
+    table: "canon_clues",
+    nameField: "title",
+    searchFields: ["title"],
+    extraListColumns: ["secret_id", "sort_order", "found_at"],
+    campaignScope: "owned",
+    create: {
+      fields: {
+        campaign_id: { type: "uuid", required: true },
+        secret_id: { type: "uuid", required: true, description: "The canon entry (part secret) this clue points at." },
+        title: { type: "text", required: true, description: "The clue, in a line the party can find." },
+        location_id: { type: "uuid", description: "Where it lies: a place. At most one of location_id, npc_id and quest_beat_id." },
+        npc_id: { type: "uuid", description: "Where it lies: a person." },
+        quest_beat_id: { type: "uuid", description: "Where it lies: a quest beat." },
+        sort_order: { type: "number" },
       },
     },
   },
@@ -931,11 +970,10 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     label: "Note",
     table: "notes",
     nameField: "title",
-    summaryField: "category",
-    searchFields: ["title", "content", "category"],
+    searchFields: ["title", "content"],
     // The session's number and title read through the notes.session_id link;
     // rows carry them as `session: { number, title }` (null when unlinked).
-    extraListColumns: ["category", "session:campaign_sessions(number,title)"],
+    extraListColumns: ["session:campaign_sessions(number,title)"],
     campaignScope: "owned",
     embedOnWrite: { fn: "embed-content", entity: "note" },
     create: {
@@ -943,7 +981,6 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
         title: { type: "text", required: true },
         campaign_id: { type: "uuid" },
         content: { type: "text" },
-        category: { type: "text", description: "Defaults to general." },
         session_id: {
           type: "uuid",
           description: "Id of an existing session in the campaign this note belongs to. The session's number is read from the session itself.",

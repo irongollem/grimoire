@@ -450,3 +450,33 @@ describe("tiptapToMarkdown: secret blocks", () => {
     expect(tiptapToMarkdown({ type: "doc", content: [{ type: "secretBlock", content: [{ type: "paragraph" }] }] })).toBe("");
   });
 });
+
+describe("tiptapToMarkdown: a Scriptorium book (#1226)", () => {
+  const embed = { type: "entityEmbed", attrs: { entityType: "npc", entityId: "n1" } };
+  const resolve = { embed: ({ entityId }: { entityId: string }) => (entityId === "n1" ? "Tam Harrow" : null) };
+
+  it("turns a linked entry into its name as a heading line, so the import links to it by name", () => {
+    expect(tiptapToMarkdown({ type: "doc", content: [embed] }, resolve)).toBe("## Tam Harrow");
+  });
+
+  it("drops an embed it cannot name, and every embed when there is no resolver", () => {
+    expect(tiptapToMarkdown({ type: "doc", content: [{ type: "entityEmbed", attrs: { entityType: "npc", entityId: "gone" } }] }, resolve)).toBe("");
+    expect(tiptapToMarkdown({ type: "doc", content: [embed] })).toBe("");
+  });
+
+  it("keeps a secret block's text, since it is the DM's own book", () => {
+    const md = tiptapToMarkdown({ type: "doc", content: [{ type: "secretBlock", content: [{ type: "paragraph", content: [{ type: "text", text: "The ghost rang it." }] }] }] });
+    expect(md).toContain("The ghost rang it.");
+  });
+
+  it("drops a cover page and a contents block", () => {
+    const md = tiptapToMarkdown({ type: "doc", content: [{ type: "coverPage", attrs: { title: "Doc" } }, { type: "tocBlock" }, { type: "paragraph", content: [{ type: "text", text: "Real text" }] }] });
+    expect(md).toBe("Real text");
+  });
+
+  it("reads the text inside a layout wrapper and a read-aloud box instead of losing the passage with the wrapper", () => {
+    const para = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
+    expect(tiptapToMarkdown({ type: "doc", content: [{ type: "columns", content: [para("In a column")] }] })).toBe("In a column");
+    expect(tiptapToMarkdown({ type: "doc", content: [{ type: "descriptiveBlock", content: [para("Read this aloud.")] }] })).toBe("> Read this aloud.");
+  });
+});

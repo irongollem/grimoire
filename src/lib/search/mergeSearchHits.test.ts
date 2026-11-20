@@ -90,3 +90,17 @@ describe("mergeSearchGroups", () => {
     expect(groups[0]?.items).toHaveLength(1);
   });
 });
+
+describe("mergeSearchGroups and the canon (#1226)", () => {
+  it("shows a canon hit found by meaning under its own group, routed to the entry", () => {
+    const out = mergeSearchGroups([], [sem("canon", "c1", 0.3)]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ type: "canon", label: "Canon" });
+    expect(out[0]?.items[0]).toMatchObject({ id: "c1", matchedBy: "meaning", route: "/canon?entry=c1" });
+  });
+
+  it("keeps a keyword canon group when meaning adds its own hits", () => {
+    const out = mergeSearchGroups([kw("canon", "Canon", ["k"])], [sem("canon", "c1", 0.3)]);
+    expect(out[0]?.items.map((i) => i.id)).toEqual(["k", "c1"]);
+  });
+});

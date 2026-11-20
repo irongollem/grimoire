@@ -20,6 +20,10 @@ export interface StoryFact {
   known_to_player: boolean;
   supersedes_id: string | null;
   source: FactSource;
+  /** When the DM kept it (#1226): reviewed and true. Never set together with `struck_at`. */
+  kept_at: string | null;
+  /** When the DM struck it: it never happened, so players and the Narrator no longer read it. */
+  struck_at: string | null;
   created_at: string;
 }
 

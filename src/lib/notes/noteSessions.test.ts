@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sessionOf, pickerName, previousSessionNote, sessionPickerOptions } from "./noteSessions";
+import { chronicleNotes, listedNotes, sessionOf, pickerName, previousSessionNote, sessionPickerOptions } from "./noteSessions";
 import type { Note } from "@/types/notes.types";
 import type { CampaignSession } from "@/types/session.types";
 
@@ -39,8 +39,7 @@ describe("sessionPickerOptions", () => {
     row("live", "2026-04-01", { number: 4, started_at: "2026-04-01T18:00:00Z" }),
   ];
   const notes = [
-    { id: "n1", category: "session" as const, session_id: "mid" },
-    { id: "n2", category: "general" as const, session_id: "old" },
+    { id: "n1", session_id: "mid" },
   ];
 
   it("puts sessions without a note first, newest first, then those with one", () => {
@@ -76,7 +75,7 @@ describe("sessionPickerOptions", () => {
 
 describe("previousSessionNote", () => {
   const dated = (id: string, sessionId: string): Note =>
-    ({ id, category: "session", session_id: sessionId, session_start_year: 1490, session_end_year: null } as Note);
+    ({ id, session_id: sessionId, session_start_year: 1490, session_end_year: null } as Note);
 
   it("orders by the log, not by number", () => {
     const log = [row("a", "2026-01-01", { number: 9 }), row("b", "2026-02-01", { number: 2 })];
@@ -89,11 +88,36 @@ describe("previousSessionNote", () => {
     ];
     expect(previousSessionNote([dated("nd", "done"), dated("nl", "live")], log)?.id).toBe("nd");
   });
-  it("ignores a note of another category even when it carries a session and dates", () => {
-    const other = { ...dated("x", "a"), category: "general" } as Note;
+  it("ignores a note linked to no session even when it carries dates", () => {
+    // Fails if a loose note's dates are offered as "last time" for the next session note.
+    const other = { ...dated("x", "a"), session_id: null } as Note;
     expect(previousSessionNote([other], [row("a", "2026-01-01")])).toBeNull();
   });
   it("is null with no dated session note", () => {
     expect(previousSessionNote([], [row("a", "2026-01-01")])).toBeNull();
+  });
+});
+
+describe("listedNotes", () => {
+  it("leaves a session's note out of the DM's notes list and keeps the loose ones", () => {
+    // Fails if the chronicle shows up in /notes, or if a loose note disappears from it.
+    expect(listedNotes([{ id: "a", session_id: "s1" }, { id: "b", session_id: null }]).map((n) => n.id)).toEqual(["b"]);
+  });
+});
+
+describe("chronicleNotes", () => {
+  const sessions = [
+    { id: "s1", started_at: null, played_on: "2026-10-01" },
+    { id: "s2", started_at: "2026-10-15T18:00:00Z", played_on: null },
+  ];
+  const n = (id: string, session_id: string | null) => ({ id, session_id, created_at: "2026-11-01T00:00:00Z" });
+
+  it("keeps only session-linked notes, newest session first, whatever order the notes arrive in", () => {
+    expect(chronicleNotes([n("a", "s1"), n("b", null), n("c", "s2")], sessions).map((x) => x.id)).toEqual(["c", "a"]);
+  });
+
+  it("orders by the session's day, not by when the note was written", () => {
+    const late = { ...n("a", "s1"), created_at: "2026-12-01T00:00:00Z" };
+    expect(chronicleNotes([late, n("c", "s2")], sessions).map((x) => x.id)).toEqual(["c", "a"]);
   });
 });

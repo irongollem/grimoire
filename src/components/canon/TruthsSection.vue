@@ -53,7 +53,7 @@ import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
 import CanonRubric from "./CanonRubric.vue";
 import TruthRow from "./TruthRow.vue";
-import { MARK_OPTIONS } from "./canonParts";
+import { MARK_OPTIONS } from "@/lib/canon/canonParts";
 import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useKnowersByEntry, type Knower } from "@/composables/canon/useKnownToByEntry";
 import { IconAdd } from "@/lib/icons";

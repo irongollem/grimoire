@@ -8,14 +8,14 @@ import type { OpenBookSnapshot } from "@/types/openBook.types";
 import BookSlip from "./BookSlip.vue";
 
 const snapshot: OpenBookSnapshot = {
-  v: 1,
+  v: 2,
   book: { title: "T", subtitle: null, cover_art: "tooled", cover_image_url: null, leather: "oxblood", chapters: ["atlas"], campaign_name: "C" },
   calendar: { calendar_id: null, custom_calendar: null, current: { year: null, month: null, day: null } },
   places: [
     { id: "town", parent_id: null, name: "Hollowmere", location_type: null, player_summary: null, description: null, image_url: null, tags: null, is_level: null, is_battle_map: null, npcs_shared: null, map: null, pins: [] },
     { id: "stair", parent_id: null, name: "Toll Stair", location_type: null, player_summary: null, description: null, image_url: null, tags: null, is_level: null, is_battle_map: null, npcs_shared: null, map: null, pins: [] },
   ],
-  folk: [], factions: [], pantheons: [], deities: [], lore: [], sessions: [], events: [], names: {},
+  folk: [], factions: [], pantheons: [], deities: [], lore: [], truths: [], sessions: [], events: [], names: {},
 };
 const model = buildBookModel(snapshot);
 

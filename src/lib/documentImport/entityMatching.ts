@@ -16,7 +16,7 @@
  * client, no network. `parseImportMatches` is the untrusted-JSON boundary —
  * everything past it is a validated `EntityCandidate`, never a guess.
  */
-import type { ImportEntityKind } from "@/types/documentImport.types";
+import { IMPORT_ENTITY_KINDS, type ImportEntityKind } from "@/types/documentImport.types";
 import { normalizeEntityName } from "./entityName";
 
 // ── Candidates ───────────────────────────────────────────────────────────────
@@ -100,16 +100,8 @@ function asMatchKind(value: unknown): Exclude<EntityMatchKind, "chosen"> | null 
 }
 
 function asImportEntityKind(value: string): value is ImportEntityKind {
-  return (
-    value === "monsters" ||
-    value === "npcs" ||
-    value === "locations" ||
-    value === "items" ||
-    value === "spells" ||
-    value === "quests" ||
-    value === "factions" ||
-    value === "encounters"
-  );
+  // Every kind there is, so a kind added to the list can never be dropped here without anyone noticing.
+  return (IMPORT_ENTITY_KINDS as readonly string[]).includes(value);
 }
 
 /**
@@ -349,6 +341,8 @@ export function canCreateFromPage(kind: ImportEntityKind, data: Record<string, u
  *   - a monster the page didn't give real stats for defaults to `generate`
  *     rather than `create`, since `create` would land a CR-0 stub
  *     (`canCreateFromPage`);
+ *   - a deity or a canon entry links only to an exact match, and otherwise
+ *     creates (#1226);
  *   - everything else defaults to `create`.
  */
 export function defaultDecision(
@@ -357,6 +351,12 @@ export function defaultDecision(
   candidates: readonly EntityCandidate[],
 ): ImportDecision {
   const first = candidates[0];
+  // A god or a canon entry links only to an exact match. A canon title is a whole sentence ("The bridge was never
+  // built by the Ferrymen"), and a near or contained one is a different statement, not the same row.
+  if (kind === "deities" || kind === "canon") {
+    const exact = candidates.find((c) => c.matchKind === "exact");
+    return exact ? { action: "link", candidate: exact } : { action: "create" };
+  }
   if (kind !== "quests" && first) {
     const judged = candidates.filter((c) => c.verdict !== null);
     // Nothing judged (AI off), or an unjudged candidate ranked first (a client-made

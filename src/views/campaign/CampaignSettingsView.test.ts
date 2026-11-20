@@ -66,6 +66,15 @@ describe("CampaignSettingsView tabs", () => {
     mocks.replace.mockClear();
   });
 
+  // Bug: the Currency tab stayed in Settings after the coins moved to Canon's "How the world works", so a DM could
+  // reach a second coins editor (or a deep link to it) that no longer exists.
+  it("has no Currency tab, and a ?tab=currency link falls back to Details", () => {
+    mocks.query = { tab: "currency" };
+    const w = mountView();
+    expect(labels(w)).not.toContain("Currency");
+    expect(w.find("[data-stub=DetailsTab]").exists()).toBe(true);
+  });
+
   it("shows the owner every tab, including AI Assistant and Danger Zone", () => {
     const l = labels(mountView());
     expect(l).toContain("AI Assistant");
@@ -98,24 +107,18 @@ describe("CampaignSettingsView tabs", () => {
     expect(w.find('[data-stub="DetailsTab"]').exists()).toBe(true);
   });
 
-  it("lists Import Document with AI on", () => {
-    expect(labels(mountView())).toContain("Import Document");
+  it("has no Import Document tab any more: it lives on the Canon page as Bring in a book", () => {
+    expect(labels(mountView())).not.toContain("Import Document");
   });
 
-  it("keeps Import Document with AI off, because a wiki export needs no AI (#932)", () => {
-    mocks.aiEnabled = false;
-    expect(labels(mountView())).toContain("Import Document");
-  });
-
-  it("opens import when deep-linked with AI off", () => {
-    mocks.aiEnabled = false;
-    mocks.query = { tab: "import" };
-    expect(mountView().find('[data-stub="DocumentImportTab"]').exists()).toBe(true);
-  });
-
-  it("still opens import when AI is on", () => {
-    mocks.query = { tab: "import" };
-    expect(mountView().find('[data-stub="DocumentImportTab"]').exists()).toBe(true);
+  it("falls back to Details for an old ?tab=import link, with AI on or off, rather than rendering the importer", () => {
+    for (const aiEnabled of [true, false]) {
+      mocks.aiEnabled = aiEnabled;
+      mocks.query = { tab: "import" };
+      const w = mountView();
+      expect(w.find('[data-stub="DocumentImportTab"]').exists()).toBe(false);
+      expect(w.find('[data-stub="DetailsTab"]').exists()).toBe(true);
+    }
   });
 
   it("shows how many characters wait on the DM on the Members tab", () => {

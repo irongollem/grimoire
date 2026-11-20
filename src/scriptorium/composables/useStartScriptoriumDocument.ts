@@ -6,6 +6,8 @@ import { splitIntoChapters } from "@/scriptorium/data/templates/chapters";
 import type { ScriptoriumTemplate } from "@/scriptorium/data/templates";
 import type { ScriptoriumDocInsert, ScriptoriumPaper } from "@/scriptorium/types";
 import { footerTitleFor } from "@/scriptorium/lib/footerTitle";
+import { buildCampaignBook, campaignBookTitle, type BookAudience } from "@/scriptorium/lib/canonBook";
+import { fetchDmBookSource, fetchPlayersBookSource } from "@/scriptorium/lib/campaignBookSource";
 
 /**
  * Starting a document is one write (#1115): a handout on a chosen paper, or a
@@ -13,7 +15,8 @@ import { footerTitleFor } from "@/scriptorium/lib/footerTitle";
  * the handout can be given at once. Callers navigate to the returned id.
  */
 export function useStartScriptoriumDocument() {
-  const { activeCampaignId } = storeToRefs(useCampaignStore());
+  const campaignStore = useCampaignStore();
+  const { activeCampaignId } = storeToRefs(campaignStore);
   const { mutateAsync, isPending } = useCreateScriptoriumBook();
 
   const base = () => ({
@@ -62,5 +65,36 @@ export function useStartScriptoriumDocument() {
     return (await mutateAsync({ book, chapters: splitIntoChapters(template.build()) })).id;
   }
 
-  return { startHandout, startBook, isStarting: isPending };
+  /**
+   * A book drawn from the active campaign (#1226 story 8): chapters of linked entries, never copies. The DM's book
+   * reads the DM's own tables; a players' book reads the whole party's view and is marked for it, so its preview and
+   * print never resolve a field the party cannot read.
+   */
+  async function startBookFromCampaign(audience: BookAudience): Promise<string> {
+    const campaignId = activeCampaignId.value;
+    if (!campaignId) throw new Error("Open a campaign to draw a book from it.");
+    const campaignName = campaignStore.activeCampaign?.name;
+    if (!campaignName) throw new Error("The campaign has not loaded yet.");
+    const source = audience === "dm" ? await fetchDmBookSource(campaignId) : await fetchPlayersBookSource(campaignId);
+    const drawn = buildCampaignBook(source, audience);
+    if (drawn.chapters.length === 0) throw new Error("The campaign has nothing to draw a book from yet.");
+    const book: ScriptoriumDocInsert = {
+      ...base(),
+      title: campaignBookTitle(campaignName, audience),
+      kind: "book",
+      doc_type: "custom",
+      theme: "grimoire",
+      page_size: "A4",
+      is_two_column: false,
+      ink_friendly: false,
+      show_page_numbers: true,
+      footer_text: "",
+      footer_title: footerTitleFor(""),
+      // Written only for a players' book: every other book leaves the column to its default.
+      ...(audience === "players" ? { audience } : {}),
+    };
+    return (await mutateAsync({ book, chapters: drawn.chapters })).id;
+  }
+
+  return { startHandout, startBook, startBookFromCampaign, isStarting: isPending };
 }

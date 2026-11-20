@@ -35,7 +35,7 @@
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import PitchEditor from "./PitchEditor.vue";
-import { plainTextToTiptap } from "./canonParts";
+import { plainTextToTiptap } from "@/lib/canon/canonParts";
 import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useSettingContent } from "@/composables/campaign/useSettingContent";
 import { IconAdd, IconGlobe } from "@/lib/icons";

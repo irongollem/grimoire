@@ -46,6 +46,27 @@ create trigger canon_entries_updated_at
   before update on public.canon_entries
   for each row execute procedure update_updated_at();
 
+-- An entry's part never changes. Each part has its own audience and its own child rows (a lore entry's passages, a
+-- secret's clues, a force's steps), so a lore entry turned into a truth known to all would hand every member its
+-- untold passages. A DM who wants a truth from a fact makes a new entry ("Make it a truth" does).
+create function private.canon_entries_part_is_fixed()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.part is distinct from old.part then
+    raise exception using errcode = '23514', message = 'A canon entry''s part does not change: make a new entry';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function private.canon_entries_part_is_fixed() from public, anon, authenticated;
+
+create trigger canon_entries_part_is_fixed
+  before update of part on public.canon_entries
+  for each row execute procedure private.canon_entries_part_is_fixed();
+
 -- Who wrote an entry stays who wrote it, as on world_links.
 create trigger canon_entries_guard_content_author
   before update on public.canon_entries
@@ -463,11 +484,24 @@ as $$
 $$;
 revoke execute on function private.canon_entry_seen(uuid, uuid) from public, anon, authenticated;
 
--- The players' read. A player reads as their own seat; a DM previews as one member. Columns are listed one by one so a
--- column added later is never handed out by accident; the reveal list is not handed out at all (it names who else was
--- told), and secret blocks in the body are withheld.
+-- The players' read. A player reads as their own seat; a DM previews as one member. It returns its own columns, not
+-- the table's row, so a column a later story adds is never handed out by accident and never breaks this read: who
+-- wrote it, the campaign and the reveal list (it names who else was told) are left out, and secret blocks in the body
+-- are withheld.
 create function public.get_player_canon(p_campaign_id uuid, p_preview_member_id uuid default null)
-returns setof public.canon_entries
+returns table (
+  id uuid,
+  part text,
+  premise_kind text,
+  knowledge text,
+  title text,
+  body text,
+  sort_order integer,
+  image_url text,
+  ai_provenance jsonb,
+  created_at timestamptz,
+  updated_at timestamptz
+)
 language sql
 stable
 security definer
@@ -483,9 +517,8 @@ as $$
        and exists (select 1 from public.party_members pm
                     where pm.id = p_preview_member_id and pm.campaign_id = p_campaign_id)
   )
-  select e.id, e.user_id, e.campaign_id, e.part, e.premise_kind, e.knowledge, e.title,
-         private.withhold_secret_blocks(e.body), e.sort_order, '{}'::uuid[], e.image_url, e.ai_provenance,
-         e.created_at, e.updated_at
+  select e.id, e.part, e.premise_kind, e.knowledge, e.title, private.withhold_secret_blocks(e.body), e.sort_order,
+         e.image_url, e.ai_provenance, e.created_at, e.updated_at
     from public.canon_entries e
    where e.campaign_id = p_campaign_id
      and exists (select 1 from me where private.canon_entry_seen(e.id, me.member))

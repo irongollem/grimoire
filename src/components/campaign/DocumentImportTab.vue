@@ -137,7 +137,7 @@
       <div>
         <h3 class="text-heading-sm font-semibold text-foreground">Document Import</h3>
         <p class="text-body text-muted-foreground italic mt-1">
-          Import from a PDF, page photos, pasted text, or a wiki export.
+          Import from a PDF, page photos, pasted text, a book from your Scriptorium, or a wiki export.
         </p>
       </div>
 
@@ -152,6 +152,7 @@
       </p>
 
       <DocumentImportPasteStep v-if="sourceMode === 'paste'" />
+      <DocumentImportBookStep v-else-if="sourceMode === 'book'" />
       <ArchiveImportPanel v-else-if="sourceMode === 'archive'" :import-row="archiveRow" />
       <template v-else>
         <div>
@@ -302,6 +303,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import {
   IconArchive,
   IconClipboard,
+  IconScriptorium,
   IconClose,
   IconDelete,
   IconDocument,
@@ -319,6 +321,7 @@ import ProFeatureGate from "@/components/billing/ProFeatureGate.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import DocumentImportWizard from "@/components/campaign/DocumentImportWizard.vue";
 import DocumentImportPasteStep from "@/components/campaign/DocumentImportPasteStep.vue";
+import DocumentImportBookStep from "@/components/campaign/DocumentImportBookStep.vue";
 import ArchiveImportPanel from "@/components/campaign/ArchiveImportPanel.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
@@ -357,6 +360,8 @@ const KIND_LABELS: Record<ImportEntityKind, string> = {
   spells: "Spells",
   quests: "Quests",
   factions: "Factions",
+  deities: "Deities",
+  canon: "Canon",
   encounters: "Encounters",
 };
 
@@ -493,7 +498,7 @@ const { estimate: costEstimate, isLoading: costLoading, isError: costErrored } =
 // component rather than a branch inlined here); this tab owns only which of
 // the two is showing.
 
-type ImportSourceMode = "upload" | "paste" | "archive";
+type ImportSourceMode = "upload" | "paste" | "book" | "archive";
 // Upload and paste are AI extraction; a wiki export is not (#932). With the
 // campaign's AI off only the wiki export is offered, so the tab stays useful
 // instead of disappearing.
@@ -505,6 +510,7 @@ const SOURCE_MODE_OPTIONS = computed<SegmentedOption<ImportSourceMode>[]>(() => 
     ? [
         { value: "upload" as const, label: "Upload", icon: IconUpload },
         { value: "paste" as const, label: "Paste text", icon: IconClipboard },
+        { value: "book" as const, label: "A book", icon: IconScriptorium },
       ]
     : []),
   { value: "archive", label: "Wiki export", icon: IconArchive },

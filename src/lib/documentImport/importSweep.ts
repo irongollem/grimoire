@@ -66,6 +66,7 @@ import { getEntityKindEntry } from "./entityKinds";
 import { normalizeEntityName } from "./entityName";
 import { planNpcKin, type KinWrite } from "./importSweepKin";
 import { planWorldLinks, type WorldLinkWrite } from "./importSweepWorldLinks";
+import { planCanonChildren } from "./importSweepCanon";
 import { writeBatchIsolatingFailures } from "@/lib/batchWrite";
 import {
   buildSiteRoomIndex,
@@ -195,6 +196,9 @@ export interface WriteQuestSpineOutcome {
   beatIdByKey: Map<string, string>;
 }
 
+/** The tables a canon entry's children land in (#1226). Each row carries `campaign_id` and its parent entry's id. */
+export type CanonChildTable = "canon_force_steps" | "canon_force_quests" | "canon_clues" | "canon_lore_passages";
+
 /** Everything the sweep needs from the outside world. */
 export interface ImportSweepDeps {
   insertRow: (kind: ImportEntityKind, row: Record<string, unknown>) => Promise<InsertRowOutcome>;
@@ -245,6 +249,11 @@ export interface ImportSweepDeps {
   insertKinLinks: (links: KinWrite[]) => Promise<void>;
   /** Ties the page named, as `world_links` rows (#1084). One request; the sweep retries row by row only if it is refused. */
   insertWorldLinks: (links: WorldLinkWrite[]) => Promise<void>;
+  /** The campaign's player characters by name: a truth can be known to one (`known_to`). */
+  fetchPartyLookup: () => Promise<readonly NameLookupRow[]>;
+  /** One canon child table's rows in ONE request; throws when the database refuses it, and the sweep then writes row
+   *  by row (`writeBatchIsolatingFailures`). */
+  insertCanonRows: (table: CanonChildTable, rows: Record<string, unknown>[]) => Promise<void>;
   /** Persists the *complete*, accumulated `imported_counts` so far — called
    *  after every kind that had anything to import, so a crash mid-sweep
    *  resumes from the last kind that finished rather than from scratch. */
@@ -650,6 +659,53 @@ export async function runImportSweep(
   let unresolvedKin = plannedKin.unresolved;
   const { refused: refusedKin } = await writeBatchIsolatingFailures(plannedKin.writes, (batch) => deps.insertKinLinks(batch));
   unresolvedKin += refusedKin.length; // best-effort: a refused pair (often one already linked) costs only itself
+
+  // The children of every canon entry this sweep created (an entry the DM linked to already has its own): who
+  // knows a truth, a force's steps and quests, a secret's clues, a lore entry's passages. Resolved against the same
+  // sweep-wide lookups, plus the campaign's quests, its player characters and the beats of the quests just written.
+  const canonRows = linkedRowsByKind.canon ?? [];
+  if (canonRows.length > 0) {
+    const [questLookup, partyLookup] = await Promise.all([
+      buildLookup("quests", registry, deps.fetchNameLookup),
+      deps.fetchPartyLookup(),
+    ]);
+    const beatLookup: NameLookupRow[] = [];
+    for (const context of questContexts) {
+      for (const beat of context.beats) {
+        const id = context.beatIdByKey.get(beat.key);
+        if (id) beatLookup.push({ id, name: beat.title });
+      }
+    }
+    const plannedCanon = planCanonChildren(
+      canonRows,
+      {
+        npcs: plainLookups.npcs ?? [],
+        factions: plainLookups.factions ?? [],
+        party: partyLookup,
+        locations: plainLookups.locations ?? [],
+        quests: plainRows(questLookup),
+        beats: beatLookup,
+      },
+      campaignId,
+      provenance,
+    );
+    for (const miss of plannedCanon.unresolved) {
+      const sourceName = displayNameById.get(miss.sourceId) ?? miss.sourceId;
+      unresolvedLinks.push(`Canon entry "${sourceName}" → ${miss.relation} "${miss.name}"`);
+    }
+    await writeBatchIsolatingFailures(plannedCanon.worldLinks, (batch) => deps.insertWorldLinks(batch));
+    const childWrites: [CanonChildTable, Record<string, unknown>[]][] = [
+      ["canon_force_steps", plannedCanon.steps.map((row) => ({ ...row }))],
+      ["canon_force_quests", plannedCanon.forceQuests.map((row) => ({ ...row }))],
+      ["canon_clues", plannedCanon.clues.map((row) => ({ ...row }))],
+      ["canon_lore_passages", plannedCanon.passages.map((row) => ({ ...row }))],
+    ];
+    for (const [table, rows] of childWrites) {
+      // Best-effort like every link: a refused row costs only itself, and is named.
+      const { refused } = await writeBatchIsolatingFailures(rows, (batch) => deps.insertCanonRows(table, batch));
+      for (const { item } of refused) unresolvedLinks.push(`Canon: "${String(item.title ?? item.quest_id)}" was not saved`);
+    }
+  }
 
   await resolveEncounters(encounterContexts, lookups, deps, unresolvedLinks, addSweepRef);
 

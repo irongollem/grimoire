@@ -5,7 +5,7 @@ import { STORY_RECORD_KEY } from "@/lib/campaignLiveSync/registry";
 import type { StoryFact, StoryFactLink } from "@/lib/table/solo/storyRecord";
 import { useCampaignStore } from "@/stores/campaign";
 
-const FACT_COLUMNS = "id, campaign_id, session_id, body, known_to_player, supersedes_id, source, created_at";
+const FACT_COLUMNS = "id, campaign_id, session_id, body, known_to_player, supersedes_id, source, kept_at, struck_at, created_at";
 const LINK_COLUMNS = "id, fact_id, campaign_id, kind, npc_id, location_id, quest_id, quest_beat_id, item_id, monster_id";
 // PostgREST answers at most 1,000 rows a request; a long campaign's record is read in pages so nothing is cut off.
 const PAGE = 1000;

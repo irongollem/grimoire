@@ -7,6 +7,8 @@ import QuestBeatFields from "./QuestBeatFields.vue";
 
 const mocks = vi.hoisted(() => ({ update: vi.fn() }));
 
+// The clues block reads canon through the query client; these tests are about the sheet around it.
+vi.mock("@/components/canon/CanonHere.vue", () => ({ default: { template: "<div />" } }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useUpdateQuestBeat: () => ({ mutateAsync: mocks.update }),
 }));

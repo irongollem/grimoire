@@ -23,9 +23,6 @@
               {{ note.title || "Untitled" }}
             </p>
           </div>
-          <p v-if="note.category" class="text-caption text-muted-foreground italic capitalize">
-            {{ note.category.replace(/_/g, " ") }}
-          </p>
           <p v-if="preview(note)" class="text-caption text-muted-foreground line-clamp-2">{{ preview(note) }}</p>
         </RouterLink>
       </div>

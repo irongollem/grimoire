@@ -5,6 +5,7 @@ import { computed, defineComponent, h, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ScriptoriumBookEditor from "./ScriptoriumBookEditor.vue";
 import ScriptoriumBookSettings from "./ScriptoriumBookSettings.vue";
+import ScriptoriumExportDialog from "./ScriptoriumExportDialog.vue";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useScriptoriumUiStore } from "@/scriptorium/stores/ui";
 import type { ScriptoriumDocument } from "@/scriptorium/types";
@@ -23,6 +24,7 @@ const mocks = await vi.hoisted(async () => {
   refetch: vi.fn(),
   list: vueRef<{ id: string; title: string }[]>([]),
   kind: "book" as "book" | "handout",
+  campaignId: null as string | null,
   query: {} as Record<string, string>,
   };
 });
@@ -68,7 +70,7 @@ vi.mock("@/scriptorium/composables/useBookChapterHtml", () => ({
 }));
 vi.mock("@/scriptorium/composables/useBookSettings", () => ({
   useBookSettings: () => ({
-    draft: { title: "Sothery", kind: mocks.kind, theme: "onednd2024", pageSize: "A4", isTwoColumn: false, showPageNumbers: false, pageNumberStart: 1, footerText: "", inkFriendly: false, campaignId: null, furniture: [], isPublished: false, tags: [] },
+    draft: { title: "Sothery", kind: mocks.kind, theme: "onednd2024", pageSize: "A4", isTwoColumn: false, showPageNumbers: false, pageNumberStart: 1, footerText: "", inkFriendly: false, campaignId: mocks.campaignId, furniture: [], isPublished: false, tags: [] },
     patch: vi.fn(),
     status: ref("saved"),
     saveError: ref(""),
@@ -130,21 +132,22 @@ const Drawer = defineComponent({
 });
 const Header = defineComponent({
   props: ["focus"],
-  emits: ["update:focus", "read"],
+  emits: ["update:focus", "read", "export"],
   setup(props, { emit }) {
     return () =>
       h("div", [
         h("button", { "data-testid": "focus", onClick: () => emit("update:focus", !props.focus) }),
         h("button", { "data-testid": "read", onClick: () => emit("read") }),
+        h("button", { "data-testid": "export", onClick: () => emit("export") }),
       ]);
   },
 });
 
 const doc = { id: "d1", title: "Sothery", kind: "book", doc_type: "custom", campaign_id: null, ai_provenance: null } as unknown as ScriptoriumDocument;
 
-function open() {
+function open(forDoc: ScriptoriumDocument = doc) {
   return mount(ScriptoriumBookEditor, {
-    props: { doc },
+    props: { doc: forDoc },
     global: {
       stubs: {
         ChapterRail: Rail,
@@ -171,6 +174,7 @@ beforeEach(() => {
   mocks.list.value = [{ id: "c1", title: "One" }, { id: "c2", title: "Two" }];
   mocks.query = {};
   mocks.kind = "book";
+  mocks.campaignId = null;
   mocks.saveNow.mockResolvedValue(undefined);
   mocks.hold.mockResolvedValue(undefined);
   mocks.deleteDoc.mockResolvedValue(undefined);
@@ -358,5 +362,24 @@ describe("ScriptoriumBookEditor", () => {
     wrapper.findComponent(ScriptoriumBookSettings).vm.$emit("delete");
     await flushPromises();
     expect(mocks.deleteDoc).not.toHaveBeenCalled();
+  });
+
+  describe("the campaign an export may attach", () => {
+    const exportCampaign = async (audience: "dm" | "players") => {
+      mocks.campaignId = "camp-1";
+      const wrapper = open({ ...doc, audience } as ScriptoriumDocument);
+      await flushPromises();
+      await wrapper.find("[data-testid=export]").trigger("click");
+      return wrapper.findComponent(ScriptoriumExportDialog).props("campaignId");
+    };
+
+    // Fails on: a players' book offering "Attach the campaign data", whose bundle carries the DM's own rows.
+    it("is withheld from a players' book", async () => {
+      expect(await exportCampaign("players")).toBeNull();
+    });
+
+    it("is the book's campaign for a DM's book, so the attach option is still offered there", async () => {
+      expect(await exportCampaign("dm")).toBe("camp-1");
+    });
   });
 });

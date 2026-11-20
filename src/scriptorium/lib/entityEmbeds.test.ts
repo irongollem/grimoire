@@ -95,6 +95,16 @@ describe("resolveEntityEmbeds", () => {
     expect(out).toContain("This monster is no longer available.");
   });
 
+  it("removes an entry the lookup lacks when asked to print nothing (a players' book), and keeps the marker for the DM", () => {
+    const html = '<p>Before</p><div data-type="entity-embed" data-entity-type="canon" data-entity-id="hidden"></div><p>After</p>';
+    const out = resolveEntityEmbeds(html, {}, "nothing");
+    expect(out).not.toContain("entity-embed");
+    expect(out).not.toContain("no longer available");
+    expect(out).toContain("Before");
+    expect(out).toContain("After");
+    expect(resolveEntityEmbeds(html, {})).toContain("no longer available");
+  });
+
   it.each([
     ["no entity id", '<div data-type="entity-embed" data-entity-type="npc"></div>'],
     ["no entity type", '<div data-type="entity-embed" data-entity-id="npc-1"></div>'],

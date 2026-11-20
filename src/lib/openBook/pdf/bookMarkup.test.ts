@@ -5,7 +5,7 @@ import { buildBookMarkup, coverMarkup, releaseLabel } from "./bookMarkup";
 
 function snapshot(book: Partial<OpenBookSnapshot["book"]> = {}): OpenBookSnapshot {
   return {
-    v: 1,
+    v: 2,
     book: {
       title: "The Saltreach",
       subtitle: "An account <of> the coast",
@@ -25,6 +25,7 @@ function snapshot(book: Partial<OpenBookSnapshot["book"]> = {}): OpenBookSnapsho
     pantheons: [],
     deities: [],
     lore: [],
+    truths: [],
     sessions: [
       { id: "s1", title: "Low tide", session: { number: 1, title: "Low tide" } },
     ] as unknown as OpenBookSnapshot["sessions"],

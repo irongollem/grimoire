@@ -15,7 +15,8 @@ select set_eq(
       where c.contype = 'f' and c.confrelid = 'public.campaign_sessions'::regclass $$,
   array['notes', 'session_proposals', 'encounter_state', 'npc_reveals', 'location_reveals',
         'handout_reveals', 'discovered_monsters', 'quest_beat_transitions', 'npc_memories',
-        'character_caretakers', 'agent_sessions', 'story_facts', 'party_member_memories'],
+        'character_caretakers', 'agent_sessions', 'story_facts', 'party_member_memories',
+        'canon_clues', 'canon_force_steps', 'canon_force_ticks', 'canon_lore_passages'],
   'the merge moves every link into the session log'
 );
 
@@ -51,9 +52,9 @@ insert into public.campaign_sessions (id, campaign_id, user_id, number, title, p
   ('98600000-0000-4000-8000-000000000023', '98600000-0000-4000-8000-000000000011', '98600000-0000-4000-8000-000000000003',
    14, 'Theirs', date '2026-10-02', null, null);
 
-insert into public.notes (id, user_id, campaign_id, title, category, session_id)
+insert into public.notes (id, user_id, campaign_id, title, session_id)
 values ('98600000-0000-4000-8000-000000000030', '98600000-0000-4000-8000-000000000001', '98600000-0000-4000-8000-000000000010',
-        'Recap', 'session', '98600000-0000-4000-8000-000000000021');
+        'Recap', '98600000-0000-4000-8000-000000000021');
 insert into public.session_proposals (id, user_id, campaign_id, proposed_date, title, session_id)
 values ('98600000-0000-4000-8000-000000000040', '98600000-0000-4000-8000-000000000001', '98600000-0000-4000-8000-000000000010',
         date '2026-10-02', 'Wolves', '98600000-0000-4000-8000-000000000021');

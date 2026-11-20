@@ -8,7 +8,10 @@ const session = vi.hoisted(() => ({ user: { id: "dm-1" } as { id: string } | nul
 
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => session.user }));
 
-import { createCanonEntry, deleteCanonEntry, fetchCanonEntries, updateCanonEntry } from "./useCanonEntries";
+const queue = vi.hoisted(() => vi.fn());
+vi.mock("./queueCanonEmbedding", () => ({ queueCanonEmbedding: queue }));
+
+import { createCanonEntry, deleteCanonEntry, updateCanonEntry } from "./useCanonEntries";
 
 const row = (over: Record<string, unknown>) => ({
   id: "e1", user_id: "dm-1", campaign_id: "c1", part: "truth", premise_kind: null, knowledge: "all", title: "t",
@@ -19,23 +22,8 @@ const row = (over: Record<string, unknown>) => ({
 describe("canon entries", () => {
   beforeEach(() => {
     fake.reset();
+    queue.mockClear();
     session.user = { id: "dm-1" };
-  });
-
-  it("reads only the asked campaign's canon, so a DM of two campaigns never sees one world's truths in the other", async () => {
-    fake.seed("canon_entries", [row({ id: "mine" }), row({ id: "other", campaign_id: "c2" })]);
-    const entries = await fetchCanonEntries("c1");
-    expect(entries.map((e) => e.id)).toEqual(["mine"]);
-  });
-
-  it("orders by the DM's order, not by when a row was made", async () => {
-    fake.seed("canon_entries", [row({ id: "b", sort_order: 2 }), row({ id: "a", sort_order: 1 })]);
-    expect((await fetchCanonEntries("c1")).map((e) => e.id)).toEqual(["a", "b"]);
-  });
-
-  it("throws the read's error instead of showing an empty canon", async () => {
-    fake.failNext("canon_entries", { message: "boom" });
-    await expect(fetchCanonEntries("c1")).rejects.toMatchObject({ message: "boom" });
   });
 
   it("stamps the signed-in user and the campaign on a new entry, with the mark it was given", async () => {
@@ -65,5 +53,36 @@ describe("canon entries", () => {
     fake.seed("canon_entries", [row({ id: "a" }), row({ id: "b" })]);
     await deleteCanonEntry("a");
     expect(fake.rows("canon_entries").map((r) => r.id)).toEqual(["b"]);
+  });
+
+  // Bug caught: a new entry never reached the by-meaning lookup, so the Narrator could not find what the DM just wrote.
+  it("queues a new entry for its embedding, and not when the insert failed", async () => {
+    fake.seed("canon_entries", []);
+    const created = await createCanonEntry("c1", { part: "truth", knowledge: "all", title: "x" });
+    expect(queue).toHaveBeenCalledWith(created.id);
+    queue.mockClear();
+    fake.failNext("canon_entries", { message: "boom" });
+    await expect(createCanonEntry("c1", { part: "truth", knowledge: "all", title: "y" })).rejects.toMatchObject({ message: "boom" });
+    expect(queue).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: an edit left the old words in the lookup; a reorder that re-embedded cost a request per drag.
+  it("queues an edit of the words, not a reorder, and nothing when RLS refused the write", async () => {
+    fake.seed("canon_entries", [row({ id: "a" })]);
+    await updateCanonEntry("a", { sort_order: 4 });
+    await updateCanonEntry("a", { knowledge: "secret" });
+    expect(queue).not.toHaveBeenCalled();
+    await updateCanonEntry("a", { wants: "More bells" });
+    expect(queue).toHaveBeenCalledWith("a");
+    queue.mockClear();
+    await expect(updateCanonEntry("missing", { title: "x" })).rejects.toThrow(/gone/);
+    expect(queue).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: the embedding table cascades from the entry, so queueing on delete would embed a row that is gone.
+  it("never queues on delete", async () => {
+    fake.seed("canon_entries", [row({ id: "a" })]);
+    await deleteCanonEntry("a");
+    expect(queue).not.toHaveBeenCalled();
   });
 });

@@ -62,6 +62,7 @@ const MISSING_LABEL: Record<EntityEmbedType, string> = {
   species: "This species is no longer available.",
   faction: "This faction is no longer available.",
   subclass: "This subclass is no longer available.",
+  canon: "This canon entry is no longer available.",
 };
 
 /** Visible marker shown in place of an embed whose entity no longer resolves. */
@@ -201,7 +202,13 @@ export const ENTITY_EMBED_MARKER = 'data-type="entity-embed"';
  * `data-*` attributes via `embedNodeOptionsFromElement` and applied after
  * injection.
  */
-export function resolveEntityEmbeds(html: string, lookup: EntityEmbedLookup): string {
+export function resolveEntityEmbeds(
+  html: string,
+  lookup: EntityEmbedLookup,
+  /** What an entry the lookup lacks becomes: a marker for the DM, who should know a link broke; nothing for a
+   *  players' book, whose lookup holds only what the table may read, so a missing entry is simply not there. */
+  whenMissing: "marker" | "nothing" = "marker",
+): string {
   if (!html.includes(ENTITY_EMBED_MARKER)) return html;
 
   const container = document.createElement("div");
@@ -211,6 +218,10 @@ export function resolveEntityEmbeds(html: string, lookup: EntityEmbedLookup): st
     const id = el.getAttribute("data-entity-id");
     if (!type || !id) return;
     const raw = lookup[entityRefKey({ type, id })];
+    if (raw === undefined && whenMissing === "nothing") {
+      el.remove();
+      return;
+    }
     el.innerHTML = sanitizeHtml(raw ?? missingEntityMarkerHtml(type));
 
     applyEmbedNodeOptions(el, embedNodeOptionsFromElement(el));

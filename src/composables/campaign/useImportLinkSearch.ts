@@ -20,6 +20,8 @@ import type { ImportEntityKind } from "@/types/documentImport.types";
 const SEARCH_KINDS_BY_IMPORT_KIND: Partial<Record<ImportEntityKind, readonly SearchKind[]>> = {
   npcs: ["npc", "deity"],
   factions: ["faction"],
+  deities: ["deity"],
+  canon: ["canon"],
   locations: ["location"],
   monsters: ["monster"],
   items: ["item"],
@@ -32,10 +34,13 @@ const ENCOUNTER_CAP = 20;
 export function hitToCandidate(
   hitKind: string,
   hit: { id: string; name: string; detail?: string | null; descriptor?: string | null },
+  /** The kind being reviewed. A deity picked for a *deity* entry is the campaign's own row, like any other kind's;
+   *  only a deity picked for an NPC is the "this NPC is my god" source. */
+  importKind?: ImportEntityKind,
 ): EntityCandidate {
   return {
     targetId: hit.id,
-    source: hitKind === "deity" ? "deity" : isUuid(hit.id) ? "campaign" : "library",
+    source: hitKind === "deity" && importKind !== "deities" ? "deity" : isUuid(hit.id) ? "campaign" : "library",
     name: hit.name,
     matchKind: "chosen",
     detail: hit.detail ?? hit.descriptor ?? null,

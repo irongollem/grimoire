@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { listTools } from "../mcp/tools";
-import { agentToolsFrom, bindTools, SOLO_TABLE_TOOLS } from "./mcpTools";
+import { ENTITY_TYPES } from "../mcp/registry";
+import { agentToolsFrom, bindTools, SOLO_TABLE_TOOLS, TABLE_REFUSED_TYPES } from "./mcpTools";
 
 describe("agentToolsFrom", () => {
   const tools = [
@@ -91,5 +92,62 @@ describe("SOLO_TABLE_TOOLS", () => {
       { type: "npc", campaign_id: "this-campaign" },
       { type: "npc", campaign_id: "this-campaign" },
     ]);
+  });
+});
+
+describe("bindTools with the table's type fence (#1226)", () => {
+  const fence = { refused: TABLE_REFUSED_TYPES, allTypes: ENTITY_TYPES };
+  const allow = new Set(["search", "get", "list"]);
+
+  it("refuses get and list of every canon type and never calls the reader", async () => {
+    const call = vi.fn(async () => ({ title: "the Stain's maker" }));
+    const run = bindTools(call, allow, undefined, {}, fence);
+    for (const type of TABLE_REFUSED_TYPES) {
+      expect((await run("get", { type, id: "x" })).isError).toBe(true);
+      expect((await run("list", { type })).isError).toBe(true);
+    }
+    expect(call).not.toHaveBeenCalled();
+  });
+
+  it("lets a type that is not canon through", async () => {
+    const call = vi.fn(async () => ({ name: "Harl" }));
+    const out = await bindTools(call, allow, undefined, {}, fence)("get", { type: "npc", id: "x" });
+    expect(out.isError).toBe(false);
+    expect(call).toHaveBeenCalledWith("get", { type: "npc", id: "x" });
+  });
+
+  it("searches every type but the canon ones when no types are named", async () => {
+    const call = vi.fn(async () => ({ hits: [] }));
+    await bindTools(call, allow, undefined, {}, fence)("search", { query: "stain" });
+    const types = (call.mock.calls[0] as unknown as [string, { types: string[] }])[1].types;
+    expect(types).toContain("npc");
+    for (const refused of TABLE_REFUSED_TYPES) expect(types).not.toContain(refused);
+  });
+
+  it("drops canon types a search names and refuses a search that names only canon", async () => {
+    const call = vi.fn(async () => ({ hits: [] }));
+    const run = bindTools(call, allow, undefined, {}, fence);
+    await run("search", { query: "stain", types: ["npc", "canon_clue"] });
+    expect((call.mock.calls[0] as unknown as [string, { types: string[] }])[1].types).toEqual(["npc"]);
+    expect((await run("search", { query: "stain", types: ["canon"] })).isError).toBe(true);
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+
+  it("holds the registry's canon types equal to the refused set", () => {
+    expect(ENTITY_TYPES.filter((t) => t.startsWith("canon")).sort()).toEqual([...TABLE_REFUSED_TYPES].sort());
+  });
+});
+
+describe("the table's tool schemas (#1226)", () => {
+  it("never offer a canon type in any enum, or the model is invited to ask for what the fence refuses", () => {
+    const shown = JSON.stringify(agentToolsFrom(listTools(), SOLO_TABLE_TOOLS, TABLE_REFUSED_TYPES).map((t) => t.inputSchema));
+    for (const type of TABLE_REFUSED_TYPES) expect(shown).not.toContain(`"${type}"`);
+    expect(shown).toContain('"npc"');
+  });
+
+  it("leave the other types as they were", () => {
+    const search = agentToolsFrom(listTools(), SOLO_TABLE_TOOLS, TABLE_REFUSED_TYPES).find((t) => t.name === "search")!;
+    const items = ((search.inputSchema.properties as Record<string, { items: { enum: string[] } }>).types).items.enum;
+    expect(items).toEqual(ENTITY_TYPES.filter((t) => !TABLE_REFUSED_TYPES.has(t)));
   });
 });

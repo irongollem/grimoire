@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
   handouts: [] as unknown[],
   notes: [] as unknown[],
   noticeBoards: [] as unknown[],
+  lore: [] as { entry: { id: string; title: string }; latestAt: string }[],
   newIds: new Set<string>(),
   questions: [] as { id: string; closed_at: string | null; mode: string; exclusive: boolean }[],
   questionAnswers: [] as { question_id: string; user_id: string; option_id: string | null }[],
@@ -31,6 +32,10 @@ vi.mock("@/composables/noticeBoards/usePlayerNoticeBoards", async () => {
   const { ref: r } = await import("vue");
   return { usePlayerNoticeBoards: () => ({ data: r(state.noticeBoards) }) };
 });
+vi.mock("@/composables/canon/usePlayerCanon", async () => {
+  const { ref: r } = await import("vue");
+  return { usePlayerCanon: () => ({ world: r({ onlyMine: [], known: [], lore: state.lore }) }) };
+});
 vi.mock("@/composables/player/useReadItems", () => ({
   useReadMarkers: () => ({ isNew: (type: string, id: string) => state.newIds.has(`${type}:${id}`) }),
 }));
@@ -52,6 +57,7 @@ beforeEach(() => {
   state.handouts = [];
   state.notes = [];
   state.noticeBoards = [];
+  state.lore = [];
   state.newIds = new Set();
   state.questions = [];
   state.questionAnswers = [];
@@ -81,7 +87,7 @@ describe("usePlayerUnread", () => {
     state.handouts = [{ id: "h1", updated_at: "2026-10-01" }];
     state.newIds.add("handout:h1");
     const { sections, journal, unreadPaths } = usePlayerUnread();
-    expect(sections.value).toEqual({ quests: false, puzzles: false, handouts: true, dmNotes: false, noticeBoards: false });
+    expect(sections.value).toEqual({ quests: false, puzzles: false, handouts: true, dmNotes: false, noticeBoards: false, world: false });
     expect(journal.value).toBe(true);
     expect(unreadPaths.value).toEqual(["/play/journal"]);
   });
@@ -105,9 +111,31 @@ describe("usePlayerUnread", () => {
     expect(usePlayerUnread().sections.value.quests).toBe(true);
   });
 
+  it("lights the Journal's World tab when a passage was told after the player last opened the lore", () => {
+    state.lore = [{ entry: { id: "l1", title: "The Fall of the Bakers' Guild" }, latestAt: "2026-11-02" }];
+    expect(usePlayerUnread().sections.value.world).toBe(false);
+    state.newIds.add("canon_lore:l1");
+    const { sections, unreadPaths } = usePlayerUnread();
+    expect(sections.value.world).toBe(true);
+    expect(unreadPaths.value).toEqual(["/play/journal"]);
+  });
+
+  it("lights The World, not DM Notes, for a new shared session note, and the reverse for a plain note", () => {
+    state.notes = [{ id: "n1", updated_at: "2026-11-02", session_id: "s1" }];
+    state.newIds.add("note:n1");
+    let { sections } = usePlayerUnread();
+    expect(sections.value.world).toBe(true);
+    expect(sections.value.dmNotes).toBe(false);
+    state.notes = [{ id: "n2", updated_at: "2026-11-02", session_id: null }];
+    state.newIds = new Set(["note:n2"]);
+    ({ sections } = usePlayerUnread());
+    expect(sections.value.world).toBe(false);
+    expect(sections.value.dmNotes).toBe(true);
+  });
+
   it("keeps entity types apart", () => {
     state.puzzles = [{ id: "p1", updated_at: "2026-10-01" }];
-    state.notes = [{ id: "p1", updated_at: "2026-10-01" }];
+    state.notes = [{ id: "p1", updated_at: "2026-10-01", session_id: null }];
     state.newIds.add("note:p1");
     const { sections } = usePlayerUnread();
     expect(sections.value.puzzles).toBe(false);
@@ -154,24 +182,28 @@ describe("unread items", () => {
       { id: "read-h", title: "Seen map", updated_at: "2026-10-12" },
     ];
     state.notes = [
-      { id: "n1", title: "Rumour", updated_at: "2026-10-01" },
+      { id: "n1", title: "Rumour", updated_at: "2026-10-01", session_id: null },
+      { id: "c1", title: "Session 3", updated_at: "2026-10-07", session_id: "s3" },
       { id: "read-n", title: "Old rumour", updated_at: "2026-10-12" },
     ];
     state.noticeBoards = [{ id: "b1", name: "The Rusty Flagon's board", updated_at: "2026-10-05" }];
-    state.newIds = new Set(["quest:q1", "quest:q0", "puzzle:p1", "handout:h1", "note:n1", "notice_board:b1"]);
+    state.lore = [{ entry: { id: "l1", title: "The Fall of the Bakers' Guild" }, latestAt: "2026-10-06" }];
+    state.newIds = new Set(["quest:q1", "quest:q0", "puzzle:p1", "handout:h1", "note:n1", "note:c1", "notice_board:b1", "canon_lore:l1"]);
     const { items, sections } = usePlayerUnread();
-    expect(items.value.map((i) => i.id)).toEqual(["h1", "p1", "q1", "n1"]);
-    expect(items.value[0].to).toEqual({ name: "play-handout", params: { id: "h1" } });
-    expect(items.value[2].to).toEqual({ name: "play-quest-detail", params: { id: "q1" } });
-    expect(items.value[1].to).toEqual({ name: "play-journal", query: { tab: "puzzles" } });
-    expect(items.value[3].to).toEqual({ name: "play-journal", query: { tab: "dm-notes" } });
+    expect(items.value.map((i) => i.id)).toEqual(["c1", "l1", "h1", "p1", "q1", "n1"]);
+    expect(items.value[0].to).toEqual({ name: "play-journal", query: { tab: "world" } });
+    expect(items.value[0].kind).toBe("chronicle");
+    expect(items.value[2].to).toEqual({ name: "play-handout", params: { id: "h1" } });
+    expect(items.value[4].to).toEqual({ name: "play-quest-detail", params: { id: "q1" } });
+    expect(items.value[3].to).toEqual({ name: "play-journal", query: { tab: "puzzles" } });
+    expect(items.value[5].to).toEqual({ name: "play-journal", query: { tab: "dm-notes" } });
     expect(Object.values(sections.value).every(Boolean)).toBe(true);
   });
 
   it("is empty when everything is read, and tolerates undefined lists", () => {
     const never = () => false;
     expect(
-      collectUnreadItems({ quests: undefined, puzzles: undefined, handouts: undefined, notes: undefined, isNew: { quest: never, puzzle: never, handout: never, note: never } }),
+      collectUnreadItems({ quests: undefined, puzzles: undefined, handouts: undefined, notes: undefined, lore: undefined, isNew: { quest: never, puzzle: never, handout: never, note: never, lore: never, chronicle: never } }),
     ).toEqual([]);
   });
 });

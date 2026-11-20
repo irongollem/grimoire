@@ -347,3 +347,23 @@ describe("deity candidates for an NPC", () => {
     expect(parseImportMatches(raw).matches.size).toBe(0);
   });
 });
+
+describe("defaultDecision for a deity or a canon entry (#1226)", () => {
+  it("links to an exact match and creates for a near or contained one: a canon title is a sentence, not a name", () => {
+    expect(defaultDecision("canon", { title: "x" }, [candidate({ matchKind: "exact" })])).toMatchObject({ action: "link" });
+    expect(defaultDecision("canon", { title: "x" }, [candidate({ matchKind: "contains" })])).toEqual({ action: "create" });
+    expect(defaultDecision("deities", { name: "x" }, [candidate({ matchKind: "near" })])).toEqual({ action: "create" });
+    expect(defaultDecision("deities", { name: "x" }, [candidate({ matchKind: "exact" })])).toMatchObject({ action: "link" });
+  });
+
+  it("still links an NPC to a contained match, as before", () => {
+    expect(defaultDecision("npcs", { name: "x" }, [candidate({ matchKind: "contains" })])).toMatchObject({ action: "link" });
+  });
+});
+
+describe("parseImportMatches keeps the new kinds", () => {
+  it("does not drop candidates the server found for deities and canon", () => {
+    const raw = { matches: { deities: { d1: [{ targetId: "id", source: "campaign", name: "Bell-Note", matchKind: "exact" }] }, canon: { c1: [{ targetId: "id2", source: "campaign", name: "A truth", matchKind: "exact" }] } } };
+    expect([...parseImportMatches(raw).matches.keys()].sort()).toEqual(["canon", "deities"]);
+  });
+});

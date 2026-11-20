@@ -3,6 +3,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import type { Connection } from "@/types/connections.types";
 import type { CanonEntry } from "@/types/canon.types";
+import { canonEntry } from "@/test/canonEntry";
 
 const mocks = vi.hoisted(() => ({ update: vi.fn(), create: vi.fn(), remove: vi.fn() }));
 const rows = ref<Connection[]>([]);
@@ -18,10 +19,8 @@ vi.mock("@/composables/canon/useCanonEntries", () => ({
 
 import TruthDetail from "./TruthDetail.vue";
 
-const entry = (over: Partial<CanonEntry> = {}): CanonEntry => ({
-  id: "t1", user_id: "u", campaign_id: "c", part: "truth", premise_kind: null, knowledge: "some",
-  title: "The river gives back.", body: null, sort_order: 0, player_visible_to: [], image_url: null,
-  ai_provenance: null, created_at: "", updated_at: "", ...over,
+const entry = (over: Partial<CanonEntry> = {}): CanonEntry => canonEntry({
+  id: "t1", part: "truth", knowledge: "some", title: "The river gives back.", ...over,
 });
 
 const knower = (over: Partial<Connection> = {}): Connection => ({

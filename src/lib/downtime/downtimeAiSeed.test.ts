@@ -184,12 +184,12 @@ describe("rewardFromAi", () => {
     expect(attunement(true)).toMatchObject({ item: { requires_attunement: true } });
   });
 
-  it("builds a note, keeping a valid category and falling back to general", () => {
+  it("builds a note from the model's title, body and tags and ignores a category it still sends", () => {
+    // Fails if a stale `category` from the model leaks onto the seed (notes have no category any more).
     expect(rewardFromAi({ kind: "note", note: { title: "T", body: "B", category: "lore", tags: ["r"] } }, "note")).toEqual({
       kind: "note",
-      note: { title: "T", body: "B", category: "lore", tags: ["r"] },
+      note: { title: "T", body: "B", tags: ["r"] },
     });
-    expect(rewardFromAi({ kind: "note", note: { title: "T", body: "B", category: "rumours" } }, "note")).toMatchObject({ note: { category: "general" } });
   });
 
   it("throws when a note has no body", () => {

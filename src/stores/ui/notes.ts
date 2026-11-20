@@ -1,17 +1,15 @@
 // Notes list filters and sorts, and the player journal filters.
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import type { NoteCategory } from "@/types/notes.types";
 import type { JournalCategory } from "@/composables/notes/usePlayerJournal";
 import type { SortField, SortDir } from "@/lib/noteSort";
 
 export const useNotesUiStore = defineStore("ui:notes", () => {
   // Notes UI state
-  const notesFilterCategory = ref<NoteCategory | "all">("all");
   const notesSearchQuery = ref("");
   const activeNoteId = ref<string | null>(null);
   const notesHasActiveFilters = computed(
-    () => notesSearchQuery.value !== "" || notesFilterCategory.value !== "all",
+    () => notesSearchQuery.value !== "",
   );
   // Sort state — DM notes list and player journal (shared default: newest created first)
   const notesSortBy = ref<SortField>("created");
@@ -24,12 +22,10 @@ export const useNotesUiStore = defineStore("ui:notes", () => {
   function resetJournalFilters() { journalFilterCategory.value = null; }
 
   function resetNotesFilters() {
-    notesFilterCategory.value = "all";
     notesSearchQuery.value = "";
   }
 
   return {
-    notesFilterCategory,
     notesSearchQuery,
     notesHasActiveFilters,
     activeNoteId,

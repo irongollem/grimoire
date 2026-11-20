@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(41);
+select plan(42);
 
 -- open_book (20261023230210, #1085): the owner releases a frozen snapshot of what the whole party can read.
 -- Proven here: only the owner reaches the book, its releases and its two functions; a release needs Pro; anon
@@ -62,17 +62,23 @@ insert into public.locations (id, user_id, campaign_id, parent_id, name, player_
    '10850000-0000-4000-8000-000000000041', 'The Cellar',
    array['10850000-0000-4000-8000-000000000020', '10850000-0000-4000-8000-000000000021']::uuid[]);
 
--- A lore note whose mention has no attrs (an import's shape): it must not stop the book from being built.
-insert into public.notes (id, user_id, campaign_id, title, category, content, player_visible_to) values
+-- Lore (#1226: the canon's, no longer notes) whose mention has no attrs (an import's shape): it must not stop the book
+-- from being built.
+insert into public.canon_entries (id, user_id, campaign_id, title, part, body, player_visible_to) values
   ('10850000-0000-4000-8000-000000000071', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'Odd shape', 'lore',
    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"entityMention"},{"type":"entityMention","attrs":{"id":7}}]}]}',
    array['10850000-0000-4000-8000-000000000020', '10850000-0000-4000-8000-000000000021']::uuid[]);
 
--- A lore note that mentions the disguised man by id, as the editor stores a mention.
-insert into public.notes (id, user_id, campaign_id, title, category, content, player_visible_to) values
+-- Lore that mentions the disguised man by id, as the editor stores a mention.
+insert into public.canon_entries (id, user_id, campaign_id, title, part, body, player_visible_to) values
   ('10850000-0000-4000-8000-000000000070', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'The pilgrim', 'lore',
    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"entityMention","attrs":{"id":"10850000-0000-4000-8000-000000000032","entityType":"npc"}},{"type":"text","text":" walked in at dusk."}]}]}',
    array['10850000-0000-4000-8000-000000000020', '10850000-0000-4000-8000-000000000021']::uuid[]);
+
+-- A truth known to all goes in the book; a secret truth never does.
+insert into public.canon_entries (id, user_id, campaign_id, title, part, knowledge) values
+  ('10850000-0000-4000-8000-000000000072', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'The tide takes the bold.', 'truth', 'all'),
+  ('10850000-0000-4000-8000-000000000073', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'OB-CANON-SECRET', 'truth', 'secret');
 
 insert into public.deities (id, user_id, campaign_id, name, description, player_visible_to) values
   ('10850000-0000-4000-8000-000000000050', '10850000-0000-4000-8000-000000000001', '10850000-0000-4000-8000-000000000010', 'Orla',
@@ -181,8 +187,12 @@ select is(
 select ok(
   (select count(*) = 2 from jsonb_array_elements(public.preview_open_book('10850000-0000-4000-8000-000000000010')->'lore')),
   'a mention with no id is skipped, not an error that stops the preview');
+select is(
+  (select array_agg(t->>'title') from jsonb_array_elements(public.preview_open_book('10850000-0000-4000-8000-000000000010')->'truths') t),
+  array['The tide takes the bold.'],
+  'the book prints the truths known to all, and no secret truth');
 select ok(
-  public.preview_open_book('10850000-0000-4000-8000-000000000010')::text !~ '(OB-SECRET-BACKSTORY|OB-True-Name|OB-SECRET-BLOCK|OB-DM-LOCATION-NOTE|OB-DEITY-SECRET|OB-HIDDEN-EVENT|OB-Only-Ada-Knows|OB-Taken-Out|OB-Taken-Place|OB-TIE-DM-NOTE|OB-TIE-ADA-ONLY|OB-TIE-UNSEEN-END)',
+  public.preview_open_book('10850000-0000-4000-8000-000000000010')::text !~ '(OB-SECRET-BACKSTORY|OB-True-Name|OB-SECRET-BLOCK|OB-DM-LOCATION-NOTE|OB-DEITY-SECRET|OB-HIDDEN-EVENT|OB-Only-Ada-Knows|OB-Taken-Out|OB-Taken-Place|OB-TIE-DM-NOTE|OB-TIE-ADA-ONLY|OB-TIE-UNSEEN-END|OB-CANON-SECRET)',
   'nothing the table cannot read appears anywhere in the snapshot');
 select results_eq(
   $$ select t->>'type' || ':' || (t->>'told') from jsonb_array_elements(public.preview_open_book('10850000-0000-4000-8000-000000000010')->'ties') t

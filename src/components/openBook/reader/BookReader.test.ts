@@ -14,16 +14,16 @@ const book: PublicOpenBook = {
   slug: "salt",
   allow_pdf: true,
   indexable: false,
-  release: { number: 3, note: null, created_at: "2026-10-23T10:00:00Z", pdf_url: "https://example.test/salt.pdf", stats: { places: 2, folk: 0, factions: 0, pantheons: 0, deities: 0, lore: 0, sessions: 0, events: 0 } },
+  release: { number: 3, note: null, created_at: "2026-10-23T10:00:00Z", pdf_url: "https://example.test/salt.pdf", stats: { places: 2, folk: 0, factions: 0, pantheons: 0, deities: 0, lore: 0, truths: 0, sessions: 0, events: 0 } },
   snapshot: {
-    v: 1,
+    v: 2,
     book: { title: "The Saltreach", subtitle: "A drowned coast", cover_art: "tooled", cover_image_url: null, leather: "oxblood", chapters: ["atlas"], campaign_name: "C" },
     calendar: { calendar_id: null, custom_calendar: null, current: { year: null, month: null, day: null } },
     places: [
       { id: "town", parent_id: null, name: "Hollowmere", location_type: null, player_summary: null, description: doc("Boats."), image_url: null, tags: null, is_level: null, is_battle_map: null, npcs_shared: null, map: null, pins: [] },
       { id: "stair", parent_id: null, name: "Toll Stair", location_type: null, player_summary: null, description: null, image_url: null, tags: null, is_level: null, is_battle_map: null, npcs_shared: null, map: null, pins: [] },
     ],
-    folk: [], factions: [], pantheons: [], deities: [], lore: [], sessions: [], events: [], names: {},
+    folk: [], factions: [], pantheons: [], deities: [], lore: [], truths: [], sessions: [], events: [], names: {},
   },
 };
 

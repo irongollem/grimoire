@@ -166,10 +166,10 @@ async function main() {
 
   sql(
     db,
-    `insert into public.notes (user_id, campaign_id, title, content, category, tags, is_pinned)
+    `insert into public.notes (user_id, campaign_id, title, content, tags, is_pinned)
      values
-       (${dm}, ${campaign}, 'Perf pinned note', ${prose("A pinned note the dashboard shows.")}, 'general', '{perf}', true),
-       (${dm}, ${campaign}, 'Perf plain note', ${prose("A second note, not pinned.")}, 'lore', '{perf}', false);`,
+       (${dm}, ${campaign}, 'Perf pinned note', ${prose("A pinned note the dashboard shows.")}, '{perf}', true),
+       (${dm}, ${campaign}, 'Perf plain note', ${prose("A second note, not pinned.")}, '{perf}', false);`,
   );
 
   sql(

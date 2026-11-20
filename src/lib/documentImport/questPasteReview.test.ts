@@ -98,3 +98,14 @@ describe("deriveImportDisplayName", () => {
     expect(result).toHaveLength(60);
   });
 });
+
+describe("summarizeOtherKinds and the canon", () => {
+  it("never offers canon or deities as 'also found' in a pasted quest: those are a book's sections, not a page's", () => {
+    const extracted = {
+      npcs: [namedEntity("n1", "Tam")],
+      deities: [namedEntity("d1", "Bell-Note")],
+      canon: [{ ref: "c1", page: 1, confidence: "complete" as const, data: { title: "A truth", part: "truth" } }],
+    } as unknown as ExtractionResult;
+    expect(summarizeOtherKinds(extracted).map((group) => group.kind)).toEqual(["npcs"]);
+  });
+});

@@ -9,11 +9,11 @@
           An import is already in progress ("{{ foreignActive.display_name }}").
         </p>
         <p class="text-caption text-muted-foreground">
-          Only one document import runs at a time per campaign. Finish or discard it in Document Import before
+          Only one document import runs at a time per campaign. Finish or discard it in Bring in a book before
           pasting another page here.
         </p>
         <div class="flex justify-end pt-1">
-          <AppButton to="/campaign/settings?tab=import" variant="primary" size="md" label="Open Document Import" />
+          <AppButton to="/canon/import" variant="primary" size="md" label="Open Bring in a book" />
         </div>
       </div>
     </template>
@@ -81,8 +81,8 @@
           {{ labelledRouteCount }} route{{ labelledRouteCount === 1 ? "" : "s" }} named.
         </p>
         <p v-if="primaryQuest.extraCount > 0" class="text-caption text-muted-foreground">
-          This page describes {{ primaryQuest.extraCount + 1 }} possible quests. Only the first is used here. Open
-          Document Import in Campaign Settings to review the rest.
+          This page describes {{ primaryQuest.extraCount + 1 }} possible quests. Only the first is used here. Bring in
+          a book from the Canon page to review the rest.
         </p>
       </template>
       <template v-else>
@@ -230,7 +230,7 @@ import { safeSessionStorage } from "@/lib/safeLocalStorage";
  * extraction" as its own confirmed step), this panel simply refuses to start
  * a *second* paste while one is already active: `foreignActive` below is
  * non-null exactly when an active row exists that this panel didn't create,
- * and the DM is pointed at Document Import to finish or discard it there.
+ * and the DM is pointed at Bring in a book to finish or discard it there.
  * That also sidesteps a real correctness risk: if the wizard had already
  * reviewed some kinds of that other row, blindly re-running every kind here
  * would import them twice. `myRowId` — persisted to sessionStorage so a mode
@@ -238,7 +238,7 @@ import { safeSessionStorage } from "@/lib/safeLocalStorage";
  * panel's only way to tell "the active row is mine."
  *
  * A hard refresh mid-extraction loses that local `myRowId` and this panel
- * then treats its own row as foreign, pointing the DM at Document Import
+ * then treats its own row as foreign, pointing the DM at Bring in a book
  * instead of resuming the compact view inline. Nothing is lost — the same
  * row, fully intact, is what the full wizard picks up there, including
  * creating the quest when it reaches that step — this is a known, accepted
@@ -332,7 +332,7 @@ const isLoadingActive = activeImportQuery.isPending;
 
 const isMine = computed(() => activeImport.value !== null && activeImport.value.id === myRowId.value);
 const foreignActive = computed(() => (activeImport.value && !isMine.value ? activeImport.value : null));
-// A wiki export (#932) is never this panel's own row: it is created and reviewed on the Document Import tab, so an
+// A wiki export (#932) is never this panel's own row: it is created and reviewed on the Bring in a book page, so an
 // active one is always `foreignActive` here and the DM is pointed there to finish or discard it.
 const row = computed(() => {
   const active = activeImport.value;

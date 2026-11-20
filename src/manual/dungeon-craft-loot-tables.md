@@ -43,7 +43,7 @@ A named vault item with:
 
 A fixed coin amount with:
 
-- **Coins**: one field per coin of your campaign's currency (the D&D coins unless you changed them in Campaign settings → Currency).
+- **Coins**: one field per coin of your campaign's currency (the D&D coins unless you changed them in Canon, under *How the world works*).
 - **Drop Chance**: 1–100%.
 - **Label**: optional, e.g. "Coin purse" or "Hidden cache".
 

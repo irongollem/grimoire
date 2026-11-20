@@ -14,6 +14,8 @@ import { useAllDeities } from "@/composables/deities/useDeities";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import { useCampaignCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
+import { useCanonEntries } from "@/composables/canon/useCanonEntries";
+import { canonEntryName, canonPartLabel } from "@/scriptorium/lib/canonBook";
 import { spellLevelLabel } from "@/types/spell.types";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import { locationDot, monsterDot, npcDot, npcSubtitle, spellDot, type KitCampaignEntry } from "@/scriptorium/lib/kit/campaignEntries";
@@ -29,6 +31,7 @@ export function useKitCampaignEntries() {
   const { data: speciesList, isLoading: speciesLoading } = useCampaignSpecies();
   const { data: factions, isPending: factionsLoading } = useAllFactions();
   const { data: subclasses, isLoading: subclassesLoading } = useCampaignCustomSubclasses();
+  const { data: canon, isPending: canonLoading } = useCanonEntries();
 
   const entries = computed<KitCampaignEntry[]>(() => [
     ...(npcs.value ?? []).map((n) => ({
@@ -83,6 +86,10 @@ export function useKitCampaignEntries() {
       subtitle: sc.class_name,
       dot: null,
     })),
+    // The chronicle is a record of play, not canon a book draws on.
+    ...(canon.value ?? [])
+      .filter((e) => e.part !== "chronicle")
+      .map((e) => ({ id: e.id, type: "canon" as const, name: canonEntryName(e), subtitle: canonPartLabel(e), dot: null })),
   ]);
 
   const isLoading = computed(
@@ -96,7 +103,8 @@ export function useKitCampaignEntries() {
       deitiesLoading.value ||
       speciesLoading.value ||
       factionsLoading.value ||
-      subclassesLoading.value,
+      subclassesLoading.value ||
+      canonLoading.value,
   );
 
   return { entries, isLoading };

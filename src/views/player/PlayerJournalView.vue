@@ -179,9 +179,11 @@
       :selected-note="selectedNote"
       :is-note-new="isNoteNew"
       :format-date="formatDate"
-      :NOTE_CATEGORIES="NOTE_CATEGORIES"
       @toggle-note="toggleNote"
     />
+
+    <!-- The World tab: truths and the lore the party has been told (#1226) -->
+    <PlayerJournalWorldTab v-else-if="activeTab === 'world'" />
 
     <!-- Handouts tab -->
     <PlayerJournalHandoutsTab
@@ -257,7 +259,7 @@ import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd, IconCalendarDays, IconDocument, IconFeather, IconLocation, IconLock, IconMessage, IconPopulate, IconReveal, IconSave, IconScrollText, IconSearch, IconShield, IconStar } from '@/lib/icons';
+import { IconAdd, IconCalendarDays, IconFeather, IconLock, IconMessage, IconPopulate, IconReveal, IconSave, IconScrollText, IconSearch, IconStar } from '@/lib/icons';
 import TabBar from "@/components/common/controls/TabBar.vue";
 import SortControl from "@/components/common/controls/SortControl.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -270,9 +272,12 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import PlayerJournalMyTab from "./PlayerJournalMyTab.vue";
 import PlayerJournalPartyTab from "./PlayerJournalPartyTab.vue";
 import PlayerJournalDmNotesTab from "./PlayerJournalDmNotesTab.vue";
+import PlayerJournalWorldTab from "./PlayerJournalWorldTab.vue";
 import PlayerJournalHandoutsTab from "./PlayerJournalHandoutsTab.vue";
 import PlayerJournalNoticeBoardsTab from "./PlayerJournalNoticeBoardsTab.vue";
 import { usePlayerNoticeBoards } from "@/composables/noticeBoards/usePlayerNoticeBoards";
+import { listedNotes } from "@/lib/notes/noteSessions";
+import { usePlayerCanon } from "@/composables/canon/usePlayerCanon";
 import { usePlayerHandouts } from "@/scriptorium/composables/usePlayerHandouts";
 import PlayerJournalQuestLogTab from "./PlayerJournalQuestLogTab.vue";
 import PlayerJournalPuzzlesTab from "./PlayerJournalPuzzlesTab.vue";
@@ -305,7 +310,6 @@ import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonsters
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import { usePlayerVisibleNotes } from "@/composables/notes/useNotes";
 import { usePlayerEntityMentionItems } from "@/composables/player/usePlayerEntityMentionItems";
-import type { NoteCategory } from "@/types/notes.types";
 import { useAuthStore } from "@/stores/auth";
 import { useMemberByUserId } from "@/composables/campaign/useCampaignMembers";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
@@ -369,7 +373,7 @@ const showClear = computed(
 );
 // A tome tab and the DM's, handout, board, quest and puzzle tabs hold nothing the player writes.
 const showNewEntry = computed(
-  () => !activeTome.value && !["dm-notes", "handouts", "notice-boards", "quest-log", "puzzles"].includes(activeTab.value),
+  () => !activeTome.value && !["dm-notes", "handouts", "notice-boards", "quest-log", "puzzles", "world"].includes(activeTab.value),
 );
 const sortOptions = computed(() =>
   activeTab.value === "party" ? SORT_OPTIONS_NO_MANUAL : SORT_OPTIONS_FULL,
@@ -397,7 +401,8 @@ function categoryIcon(cat: string): Component {
 // sees exactly that member's notes.
 const { data: notesRaw, isLoading: loadingNotes } = usePlayerVisibleNotes();
 const dmNotes = computed(() => {
-  const list = notesRaw.value ?? [];
+  // Session notes are read in The World's Chronicle, so DM Notes lists the rest.
+  const list = listedNotes(notesRaw.value ?? []);
   // Pinned float to the top (except in manual mode, which is a pure user order);
   // within each group apply the chosen sort.
   if (sortBy.value === "manual") return sortEntities(list, "manual", sortDir.value);
@@ -405,15 +410,6 @@ const dmNotes = computed(() => {
   const rest = sortEntities(list.filter((n) => !n.is_pinned), sortBy.value, sortDir.value);
   return [...pinned, ...rest];
 });
-
-const NOTE_CATEGORIES: Record<NoteCategory, { label: string; color: string; icon: Component }> = {
-  general:  { label: "General",  color: "#6b7280", icon: IconDocument },
-  session:  { label: "Session",  color: "#3b82f6", icon: IconCalendarDays },
-  lore:     { label: "Lore",     color: "#a855f7", icon: IconPopulate },
-  location: { label: "Location", color: "#10b981", icon: IconLocation },
-  quest:    { label: "Quest",    color: "#f59e0b", icon: IconScrollText },
-  faction:  { label: "Faction",  color: "#06b6d4", icon: IconShield },
-};
 
 const { isNew: isNoteNew } = useReadItems("note");
 const { isNew: isQuestNew } = useReadItems("quest");
@@ -438,8 +434,8 @@ const router = useRouter();
 // admitting an arbitrary tome item id — TabBar's own T stays inferred as
 // this widened type wherever activeTab feeds it, so the static tabs simply
 // show none-active while a tome tab is open.
-type TabId = "mine" | "party" | "quest-log" | "puzzles" | "dm-notes" | "handouts" | "notice-boards" | (string & {});
-const VALID_TABS: TabId[] = ["mine", "party", "quest-log", "puzzles", "dm-notes", "handouts", "notice-boards"];
+type TabId = "mine" | "party" | "quest-log" | "puzzles" | "dm-notes" | "handouts" | "notice-boards" | "world" | (string & {});
+const VALID_TABS: TabId[] = ["mine", "party", "world", "quest-log", "puzzles", "dm-notes", "handouts", "notice-boards"];
 
 // One tab per document item currently in the party's inventory — derived
 // from the inventory + player-visible-items queries rather than stored
@@ -470,6 +466,7 @@ function setTab(id: TabId) {
 const TABS = computed(() => [
   { id: "mine"      as const, label: "My Journal",    count: myEntries.value?.length ?? 0 },
   { id: "party"     as const, label: "Party Journal", count: sharedEntries.value?.length ?? 0 },
+  { id: "world"     as const, label: "The World",     count: worldCount.value, dot: unread.value.world },
   // Count only quests that fall into a rendered group (see questGroups) — shared
   // `undiscovered` quests would otherwise inflate the badge past the visible list.
   { id: "quest-log" as const, label: "Quest Log",     count: (playerQuests.value ?? []).filter((q) => QUEST_LOG_STATUSES.includes(q.status)).length, dot: unread.value.quests },
@@ -482,6 +479,12 @@ const TABS = computed(() => [
 // A tab dot is the same rule as the card dots below it (usePlayerUnread), so a
 // tab never promises news its list does not show.
 const { sections: unread } = usePlayerUnread();
+const { world: playerWorld } = usePlayerCanon();
+const worldCount = computed(() => {
+  const w = playerWorld.value;
+  const chronicle = (notesRaw.value ?? []).filter((n) => n.session_id !== null).length;
+  return (w ? w.onlyMine.length + w.known.length + w.lore.length : 0) + chronicle;
+});
 
 const questGroups = computed<[string, Quest[]][]>(() => [
   ["Active",    (playerQuests.value ?? []).filter((q) => q.status === "active")],

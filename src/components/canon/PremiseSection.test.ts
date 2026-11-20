@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import type { Campaign } from "@/types/campaign.types";
 import type { CanonEntry } from "@/types/canon.types";
+import { canonEntry } from "@/test/canonEntry";
 
 vi.mock("@/composables/canon/useCanonEntries", () => ({
   useCreateCanonEntry: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: { value: false } }),
@@ -17,10 +18,7 @@ vi.mock("@tanstack/vue-query", async (importOriginal) => ({
 
 import PremiseSection from "./PremiseSection.vue";
 
-const entry = (over: Partial<CanonEntry>): CanonEntry => ({
-  id: "e", user_id: "u", campaign_id: "c1", part: "premise", premise_kind: "theme", knowledge: null, title: "x",
-  body: null, sort_order: 0, player_visible_to: [], image_url: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
-});
+const entry = (over: Partial<CanonEntry>): CanonEntry => canonEntry({ id: "e", campaign_id: "c1", part: "premise", premise_kind: "theme", ...over });
 
 const RevealStub = { name: "AudienceRevealControl", template: "<i data-testid='reveal' />" };
 

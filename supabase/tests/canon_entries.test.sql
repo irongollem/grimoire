@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(23);
+select plan(24);
 
 -- canon_entries (20261119214935, #1226): the campaign's canon. Only the campaign's DMs read or write the table; a
 -- player reads get_player_canon, which applies each part's audience (a truth's knowledge mark, the premise's reveal
@@ -125,6 +125,10 @@ select is(
   'true',
   'changing an AI-written truth''s words marks it edited, so its AI label says the DM changed it');
 
+select throws_ok($$
+  update public.canon_entries set part = 'lore' where id = '12260000-0000-4000-8000-000000000104'
+$$, '23514', null, 'an entry''s part never changes, so a secret cannot become lore its clues then hang off');
+
 -- ── The player reads ───────────────────────────────────────────────────────────
 select set_config('request.jwt.claim.sub', '12260000-0000-4000-8000-000000000002', true);
 
@@ -158,9 +162,10 @@ select ok(
 select ok(
   not exists (select 1 from public.get_player_canon('12260000-0000-4000-8000-000000000010') where part = 'force'),
   'what is moving never reaches a player');
-select is_empty(
-  $$ select 1 from public.get_player_canon('12260000-0000-4000-8000-000000000010') where player_visible_to <> '{}' $$,
-  'the players'' read never hands out who else was told');
+select ok(
+  not exists (select 1 from pg_proc p, unnest(p.proargnames) as n
+               where p.proname = 'get_player_canon' and n in ('player_visible_to', 'user_id')),
+  'the players'' read never hands out who else was told, or who wrote it');
 
 -- ── Someone else ───────────────────────────────────────────────────────────────
 select set_config('request.jwt.claim.sub', '12260000-0000-4000-8000-000000000004', true);

@@ -232,9 +232,9 @@ select throws_ok(
   $$ update public.npc_reveals set revealed_at = now() where npc_id = '98500000-0000-4000-8000-000000000060' $$,
   '42501', null, 'but cannot rewrite when it happened');
 
-insert into public.notes (id, user_id, campaign_id, title, category, session_id)
+insert into public.notes (id, user_id, campaign_id, title, session_id)
 values ('98500000-0000-4000-8000-000000000090', '98500000-0000-4000-8000-000000000001', '98500000-0000-4000-8000-000000000010',
-        'Recap', 'session', current_setting('grimoire.s15')::uuid);
+        'Recap', current_setting('grimoire.s15')::uuid);
 select is((select s.number from public.notes n join public.campaign_sessions s on s.id = n.session_id
             where n.id = '98500000-0000-4000-8000-000000000090'), 15, 'a session note reads its number through its session');
 

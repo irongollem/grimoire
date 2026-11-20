@@ -29,11 +29,24 @@ import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText } from "../_shared/worldBlock.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import {
+  clueShape,
+  forceShape,
+  isLoreKind,
+  loreShape,
   premiseShape,
+  questionShape,
+  sanitizeClues,
+  sanitizeForces,
+  sanitizeLore,
   sanitizePremise,
+  sanitizeQuestions,
   sanitizeTruths,
   truthShape,
+  type ForceQuestRef,
+  type ForceWho,
   type KnowerCandidate,
+  type LoreKind,
+  type SpotCandidate,
 } from "../_shared/canonSuggestions.ts";
 
 /**
@@ -51,16 +64,26 @@ const admin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-type Mode = "premise" | "truths";
+type Mode = "premise" | "truths" | "clues" | "questions" | "forces" | "lore";
 
 const MODES: Record<Mode, { promptRow: string; ledger: string }> = {
   premise: { promptRow: "canon_premise", ledger: "canon_premise_suggestion" },
   truths: { promptRow: "canon_truths", ledger: "canon_truth_suggestion" },
+  clues: { promptRow: "canon_clues", ledger: "canon_clue_suggestion" },
+  questions: { promptRow: "canon_questions", ledger: "canon_question_suggestion" },
+  forces: { promptRow: "canon_forces", ledger: "canon_force_suggestion" },
+  lore: { promptRow: "canon_lore", ledger: "canon_lore_suggestion" },
 };
+
+const isMode = (v: unknown): v is Mode => typeof v === "string" && Object.hasOwn(MODES, v);
 
 const MAX_NPCS = 40;
 const MAX_FACTIONS = 30;
 const MAX_PCS = 20;
+const MAX_LOCATIONS = 40;
+const MAX_BEATS = 40;
+const MAX_QUESTS = 30;
+const MAX_TEXT_CHARS = 4000;
 
 /** Every read is filtered by campaign in the query: the service-role client has no RLS to lean on. */
 async function readRows<T>(query: PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
@@ -86,6 +109,54 @@ async function loadKnowers(db: SupabaseClient, campaignId: string): Promise<Know
   ];
 }
 
+/** Rows of a canon part (title and body), DM-only, read with the campaign in the query. */
+function canonTitles(db: SupabaseClient, campaignId: string, part: string) {
+  return readRows<{ title: string }>(db.from("canon_entries").select("title").eq("campaign_id", campaignId).eq("part", part));
+}
+
+const listOfTitles = (rows: { title: string }[]): string[] => rows.map((r) => r.title.trim()).filter((t) => t !== "");
+
+const bullets = (items: string[], none = "(none yet)"): string => (items.length > 0 ? items.map((t) => `- ${t}`).join("\n") : none);
+
+/** Places, people and quest beats a clue or a lore passage may lie at. */
+async function loadSpots(db: SupabaseClient, campaignId: string): Promise<{ spots: SpotCandidate[]; beatQuest: Map<string, string> }> {
+  const [locations, npcs, beats] = await Promise.all([
+    readRows<{ id: string; name: string }>(
+      db.from("locations").select("id, name").eq("campaign_id", campaignId).order("updated_at", { ascending: false }).limit(MAX_LOCATIONS),
+    ),
+    readRows<{ id: string; name: string }>(
+      db.from("npcs").select("id, name").eq("campaign_id", campaignId).order("updated_at", { ascending: false }).limit(MAX_NPCS),
+    ),
+    // The constraint is named: a bare `quests(...)` embed is ambiguous since #871.
+    readRows<{ id: string; title: string; quests: { title: string }[] | { title: string } | null }>(
+      db.from("quest_beats").select("id, title, quests:quests!quest_beats_quest_campaign_fkey(title)")
+        .eq("campaign_id", campaignId).order("title", { ascending: true }).limit(MAX_BEATS),
+    ),
+  ]);
+  const beatQuest = new Map<string, string>();
+  // A many-to-one embed arrives as one object; the client's inferred type calls it a list.
+  for (const b of beats) {
+    const quest = Array.isArray(b.quests) ? b.quests[0] : b.quests;
+    if (quest) beatQuest.set(b.id, quest.title);
+  }
+  return {
+    spots: [
+      ...locations.map((r) => ({ kind: "location" as const, id: r.id, name: r.name })),
+      ...npcs.map((r) => ({ kind: "npc" as const, id: r.id, name: r.name })),
+      ...beats.map((r) => ({ kind: "quest_beat" as const, id: r.id, name: r.title })),
+    ],
+    beatQuest,
+  };
+}
+
+function spotLines(spots: SpotCandidate[], beatQuest: Map<string, string>): string {
+  if (spots.length === 0) return "(nowhere yet)";
+  return spots.map((s) => {
+    const quest = s.kind === "quest_beat" ? beatQuest.get(s.id) : undefined;
+    return `${s.kind}|${s.name}${quest ? `|in quest: ${quest}` : ""}`;
+  }).join("\n");
+}
+
 serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
@@ -105,15 +176,25 @@ serve(withCors(async (req: Request) => {
   if (accountRefusal) return accountRefusal;
 
   let campaign_id: string, mode: Mode, prompt: string;
+  let secretId = "", loreTitle = "", loreKind: LoreKind | null = null, loreText = "";
   try {
     const body = await req.json();
     campaign_id = body.campaign_id;
     if (typeof campaign_id !== "string" || !campaign_id) throw new Error("invalid");
-    if (body.mode !== "premise" && body.mode !== "truths") throw new Error("invalid");
+    if (!isMode(body.mode)) throw new Error("invalid");
     mode = body.mode;
     prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+    if (typeof body.secret_id === "string") secretId = body.secret_id;
+    if (typeof body.title === "string") loreTitle = body.title.trim();
+    if (isLoreKind(body.lore_kind)) loreKind = body.lore_kind;
+    if (typeof body.text === "string") loreText = body.text.trim();
   } catch {
-    return new Response("Invalid body: need { campaign_id, mode: 'premise' | 'truths' }", { status: 400 });
+    return new Response(`Invalid body: need { campaign_id, mode: ${Object.keys(MODES).join(" | ")} }`, { status: 400 });
+  }
+  if (mode === "clues" && secretId === "") return new Response("Invalid body: a secret_id is required", { status: 400 });
+  if (mode === "lore" && loreTitle === "") return new Response("Invalid body: a title is required", { status: 400 });
+  for (const field of [loreTitle, loreText]) {
+    if (field !== "" && field.length > MAX_TEXT_CHARS) return new Response("Invalid body: text too long", { status: 400 });
   }
   // The pitch is the whole input of "Draft from a pitch"; the truths helper takes an optional steer.
   if (mode === "premise" && prompt === "") {
@@ -211,6 +292,98 @@ serve(withCors(async (req: Request) => {
       user_ = `${steer}The DM's pitch is above. Entries the campaign already has (do not repeat them):\n` +
         (existing.length > 0 ? existing.map((e) => `- ${e.kind}: ${e.text}`).join("\n") : "(none yet)");
       sanitize = (parsed) => sanitizePremise(parsed, existing);
+    } else if (mode === "clues") {
+      const [secrets, clues, found] = await Promise.all([
+        readRows<{ title: string; body: string | null }>(
+          admin.from("canon_entries").select("title, body").eq("campaign_id", campaign.id).eq("part", "secret").eq("id", secretId),
+        ),
+        readRows<{ title: string; location_id: string | null; npc_id: string | null; quest_beat_id: string | null; passage_id: string | null }>(
+          admin.from("canon_clues").select("title, location_id, npc_id, quest_beat_id, passage_id")
+            .eq("campaign_id", campaign.id).eq("secret_id", secretId),
+        ),
+        loadSpots(admin, campaign.id),
+      ]);
+      const secret = secrets[0];
+      if (!secret) {
+        await releaseCredits(admin, reservation.ids);
+        return new Response("Secret not found", { status: 404 });
+      }
+      const used = new Set<string>();
+      for (const c of clues) {
+        if (c.location_id) used.add(`location|${c.location_id}`);
+        if (c.npc_id) used.add(`npc|${c.npc_id}`);
+        if (c.quest_beat_id) used.add(`quest_beat|${c.quest_beat_id}`);
+      }
+      const free = found.spots.filter((s) => !used.has(`${s.kind}|${s.id}`));
+      const where = (c: (typeof clues)[number]) => {
+        const hit = found.spots.find((s) =>
+          (s.kind === "location" && s.id === c.location_id) || (s.kind === "npc" && s.id === c.npc_id) ||
+          (s.kind === "quest_beat" && s.id === c.quest_beat_id));
+        return hit ? `${hit.kind} ${hit.name}` : c.passage_id ? "a lore passage" : "somewhere";
+      };
+      const statement = [secret.title.trim(), toPlainText(secret.body).trim()].filter((t) => t !== "").join("\n");
+      system = base(clueShape());
+      user_ = `${steer}The secret the clues point to (a clue hints at it and never states it):\n${wrapUserInput(statement)}\n\n` +
+        `Clues already placed to this secret (do not repeat them):\n${bullets(clues.map((c) => `${c.title.trim()} (at ${where(c)})`))}\n\n` +
+        "Places, people and quest beats a clue may lie at. Every 'at' must be copied exactly from one of these lines:\n" +
+        `---BEGIN SPOTS---\n${spotLines(free, found.beatQuest)}\n---END SPOTS---`;
+      sanitize = (parsed) => sanitizeClues(parsed, free, used);
+    } else if (mode === "questions") {
+      const [truths, secrets, questions] = await Promise.all([
+        readRows<{ title: string; knowledge: string | null }>(
+          admin.from("canon_entries").select("title, knowledge").eq("campaign_id", campaign.id).eq("part", "truth"),
+        ),
+        canonTitles(admin, campaign.id, "secret"),
+        canonTitles(admin, campaign.id, "question"),
+      ]);
+      const asked = listOfTitles(questions);
+      system = base(questionShape());
+      user_ = `${steer}Truths the campaign holds (a question they answer is not open):\n${bullets(listOfTitles(truths))}\n\n` +
+        `Secrets the campaign holds (a question they answer is not open):\n${bullets(listOfTitles(secrets))}\n\n` +
+        `Questions the campaign already keeps open (do not repeat them):\n${bullets(asked)}`;
+      sanitize = (parsed) => sanitizeQuestions(parsed, asked);
+    } else if (mode === "forces") {
+      const [forces, factions, npcs, quests] = await Promise.all([
+        canonTitles(admin, campaign.id, "force"),
+        readRows<{ id: string; name: string }>(
+          admin.from("factions").select("id, name").eq("campaign_id", campaign.id).order("updated_at", { ascending: false }).limit(MAX_FACTIONS),
+        ),
+        readRows<{ id: string; name: string }>(
+          admin.from("npcs").select("id, name").eq("campaign_id", campaign.id).order("updated_at", { ascending: false }).limit(MAX_NPCS),
+        ),
+        readRows<{ id: string; title: string }>(
+          admin.from("quests").select("id, title").eq("campaign_id", campaign.id).order("updated_at", { ascending: false }).limit(MAX_QUESTS),
+        ),
+      ]);
+      const whos: ForceWho[] = [
+        ...factions.map((r) => ({ kind: "faction" as const, id: r.id, name: r.name })),
+        ...npcs.map((r) => ({ kind: "npc" as const, id: r.id, name: r.name })),
+      ];
+      const questRefs: ForceQuestRef[] = quests.map((r) => ({ id: r.id, title: r.title }));
+      const existing = listOfTitles(forces);
+      system = base(forceShape());
+      user_ = `${steer}Forces the campaign already has (do not repeat them):\n${bullets(existing)}\n\n` +
+        "Factions and people a force may be. Prefer one of these, copied exactly:\n---BEGIN WHO---\n" +
+        (whos.length > 0 ? whos.map((w) => `${w.kind}|${w.name}`).join("\n") : "(nobody yet)") + "\n---END WHO---\n\n" +
+        "Quests where the party may meet a force. Every quest must be copied exactly from one of these lines:\n---BEGIN QUESTS---\n" +
+        (questRefs.length > 0 ? questRefs.map((q) => q.title).join("\n") : "(no quests yet: name none)") + "\n---END QUESTS---";
+      sanitize = (parsed) => sanitizeForces(parsed, whos, questRefs, existing);
+    } else if (mode === "lore") {
+      const [lore, questions, found] = await Promise.all([
+        canonTitles(admin, campaign.id, "lore"),
+        canonTitles(admin, campaign.id, "question"),
+        loadSpots(admin, campaign.id),
+      ]);
+      const existing = listOfTitles(lore);
+      system = base(loreShape());
+      user_ = `${steer}The title of the lore entry: ${wrapUserInput(loreTitle)}\n` +
+        `Its kind: ${loreKind ?? "(the DM did not say: choose one)"}\n` +
+        (loreText !== "" ? `The text the DM already wrote (split and deepen it):\n${wrapUserInput(loreText)}\n` : "") +
+        `\nLore the campaign already has (do not repeat it):\n${bullets(existing)}\n\n` +
+        `Questions the campaign keeps open on purpose (never answer one):\n${bullets(listOfTitles(questions))}\n\n` +
+        "Places, people and quest beats a later passage may come out at. Every 'at' must be copied exactly from one of these lines:\n" +
+        `---BEGIN SPOTS---\n${spotLines(found.spots, found.beatQuest)}\n---END SPOTS---`;
+      sanitize = (parsed) => sanitizeLore(parsed, found.spots, existing, { title: loreTitle, kind: loreKind });
     } else {
       const [rows, candidates] = await Promise.all([
         readRows<{ title: string; knowledge: string | null }>(
@@ -231,7 +404,7 @@ serve(withCors(async (req: Request) => {
 
     let textResult: TextResult;
     try {
-      textResult = await callText({ text, model: text.config?.text_model, system, user: user_, maxTokens: 2500 });
+      textResult = await callText({ text, model: text.config?.text_model, system, user: user_, maxTokens: mode === "lore" ? 4000 : 2500 });
     } catch (e) {
       await releaseCredits(admin, reservation.ids);
       console.error("Canon suggestion text generation failed:", e);

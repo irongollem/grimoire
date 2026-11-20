@@ -25,6 +25,7 @@ import type {
   OpenBookPlace,
   OpenBookSession,
   OpenBookSnapshot,
+  OpenBookTruth,
 } from "@/types/openBook.types";
 
 // ── Records ─────────────────────────────────────────────────────────────────
@@ -36,6 +37,7 @@ export type ArticleRecord =
   | { kind: "pantheon"; record: OpenBookPantheon }
   | { kind: "deity"; record: OpenBookDeity }
   | { kind: "lore"; record: OpenBookLore }
+  | { kind: "truths"; record: OpenBookTruth[] }
   | { kind: "session"; record: OpenBookSession };
 
 /** The snapshot record an entry stands for, or null when the snapshot does not hold it. */
@@ -66,6 +68,8 @@ export function recordFor(snapshot: OpenBookSnapshot, entry: BookEntryRef): Arti
       const record = same(snapshot.lore);
       return record ? { kind: "lore", record } : null;
     }
+    case "truths":
+      return snapshot.truths.length > 0 ? { kind: "truths", record: snapshot.truths } : null;
     case "session": {
       const record = same(snapshot.sessions);
       return record ? { kind: "session", record } : null;

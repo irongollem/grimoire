@@ -5,7 +5,7 @@
 
 export type EntityType = "player" | "npc" | "monster" | "location" | "party" | "faction";
 
-/** `subclass` is a `custom_subclasses` row: a setting book's class content is its subclasses (#1115). */
+/** `subclass` is a `custom_subclasses` row: a setting book's class content is its subclasses (#1115). `canon` is a `canon_entries` row: a truth, lore, a force, a secret, a question or a premise line (#1226). */
 export type EntityEmbedType =
   | "npc"
   | "monster"
@@ -16,7 +16,8 @@ export type EntityEmbedType =
   | "deity"
   | "species"
   | "faction"
-  | "subclass";
+  | "subclass"
+  | "canon";
 
 /**
  * Stat-block size (#915 story 6). "auto" is the default and picks itself from

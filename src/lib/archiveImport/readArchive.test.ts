@@ -43,7 +43,7 @@ describe("round trip: our own Markdown vault", () => {
     quests: [row<Quest>({ id: "q1", title: "The Bell", status: "active", summary: "Something rings under the tide.", parent_quest_id: null, tags: [] })],
     questObjectives: [row<QuestObjective>({ id: "o1", quest_id: "q1", description: "Find the bell", status: "pending", sort_order: 0 })],
     partyMembers: [row<PartyMember>({ id: "p1", name: "Aria", level: 5, notes: doc("Hero.") })],
-    notes: [row<Note>({ id: "no1", title: "Session 1", category: "session", content: doc("They met."), tags: [], session_id: null })],
+    notes: [row<Note>({ id: "no1", title: "Session 1", content: doc("They met."), tags: [], session_id: null })],
     sessions: [],
   });
 

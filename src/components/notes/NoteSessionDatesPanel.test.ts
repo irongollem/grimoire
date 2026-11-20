@@ -19,7 +19,7 @@ import NoteSessionDatesPanel from "./NoteSessionDatesPanel.vue";
 function sessionNote(over: Partial<Note>): Note {
   return {
     id: "n", user_id: "u", campaign_id: "c", title: "t", content: null,
-    category: "session", tags: [], session_id: null, is_pinned: false, player_visible_to: [],
+    tags: [], session_id: null, is_pinned: false, player_visible_to: [],
     session_start_year: null, session_start_month: null, session_start_day: null,
     session_end_year: null, session_end_month: null, session_end_day: null,
     session_real_date: null, linked_calendar_event_id: null, sort_order: null,

@@ -23,10 +23,10 @@ async function fetchNotes(campaignId: string): Promise<Note[]> {
   return data as Note[];
 }
 
-/** What the Pinned Notes widget renders: a title, a category and a text preview. */
-export type PinnedNote = Pick<Note, "id" | "title" | "category" | "content">;
+/** What the Pinned Notes widget renders: a title and a text preview. */
+export type PinnedNote = Pick<Note, "id" | "title" | "content">;
 
-const PINNED_NOTE_COLUMNS = "id, title, category, content";
+const PINNED_NOTE_COLUMNS = "id, title, content";
 
 async function fetchPinnedNotes(campaignId: string, limit: number): Promise<PinnedNote[]> {
   const { data, error } = await supabase

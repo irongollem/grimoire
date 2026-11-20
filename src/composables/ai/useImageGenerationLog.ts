@@ -25,6 +25,7 @@ export const IMAGE_GEN_KINDS = [
   "pantheon",
   "deity",
   "dungeon_feature",
+  "lore",
   "loot",
   "monster_cutout",
   "npc_cutout",
@@ -60,6 +61,7 @@ export const KIND_META: Record<ImageGenKind, KindMeta> = {
   pantheon:       { label: "Pantheons", table: "pantheons",     column: "emblem_url",   route: null },
   deity:          { label: "Deities",   table: "deities",       column: "portrait_url", route: "/deities" },
   dungeon_feature: { label: "Features", table: "dungeon_features", column: "image_url", route: "/dungeon-features" },
+  lore:           { label: "Lore",     table: "canon_entries", column: "image_url", route: null },
   loot:           { label: "Loot",      table: null,            column: null,          route: null },
   // Cutouts (#917 story 5) — generated FROM the entity's existing picture, so
   // they get their own kind rather than sharing "monster"/"npc_portrait":

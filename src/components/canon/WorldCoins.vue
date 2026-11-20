@@ -68,9 +68,9 @@
 
 <script setup lang="ts">
 /**
- * The Currency tab (#934): a DM defines the campaign's own coins. An explicit
- * Save, not autosave: removing a coin converts what players hold (the database
- * does it on save), which deserves a deliberate act.
+ * What the world pays with (#934, moved from Campaign settings' Currency tab into Canon's "How the world works"): a
+ * DM defines the campaign's own coins. An explicit Save, not autosave: removing a coin converts what players hold
+ * (the database does it on save), which deserves a deliberate act.
  */
 import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";

@@ -6,7 +6,7 @@ import { isAccountSuspended, isChildAccount, suspendedResponse } from "../_share
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { buildFactionEmbedText, buildItemEmbedText, buildLocationEmbedText, buildNoteEmbedText, buildNpcEmbedText, buildQuestEmbedText, entityEmbedHash } from "../_shared/entityEmbedText.ts";
+import { buildCanonEmbedText, buildFactionEmbedText, buildItemEmbedText, buildLocationEmbedText, buildNoteEmbedText, buildNpcEmbedText, buildQuestEmbedText, entityEmbedHash } from "../_shared/entityEmbedText.ts";
 import { loadTieExtras, type TieExtras, type TieSubjectKind } from "../_shared/embedTies.ts";
 import { upsertEmbeddingsInChunks } from "../_shared/embeddingUpsert.ts";
 import { authorizeRows, campaignIdsToCheck, parseManyIds, type OwnedRow } from "../_shared/embedMany.ts";
@@ -83,19 +83,19 @@ function json(body: unknown, status = 200): Response {
 
 // ── Entity registry ──────────────────────────────────────────────────────
 
-type EntityKind = "npc" | "faction" | "location" | "note" | "item" | "library_item" | "quest";
+type EntityKind = "npc" | "faction" | "location" | "note" | "item" | "library_item" | "quest" | "canon";
 
 interface EntityConfig {
-  table: "npcs" | "factions" | "locations" | "notes" | "items" | "library_items" | "quests";
+  table: "npcs" | "factions" | "locations" | "notes" | "items" | "library_items" | "quests" | "canon_entries";
   // Only the columns the entity's builder reads, plus id/user_id/updated_at
   // -- a plain `select("*")` would pull stat_block/portrait_url/map_pins/etc
   // for nothing, on every row, on every batch scan.
   select: string;
   sideTable:
     | "npc_embeddings" | "faction_embeddings" | "location_embeddings"
-    | "note_embeddings" | "item_embeddings" | "library_item_embeddings" | "quest_embeddings";
+    | "note_embeddings" | "item_embeddings" | "library_item_embeddings" | "quest_embeddings" | "canon_embeddings";
   /** FK column on the side table pointing back at the main table's id. */
-  idColumn: "npc_id" | "faction_id" | "location_id" | "note_id" | "item_id" | "library_item_id" | "quest_id";
+  idColumn: "npc_id" | "faction_id" | "location_id" | "note_id" | "item_id" | "library_item_id" | "quest_id" | "entry_id";
   /**
    * False for shared/admin-owned content that has no `user_id` column, which
    * makes mode: "single" (embed-on-write, authorized by row.user_id ===
@@ -177,13 +177,12 @@ const ENTITIES: Record<EntityKind, EntityConfig> = {
   },
   note: {
     table: "notes",
-    select: "id, user_id, campaign_id, updated_at, title, category, tags, content, session:campaign_sessions(number)",
+    select: "id, user_id, campaign_id, updated_at, title, tags, content, session:campaign_sessions(number)",
     sideTable: "note_embeddings",
     idColumn: "note_id",
     build: (row) =>
       buildNoteEmbedText({
         title: row.title as string,
-        category: row.category as string,
         session_number: (row.session as { number: number | null } | null)?.number ?? null,
         tags: row.tags as string[],
         content: (row.content as string | null) ?? null,
@@ -233,13 +232,30 @@ const ENTITIES: Record<EntityKind, EntityConfig> = {
           .filter((beat) => beat.kind !== "archived"),
       }),
   },
+  // The campaign's canon (#1226). One vector per entry; a lore entry folds in its passages (buildCanonEmbedText).
+  // Every part is embedded, secrets included: the DM's own search reads them, and the Narrator's lookup is the one
+  // that never asks for `secret` (match_campaign_canon's parts).
+  canon: {
+    table: "canon_entries",
+    select: "id, user_id, campaign_id, updated_at, part, title, wants, body, passages:canon_lore_passages(id, sort_order, title, body)",
+    sideTable: "canon_embeddings",
+    idColumn: "entry_id",
+    build: (row) =>
+      buildCanonEmbedText({
+        part: row.part as string,
+        title: row.title as string,
+        wants: (row.wants as string | null) ?? null,
+        body: (row.body as string | null) ?? null,
+        passages: row.passages as { id: string; sort_order: number; title: string; body: string | null }[],
+      }),
+  },
 };
 
 const ENTITY_KINDS = Object.keys(ENTITIES) as EntityKind[];
 
 /** Kinds whose campaign rows also need the caller to be a DM there, not just
  * the row's author: see handleSingle. Each must select `campaign_id`. */
-const CAMPAIGN_GATED: ReadonlySet<EntityKind> = new Set(["note", "quest"]);
+const CAMPAIGN_GATED: ReadonlySet<EntityKind> = new Set(["note", "quest", "canon"]);
 
 function isEntityKind(value: unknown): value is EntityKind {
   return typeof value === "string" && (ENTITY_KINDS as string[]).includes(value);

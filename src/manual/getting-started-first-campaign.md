@@ -34,7 +34,7 @@ Open **Campaign Settings** (the gear in the sidebar's Campaign group, or the set
 
 | Tab | What it controls |
 | --- | --- |
-| **Details** | Name, world, calendar/year, theme, health visibility, immersive rolls, VTT token visibility, and Populate from Setting. |
+| **Details** | Name, theme, health visibility, map memory, sight, immersive rolls and VTT token visibility. The calendar, the current date, the climate, the coins and Populate from Setting live in **Canon**, under *How the world works*. |
 | **Members & Invites** | The member list and invite-link management: see [Inviting Players](#inviting-players). |
 | **Scheduling** | Session scheduling and player availability. |
 | **Rules** | Ruleset (2014/2024) and every optional rule toggle, including the ones that unlock Workshop and Interlude in the sidebar. |
@@ -45,15 +45,14 @@ Open **Campaign Settings** (the gear in the sidebar's Campaign group, or the set
 | **Spotify** | Spotify integration for ambient music. |
 | **Backup** | Campaign backup/export. |
 | **World Bundle** | Import a `.grimoire` world bundle exported from another campaign. |
-| **Import Document** | Import a PDF, page photos, or pasted text into game content: see [Importing an Adventure](#importing-an-adventure). |
 | **Danger Zone** | Transfer ownership or delete the campaign. |
 
 ## Setting up the Details tab
 
 The essentials live on the **Details** tab:
 
-- **Name**, **World**, **Calendar**, and **Current Year**: same fields as at creation; edit any of them here later.
-- **Populate from Setting**: appears once your World matches a recognised setting. Seeds locations, notable NPCs, and factions for that setting in one click; safe to run more than once, as it skips anything you already have.
+- **Name**: the same field as at creation. The World, the calendar, today's date, the climate and the coins are on the **Canon** page now, under *Premise and tone* and *How the world works*.
+- **Populate from Setting** also moved to *How the world works* in Canon: it appears once your calendar matches a recognised setting. Seeds locations, notable NPCs, and factions for that setting in one click; safe to run more than once, as it skips anything you already have.
 - **Theme**: the app's colour palette for this campaign.
 - **Health Visibility**: how HP appears to players: **Strategic** (bars + labels for everyone, exact numbers for player characters only), **Immersive** (player characters show a bar with no numbers; monsters show status words only), or **Unknown** (no health info shown for anyone but player characters).
 - **Immersive Rolls**: stealth, knowledge, and insight checks show only flavor text in chat; the full result is whispered to you, the DM, only.
@@ -68,7 +67,7 @@ Your next steps, roughly in order:
 2. Go to **Factions** and click **Populate from Setting** to seed relevant organisations.
 3. Go to **Campaign Settings → Members & Invites** and generate links for your players.
 4. Open **Campaign Settings → Rules** to turn on any optional rules you want (2014/2024 ruleset, crafting, the Interlude, and a dozen others): this also decides whether Workshop and Interlude appear in your sidebar.
-5. Have an adventure already written up? **Campaign Settings → Import Document** turns a PDF, photos, or pasted text into NPCs, monsters, locations, items, and a quest in one pass: see [Importing an Adventure](#importing-an-adventure). Otherwise, create your first NPCs, quests, and encounters by hand.
+5. Have an adventure already written up? **Canon → Bring in a book** turns a PDF, photos, or pasted text into NPCs, monsters, locations, items, and a quest in one pass: see [Importing an Adventure](#importing-an-adventure). Otherwise, create your first NPCs, quests, and encounters by hand.
 
 ## What your players see
 

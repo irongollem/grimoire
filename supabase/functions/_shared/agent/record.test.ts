@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeRecordTool, parseRecordInput, recordSection, RECORD_SECTION_MAX, type RecordInput, type RecordedFact } from "./record";
+import { makeRecordTool, openFacts, parseRecordInput, recordSection, RECORD_SECTION_MAX, type RecordInput, type RecordedFact } from "./record";
 
 const A = "00000000-0000-4000-8000-0000000000a1";
 const B = "00000000-0000-4000-8000-0000000000b2";
@@ -123,5 +123,79 @@ describe("makeRecordTool", () => {
     expect(answer.isError).toBe(true);
     expect(filed).toEqual([]);
     expect(announced).toEqual([]);
+  });
+});
+
+describe("makeRecordTool and the canon check (#1226)", () => {
+  const withCheck = (check: (input: RecordInput) => Promise<{ error: string } | null>) => {
+    const filed: RecordInput[] = [];
+    const announced: unknown[] = [];
+    const bound = makeRecordTool({
+      check,
+      fileFact: async (input) => {
+        filed.push(input);
+        return { id: B };
+      },
+      onFiled: (f) => announced.push(f),
+    });
+    return { filed, announced, bound };
+  };
+
+  it("answers a refusal with its reason, and files and announces nothing", async () => {
+    const { filed, announced, bound } = withCheck(async () => ({ error: "It contradicts a truth: magic leaves a taste on the tongue." }));
+    const answer = await bound.call({ fact: "Magic leaves no trace at all." });
+    expect(answer).toEqual({ content: "It contradicts a truth: magic leaves a taste on the tongue.", isError: true });
+    expect(filed).toEqual([]);
+    expect(announced).toEqual([]);
+  });
+
+  it("files a fact the check lets stand", async () => {
+    const { filed, bound } = withCheck(async () => null);
+    expect((await bound.call({ fact: "Wren holds the brass key." })).isError).toBe(false);
+    expect(filed).toHaveLength(1);
+  });
+
+  it("holds the parsed fact against the check, not the raw input", async () => {
+    const seen: RecordInput[] = [];
+    const { bound } = withCheck(async (input) => {
+      seen.push(input);
+      return null;
+    });
+    await bound.call({ fact: "  Wren holds the brass key.  " });
+    expect(seen[0].fact).toBe("Wren holds the brass key.");
+  });
+
+  it("does not run the check for input it already refused", async () => {
+    let asked = 0;
+    const { bound } = withCheck(async () => {
+      asked++;
+      return null;
+    });
+    await bound.call({ fact: "" });
+    expect(asked).toBe(0);
+  });
+
+  it("files the fact when the check itself throws, rather than losing it", async () => {
+    const { filed, bound } = withCheck(async () => {
+      throw new Error("judge down");
+    });
+    expect((await bound.call({ fact: "Wren holds the brass key." })).isError).toBe(false);
+    expect(filed).toHaveLength(1);
+  });
+});
+
+describe("openFacts (the DM's Strike, #1226)", () => {
+  const f = (id: string, struck_at: string | null = null) => ({ id, struck_at });
+
+  it("leaves a struck fact out, or the Narrator keeps telling something the DM said never happened", () => {
+    expect(openFacts([f("a"), f("b", "2026-11-20T10:00:00Z")], []).map((x) => x.id)).toEqual(["a"]);
+  });
+
+  it("leaves a fact closed by a later one out", () => {
+    expect(openFacts([f("a"), f("b")], [{ supersedes_id: "a", struck_at: null }]).map((x) => x.id)).toEqual(["b"]);
+  });
+
+  it("keeps a fact open when the fact that would have closed it was struck, since that never happened", () => {
+    expect(openFacts([f("a")], [{ supersedes_id: "a", struck_at: "2026-11-20T10:00:00Z" }]).map((x) => x.id)).toEqual(["a"]);
   });
 });

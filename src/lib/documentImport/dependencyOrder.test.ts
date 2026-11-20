@@ -37,4 +37,12 @@ describe("IMPORT_ENTITY_KINDS order", () => {
     const kinds: readonly string[] = IMPORT_ENTITY_KINDS;
     expect(kinds.indexOf("encounters")).toBe(kinds.length - 1);
   });
+
+  it("puts deities and canon in the kind list, canon before the last kind", () => {
+    // #1226: a book's powers and its world's shape are kinds like the rest. A kind left out of this list is never
+    // imported at all, so the sweep would drop a whole section of the book without a word.
+    const kinds: readonly string[] = IMPORT_ENTITY_KINDS;
+    expect(kinds).toContain("deities");
+    expect(kinds.indexOf("canon")).toBeLessThan(kinds.indexOf("encounters"));
+  });
 });

@@ -1,0 +1,114 @@
+import { describe, expect, it } from "vitest";
+import { almanac, chronicleExcerpt, chronicleItems, firstNoteImage, orderChronicle, writtenCount } from "./canonChronicle";
+import { canonEntry } from "@/test/canonEntry";
+import type { CanonForceTick } from "@/types/canon.types";
+import type { Note } from "@/types/notes.types";
+import type { CampaignSession } from "@/types/session.types";
+
+const session = (id: string, over: Partial<CampaignSession> = {}): CampaignSession => ({
+  id, campaign_id: "c1", user_id: "u", number: null, title: null, played_on: "2026-11-01", started_at: null, ended_at: null,
+  created_at: "2026-11-01T10:00:00Z", updated_at: "2026-11-01T10:00:00Z", ...over,
+});
+const note = (id: string, over: Partial<Note> = {}): Note => ({
+  id, user_id: "u", campaign_id: "c1", title: `Note ${id}`, content: null, tags: [], session_id: null, is_pinned: false, player_visible_to: [],
+  session_start_year: null, session_start_month: null, session_start_day: null, session_end_year: null, session_end_month: null,
+  session_end_day: null, session_real_date: null, linked_calendar_event_id: null, sort_order: null,
+  created_at: "2026-11-01T10:00:00Z", updated_at: "2026-11-01T10:00:00Z", ...over,
+});
+const tick = (id: string, over: Partial<CanonForceTick> = {}): CanonForceTick => ({
+  id, user_id: "u", campaign_id: "c1", force_id: "f1", delta: 1, note: "", session_id: null, step_id: null,
+  world_year: null, world_month: null, world_day: null, created_at: "2026-11-01T10:00:00Z", ...over,
+});
+
+describe("chronicleItems", () => {
+  // Bug caught: a note with no session listed as a chronicle entry (it is a DM's own note, kept off the Chronicle).
+  it("lists a session's note, and never a note that is not linked to a session", () => {
+    const items = chronicleItems([session("s1")], [note("n1", { session_id: "s1" }), note("loose")]);
+    expect(items.map((i) => [i.session.id, i.note?.id])).toEqual([["s1", "n1"]]);
+  });
+
+  // Bug caught: a session with no note dropped, so the DM had nowhere to start its chronicle.
+  it("keeps a session with no note as an entry still to write", () => {
+    const items = chronicleItems([session("s1")], []);
+    expect(items[0]!.note).toBeNull();
+    expect(writtenCount(items)).toBe(0);
+  });
+
+  // Bug caught: the older of two linked notes shown, hiding what the DM wrote last.
+  it("takes the newest note when two are linked to one session", () => {
+    const items = chronicleItems([session("s1")], [
+      note("old", { session_id: "s1", updated_at: "2026-11-01T10:00:00Z" }),
+      note("new", { session_id: "s1", updated_at: "2026-11-05T10:00:00Z" }),
+    ]);
+    expect(items[0]!.note?.id).toBe("new");
+  });
+
+  // Bug caught: ordering by session number, which is only a label; the log's own order is when it was played.
+  it("orders newest first by when it was played, and reverses for from the start", () => {
+    const items = chronicleItems([session("a", { number: 9, played_on: "2026-10-01" }), session("b", { number: 1, played_on: "2026-11-01" })], []);
+    expect(items.map((i) => i.session.id)).toEqual(["b", "a"]);
+    expect(orderChronicle(items, "start").map((i) => i.session.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("almanac", () => {
+  const forces = [canonEntry({ id: "f1", part: "force", title: "The Ferrymen" })];
+
+  // Bug caught: lore, ticks and sessions sorted by kind instead of by the world's calendar.
+  it("mixes lore, ticks and sessions in world-date order", () => {
+    const items = chronicleItems([session("s1", { number: 14 })], [note("n1", { session_id: "s1", title: "The Toll", session_start_year: 512, session_start_month: 3 })]);
+    const events = almanac({
+      lore: [canonEntry({ id: "l1", part: "lore", title: "The roads are first spun", world_year: 460 })],
+      forces,
+      ticks: [tick("t1", { world_year: 511, note: "stop paying the toll" })],
+      items,
+    });
+    expect(events.map((e) => [e.kind, e.title])).toEqual([
+      ["lore", "The roads are first spun"],
+      ["moving", "The Ferrymen: stop paying the toll"],
+      ["session", "The Toll"],
+    ]);
+  });
+
+  // Bug caught: undated sessions sorting first (year 0), or vanishing from the almanac.
+  it("puts sessions with no world date last and keeps them", () => {
+    const items = chronicleItems(
+      [session("early", { played_on: "2026-10-01" }), session("late", { played_on: "2026-11-01" }), session("dated", { played_on: "2026-09-01" })],
+      [note("n", { session_id: "dated", session_start_year: 3 })],
+    );
+    const events = almanac({ lore: [canonEntry({ id: "l", part: "lore", title: "L", world_year: 900 })], forces, ticks: [], items });
+    expect(events.map((e) => e.key)).toEqual(["session:dated", "lore:l", "session:early", "session:late"]);
+  });
+
+  // Bug caught: undated lore or a tick with no world date pinned to year 0 at the top of the timeline.
+  it("leaves out lore and ticks that carry no date in the world", () => {
+    const events = almanac({ lore: [canonEntry({ id: "l", part: "lore", world_year: null })], forces, ticks: [tick("t")], items: [] });
+    expect(events).toEqual([]);
+  });
+
+  // Bug caught: a tick of a force that was deleted crashing the timeline or showing as "undefined".
+  it("skips a tick whose force is gone", () => {
+    expect(almanac({ lore: [], forces: [], ticks: [tick("t", { world_year: 5 })], items: [] })).toEqual([]);
+  });
+});
+
+describe("excerpt and picture", () => {
+  const doc = (...content: object[]) => JSON.stringify({ type: "doc", content });
+
+  // Bug caught: the raw Tiptap JSON shown as the excerpt.
+  it("reads the words of a note and cuts a long one at a word", () => {
+    const long = Array.from({ length: 80 }, () => "word").join(" ");
+    const excerpt = chronicleExcerpt(doc({ type: "paragraph", content: [{ type: "text", text: long }] }), 50);
+    expect(excerpt.endsWith("…")).toBe(true);
+    expect(excerpt.length).toBeLessThanOrEqual(51);
+    expect(excerpt).not.toContain("{");
+  });
+
+  // Bug caught: the Chronicler's picture lost, because only top-level nodes were looked at.
+  it("finds the first picture even inside a nested block, and none in plain text", () => {
+    const nested = doc({ type: "blockquote", content: [{ type: "image", attrs: { src: "https://cdn.test/a.webp" } }] });
+    expect(firstNoteImage(nested)).toBe("https://cdn.test/a.webp");
+    expect(firstNoteImage("just words")).toBeNull();
+    expect(firstNoteImage(null)).toBeNull();
+  });
+});

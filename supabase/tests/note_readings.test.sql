@@ -23,10 +23,10 @@ insert into public.campaign_members (campaign_id, user_id, role, display_name, p
   ('10190000-0000-4000-8000-000000000010', '10190000-0000-4000-8000-000000000002', 'player', 'The player', '10190000-0000-4000-8000-000000000030')
 on conflict (campaign_id, user_id) do update set role = excluded.role, display_name = excluded.display_name, party_member_id = excluded.party_member_id;
 
-insert into public.notes (id, user_id, campaign_id, title, category, tags, is_pinned, player_visible_to, content)
+insert into public.notes (id, user_id, campaign_id, title, tags, is_pinned, player_visible_to, content)
 values (
   '10190000-0000-4000-8000-000000000020', '10190000-0000-4000-8000-000000000001', '10190000-0000-4000-8000-000000000010',
-  'Session one', 'session', '{}', false, array['10190000-0000-4000-8000-000000000030']::uuid[],
+  'Session one', '{}', false, array['10190000-0000-4000-8000-000000000030']::uuid[],
   '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"The mayor smiled."}]},{"type":"secretBlock","content":[{"type":"paragraph","content":[{"type":"text","text":"The mayor is the thief."}]}]}]}'
 );
 

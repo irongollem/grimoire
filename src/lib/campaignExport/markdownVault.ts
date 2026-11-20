@@ -276,7 +276,6 @@ function buildNoteFile(note: Note, sessions: readonly CampaignSession[], mention
   const fields: Array<[string, VaultFrontmatterValue]> = [
     ["type", "note"],
     ["grimoire_id", note.id],
-    ["category", note.category],
   ];
   const session = sessions.find((s) => s.id === note.session_id);
   if (session?.number != null) fields.push(["session", session.number]);

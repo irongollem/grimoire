@@ -16,11 +16,67 @@ interface McpToolDef {
  */
 export const SOLO_TABLE_TOOLS: ReadonlySet<string> = new Set(["roll", "search", "get", "list", "campaign_overview"]);
 
-/** Only tools on the allow list are offered. */
-export function agentToolsFrom(mcpTools: McpToolDef[], allow: ReadonlySet<string>): AgentTool[] {
+/** The schema with every `enum` that lists a refused value cut down to the rest, at any depth. */
+function withoutRefused(node: unknown, refused: ReadonlySet<string>): unknown {
+  if (Array.isArray(node)) return node.map((n) => withoutRefused(n, refused));
+  if (typeof node !== "object" || node === null) return node;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node)) {
+    out[key] = key === "enum" && Array.isArray(value)
+      ? value.filter((v) => !(typeof v === "string" && refused.has(v)))
+      : withoutRefused(value, refused);
+  }
+  return out;
+}
+
+/**
+ * Only tools on the allow list are offered. `refused` types are cut from the enums of the schemas the model is
+ * shown, so it is never offered a type the call-time fence (`bindTools`) would refuse; the fence stays the guard.
+ */
+export function agentToolsFrom(mcpTools: McpToolDef[], allow: ReadonlySet<string>, refused: ReadonlySet<string> = new Set()): AgentTool[] {
   return mcpTools
     .filter((t) => allow.has(t.name))
-    .map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema }));
+    .map((t) => ({
+      name: t.name,
+      description: t.description,
+      inputSchema: refused.size === 0 ? t.inputSchema : (withoutRefused(t.inputSchema, refused) as Record<string, unknown>),
+    }));
+}
+
+/**
+ * The canon's own entity types (#1226). At the table the canon reaches the Narrator in two ways only: the lookup by
+ * meaning, which never asks for a secret, and what lies where the party stands, which gives a secret's clues and never
+ * its statement. The generic readers would hand it everything, a secret's statement and every clue included, so they
+ * refuse these types here.
+ */
+export const TABLE_REFUSED_TYPES: ReadonlySet<string> = new Set(["canon", "canon_clue", "canon_force_step"]);
+
+/** What `bindTools` keeps the generic readers from: the types they refuse, and every type they could otherwise search. */
+export interface TypeFence {
+  refused: ReadonlySet<string>;
+  /** `search` with no `types` reads all of them: the fence names the rest so the refused ones are never asked for. */
+  allTypes: readonly string[];
+}
+
+const READERS = new Set(["search", "get", "list"]);
+
+const REFUSED_TYPE_TEXT = "That is the DM's own canon, which the table reads only through canon_lookup and what lies where the party stands.";
+
+/** The arguments a reader may run with, or the sentence that refuses it. */
+function fenced(name: string, input: Record<string, unknown>, fence: TypeFence): { args: Record<string, unknown> } | { refusal: string } {
+  if (!READERS.has(name)) return { args: input };
+  if (name === "search") {
+    const asked = Array.isArray(input.types) && input.types.length > 0 ? (input.types as unknown[]) : null;
+    if (asked !== null) {
+      const kept = asked.filter((t) => !(typeof t === "string" && fence.refused.has(t)));
+      if (kept.length === 0) return { refusal: REFUSED_TYPE_TEXT };
+      return { args: { ...input, types: kept } };
+    }
+    return { args: { ...input, types: fence.allTypes.filter((t) => !fence.refused.has(t)) } };
+  }
+  // get and list name one type; anything that is not a plain string cannot be one of ours, and the tool refuses it.
+  if (typeof input.type === "string" && fence.refused.has(input.type)) return { refusal: REFUSED_TYPE_TEXT };
+  return { args: input };
 }
 
 const DEFAULT_MAX_RESULT_CHARS = 20_000;
@@ -38,15 +94,22 @@ export function bindTools(
   allow: ReadonlySet<string>,
   maxResultChars: number = DEFAULT_MAX_RESULT_CHARS,
   pinned: Readonly<Record<string, unknown>> = {},
+  fence?: TypeFence,
 ): CallTool {
   return async (name, input) => {
     if (!allow.has(name)) return { content: `No such tool: ${name}`, isError: true };
+    let args = input;
+    if (fence !== undefined) {
+      const checked = fenced(name, input, fence);
+      if ("refusal" in checked) return { content: checked.refusal, isError: true };
+      args = checked.args;
+    }
     let result: unknown;
     try {
       // Pinned arguments win over whatever the model wrote. The tools run with the caller's own access, which
       // covers every campaign they run, so a conversation in one campaign must not be talked into reading another:
       // the turn function pins `campaign_id` to the conversation's campaign.
-      result = await call(name, { ...input, ...pinned });
+      result = await call(name, { ...args, ...pinned });
     } catch (error) {
       return { content: error instanceof Error ? error.message : String(error), isError: true };
     }

@@ -355,6 +355,50 @@ const FACTION_DATA = obj({
   },
 });
 
+// A god, saint or patron (#1226 story 7). Mirrors `ExtractedDeity`.
+const DEITY_DATA = obj({
+  name: { type: "string" },
+  titles: NULLABLE_STRING,
+  alternate_names: NULLABLE_STRING_ARRAY,
+  alignment: NULLABLE_STRING,
+  symbol: NULLABLE_STRING,
+  domains: NULLABLE_STRING_ARRAY,
+  portfolio: NULLABLE_STRING,
+  description: NULLABLE_STRING,
+});
+
+// One entry of the campaign's canon (#1226 story 7). Mirrors `ExtractedCanon`; the prompt's "The canon" section says
+// what each part holds. `line` and `veil` premises, the chronicle, the clock and the reveal are not here: a book
+// cannot say them. A place or person named in `known_to`, `quests` or a `where` is resolved by name in the sweep.
+const CANON_CLUE = obj({
+  title: { type: "string" },
+  where: NULLABLE_STRING,
+});
+
+const CANON_PASSAGE = obj({
+  title: { type: "string" },
+  text: NULLABLE_STRING,
+  where: NULLABLE_STRING,
+});
+
+const CANON_DATA = obj({
+  title: { type: "string" },
+  part: { type: "string", enum: ["premise", "truth", "force", "secret", "question", "lore"] },
+  premise_kind: { type: ["string", "null"], enum: ["pitch", "theme", "table", "voice", "look", null] },
+  knowledge: { type: ["string", "null"], enum: ["all", "some", "secret", null] },
+  known_to: NULLABLE_STRING_ARRAY,
+  text: NULLABLE_STRING,
+  wants: NULLABLE_STRING,
+  steps: NULLABLE_STRING_ARRAY,
+  quests: NULLABLE_STRING_ARRAY,
+  clues: nullableArrayOf(CANON_CLUE),
+  lore_kind: { type: ["string", "null"], enum: ["history", "legend", "culture", "magic", "place", "faith", "other", null] },
+  world_year: NULLABLE_INTEGER,
+  world_month: NULLABLE_INTEGER,
+  world_day: NULLABLE_INTEGER,
+  passages: nullableArrayOf(CANON_PASSAGE),
+});
+
 // A room's occupants, when they add up to a fight (#840). Mirrors
 // `ExtractedEncounter` — `combatants` is `{ name, count }` pairs, one per
 // creature kind or named individual, never one per creature: `count` is what
@@ -385,6 +429,8 @@ const EXTRACTION_SCHEMA = obj({
   spells: entityArray(SPELL_DATA),
   quests: entityArray(QUEST_DATA),
   factions: entityArray(FACTION_DATA),
+  deities: entityArray(DEITY_DATA),
+  canon: entityArray(CANON_DATA),
   encounters: entityArray(ENCOUNTER_DATA),
 });
 

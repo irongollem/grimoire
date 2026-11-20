@@ -452,7 +452,6 @@ describe("buildMarkdownVault — Notes", () => {
       campaign_id: "c1",
       title: "Session 3 recap",
       content: tiptapDoc("The party arrived at the vale."),
-      category: "session",
       tags: ["recap"],
       session_id: "s3",
       is_pinned: false,
@@ -481,7 +480,7 @@ describe("buildMarkdownVault — Notes", () => {
   it("renders frontmatter naming the linked session and the converted body", () => {
     const files = buildMarkdownVault(baseInput({ notes: [note()], sessions: [SESSION] }));
     const md = files["Notes/Session 3 recap.md"];
-    expect(md).toContain('category: "session"');
+    expect(md).not.toContain("category:");
     expect(md).toContain("session: 3");
     expect(md).toContain('session_title: "The Vale"');
     expect(md).toContain("The party arrived at the vale.");
@@ -498,7 +497,7 @@ describe("buildMarkdownVault — Notes", () => {
   });
 
   it("omits the session fields when the note links none", () => {
-    const files = buildMarkdownVault(baseInput({ notes: [note({ category: "general", session_id: null })], sessions: [SESSION] }));
+    const files = buildMarkdownVault(baseInput({ notes: [note({ session_id: null })], sessions: [SESSION] }));
     expect(files["Notes/Session 3 recap.md"]).not.toContain("session:");
     expect(files["Notes/Session 3 recap.md"]).not.toContain("session_title");
   });

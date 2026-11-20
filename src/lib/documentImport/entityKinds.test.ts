@@ -13,18 +13,21 @@ describe("ENTITY_KIND_REGISTRY", () => {
     }
   });
 
-  it("gives quests a title-based heading and every other kind a name-based one", () => {
-    const nonQuestKinds = IMPORT_ENTITY_KINDS.filter((kind) => kind !== "quests");
+  it("gives quests and canon entries a title-based heading and every other kind a name-based one", () => {
+    const nonTitleKinds = IMPORT_ENTITY_KINDS.filter((kind) => kind !== "quests" && kind !== "canon");
 
     expect(ENTITY_KIND_REGISTRY.quests.displayField).toBe("title");
-    for (const kind of nonQuestKinds) {
+    // A canon entry's heading is its title: a truth is one line, and the line is the title (canon_entries.title).
+    expect(ENTITY_KIND_REGISTRY.canon.displayField).toBe("title");
+    for (const kind of nonTitleKinds) {
       expect(ENTITY_KIND_REGISTRY[kind].displayField).toBe("name");
     }
   });
 
-  it("marks exactly monsters, npcs, locations, quests, factions and encounters as quota-limited", () => {
-    const quotaLimited: ImportEntityKind[] = ["monsters", "npcs", "locations", "quests", "factions", "encounters"];
-    const unlimited: ImportEntityKind[] = ["items", "spells"];
+  it("marks exactly monsters, npcs, locations, quests, factions, deities and encounters as quota-limited", () => {
+    const quotaLimited: ImportEntityKind[] = ["monsters", "npcs", "locations", "quests", "factions", "deities", "encounters"];
+    // The canon has no cap of its own, and a deity import must name `deities` for check_quota.
+    const unlimited: ImportEntityKind[] = ["items", "spells", "canon"];
 
     for (const kind of quotaLimited) {
       expect(ENTITY_KIND_REGISTRY[kind].quotaResource).toBe(kind);
@@ -46,7 +49,7 @@ describe("getEntityKindEntry", () => {
 });
 
 describe("listEntityKindsInWizardOrder", () => {
-  it("returns all eight entries in the same order as IMPORT_ENTITY_KINDS", () => {
+  it("returns every entry in the same order as IMPORT_ENTITY_KINDS", () => {
     const ordered = listEntityKindsInWizardOrder();
     expect(ordered.map((entry) => entry.kind)).toEqual([...IMPORT_ENTITY_KINDS]);
   });

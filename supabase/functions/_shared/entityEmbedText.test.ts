@@ -6,6 +6,7 @@ import {
   buildNoteEmbedText,
   buildItemEmbedText,
   buildQuestEmbedText,
+  buildCanonEmbedText,
   entityEmbedHash,
   tieNameKey,
   tieSentences,
@@ -233,7 +234,6 @@ describe("buildLocationEmbedText", () => {
 function makeNote(overrides: Partial<EmbeddableNote> = {}): EmbeddableNote {
   return {
     title: "The Sunken Vault",
-    category: "session",
     session_number: 7,
     tags: ["dungeon", "vault"],
     content: "The party descended into the flooded ruins and found the vault door ajar.",
@@ -244,14 +244,14 @@ function makeNote(overrides: Partial<EmbeddableNote> = {}): EmbeddableNote {
 describe("buildNoteEmbedText", () => {
   it("builds the complete string for a fully-populated note", () => {
     expect(buildNoteEmbedText(makeNote())).toBe(
-      "The Sunken Vault. session, Session 7. dungeon, vault. " +
+      "The Sunken Vault. Session 7. dungeon, vault. " +
       "The party descended into the flooded ruins and found the vault door ajar.",
     );
   });
 
-  it("is the title and category when everything else is absent", () => {
-    expect(buildNoteEmbedText({ title: "Loose thread: the merchant's ledger", category: "general", session_number: null, tags: [], content: null }))
-      .toBe("Loose thread: the merchant's ledger. general.");
+  it("is the title alone when everything else is absent", () => {
+    expect(buildNoteEmbedText({ title: "Loose thread: the merchant's ledger", session_number: null, tags: [], content: null }))
+      .toBe("Loose thread: the merchant's ledger.");
   });
 
   it.each<[string, NonNullable<Parameters<typeof makeNote>[0]>, string]>([
@@ -524,5 +524,44 @@ describe("tie clauses", () => {
       attunement_requirements: null, cost: null, tags: [], description: null, ties: ["blessed by The Drowned Lady"],
     });
     expect(item).toContain("Blessed by The Drowned Lady.");
+  });
+});
+
+describe("buildCanonEmbedText (#1226)", () => {
+  const doc = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+
+  it("leads with the part and the title, then what a force wants and the body as plain text", () => {
+    expect(
+      buildCanonEmbedText({ part: "force", title: "The Gilt Hand", wants: "the ferry", body: doc("A guild of river-tolls."), passages: [] }),
+    ).toBe("force. The Gilt Hand. the ferry. A guild of river-tolls.");
+  });
+
+  // Bug this guards: a lore entry found only by its first paragraph, so "what does the river give back" misses the
+  // entry whose second passage says it.
+  it("folds a lore entry's passages in, in order, heading and text", () => {
+    const text = buildCanonEmbedText({
+      part: "lore",
+      title: "The Drowned Bell",
+      wants: null,
+      body: null,
+      passages: [
+        { id: "b", sort_order: 2, title: "Later", body: doc("The river gives things back.") },
+        { id: "a", sort_order: 1, title: "First ring", body: doc("It rang once.") },
+      ],
+    });
+    expect(text).toBe("lore. The Drowned Bell. First ring. It rang once. Later. The river gives things back.");
+  });
+
+  it("is stable whatever order the passages arrive in", () => {
+    const passages = [
+      { id: "a", sort_order: 1, title: "One", body: null },
+      { id: "b", sort_order: 1, title: "Two", body: null },
+    ];
+    const entry = { part: "lore", title: "T", wants: null, body: null };
+    expect(buildCanonEmbedText({ ...entry, passages })).toBe(buildCanonEmbedText({ ...entry, passages: [...passages].reverse() }));
+  });
+
+  it("caps the whole text at 2000 chars", () => {
+    expect(buildCanonEmbedText({ part: "lore", title: "T", wants: null, body: doc("word ".repeat(1000)), passages: [] }).length).toBeLessThanOrEqual(2000);
   });
 });

@@ -87,6 +87,7 @@ export const KIND_NOUNS: Record<string, string> = {
   puzzle:       "an illustration of a puzzle or contraption",
   dungeon_feature: "an illustration of a dungeon feature: a secret door, hidden passage, mechanism or curiosity",
   deity:        "a divine portrait of a god or goddess",
+  lore:         "an illustration for a piece of the world's lore: its history, legend, culture, magic, places or faith, shown as a scene or a still life, not a portrait",
   chronicler:   "a scene illustration",
 };
 

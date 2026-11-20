@@ -1,5 +1,5 @@
 <template>
-  <ListPageLayout title="Campaign Notes" description="Session logs, lore, and secrets of the realm">
+  <ListPageLayout title="Campaign Notes" description="Your notes">
     <template #title-suffix>
       <ManualHelpLink page="campaign-notes" />
     </template>

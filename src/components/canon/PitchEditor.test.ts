@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import type { CanonEntry } from "@/types/canon.types";
+import { canonEntry } from "@/test/canonEntry";
 
 const mocks = vi.hoisted(() => ({ destroy: vi.fn(), confirm: vi.fn(), save: vi.fn() }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({
@@ -12,10 +13,7 @@ vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks
 
 import PitchEditor from "./PitchEditor.vue";
 
-const entry = (body: string | null): CanonEntry => ({
-  id: "p1", user_id: "u", campaign_id: "c", part: "premise", premise_kind: "pitch", knowledge: null, title: "", body,
-  sort_order: 0, player_visible_to: [], image_url: null, ai_provenance: null, created_at: "", updated_at: "",
-});
+const entry = (body: string | null): CanonEntry => canonEntry({ id: "p1", part: "premise", premise_kind: "pitch", title: "", body });
 
 // The real editor is Tiptap; a plain input stands in for its v-model.
 const EditorStub = {

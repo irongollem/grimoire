@@ -23,6 +23,12 @@ export type ScriptoriumKind = "book" | "handout";
 /** The three book looks: the Grimoire house look and the two D&D editions. */
 export type ScriptoriumBookTheme = "grimoire" | "onednd2024" | "phb2014";
 
+/**
+ * Who a book drawn from the campaign is for (#1226 story 8). A players' book resolves its linked entries, in the
+ * preview and the PDF, from what the whole party may read; the DM's own is the default for every other book.
+ */
+export type ScriptoriumBookAudience = "dm" | "players";
+
 /** The handout papers. */
 export type ScriptoriumPaper = "letter" | "notice" | "journal" | "plain";
 
@@ -104,6 +110,8 @@ export interface ScriptoriumDocument {
   /** The paper the pages are printed on, for books and handouts; null is the look's own. */
   paper_tone: ScriptoriumPaperTone | null;
   footer_style: ScriptoriumFooterStyle;
+  /** `scriptorium_documents.audience`, default `dm`. */
+  audience: ScriptoriumBookAudience;
   page_number_start: number;
   /** Page-furniture decorations (Phase D). JSONB column, defaults to [].
    * Optional until the column + editor wiring land (foundation-only for now). */
@@ -186,9 +194,9 @@ export type ScriptoriumDocumentSummary = Pick<
 /** `paper_tone` and `footer_style` are left to the columns' defaults (the look's own paper, a plain footer) on insert. */
 export type ScriptoriumDocInsert = Omit<
   ScriptoriumDocument,
-  "id" | "user_id" | "created_at" | "updated_at" | "player_visible_to" | "word_count" | "paper_tone" | "footer_style"
+  "id" | "user_id" | "created_at" | "updated_at" | "player_visible_to" | "word_count" | "paper_tone" | "footer_style" | "audience"
 > &
-  Partial<Pick<ScriptoriumDocument, "paper_tone" | "footer_style">>;
+  Partial<Pick<ScriptoriumDocument, "paper_tone" | "footer_style" | "audience">>;
 export type ScriptoriumDocUpdate = Partial<ScriptoriumDocInsert>;
 
 /** One linked entry the handout would reveal, as `share_handout` reports it. */

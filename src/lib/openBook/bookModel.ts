@@ -26,7 +26,10 @@ export const CHAPTER_META: Record<OpenBookChapter, ChapterMeta> = {
   chronicle: { numeral: "VI", title: "The Chronicle", tab: "Chronicle" },
 };
 
-export type BookEntryKind = "place" | "person" | "faction" | "pantheon" | "deity" | "lore" | "session";
+export type BookEntryKind = "place" | "person" | "faction" | "pantheon" | "deity" | "lore" | "truths" | "session";
+
+/** The id of the one entry that lists the truths known to all, first in Lore and Legend (never a uuid). */
+export const TRUTHS_ENTRY_ID = "truths";
 
 export interface BookEntryRef {
   kind: BookEntryKind;
@@ -181,6 +184,8 @@ export function buildBookModel(snapshot: OpenBookSnapshot): BookModel {
   // Entries per chapter, and the rich text each one carries (for backlinks).
   const chapterEntries = new Map<OpenBookChapter, BookEntryRef[]>();
   const richText = new Map<string, string | null>();
+  /** A lore entry's passages, which cite pages as its body does. */
+  const passageText = new Map<string, (string | null)[]>();
 
   const atlas = orderPlaces(snapshot.places, placeChildren).map((p) => {
     richText.set(p.id, p.description);
@@ -216,13 +221,14 @@ export function buildBookModel(snapshot: OpenBookSnapshot): BookModel {
   }
   chapterEntries.set("pantheon", pantheon);
 
-  chapterEntries.set(
-    "lore",
-    snapshot.lore.map((l) => {
-      richText.set(l.id, l.content);
-      return ref("lore", "lore", l.id, l.title, orNull(l.category));
-    }),
-  );
+  // Lore and Legend opens on the truths known to all, then each lore entry in the order of its date in the world.
+  const loreEntries: BookEntryRef[] = snapshot.truths.length > 0 ? [ref("truths", "lore", TRUTHS_ENTRY_ID, "Truths of the world", null)] : [];
+  for (const l of snapshot.lore) {
+    richText.set(l.id, l.body);
+    passageText.set(l.id, l.passages.map((p) => p.body));
+    loreEntries.push(ref("lore", "lore", l.id, l.title, orNull(l.lore_kind)));
+  }
+  chapterEntries.set("lore", loreEntries);
 
   chapterEntries.set(
     "chronicle",
@@ -253,7 +259,9 @@ export function buildBookModel(snapshot: OpenBookSnapshot): BookModel {
   // Backlinks: cited id -> the entries that cite it, in book order, never an entry citing itself.
   const cited = new Map<string, BookEntryRef[]>();
   for (const entry of entries) {
-    for (const id of mentionedIds(richText.get(entry.id) ?? null)) {
+    const texts = [richText.get(entry.id) ?? null, ...(passageText.get(entry.id) ?? [])];
+    const ids = new Set(texts.flatMap((text) => [...mentionedIds(text)]));
+    for (const id of ids) {
       if (id === entry.id) continue;
       const list = cited.get(id) ?? [];
       list.push(entry);

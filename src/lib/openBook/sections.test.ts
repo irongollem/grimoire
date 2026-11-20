@@ -37,12 +37,12 @@ const place = (id: string, name: string, description: string | null = null): Ope
 const lore = (id: string, title: string): OpenBookLore => ({
   id,
   title,
-  category: null,
-  content: null,
-  tags: null,
-  is_pinned: null,
+  lore_kind: null,
+  world_date: null,
+  image_url: null,
+  body: null,
+  passages: [],
   created_at: "2026-01-01",
-  updated_at: "2026-01-01",
 });
 
 const session = (id: string, n: number): OpenBookSession => ({
@@ -58,7 +58,7 @@ const session = (id: string, n: number): OpenBookSession => ({
 
 function snapshot(over: Partial<OpenBookSnapshot> = {}): OpenBookSnapshot {
   return {
-    v: 1,
+    v: 2,
     book: {
       title: "The Saltreach",
       subtitle: null,
@@ -75,6 +75,7 @@ function snapshot(over: Partial<OpenBookSnapshot> = {}): OpenBookSnapshot {
     pantheons: [],
     deities: [],
     lore: [lore("l1", "The Drowned Roads")],
+    truths: [],
     sessions: [session("s1", 1)],
     events: [],
     names: {},

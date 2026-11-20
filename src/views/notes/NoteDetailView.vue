@@ -31,7 +31,7 @@ const { data: note, isLoading: noteLoading } = useNote(id);
 const session = useNoteSession(() => note.value?.session_id);
 const description = computed(() => {
   if (!note.value) return undefined;
-  return session.value ? `${note.value.category} · ${sessionLabel(session.value)}` : note.value.category;
+  return session.value ? sessionLabel(session.value) : undefined;
 });
 const isLoading = computed(() => !isNew.value && noteLoading.value);
 </script>

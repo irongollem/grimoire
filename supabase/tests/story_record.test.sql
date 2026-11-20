@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(18);
 
 -- The record of what is true in a story (#1021). What goes wrong silently here: a player reading a fact the party
 -- has not learned (or learning who it is about from its ties), a fact quietly rewritten so the story no longer
@@ -129,6 +129,22 @@ select throws_ok(
   $$ update public.story_facts set user_id = '12170000-0000-4000-8000-000000000001' where campaign_id = '12170000-0000-4000-8000-000000000010' $$,
   '23514', null, 'outside a hand-over a fact''s keeper is still not rewritten'
 );
+
+
+-- ── The DM strikes a fact (#1226 story 9): it never happened, so the players stop reading it ──
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '12170000-0000-4000-8000-000000000001', true);
+update public.story_facts set struck_at = now() where id = '12170000-0000-4000-8000-000000000030';
+select throws_ok($$
+  update public.story_facts set kept_at = now() where id = '12170000-0000-4000-8000-000000000030'
+$$, '23514', null, 'a struck fact cannot also be kept');
+select set_config('request.jwt.claim.sub', '12170000-0000-4000-8000-000000000002', true);
+select is_empty($$ select id from public.story_facts where id = '12170000-0000-4000-8000-000000000030' $$,
+  'a player no longer reads a fact the DM struck, though it was known to them');
+select is_empty($$ select id from public.story_fact_links where fact_id = '12170000-0000-4000-8000-000000000030' $$,
+  'nor whom a struck fact was about');
 
 select * from finish();
 rollback;

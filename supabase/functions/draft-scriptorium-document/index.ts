@@ -233,11 +233,11 @@ async function gatherContext(req: DraftRequest): Promise<string> {
     return assembleContext([buildFactionBlock(faction as DraftFaction, members, holdings, relations, audience)]);
   }
 
-  // session: the subject is a session-category note, siblings are the notes linked to the same session.
+  // session: the subject is a note linked to a session (its chronicle entry), siblings are the notes linked to the same session.
   // overrideTypes: without generated types supabase-js reads the many-to-one
   // `session` embed as an array; PostgREST returns one object (or null).
   const { data: note, error: noteErr } = await admin.from("notes").select(NOTE_COLUMNS)
-    .eq("id", subjectId).eq("campaign_id", campaignId).eq("category", "session").maybeSingle()
+    .eq("id", subjectId).eq("campaign_id", campaignId).not("session_id", "is", null).maybeSingle()
     .overrideTypes<DraftNote, { merge: false }>();
   if (noteErr) throw new Error(noteErr.message);
   if (!note) throw new DraftError(404, "Session not found in this campaign");

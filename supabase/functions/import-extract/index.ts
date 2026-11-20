@@ -73,6 +73,7 @@ import {
   type DocumentPart,
   type DocumentUsage,
 } from "../_shared/documentGen.ts";
+import { buildInstruction } from "./buildInstruction.ts";
 import { EXTRACTION_SCHEMA } from "./extractionSchema.ts";
 
 const admin = createClient(
@@ -140,7 +141,7 @@ const TEXT_SOURCE_GUIDANCE =
 // per-field absence handling in every `normalize.ts` mapper; see the
 // `DocumentImport.extracted` comment in documentImport.types.ts.
 
-const ENTITY_KINDS = ["monsters", "npcs", "locations", "items", "spells", "quests", "factions", "encounters"] as const;
+const ENTITY_KINDS = ["monsters", "npcs", "locations", "items", "spells", "quests", "factions", "deities", "canon", "encounters"] as const;
 
 interface SanitizedEntity {
   ref: string;
@@ -193,7 +194,8 @@ function sanitizeExtraction(raw: unknown): Record<string, SanitizedEntity[]> {
   for (const kind of ENTITY_KINDS) {
     const list = raw[kind];
     if (!Array.isArray(list)) continue;
-    const nameField = kind === "quests" ? "title" : "name";
+    // A quest and a canon entry are headed by their title (`entityKinds.ts` displayField), everything else by name.
+    const nameField = kind === "quests" || kind === "canon" ? "title" : "name";
     const entities: SanitizedEntity[] = [];
     for (const item of list) {
       const entity = sanitizeEntity(item, nameField);
@@ -708,7 +710,7 @@ serve(withCors(async (req: Request) => {
   // plain text-only one for free, no changes needed there.
   const instruction = buildInstruction({
     sourceKind: importRow.source_kind,
-    sourceText,
+    sourceText: sourceText ?? null,
     pageCount: actualPageCount,
     ownWriting: importRow.own_writing,
     textGuidance: TEXT_SOURCE_GUIDANCE,

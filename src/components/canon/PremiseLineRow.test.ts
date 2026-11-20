@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import type { CanonEntry } from "@/types/canon.types";
+import { canonEntry } from "@/test/canonEntry";
 
 const mocks = vi.hoisted(() => ({ update: vi.fn(), destroy: vi.fn(), confirm: vi.fn() }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({
@@ -11,10 +12,7 @@ vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks
 
 import PremiseLineRow from "./PremiseLineRow.vue";
 
-const entry: CanonEntry = {
-  id: "e1", user_id: "u", campaign_id: "c", part: "premise", premise_kind: "theme", knowledge: null, title: "What is sweet can spoil.",
-  body: null, sort_order: 0, player_visible_to: [], image_url: null, ai_provenance: null, created_at: "", updated_at: "",
-};
+const entry: CanonEntry = canonEntry({ id: "e1", part: "premise", premise_kind: "theme", title: "What is sweet can spoil." });
 
 function mountRow() {
   return mount(PremiseLineRow, { props: { entry, label: "Theme" }, global: { stubs: { AudienceRevealControl: true } } });

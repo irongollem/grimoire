@@ -39,7 +39,9 @@ export type EffectiveEmbedReveal =
   // Nothing is revealed by sharing these: a player sees an item once the party
   // holds it, and spells, species and subclasses are rules text the campaign's
   // players can already read.
-  | { type: "item" | "spell" | "species" | "subclass" };
+  // A canon entry has no reveal of its own: sharing a book never shares canon (what a player reads of it is the
+  // entry's own audience, `private.canon_entry_seen`).
+  | { type: "item" | "spell" | "species" | "subclass" | "canon" };
 
 const NPC_FIELD_KEYS = NPC_PLAYER_FIELDS.map((f) => f.key) as readonly NpcPlayerFieldKey[];
 
@@ -85,6 +87,8 @@ export function effectiveEmbedReveal(subject: EmbedRevealSubject): EffectiveEmbe
       return { type: "species" };
     case "subclass":
       return { type: "subclass" };
+    case "canon":
+      return { type: "canon" };
   }
 }
 
@@ -119,6 +123,8 @@ export function describeEmbedReveal(subject: EmbedRevealSubject): string {
     case "species":
     case "subclass":
       return "Rules text: players can read it";
+    case "canon":
+      return "Shown to a player only if the entry is";
     case "spell":
       return "Shown once found";
   }
@@ -126,5 +132,5 @@ export function describeEmbedReveal(subject: EmbedRevealSubject): string {
 
 /** Whether the toolbar offers a reveal control at all for this entity type. */
 export function embedHasRevealControl(type: EntityEmbedType): boolean {
-  return type !== "item" && type !== "spell" && type !== "species" && type !== "subclass";
+  return type !== "item" && type !== "spell" && type !== "species" && type !== "subclass" && type !== "canon";
 }

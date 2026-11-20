@@ -27,6 +27,8 @@ const fact = (id: string, over: Record<string, unknown> = {}) => ({
   known_to_player: true,
   supersedes_id: null,
   source: "table",
+  kept_at: null,
+  struck_at: null,
   created_at: `2026-11-10T10:00:0${id.length}Z`,
   ...over,
 });
@@ -90,6 +92,23 @@ describe("TableStoryView", () => {
     expect(rows[0]!.attributes("data-closed")).toBe("true");
     expect(rows[1]!.attributes("data-closed")).toBeUndefined();
     expect(rows[1]!.text()).toContain("Corrected by the player");
+  });
+
+  // Bug caught: a fact the DM struck (it never happened) still read as true on the story page, or offered Correct and Reveal.
+  it("shows a struck fact struck through as removed with nothing to do to it, and keeps it from a player at the table", async () => {
+    setUp("dm");
+    fake.seed("story_facts", [fact("a", { body: "The guild master was hanged", struck_at: "2026-11-20T10:00:00Z" })]);
+    const w = await mountView();
+    expect(texts(w)).toEqual(["The guild master was hanged"]);
+    expect(w.find('[data-testid="record-struck"]').text()).toContain("never happened");
+    expect(button(w, "Correct this")).toBeUndefined();
+    w.unmount();
+
+    setUp("player");
+    useAppUiStore().tablePlay = { sessionId: "s1" } as never;
+    const asPlayer = await mountView();
+    expect(texts(asPlayer)).toEqual([]);
+    asPlayer.unmount();
   });
 
   // Bug caught: a player being offered writes the database would refuse (or, worse, ones it would allow).

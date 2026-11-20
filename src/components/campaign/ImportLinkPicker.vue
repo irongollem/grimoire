@@ -61,7 +61,7 @@ const { groups, isFetching, isError, isSemanticPending, thumbnails } = useImport
 
 function onPick(picked: { kind: string; id: string; name: string }) {
   const hit = groups.value.flatMap((g) => g.items).find((item) => item.id === picked.id);
-  emit("pick", hitToCandidate(picked.kind, { id: picked.id, name: picked.name, detail: hit?.detail, descriptor: hit?.descriptor }));
+  emit("pick", hitToCandidate(picked.kind, { id: picked.id, name: picked.name, detail: hit?.detail, descriptor: hit?.descriptor }, kind));
   emit("close");
 }
 </script>

@@ -14,7 +14,7 @@
  * Who knows a truth, as a shape and a word, never colour alone (frame 03): a filled diamond for all, a half one for
  * some, a hollow one for a secret.
  */
-import { KNOWLEDGE_LABEL } from "./canonParts";
+import { KNOWLEDGE_LABEL } from "@/lib/canon/canonParts";
 import type { KnowledgeMark } from "@/types/canon.types";
 
 const { mark } = defineProps<{ mark: KnowledgeMark }>();

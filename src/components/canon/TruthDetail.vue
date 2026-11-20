@@ -88,7 +88,8 @@ import SegmentedControl from "@/components/common/controls/SegmentedControl.vue"
 import WorldEntityPicker from "@/components/common/entity/WorldEntityPicker.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import CanonRef from "./CanonRef.vue";
-import { KNOWLEDGE_HELP, MARK_OPTIONS } from "./canonParts";
+import { KNOWLEDGE_HELP, MARK_OPTIONS } from "@/lib/canon/canonParts";
+import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { KNOWER_KINDS, useKnownTo } from "@/composables/canon/useKnownTo";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { IconAdd, IconClose, IconDelete } from "@/lib/icons";
@@ -107,22 +108,7 @@ const knowledge = computed<KnowledgeMark>(() => {
 const { mutate: update } = useUpdateCanonEntry();
 const { knowers, isLoading, nameKnower, forgetKnower } = useKnownTo(computed(() => (entry.knowledge === "some" ? entry.id : null)));
 
-const text = ref(entry.title);
-// A revert to the words the field already held changes nothing Vue can see, so the field is remade to drop what was typed.
-const revision = ref(0);
-watch(() => [entry.id, entry.title] as const, ([, title]) => { text.value = title; });
-// `.lazy` commits on blur or Enter, so this runs once per finished edit, not per keystroke.
-watch(text, () => saveText());
-
-function saveText() {
-  const next = text.value.trim();
-  if (next === "" || next === entry.title) {
-    text.value = entry.title;
-    revision.value++;
-    return;
-  }
-  update({ id: entry.id, patch: { title: next } });
-}
+const { text, revision } = useCommittedText(() => entry.title, (next) => update({ id: entry.id, patch: { title: next } }));
 
 const pickerOpen = ref(false);
 watch(() => entry.id, () => { pickerOpen.value = false; });

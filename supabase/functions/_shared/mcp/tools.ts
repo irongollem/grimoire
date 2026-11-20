@@ -1144,7 +1144,7 @@ async function campaignOverview(ctx: ToolContext, args: Record<string, unknown>)
     // would contradict the sheet, so the tool leaves it out rather than guess.
     ctx.supabase.from("party_members").select("id, name, class, level, current_hp, max_hp").eq("campaign_id", campaignId),
     ctx.supabase.from("quests").select("id, title, summary, status").eq("campaign_id", campaignId).eq("status", "active"),
-    ctx.supabase.from("notes").select("id, title, category, updated_at").eq("campaign_id", campaignId).order("updated_at", { ascending: false }).limit(5),
+    ctx.supabase.from("notes").select("id, title, session_id, updated_at").eq("campaign_id", campaignId).order("updated_at", { ascending: false }).limit(5),
   ]);
 
   if (campaign.error) throw new Error(campaign.error.message);

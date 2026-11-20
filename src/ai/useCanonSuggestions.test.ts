@@ -67,4 +67,27 @@ describe("useCanonSuggestions", () => {
     expect(truths.error.value).toBe("rate_limited");
     expect(truths.suggestions.value).toEqual([]);
   });
+
+  it("sends the secret with a clues request and the title, kind and text with a lore request", async () => {
+    invoke.mockResolvedValueOnce(reply([{ title: "c", spot: { kind: "npc", id: "n", name: "N" } }]));
+    invoke.mockResolvedValueOnce(reply([{ title: "Lore", kind: "history", passages: [] }]));
+    await useCanonSuggestions("clues").suggest(" steer ", { secret_id: "s1" });
+    expect(invoke).toHaveBeenLastCalledWith("suggest-canon", { body: { campaign_id: "c1", mode: "clues", prompt: "steer", secret_id: "s1" } });
+    await useCanonSuggestions("lore").suggest("", { title: "The Sinking", lore_kind: "legend", text: "old words" });
+    expect(invoke).toHaveBeenLastCalledWith("suggest-canon", {
+      body: { campaign_id: "c1", mode: "lore", prompt: "", title: "The Sinking", lore_kind: "legend", text: "old words" },
+    });
+  });
+
+  it("keeps each of the six helpers' proposals apart", async () => {
+    invoke.mockResolvedValueOnce(reply([{ title: "Why?" }]));
+    invoke.mockResolvedValueOnce(reply([{ title: "Force" }]));
+    const questions = useCanonSuggestions("questions");
+    const forces = useCanonSuggestions("forces");
+    await questions.suggest("");
+    await forces.suggest("");
+    forces.dismissAll();
+    expect(questions.suggestions.value).toEqual([{ title: "Why?" }]);
+    expect(forces.suggestions.value).toEqual([]);
+  });
 });

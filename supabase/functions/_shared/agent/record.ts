@@ -107,6 +107,18 @@ export function parseRecordInput(input: Record<string, unknown>): { ok: true; va
   return { ok: true, value: { fact: body, about, hidden: input.hidden === true, closes } };
 }
 
+/**
+ * The facts that stand: not struck, and not closed by a later fact that itself stands. A struck fact never happened
+ * (the DM's Strike, #1226): the narrator never reads it, and a fact it would have closed is open again.
+ */
+export function openFacts<T extends { id: string; struck_at: string | null }>(
+  facts: readonly T[],
+  closers: readonly { supersedes_id: string; struck_at: string | null }[],
+): T[] {
+  const closed = new Set(closers.filter((c) => c.struck_at === null).map((c) => c.supersedes_id));
+  return facts.filter((f) => f.struck_at === null && !closed.has(f.id));
+}
+
 /** A fact as the narrator reads it. `when` is a short label such as "Session 3". */
 export interface RecordedFact {
   id: string;
@@ -150,6 +162,12 @@ export function recordResult(id: string): string {
 export interface RecordToolDeps {
   /** Writes the fact and its ties; `{ error }` is a sentence the narrator can act on. */
   fileFact(input: RecordInput): Promise<{ id: string } | { error: string }>;
+  /**
+   * Holds an invention against the canon before it is filed (#1226): `{ error }` is the reason it is refused, in words
+   * the narrator can act on, and nothing is filed. Only the narrator's own `record` calls come through here; a fact the
+   * server writes itself (a fight's result, a harvest) never does. A check that throws files the fact unchecked.
+   */
+  check?(input: RecordInput): Promise<{ error: string } | null>;
   /** Told once per fact that was filed. */
   onFiled?(fact: { id: string; body: string; hidden: boolean }): void;
 }
@@ -161,6 +179,15 @@ export function makeRecordTool(deps: RecordToolDeps): { tool: AgentTool; call: (
     call: async (input) => {
       const parsed = parseRecordInput(input);
       if (!parsed.ok) return { content: parsed.error, isError: true };
+      if (deps.check !== undefined) {
+        let refused: { error: string } | null = null;
+        try {
+          refused = await deps.check(parsed.value);
+        } catch (error) {
+          console.error("agent-turn: the canon check failed, so the fact was filed unchecked:", error);
+        }
+        if (refused !== null) return { content: refused.error, isError: true };
+      }
       const filed = await deps.fileFact(parsed.value);
       if ("error" in filed) return { content: filed.error, isError: true };
       deps.onFiled?.({ id: filed.id, body: parsed.value.fact, hidden: parsed.value.hidden });

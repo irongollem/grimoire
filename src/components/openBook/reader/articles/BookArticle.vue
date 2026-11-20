@@ -13,6 +13,7 @@ import PantheonArticle from "./PantheonArticle.vue";
 import PersonArticle from "./PersonArticle.vue";
 import PlaceArticle from "./PlaceArticle.vue";
 import SessionArticle from "./SessionArticle.vue";
+import TruthsArticle from "./TruthsArticle.vue";
 import "./bookArticles.css";
 
 const { model, entry } = defineProps<{ model: BookModel; entry: BookEntryRef }>();
@@ -27,6 +28,7 @@ const found = computed(() => recordFor(model.snapshot, entry));
   <PantheonArticle v-else-if="found?.kind === 'pantheon'" :model="model" :pantheon="found.record" />
   <DeityArticle v-else-if="found?.kind === 'deity'" :model="model" :deity="found.record" />
   <LoreArticle v-else-if="found?.kind === 'lore'" :model="model" :lore="found.record" />
+  <TruthsArticle v-else-if="found?.kind === 'truths'" :truths="found.record" />
   <SessionArticle v-else-if="found?.kind === 'session'" :model="model" :session="found.record" />
   <article v-else class="book-article">
     <h1 class="book-title">{{ entry.title }}</h1>

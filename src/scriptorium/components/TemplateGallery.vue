@@ -53,6 +53,14 @@
         blurb="Bring an existing .md document (chapters, notes, or a Homebrewery brew) into a styled book."
         @click="fileInput?.click()"
       />
+      <!-- A book drawn from the campaign (#1226 story 8): linked entries, chapter by chapter -->
+      <TemplateGalleryActionCard
+        v-if="activeCampaignId"
+        :icon="IconLibrary"
+        title="From this campaign"
+        blurb="Draw a book from the campaign's canon, places, folk and powers. Entries are linked, so the book follows the campaign."
+        @click="choosingAudience = !choosingAudience"
+      />
       <input
         ref="fileInput"
         type="file"
@@ -60,6 +68,22 @@
         class="hidden"
         @change="onFilePicked"
       />
+    </div>
+
+    <div
+      v-if="choosingAudience && activeCampaignId"
+      class="flex flex-col gap-2 rounded-lg border border-border bg-card p-4"
+      data-testid="campaign-book-audience"
+    >
+      <p class="text-body text-foreground">Who is this book for?</p>
+      <p class="text-caption text-muted-foreground">
+        The DM's book holds everything, secrets in DM boxes. A players' book holds only what the whole party may read,
+        and its preview and PDF print nothing more.
+      </p>
+      <div class="flex flex-wrap gap-2">
+        <AppButton variant="outline" :disabled="isStarting" @click="drawFromCampaign('dm')">For the DM</AppButton>
+        <AppButton variant="outline" :disabled="isStarting" @click="drawFromCampaign('players')">For the players</AppButton>
+      </div>
     </div>
 
     <p v-if="error" class="text-body text-destructive" role="alert">{{ error }}</p>
@@ -79,7 +103,11 @@ import { importedMarkdownTemplate } from "@/scriptorium/data/templates/importedM
 import { docTypeColor, docTypeLabel } from "@/scriptorium/lib/editorConstants";
 import TemplateGalleryActionCard from "./TemplateGalleryActionCard.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
-import { IconUpload } from "@/lib/icons";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { IconLibrary, IconUpload } from "@/lib/icons";
+import { storeToRefs } from "pinia";
+import { useCampaignStore } from "@/stores/campaign";
+import type { BookAudience } from "@/scriptorium/lib/canonBook";
 import { useQuota } from "@/composables/billing/useQuota";
 import { useStartScriptoriumDocument } from "@/scriptorium/composables/useStartScriptoriumDocument";
 import { isQuotaExceeded } from "@/lib/quotaError";
@@ -88,7 +116,9 @@ const templates = SCRIPTORIUM_TEMPLATES;
 
 const emit = defineEmits<{ created: [docId: string] }>();
 
-const { startBook, isStarting } = useStartScriptoriumDocument();
+const { startBook, startBookFromCampaign, isStarting } = useStartScriptoriumDocument();
+const { activeCampaignId } = storeToRefs(useCampaignStore());
+const choosingAudience = ref(false);
 const { canCreate } = useQuota("scriptorium_documents");
 const showPaywall = ref(false);
 const error = ref("");
@@ -107,6 +137,20 @@ async function start(template: ScriptoriumTemplate) {
   } catch (e) {
     if (isQuotaExceeded(e)) showPaywall.value = true;
     else error.value = e instanceof Error ? e.message : "Could not start the book.";
+  }
+}
+
+async function drawFromCampaign(audience: BookAudience) {
+  error.value = "";
+  if (!canCreate.value) {
+    showPaywall.value = true;
+    return;
+  }
+  try {
+    emit("created", await startBookFromCampaign(audience));
+  } catch (e) {
+    if (isQuotaExceeded(e)) showPaywall.value = true;
+    else error.value = e instanceof Error ? e.message : "Could not draw the book.";
   }
 }
 

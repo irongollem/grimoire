@@ -3,7 +3,8 @@ import type { EntityEmbedType } from "@/lib/tiptap/nodeViewTypes";
 import type { EntityRef } from "@/scriptorium/lib/entityEmbeds";
 
 /** Which World Bundle category holds each kind of entity a book can link. */
-const BUNDLE_KEY_BY_EMBED: Record<EntityEmbedType, BundleEntityKey> = {
+/** Canon is not World Bundle data (the bundle is rows a player may be handed), so a canon link adds nothing. */
+const BUNDLE_KEY_BY_EMBED: Record<Exclude<EntityEmbedType, "canon">, BundleEntityKey> = {
   npc: "npcs",
   monster: "monsters",
   spell: "spells",
@@ -33,6 +34,7 @@ export function bundlePreselection(
     out[key] = list;
   };
   for (const ref of refs) {
+    if (ref.type === "canon") continue;
     add(BUNDLE_KEY_BY_EMBED[ref.type], ref.id);
   }
   if (documentId) add("scriptorium_documents", documentId);

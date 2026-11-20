@@ -11,7 +11,7 @@
 import type { RouteLocationRaw } from "vue-router";
 import type { OpenBookChapter } from "@/types/openBook.types";
 import { OPEN_BOOK_CHAPTERS } from "@/types/openBook.types";
-import type { BookEntryRef, BookModel } from "./bookModel";
+import { TRUTHS_ENTRY_ID, type BookEntryRef, type BookModel } from "./bookModel";
 import { estimatePages } from "./pagination";
 
 export type SectionKind = "contents" | "almanac" | "entry" | "index";
@@ -144,7 +144,10 @@ export function estimateSectionPages(model: BookModel, sections: readonly BookSe
   for (const f of snap.factions) chars.set(f.id, 400 + storedLength(f.description));
   for (const p of snap.pantheons) chars.set(p.id, 400 + storedLength(p.description) + model.deitiesOf(p.id).length * 120);
   for (const d of snap.deities) chars.set(d.id, 500 + storedLength(d.description));
-  for (const l of snap.lore) chars.set(l.id, 300 + storedLength(l.content));
+  for (const l of snap.lore) {
+    chars.set(l.id, 300 + storedLength(l.body) + l.passages.reduce((sum, p) => sum + 80 + storedLength(p.body), 0));
+  }
+  chars.set(TRUTHS_ENTRY_ID, 200 + snap.truths.length * 90);
   for (const s of snap.sessions) chars.set(s.id, 300 + storedLength(s.content));
 
   const out = new Map<string, number>();

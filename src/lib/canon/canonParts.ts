@@ -5,9 +5,22 @@ import { KNOWLEDGE_MARKS, type CanonEntry, type KnowledgeMark } from "@/types/ca
  * Truths; each later story adds its own part here, which is the only place the contents column learns of it.
  */
 export const CANON_SECTIONS = [
-  { id: "premise", numeral: "I", label: "Premise and tone", short: "Premise", part: "premise" },
-  { id: "truths", numeral: "II", label: "Truths", short: "Truths", part: "truth" },
+  { id: "premise", numeral: "I", label: "Premise and tone", short: "Premise", parts: ["premise"], counted: true },
+  { id: "truths", numeral: "II", label: "Truths", short: "Truths", parts: ["truth"], counted: true },
+  { id: "moving", numeral: "III", label: "What is moving", short: "Moving", parts: ["force"], counted: true },
+  // Questions are counted with the secrets: the contents column shows one number for the whole part.
+  { id: "secrets", numeral: "IV", label: "Secrets and questions", short: "Secrets", parts: ["secret", "question"], counted: true },
+  // The world's own clock, calendar and coins are campaign columns, not entries: no part, so no count.
+  { id: "world", numeral: "V", label: "How the world works", short: "World", parts: [], counted: false },
+  { id: "lore", numeral: "VI", label: "Lore", short: "Lore", parts: ["lore"], counted: true },
+  // The Chronicle is the sessions' notes, not canon entries: no part, and its count (the sessions with a chronicle
+  // entry written) is added by the page. What the table added is the Narrator's, set apart below a rule (frame 03).
+  { id: "chronicle", numeral: "VII", label: "Chronicle", short: "Chronicle", parts: [], counted: true },
+  { id: "table", numeral: "✦", label: "What the table added", short: "Table", parts: [], counted: true },
 ] as const;
+
+/** The part set apart in the contents column, below a rule and with its own hint. */
+export const TABLE_SECTION_HINT = "Filled by the Narrator as it invents. Keep, edit or strike each line.";
 
 export type CanonSectionId = (typeof CANON_SECTIONS)[number]["id"];
 
@@ -18,7 +31,7 @@ export function isCanonSectionId(value: string): value is CanonSectionId {
 /** How many entries each part holds, for the contents column. */
 export function sectionCounts(entries: readonly CanonEntry[]): Record<CanonSectionId, number> {
   const counts = {} as Record<CanonSectionId, number>;
-  for (const section of CANON_SECTIONS) counts[section.id] = entries.filter((e) => e.part === section.part).length;
+  for (const section of CANON_SECTIONS) counts[section.id] = entries.filter((e) => (section.parts as readonly string[]).includes(e.part)).length;
   return counts;
 }
 

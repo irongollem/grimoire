@@ -198,6 +198,8 @@ const LIST_ROUTES: Record<ImportEntityKind, string> = {
   spells: "/spells",
   quests: "/quests",
   factions: "/factions",
+  deities: "/deities",
+  canon: "/canon",
   encounters: "/encounters",
 };
 

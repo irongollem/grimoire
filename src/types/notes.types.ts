@@ -1,26 +1,17 @@
 import type { AiProvenance } from "@/ai/provenance";
 
-export type NoteCategory =
-  | "general"
-  | "session"
-  | "lore"
-  | "location"
-  | "quest"
-  | "faction";
-
 export interface Note {
   id: string;
   user_id: string;
   campaign_id: string | null;
   title: string;
   content: string | null; // Tiptap JSON string
-  category: NoteCategory;
   tags: string[];
   /** The session this note records (`campaign_sessions.id`). Null for any other note. */
   session_id: string | null;
   is_pinned: boolean;
   player_visible_to: string[];
-  // Session date fields — only meaningful when category === 'session'
+  // Session date fields — only meaningful when the note is linked to a session
   session_start_year: number | null;
   session_start_month: number | null;
   session_start_day: number | null;

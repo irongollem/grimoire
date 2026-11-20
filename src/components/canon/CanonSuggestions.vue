@@ -19,7 +19,7 @@
       <div>
         <label class="mb-1 block text-label-lg font-semibold text-muted-foreground" :for="steerId">
           {{ copy.steerLabel }}
-          <span v-if="mode === 'truths'" class="font-fell font-normal normal-case text-muted-foreground">(optional)</span>
+          <span v-if="mode !== 'premise'" class="font-fell font-normal normal-case text-muted-foreground">(optional)</span>
         </label>
         <!-- An AI-prompt field: native on purpose (CLAUDE.md, Sanctioned Exceptions), the model receives it as written. -->
         <textarea
@@ -40,7 +40,7 @@
           :icon="IconGenerate"
           icon-size="xs"
           :loading="isGenerating"
-          :disabled="isAnyAiGenerating || (mode === 'premise' && steer.trim() === '')"
+          :disabled="isAnyAiGenerating || (mode === 'premise' && steer.trim() === '') || (mode === 'lore' && (lore?.title.trim() ?? '') === '')"
           :label="copy.run"
           @click="run"
         />
@@ -68,8 +68,11 @@
           <span v-if="p.knowers" class="text-caption text-muted-foreground">
             <template v-if="p.knowers.length > 0">known to {{ p.knowers.join(", ") }}</template>
           </span>
+          <CanonRef v-if="p.spot" :kind="p.spot.kind" :name="p.spot.name" />
+          <CanonRef v-if="p.who" :kind="p.who.kind" :name="p.who.name" />
         </div>
         <p class="text-body text-foreground">{{ p.text }}</p>
+        <p v-if="p.detail" class="text-caption text-muted-foreground">{{ p.detail }}</p>
         <div class="flex justify-end gap-1">
           <AppButton variant="primary" size="sm" :icon="IconCheck" icon-size="xs" label="Accept" :disabled="isAccepting" @click="accept(p.source)" />
           <AppButton variant="subtle" size="sm" label="Dismiss" :disabled="isAccepting" @click="dismiss(p.source)" />
@@ -84,8 +87,8 @@
 
 <script setup lang="ts">
 /**
- * The two canon helpers (#1226 story 2, frame 13): "Draft from a pitch" for the premise and "Suggest truths" for the
- * truths. A steer box, a cost badge, then proposals one by one with Accept and Dismiss. Nothing is written until the
+ * The canon helpers (#1226, frame 13): "Draft from a pitch" for the premise, "Suggest truths" for the truths, "Place
+ * clues" for one secret and "Suggest questions" for the open questions and "Suggest forces" for what is moving. A steer box, a cost badge, then proposals one by one with Accept and Dismiss. Nothing is written until the
  * DM accepts; an accepted entry carries the run's `ai_provenance`. Mounted by the sections, for the DM only.
  */
 import { computed, ref, useId } from "vue";
@@ -94,8 +97,13 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
-import { plainTextToTiptap } from "./canonParts";
+import CanonRef from "./CanonRef.vue";
+import { plainTextToTiptap } from "@/lib/canon/canonParts";
+import { useCanonClues, useCreateCanonClue, type NewCanonClue } from "@/composables/canon/useCanonClues";
 import { useCreateCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useAcceptForce } from "@/composables/canon/useCanonForces";
+import { useAcceptLore } from "@/composables/canon/useAcceptLore";
+import { useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useKnownTo } from "@/composables/canon/useKnownTo";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
@@ -104,14 +112,26 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
-import { useCanonSuggestions, type PremiseSuggestion, type TruthSuggestion } from "@/ai/useCanonSuggestions";
+import { useCanonSuggestions, type ClueSuggestion, type ForceSuggestion, type LoreSuggestion, type PremiseSuggestion, type QuestionSuggestion, type TruthSuggestion } from "@/ai/useCanonSuggestions";
 import type { AiProvenance } from "@/ai/provenance";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
-import type { CanonEntry } from "@/types/canon.types";
+import type { CanonEntry, LoreKind } from "@/types/canon.types";
 
-type Suggestion = PremiseSuggestion | TruthSuggestion;
+type Suggestion = PremiseSuggestion | TruthSuggestion | ClueSuggestion | QuestionSuggestion | ForceSuggestion | LoreSuggestion;
 
-const { mode, entries } = defineProps<{ mode: "premise" | "truths"; entries: readonly CanonEntry[] }>();
+const { mode, entries, secretId = null, lore = null } = defineProps<{
+  mode: "premise" | "truths" | "clues" | "questions" | "forces" | "lore";
+  /** The entries the mode adds to: premise entries, truths or questions. Unused by `clues`, which counts the secret's own. */
+  entries: readonly CanonEntry[];
+  /** Required by `clues`: the secret the clues are for. */
+  secretId?: string | null;
+  /**
+   * Required by `lore`: the title and kind the DM gave. With an `entryId` the helper splits that entry's own `text`
+   * into passages and replaces its passages; without one it drafts a whole new entry.
+   */
+  lore?: { title: string; kind: LoreKind | null; entryId: string | null; text: string } | null;
+}>();
+const emit = defineEmits<{ accepted: [entryId: string] }>();
 
 const COPY = {
   premise: {
@@ -132,9 +152,55 @@ const COPY = {
     heading: "Suggested truths",
     ledger: "canon_truth_suggestion",
   },
+  clues: {
+    open: "Place clues",
+    run: "Place clues",
+    steerLabel: "Steer the clues",
+    placeholder: "e.g. keep one clue in the Mint Fields, make one a song",
+    waiting: "Reading your campaign for places to put clues. This takes a little while.",
+    heading: "Suggested clues",
+    ledger: "canon_clue_suggestion",
+  },
+  questions: {
+    open: "Suggest questions",
+    run: "Suggest questions",
+    steerLabel: "Steer the questions",
+    placeholder: "e.g. something about the guild, and one about the river",
+    waiting: "Reading your campaign for questions to keep open. This takes a little while.",
+    heading: "Suggested questions",
+    ledger: "canon_question_suggestion",
+  },
+  forces: {
+    open: "Suggest forces",
+    run: "Suggest forces",
+    steerLabel: "Steer the forces",
+    placeholder: "e.g. one faction with a slow plan, and a power the party has not met",
+    waiting: "Reading your campaign for what could be moving. This takes a little while.",
+    heading: "Suggested forces",
+    ledger: "canon_force_suggestion",
+  },
+  lore: {
+    open: "Draft a lore entry",
+    run: "Draft",
+    steerLabel: "Steer the draft",
+    placeholder: "e.g. told in four passages, the last one a secret",
+    waiting: "Reading your campaign to draft this lore. This takes a little while.",
+    heading: "Suggested lore",
+    ledger: "canon_lore_suggestion",
+  },
+  split: {
+    open: "Split into passages",
+    run: "Split",
+    steerLabel: "Steer the split",
+    placeholder: "e.g. keep the ending for last",
+    waiting: "Reading the entry to split it into passages. This takes a little while.",
+    heading: "Suggested passages",
+    ledger: "canon_lore_suggestion",
+  },
 } as const;
-const copy = computed(() => COPY[mode]);
+const copy = computed(() => (mode === "lore" && lore?.entryId ? COPY.split : COPY[mode]));
 
+const SPOT_TAG = { location: "A place you have", npc: "A person you have", quest_beat: "A beat you have" } as const;
 const KIND_TAG: Record<PremiseSuggestion["kind"], string> = {
   pitch: "Pitch",
   theme: "Theme",
@@ -150,14 +216,19 @@ const { confirm } = useConfirm();
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const steerId = useId();
 
-const { suggest, suggestions, setAside, provenance, isGenerating, error, dismiss, dismissAll } = useCanonSuggestions(mode);
+const { suggest, suggestions, setAside, provenance, isGenerating, error, dismiss, dismissAll } = useCanonSuggestions(mode, mode === "lore" ? (lore?.entryId ?? "new") : undefined);
 const { canSpend } = useGenerationGate();
 const { costOf } = useAiCredits();
 const { textCredits, textIsByok } = useCampaignProviders();
 const cost = computed(() => textCredits(costOf(copy.value.ledger)));
 
 const { mutateAsync: createEntry } = useCreateCanonEntry();
+const { mutateAsync: createClue } = useCreateCanonClue();
+const { data: allClues } = useCanonClues(() => mode === "clues");
 const { mutateAsync: updateEntry } = useUpdateCanonEntry();
+const writeForce = useAcceptForce();
+const acceptLoreWrites = useAcceptLore();
+const { data: allPassages } = useCanonPassages(() => mode === "lore");
 // No entry yet: only `nameKnower`, which takes the new truth's id, is used.
 const { nameKnower } = useKnownTo(() => null);
 
@@ -167,7 +238,16 @@ const isAccepting = ref(false);
 
 async function run() {
   if (!canSpend(cost.value, textIsByok.value)) return;
-  const ok = await suggest(steer.value);
+  // The clues mode is the one that sends more than the steer: the secret they are for.
+  const secret = secretId;
+  if (mode === "clues" && secret === null) return;
+  if (mode === "lore" && (lore === null || lore.title.trim() === "")) return;
+  const input = mode === "clues" && secret !== null
+    ? { secret_id: secret }
+    : mode === "lore" && lore !== null
+      ? { title: lore.title.trim(), lore_kind: lore.kind, ...(lore.entryId && lore.text.trim() !== "" ? { text: lore.text } : {}) }
+      : undefined;
+  const ok = await (suggest as (steer: string, input?: object) => Promise<boolean>)(steer.value, input);
   if (ok) {
     showSteer.value = false;
     steer.value = "";
@@ -178,17 +258,53 @@ function capitalised(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+function isLore(s: Suggestion): s is LoreSuggestion {
+  return "passages" in s;
+}
 function isTruth(s: Suggestion): s is TruthSuggestion {
-  return "title" in s;
+  return "knowledge" in s;
+}
+function isClue(s: Suggestion): s is ClueSuggestion {
+  return "spot" in s;
+}
+function isForce(s: Suggestion): s is ForceSuggestion {
+  return "steps" in s;
+}
+function isQuestion(s: Suggestion): s is QuestionSuggestion {
+  return !("knowledge" in s) && !("spot" in s) && !("kind" in s) && !("steps" in s) && !("passages" in s);
 }
 
-const proposals = computed(() =>
-  (suggestions.value as Suggestion[]).map((source, i) =>
-    isTruth(source)
-      ? { key: `${i}:${source.title}`, source, tag: MARK_TAG[source.knowledge], text: source.title, knowers: source.knowers.map((k) => k.name) }
-      : { key: `${i}:${source.kind}:${source.text}`, source, tag: KIND_TAG[source.kind], text: source.text, knowers: null },
-  ),
+interface Proposal {
+  key: string;
+  source: Suggestion;
+  tag: string;
+  text: string;
+  knowers: string[] | null;
+  spot: ClueSuggestion["spot"] | null;
+  who?: ForceSuggestion["who"];
+  detail?: string | null;
+}
+
+const proposals = computed<Proposal[]>(() =>
+  (suggestions.value as Suggestion[]).map((source, i) => {
+    if (isLore(source)) return { key: `${i}:${source.title}`, source, tag: lore?.entryId ? "Passages" : "A lore entry", text: source.title, knowers: null, spot: null, detail: loreDetail(source) };
+    if (isForce(source)) return { key: `${i}:${source.title}`, source, tag: "A force", text: `${source.title} wants ${source.wants}`, knowers: null, spot: null, who: source.who, detail: forceDetail(source) };
+    if (isTruth(source)) return { key: `${i}:${source.title}`, source, tag: MARK_TAG[source.knowledge], text: source.title, knowers: source.knowers.map((k) => k.name), spot: null };
+    if (isClue(source)) return { key: `${i}:${source.title}`, source, tag: SPOT_TAG[source.spot.kind], text: source.title, knowers: null, spot: source.spot };
+    if (isQuestion(source)) return { key: `${i}:${source.title}`, source, tag: "Kept open", text: source.title, knowers: null, spot: null };
+    return { key: `${i}:${source.kind}:${source.text}`, source, tag: KIND_TAG[source.kind], text: source.text, knowers: null, spot: null };
+  }),
 );
+
+function loreDetail(s: LoreSuggestion): string {
+  return `${s.passages.length} ${s.passages.length === 1 ? "passage" : "passages"}: ${s.passages.map((p) => p.title).join("; ")}.`;
+}
+
+function forceDetail(s: ForceSuggestion): string {
+  const steps = `${s.steps.length} ${s.steps.length === 1 ? "step" : "steps"}`;
+  const quests = s.quests.length > 0 ? `, in ${s.quests.map((q) => q.title).join(", ")}` : "";
+  return `A clock of ${s.clockSize}, ${steps}${quests}.`;
+}
 
 /** The run's provenance, copied onto each accepted write (an entry, and the ties a truth comes with). */
 function stamp(): { ai_provenance?: AiProvenance } {
@@ -222,10 +338,50 @@ async function acceptTruth(s: TruthSuggestion) {
   return true;
 }
 
+/** A clue lies at exactly one of the three places; only the column matching the suggested spot is set. */
+async function acceptClue(s: ClueSuggestion) {
+  if (secretId === null) throw new Error("Place clues is only offered on a secret.");
+  const count = (allClues.value ?? []).filter((c) => c.secret_id === secretId).length;
+  const base = { secret_id: secretId, title: s.title, sort_order: count, ...stamp() };
+  const clue: NewCanonClue =
+    s.spot.kind === "location" ? { ...base, location_id: s.spot.id }
+    : s.spot.kind === "npc" ? { ...base, npc_id: s.spot.id }
+    : { ...base, quest_beat_id: s.spot.id };
+  await createClue(clue);
+  return true;
+}
+
+async function acceptQuestion(s: QuestionSuggestion) {
+  const count = entries.filter((e) => e.part === "question").length;
+  await createEntry({ part: "question", title: s.title, sort_order: count, ...stamp() });
+  return true;
+}
+
+async function acceptForce(s: ForceSuggestion) {
+  await writeForce(s, provenance.value, entries.filter((e) => e.part === "force").length);
+  return true;
+}
+
+/** A draft writes a whole entry; a split keeps the entry and, once the DM agrees, replaces its passages. */
+async function acceptLore(s: LoreSuggestion) {
+  if (lore?.entryId) {
+    const existing = (allPassages.value ?? []).filter((p) => p.entry_id === lore.entryId);
+    if (existing.length > 0) {
+      const ok = await confirm(`Replace this entry's ${existing.length === 1 ? "passage" : `${existing.length} passages`} with the split? What is told of them now is lost.`, { title: "Replace the passages", confirmLabel: "Replace" });
+      if (!ok) return false;
+    }
+    await acceptLoreWrites.split(s, lore.entryId, provenance.value, existing);
+    return true;
+  }
+  const count = entries.filter((e) => e.part === "lore").length;
+  emit("accepted", await acceptLoreWrites.draft(s, provenance.value, count));
+  return true;
+}
+
 async function accept(s: Suggestion) {
   isAccepting.value = true;
   try {
-    const done = isTruth(s) ? await acceptTruth(s) : await acceptPremise(s);
+    const done = isLore(s) ? await acceptLore(s) : isForce(s) ? await acceptForce(s) : isTruth(s) ? await acceptTruth(s) : isClue(s) ? await acceptClue(s) : isQuestion(s) ? await acceptQuestion(s) : await acceptPremise(s);
     if (done) dismiss(s as never);
   } catch (e) {
     toast.error(e instanceof Error ? e.message : "Could not save that suggestion.");

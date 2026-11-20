@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import type { CanonEntry } from "@/types/canon.types";
+import { canonEntry } from "@/test/canonEntry";
 
 const mocks = vi.hoisted(() => ({ create: vi.fn(), update: vi.fn() }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({ createCanonEntry: mocks.create, updateCanonEntry: mocks.update }));
@@ -11,10 +12,7 @@ vi.mock("@tanstack/vue-query", async (importOriginal) => ({
 
 import PremiseTextField from "./PremiseTextField.vue";
 
-const entry = (title: string): CanonEntry => ({
-  id: "v1", user_id: "u", campaign_id: "c1", part: "premise", premise_kind: "voice", knowledge: null, title, body: null,
-  sort_order: 0, player_visible_to: [], image_url: null, ai_provenance: null, created_at: "", updated_at: "",
-});
+const entry = (title: string): CanonEntry => canonEntry({ id: "v1", campaign_id: "c1", part: "premise", premise_kind: "voice", title });
 
 function mountField(saved?: CanonEntry) {
   return mount(PremiseTextField, {

@@ -1,6 +1,5 @@
 import type { NpcInsert } from "./npc.types";
 import type { ItemInsert } from "./item.types";
-import type { NoteInsert } from "./notes.types";
 import type { AiProvenance } from "@/ai/provenance";
 import type { Coins } from "@/lib/currency/currency";
 
@@ -125,7 +124,6 @@ export type DowntimeSeedItem = Pick<
 export interface DowntimeSeedNote {
   title: string;
   body: string;
-  category: NoteInsert["category"];
   tags: string[];
 }
 

@@ -8,7 +8,7 @@ import { renderArticles } from "./renderArticles";
 const doc = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
 
 const snapshot: OpenBookSnapshot = {
-  v: 1,
+  v: 2,
   book: { title: "T", subtitle: null, cover_art: "tooled", cover_image_url: null, leather: "oxblood", chapters: ["atlas", "folk", "factions", "pantheon", "lore", "chronicle"], campaign_name: "C" },
   calendar: { calendar_id: "faerun", custom_calendar: null, current: { year: 1492, month: 1, day: 5 } },
   places: [
@@ -21,7 +21,8 @@ const snapshot: OpenBookSnapshot = {
   factions: [{ id: "brine", name: "House Brine", faction_type: "noble_house", description: doc("Salt-lords."), emblem_url: null, alignment: "Lawful neutral", tags: null, party_standing: "wary", descent: null }],
   pantheons: [{ id: "reach", name: "Gods of the Reach", description: doc("Many."), emblem_url: null, tags: null }],
   deities: [{ id: "orla", pantheon_id: "reach", name: "Orla", titles: "Saint of the drowned", alternate_names: ["The Ringer"], alignment: "Neutral good", symbol: "A bell", symbol_image_url: null, portrait_url: null, portrait_focal_point: null, domains: ["Tempest", "Light"], portfolio: "Bells", description: doc("A ringer."), tags: null }],
-  lore: [{ id: "tide", title: "The Long Tide", category: "history", content: doc("Water."), tags: null, is_pinned: null, created_at: "", updated_at: "" }],
+  lore: [{ id: "tide", title: "The Long Tide", lore_kind: "history", world_date: null, image_url: "https://example.test/tide.webp", body: doc("Water."), passages: [{ id: "tide-1", title: "What everyone says", body: doc("The sea took the road.") }, { id: "tide-2", title: "What the fishers believe", body: doc("It will give it back.") }], created_at: "" }],
+  truths: [{ id: "t1", title: "The river gives back what it takes." }, { id: "t2", title: "The Ferrymen answer to the river." }],
   sessions: [
     { id: "s14", title: "The Lamp Goes Out", content: JSON.stringify({ type: "doc", content: [{ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "The climb" }] }, { type: "paragraph", content: [{ type: "entityMention", attrs: { id: "maren", entityType: "npc" } }] }] }), tags: null, session: { number: 14, title: null, played_on: "2026-10-22" }, date: { year: 1492, month: 1, day: 5, end_year: null, end_month: null, end_day: null }, real_date: null, created_at: "2026-10-22" },
   ],

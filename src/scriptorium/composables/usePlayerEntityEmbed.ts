@@ -31,11 +31,14 @@ import { useCustomSubclass } from "@/composables/rules/useCustomSubclasses";
 import { useFeaturesByIds } from "@/composables/rules/useFeatures";
 import { fetchResolvedSpell, resolvedSpellKey } from "@/composables/spells/useSpells";
 import { isUuid } from "@/lib/library/contentIdentity";
+import { usePlayerCanon } from "@/composables/canon/usePlayerCanon";
+import { useCalendarStore } from "@/stores/calendar";
 import {
   playerDeityHtml,
   playerFactionHtml,
   playerSpeciesHtml,
   playerSubclassHtml,
+  playerCanonHtml,
   playerItemHtml,
   playerLocationHtml,
   playerMonsterHtml,
@@ -203,6 +206,21 @@ function useSubclassEmbed(id: string): Source {
   };
 }
 
+/** The player's own read of the canon (`get_player_canon`), which holds only what their audience reaches. A secret, a
+ *  force, a question or the premise is never in it, so those embeds are absent: hidden things do not exist for a player. */
+function useCanonEmbed(id: string): Source {
+  const { world, isLoading } = usePlayerCanon();
+  const calendar = useCalendarStore();
+  return {
+    html: computed(() =>
+      world.value
+        ? playerCanonHtml(world.value, id, (year, month, day) => calendar.adapter.formatDate(year, month, day, null))
+        : null,
+    ),
+    isLoading: computed(() => isLoading.value),
+  };
+}
+
 export function usePlayerEntityEmbed(
   type: EntityEmbedType,
   id: string,
@@ -241,6 +259,9 @@ export function usePlayerEntityEmbed(
       break;
     case "subclass":
       source = useSubclassEmbed(id);
+      break;
+    case "canon":
+      source = useCanonEmbed(id);
       break;
   }
   const inCampaign = computed(() => campaign.activeCampaignId === campaignId);
