@@ -18,6 +18,7 @@ import type { FightState } from "../_shared/agent/fight.ts";
 import { alreadyRecorded, existsText, INTRODUCE_TOOL, INTRODUCE_TOOL_NAME, INTRODUCTIONS_PER_TURN, introducedText, parseIntroduction, type Introduction } from "../_shared/agent/introduce.ts";
 import { GO_TO_TOOL, makeSceneTool } from "../_shared/agent/scene.ts";
 import { parsePassDays, PASS_DAYS_TOOL, PASS_DAYS_TOOL_NAME, passedText } from "../_shared/agent/days.ts";
+import { FIRE_CONSEQUENCE_TOOL, FIRE_CONSEQUENCE_TOOL_NAME, parseFireInput, planFire } from "../_shared/agent/consequence.ts";
 import { ROLL_TABLE_TOOL, ROLL_TABLE_TOOL_NAME, rollAnswer } from "../_shared/agent/roadTables.ts";
 import { parseTravel, rollableTables, TRAVEL_TOOL, TRAVEL_TOOL_NAME, travelAnswer, type TravelMap } from "../_shared/agent/travel.ts";
 import type { Remembered } from "../_shared/agent/characterTurn.ts";
@@ -146,6 +147,8 @@ export interface TurnToolsInput {
   travel: { map(): Promise<TravelMap>; /** A whole number from 1 to `max`: the die behind the screen. */ roll(max: number): number } | null;
   /** Whole days passed in the story (`days.ts`): the page moves the campaign's date once the turn is kept. Null in a fight. */
   onDaysPassed: ((days: number) => void) | null;
+  /** Offered only with the quests read and no fight on the board: a held payoff is the story's to fire, not a round's. */
+  fireHeld?: boolean;
 }
 
 export interface TurnTools {
@@ -527,6 +530,18 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     return rollAnswer(table, input.travel.roll);
   };
 
+  // A payoff the DM held back, fired when the story reaches its moment. Checked against what the turn started with
+  // and queued with the quest moves, so it is performed once, and only if the turn is kept.
+  const fireConsequence = (toolInput: Record<string, unknown>) => {
+    if (input.quests === null || input.fireHeld !== true) return { content: "Nothing is fired now, not in the middle of a fight.", isError: true };
+    const parsed = parseFireInput(toolInput);
+    if (!parsed.ok) return { content: parsed.error, isError: true };
+    const planned = planFire(input.quests.state, input.quests.queued, parsed.value.eventId);
+    if (!planned.ok) return { content: planned.error, isError: true };
+    input.quests.queued.push(planned.move);
+    return { content: planned.says, isError: false };
+  };
+
   // Once a turn, with the total: two calls would move the date twice for what the story told once.
   let daysPassed = false;
   const passDays = (toolInput: Record<string, unknown>) => {
@@ -555,7 +570,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, BRING_OUT_TOOL, CANON_LOOKUP_TOOL, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.onHazard === undefined ? [] : [HAZARD_TOOL]), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, BRING_OUT_TOOL, CANON_LOOKUP_TOOL, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.onHazard === undefined ? [] : [HAZARD_TOOL]), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), ...(input.quests !== null && input.fireHeld === true ? [FIRE_CONSEQUENCE_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
@@ -571,6 +586,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (input.show && name === SHOW_TOOL_NAME) return show(toolInput);
       if (input.travel && name === TRAVEL_TOOL_NAME) return travel(toolInput);
       if (input.travel && name === ROLL_TABLE_TOOL_NAME) return rollTable(toolInput);
+      if (name === FIRE_CONSEQUENCE_TOOL_NAME) return Promise.resolve(fireConsequence(toolInput));
       if (input.onDaysPassed && name === PASS_DAYS_TOOL_NAME) return Promise.resolve(passDays(toolInput));
       if (name === KEEP_TALKING_TOOL_NAME) {
         floorKept = true;

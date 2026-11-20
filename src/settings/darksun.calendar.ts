@@ -1,4 +1,4 @@
-import type { SettingCalendarDef } from "./types";
+import type { SettingCalendarDef } from "./types.ts";
 
 export const DARKSUN_CALENDAR: SettingCalendarDef = {
   name: "Dark Sun (Calendar of Athas)",

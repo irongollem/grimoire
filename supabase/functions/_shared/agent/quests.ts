@@ -23,6 +23,7 @@ export const MAX_THREADS = 8;
 export const MAX_ROUTES = 8;
 export const MAX_OBJECTIVES = 12;
 export const MAX_CLOCKS = 6;
+export const MAX_PAYOFFS = 8;
 export const REASON_MAX = 200;
 export const CLOCK_LABEL_MAX = 80;
 /** How far the narrator may push a clock in one call. A clock that jumps to full skips the tension it exists for. */
@@ -40,6 +41,31 @@ export interface QuestRoute {
   open: boolean;
 }
 
+/**
+ * A payoff the quest has logged but not performed: one the DM held back in the Advance dialog (`held`), or one set to
+ * happen some days later (`delayed`). `eventId` is the id of its `quest_consequence_events` row, so a later tool can
+ * name it. The reader resolves the names the words need; this file never reads a database.
+ */
+export interface QuestPayoff {
+  eventId: string;
+  /** The consequence verb (`raise`, `send_broadcast`, `move_npc` ...). */
+  action: string;
+  /** The objective, clock, character, quest or faction it acts on, by name; null when it names none or the name is unknown. */
+  subject: string | null;
+  /** Where `move_npc` puts the character. */
+  place: string | null;
+  /** The message, title or line of text its payload carries. */
+  text: string | null;
+  /** The signed step of a clock tick or a relationship shift. */
+  step: number | null;
+  /** The stance a shift lands on, when it names one outright. */
+  to: string | null;
+  /** The beat it was logged at, for a held one. */
+  atBeat: string | null;
+  /** The day it comes due, worded by the campaign's calendar; null for a held payoff or a day the calendar cannot place. */
+  due: string | null;
+}
+
 export interface QuestThread {
   questId: string;
   questTitle: string;
@@ -50,6 +76,10 @@ export interface QuestThread {
   /** The quest's, repeated on each of its threads. */
   objectives: { id: string; description: string; status: ObjectiveStatus }[];
   clocks: { id: string; label: string; filled: number; segments: number }[];
+  /** The quest's payoffs held back rather than fired, repeated on each of its threads. */
+  held: QuestPayoff[];
+  /** The quest's delayed payoffs that have not come due, repeated on each of its threads. */
+  delayed: QuestPayoff[];
 }
 
 export interface QuestsInPlay {
@@ -74,6 +104,10 @@ interface ShownQuest {
   moreObjectives: number;
   clocks: QuestThread["clocks"];
   moreClocks: number;
+  held: QuestPayoff[];
+  moreHeld: number;
+  delayed: QuestPayoff[];
+  moreDelayed: number;
 }
 
 interface Shown {
@@ -98,12 +132,22 @@ function shownOf(state: QuestsInPlay): Shown {
         moreObjectives: Math.max(0, raised.length - MAX_OBJECTIVES),
         clocks: t.clocks.slice(0, MAX_CLOCKS),
         moreClocks: Math.max(0, t.clocks.length - MAX_CLOCKS),
+        held: t.held.slice(0, MAX_PAYOFFS),
+        moreHeld: Math.max(0, t.held.length - MAX_PAYOFFS),
+        delayed: t.delayed.slice(0, MAX_PAYOFFS),
+        moreDelayed: Math.max(0, t.delayed.length - MAX_PAYOFFS),
       };
       quests.push(quest);
     }
     quest.threads.push({ ...t, routes: t.routes.slice(0, MAX_ROUTES), moreRoutes: Math.max(0, t.routes.length - MAX_ROUTES) });
   }
   return { quests, moreThreads: Math.max(0, state.threads.length - threads.length) };
+}
+
+/** The payoffs the narrator was shown this turn, held and delayed: the whole list of event ids a tool may name. */
+export function shownPayoffs(state: QuestsInPlay): { held: QuestPayoff[]; delayed: QuestPayoff[] } {
+  const quests = shownOf(state).quests;
+  return { held: quests.flatMap((q) => q.held), delayed: quests.flatMap((q) => q.delayed) };
 }
 
 /** Every clock the narrator was shown: those of the quests listed and the pressure clock. */
@@ -116,6 +160,37 @@ function shownClock(state: QuestsInPlay, shown: Shown, id: string): { label: str
 }
 
 const HEADING = "## Quests in play";
+
+const quoted = (name: string | null, fallback: string): string => (name === null ? fallback : `"${name}"`);
+/** `the objective "Find the bell"`, or `an objective` when the name is not known. */
+const thing = (kind: string, name: string | null): string => (name === null ? `${/^[aeiou]/.test(kind) ? "an" : "a"} ${kind}` : `the ${kind} "${name}"`);
+
+/** What a payoff does, in plain words. Pure: the names it needs came with it. */
+export function payoffWords(p: QuestPayoff): string {
+  const subject = p.subject;
+  switch (p.action) {
+    case "raise": return `raises ${thing("objective", subject)}`;
+    case "complete": return `completes ${thing("objective", subject)}`;
+    case "fail": return `fails ${thing("objective", subject)}`;
+    case "tick_clock": return `ticks ${thing("clock", subject)} by ${p.step === null ? "one step" : p.step}`;
+    case "create_calendar_event": return `puts ${quoted(p.text, "an event")} on the calendar`;
+    case "send_broadcast": return `sends the party a message${p.text === null ? "" : `: "${p.text}"`}`;
+    case "shift_npc_relationship": {
+      const who = subject ?? "a character";
+      if (p.to !== null) return `${who} comes to feel ${p.to} toward the party`;
+      return `shifts how ${who} feels about the party${p.step === null ? "" : ` (${p.step > 0 ? "warmer" : "colder"} by ${Math.abs(p.step)})`}`;
+    }
+    case "unlock_quest": return `unlocks ${thing("quest", subject)}`;
+    case "grant_knowledge": return `tells the party${p.text === null ? " something" : `: "${p.text}"`}`;
+    case "owe_favor": return `${subject ?? "a character"} owes the party a favor${p.text === null ? "" : `: "${p.text}"`}`;
+    case "award_milestone": return `awards the party a milestone${p.text === null ? "" : `: "${p.text}"`}`;
+    case "give_handout": return "hands the party a handout";
+    case "move_npc": return `moves ${subject ?? "a character"}${p.place === null ? "" : ` to ${p.place}`}`;
+    case "add_companion": return `${subject ?? "a character"} joins the party`;
+    case "shift_faction_standing": return `shifts ${subject === null ? "a faction's" : `${subject}'s`} standing with the party`;
+    default: return `does "${p.action}"`;
+  }
+}
 
 /** Whether this turn's tick fills the pressure clock: the server adds one at the end of every kept turn. */
 function fillsThisTurn(pressure: NonNullable<QuestsInPlay["pressure"]>): boolean {
@@ -156,6 +231,16 @@ export function questsSection(state: QuestsInPlay): string {
         for (const c of q.clocks) lines.push(`    - id ${c.id}: ${c.label}, ${c.filled} of ${c.segments}`);
         if (q.moreClocks > 0) lines.push(`    and ${q.moreClocks} more clocks.`);
       }
+      if (q.held.length > 0 || q.moreHeld > 0) {
+        lines.push("  Held back, logged but not fired (each has its event id):");
+        for (const h of q.held) lines.push(`    - event id ${h.eventId}: ${payoffWords(h)}${h.atBeat === null ? "" : `, held at beat "${h.atBeat}"`}`);
+        if (q.moreHeld > 0) lines.push(`    and ${q.moreHeld} more held payoffs.`);
+      }
+      if (q.delayed.length > 0 || q.moreDelayed > 0) {
+        lines.push("  Delayed, still to come (each has its event id):");
+        for (const d of q.delayed) lines.push(`    - event id ${d.eventId}: ${payoffWords(d)}${d.due === null ? "" : `, due ${d.due}`}`);
+        if (q.moreDelayed > 0) lines.push(`    and ${q.moreDelayed} more delayed payoffs.`);
+      }
       lines.push("");
     }
     if (shown.moreThreads > 0) lines.push(`and ${shown.moreThreads} more threads are running that are not shown.`, "");
@@ -189,7 +274,9 @@ export type QuestMove =
   | { kind: "clock"; clockId: string; step: number; reason: string }
   | { kind: "pressure"; mode: "run"; clockId: string }
   | { kind: "pressure"; mode: "start"; questId: string; label: string; segments: number }
-  | { kind: "pressure"; mode: "stop" };
+  | { kind: "pressure"; mode: "stop" }
+  /** Fires a payoff the DM held back (`fire_consequence`); performed with the campaign's date once the turn is kept. */
+  | { kind: "fire"; eventId: string };
 
 export const QUEST_ROUTE_TOOL = "quest_route";
 export const QUEST_BEAT_TOOL = "quest_beat";

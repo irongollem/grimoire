@@ -4,6 +4,8 @@
 // from here; `handler.ts` exports only the two entry points.
 
 import type { CanonStore } from "./canonIo.ts";
+import type { SiteState } from "../_shared/agent/site.ts";
+import type { SceneMemory } from "../_shared/agent/memories.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import type { AgentProvider } from "../_shared/agent/providerIo.ts";
 import type { Floor } from "../_shared/agent/floor.ts";
@@ -23,6 +25,7 @@ import type { Remembered } from "../_shared/agent/characterTurn.ts";
 import type { SpeechToolsDeps } from "../_shared/agent/speak.ts";
 import type { SceneView } from "../_shared/agent/scene.ts";
 import type { RecordedFact, RecordKind } from "../_shared/agent/record.ts";
+import type { DatePoint } from "../_shared/npcAge.ts";
 import type { QuestMove, QuestsInPlay } from "../_shared/agent/quests.ts";
 import type { Prologue } from "../_shared/agent/prologue.ts";
 import type { FightPlan, FightsInView } from "../_shared/agent/fight.ts";
@@ -81,8 +84,6 @@ export type AgentEvent =
   | { type: "fight_change"; change: FightChange }
   /** Someone the narrator made up now has a record the player's character knows of. A hidden one is never sent. */
   | { type: "introduced"; person: { id: string; name: string } }
-  /** Whole days passed in the story this turn: the page moves the campaign's date on by them. */
-  | { type: "days"; days: number }
   /** Words that are not a character's line and can be voiced: the narrator's, whole, or the player's own said line. */
   | { type: "voice"; role: "narrator" | "player"; text: string; voice: string }
   /** Something changed hands: a line for the story's margin. The pack and the purse follow by themselves. */
@@ -100,6 +101,10 @@ export interface CampaignRow {
   name: string;
   game_system: string | null;
   ai_enabled: boolean | null;
+  /** The campaign's date as its calendar names it; null when no date is set. Per-turn state, never standing text. */
+  today?: string | null;
+  /** The same date as numbers, for what a kept turn performs on today's date; null when no date is set. */
+  date?: DatePoint | null;
 }
 
 export interface SessionRow {
@@ -311,11 +316,23 @@ export interface AgentTurnDeps {
   discardFacts(campaignId: string, ids: string[]): Promise<void>;
   /** The quests running in the campaign, what the narrator may mark, and where the pressure clock stands. */
   loadQuests(campaignId: string, pressureClockId: string | null): Promise<QuestsInPlay>;
+  /** What has become true of the party's place and its rooms (explored, cleared, looted, doors found or unlocked). Throws on a failed read. */
+  loadSiteState(campaignId: string, locationId: string): Promise<SiteState>;
+  /** The newest memories of the characters who are here, as the Narrator is shown them. Throws on a failed read. */
+  loadSceneMemories(campaignId: string, characterIds: string[]): Promise<SceneMemory[]>;
   /**
    * Applies one quest move through the same database functions the quest screen calls. Called only after the turn
    * was saved, in the order the moves were made; throws on any failure.
    */
-  applyQuestMove(ctx: { campaignId: string; agentSessionId: string }, move: QuestMove): Promise<void>;
+  applyQuestMove(ctx: { campaignId: string; agentSessionId: string; today?: DatePoint | null }, move: QuestMove): Promise<void>;
+  /**
+   * Moves the campaign's date on by whole days (`advance_campaign_date`, as the caller: the campaign's own policy
+   * decides who may). Returns the new date and its words by the campaign's calendar (null when the calendar will not
+   * word it). Called only after the turn was saved; throws on any failure.
+   */
+  advanceDate(campaignId: string, days: number): Promise<{ date: DatePoint; text: string | null }>;
+  /** Writes a system line into the campaign's chat, as the Calendar page does when the date moves. Throws on failure. */
+  announce(campaignId: string, text: string): Promise<void>;
   /**
    * Judges, with TypeSafe's Jev, whether narration told the player anything the characters' lines did not
    * (`narration.ts`). Null when no judging key is available: then every word the narrator writes is shown.

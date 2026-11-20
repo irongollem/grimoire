@@ -10,8 +10,12 @@ import type { StoredTurn } from "../_shared/agent/transcript.ts";
 import { sceneSection, trimScene, type TrimmedScene } from "../_shared/agent/scene.ts";
 import { recordSection, type RecordedFact } from "../_shared/agent/record.ts";
 import { CANON_GUIDE, canonHereSection, NO_CANON_HERE, previouslySection, type CanonHere } from "../_shared/agent/canon.ts";
+import { memoriesSection, type SceneMemory } from "../_shared/agent/memories.ts";
+import { NO_SITE, siteSection, type SiteState } from "../_shared/agent/site.ts";
+import { todaySection } from "../_shared/agent/today.ts";
 import { playerCharacterSection, type PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
 import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTablePrompt.ts";
+import type { DatePoint } from "../_shared/npcAge.ts";
 import { NO_QUESTS, pressureIsSpent, pressureTick, questsSection, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
 import type { CallModel } from "../_shared/agent/types.ts";
 import type { CreditLogFields } from "../_shared/credits.ts";
@@ -109,6 +113,12 @@ export function stateFor(input: {
   companions?: string;
   /** What the canon holds where the party stands (#1226): clues, lore, who may say what, what is kept open. */
   canon?: CanonHere;
+  /** The campaign's date as its calendar names it; absent with no date set. */
+  today?: string | null;
+  /** What has become true of the party's place and its rooms; absent when nothing is marked or it could not be read. */
+  site?: SiteState;
+  /** What the characters here remember of the party; absent when none do or it could not be read. */
+  memories?: readonly SceneMemory[];
 }): string {
   // The fights sit with the scene: they are about the place the party stands in. Nothing to say, no section.
   const fights = fightsSection(input.fights ?? NO_FIGHTS, input.fightTurn ? budgetLine(input.fightTurn) : null);
@@ -117,7 +127,33 @@ export function stateFor(input: {
   const sky = input.sky === undefined || input.sky === "" ? [] : [input.sky];
   const companions = input.companions === undefined || input.companions === "" ? [] : [input.companions];
   const canon = canonHereSection(input.canon ?? NO_CANON_HERE);
-  return [sceneSection(input.scene), ...companions, ...sky, ...(fights === "" ? [] : [fights]), ...carried, ...handouts, questsSection(input.quests ?? NO_QUESTS), ...(canon === "" ? [] : [canon]), recordSection(input.record)].join("\n\n");
+  const today = todaySection(input.today);
+  const site = siteSection(input.site ?? NO_SITE);
+  const memories = memoriesSection(input.memories ?? []);
+  const optional = (text: string) => (text === "" ? [] : [text]);
+  return [sceneSection(input.scene), ...optional(today), ...optional(site), ...optional(memories), ...companions, ...sky, ...(fights === "" ? [] : [fights]), ...carried, ...handouts, questsSection(input.quests ?? NO_QUESTS), ...(canon === "" ? [] : [canon]), recordSection(input.record)].join("\n\n");
+}
+
+/** What is marked true of the party's place and its rooms. A read that fails is no state: the turn still runs. */
+export async function siteOf(deps: AgentTurnDeps, campaignId: string, locationId: string | null): Promise<SiteState> {
+  if (locationId === null) return NO_SITE;
+  try {
+    return await deps.loadSiteState(campaignId, locationId);
+  } catch (error) {
+    console.error("agent-turn: reading the site state failed:", error);
+    return NO_SITE;
+  }
+}
+
+/** What the characters in the scene remember of the party. A read that fails is no memories: the turn still runs. */
+export async function memoriesOf(deps: AgentTurnDeps, campaignId: string, scene: TrimmedScene | null): Promise<SceneMemory[]> {
+  if (scene === null || scene.characters.length === 0) return [];
+  try {
+    return await deps.loadSceneMemories(campaignId, scene.characters.map((c) => c.id));
+  } catch (error) {
+    console.error("agent-turn: reading what the characters remember failed:", error);
+    return [];
+  }
 }
 
 /** The fights for this turn. Null when they could not be read: the turn still runs, with no fight tool. */
@@ -155,7 +191,7 @@ export async function questsOf(deps: AgentTurnDeps, campaignId: string, pressure
  */
 export async function applyKeptQuestMoves(input: {
   deps: AgentTurnDeps;
-  ctx: { campaignId: string; agentSessionId: string };
+  ctx: { campaignId: string; agentSessionId: string; today?: DatePoint | null };
   state: QuestsInPlay;
   queued: readonly QuestMove[];
 }): Promise<void> {

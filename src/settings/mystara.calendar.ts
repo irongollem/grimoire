@@ -1,4 +1,4 @@
-import type { SettingCalendarDef } from "./types";
+import type { SettingCalendarDef } from "./types.ts";
 
 export const MYSTARA_CALENDAR: SettingCalendarDef = {
   name: "Mystara (Thyatian Calendar)",

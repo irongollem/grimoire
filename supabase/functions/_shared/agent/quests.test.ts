@@ -3,6 +3,7 @@ import {
   makeQuestTools,
   MAX_CLOCKS,
   MAX_OBJECTIVES,
+  MAX_PAYOFFS,
   MAX_ROUTES,
   MAX_THREADS,
   NO_QUESTS,
@@ -12,7 +13,9 @@ import {
   pressureShown,
   pressureTick,
   questsSection,
+  payoffWords,
   type QuestMove,
+  type QuestPayoff,
   type QuestRoute,
   type QuestsInPlay,
   type QuestThread,
@@ -65,6 +68,8 @@ function thread(over: Partial<QuestThread> = {}): QuestThread {
       { id: O_DONE, description: "Enter the crypt", status: "complete" },
     ],
     clocks: [{ id: CLOCK, label: "Tide", filled: 2, segments: 4 }],
+    held: [],
+    delayed: [],
     ...over,
   };
 }
@@ -467,5 +472,71 @@ describe("running against the clock the scene already has", () => {
     const { t, queued } = tools(state({ pressure: pressure(1) }));
     expect((await t.call("pressure", { clock_id: PRESSURE })).isError).toBe(true);
     expect(queued).toEqual([]);
+  });
+});
+
+const payoff = (over: Partial<QuestPayoff> = {}): QuestPayoff => ({
+  eventId: id(90),
+  action: "raise",
+  subject: null,
+  place: null,
+  text: null,
+  step: null,
+  to: null,
+  atBeat: null,
+  due: null,
+  ...over,
+});
+
+describe("payoffs in the quests section", () => {
+  // Bug caught: a held payoff was dropped on the way to the narrator, so it never knew a payoff was waiting to be fired
+  // and the next tool had no id to name.
+  it("lists a held payoff with its event id and what it does, under its quest", () => {
+    const held = payoff({ eventId: id(91), action: "send_broadcast", text: "The bell tolls.", atBeat: "The bell room" });
+    const text = questsSection(state({ threads: [thread({ held: [held] })] }));
+    expect(text).toContain(`event id ${id(91)}: sends the party a message: "The bell tolls.", held at beat "The bell room"`);
+    expect(text.indexOf("Held back")).toBeGreaterThan(text.indexOf("Clocks:"));
+  });
+
+  it("lists a delayed payoff with its due day, and says nothing about either when there are none", () => {
+    const delayed = payoff({ eventId: id(92), action: "tick_clock", subject: "Tide", step: 2, due: "9 Marpenoth, 1492 DR" });
+    expect(questsSection(state({ threads: [thread({ delayed: [delayed] })] }))).toContain(
+      `event id ${id(92)}: ticks the clock "Tide" by 2, due 9 Marpenoth, 1492 DR`,
+    );
+    const none = questsSection(state());
+    expect(none).not.toContain("Held back");
+    expect(none).not.toContain("Delayed");
+  });
+
+  // Bug caught: a quest with dozens of held payoffs filled every turn's state.
+  it("shows at most MAX_PAYOFFS of each and says how many more there are", () => {
+    const many = Array.from({ length: MAX_PAYOFFS + 3 }, (_, i) => payoff({ eventId: id(100 + i) }));
+    const text = questsSection(state({ threads: [thread({ held: many })] }));
+    expect(text).toContain(`event id ${id(100 + MAX_PAYOFFS - 1)}`);
+    expect(text).not.toContain(`event id ${id(100 + MAX_PAYOFFS)}`);
+    expect(text).toContain("and 3 more held payoffs.");
+  });
+
+  it("does not repeat a quest's payoffs for each of its threads", () => {
+    const held = payoff({ eventId: id(93) });
+    const second = thread({ threadId: OTHER_THREAD, held: [held] });
+    const text = questsSection(state({ threads: [thread({ held: [held] }), second] }));
+    expect(text.split(`event id ${id(93)}`)).toHaveLength(2);
+  });
+});
+
+describe("payoffWords", () => {
+  it("words each verb by what it does, naming what it acts on", () => {
+    expect(payoffWords(payoff({ action: "complete", subject: "Find the bell" }))).toBe('completes the objective "Find the bell"');
+    expect(payoffWords(payoff({ action: "move_npc", subject: "Maren", place: "the Cellar" }))).toBe("moves Maren to the Cellar");
+    expect(payoffWords(payoff({ action: "shift_npc_relationship", subject: "Maren", to: "helpful" }))).toBe("Maren comes to feel helpful toward the party");
+    expect(payoffWords(payoff({ action: "shift_npc_relationship", subject: "Maren", step: -1 }))).toBe("shifts how Maren feels about the party (colder by 1)");
+  });
+
+  it("falls back to general words when the name could not be found, and never prints null", () => {
+    for (const action of ["raise", "tick_clock", "move_npc", "owe_favor", "unlock_quest", "shift_faction_standing", "add_companion"]) {
+      expect(payoffWords(payoff({ action }))).not.toMatch(/null|undefined/);
+    }
+    expect(payoffWords(payoff({ action: "raise" }))).toBe("raises an objective");
   });
 });

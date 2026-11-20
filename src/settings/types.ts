@@ -11,9 +11,9 @@ import type {
   CalendarMoon,
   CalendarSeason,
   IntercalaryDay,
-} from "@/types/calendar.types";
-import type { LocationType } from "@/types/location.types";
-import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
+} from "../types/calendar.types.ts";
+import type { LocationType } from "../types/location.types.ts";
+import type { NpcStatus, NpcRelationship } from "../types/npc.types.ts";
 
 // ── Calendar ────────────────────────────────────────────────────────────────
 

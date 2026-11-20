@@ -1,4 +1,4 @@
-import type { SettingCalendarDef } from "./types";
+import type { SettingCalendarDef } from "./types.ts";
 
 export const GREYHAWK_CALENDAR: SettingCalendarDef = {
   name: "Greyhawk (Oerth Common Year)",

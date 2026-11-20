@@ -8,7 +8,7 @@ import { skySection } from "../_shared/agent/sky.ts";
 import { possessionsSection, type Coins, type Possessions } from "../_shared/agent/hands.ts";
 import { historyFrom, systemWithSummary, type StoredTurn } from "../_shared/agent/transcript.ts";
 import { coinsText, coinValuesOf } from "./handsIo.ts";
-import { characterOf, fightsOf, questsOf, recordOf, safely, sceneOf, stateFor, systemFor } from "./turnSupport.ts";
+import { characterOf, fightsOf, memoriesOf, questsOf, recordOf, safely, sceneOf, siteOf, stateFor, systemFor } from "./turnSupport.ts";
 import type { TurnScope } from "./turnScope.ts";
 import type { SessionRow } from "./turnTypes.ts";
 import { NO_CANON_HERE, type CanonHere } from "../_shared/agent/canon.ts";
@@ -30,6 +30,9 @@ export async function readTurnContext(scope: TurnScope, session: SessionRow) {
   // party moves, and the summary, which only grows, stays last.
   const questState = await questsOf(deps, campaign.id, session.pressure_clock_id);
   const record = await recordOf(deps, campaign.id, scene);
+  // Where the party stands, and who remembers what: both are state that moves in play, so both go with the scene.
+  const site = await siteOf(deps, campaign.id, session.scene_location_id);
+  const memories = await memoriesOf(deps, campaign.id, scene);
   // Fights: what is prepared here and the one this conversation is waiting on. Unreadable means no fight
   // tool this turn, since the ids it would be asked to name could not be checked.
   const pursuitId = session.pursuit_encounter_id === undefined ? null : session.pursuit_encounter_id;
@@ -117,6 +120,6 @@ export async function readTurnContext(scope: TurnScope, session: SessionRow) {
   } catch (error) {
     console.error("agent-turn: reading the rest of the party failed:", error);
   }
-  const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts), companions: companionsSection(companions), sky: body.sky === undefined ? "" : skySection(body.sky), canon: canonHere });
+  const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts), companions: companionsSection(companions), sky: body.sky === undefined ? "" : skySection(body.sky), canon: canonHere, today: campaign.today, site, memories });
   return { character, stored, lastSeqLoaded, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere };
 }

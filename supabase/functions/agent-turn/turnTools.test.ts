@@ -157,6 +157,16 @@ describe("makeTurnTools", () => {
     expect(passed).toEqual([3]);
   });
 
+  // Bug caught: a held payoff fired where the tool is not offered (a fight on the board), answered as a quest tool.
+  it("refuses fire_consequence when it is not offered, queuing nothing", async () => {
+    const queued: QuestMove[] = [];
+    const { turn } = build({ state: NO_QUESTS, queued });
+    const answer = await turn.callTool("fire_consequence", { event_id: "00000000-0000-4000-8000-000000000e01" });
+    expect(answer).toMatchObject({ isError: true, content: expect.stringContaining("fight") });
+    expect(queued).toEqual([]);
+    expect(turn.tools.map((t) => t.name)).not.toContain("fire_consequence");
+  });
+
   it("runs record itself and never hands it to the campaign's tools, which would answer 'unknown tool'", async () => {
     const { turn, calls, filed } = build();
     const answer = await turn.callTool("record", { fact: "Wren holds the key." });

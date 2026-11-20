@@ -87,6 +87,8 @@ export async function beginTurn(input: {
           onMove: (place) => emit({ type: "scene", scene: place }),
           filed: fx.filed,
           quests: questState === null ? null : { state: questState, queued: fx.queued },
+          // A held payoff is fired by the story, not in a round of a fight.
+          fireHeld: !fightRunning,
           playerName: character ? character.name : undefined,
           playedId: character ? character.id : undefined,
           partyIds: companions.map((c) => c.id),
@@ -109,7 +111,7 @@ export async function beginTurn(input: {
           show: character
             ? { handouts, picture: (what, id) => deps.loadPicture(campaign.id, what, id), onHandout: (handout) => { fx.handedOut.push(handout); } }
             : null,
-          // Days that pass in the story move the campaign's date, on the page, once the turn is kept. Not in a fight.
+          // Days that pass in the story move the campaign's date, on the server, once the turn is kept. Not in a fight.
           onDaysPassed: fightRunning ? null : (days) => { fx.daysPassed = days; },
           // How far somewhere is, by the campaign's roads. Not in a fight: nobody sets out on a journey mid-round.
           travel: fightRunning ? null : { map: () => deps.loadTravelMap(campaign.id, campaign.game_system), roll: deps.rollDie },

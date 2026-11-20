@@ -30,6 +30,9 @@ import { hazardFromRow, type KeptHazard } from "../_shared/agent/hazard.ts";
 import { agentToolsFrom, bindTools, SOLO_TABLE_TOOLS, TABLE_REFUSED_TYPES } from "../_shared/agent/mcpTools.ts";
 import { buildNpcProfile, NPC_PROFILE_COLUMNS, shownNpcName, type NpcProfileRow } from "../_shared/npcProfile.ts";
 import { campaignToday } from "../_shared/npcAge.ts";
+import { dateTextFor, todayText } from "../_shared/agent/today.ts";
+import { loadSceneMemories } from "./memoryIo.ts";
+import { loadSiteState } from "./siteIo.ts";
 import { BESIDE_MAX, PLACES_MAX, CHARACTERS_MAX, type SceneView } from "../_shared/agent/scene.ts";
 import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
@@ -60,6 +63,16 @@ const COMPANION_MEMORIES = 12;
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+/** The campaign's date for the turn's state. A calendar that will not word it costs the date for a turn, never the turn. */
+function dateOrNull(row: Record<string, unknown>): string | null {
+  try {
+    return todayText(row);
+  } catch (error) {
+    console.error("agent-turn: wording the campaign's date failed:", error);
+    return null;
+  }
+}
 
 /** A refusal before the stream opened. A code (`sitting_ended`, `rate_limited`...) is the page's to branch on; a sentence is for a person. */
 function refusalResponse(refusal: Refusal): Response {
@@ -142,7 +155,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     async loadCampaign(campaignId): Promise<CampaignRow | null> {
       const { data, error } = await admin
         .from("campaigns")
-        .select("id, user_id, name, ai_enabled, game_system, text_provider, current_year, current_month, current_day")
+        .select("id, user_id, name, ai_enabled, game_system, text_provider, current_year, current_month, current_day, calendar_id, custom_calendar")
         .eq("id", campaignId)
         .maybeSingle();
       if (error) throw error;
@@ -155,6 +168,8 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
         name: data.name,
         game_system: data.game_system,
         ai_enabled: await tableAiEnabled(admin, data),
+        today: dateOrNull(data),
+        date: campaignToday(data),
       };
     },
 
@@ -757,8 +772,34 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     },
 
     // Quests: read and written as the caller (the quest functions check the DM); the conversation's own row as the server.
-    loadQuests: (campaignId, pressureClockId) => loadQuests(supabase, campaignId, pressureClockId),
+    loadQuests: (campaignId, pressureClockId) => loadQuests(supabase, campaignId, pressureClockId, dateTextFor(rawCampaign)),
     applyQuestMove: (ctx, move) => applyQuestMove(supabase, admin, ctx, move),
+    // Time moves as the caller (the campaign's own update policy decides who may); the chat line is the server's.
+    async advanceDate(campaignId, days) {
+      const { data, error } = await supabase.rpc("advance_campaign_date", { p_campaign_id: campaignId, p_days: days });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : null;
+      const date = campaignToday({ current_year: row?.year, current_month: row?.month, current_day: row?.day });
+      if (date === null) throw new Error("advance_campaign_date returned no date");
+      // A calendar that will not word the day costs the chat line, never the date that has moved.
+      let text: string | null = null;
+      try {
+        text = dateTextFor(rawCampaign)(date.year, date.month, date.day);
+      } catch (wording) {
+        console.error("agent-turn: wording the new date failed:", wording);
+      }
+      return { date, text };
+    },
+    async announce(campaignId, text) {
+      const { error } = await admin.from("campaign_messages").insert({
+        campaign_id: campaignId, user_id: user.id, recipient_user_id: null, sender_name: null, message: text, type: "system", metadata: null,
+      });
+      if (error) throw error;
+    },
+    // The site state is read through the service role like the scene (its view has no campaign column, so siteIo.ts
+    // scopes it by the campaign's own places); the memories as the caller, like the record: they are the DM's rows.
+    loadSiteState: (campaignId, locationId) => loadSiteState(admin, campaignId, locationId),
+    loadSceneMemories: (campaignId, characterIds) => loadSceneMemories(supabase, campaignId, characterIds),
 
     // The canon (#1226 story 9): read as the caller (DM-only tables); the nearest-entries function and the world
     // block as the server, for the one campaign the handler has already checked.

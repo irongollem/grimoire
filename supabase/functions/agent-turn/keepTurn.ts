@@ -152,11 +152,25 @@ async function carryOutKeptTurn(
       })
     );
   }
+  // The days the story told have passed, on the server, so a table with no browser open still moves time. Before the
+  // quest moves: a payoff fired this turn is fired as of the new date. A date that cannot be moved costs the days,
+  // never the turn, and the payoff is then fired as of the date the turn began with. The campaign row rings the
+  // doorbell, so every open screen reads the new date by itself.
+  let today = campaign.date ?? null;
+  if (fx.daysPassed > 0) {
+    try {
+      const moved = await deps.advanceDate(campaign.id, fx.daysPassed);
+      today = moved.date;
+      if (moved.text !== null) await safely(() => deps.announce(campaign.id, `📅 The date is now ${moved.text}`));
+    } catch (error) {
+      console.error("agent-turn: moving the campaign's date failed:", error);
+    }
+  }
   // Only now: a turn that was not kept leaves the quests untouched, and the player's retry makes the moves again.
   if (questState !== null) {
     await applyKeptQuestMoves({
       deps,
-      ctx: { campaignId: campaign.id, agentSessionId: session.id },
+      ctx: { campaignId: campaign.id, agentSessionId: session.id, today },
       state: questState,
       queued: fx.queued,
     });
@@ -205,13 +219,11 @@ async function carryOutKeptTurn(
     }
   }
   await mendCharacter(scope, fx.hitPointChange, character);
-  // The days the story told have passed: the page moves the campaign's date (its calendar lives with the app).
   // A clue that came out in play is found and a passage told, now that the turn is kept: a turn that was not kept
   // leaves the canon as it was. One that cannot be written costs that mark, never the turn.
   for (const brought of fx.broughtOut) {
     await safely(() => deps.canon.bringOut({ campaignId: campaign.id, campaignSessionId: session.campaign_session_id }, brought));
   }
-  if (fx.daysPassed > 0) emit({ type: "days", days: fx.daysPassed });
   // The people the narrator made up get their records. One that cannot be written (a plan's limit on
   // characters, a name taken meanwhile) costs that record, never the turn: the facts about them are kept.
   for (const intro of fx.introduced) {

@@ -190,6 +190,18 @@ describe("latestChronicle", () => {
     expect(latestChronicle(sessions, notes)?.content).toBe("B");
   });
 
+  // Bug caught: the sort inside a sitting was a no-op (`sort(() => 0)`), so "its newest note" was whichever row the
+  // database happened to answer first.
+  it("takes the newest note of the sitting whatever order the rows arrive in", () => {
+    const sessions = [sitting("a", "2026-10-01T00:00:00Z")];
+    const old = { session_id: "a", content: "OLD", created_at: "2026-10-02T00:00:00Z" };
+    const mid = { session_id: "a", content: "MID", created_at: "2026-10-03T00:00:00Z" };
+    const fresh = { session_id: "a", content: "NEW", created_at: "2026-10-05T00:00:00Z" };
+    for (const order of [[old, mid, fresh], [fresh, old, mid], [mid, fresh, old], [old, fresh, mid]]) {
+      expect(latestChronicle(sessions, order)?.content).toBe("NEW");
+    }
+  });
+
   it("goes back to an earlier sitting when the latest has no chronicle, and to nothing when none has", () => {
     const sessions = [sitting("a", "2026-10-01T00:00:00Z"), sitting("b", "2026-10-08T00:00:00Z")];
     expect(latestChronicle(sessions, [{ session_id: "a", content: "A", created_at: "2026-10-02T00:00:00Z" }])?.content).toBe("A");

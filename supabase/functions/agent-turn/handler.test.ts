@@ -9,6 +9,9 @@
 import type { AgentProvider } from "../_shared/agent/providerIo";
 import type { Companion } from "../_shared/agent/companions";
 import type { HazardRules, KeptHazard } from "../_shared/agent/hazard";
+import type { SiteState } from "../_shared/agent/site.ts";
+import { NO_SITE } from "../_shared/agent/site.ts";
+import type { SceneMemory } from "../_shared/agent/memories.ts";
 import { STRIKES_BEFORE_CLOSED } from "../_shared/agent/conduct.ts";
 import type { HandsChange } from "../_shared/agent/hands.ts";
 import { describe, expect, it, vi } from "vitest";
@@ -29,7 +32,8 @@ import type { RecordedFact } from "../_shared/agent/record";
 import type { PendingRoll } from "../_shared/agent/playerRoll";
 import type { Prologue } from "../_shared/agent/prologue";
 import type { FightPlan, FightsInView } from "../_shared/agent/fight";
-import { NO_QUESTS, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests";
+import type { DatePoint } from "../_shared/npcAge";
+import { NO_QUESTS, type QuestMove, type QuestPayoff, type QuestsInPlay } from "../_shared/agent/quests";
 import { AgentProviderError, type AgentBlock, type CallModel, type ModelRequest, type ModelStep } from "../_shared/agent/types";
 import { blocksOf, type StoredTurn, type TurnRow } from "../_shared/agent/transcript";
 import type { CreditLogFields } from "../_shared/credits";
@@ -42,6 +46,7 @@ const HANDOUT = "00000000-0000-4000-8000-0000000000f2";
 const DM = "00000000-0000-4000-8000-0000000000d1";
 const OTHER = "00000000-0000-4000-8000-0000000000e2";
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
+const START_DATE: DatePoint = { year: 1492, month: 3, day: 14 };
 const OTHER_CAMPAIGN = "00000000-0000-4000-8000-0000000000c2";
 const SESSION = "00000000-0000-4000-8000-0000000000a1";
 const PLAY_SESSION = "00000000-0000-4000-8000-0000000000a7";
@@ -186,8 +191,16 @@ interface Harness {
     discardThrows: boolean;
     quests: QuestsInPlay;
     questsThrow: boolean;
+    /** What the party's place has had marked on it, what its characters remember, and whether either read fails. */
+    site: SiteState;
+    siteThrows: boolean;
+    sceneMemories: SceneMemory[];
+    sceneMemoriesThrow: boolean;
     /** Moves that fail to apply, by their position in the order applied. */
     failMoveAt: Set<number>;
+    /** The date move (`advance_campaign_date`) and the chat line after it fail. */
+    advanceFails: boolean;
+    announceFails: boolean;
     /** The canon (#1226): the world block, the last sitting, what lies here, the lookup, what an invention is held against. */
     canonWorld: string;
     canonPrevious: string;
@@ -200,7 +213,10 @@ interface Harness {
   /** What the canon store was asked, and every clue or passage it was told to mark. */
   canonAsked: { previously: Array<string | null>; here: Array<{ locationId: string | null; present: string[] }>; lookups: string[]; brought: BroughtOut[] };
   /** Every quest move the handler applied, in order, and the campaign and conversation it applied it for. */
-  applied: Array<{ ctx: { campaignId: string; agentSessionId: string }; move: QuestMove }>;
+  applied: Array<{ ctx: { campaignId: string; agentSessionId: string; today?: DatePoint | null }; move: QuestMove }>;
+  /** Every date move asked of the database, and every chat line posted about one. */
+  dateMoves: Array<{ campaignId: string; days: number }>;
+  announced: string[];
   questLoads: Array<{ campaignId: string; pressureClockId: string | null }>;
   fightLoads: Array<{ campaignId: string; locationId: string | null; fightEncounterId: string | null }>;
   introduced: Array<{ ctx: { campaignId: string; memberId: string | null; locationId: string | null }; intro: { replaces: string | null; name: string; about: string; known: boolean; here: boolean } }>;
@@ -262,7 +278,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     reserved: [],
     script,
     state: {
-      campaign: { id: CAMPAIGN, user_id: DM, name: "Cup Town", game_system: "dnd5e-2024", ai_enabled: true },
+      campaign: { id: CAMPAIGN, user_id: DM, name: "Cup Town", game_system: "dnd5e-2024", ai_enabled: true, date: START_DATE },
       isDm: true,
       provider: { provider: "openai", model: "m1", isByok, callModel },
       price: { inputPerMillion: 0, outputPerMillion: 10, cachedInputPerMillion: null },
@@ -317,7 +333,13 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       discardThrows: false,
       quests: NO_QUESTS,
       questsThrow: false,
+      site: NO_SITE,
+      siteThrows: false,
+      sceneMemories: [],
+      sceneMemoriesThrow: false,
       failMoveAt: new Set<number>(),
+      advanceFails: false,
+      announceFails: false,
       canonWorld: "",
       canonPrevious: "",
       canonHere: NO_CANON_HERE,
@@ -328,6 +350,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     },
     canonAsked: { previously: [], here: [], lookups: [], brought: [] },
     applied: [],
+    dateMoves: [],
+    announced: [],
     questLoads: [],
     pendingRolls: [],
     reveals: [],
@@ -563,11 +587,30 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       if (h.state.questsThrow) throw new Error("db down");
       return h.state.quests;
     },
+    loadSiteState: async () => {
+      if (h.state.siteThrows) throw new Error("db down");
+      return h.state.site;
+    },
+    loadSceneMemories: async () => {
+      if (h.state.sceneMemoriesThrow) throw new Error("db down");
+      return h.state.sceneMemories;
+    },
     applyQuestMove: async (ctx, move) => {
       const at = h.applied.length;
       log.push("quest-move");
       h.applied.push({ ctx, move });
       if (h.state.failMoveAt.has(at)) throw new Error("rpc failed");
+    },
+    // A month of 30 days in the fake: the new date is the rule's own sum, never read back from the code under test.
+    advanceDate: async (campaignId, days) => {
+      h.dateMoves.push({ campaignId, days });
+      if (h.state.advanceFails) throw new Error("rpc failed");
+      const date = { ...START_DATE, day: START_DATE.day + days };
+      return { date, text: `day ${date.day} of month ${date.month}, ${date.year}` };
+    },
+    announce: async (_campaignId, text) => {
+      if (h.state.announceFails) throw new Error("insert failed");
+      h.announced.push(text);
     },
     judgeNarration: null,
     judgeCanon: null,
@@ -2178,6 +2221,8 @@ describe("quests and time", () => {
       routes: [{ edgeId: EDGE, label: null, toBeatId: "00000000-0000-4000-8000-000000000a08", toBeatTitle: "The bell room", kind: "choice", open: true }],
       objectives: [{ id: OBJECTIVE, description: "Find the bell", status: "pending" }],
       clocks: [{ id: OTHER_CLOCK, label: "Tide", filled: 0, segments: 6 }],
+      held: [],
+      delayed: [],
     }],
     pressure: withPressure ? { clockId: PRESSURE_CLOCK, label: "FLOOD-MARK", filled, segments: 4 } : null,
   });
@@ -2273,7 +2318,7 @@ describe("quests and time", () => {
       { kind: "objective", objectiveId: OBJECTIVE, status: "complete", reason: "found it" },
       { kind: "route", questId: QUEST, threadId: THREAD, edgeId: EDGE },
     ]);
-    expect(h.applied[0].ctx).toEqual({ campaignId: CAMPAIGN, agentSessionId: SESSION });
+    expect(h.applied[0].ctx).toEqual({ campaignId: CAMPAIGN, agentSessionId: SESSION, today: START_DATE });
     expect(h.log.indexOf("quest-move")).toBeGreaterThan(h.log.lastIndexOf("save"));
     expect(h.log.lastIndexOf("done")).toBeGreaterThan(h.log.lastIndexOf("quest-move"));
   });
@@ -2429,6 +2474,34 @@ describe("quests and time", () => {
     }
     expect(opening(h.requests[0])).toContain("No quest is under way");
     expect(h.applied).toEqual([]);
+  });
+
+  // Bug caught: the date, the site and the memories were read but never put in the state, so the Narrator still
+  // described an emptied crypt as full and did not know what day it was.
+  it("puts the date, what is marked on the place and what the characters remember in the state, not the instructions", async () => {
+    const h = harness();
+    existingSession(h, { scene_location_id: CELLAR });
+    h.state.campaign = { id: CAMPAIGN, user_id: DM, name: "Cup Town", game_system: "dnd5e-2024", ai_enabled: true, today: "7 Marpenoth, 1492 DR" };
+    h.state.site = { places: [{ name: "Cellar", facts: ["cleared"] }], doors: [] };
+    h.state.sceneMemories = [{ npcId: "n1", name: "Maren", body: "The party paid the ferry toll.", createdAt: "2026-11-01T10:00:00Z" }];
+    await play(h, { body: BODY });
+    const sent = opening(h.requests[0]);
+    expect(sent).toContain("Today is 7 Marpenoth, 1492 DR.");
+    expect(sent).toContain("the Cellar is cleared");
+    expect(sent).toContain("Maren remembers: The party paid the ferry toll.");
+    for (const mark of ["Marpenoth", "is cleared", "remembers"]) expect(h.requests[0].system).not.toContain(mark);
+  });
+
+  // Bug caught: a failed site or memory read took the turn down with it instead of costing that section for a turn.
+  it("runs the turn without the site and memory sections when either cannot be read", async () => {
+    const h = harness();
+    existingSession(h, { scene_location_id: CELLAR });
+    h.state.siteThrows = true;
+    h.state.sceneMemoriesThrow = true;
+    await play(h, { body: BODY });
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(opening(h.requests[0])).not.toContain("## Site state");
+    expect(opening(h.requests[0])).not.toContain("## What they remember");
   });
 
   it("refuses an id that was not in the section even when the model writes a plausible one", async () => {
@@ -3411,6 +3484,140 @@ describe("where a campaign begins", () => {
   });
 });
 
+describe("time and held payoffs, performed by the server once the turn is kept", () => {
+  const BODY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "We wait out the storm.", mode: "do" };
+  const QUEST = "00000000-0000-4000-8000-000000000b01";
+  const THREAD = "00000000-0000-4000-8000-000000000b02";
+  const HELD = "00000000-0000-4000-8000-000000000b03";
+  const DELAYED = "00000000-0000-4000-8000-000000000b04";
+  const payoff = (eventId: string, over: Partial<QuestPayoff> = {}): QuestPayoff => ({
+    eventId, action: "send_broadcast", subject: null, place: null, text: "The bell tolls.", step: null, to: null, atBeat: null, due: null, ...over,
+  });
+  const quests = (): QuestsInPlay => ({
+    threads: [{
+      questId: QUEST, questTitle: "The drowned bell", threadId: THREAD, threadLabel: null, beat: null, routes: [], objectives: [], clocks: [],
+      held: [payoff(HELD)],
+      delayed: [payoff(DELAYED, { due: "day 20" })],
+    }],
+    pressure: null,
+  });
+  const call = (id: string, name: string, input: Record<string, unknown>): ModelStep =>
+    step(10, { blocks: [{ type: "tool_call", id, name, input }], stop: "tool_calls" });
+  const table = (script: Script): Harness => {
+    const h = harness(script);
+    existingSession(h);
+    h.state.quests = quests();
+    return h;
+  };
+  const fire = (id: string): ModelStep => call("f1", "fire_consequence", { event_id: id });
+  const resultsSeen = (h: Harness, request: number) =>
+    h.requests[request].messages.flatMap((m) => m.blocks).filter((b) => b.type === "tool_result");
+  const fired = (h: Harness) => h.applied.filter((a) => a.move.kind === "fire");
+
+  // Bug caught: days told in a kept turn were only announced to a browser, so a table with no browser open never moved time.
+  it("moves the date by the days the story passed and says so in the chat with the new date", async () => {
+    const h = table([call("d1", "pass_days", { days: 3 }), step(10)]);
+    await play(h, { body: BODY });
+    expect(h.dateMoves).toEqual([{ campaignId: CAMPAIGN, days: 3 }]);
+    expect(h.announced).toEqual(["📅 The date is now day 17 of month 3, 1492"]);
+    expect(h.events.map((e) => e.type)).not.toContain("days");
+  });
+
+  // Bug caught: a date written for a turn that was never kept, and then written again when the player sent it again.
+  it("moves no date and posts no line for a turn that was not kept", async () => {
+    const h = table([call("d1", "pass_days", { days: 3 }), step(10)]);
+    h.state.conflict = true;
+    await play(h, { body: BODY });
+    expect(h.dateMoves).toEqual([]);
+    expect(h.announced).toEqual([]);
+  });
+
+  // Bug caught: one failed database call (the caller may not move time) throwing away a paid turn.
+  it("keeps the turn and its other moves when the date cannot be moved, and says nothing about a date that did not move", async () => {
+    const h = table([call("d1", "pass_days", { days: 3 }), step(10)]);
+    h.state.advanceFails = true;
+    await play(h, { body: BODY });
+    expect(h.appends).toHaveLength(1);
+    expect(h.announced).toEqual([]);
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
+  // Bug caught: a chat line that cannot be written undoing or hiding a date that has already moved.
+  it("keeps the turn when only the chat line fails", async () => {
+    const h = table([call("d1", "pass_days", { days: 2 }), step(10)]);
+    h.state.announceFails = true;
+    await play(h, { body: BODY });
+    expect(h.dateMoves).toEqual([{ campaignId: CAMPAIGN, days: 2 }]);
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
+  // Bug caught: a held payoff fired as of a date that was already over, when the same reply let days pass first.
+  it("fires a held payoff as of the turn's start date, with the campaign and the event as the caller's RPC wants them", async () => {
+    const h = table([fire(HELD), step(10)]);
+    await play(h, { body: BODY });
+    expect(fired(h).map((a) => a.move)).toEqual([{ kind: "fire", eventId: HELD }]);
+    expect(fired(h)[0].ctx.today).toEqual(START_DATE);
+    expect(resultsSeen(h, 1)[0]).toMatchObject({ content: expect.stringContaining("held payoff happens") });
+  });
+
+  it("fires as of the new date when the same turn passed days first, whatever order the model called them in", async () => {
+    const h = table([step(10, {
+      blocks: [
+        { type: "tool_call", id: "f1", name: "fire_consequence", input: { event_id: HELD } },
+        { type: "tool_call", id: "d1", name: "pass_days", input: { days: 5 } },
+      ],
+      stop: "tool_calls",
+    }), step(10)]);
+    await play(h, { body: BODY });
+    expect(fired(h)[0].ctx.today).toEqual({ ...START_DATE, day: START_DATE.day + 5 });
+  });
+
+  it("fires on the date the turn began with when the days could not be moved", async () => {
+    const h = table([call("d1", "pass_days", { days: 5 }), fire(HELD), step(10)]);
+    h.state.advanceFails = true;
+    await play(h, { body: BODY });
+    expect(fired(h)[0].ctx.today).toEqual(START_DATE);
+  });
+
+  // Bug caught: a delayed payoff (it fires itself on its day) or an id the model made up being performed on request.
+  it("refuses a delayed payoff and an unknown id with the list of what can be fired, and performs nothing", async () => {
+    const h = table([call("a", "fire_consequence", { event_id: DELAYED }), call("b", "fire_consequence", { event_id: "00000000-0000-4000-8000-000000000bff" }), step(10)]);
+    await play(h, { body: BODY });
+    expect(fired(h)).toEqual([]);
+    const answers = resultsSeen(h, 2);
+    expect(answers.map((r) => r.isError)).toEqual([true, true]);
+    expect(answers[0]).toMatchObject({ content: expect.stringContaining("not held back") });
+    expect(answers[0]).toMatchObject({ content: expect.stringContaining(HELD) });
+  });
+
+  // Bug caught: a second fire of the same payoff in one turn performed it twice.
+  it("refuses a second fire of the same payoff in one turn", async () => {
+    const h = table([fire(HELD), call("f2", "fire_consequence", { event_id: HELD }), step(10)]);
+    await play(h, { body: BODY });
+    expect(fired(h)).toHaveLength(1);
+    expect(resultsSeen(h, 2).map((r) => r.isError)).toEqual([false, true]);
+  });
+
+  it("fires nothing for a turn that was not kept", async () => {
+    const h = table([fire(HELD), step(10)]);
+    h.state.conflict = true;
+    await play(h, { body: BODY });
+    expect(fired(h)).toEqual([]);
+  });
+
+  // Bug caught: a payoff fired in the middle of a round, when the board owns the story.
+  it("does not offer fire_consequence in a fight, and the loop refuses it if called anyway", async () => {
+    const h = harness([fire(HELD), step(10)]);
+    existingSession(h, { fight_encounter_id: FIGHT });
+    h.state.quests = quests();
+    h.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "Rosie confronts Sift", phase: "running", round: 1, fighters: [] } };
+    await play(h, { body: BODY });
+    expect(h.requests[0].tools.map((t) => t.name)).not.toContain("fire_consequence");
+    expect(resultsSeen(h, 1)[0]).toMatchObject({ isError: true });
+    expect(fired(h)).toEqual([]);
+  });
+});
+
 describe("the story turns into a fight", () => {
   const wren = (): PlayerCharacter => ({
     id: WREN, name: "Wren Ashfield", pronouns: null, species: null, className: "Ranger", subclass: null, level: 3, hitPoints: null,
@@ -3472,19 +3679,6 @@ describe("the story turns into a fight", () => {
   });
 
   // Bug caught: the narrator offered a journey in the middle of a round, and the party walking out of its own fight.
-  // Bug caught: days told in a turn that was never kept moving the campaign's date all the same; or days the
-  // narrator passed never reaching the page.
-  it("tells the page the days that passed, once the turn is kept", async () => {
-    const h = played([step(10, { blocks: [{ type: "tool_call", id: "d1", name: "pass_days", input: { days: 3 } }], stop: "tool_calls" }), step(10)]);
-    await play(h, { body: BODY });
-    expect(h.events.filter((e) => e.type === "days")).toEqual([{ type: "days", days: 3 }]);
-
-    const lost = played([step(10, { blocks: [{ type: "tool_call", id: "d1", name: "pass_days", input: { days: 3 } }], stop: "tool_calls" }), step(10)]);
-    lost.state.conflict = true;
-    await play(lost, { body: BODY });
-    expect(lost.events.filter((e) => e.type === "days")).toEqual([]);
-  });
-
   it("offers travel outside a fight and not while one is being fought", async () => {
     const quietTable = played([step(10)]);
     await play(quietTable, { body: BODY });
@@ -3495,6 +3689,7 @@ describe("the story turns into a fight", () => {
     await play(fighting, { body: BODY });
     expect(fighting.requests[0].tools.map((t) => t.name)).not.toContain("travel");
     expect(fighting.requests[0].tools.map((t) => t.name)).not.toContain("pass_days");
+    expect(fighting.requests[0].tools.map((t) => t.name)).not.toContain("fire_consequence");
   });
 
   // Bug caught live (17 Nov 2026): "i take the chair behind me and throw it at the dogs" was answered "Resolve the

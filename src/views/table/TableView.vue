@@ -157,7 +157,6 @@ import { useSittingLifecycle } from "@/composables/table/useSittingLifecycle";
 import { keepBoardLines, useTableConversation } from "@/composables/table/useTableConversation";
 import { usePlayedCharacter } from "@/composables/table/usePlayedCharacter";
 import { useTableAddress } from "@/composables/table/useTableAddress";
-import { useTableDays } from "@/composables/table/useTableDays";
 import { useTableDisclosure } from "@/composables/table/useTableDisclosure";
 import { useTableGoingOn } from "@/composables/table/useTableGoingOn";
 import { useTableCheck } from "@/composables/table/useTableCheck";
@@ -221,7 +220,6 @@ const fightState = useTableFightState({
 const { fight, fightTurn, inFight, composerFight, onFightOver, onFightLost } = fightState;
 const stage = ref<InstanceType<typeof SoloFightStage> | null>(null);
 
-const passDays = useTableDays();
 // The weather where the story stands, from the campaign's own weather system: the Narrator is told it with every turn.
 const skyNow = useTodayWeather({ placeId: () => sceneId.value });
 const skyDangers = useWeatherHazards({ placeId: () => sceneId.value });
@@ -256,7 +254,6 @@ const turn = useTableTurn({
   // In a fight every message carries what the player's turn still holds, and a ruling comes back for the board.
   fightTurn: () => fightTurn.value,
   onFightChange: (change) => stage.value?.apply(change),
-  onDays: passDays,
   onSession: (id) => {
     appUi.setTablePlaySession(id);
     if (route.params.sessionId !== id) void router.replace({ name: "table-session", params: { sessionId: id } });

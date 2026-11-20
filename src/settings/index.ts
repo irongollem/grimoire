@@ -10,20 +10,20 @@
  * the first paint, which is the regression this split exists to prevent.
  */
 
-import type { CalendarAdapter } from "@/types/calendar.types";
-import { calendarDefToAdapter, createDefaultCustomCalendarDef } from "./types";
-import type { SettingCalendarDef, SettingMeta } from "./types";
-import { FAERUN_CALENDAR } from "./faerun.calendar";
-import { EBERRON_CALENDAR } from "./eberron.calendar";
-import { GREYHAWK_CALENDAR } from "./greyhawk.calendar";
-import { DRAGONLANCE_CALENDAR } from "./dragonlance.calendar";
-import { RAVENLOFT_CALENDAR } from "./ravenloft.calendar";
-import { PLANESCAPE_CALENDAR } from "./planescape.calendar";
-import { SPELLJAMMER_CALENDAR } from "./spelljammer.calendar";
-import { DARKSUN_CALENDAR } from "./darksun.calendar";
-import { MYSTARA_CALENDAR } from "./mystara.calendar";
+import type { CalendarAdapter } from "../types/calendar.types.ts";
+import { calendarDefToAdapter, createDefaultCustomCalendarDef } from "./types.ts";
+import type { SettingCalendarDef, SettingMeta } from "./types.ts";
+import { FAERUN_CALENDAR } from "./faerun.calendar.ts";
+import { EBERRON_CALENDAR } from "./eberron.calendar.ts";
+import { GREYHAWK_CALENDAR } from "./greyhawk.calendar.ts";
+import { DRAGONLANCE_CALENDAR } from "./dragonlance.calendar.ts";
+import { RAVENLOFT_CALENDAR } from "./ravenloft.calendar.ts";
+import { PLANESCAPE_CALENDAR } from "./planescape.calendar.ts";
+import { SPELLJAMMER_CALENDAR } from "./spelljammer.calendar.ts";
+import { DARKSUN_CALENDAR } from "./darksun.calendar.ts";
+import { MYSTARA_CALENDAR } from "./mystara.calendar.ts";
 // Gregorian remains a standalone adapter (it's a real-world calendar, not a D&D setting).
-import { gregorianAdapter } from "@/settings/gregorian.calendar";
+import { gregorianAdapter } from "./gregorian.calendar.ts";
 
 // ── Registry ─────────────────────────────────────────────────────────────────
 
@@ -96,5 +96,5 @@ export function heroSettingFor(calendarId: string | null | undefined): DndSettin
 
 export type DndSettingValue = (typeof DND_SETTINGS)[number]["value"];
 
-export type { SettingMeta, SettingCalendarDef } from "./types";
-export { calendarDefToAdapter, createDefaultCustomCalendarDef } from "./types";
+export type { SettingMeta, SettingCalendarDef } from "./types.ts";
+export { calendarDefToAdapter, createDefaultCustomCalendarDef } from "./types.ts";
