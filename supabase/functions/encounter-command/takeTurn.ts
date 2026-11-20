@@ -12,7 +12,7 @@
 // A creature that lists spells is offered its damage spells (#1021): a cone or a line is not offered, a cast is carried out by
 // `cast_spell` (which spends the slot or use and the Action), and nothing but damage is cast. A party member the AI plays (an ally, #1021) is seen
 // through a stat block made from their own sheet (`allyStatBlock`: their weapons and bare hands, or the form they are Wild Shaped into; a ranged attack
-// uses up ammunition and a throw the weapon, `env.spent`; the spells they have ready are a Spellcasting entry and a slot they cast with is written to the sheet, `env.slotsSpent`; class features come later), so everything below plays them as it plays a monster; one at 0 hit points rolls a death save instead. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
+// uses up ammunition and a throw the weapon, `env.spent`; the spells they have ready are a Spellcasting entry and a slot they cast with is written to the sheet, `env.slotsSpent`; Extra Attack is a Multiattack entry on the block and Sneak Attack is added by `resolve_attack`, `allies/features.ts`), so everything below plays them as it plays a monster; one at 0 hit points rolls a death save instead. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
 // the fight after its move and the reply says so (`leftTheMap`); that is not a defeat. A broken creature with a way out (Etherealness, Invisible
 // Passage) uses it first (`escapedWith`). A Multiattack that drops its target does not redirect the swings it has left.
 

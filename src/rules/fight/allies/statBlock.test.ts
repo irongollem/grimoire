@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Item } from "@/types/item.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import { NO_CASTING, type PlayerSheetRow, type PlayerSheets } from "../playerSheet";
-import { allyAttackSpend, allyStatBlock } from "./statBlock";
+import { allyAttackSpend, allySneakAttack, allyStatBlock } from "./statBlock";
+import type { CharacterClass } from "@/types/multiclass.types";
 import { settleSpend } from "../pcAttacks/gear";
 import type { StatBlockEntry } from "@/types/statBlock.types";
 
@@ -210,5 +211,26 @@ describe("settleSpend", () => {
     const inventory = [stack("a", "Arrows", 5, "belt"), stack("b", "Arrows", 1, "backpack"), stack("c", "Arrows", 2, "backpack", { current_charges: null })];
     settleSpend(inventory, { memberId: "pm-1", action: "x", drop: null, writes: [{ kind: "quantity", inventoryId: "a", quantity: 4 }, { kind: "remove", inventoryId: "b" }, { kind: "charges", inventoryId: "c", charges: 9 }] });
     expect(inventory.map((i) => [i.id, i.quantity, i.current_charges])).toEqual([["a", 4, null], ["c", 2, 9]]);
+  });
+});
+
+describe("allySneakAttack", () => {
+  const rogue = (): PlayerSheets => {
+    const s = sheets({ inventory: [held("i1", "dagger", "Dagger")], items: [DAGGER] });
+    const row = { id: "c1", party_member_id: "pm-1", class_name: "Rogue", class_definition_id: "def-rogue", class_definition_kind: "system", levels: 1 } as unknown as CharacterClass;
+    return { ...s, casting: { ...s.casting, classes: [row] } };
+  };
+
+  // PHB 2014 "Sneak Attack": 1d6 at 1st level on a finesse weapon (the dagger's stab and its throw), not on bare hands (Unarmed Strike is not a weapon attack).
+  it("gives a Rogue's dagger 1d6 and not their fists", () => {
+    expect(allySneakAttack(rogue(), "pm-1", "Dagger")).toEqual({ dice: "1d6" });
+    expect(allySneakAttack(rogue(), "pm-1", "Unarmed Strike")).toBeNull();
+  });
+
+  // Bug caught: a Wild Shaped Rogue whose form has an attack named like the held dagger sneak attacking with the beast's claws.
+  it("gives a Wild Shaped member nothing", () => {
+    const s = rogue();
+    s.members[0] = { ...s.members[0], wildshape_state: FORM };
+    expect(allySneakAttack(s, "pm-1", "Dagger")).toBeNull();
   });
 });

@@ -3182,3 +3182,186 @@ describe("take_turn: an ally casts the spells their character has ready", () => 
     await expect(runBatch(batch("b", tamTurn({ optionId: BOLT })), h.deps)).rejects.toMatchObject({ message: "That option is not on offer." });
   });
 });
+
+// ── class features an ally fights with (#1021) ──────────────────────────────────────
+
+/** One class row of Tam's: a book (system) class unless `custom`. */
+const classRow = (name: string, levels: number, kind: "system" | "custom" = "system"): CharacterClass =>
+  ({ id: `cls-${name}`, party_member_id: "pm-tam", class_name: name, class_definition_id: `def-${name}`, class_definition_kind: kind, subclass_name: null, subclass_definition_id: null, subclass_variant: null, levels, is_primary: true, hit_dice_used: 0, sort_order: 0, capabilities: [] }) as unknown as CharacterClass;
+const withClasses = (sheets: PlayerSheets, ...classes: CharacterClass[]): PlayerSheets => ({ ...sheets, casting: { ...sheets.casting, classes } });
+const rogueSheets = (...classes: CharacterClass[]) => withClasses(tamSheets({ gear: [daggers(1)], items: [DAGGER] }), ...classes);
+const STAB = "attack:actions:Dagger:victim";
+const TWICE = (weapon: string) => `attack:actions:Extra Attack (${weapon}):victim`;
+
+describe("take_turn: an ally's Extra Attack", () => {
+  // PHB 2014 and 2024 "Extra Attack" (Fighter 5th level): the Attack action makes two attacks. d20 8 + 5 = 13 and 9 + 5 = 14 both meet AC 13;
+  // 1d8+3 with a 4 and a 3 deals 7 and 6 (40 -> 27). Bug caught: a fifth-level Fighter swinging once.
+  it("fails if a 5th-level Fighter does not make two attacks with one Attack action", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: withClasses(tamSheets(), classRow("Fighter", 5)), map: mapOf(), dieFaces: [8, 4, 9, 3] });
+    const result = await runBatch(batch("b", tamTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ turn: { optionId: TWICE("Longsword"), kind: "attack" } });
+    expect(h.posted.map((p) => p.result.total)).toEqual([13, 7, 14, 6]);
+    expect(hpOf(stored(h), "victim")).toBe(27);
+    expect(combatantOf(stored(h), "tam").action_used).toBe(true);
+  });
+
+  // PHB 2014 "Fighter" table: three attacks at 11th level (Extra Attack (2)). Bug caught: the Fighter's later attacks missing.
+  it("fails if an 11th-level Fighter does not make three attacks", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: withClasses(tamSheets(), classRow("Fighter", 11)), map: mapOf(), dieFaces: [8, 4, 9, 3, 10, 2] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(22);
+  });
+
+  // Below 5th level there is one attack (a 4th-level Fighter, and a class with no Extra Attack at any level). Bug caught: the level gate dropped.
+  it.each([
+    { name: "a 4th-level Fighter", classes: [classRow("Fighter", 4)] },
+    { name: "a 20th-level Wizard", classes: [classRow("Wizard", 20)] },
+    // A homebrew class that happens to share the Fighter's name is not the book's Fighter.
+    { name: "a homebrew class named Fighter", classes: [classRow("Fighter", 9, "custom")] },
+    // PHB 2014 "Extra Attack": levels in two classes do not add up to the feature.
+    { name: "a Fighter 3 and Barbarian 4", classes: [classRow("Fighter", 3), classRow("Barbarian", 4)] },
+  ])("fails if $name is offered a second attack", async ({ classes }) => {
+    const h = harness(allyFight(), { sources: SOURCES, players: withClasses(tamSheets(), ...classes), map: mapOf(), dieFaces: [] });
+    await expect(runBatch(batch("b", tamTurn({ optionId: TWICE("Longsword") })), h.deps)).rejects.toMatchObject({ message: "That option is not on offer." });
+  });
+
+  // PHB 2014 "Extra Attack": "if you gain Extra Attack from more than one source, the extra attacks don't add". A Barbarian 5 / Fighter 5 and a Barbarian 5 / Monk 5 make two, not four.
+  it.each([
+    [classRow("Barbarian", 5), classRow("Fighter", 5)],
+    [classRow("Barbarian", 5), classRow("Monk", 5)],
+  ])("fails if Extra Attack from two classes adds up", async (...classes) => {
+    const h = harness(allyFight(), { sources: SOURCES, players: withClasses(tamSheets(), ...classes), map: mapOf(), dieFaces: [8, 4, 9, 3] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(h.posted).toHaveLength(4);
+  });
+
+  // PHB 2014 "Fighter" table: four attacks at 20th level. Bug caught: the cap stopping at three.
+  it("fails if a 20th-level Fighter does not make four attacks", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: withClasses(tamSheets(), classRow("Fighter", 20)), map: mapOf(), dieFaces: [8, 4, 9, 3, 10, 2, 11, 1] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(40 - 7 - 6 - 5 - 4);
+  });
+
+  // PHB 2014 "Ammunition": each attack uses a piece of ammunition. One arrow cannot be shot twice, so the second attack is not on offer;
+  // two arrows can, and both leave the quiver. Bug caught: an archer shooting arrows it does not have.
+  it("offers two shots only when the quiver holds two arrows", async () => {
+    const fight = archerFight();
+    const one = harness(fight, { sources: SOURCES, players: withClasses(tamSheets({ gear: [SHORTBOW_HELD, arrows(1)], items: [SHORTBOW] }), classRow("Fighter", 5)), map: mapOf(), dieFaces: [] });
+    await expect(runBatch(batch("b", tamTurn({ optionId: TWICE("Shortbow") })), one.deps)).rejects.toMatchObject({ message: "That option is not on offer." });
+    const two = harness(archerFight(), { sources: SOURCES, players: withClasses(tamSheets({ gear: [SHORTBOW_HELD, arrows(2)], items: [SHORTBOW] }), classRow("Fighter", 5)), map: mapOf(), dieFaces: [15, 4, 15, 4] });
+    await runBatch(batch("b", tamTurn({ optionId: TWICE("Shortbow") })), two.deps);
+    expect(hpOf(stored(two), "victim")).toBe(32);
+    expect(two.gearWrites.at(-1)).toEqual([{ kind: "remove", inventoryId: "inv-arrows" }]);
+  });
+});
+
+/** A fighter-side friend of Tam's standing next to the victim, for the "enemy of the target within 5 feet" half of Sneak Attack. */
+const friend = (over: Partial<RunCombatant> = {}) => pc("pal", { faction_id: "p", hp: 10, max_hp: 10, initiative: 8, position: { x: 2, y: 2 }, ...over });
+function sneakFight(over: { victim?: Partial<RunCombatant>; tam?: Partial<RunCombatant>; friend?: Partial<RunCombatant> | null } = {}) {
+  const base = allyFight(over.tam);
+  base.combatants_live = base.combatants_live.map((c) => (c.instance_id === "victim" ? { ...c, ...over.victim } : c));
+  if (over.friend !== null && over.friend !== undefined) base.combatants_live.push(friend(over.friend));
+  return base;
+}
+const RESTRAINED = [{ name: "Restrained" }];
+
+describe("take_turn: an ally's Sneak Attack", () => {
+  // PHB 2014 "Rogue: Sneak Attack": once per turn, +1d6 at 1st level on a hit with a finesse weapon when the attacker has advantage. A Restrained
+  // target gives it. d20 8 and 3 keep the 8 (13 meets AC 13); 1d4+3 with a 2 is 5, and the Sneak Attack d6 of 5 makes 10 (40 -> 30).
+  // The use is tallied for this turn. Bug caught: a Rogue with advantage dealing only the dagger's damage.
+  it("fails if a Rogue with advantage does not add the Sneak Attack dice", async () => {
+    const h = harness(sneakFight({ victim: { conditions: RESTRAINED } }), { sources: SOURCES, players: rogueSheets(classRow("Rogue", 1)), map: mapOf(), dieFaces: [8, 3, 2, 5] });
+    await runBatch(batch("b", tamTurn({ optionId: STAB })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(30);
+    expect(combatantOf(stored(h), "tam").action_uses).toEqual({ "sneak_attack/0": { used: 1, per_day: 1 } });
+  });
+
+  // PHB 2014 "Sneak Attack": no advantage is needed when another enemy of the target is within 5 feet of it and is not incapacitated. Pal stands
+  // beside the ox. One d20 (8 + 5 = 13), 1d4 of 2 (5), Sneak Attack d6 of 5: 40 -> 30. Bug caught: the ally-adjacent route never read.
+  it("fails if a Rogue with a friend beside the target does not add the Sneak Attack dice", async () => {
+    const h = harness(sneakFight({ friend: {} }), { sources: SOURCES, players: rogueSheets(classRow("Rogue", 1)), map: mapOf(), dieFaces: [8, 2, 5] });
+    await runBatch(batch("b", tamTurn({ optionId: STAB })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(30);
+  });
+
+  // The case it must NOT apply: no advantage and no one beside the ox. Only d20 and d4 are scripted, so a rolled Sneak Attack die throws.
+  // Bug caught: Sneak Attack on every hit.
+  it("fails if a Rogue with neither advantage nor an adjacent enemy of the target adds Sneak Attack", async () => {
+    const h = harness(sneakFight(), { sources: SOURCES, players: rogueSheets(classRow("Rogue", 1)), map: mapOf(), dieFaces: [8, 2] });
+    await runBatch(batch("b", tamTurn({ optionId: STAB })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(35);
+    expect(combatantOf(stored(h), "tam").action_uses).toBeUndefined();
+  });
+
+  // PHB 2014 "Sneak Attack": the adjacent-enemy route needs the attacker to have no disadvantage. Poisoned gives disadvantage (d20 8 and 12 keep the 8).
+  // Bug caught: the disadvantage clause dropped.
+  it("fails if a Rogue with disadvantage sneak attacks because a friend stands beside the target", async () => {
+    const h = harness(sneakFight({ friend: {}, tam: { conditions: [{ name: "Poisoned" }] } }), { sources: SOURCES, players: rogueSheets(classRow("Rogue", 1)), map: mapOf(), dieFaces: [8, 12, 2] });
+    await runBatch(batch("b", tamTurn({ optionId: STAB })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(35);
+  });
+
+  // PHB 2014 "Sneak Attack": the adjacent enemy must not be incapacitated. Bug caught: a Stunned friend counted.
+  it("fails if an incapacitated friend beside the target enables Sneak Attack", async () => {
+    const h = harness(sneakFight({ friend: { conditions: [{ name: "Stunned" }] } }), { sources: SOURCES, players: rogueSheets(classRow("Rogue", 1)), map: mapOf(), dieFaces: [8, 2] });
+    await runBatch(batch("b", tamTurn({ optionId: STAB })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(35);
+  });
+
+  // PHB 2014 "Sneak Attack": once per turn. A Rogue 1 / Fighter 5 makes two dagger attacks with advantage; only the first carries the d6.
+  // First: 8 + 5 hits, d4 2 + 3 + d6 5 = 10; second: 9 + 5 hits, d4 3 + 3 = 6 (40 -> 24). The second's d6 is not scripted, so a second Sneak Attack throws.
+  // Bug caught: Sneak Attack on every swing of an Attack action.
+  it("fails if a second attack in the same turn adds Sneak Attack again", async () => {
+    const h = harness(sneakFight({ victim: { conditions: RESTRAINED } }), { sources: SOURCES, players: rogueSheets(classRow("Rogue", 1), classRow("Fighter", 5)), map: mapOf(), dieFaces: [8, 3, 2, 5, 9, 4, 3] });
+    await runBatch(batch("b", tamTurn({ optionId: TWICE("Dagger") })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(24);
+  });
+
+  // PHB 2014 "Sneak Attack": the extra damage is on a hit. A miss (d20 2 and 1 keep the 1) leaves the turn's use for the next swing. Bug caught: a miss spending it.
+  it("fails if a missed attack spends the turn's Sneak Attack", async () => {
+    const h = harness(sneakFight({ victim: { conditions: RESTRAINED } }), { sources: SOURCES, players: rogueSheets(classRow("Rogue", 1), classRow("Fighter", 5)), map: mapOf(), dieFaces: [2, 1, 9, 4, 3, 5] });
+    await runBatch(batch("b", tamTurn({ optionId: TWICE("Dagger") })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(40 - (3 + 3 + 5));
+  });
+
+  // PHB 2014 "Sneak Attack": a new turn is a new use. The tally of last turn (key 0) stands and this turn (1) has none. Bug caught: the tally never resetting.
+  it("fails if last turn's Sneak Attack stops this turn's", async () => {
+    const tam = { shown_deeds: { dealt: 0, turns: 1, cast: 0, ranged: 0, melee: 0 }, action_uses: { "sneak_attack/0": { used: 1, per_day: 1 } } };
+    const h = harness(sneakFight({ victim: { conditions: RESTRAINED }, tam }), { sources: SOURCES, players: rogueSheets(classRow("Rogue", 1)), map: mapOf(), dieFaces: [8, 3, 2, 5] });
+    await runBatch(batch("b", tamTurn({ optionId: STAB })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(30);
+    expect(combatantOf(stored(h), "tam").action_uses?.["sneak_attack/1"]).toEqual({ used: 1, per_day: 1 });
+  });
+
+  // PHB 2014 "Critical Hits": a critical hit rolls all the attack's damage dice twice, Sneak Attack's included. d20 20 and 5 keep the 20;
+  // two d4 of 1 and two d6 of 1: 4 + 3 = 7 (40 -> 33). Bug caught: the Sneak Attack dice left out of the doubling.
+  it("fails if a critical hit does not double the Sneak Attack dice", async () => {
+    const h = harness(sneakFight({ victim: { conditions: RESTRAINED } }), { sources: SOURCES, players: rogueSheets(classRow("Rogue", 1)), map: mapOf(), dieFaces: [20, 5, 1, 1, 1, 1] });
+    await runBatch(batch("b", tamTurn({ optionId: STAB })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(33);
+  });
+
+  // PHB 2014 "Sneak Attack": the weapon must be finesse or ranged. A longsword is neither. Bug caught: any weapon sneak attacking.
+  it("fails if a Rogue's longsword attack carries Sneak Attack", async () => {
+    const h = harness(sneakFight({ victim: { conditions: RESTRAINED } }), { sources: SOURCES, players: withClasses(tamSheets(), classRow("Rogue", 1)), map: mapOf(), dieFaces: [8, 3, 4] });
+    await runBatch(batch("b", tamTurn({ optionId: "attack:actions:Longsword:victim" })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(33);
+  });
+
+  // Sneak Attack is the Rogue's. Bug caught: any ally with a finesse weapon and advantage adding the dice.
+  it("fails if a Fighter with a dagger and advantage adds Sneak Attack", async () => {
+    const h = harness(sneakFight({ victim: { conditions: RESTRAINED } }), { sources: SOURCES, players: withClasses(rogueSheets(), classRow("Fighter", 1)), map: mapOf(), dieFaces: [8, 3, 2] });
+    await runBatch(batch("b", tamTurn({ optionId: STAB })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(35);
+  });
+
+  // The dice grow with the Rogue's level (PHB 2014 Rogue table, PHB 2024 "Sneak Attack": 2d6 at 3rd level), read from the sheet's own catalogue
+  // in either edition. d20 8 + 5 hits; d4 2 + 3 = 5; Sneak Attack 4 + 5 = 9: 40 -> 26. Bug caught: a flat 1d6, or the wrong edition's row.
+  it.each(["2014", "2024"] as const)("deals 2d6 of Sneak Attack to a 3rd-level Rogue under the %s rules", async (ruleset) => {
+    const sheets = rogueSheets(classRow("Rogue", 3));
+    sheets.members = sheets.members.map((m) => ({ ...m, ruleset }));
+    const h = harness(sneakFight({ victim: { conditions: RESTRAINED } }), { sources: SOURCES, players: sheets, map: mapOf(), dieFaces: [8, 3, 2, 4, 5] });
+    await runBatch(batch("b", tamTurn({ optionId: STAB })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(26);
+  });
+});

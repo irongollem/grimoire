@@ -1,7 +1,8 @@
 // A party member the AI plays (an ally in a fight, #1021) seen through a stat block made from their own sheet, so the
 // monster pipeline (turn options, tactics, resolution, opportunity attacks) plays them unchanged. Weapons first: the
 // block holds the attacks their held weapons and bare hands make and a Spellcasting entry for the spells they have ready
-// (`allySpellcastingEntries`); a Wild Shaped member fights as the form's block. Class features come in a later story.
+// (`allySpellcastingEntries`); a Wild Shaped member fights as the form's block. Class features (`features.ts`): Extra Attack is a Multiattack entry here, and Sneak Attack
+// is added to a hit by `resolve_attack` (`allySneakAttack`).
 // Pure and edge-importable (relative `.ts` imports only).
 
 import type { MonsterStatBlock } from "../../../types/monster.types.ts";
@@ -12,7 +13,8 @@ import { attackEntryOf } from "../pcAttacks/entry.ts";
 import { pcAttackRowsOf } from "../pcAttacks/rows.ts";
 import { playerArmorClass, type PlayerSheets } from "../playerSheet.ts";
 import { allySpellcastingEntries, type CastTally } from "./spells.ts";
-import { carriedGearOf, rangedAttackAvailable, rangedSpend, thrownAttackAvailable, thrownSpend, type AllySpend } from "../pcAttacks/gear.ts";
+import { availableAmmoFor, carriedGearOf, rangedAttackAvailable, rangedSpend, remainingOf, thrownAttackAvailable, thrownSpend, weaponChargesLeft, type AllySpend, type CarriedGear } from "../pcAttacks/gear.ts";
+import { attacksPerAttackAction, sneakAttackFor, type SneakAttack } from "./features.ts";
 
 /** The row the sheet lists for a stick picked up off the floor: never a weapon the character holds, so never one a turn swings. */
 const IMPROVISED_KEY = "improvised";
@@ -53,6 +55,51 @@ function allyAttacks(sheets: PlayerSheets, memberId: string): AllyAttack[] | nul
   for (const row of rows.thrown) if (thrownAttackAvailable(row, gear)) take(row, " (thrown)");
   for (const row of rows.custom) take(row, " (custom)");
   return attacks;
+}
+
+/** The name of the Multiattack entry that makes `count` swings of one attack, as the Attack action's Extra Attack does. */
+const extraAttackName = (attack: string) => `Extra Attack (${attack})`;
+
+/** Whether the means for `count` swings of this attack are in one place: melee and bare hands always, ammunition, charges or thrown weapons only when one stack holds that many. */
+function canSwingTimes(row: AllyRow, gear: CarriedGear, count: number): boolean {
+  if (row.kind === "melee") return true;
+  if (row.kind === "ranged") {
+    if (row.ammoTag === null) return weaponChargesLeft(row.weaponInvId, gear) >= count;
+    const stack = availableAmmoFor(row.ammoTag, gear);
+    return stack !== null && remainingOf(stack, gear) >= count;
+  }
+  if (row.kind === "thrown") return (gear.inventory.find((i) => i.id === row.weaponInvId)?.quantity ?? 0) >= count;
+  // A custom attack is the player's own words: the sheet cannot say it is a weapon the Attack action swings.
+  return false;
+}
+
+/**
+ * RULE extra-attack (PHB 2014 and 2024 "Extra Attack"; `attacksPerAttackAction`): the Attack action makes as many attacks as the
+ * class table gives, with the weapons the character holds. Each attack that can be made that many times is offered as one
+ * Multiattack entry of that many swings of it, the way a monster's Multiattack is (the tactics, the options and `take_turn` read
+ * it unchanged). The swings are the same weapon: a mixed set of weapons is not offered yet.
+ */
+function extraAttackEntries(attacks: readonly AllyAttack[], perAction: number, gear: CarriedGear): StatBlockEntry[] {
+  if (perAction < 2) return [];
+  return attacks.filter((a) => canSwingTimes(a.row, gear, perAction)).map((a): StatBlockEntry => ({
+    name: extraAttackName(a.entry.name),
+    description: `Makes ${perAction} attacks: ${a.entry.name} x${perAction}.`,
+    structured: { kind: "multiattack", source: "manual", multiattack: [{ action: a.entry.name, count: perAction }] },
+  }));
+}
+
+/**
+ * Sneak Attack on the attack named `action` of this member (`sneakAttackFor`: the dice and whether this attack is one it rides, both
+ * the sheet's feature rules), or null: no Rogue levels, an attack it does not ride, a Wild Shaped member (the form's attacks are
+ * the beast's, not a weapon the Rogue holds) or a name not on the block. Whether this swing meets the advantage or the
+ * adjacent-enemy condition, and whether the turn's one use is spent, are the fight's to say (`resolve_attack`).
+ */
+export function allySneakAttack(sheets: PlayerSheets, memberId: string, action: string): SneakAttack | null {
+  const member = sheets.members.find((m) => m.id === memberId);
+  if (member === undefined || member.wildshape_state !== null) return null;
+  const found = (allyAttacks(sheets, memberId) ?? []).find((a) => a.entry.name === action);
+  if (found === undefined) return null;
+  return sneakAttackFor(sheets.casting.classes.filter((c) => c.party_member_id === memberId), member.ruleset, found.row.shape);
 }
 
 /**
@@ -119,6 +166,9 @@ export function allyStatBlock(sheets: PlayerSheets, memberId: string, tally?: Ca
     proficiency_bonus: proficiencyBonusOf(member),
     defenses: emptyDefenses(),
     ...(spellcasting.length === 0 ? {} : { special_abilities: spellcasting }),
-    actions: attacks.map((a) => a.entry),
+    actions: [
+      ...attacks.map((a) => a.entry),
+      ...extraAttackEntries(attacks, attacksPerAttackAction(sheets.casting.classes.filter((c) => c.party_member_id === memberId)), carriedGearOf(sheets, memberId)),
+    ],
   };
 }

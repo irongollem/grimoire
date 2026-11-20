@@ -1,5 +1,5 @@
-import type { FeatCatalogue, FeatCatalogueEntry, FeatureCatalogue } from "./types";
-import type { FeatureChoice, FeatureMechanics } from "@/rules/features/mechanics.types";
+import type { FeatCatalogue, FeatCatalogueEntry, FeatureCatalogue } from "./types.ts";
+import type { FeatureChoice, FeatureMechanics } from "../mechanics.types.ts";
 
 // Mechanics only, never rules text. Keys are Open5e v2 record keys of the
 // srd-2024 document. Levels are levels in the granting class. Not expressible

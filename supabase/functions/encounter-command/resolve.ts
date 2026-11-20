@@ -22,6 +22,10 @@ import type { StatBlockEntry } from "../../../src/types/statBlock.types.ts";
 import { statBlockOf, type StatBlockSources } from "../_shared/fightStatBlocks.ts";
 import type { StatBlockListKey } from "../../../src/rules/statBlock/parseAction.ts";
 import { holdsConcentration } from "../../../src/rules/conditionDurations.ts";
+import { attackRollMode } from "../../../src/rules/combat/attackRoll.ts";
+import { isIncapacitated } from "../../../src/rules/conditions.ts";
+import { isHostileTo } from "../../../src/rules/fight/sides.ts";
+import { allySneakAttack } from "../../../src/rules/fight/allies/statBlock.ts";
 import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "../../../src/rules/fight/targeting.ts";
 import { applyFightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightDeps, FightResult } from "../../../src/rules/fight/fightEvents.ts";
@@ -531,6 +535,39 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     });
   };
 
+  /**
+   * RULE sneak-attack (PHB 2014 "Rogue: Sneak Attack"; PHB 2024 "Sneak Attack"): once per turn, a hit with a finesse or ranged
+   * weapon deals the Rogue's Sneak Attack dice more when the attacker has advantage on the roll, or another enemy of the target
+   * stands within 5 feet of it, is not incapacitated, and the attacker has no disadvantage. The mode is worked out here with the
+   * same rule and the same facts the roll to hit will use (`attackRollMode`), because the roll cannot say it before the damage
+   * is rolled; advantage and disadvantage that cancel leave neither, so only the adjacent enemy can qualify then. The dice ride
+   * the weapon's damage type and double on a critical hit like any other die of the hit. APP CONVENTION: "once per turn" is
+   * tallied as `sneak_attack/<own turns started>` in the combatant's `action_uses`, so the next turn is a new key.
+   * Only a party member the AI plays (an ally, #1021) has it: null for anyone else, a swing it does not ride, or one already spent.
+   */
+  const sneakAttackIn = (
+    attacker: RunCombatant, target: RunCombatant, entry: StatBlockEntry, near: boolean,
+    facts: { hostileWithinFiveFeetOfAttacker?: boolean; longRange?: boolean },
+  ): { entry: StatBlockEntry; useKey: string } | null => {
+    const attack = entry.structured?.attack;
+    if (attacker.type !== "player" || attacker.party_member_id === undefined || attack === undefined) return null;
+    const sneak = allySneakAttack(env.players, attacker.party_member_id, entry.name);
+    if (sneak === null) return null;
+    const useKey = `sneak_attack/${attacker.shown_deeds === undefined ? 0 : attacker.shown_deeds.turns}`;
+    if (!limitAvailability(attacker, useKey, { per_day: 1 }).available) return null;
+    const delivery = attack.delivery === "melee_or_ranged" ? (near ? "melee" : "ranged") : attack.delivery;
+    const { mode } = attackRollMode({
+      attackerConditions: attacker.conditions, targetConditions: target.conditions, delivery, withinFiveFeet: near,
+      hostileWithinFiveFeetOfAttacker: facts.hostileWithinFiveFeetOfAttacker, longRange: facts.longRange, ruleset: holder.state.ruleset,
+    });
+    const flanked = holder.state.combatants.some((c) =>
+      c.instance_id !== attacker.instance_id && c.instance_id !== target.instance_id && c.bystander !== true && c.hp > 0
+      && !isIncapacitated(c.conditions) && isHostileTo(c, target, env.factions) && withinFiveFeet(c, target) === true);
+    if (mode !== "advantage" && !(mode === "normal" && flanked)) return null;
+    const type = attack.hit[0] === undefined ? null : attack.hit[0].type;
+    return { useKey, entry: { ...entry, structured: { ...entry.structured, attack: { ...attack, hit: [...attack.hit, { dice: sneak.dice, type }] } } } };
+  };
+
   const castSpell = async (cast: Extract<ResolvingCommand, { type: "cast_spell" }>): Promise<void> => {
     const caster = combatantIn(state, cast.casterId, "caster");
     ableToAct(caster);
@@ -636,11 +673,19 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
         const entry = entryOf(attacker, command.list, command.action, env.sources);
         const near = command.withinFiveFeet ?? withinFiveFeet(attacker, target);
         if (near === null) refuse(`Say whether ${attacker.name} is within five feet of ${target.name}: one of them has no place on the map.`);
+        const facts = rangedFacts(attacker, target, entry, near as boolean);
+        const sneak = sneakAttackIn(attacker, target, entry, near as boolean, facts);
         const done = await resolveAttackOn(ctx, {
-          attacker, entry, target, withinFiveFeet: near as boolean, extraPenalty: command.penalty, magical: command.magical,
-          ...rangedFacts(attacker, target, entry, near as boolean),
+          attacker, entry: sneak === null ? entry : sneak.entry, target, withinFiveFeet: near as boolean, extraPenalty: command.penalty, magical: command.magical,
+          ...facts,
         });
         collected.push({ type: "resolved", resolved: done.summary });
+        // The turn's one Sneak Attack is spent by a hit that carried it; a miss leaves it for the next swing.
+        if (sneak !== null && done.summary.hit) {
+          const spent = applyFightCommand(holder.state, { type: "use_action", instanceId: attacker.instance_id, action: sneak.useKey, limit: { per_day: 1 } }, env.fightDeps);
+          holder.state = spent.state;
+          collected.push(...spent.effects);
+        }
         break;
       }
       case "resolve_save": {
