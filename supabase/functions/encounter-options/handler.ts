@@ -119,7 +119,7 @@ export async function computeOptions(request: OptionsRequest, deps: OptionsDeps)
   // A party member is listed the way `take_turn` plays them (#1021): through the block their own sheet makes, and never
   // offered a flee. Nobody else's options change.
   const ally = mover.type === "player" && mover.party_member_id !== undefined;
-  const allyBlock = ally ? allyStatBlock(await deps.loadPlayerSheets([mover.party_member_id as string]), mover.party_member_id as string) : null;
+  const allyBlock = ally ? allyStatBlock(await deps.loadPlayerSheets([mover.party_member_id as string]), mover.party_member_id as string, mover.action_uses) : null;
   const sources: StatBlockSources = allyBlock === null ? loaded : { ...loaded, allies: { ...loaded.allies, [mover.party_member_id as string]: allyBlock } };
   const memberIds = combatants.flatMap((c) => (c.party_member_id ? [c.party_member_id] : []));
   const members = memberIds.length === 0 ? [] : await deps.loadMemberSpeeds(memberIds);

@@ -16,6 +16,7 @@ import { NORMAL_ROLL, rollWithRules, type RolledFaces } from "../../../src/lib/d
 import { dnd5eDiceRules } from "../../../src/systems/dnd5e/dice/rules.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { MonsterStatBlock } from "../../../src/types/monster.types.ts";
+import type { SpellSlotEntry } from "../../../src/types/party.types.ts";
 import type { SaveAbility } from "../../../src/types/statBlock.types.ts";
 import type { StatBlockEntry } from "../../../src/types/statBlock.types.ts";
 import { statBlockOf, type StatBlockSources } from "../_shared/fightStatBlocks.ts";
@@ -411,6 +412,8 @@ export interface ResolveEnv {
   posted: PostedRoll[];
   /** What the allies' attacks used up (ammunition, a thrown weapon), in order, for the caller to write once the fight is saved (#1021). */
   spent: Array<{ spend: AllySpend; speaker: string }>;
+  /** The slots an ally's casts used up, as the sheet's whole slot list after each cast, in order, for the caller to write once the fight is saved (#1021). */
+  slotsSpent: Array<{ memberId: string; slots: SpellSlotEntry[] }>;
   /**
    * Asks whether each turn goes against a creature's note (#1203), once per distinct `key`; null when asking is not
    * allowed or did not work. Left out where no note is ever consulted.

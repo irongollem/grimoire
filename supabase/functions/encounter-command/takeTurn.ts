@@ -12,7 +12,7 @@
 // A creature that lists spells is offered its damage spells (#1021): a cone or a line is not offered, a cast is carried out by
 // `cast_spell` (which spends the slot or use and the Action), and nothing but damage is cast. A party member the AI plays (an ally, #1021) is seen
 // through a stat block made from their own sheet (`allyStatBlock`: their weapons and bare hands, or the form they are Wild Shaped into; a ranged attack
-// uses up ammunition and a throw the weapon, `env.spent`; spells and class features come later), so everything below plays them as it plays a monster; one at 0 hit points rolls a death save instead. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
+// uses up ammunition and a throw the weapon, `env.spent`; the spells they have ready are a Spellcasting entry and a slot they cast with is written to the sheet, `env.slotsSpent`; class features come later), so everything below plays them as it plays a monster; one at 0 hit points rolls a death save instead. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
 // the fight after its move and the reply says so (`leftTheMap`); that is not a defeat. A broken creature with a way out (Etherealness, Invisible
 // Passage) uses it first (`escapedWith`). A Multiattack that drops its target does not redirect the swings it has left.
 
@@ -23,6 +23,7 @@ import { dnd5eDiceRules } from "../../../src/systems/dnd5e/dice/rules.ts";
 import { allyProfile } from "../../../src/rules/fight/allies/profile.ts";
 import { settleSpend } from "../../../src/rules/fight/pcAttacks/gear.ts";
 import { allyAttackSpend, allyStatBlock } from "../../../src/rules/fight/allies/statBlock.ts";
+import { allySlotSpend, settleSlotSpend } from "../../../src/rules/fight/allies/spells.ts";
 import { applyFightCommand, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
 import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
@@ -154,7 +155,9 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
     }
   }
   for (const id of allyIds) {
-    const made = allyStatBlock(callEnv.players, id);
+    // The slot counts of its spells are worked out against the casts this fight already tallies for the member.
+    const own = state.combatants.find((c) => c.type === "player" && c.party_member_id === id);
+    const made = allyStatBlock(callEnv.players, id, own?.action_uses);
     if (made !== null) allies[id] = made;
   }
   const env: ResolveEnv = allyIds.size === 0 ? callEnv : { ...callEnv, sources: { ...callEnv.sources, allies } };
@@ -280,6 +283,14 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
         );
         next = done.state;
         effects.push(...done.effects);
+        // A slot an ally cast with is the sheet's: its whole list as it now stands, written once the fight is saved (#1021).
+        if (ally) {
+          const slots = allySlotSpend(env.players, mover.party_member_id as string, step.castLevel);
+          if (slots !== null) {
+            env.slotsSpent.push({ memberId: mover.party_member_id as string, slots });
+            settleSlotSpend(env.players, mover.party_member_id as string, slots);
+          }
+        }
         break;
       }
       case "break_free": {

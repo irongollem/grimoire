@@ -8,12 +8,15 @@ import type { EncounterEvent, RunCombatant } from "../../../src/types/encounter.
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest";
 import type { Monster } from "../../../src/types/monster.types";
 import { emptyDefenses, type StatBlockEntry } from "../../../src/types/statBlock.types";
-import type { PlayerSheets } from "../../../src/rules/fight/playerSheet";
+import { NO_CASTING, type PlayerSheets } from "../../../src/rules/fight/playerSheet";
 import type { GearWrite, ThrownDrop } from "../../../src/rules/fight/pcAttacks/gear";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap";
 import { occluders } from "../../../src/lib/battlemap/occlusion";
 import type { Item } from "../../../src/types/item.types";
 import type { PartyInventoryItem } from "../../../src/types/inventory.types";
+import type { SpellSlotEntry } from "../../../src/types/party.types";
+import type { CharacterClass } from "../../../src/types/multiclass.types";
+import type { AllySpellRow } from "../../../src/rules/fight/playerSheet";
 import { broadcastEvent, combatant, GOBLIN, pc } from "../../../src/rules/fight/fightTestKit";
 import type { FightXpAward } from "../../../src/rules/fight/fightXp";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe";
@@ -78,6 +81,8 @@ interface Harness {
   /** The weapons allies threw onto the ground, and the inventory writes their attacks led to, in the order they were made. */
   drops: Array<{ drop: ThrownDrop; memberId: string; speaker: string }>;
   gearWrites: GearWrite[][];
+  /** The spell slot lists written to allies' sheets after their casts, in order. */
+  slotWrites: Array<{ memberId: string; slots: SpellSlotEntry[] }>;
   /** How many times the server threw a die. */
   dieCalls: number;
   /** The party member ids of each `loadPlayerSheets` call. */
@@ -114,6 +119,8 @@ function harness(
     players?: PlayerSheets;
     /** A drop of a thrown weapon that fails (the chat could not be written to). */
     dropFails?: boolean;
+    /** A write of an ally's spell slots that fails. */
+    slotsFail?: boolean;
     /** The faces the server's die shows, one per throw in order; a throw past the end fails the test. */
     dieFaces?: number[];
     /** The fight's battle map; absent or null is a fight with no map the rules can use. */
@@ -143,6 +150,7 @@ function harness(
     posted: [],
     drops: [],
     gearWrites: [],
+    slotWrites: [],
     dieCalls: 0,
     playerLoads: [],
     mapLoads: 0,
@@ -231,7 +239,7 @@ function harness(
     },
     async loadPlayerSheets(ids) {
       h.playerLoads.push(ids);
-      return structuredClone(options.players ?? { members: [], inventory: [], items: [], beasts: [] });
+      return structuredClone(options.players ?? { members: [], inventory: [], items: [], beasts: [], casting: NO_CASTING });
     },
     async loadFightMap() {
       h.mapLoads += 1;
@@ -257,6 +265,11 @@ function harness(
     async writeGear(writes) {
       h.log.push("gear");
       h.gearWrites.push(structuredClone(writes));
+    },
+    async writeSpellSlots(memberId, slots) {
+      if (options.slotsFail) throw new Error("sheet is down");
+      h.log.push("slots");
+      h.slotWrites.push({ memberId, slots: structuredClone(slots) });
     },
     rollDie() {
       h.dieCalls += 1;
@@ -909,11 +922,11 @@ const wornRow = (itemId: string, slot: string) =>
 const NESSA_IN_PLATE: PlayerSheets = {
   members: [{
     id: "pm-nessa", ruleset: "2014", class: "Fighter", subclass: null, ac_formula: null, class_choices: {},
-    str: 10, dex: 14, con: 14, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: ["con"], wildshape_state: null, speed: 30, level: 1, custom_attacks: [],
+    str: 10, dex: 14, con: 14, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: ["con"], wildshape_state: null, speed: 30, level: 1, custom_attacks: [], spell_slots: [],
   }],
   inventory: [wornRow("chain", "body"), wornRow("shield", "off_hand")],
   items: [CHAIN_MAIL, SHIELD],
-  beasts: [],
+  beasts: [], casting: NO_CASTING,
 };
 
 const SOURCES: StatBlockSources = { monsters: [monster("m-wolf"), monster("m-ox")], npcs: [], companions: [] };
@@ -2830,12 +2843,12 @@ function tamSheets(over: { bare?: boolean; wildshape?: boolean; bear?: boolean; 
   return {
     members: [{
       id: "pm-tam", ruleset: "2014", class: "Fighter", subclass: null, ac_formula: null, class_choices: {},
-      str: 16, dex: 10, con: 12, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: [], speed: 30, level: 1, custom_attacks: [],
+      str: 16, dex: 10, con: 12, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: [], speed: 30, level: 1, custom_attacks: [], spell_slots: [],
       wildshape_state: over.wildshape ? { monster_id: "m-bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_dex: 10 } : null,
     }],
     inventory: over.gear ?? (over.bare ? [] : [heldSword]),
     items: over.items ?? (over.bare ? [] : [LONGSWORD]),
-    beasts: over.bear ? [{ id: "m-bear", stat_block: { str: 19, dex: 10, con: 16, speed: "40 ft.", actions: [BEAR_CLAWS] } }] : [],
+    beasts: over.bear ? [{ id: "m-bear", stat_block: { str: 19, dex: 10, con: 16, speed: "40 ft.", actions: [BEAR_CLAWS] } }] : [], casting: NO_CASTING,
   };
 }
 
@@ -3084,5 +3097,88 @@ describe("take_turn: an ally's ammunition and thrown weapons", () => {
     await runBatch(batch("b", tamTurn({ optionId: SHOOT })), h.deps);
     expect(h.saves).toBe(2);
     expect(h.gearWrites).toHaveLength(1);
+  });
+});
+
+/** Tam as a level 5 Wizard: Intelligence 16 (+3), proficiency +3, so spell save DC 14 and +6 to hit with spell attacks. */
+function wizardTamSheets(over: { slots?: SpellSlotEntry[]; spells?: AllySpellRow[]; bear?: boolean; wildshape?: boolean } = {}): PlayerSheets {
+  const base = tamSheets({ bare: true, bear: over.bear, wildshape: over.wildshape });
+  const wizard = { id: "cls-wiz", party_member_id: "pm-tam", class_name: "Wizard", class_definition_id: "def-wiz", class_definition_kind: "system", subclass_name: null, subclass_definition_id: null, subclass_variant: null, levels: 5, is_primary: true, hit_dice_used: 0, sort_order: 0, capabilities: [] } as unknown as CharacterClass;
+  const grant = (name: string, level: number): AllySpellRow => ({ party_member_id: "pm-tam", name, level, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-wiz", casting_ability: null, uses_per_day: null });
+  return {
+    ...base,
+    members: [{ ...base.members[0], int: 16, level: 5, proficiency_bonus: 3, spell_slots: over.slots ?? [{ level: 3, max: 2, used: 0 }] }],
+    casting: {
+      spells: over.spells ?? [grant("Fire Bolt", 0), grant("Fireball", 3)],
+      classes: [wizard],
+      definitions: { system: [{ id: "def-wiz", caster_type: "prepared", prepared_ability: "int" }], custom: [], subclasses: [] },
+    },
+  };
+}
+const BOLT = "spell:Fire Bolt:0:victim";
+const BALL = "spell:Fireball:3:victim";
+
+describe("take_turn: an ally casts the spells their character has ready", () => {
+  // SRD 5.1 "Fire Bolt": a ranged spell attack, 1d10 fire; a cantrip costs no slot. The sheet's attack bonus is +6 (3 + 3): d20 10 + 6 = 16
+  // meets AC 13, and at 5th level the cantrip is 2d10 (6 + 4 = 10: 40 -> 30). Bug caught: an ally with a spell ready that is only ever offered its fists, or a cantrip that writes a slot.
+  it("fails if an ally does not cast a ready cantrip by the sheet's spell attack bonus, or writes a slot for it", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: wizardTamSheets(), map: mapOf(), spells: [fireBolt(), fireball()], dieFaces: [10, 6, 4] });
+    const result = await runBatch(batch("b", tamTurn({ optionId: BOLT })), h.deps);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { optionId: BOLT, kind: "spell" } });
+    expect(hpOf(stored(h), "victim")).toBe(30);
+    expect(h.slotWrites).toEqual([]);
+  });
+
+  // SRD 5.1 "Fireball": 8d6, a Dexterity save for half, a 3rd-level slot. The victim fails the save (DC 14 against a d20 of 2), takes
+  // 8 dice of 1 = 8 (40 -> 32). One of the two 3rd-level slots is spent: the sheet is written whole, after the fight was saved.
+  // Bug caught: a leveled spell cast for free, or its slot written before the save.
+  it("fails if a leveled spell does not spend a slot on the sheet, written after the fight is saved", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: wizardTamSheets(), map: mapOf(), spells: [fireBolt(), fireball()], dieFaces: [2, 1, 1, 1, 1, 1, 1, 1, 1] });
+    const result = await runBatch(batch("b", tamTurn({ optionId: BALL })), h.deps);
+    expect(result.effectFailures).toEqual([]);
+    expect(hpOf(stored(h), "victim")).toBe(32);
+    expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 3, max: 2, used: 1 }] }]);
+    expect(h.log.indexOf("save")).toBeLessThan(h.log.indexOf("slots"));
+    expect(combatantOf(stored(h), "tam").action_uses).toEqual({ "slots/3": { used: 1, per_day: 2 } });
+  });
+
+  // A second turn: the first Fireball was already written to the sheet (1 of 2 spent) and the fight tallies it (used 1). The slot left
+  // is the one slot, not none. Bug caught: the fight's tally subtracted from a sheet that already shows the cast, so the ally on its
+  // second turn believed both slots gone and never cast again.
+  it("fails if an ally whose first cast is already on its sheet and in the fight's tally cannot cast its last slot", async () => {
+    const fight = archerFight();
+    fight.combatants_live[0] = { ...fight.combatants_live[0], action_uses: { "slots/3": { used: 1, per_day: 2 } } };
+    const h = harness(fight, { sources: SOURCES, players: wizardTamSheets({ slots: [{ level: 3, max: 2, used: 1 }] }), map: mapOf(), spells: [fireBolt(), fireball()], dieFaces: [2, 1, 1, 1, 1, 1, 1, 1, 1] });
+    await runBatch(batch("b", tamTurn({ optionId: BALL })), h.deps);
+    expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 3, max: 2, used: 2 }] }]);
+    expect(combatantOf(stored(h), "tam").action_uses).toEqual({ "slots/3": { used: 2, per_day: 2 } });
+  });
+
+  // Bug caught: a failed write of the slot undoing the fight, or going unreported.
+  it("reports a slot write that failed and keeps the fight", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: wizardTamSheets(), map: mapOf(), spells: [fireBolt(), fireball()], dieFaces: [2, 1, 1, 1, 1, 1, 1, 1, 1], slotsFail: true });
+    const result = await runBatch(batch("b", tamTurn({ optionId: BALL })), h.deps);
+    expect(result.effectFailures).toEqual(["ally_spell_slots: sheet is down"]);
+    expect(hpOf(stored(h), "victim")).toBe(32);
+  });
+
+  // Bug caught: an ally with every 3rd-level slot spent still offered Fireball (it would cast on credit).
+  it("fails if an ally with no slot left is offered the leveled spell", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: wizardTamSheets({ slots: [{ level: 3, max: 2, used: 2 }] }), map: mapOf(), spells: [fireBolt(), fireball()], dieFaces: [] });
+    await expect(runBatch(batch("b", tamTurn({ optionId: BALL })), h.deps)).rejects.toMatchObject({ message: "That option is not on offer." });
+  });
+
+  // Bug caught: a spell on the sheet that the character has not prepared offered anyway.
+  it("fails if an ally is offered a spell it has not prepared", async () => {
+    const sheets = wizardTamSheets();
+    sheets.casting.spells = sheets.casting.spells.map((g) => (g.name === "Fireball" ? { ...g, is_prepared: false } : g));
+    const h = harness(archerFight(), { sources: SOURCES, players: sheets, map: mapOf(), spells: [fireBolt(), fireball()], dieFaces: [] });
+    await expect(runBatch(batch("b", tamTurn({ optionId: BALL })), h.deps)).rejects.toMatchObject({ message: "That option is not on offer." });
+  });
+
+  // PHB 2014 "Wild Shape": the form casts nothing. Bug caught: a Wild Shaped ally casting from the character's sheet.
+  it("fails if a Wild Shaped ally casts", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: wizardTamSheets({ wildshape: true, bear: true }), map: mapOf(), spells: [fireBolt(), fireball()], dieFaces: [] });
+    await expect(runBatch(batch("b", tamTurn({ optionId: BOLT })), h.deps)).rejects.toMatchObject({ message: "That option is not on offer." });
   });
 });

@@ -258,6 +258,11 @@ serve(withCors(async (req: Request) => {
           if (error) throw new Error(`party_inventory: ${error.message}`);
         }
       },
+      async writeSpellSlots(memberId, slots) {
+        // Scoped to this campaign: another campaign's member is never touched. The whole list, so a retry lands once.
+        const { error } = await admin.from("party_members").update({ spell_slots: slots }).eq("id", memberId).eq("campaign_id", campaignId);
+        if (error) throw new Error(`party_members: ${error.message}`);
+      },
       async judgeNote(noteQuestions, alreadyThisBatch) {
         // The same rule as campaign search's rerank: AI on for the campaign and a platform key, else the rules pick alone.
         // Nothing in here may fail the turn: any problem reads as "no answer".

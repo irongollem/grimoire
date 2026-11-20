@@ -1,5 +1,5 @@
-import type { CasterType } from "@/types/spell.types";
-import type { RulesetKey } from "@/types/ruleset.types";
+import type { CasterType } from "../types/spell.types.ts";
+import type { RulesetKey } from "../types/ruleset.types.ts";
 
 export type PreparationChangeTiming = "level_up" | "long_rest";
 

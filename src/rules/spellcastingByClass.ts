@@ -1,7 +1,7 @@
-import { computeSpellcastingPerClass, type AbilityScores, type CharacterClass, type SpellcastingClassStats } from "@/types/multiclass.types";
-import { getSpellPreparationPolicy } from "@/rules/spellPreparationPolicy";
-import { castingFor, classCastingAbility, type ClassCastingLike, type SubclassCastingLike } from "@/rules/subclassCasting";
-import type { RulesetKey } from "@/types/ruleset.types";
+import { computeSpellcastingPerClass, type AbilityScores, type CharacterClass, type SpellcastingClassStats } from "../types/multiclass.types.ts";
+import { getSpellPreparationPolicy } from "./spellPreparationPolicy.ts";
+import { castingFor, classCastingAbility, type ClassCastingLike, type SubclassCastingLike } from "./subclassCasting.ts";
+import type { RulesetKey } from "../types/ruleset.types.ts";
 
 /** The subset of a system/custom class definition this module needs. */
 export interface SpellcastingClassDefinitionLike extends ClassCastingLike {

@@ -1,7 +1,7 @@
 // A party member the AI plays (an ally in a fight, #1021) seen through a stat block made from their own sheet, so the
 // monster pipeline (turn options, tactics, resolution, opportunity attacks) plays them unchanged. Weapons first: the
-// block holds the attacks their held weapons and bare hands make; a Wild Shaped member fights as the form's block.
-// Spells and class features come in later stories.
+// block holds the attacks their held weapons and bare hands make and a Spellcasting entry for the spells they have ready
+// (`allySpellcastingEntries`); a Wild Shaped member fights as the form's block. Class features come in a later story.
 // Pure and edge-importable (relative `.ts` imports only).
 
 import type { MonsterStatBlock } from "../../../types/monster.types.ts";
@@ -11,6 +11,7 @@ import { proficiencyBonusOf } from "../../proficiencyBonus.ts";
 import { attackEntryOf } from "../pcAttacks/entry.ts";
 import { pcAttackRowsOf } from "../pcAttacks/rows.ts";
 import { playerArmorClass, type PlayerSheets } from "../playerSheet.ts";
+import { allySpellcastingEntries, type CastTally } from "./spells.ts";
 import { carriedGearOf, rangedAttackAvailable, rangedSpend, thrownAttackAvailable, thrownSpend, type AllySpend } from "../pcAttacks/gear.ts";
 
 /** The row the sheet lists for a stick picked up off the floor: never a weapon the character holds, so never one a turn swings. */
@@ -74,9 +75,11 @@ export function allyAttackSpend(sheets: PlayerSheets, memberId: string, action: 
  * The block for one party member, or null when the server cannot play them this way: their row was not read, their armour
  * class cannot be worked out, or they are Wild Shaped into a form whose block was not read.
  *
- * A Wild Shaped member fights as the form (`formStatBlock`). Otherwise the block holds the attacks of `allyAttacks`.
+ * A Wild Shaped member fights as the form (`formStatBlock`). Otherwise the block holds the attacks of `allyAttacks` and, for a
+ * member with spells ready, a Spellcasting entry per source. `tally` is the member's own combatant's `action_uses` (the casts the
+ * fight already counts), which the slot counts of the entry are worked out against.
  */
-export function allyStatBlock(sheets: PlayerSheets, memberId: string): MonsterStatBlock | null {
+export function allyStatBlock(sheets: PlayerSheets, memberId: string, tally?: CastTally): MonsterStatBlock | null {
   const member = sheets.members.find((m) => m.id === memberId);
   if (member === undefined) return null;
   const armorClass = playerArmorClass(sheets, memberId);
@@ -104,6 +107,7 @@ export function allyStatBlock(sheets: PlayerSheets, memberId: string): MonsterSt
   }
   const attacks = allyAttacks(sheets, memberId);
   if (attacks === null) return null;
+  const spellcasting = allySpellcastingEntries(sheets, memberId, tally);
 
   return {
     armor_class: armorClass,
@@ -114,6 +118,7 @@ export function allyStatBlock(sheets: PlayerSheets, memberId: string): MonsterSt
     challenge_rating: "0",
     proficiency_bonus: proficiencyBonusOf(member),
     defenses: emptyDefenses(),
+    ...(spellcasting.length === 0 ? {} : { special_abilities: spellcasting }),
     actions: attacks.map((a) => a.entry),
   };
 }

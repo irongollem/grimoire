@@ -9,7 +9,8 @@ import type { GridCalibration } from "../../../src/types/location.types";
 import type { Monster } from "../../../src/types/monster.types";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest";
 import type { RunCombatant } from "../../../src/types/encounter.types";
-import type { PlayerSheets } from "../../../src/rules/fight/playerSheet";
+import type { CharacterClass } from "../../../src/types/multiclass.types";
+import { NO_CASTING, type PlayerSheets } from "../../../src/rules/fight/playerSheet";
 import { emptyDefenses, type StatBlockEntry } from "../../../src/types/statBlock.types";
 import { meleeReachFeet } from "../_shared/turnOptionsFor";
 import { computeOptions, OptionsError, validateOptionsRequest, type OptionsDeps, type OptionsFight } from "./handler";
@@ -62,7 +63,7 @@ function deps(s: Setup): OptionsDeps {
     loadPartyRows: async () => structuredClone(s.party ?? []),
     loadStatBlocks: async () => ({ monsters: s.monsters ?? [monster("m-wolf", [attack("Bite")])], npcs: [], companions: [] }),
     loadMemberSpeeds: async () => s.speeds ?? [],
-    loadPlayerSheets: async () => structuredClone(s.sheets ?? { members: [], inventory: [], items: [], beasts: [] }),
+    loadPlayerSheets: async () => structuredClone(s.sheets ?? { members: [], inventory: [], items: [], beasts: [], casting: NO_CASTING }),
     loadMapInput: async () => (s.map === undefined ? OPEN_GROUND : s.map),
     loadSpellsListed: async (names) => {
       s.spellReads?.push(names);
@@ -200,10 +201,10 @@ describe("meleeReachFeet", () => {
 const SAM: PlayerSheets = {
   members: [{
     id: "pm-pc", ruleset: "2014", class: "Fighter", subclass: null, ac_formula: null, class_choices: {},
-    str: 10, dex: 16, con: 12, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: [], speed: 25, level: 1, custom_attacks: [],
+    str: 10, dex: 16, con: 12, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: [], speed: 25, level: 1, custom_attacks: [], spell_slots: [],
     wildshape_state: null,
   }],
-  inventory: [], items: [], beasts: [],
+  inventory: [], items: [], beasts: [], casting: NO_CASTING,
 };
 
 describe("computeOptions for an ally", () => {
@@ -211,6 +212,24 @@ describe("computeOptions for an ally", () => {
   it("fails if an ally with a sheet is not offered the attacks that sheet makes", async () => {
     const r = await ask({ combatants: [hero(0, 3, { faction_id: "m" }), wolf({ faction_id: "p", position: { x: 1, y: 3 } })], sheets: SAM, speeds: [{ id: "pm-pc", speed: 25 }] }, "pc");
     expect(ids(r)).toContain("attack:actions:Unarmed Strike:wolf");
+  });
+
+  // Bug caught: the DM's list for a caster ally leaving out its spells, or counting a cast the fight already tallied twice. Level 5 Wizard
+  // (Int 16, proficiency 3): Fireball is DC 14. One of two 3rd-level slots is spent on the sheet and tallied by the fight: one is left.
+  it("fails if a caster ally's list leaves out a spell it has a slot for, or counts a tallied cast twice", async () => {
+    const wizard = { id: "cls-wiz", party_member_id: "pm-pc", class_name: "Wizard", class_definition_id: "def-wiz", class_definition_kind: "system", subclass_name: null, subclass_definition_id: null, subclass_variant: null, levels: 5, is_primary: true, hit_dice_used: 0, sort_order: 0, capabilities: [] } as unknown as CharacterClass;
+    const sheets: PlayerSheets = {
+      ...SAM,
+      members: [{ ...SAM.members[0], int: 16, level: 5, proficiency_bonus: 3, spell_slots: [{ level: 3, max: 2, used: 1 }] }],
+      casting: {
+        spells: [{ party_member_id: "pm-pc", name: "Fireball", level: 3, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-wiz", casting_ability: null, uses_per_day: null }],
+        classes: [wizard],
+        definitions: { system: [{ id: "def-wiz", caster_type: "prepared", prepared_ability: "int" }], custom: [], subclasses: [] },
+      },
+    };
+    const caster = hero(0, 3, { faction_id: "m", action_uses: { "slots/3": { used: 1, per_day: 2 } } });
+    const r = await ask({ combatants: [caster, wolf({ faction_id: "p", position: { x: 6, y: 3 } })], sheets, spells: [fireball()], speeds: [{ id: "pm-pc", speed: 25 }] }, "pc");
+    expect(ids(r).some((id) => id.startsWith("spell:Fireball:3:"))).toBe(true);
   });
 
   // App convention: an ally never flees. Bug caught: Flee listed for an ally, which take_turn would refuse as not on offer.

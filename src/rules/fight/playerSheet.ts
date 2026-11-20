@@ -9,6 +9,8 @@ import type { AbilityScores } from "../../types/multiclass.types.ts";
 import type { WildshapeState } from "../../types/encounter.types.ts";
 import type { MonsterStatBlock } from "../../types/monster.types.ts";
 import type { PartyMember } from "../../types/party.types.ts";
+import type { CharacterClass } from "../../types/multiclass.types.ts";
+import type { SpellcastingClassDefinitions } from "../spellcastingByClass.ts";
 import type { SaveAbility } from "../../types/statBlock.types.ts";
 import { parseArmorClass } from "./targeting.ts";
 import { calculateAc, savingThrowItemBonus, wornGearByMember } from "../armorClass.ts";
@@ -24,6 +26,8 @@ export type PlayerSheetRow = Pick<
   // What an ally the server plays is built from (#1021): its walking speed, the level the proficiency bonus falls back on,
   // and the attacks the player wrote on their sheet.
   | "speed" | "level" | "custom_attacks"
+  // The slots an ally casts with, spent as they cast (#1021).
+  | "spell_slots"
 > & { wildshape_state: WildshapeState | null };
 
 /**
@@ -39,6 +43,35 @@ export interface BeastScores {
   stat_block: FormStatBlock | null;
 }
 
+/**
+ * One spell a character has, as the server reads it for an ally to cast (#1021): the `character_spells` columns the
+ * ready-to-cast rule reads, with the spell's own name and level (the grant names it by id).
+ */
+export interface AllySpellRow {
+  party_member_id: string;
+  name: string;
+  level: number;
+  is_known: boolean;
+  is_prepared: boolean;
+  always_prepared: boolean;
+  /** "class" for a spell from a class; anything else is innate (a racial or item grant). */
+  source_type: string;
+  source_class_id: string | null;
+  casting_ability: "int" | "wis" | "cha" | null;
+  /** Innate casting: null is "at will", otherwise the uses a day. */
+  uses_per_day: number | null;
+}
+
+/** What an ally needs to cast: the spells they have, their class rows and the class definitions those rows are pinned to (`computeSpellcastingByClass`). */
+export interface AllyCasting {
+  spells: AllySpellRow[];
+  classes: CharacterClass[];
+  definitions: SpellcastingClassDefinitions;
+}
+
+/** No one in the sheets casts (a fight with no player in it, or a read that has no use for spells). */
+export const NO_CASTING: AllyCasting = { spells: [], classes: [], definitions: { system: [], custom: [], subclasses: [] } };
+
 /** Everything the server read about a fight's player characters. */
 export interface PlayerSheets {
   members: PlayerSheetRow[];
@@ -48,6 +81,8 @@ export interface PlayerSheets {
   items: Item[];
   /** The stat blocks of the forms the members are shaped into. */
   beasts: BeastScores[];
+  /** The spells, classes and class definitions the allies cast from. */
+  casting: AllyCasting;
 }
 
 function memberRow(sheets: PlayerSheets, memberId: string): PlayerSheetRow | null {

@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import type { WildshapeState } from "@/types/encounter.types";
-import { playerArmorClass, playerSaveBonus, type PlayerSheetRow, type PlayerSheets } from "./playerSheet";
+import { NO_CASTING, playerArmorClass, playerSaveBonus, type PlayerSheetRow, type PlayerSheets } from "./playerSheet";
 
 function item(over: Partial<Item>): Item {
   return { id: "i1", user_id: "u1", name: "Item", item_type: "armor", rarity: "mundane", armor_class: null, tags: [], description: "", ...over } as Item;
@@ -18,7 +18,7 @@ const SHIELD = item({ id: "shield", name: "Shield", item_type: "shield", armor_c
 function row(over: Partial<PlayerSheetRow> = {}): PlayerSheetRow {
   return {
     id: "pm-nessa", ruleset: "2014", class: "Fighter", subclass: null, ac_formula: null, class_choices: {},
-    str: 10, dex: 14, con: 14, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: [], wildshape_state: null, speed: 30, level: 1, custom_attacks: [],
+    str: 10, dex: 14, con: 14, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: [], wildshape_state: null, speed: 30, level: 1, custom_attacks: [], spell_slots: [],
     ...over,
   };
 }
@@ -28,7 +28,7 @@ function worn(itemId: string, slot: PartyInventoryItem["slot"], carriedBy = "pm-
 }
 
 function sheets(over: Partial<PlayerSheets> = {}): PlayerSheets {
-  return { members: [row()], inventory: [], items: [CHAIN_MAIL, SHIELD], beasts: [], ...over };
+  return { members: [row()], inventory: [], items: [CHAIN_MAIL, SHIELD], beasts: [], casting: NO_CASTING, ...over };
 }
 
 const form = (over: Partial<WildshapeState> = {}): WildshapeState =>

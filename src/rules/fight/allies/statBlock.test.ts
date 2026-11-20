@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Item } from "@/types/item.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
-import type { PlayerSheetRow, PlayerSheets } from "../playerSheet";
+import { NO_CASTING, type PlayerSheetRow, type PlayerSheets } from "../playerSheet";
 import { allyAttackSpend, allyStatBlock } from "./statBlock";
 import { settleSpend } from "../pcAttacks/gear";
 import type { StatBlockEntry } from "@/types/statBlock.types";
@@ -30,12 +30,12 @@ function sheets(over: { member?: Partial<PlayerSheetRow>; inventory?: PartyInven
   return {
     members: [{
       id: "pm-1", ruleset: "2014", class: "Rogue", subclass: null, ac_formula: null, class_choices: {},
-      str: 8, dex: 16, con: 12, int: 14, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: [], speed: 25, level: 1, custom_attacks: [],
+      str: 8, dex: 16, con: 12, int: 14, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: [], speed: 25, level: 1, custom_attacks: [], spell_slots: [],
       wildshape_state: null, ...over.member,
     }],
     inventory: over.inventory ?? [],
     items: over.items ?? [],
-    beasts: [],
+    beasts: [], casting: NO_CASTING,
   };
 }
 
