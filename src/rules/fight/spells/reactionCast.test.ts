@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { combatant } from "../fightTestKit";
-import { mageBlock } from "./spellTestKit";
+import { MAGE_SPELLCASTING, mageBlock } from "./spellTestKit";
 import { reactionCastPlan, reactionTurnsHit, reactsByRules } from "./reactionCast";
 
 describe("reactsByRules", () => {
@@ -39,6 +39,16 @@ describe("reactionCastPlan", () => {
     const spent1 = { "slots/1": { used: 4, per_day: 4 } };
     expect(reactionCastPlan(mage(spent1), mageBlock(), "Shield", 1)).toMatchObject({ castLevel: 3, useKey: "slots/3" });
     expect(reactionCastPlan(mage({ ...spent1, "slots/3": { used: 3, per_day: 3 }, "slots/4": { used: 3, per_day: 3 } }), mageBlock(), "Shield", 1)).toBeNull();
+  });
+
+  // RULE spell-slots (PHB 2014 ch. 10 "Spell Slots"): a spell is cast with a slot of its own level or higher, whatever heading lists it. A block
+  // listing Shield under its 3rd-level line still has 1st-level slots: Shield takes a 1st, and once the 3rd-level slots are spent it still has
+  // the 1st. Bugs caught (CodeRabbit on #1233): the search starting at the listed heading, so a 3rd-level slot is spent while a 1st is free, or
+  // Shield is refused when only the 3rd-level ones are gone.
+  it("fails if a spell listed under a higher heading cannot use a free slot of its own level", () => {
+    const listedHigh = mageBlock({ special_abilities: [{ ...MAGE_SPELLCASTING, description: MAGE_SPELLCASTING.description.replace("magic missile, shield", "magic missile").replace("counterspell, fireball", "counterspell, fireball, shield") }] });
+    expect(reactionCastPlan(mage(), listedHigh, "Shield", 1)).toMatchObject({ castLevel: 1, useKey: "slots/1" });
+    expect(reactionCastPlan(mage({ "slots/3": { used: 3, per_day: 3 } }), listedHigh, "Shield", 1)).toMatchObject({ castLevel: 1 });
   });
 
   // Bug caught: a creature that does not list Shield casting it.

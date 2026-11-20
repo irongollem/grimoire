@@ -54,8 +54,9 @@ export function reactionCastPlan(c: RunCombatant, block: MonsterStatBlock, spell
     if (listed.useKey !== null && listed.limit !== null && !limitAvailability(c, listed.useKey, listed.limit).available) return null;
     return { castLevel: spellLevel, useKey: listed.useKey, limit: listed.limit, how };
   }
-  const from = Math.max(listed.level === null ? spellLevel : listed.level, spellLevel);
-  for (let level = from; level <= 9; level++) {
+  // RULE spell-slots: any slot of the spell's own level or higher, whatever line of the block lists it (a spell listed under a higher
+  // heading may still use a free lower slot of its own level). The listed line's tally serves its own level in the loop.
+  for (let level = spellLevel; level <= 9; level++) {
     const at = level === listed.level ? { useKey: listed.useKey, limit: listed.limit } : slotLimitAt(block, level);
     if (at === null || at.useKey === null || at.limit === null) continue;
     if (limitAvailability(c, at.useKey, at.limit).available) return { castLevel: level, useKey: at.useKey, limit: at.limit, how };
