@@ -110,7 +110,8 @@ const NPC_RELATIONSHIP_TOKENS: Record<NpcRelationship, string> = {
   unknown: "--relationship-unknown",
 };
 
-function relationshipToken(relationship: NpcRelationship): string {
+/** The CSS custom property a relationship is drawn in. */
+export function relationshipToken(relationship: NpcRelationship): string {
   return NPC_RELATIONSHIP_TOKENS[relationship] ?? NPC_RELATIONSHIP_TOKENS.indifferent;
 }
 
@@ -127,28 +128,6 @@ export function npcRelationshipText(relationship: NpcRelationship): string {
 /** The token as a `var()`, for an SVG `fill` bound through `:style`. */
 export function npcRelationshipVar(relationship: NpcRelationship): string {
   return `var(${relationshipToken(relationship)})`;
-}
-
-/**
- * The colour as a concrete value, for painting to a canvas.
- *
- * The NPC web is a force-graph drawn on a canvas, and `ctx.fillStyle` cannot
- * take `var(--x)` or a class — it needs a resolved string. Reading the custom
- * property is the only way to keep that one consumer on the same ramp as
- * everything else rather than letting it keep a private copy, which is exactly
- * how it drifted: its copy was still keyed on the pre-5e values
- * (`ally`/`neutral`/`enemy`), so once `20260519000001` moved the enum on it
- * matched nothing and every node fell through to the default grey.
- *
- * Resolved at call time, so a graph rebuilt after a theme switch picks up the
- * new palette; one already on screen keeps the old colours until it re-renders.
- */
-export function npcRelationshipCanvasColor(relationship: NpcRelationship): string {
-  if (typeof document === "undefined") return "#6b7280";
-  const resolved = getComputedStyle(document.documentElement)
-    .getPropertyValue(relationshipToken(relationship))
-    .trim();
-  return resolved || "#6b7280";
 }
 
 /** `unmasked_at` set means the cover has fallen. The player projection keeps
