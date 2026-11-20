@@ -10,7 +10,8 @@
 //                (`turnContext.ts`), runs the loop, saves, charges, and reports on `send` (`keepTurn.ts`).
 //                Then, after `done` has gone out, it may fold the older messages into the rolling summary
 //                (`_shared/agent/summary.ts`): the player never waits for that, and a failure in it is only logged.
-// A caller that gets `run` MUST call it: the reservation is released inside it.
+// A caller that gets `run` takes the hold first (`deps.withHold` for `reserve` credits), hands its ids to `run` and `run`
+// settles them (`deps.settle`): the hold has to outlast the response, which streams after the request scope has ended.
 //
 // The shapes, the limits and the fixed sentences live in `turnTypes.ts`; callers import them from there.
 
@@ -34,6 +35,7 @@ import {
   MAX_OUTPUT_TOKENS,
   MAX_STEPS,
   MESSAGES,
+  RESERVE_CREDITS,
   TOKEN_BUDGET,
   type AgentEvent,
   type AgentTurnDeps,
@@ -50,9 +52,9 @@ export async function beginTurn(input: {
   const admission = await admitTurn(input);
   if (admission.kind === "refused") return admission;
   const { admitted } = admission;
-  const { body, campaign, provider, callModel, pendingRoll, scored, reservationIds } = admitted;
+  const { body, campaign, provider, callModel, pendingRoll, scored } = admitted;
 
-  const run = async (send: (event: AgentEvent) => void, signal?: AbortSignal): Promise<void> => {
+  const run = async (send: (event: AgentEvent) => void, signal: AbortSignal | undefined, reservationIds: string[]): Promise<void> => {
     // A listener that throws (a closed stream) must not cost the player the turn that is already paid for.
     const emit = (event: AgentEvent) => {
       try {
@@ -61,11 +63,12 @@ export async function beginTurn(input: {
         // ignored on purpose
       }
     };
-    const scope: TurnScope = { ...admitted, userId, deps, emit, signal };
-    // Everything the narrator decides this turn is collected here and carried out only once the turn is kept.
-    const fx = newEffects();
+    // Settled whatever the outcome (success, failure, conflict, abort): released once, then the ledger lines written.
+    await deps.settle(userId, reservationIds, async (ledger) => {
+      const scope: TurnScope = { ...admitted, userId, deps, ledger, emit, signal };
+      // Everything the narrator decides this turn is collected here and carried out only once the turn is kept.
+      const fx = newEffects();
 
-    try {
       let gate: NarrationGate | null = null;
       try {
         const { session, prologue } = await openSitting(scope);
@@ -213,13 +216,10 @@ export async function beginTurn(input: {
         });
         return;
       }
-    } finally {
-      // Every outcome: success, failure, conflict, abort.
-      await safely(() => deps.release(reservationIds));
-    }
+    });
   };
 
-  return { kind: "ready", run };
+  return { kind: "ready", reserve: provider.isByok ? 0 : RESERVE_CREDITS, run };
 }
 
 /** The whole turn in one call, for a caller that does not need to answer a status before streaming (the tests). */
@@ -232,6 +232,15 @@ export async function handleAgentTurn(input: {
 }): Promise<Refusal | null> {
   const begun = await beginTurn({ userId: input.userId, body: input.body, deps: input.deps });
   if (begun.kind === "refused") return begun.refusal;
-  await begun.run(input.send, input.signal);
-  return null;
+  let ran = false;
+  const answer = await input.deps.withHold(input.userId, begun.reserve, async (hold) => {
+    ran = true;
+    await begun.run(input.send, input.signal, hold.handOff());
+    return new Response(null, { status: 204 });
+  });
+  if (ran) return null;
+  // The hold was refused and answered for: its status and code are the refusal.
+  const detail: unknown = await answer.json().catch(() => null);
+  const code = typeof detail === "object" && detail !== null && "error" in detail && typeof detail.error === "string" ? detail.error : "refused";
+  return { status: answer.status, error: code };
 }

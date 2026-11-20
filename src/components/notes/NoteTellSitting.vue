@@ -51,14 +51,16 @@ async function tell(): Promise<void> {
   problem.value = null;
   try {
     const response = await (transport ?? sendToAgentRecap)(note.id);
-    const body = (await response.json().catch(() => null)) as { error?: unknown; credits?: unknown } | null;
+    const body = (await response.json().catch(() => null)) as { error?: unknown; message?: unknown; credits?: unknown } | null;
     if (!response.ok) {
+      // `error` is a code and `message` the server's sentence for a person (#1234): the sentence is what is shown.
       const code = body && typeof body.error === "string" ? body.error : null;
+      const sentence = body && typeof body.message === "string" ? body.message : null;
       problem.value =
         response.status === 402 || code === "insufficient_credits"
           ? "You are out of credits, so the sitting could not be told. Nothing was charged."
-          : code !== null && response.status !== 500
-            ? code
+          : sentence !== null && response.status !== 500
+            ? sentence
             : "The sitting could not be told right now. Nothing was charged.";
       return;
     }

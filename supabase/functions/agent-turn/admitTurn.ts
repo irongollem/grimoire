@@ -1,6 +1,6 @@
 // Everything that must be true before a turn may stream (#1205): who may play, what the turn may cost, and what the
 // player sent. Every refusal here is an ordinary JSON status, answered before the HTTP layer opens a stream, and
-// costs nothing: the reservation is the last thing taken, so nothing before it needs to be given back.
+// costs nothing: the hold is taken after this (`withHold`), so nothing here needs to be given back.
 
 import { endedByPause } from "../_shared/agent/sittingEnd.ts";
 import { tableClosed } from "../_shared/agent/conduct.ts";
@@ -9,7 +9,7 @@ import { scoreRoll, type PendingRoll } from "../_shared/agent/playerRoll.ts";
 import type { AgentProvider } from "../_shared/agent/providerIo.ts";
 import type { CallModel } from "../_shared/agent/types.ts";
 import { parseBody, type AgentTurnBody } from "./turnBody.ts";
-import { MESSAGES, RESERVE_CREDITS, type AgentTurnDeps, type CampaignRow, type Refusal, type SessionRow } from "./turnTypes.ts";
+import { MESSAGES, type AgentTurnDeps, type CampaignRow, type Refusal, type SessionRow } from "./turnTypes.ts";
 
 /** What the run needs from the gates it passed. */
 export interface Admitted {
@@ -25,8 +25,6 @@ export interface Admitted {
   callModel: CallModel;
   price: ModelPrice | null;
   calibration: CreditCalibration | null;
-  /** Held credits, released by the run whatever happens; empty for own-key play. */
-  reservationIds: string[];
 }
 
 export type Admission = { kind: "refused"; refusal: Refusal } | { kind: "admitted"; admitted: Admitted };
@@ -56,7 +54,7 @@ export async function admitTurn(input: { userId: string; body: unknown; deps: Ag
     }
     // Before the rate limit and the reservation: a sitting that was left takes nothing more, and costs nothing to refuse.
     if (existing.left_at !== null) return refuse(409, MESSAGES.left);
-    // A long pause ended it (`sittingEnd.ts`). Also before anything is reserved: the refusal costs nothing.
+    // A long pause ended it (`sittingEnd.ts`). Also before anything is held: the refusal costs nothing.
     if (endedByPause(existing.updated_at, deps.now())) return refuse(409, MESSAGES.sittingEnded);
   }
   // A roll answers a request: without one there is no DC to score it against, and a made-up roll must not reach the
@@ -71,7 +69,7 @@ export async function admitTurn(input: { userId: string; body: unknown; deps: Ag
     return refuse(404, MESSAGES.noPlace);
   }
 
-  // Same for the character: the id comes from the browser, so it is checked against the campaign before anything is reserved.
+  // Same for the character: the id comes from the browser, so it is checked against the campaign before anything is held.
   if (body.characterId !== undefined && !(await deps.loadCharacter(campaign.id, body.characterId))) {
     return refuse(404, MESSAGES.noCharacter);
   }
@@ -116,12 +114,5 @@ export async function admitTurn(input: { userId: string; body: unknown; deps: Ag
   }
   if (flagged) return refuse(400, MESSAGES.flagged);
 
-  let reservationIds: string[] = [];
-  if (!provider.isByok) {
-    const reservation = await deps.reserve(userId, RESERVE_CREDITS);
-    if (!reservation.ok) return { kind: "refused", refusal: reservation.refusal };
-    reservationIds = reservation.ids;
-  }
-
-  return { kind: "admitted", admitted: { body, campaign, existing, pendingRoll, scored, provider, callModel, price, calibration, reservationIds } };
+  return { kind: "admitted", admitted: { body, campaign, existing, pendingRoll, scored, provider, callModel, price, calibration } };
 }

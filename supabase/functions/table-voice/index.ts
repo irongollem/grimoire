@@ -3,17 +3,17 @@
 // voices on (`voicesOn`, `_shared/speech.ts`).
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { tableAiEnabled } from "../_shared/featureAccess.ts";
-import { withCors } from "../_shared/cors.ts";
 import { toPlainText } from "../_shared/ai-prompt.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { clipName, lineKeyFits } from "../_shared/agent/lineKey.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { clipKey, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
-import { shownInTurns, speakLine, voiceRates, type TableVoiceDeps } from "./handler.ts";
+import { shownInTurns, speakLine, VOICE_MESSAGES, voiceRates, type TableVoiceDeps } from "./handler.ts";
 import { base64FromBytes, bytesFromBase64, hasSpeechService, loadSpeechRate, speechEnvFrom, speechModelOf, synthesizeSpeech, voicesOn } from "../_shared/speech.ts";
-import { recordGeneration, releaseCredits, reserveCredits, reservationRefusal } from "../_shared/credits.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { deliveryCue } from "../_shared/agent/characterTurn.ts";
@@ -32,28 +32,9 @@ const voiceStore = voiceStoreFrom((key) => Deno.env.get(key));
 /** "she/her" as words the pronoun count can read. */
 const pronounWords = (pronouns: string): string => pronouns.replace(/[/,;|]+/g, " ");
 
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-}
-
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-  const supabase = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return json(400, { error: "Invalid JSON body." });
-  }
+serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
+  const body = await readJsonBody(req);
+  if (body === null) return jsonError(400, "invalid_body", "The request is not valid.");
 
   const deps: TableVoiceDeps = {
     voiceOn: () => voicesOn(speech),
@@ -67,13 +48,8 @@ serve(withCors(async (req: Request) => {
       return { id: data.id as string, user_id: data.user_id as string, campaign_id: data.campaign_id as string, narrator_voice: data.narrator_voice };
     },
 
-    async loadCampaign(campaignId) {
-      const { data, error } = await admin.from("campaigns").select("id, user_id, ai_enabled").eq("id", campaignId).maybeSingle();
-      if (error) throw error;
-      return data ? { id: data.id as string, user_id: data.user_id as string, ai_enabled: await tableAiEnabled(admin, data) } : null;
-    },
-
-    isDm: (campaign, userId) => isCampaignDm(admin, campaign, userId),
+    // The DM only: the AI table is theirs.
+    loadCampaign: (campaignId, userId) => loadAiCampaign(admin, campaignId, userId, { aiSwitch: "table", forbiddenMessage: VOICE_MESSAGES.forbidden }),
     rateLimit: (userId) => checkRateLimit(admin, userId, "table_voice"),
 
     keyFits: (sessionId, line, key) => lineKeyFits(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", sessionId, line, key),
@@ -138,20 +114,15 @@ serve(withCors(async (req: Request) => {
 
     loadRate: (service) => loadSpeechRate(admin, speech, service),
 
-    async reserve(userId, credits) {
-      const reservation = await reserveCredits(admin, userId, credits, "table_voice");
-      if (reservation.ok) return { ok: true, ids: reservation.ids };
-      return { ok: false, ...reservationRefusal(reservation, "Voices cannot be metered right now.") };
-    },
+    modelOf: (service) => speechModelOf(speech, service),
 
-    release: (ids) => releaseCredits(admin, ids),
+    withHold: (userId, credits, work) => withCreditHold(admin, { payerId: userId, reason: "table_voice", cost: credits, report }, work),
 
     // The exact cost goes on the conversation; only the whole credits its running total newly crossed are billed.
-    async charge(at, credits, log) {
-      const { data, error } = await admin.rpc("accrue_agent_voice", { p_session_id: at.sessionId, p_credits: credits });
+    async accrue(sessionId, credits) {
+      const { data, error } = await admin.rpc("accrue_agent_voice", { p_session_id: sessionId, p_credits: credits });
       if (error) throw error;
-      const due = typeof data === "number" && Number.isInteger(data) && data > 0 ? data : 0;
-      if (due > 0) await recordGeneration(admin, at.userId, "table_voice", false, due, { provider: log.service, model: speechModelOf(speech, log.service) });
+      return typeof data === "number" && Number.isInteger(data) && data > 0 ? data : 0;
     },
 
     hasService: (service) => hasSpeechService(speech, service),
@@ -164,17 +135,8 @@ serve(withCors(async (req: Request) => {
     },
   };
 
-  try {
-    // Asked before anyone sits down: what a minute of speech costs. Any signed-in account may ask; it names no
-    // campaign and returns only the stack's own rates.
-    if (typeof body === "object" && body !== null && (body as { rates?: unknown }).rates === true) {
-      return json(200, await voiceRates(deps));
-    }
-    const outcome = await speakLine({ userId: user.id, body, deps });
-    if (!outcome.ok) return json(outcome.refusal.status, { error: outcome.refusal.error });
-    return json(200, { audio: outcome.audio, mime: outcome.mime });
-  } catch (error) {
-    console.error("table-voice failed:", error);
-    return json(500, { error: "The line could not be spoken right now." });
-  }
+  // Asked before anyone sits down: what a minute of speech costs. Any signed-in account may ask; it names no
+  // campaign and returns only the stack's own rates.
+  if ((body as { rates?: unknown }).rates === true) return json(await voiceRates(deps));
+  return speakLine({ userId: user.id, body, deps });
 }));
