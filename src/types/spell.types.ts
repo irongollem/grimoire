@@ -237,6 +237,22 @@ export interface StructuredSpellEffect {
   pool?: number | null;
   /** The creature regains all its hit points instead of rolling `dice` (Power Word Heal, SRD 5.2). Healing only; `dice` is null then. */
   full?: boolean | null;
+  /**
+   * What the spell gives each creature it targets for its duration (Bless: "1d4" on attack rolls and saving throws; Shield of
+   * Faith: +2 armour class). Carried on a `text` effect, so a reader that does not know it shows the effect's words. The fight
+   * puts it on each target as a condition named after the spell (`AppliedCondition.grants`). Null or absent: not a boon.
+   */
+  grants?: SpellGrants | null;
+}
+
+export interface SpellGrants {
+  attack?: string;
+  save?: string;
+  ac?: number;
+  /** How long it lasts, in rounds (a minute is 10). */
+  rounds: number;
+  /** One more creature for each slot level above the spell's (Bless); 0 or absent for none. */
+  morePerSlot?: number;
 }
 
 export interface SpellEffectInstances {

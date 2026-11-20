@@ -209,6 +209,32 @@ export function heal(over: Partial<SpellRecord> = {}): SpellRecord {
   });
 }
 
+const boonEffect = (grants: NonNullable<StructuredSpellEffect["grants"]>, count: number, description: string): StructuredSpellEffect => ({
+  id: "base", phase: "impact", outcome: "automatic", target: { type: "creature", count }, kind: "text", dice: null,
+  multiplier: 1, damageType: null, condition: null, description, scaling: null, modifier: null, grants,
+});
+
+/** "Bless" (PHB 2014 and 2024): up to three creatures within 30 feet add a d4 to attack rolls and saves, one more per slot level above 1st; an Action, Concentration up to 1 minute. */
+export function bless(over: Partial<SpellRecord> = {}): SpellRecord {
+  const ruleset = over.ruleset ?? "2014";
+  return healer({
+    id: `bless_${ruleset}`, name: "Bless", level: 1, range: "30 ft.", ruleset, concentration: true,
+    effects: [boonEffect({ attack: "1d4", save: "1d4", rounds: 10, morePerSlot: 1 }, 3, "A d4 on attack rolls and saving throws.")],
+    ...over,
+  });
+}
+
+/** "Shield of Faith" (PHB 2014 and 2024): one creature within 60 feet gains +2 AC; a Bonus Action, Concentration up to 10 minutes. */
+export function shieldOfFaith(over: Partial<SpellRecord> = {}): SpellRecord {
+  const ruleset = over.ruleset ?? "2014";
+  return healer({
+    id: `shield_of_faith_${ruleset}`, name: "Shield of Faith", level: 1, range: "60 ft.", ruleset, concentration: true,
+    casting_time: "Special", casting_time_custom: "bonus-action",
+    effects: [boonEffect({ ac: 2, rounds: 100 }, 1, "+2 bonus to AC.")],
+    ...over,
+  });
+}
+
 /** "Power Word Heal" (SRD 5.2): one creature regains all its hit points and loses Charmed, Frightened, Paralyzed, Poisoned and Stunned; a 9th-level Action, 60 feet. */
 export function powerWordHeal(over: Partial<SpellRecord> = {}): SpellRecord {
   return healer({
