@@ -201,11 +201,6 @@ export function rageDamageFor(sheets: PlayerSheets, memberId: string, shape: Att
 /** The damage a Rage resists (PHB 2014 and 2024 "Rage"). */
 export const RAGE_RESISTANCES = ["bludgeoning", "piercing", "slashing"] as const;
 
-/** RULE second-wind (PHB 2014 "Fighter: Second Wind"; PHB 2024 "Second Wind"): regain 1d10 + the Fighter level, as a Bonus Action. */
-export function secondWindDice(use: FeatureUse): { dice: string; bonus: number } {
-  return { dice: "1d10", bonus: use.classLevel };
-}
-
 /** The name of the condition a Rage puts on the Barbarian (and the one the damage and the resistance read). */
 export const RAGING = "Raging";
 
