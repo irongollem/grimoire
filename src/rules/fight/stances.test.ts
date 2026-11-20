@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hiddenFromPlayers } from "./stances.ts";
 import { reduceEncounterTurn, type EncounterTurnState } from "../encounterTurn.ts";
 import { attackRollMode } from "../combat/attackRoll.ts";
 import { saveRollMode } from "../combat/savingThrow.ts";
@@ -134,5 +135,16 @@ describe("Hidden", () => {
     expect(hiddenCondition().ends).toBeUndefined();
     expect(isHidden(hidden)).toBe(true);
     expect(isHidden([dodgingCondition()])).toBe(false);
+  });
+});
+
+describe("hiddenFromPlayers (#1021 row 13)", () => {
+  // The maintainer's decision: a creature that hid is off the players' screens until found; a party member who hides is not,
+  // since the players are on its side. Bugs caught: a hiding monster still drawn, a hiding party member vanishing from its
+  // own side, or a monster with some other condition hidden.
+  it("fails if anyone but a hiding non-player is left out", () => {
+    expect(hiddenFromPlayers({ type: "monster", conditions: [{ name: "Hidden" }] })).toBe(true);
+    expect(hiddenFromPlayers({ type: "player", conditions: [{ name: "Hidden" }] })).toBe(false);
+    expect(hiddenFromPlayers({ type: "monster", conditions: [{ name: "Prone" }] })).toBe(false);
   });
 });
