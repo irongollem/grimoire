@@ -132,6 +132,18 @@ async function carryOutKeptTurn(
   if (here !== null && turnTools.spoke.size > 0) {
     await safely(() => deps.placeCharacters(campaign.id, here, [...turnTools.spoke]));
   }
+  // The party arrived somewhere: the rest of what the DM's own exploring screen does when the party enters a room,
+  // done here because a table with no DM browser has nobody else to do it. In this order (the arrival trigger first,
+  // so the room is explored before its squares are revealed and the party stands in it); each its own `safely`, so one
+  // that cannot be written costs that write, never the turn or the writes after it. The prepared encounter at the new
+  // place needs no write: the Narrator already sees it (`viewAt` in `makeTurnTools`).
+  const arrivedAt = turnTools.movedTo();
+  if (arrivedAt !== null) {
+    const party = [...(character ? [character.id] : []), ...ctx.companions.map((c) => c.id)];
+    await safely(() => deps.moveParty.setPlace(campaign.id, arrivedAt));
+    await safely(() => deps.moveParty.revealRoom(campaign.id, arrivedAt));
+    await safely(() => deps.moveParty.seatParty(campaign.id, arrivedAt, party));
+  }
   // What play reveals: the played character has now seen this place and met whoever spoke in front of them.
   // Only for a played character, and only with the kept turn. A failure costs a reveal, never the turn.
   if (session.party_member_id !== null && (here !== null || turnTools.spoke.size > 0)) {

@@ -40,6 +40,7 @@ import { loadPartyMember } from "../_shared/agent/characterIo.ts";
 import { secureDie } from "../_shared/serverRoll.ts";
 import type { RecordedFact } from "../_shared/agent/record.ts";
 import { revealToCharacter } from "./revealIo.ts";
+import { revealRoom, seatParty, setPartyPlace } from "./partyMoveIo.ts";
 import { makeHandsStore } from "./handsIo.ts";
 import { finishFight, layFightLoot, loadFights, setFight, setPursuit, startFight, statlessFighters } from "./fightIo.ts";
 import type { Prologue } from "../_shared/agent/prologue.ts";
@@ -618,6 +619,13 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     },
 
     revealToCharacter: (input) => revealToCharacter(supabase, input),
+
+    // As the caller, never the service role: the DM's JWT is what makes the arrival trigger mark the room explored.
+    moveParty: {
+      setPlace: (campaignId, placeId) => setPartyPlace(supabase, campaignId, placeId),
+      revealRoom: (campaignId, placeId) => revealRoom(supabase, campaignId, placeId),
+      seatParty: (campaignId, placeId, memberIds) => seatParty(supabase, campaignId, placeId, memberIds),
+    },
 
     // Fights: the campaign's own encounters, read and written as the caller; the conversation's row as the server.
     loadFights: (campaignId, locationId, fightEncounterId, pursuitEncounterId) => loadFights(supabase, campaignId, locationId, fightEncounterId, pursuitEncounterId),

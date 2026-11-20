@@ -160,6 +160,8 @@ export interface TurnTools {
   spoke: Set<string>;
   /** Where the party is now, after any move this turn; null when it has no place. */
   place(): string | null;
+  /** The place the Narrator last moved the party to with `go_to` this turn; null when it made no move. */
+  movedTo(): string | null;
 }
 
 /** The campaign's own roll tool: the Dungeon Master's dice. */
@@ -177,12 +179,14 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   const { deps, campaignId, session } = input;
 
   let place = session.scene_location_id;
+  let movedTo: string | null = null;
   const go = makeSceneTool({
     campaignId,
     sessionId: session.id,
     setScene: deps.setScene,
     onMove: (moved, companions) => {
       place = moved.id;
+      movedTo = moved.id;
       // Whoever came along is placed with the party when the turn is kept, like anyone who spoke to it.
       for (const id of companions) spoke.add(id);
       input.onMove(moved);
@@ -574,6 +578,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     remembered,
     spoke,
     place: () => place,
+    movedTo: () => movedTo,
     callTool: (name, toolInput) => {
       if (name === GO_TO_TOOL.name) return moved(go.call(toolInput), place);
       if (name === RECORD_TOOL_NAME) return record.call(toolInput);

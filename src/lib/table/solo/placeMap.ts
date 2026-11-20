@@ -1,5 +1,5 @@
-import { hasAnyMapLayer, type MapStackSource } from "@/lib/locations/mapStack";
-import type { Location } from "@/types/location.types";
+import { hasAnyMapLayer, type MapStackSource } from "../../locations/mapStack.ts";
+import type { Location } from "../../../types/location.types.ts";
 
 /** The fields `hasAnyMapLayer` reads: whether a place has a picture, a drawing or a blank grid. */
 export type MapLayerFields = MapStackSource;

@@ -109,6 +109,8 @@ interface Harness {
   memories: Array<{ characterId: string; kind: string; body: string }>;
   memorySessions: Array<string | null>;
   placed: Array<{ campaignId: string; locationId: string; characterIds: string[] }>;
+  /** The party's arrival writes in the order they were made (row 9): the place, the revealed room, the seated party. */
+  arrivals: Array<{ write: "place" | "reveal" | "seat"; campaignId: string; placeId: string; memberIds?: string[] }>;
   summaries: Array<{ expectedThroughSeq: number; throughSeq: number; summary: string; credits: number }>;
   /** The running total of credits accrued per conversation, as the database keeps it. */
   totals: Map<string, number>;
@@ -198,6 +200,8 @@ interface Harness {
     sceneMemoriesThrow: boolean;
     /** Moves that fail to apply, by their position in the order applied. */
     failMoveAt: Set<number>;
+    /** The party's arrival writes that fail (row 9). */
+    failArrival: Set<"place" | "reveal" | "seat">;
     /** The date move (`advance_campaign_date`) and the chat line after it fail. */
     advanceFails: boolean;
     announceFails: boolean;
@@ -271,6 +275,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     memories: [],
     memorySessions: [],
     placed: [],
+    arrivals: [],
     summaries: [],
     totals: new Map<string, number>(),
     ledger: [],
@@ -338,6 +343,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       sceneMemories: [],
       sceneMemoriesThrow: false,
       failMoveAt: new Set<number>(),
+      failArrival: new Set<"place" | "reveal" | "seat">(),
       advanceFails: false,
       announceFails: false,
       canonWorld: "",
@@ -578,6 +584,20 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     },
     findCharacters: async (_campaignId, name) =>
       "apprentice honeycomb".includes(name.toLowerCase()) ? [{ id: HONEYCOMB, shownName: "Apprentice Honeycomb" }] : [],
+    moveParty: {
+      setPlace: async (campaignId, placeId) => {
+        h.arrivals.push({ write: "place", campaignId, placeId });
+        if (h.state.failArrival.has("place")) throw new Error("db down");
+      },
+      revealRoom: async (campaignId, placeId) => {
+        h.arrivals.push({ write: "reveal", campaignId, placeId });
+        if (h.state.failArrival.has("reveal")) throw new Error("db down");
+      },
+      seatParty: async (campaignId, placeId, memberIds) => {
+        h.arrivals.push({ write: "seat", campaignId, placeId, memberIds });
+        if (h.state.failArrival.has("seat")) throw new Error("db down");
+      },
+    },
     placeCharacters: async (campaignId, locationId, characterIds) => {
       log.push("place");
       h.placed.push({ campaignId, locationId, characterIds });
@@ -2562,6 +2582,62 @@ describe("a recorded character is played as themselves, where the party is", () 
     lost.state.conflict = true;
     await play(lost, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "Hello.", mode: "say" } });
     expect(lost.placed).toEqual([]);
+  });
+});
+
+describe("the party's arrival is written on the server (row 9)", () => {
+  const go = (): ModelStep => step(100, { blocks: [{ type: "tool_call", id: "g1", name: "go_to", input: { location_id: CELLAR } }], stop: "tool_calls" });
+  const FOLIO = "00000000-0000-4000-8000-0000000000d1";
+  const companion: Companion = { id: FOLIO, name: "Folio", pronouns: null, species: null, className: null, subclass: null, level: null, hitPoints: null, about: null, aiSpeaks: false };
+  const kept = async (h: Harness, over: { scene_location_id?: string } = {}) => {
+    existingSession(h, { party_member_id: WREN, ...over });
+    h.state.characters.set(WREN, { id: WREN, name: "Wren", pronouns: null, species: null, className: null, subclass: null, level: null, hitPoints: null });
+    h.state.companions = [companion];
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "We go down.", mode: "do" } });
+  };
+
+  // Bug caught: the party's place, its map's memory or its squares left to a DM browser that is not open.
+  it("moves the party's place, reveals the room and seats the played character and the companions, in that order", async () => {
+    const h = harness([go(), step(200)]);
+    await kept(h);
+    expect(h.arrivals).toEqual([
+      { write: "place", campaignId: CAMPAIGN, placeId: CELLAR },
+      { write: "reveal", campaignId: CAMPAIGN, placeId: CELLAR },
+      { write: "seat", campaignId: CAMPAIGN, placeId: CELLAR, memberIds: [WREN, FOLIO] },
+    ]);
+  });
+
+  // Bug caught: a retry of a refused turn moves the party in the database although the turn never happened.
+  it("writes nothing when the turn was not kept", async () => {
+    const h = harness([go(), step(200)]);
+    h.state.conflict = true;
+    await kept(h);
+    expect(h.arrivals).toEqual([]);
+  });
+
+  // Bug caught: every kept turn rewrites the campaign's place and the party's squares.
+  it("writes nothing when the narrator made no move", async () => {
+    const h = harness([step(200)]);
+    await kept(h);
+    expect(h.arrivals).toEqual([]);
+  });
+
+  // The party is already in the cellar (the sitting's scene) and the narrator does not move it. Bug caught: the arrival keyed on the
+  // scene the turn ends in rather than a move made this turn, so every kept turn in a place rewrites its place, fog and squares.
+  it("writes nothing when the party stays where the sitting already had it", async () => {
+    const h = harness([step(200)]);
+    await kept(h, { scene_location_id: CELLAR });
+    expect(h.arrivals).toEqual([]);
+  });
+
+  // Bug caught: one failed write skipping the writes after it, or failing the turn.
+  it.each(["place", "reveal", "seat"] as const)("costs only the %s write when it cannot be made", async (failing) => {
+    const h = harness([go(), step(200)]);
+    h.state.failArrival.add(failing);
+    await kept(h);
+    expect(h.arrivals.map((a) => a.write)).toEqual(["place", "reveal", "seat"]);
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(h.events.some((e) => e.type === "error")).toBe(false);
   });
 });
 

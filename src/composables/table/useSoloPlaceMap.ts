@@ -1,25 +1,16 @@
-import { computed, ref, toValue, watch, type MaybeRefOrGetter } from "vue";
+import { computed, ref, toValue, type MaybeRefOrGetter } from "vue";
 import { useLocationBattleSurface } from "@/composables/encounters/useEncounterRoom";
 import { usePartySight } from "@/composables/encounters/usePartySight";
 import { useAllLocations, useLocations } from "@/composables/locations/useLocations";
-import { usePartyTokenSizes } from "@/composables/locations/useExploreParty";
+import { usePartyTokenSizes, useExploreParty } from "@/composables/locations/useExploreParty";
 import { useDoorStateForSite, useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { useMapDoors } from "@/composables/locations/useMapDoors";
 import { useMapMemory } from "@/composables/locations/useMapMemory";
 import { useRememberSight } from "@/composables/locations/useRememberSight";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { shownCells } from "@/lib/battlemap/partySight";
-import {
-  entranceBattleCells,
-  exploreTokens,
-  roomBattleCells,
-  roomCellIndex,
-  roomUnder,
-  seedPartyAtCentre,
-  seedPartyAtEntrance,
-  seedPartyPositions,
-  type ExploreFrame,
-} from "@/lib/locations/explore";
+import { roomCellIndex, roomUnder, type ExploreFrame } from "@/lib/locations/explore";
+import { entranceBattleCells, roomBattleCells } from "@/lib/locations/exploreSeating";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { buildDmFogPlan } from "@/lib/locations/siteFog";
 import { partyRoomInSite, siteReachability } from "@/lib/locations/siteRun";
@@ -34,8 +25,9 @@ import type { PartyMember } from "@/types/party.types";
 
 /**
  * The map above the story while the party is exploring (Solo Table frame 03): the map the story's place is on, the
- * played character's token on it, and what that character has seen. The story moves the party, so nothing here writes
- * where the party is (`campaigns.explore_party`, `current_location_id`) or the doors. What the character sees is
+ * played character's token on it, and what that character has seen. The story moves the party (the server writes
+ * `current_location_id` and seats the party in `campaigns.explore_party` when a turn is kept), so the token is read from
+ * there; nothing here writes the place or the doors. What the character sees is
  * remembered in the map's memory, as on the DM's exploring screen: a place seen once stays seen.
  */
 export function useSoloPlaceMap(input: {
@@ -80,40 +72,25 @@ export function useSoloPlaceMap(input: {
     if (room) input.onGo({ id: room.id, name: room.name });
   }
 
-  // ── The character's token: kept here, never written ───────────────────────
+  // ── The character's token: where the party stands, as the campaign keeps it ─
+  // One source of truth with the DM's exploring screen: `campaigns.explore_party`. A kept turn in which the Narrator
+  // moved the party seats it in the room on the server (`partyMoveIo.ts`), so the token follows that; this only seats
+  // a character the campaign has no square for yet, and writes the player's own moves inside the room.
   const member = computed(() => toValue(input.member));
   const sizeOf = usePartyTokenSizes(() => [member.value]);
   const frame = ref<ExploreFrame | null>(null);
   const roomCells = computed(() => (surface.value ? roomBattleCells(regions.value, surface.value.calibration) : null));
   const roomIndex = computed(() => (surface.value ? roomCellIndex(regions.value, surface.value.calibration) : new Map<CellKey, string>()));
-  const entranceCells = computed(() => (surface.value ? entranceBattleCells(regions.value, surface.value.calibration) : []));
-  const positions = ref<Record<string, ExploreCell>>({});
-  let seatedFor: string | null = null;
-
-  // The token is seated again whenever the story's place changes: in the room the party is in, else at an Entrance
-  // zone, else in the first room, else the middle of the picture. Waits until the map has what it needs.
-  watch(
-    [siteRef, currentRoomId, roomCells, entranceCells, frame, () => member.value.id],
-    () => {
-      const cells = roomCells.value;
-      if (!cells || siteRef.value === "") return;
-      const key = `${siteRef.value}|${currentRoomId.value ?? ""}|${member.value.id}`;
-      if (seatedFor === key) return;
-      const one = [member.value];
-      const inRoom = currentRoomId.value !== null && cells.has(currentRoomId.value) ? seedPartyPositions(one, cells, roomIds.value, currentRoomId.value) : {};
-      const entrance = Object.keys(inRoom).length === 0 ? seedPartyAtEntrance(one, entranceCells.value, sizeOf) : {};
-      const firstRoom = Object.keys(inRoom).length + Object.keys(entrance).length === 0 ? seedPartyPositions(one, cells, roomIds.value, null) : {};
-      const seated = { ...inRoom, ...entrance, ...firstRoom };
-      const centred = Object.keys(seated).length === 0 && frame.value ? seedPartyAtCentre(one, frame.value, sizeOf) : {};
-      const next = { ...seated, ...centred };
-      // Until something seats it, the old place's square must not stand in the new place.
-      positions.value = next;
-      if (Object.keys(next).length > 0) seatedFor = key;
-    },
-    { immediate: true },
-  );
-
-  const tokens = computed(() => (siteRef.value ? exploreTokens([member.value], { site_id: siteRef.value, positions: positions.value }, siteRef.value, sizeOf) : []));
+  const { tokens, place } = useExploreParty({
+    siteId: siteRef,
+    members: () => (surface.value && siteRef.value !== "" ? [member.value] : undefined),
+    roomCells,
+    roomOrder: roomIds,
+    partyRoomId: currentRoomId,
+    entranceCells: computed(() => (surface.value ? entranceBattleCells(regions.value, surface.value.calibration) : [])),
+    frame,
+    sizeOf,
+  });
   const selectedId = computed(() => tokens.value[0]?.instance_id ?? null);
 
   /** The map handed a move: inside the current room (or open ground) the token goes there; another room is the story's to take. */
@@ -127,7 +104,7 @@ export function useSoloPlaceMap(input: {
       chooseRoom(under);
       return;
     }
-    positions.value = { ...positions.value, [member.value.id]: to };
+    place({ [member.value.id]: to });
   }
 
   // ── What the character has seen: memory plus what is in view now ──────────

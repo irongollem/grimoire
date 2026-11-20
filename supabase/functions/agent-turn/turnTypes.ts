@@ -312,6 +312,16 @@ export interface AgentTurnDeps {
    * their record said, and the next sitting must find them in the place it reads.
    */
   placeCharacters(campaignId: string, locationId: string, characterIds: string[]): Promise<void>;
+  /**
+   * The party's arrival in a place the Narrator moved it to, in three writes the caller makes one by one, each as the
+   * caller (`partyMoveIo.ts`): the campaign's place (the arrival trigger marks the room explored), the room's squares
+   * revealed on its map, and the party seated in the room on that map. Each throws when it could not be written.
+   */
+  moveParty: {
+    setPlace(campaignId: string, placeId: string): Promise<void>;
+    revealRoom(campaignId: string, placeId: string): Promise<void>;
+    seatParty(campaignId: string, placeId: string, memberIds: string[]): Promise<void>;
+  };
   /** Takes facts filed in a turn that was not kept off the record again. */
   discardFacts(campaignId: string, ids: string[]): Promise<void>;
   /** The quests running in the campaign, what the narrator may mark, and where the pressure clock stands. */
