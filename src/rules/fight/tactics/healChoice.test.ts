@@ -52,6 +52,14 @@ describe("chooseActionHeal", () => {
     expect(chooseActionHeal([pool, each], [CLERIC, BRUG_LOW, tess])?.option).toBe(each);
   });
 
+  // Power Word Heal's `expectedEach` is 0: what it restores is what the target misses. Brug misses 14; a Cure Wounds of 7.5 restores 7.5.
+  // Bug caught: the full heal weighed at 0 and passed over for the smaller heal.
+  it("fails if a full heal is weighed by its zero average instead of what the target misses", () => {
+    const full = heal({ name: "Power Word Heal", castLevel: 9, targetIds: ["brug"], lowIds: ["brug"], expectedEach: 0, full: true });
+    const cure = heal({ targetIds: ["brug"], lowIds: ["brug"] });
+    expect(chooseActionHeal([cure, full], [CLERIC, BRUG_LOW])?.option).toBe(full);
+  });
+
   it("fails if a heal at a scratch is chosen", () => {
     expect(chooseActionHeal([heal({ targetIds: ["sam"] })], [CLERIC, SCRATCH])).toBeNull();
   });

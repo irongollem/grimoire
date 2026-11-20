@@ -209,6 +209,15 @@ export function heal(over: Partial<SpellRecord> = {}): SpellRecord {
   });
 }
 
+/** "Power Word Heal" (SRD 5.2): one creature regains all its hit points and loses Charmed, Frightened, Paralyzed, Poisoned and Stunned; a 9th-level Action, 60 feet. */
+export function powerWordHeal(over: Partial<SpellRecord> = {}): SpellRecord {
+  return healer({
+    id: "power_word_heal_2024", name: "Power Word Heal", level: 9, range: "60 ft.", ruleset: "2024", source: "srd-2024", healing_dice: null,
+    effects: [healEffect("", { dice: null, full: true, modifier: null, scaling: null, ends: ["Charmed", "Frightened", "Paralyzed", "Poisoned", "Stunned"], unaffected: [] })],
+    ...over,
+  });
+}
+
 /** "Mass Heal": a pool of 700 hit points shared among any number of creatures in range, a 9th-level Action, 60 feet. */
 export function massHeal(over: Partial<SpellRecord> = {}): SpellRecord {
   const ruleset = over.ruleset ?? "2014";

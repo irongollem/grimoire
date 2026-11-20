@@ -44,5 +44,7 @@ describe("describeResolvedAction: break free", () => {
     });
     expect(describeResolvedAction(heal({ leftToTable: ["diseases"] }), nameOf)).toBe("Ogre casts Heal (70 rolled): Fresco regains 70 hit points, and is no longer Blinded or Deafened. The table rules on diseases.");
     expect(describeResolvedAction(heal({ spell: "Mass Heal", rolled: 700, pool: true, targets: [{ targetId: "fresco", regained: 20, revived: false, unaffected: false }] }), nameOf)).toBe("Ogre casts Mass Heal (700 hit points to share): Fresco regains 20 hit points.");
+    // Power Word Heal rolls nothing: the line must not say "0 rolled".
+    expect(describeResolvedAction(heal({ spell: "Power Word Heal", castLevel: 9, rolled: 0, full: true, targets: [{ targetId: "fresco", regained: 33, revived: false, unaffected: false }] }), nameOf)).toBe("Ogre casts Power Word Heal (all hit points): Fresco regains 33 hit points.");
   });
 });

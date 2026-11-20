@@ -38,7 +38,7 @@ import {
   type PostedRoll,
   type StatBlockSources,
 } from "./handler";
-import { blackTentacles, charmMonster, clericBlock, cureWounds, fear, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithFear, mageWithHold, mageWithTentacles, healingWord, massHealingWord, heal, massHeal } from "../../../src/rules/fight/spells/spellTestKit";
+import { blackTentacles, charmMonster, clericBlock, cureWounds, fear, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithFear, mageWithHold, mageWithTentacles, healingWord, massHealingWord, heal, massHeal, powerWordHeal } from "../../../src/rules/fight/spells/spellTestKit";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice";
 import { ownRecord } from "../_shared/fightSpells";
 import type { AppliedCondition } from "../../../src/types/condition.types";
@@ -3252,6 +3252,16 @@ describe("healing spells in a fight", () => {
     expect(by(stored(h), "cleric")).toMatchObject({ action_used: true, action_uses: { "slots/1": { used: 1, per_day: 4 } } });
   });
 
+  // The tactic weighs a heal by what it restores: Power Word Heal gives Pip all 20, Cure Wounds about 7.5, so the cleric casts the full heal.
+  // Bug caught: the option built without `full`, so the full heal is weighed at its average of 0 and the cleric casts Cure Wounds.
+  it("fails if a cleric holding Power Word Heal weighs it at nothing and casts Cure Wounds at a downed friend", async () => {
+    const sources = WITH_HEALS("* 1st level (4 slots): cure wounds\n* 9th level (1 slot): power word heal");
+    const h = harness(fightOf([pipDown()]), { sources, map: mapOf(), ruleset: "2024", spells: [cureWounds({ ruleset: "2024" }), powerWordHeal()], dieFaces: [] });
+    const result = await runBatch(batch("b", clericTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { kind: "heal", optionId: "heal:Power Word Heal:9:pip" } });
+    expect(hpOf(stored(h), "pip")).toBe(20);
+  });
+
   // Bug caught: a heal for a friend who is only hurt (above half) cast ahead of everything, when the book's order is down first, then below half.
   it("fails if a cleric heals a friend with a scratch (above half) instead of taking its turn", async () => {
     const h = harness(fightOf([pipHurt(15)]), { sources: CURE_ONLY, map: mapOf(), spells: records(), dieFaces: [] });
@@ -3428,6 +3438,18 @@ describe("healing spells in a fight", () => {
     const shut = harness(fightOf([ghoul()]), { sources: CURE_ONLY, map: mapOf(), ruleset: "2024", spells: [typed("2024", ["undead"])], dieFaces: [4, 4] });
     await runBatch(batch("b", castHeal({ targetIds: ["ghoul"] })), shut.deps);
     expect(hpOf(stored(shut), "ghoul")).toBe(5);
+  });
+
+  // SRD 5.2 "Power Word Heal": the target regains all its hit points, and Poisoned (one of the five it names) ends. Pip is down at 0 of 20 and
+  // Poisoned: she is back at 20, up, and no longer Poisoned, with no die rolled. Bug caught: a full heal rolled as dice "", given 0, or the
+  // conditions left on.
+  it("fails if Power Word Heal does not restore every hit point without a roll and end the conditions it names", async () => {
+    const h = harness(fightOf([pipDown({ conditions: [{ name: "Unconscious" }, { name: "Poisoned" }] })]), { sources: WITH_HEALS("* 9th level (1 slot): power word heal"), map: mapOf(), ruleset: "2024", spells: [powerWordHeal()], dieFaces: [] });
+    const result = await runBatch(batch("b", castHeal({ spell: "power word heal" })), h.deps);
+    expect(hpOf(stored(h), "pip")).toBe(20);
+    expect(h.dieCalls).toBe(0);
+    expect(by(stored(h), "pip").conditions).toEqual([]);
+    expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "heal", full: true, targets: [{ targetId: "pip", regained: 20, revived: true, ended: ["Poisoned"] }] } });
   });
 
   // PHB "Mass Heal": 700 hit points divided as the caster chooses. The rule here: the downed first, each to full or to the pool's end, then the lowest.

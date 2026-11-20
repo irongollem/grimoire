@@ -635,7 +635,8 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
   type HealResult = Extract<ResolvedAction, { kind: "heal" }>["targets"][number];
   const resolveHeal = async (caster: RunCombatant, targets: RunCombatant[], record: SpellRecord, castLevel: number, plan: HealPlan): Promise<void> => {
     let amount = plan.pool ?? 0;
-    if (plan.pool === null) {
+    // Power Word Heal (RULE healing-full) rolls nothing: each target is given what it misses.
+    if (plan.pool === null && !plan.full) {
       const parsed = parseExpression(plan.dice);
       if (parsed === null) refuse(`${record.name}'s healing "${plan.dice}" cannot be rolled.`);
       const dice = (parsed as NonNullable<typeof parsed>);
@@ -661,7 +662,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
       if (!affected(target)) return [target.instance_id, { targetId: target.instance_id, regained: 0, revived: false, unaffected: true }] as const;
       const before = ctx.live(target).hp;
       const missing = Math.max(0, ctx.live(target).max_hp - Math.max(0, before));
-      const give = plan.pool === null ? amount : Math.min(missing, left);
+      const give = plan.full ? missing : plan.pool === null ? amount : Math.min(missing, left);
       left -= plan.pool === null ? 0 : give;
       if (give > 0) ctx.apply({ type: "adjust_hp", instanceId: target.instance_id, delta: give });
       const ended: string[] = [];
@@ -678,7 +679,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     const results = targets.map((t) => byId.get(t.instance_id) as HealResult);
     collected.push({
       type: "resolved",
-      resolved: { kind: "heal", casterId: caster.instance_id, spell: record.name, castLevel, rolled: amount, targets: results, ...(plan.pool !== null ? { pool: true as const } : {}), ...(leftToTable.length > 0 ? { leftToTable } : {}) },
+      resolved: { kind: "heal", casterId: caster.instance_id, spell: record.name, castLevel, rolled: amount, targets: results, ...(plan.pool !== null ? { pool: true as const } : {}), ...(plan.full ? { full: true as const } : {}), ...(leftToTable.length > 0 ? { leftToTable } : {}) },
     });
   };
 

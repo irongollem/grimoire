@@ -105,6 +105,8 @@ export interface TurnOptionHeal {
   expectedEach: number;
   /** Hit points shared among `targetIds` (Mass Heal), null or absent for a spell that rolls once for every target. */
   pool?: number | null;
+  /** Every target regains all its hit points (Power Word Heal); `expectedEach` is 0 then, and what each misses is what it restores. */
+  full?: boolean;
   /** Feet from the caster to the nearest target; null when nothing was measured or the target is the caster. */
   distanceFeet: number | null;
 }

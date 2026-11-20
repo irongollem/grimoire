@@ -41,6 +41,7 @@ function restored(o: HealOption, byId: ReadonlyMap<string, RunCombatant>): numbe
     const t = byId.get(id);
     return t === undefined ? 0 : Math.max(0, t.max_hp - Math.max(0, t.hp));
   };
+  if (o.heal.full === true) return o.heal.targetIds.reduce((sum, id) => sum + missing(id), 0);
   if (typeof pool === "number") return Math.min(pool, o.heal.targetIds.reduce((sum, id) => sum + missing(id), 0));
   return o.heal.targetIds.reduce((sum, id) => sum + Math.min(o.heal.expectedEach, missing(id)), 0);
 }

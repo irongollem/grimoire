@@ -165,6 +165,8 @@ export type ResolvedAction =
     targets: { targetId: string; regained: number; revived: boolean; unaffected: boolean; ended?: string[] }[];
     /** A pool the caster shared out (Mass Heal): `rolled` is the pool, not a roll. */
     pool?: true;
+    /** Every target regained all its hit points (Power Word Heal): nothing was rolled and `rolled` is 0. */
+    full?: true;
     /** What the spell ends that the app has no condition for ("diseases"): the table's to rule. */
     leftToTable?: string[];
   }

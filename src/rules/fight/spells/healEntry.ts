@@ -23,6 +23,9 @@
 // You restore up to 700 hit points, divided as you choose among any number of creatures that you can see within range"): the
 // effect's `pool`. APP CONVENTION for the sharing (the book leaves the division to the caster): the downed first, then the lowest
 // share of their hit points, each to full or to what is left of the pool.
+// RULE healing-full (SRD 5.2 "Power Word Heal": "The target regains all its Hit Points", and ends the Charmed, Frightened,
+// Paralyzed, Poisoned and Stunned conditions): the effect's `full`. Its last sentence, a Prone target using its Reaction to stand,
+// is the creature's own choice and is left to the table.
 // RULE casting-time (PHB 2014 and 2024 "Healing Word": a Bonus Action; "Cure Wounds": an Action): only a spell cast as an
 // Action or a Bonus Action is a heal a fight offers; "1 minute" or "10 minutes" (Prayer of Healing) is not.
 
@@ -48,6 +51,8 @@ export interface HealPlan {
   ends: readonly string[];
   /** Hit points the caster divides among the creatures instead of dice (Mass Heal), null for a spell that rolls. `dice` is "" then. */
   pool: number | null;
+  /** The creature regains all its hit points (Power Word Heal): nothing is rolled, `dice` is "" and `average` is 0, so a weigher reads what each target misses. */
+  full: boolean;
   /** The mean restored to one creature, for weighing. */
   average: number;
 }
@@ -120,7 +125,10 @@ export function healEntryFor(record: SpellRecord, castLevel: number, caster: { m
   if (typeof effect.pool === "number" && effect.pool > 0) {
     // A pool the caster divides (Mass Heal): nothing is rolled, any number of creatures may share it.
     const targetCount = effect.target.count === null ? Number.MAX_SAFE_INTEGER : count;
-    return { healable: true, dice: "", modifier: 0, targetCount, slot, excludes: healExcludedKinds(record), ends, pool: effect.pool, average: effect.pool };
+    return { healable: true, dice: "", modifier: 0, targetCount, slot, excludes: healExcludedKinds(record), ends, pool: effect.pool, full: false, average: effect.pool };
+  }
+  if (effect.full === true) {
+    return { healable: true, dice: "", modifier: 0, targetCount: count, slot, excludes: healExcludedKinds(record), ends, pool: null, full: true, average: 0 };
   }
   if (cast.dice === null) return no(`${record.name} has no healing dice in its data.`);
   const dice = cast.dice.replace(/\s+/g, "");
@@ -134,5 +142,5 @@ export function healEntryFor(record: SpellRecord, castLevel: number, caster: { m
     modifier = cast.modifier;
   }
   const mean = parsed.terms.reduce((sum, t) => sum + (t.count * (t.sides + 1)) / 2, 0) + parsed.modifier + modifier;
-  return { healable: true, dice, modifier, targetCount: count, slot, excludes: healExcludedKinds(record), ends, pool: null, average: Math.max(0, mean) };
+  return { healable: true, dice, modifier, targetCount: count, slot, excludes: healExcludedKinds(record), ends, pool: null, full: false, average: Math.max(0, mean) };
 }

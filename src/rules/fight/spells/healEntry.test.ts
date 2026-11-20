@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { castSlotOf, healEntryFor, healExcludedKinds, isHealingSpell, withFlatHealing } from "./healEntry";
-import { cureWounds, fireball, heal, healingWord, massHeal, massHealingWord } from "./spellTestKit";
+import { cureWounds, fireball, heal, healingWord, massHeal, massHealingWord, powerWordHeal } from "./spellTestKit";
 
 const WIS_PLUS_3 = { modifier: 3 };
 
@@ -144,6 +144,14 @@ describe("Mass Heal's pool", () => {
     const plan = healEntryFor(massHeal(), 9, { modifier: null });
     expect(plan).toMatchObject({ healable: true, pool: 700, dice: "", modifier: 0, average: 700 });
     expect((plan as { targetCount: number }).targetCount).toBeGreaterThan(100);
+  });
+});
+
+describe("Power Word Heal: all its hit points", () => {
+  // SRD 5.2 "Power Word Heal": the target regains all its hit points. Bug caught: refused for having no dice, or offered as a heal of 0.
+  it("fails if a full heal is refused for want of dice or not marked full", () => {
+    expect(healEntryFor(powerWordHeal(), 9, { modifier: null })).toMatchObject({ healable: true, full: true, pool: null, targetCount: 1, dice: "" });
+    expect(healEntryFor(cureWounds(), 1, WIS_PLUS_3)).toMatchObject({ full: false });
   });
 });
 

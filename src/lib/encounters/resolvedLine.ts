@@ -27,7 +27,7 @@ export function describeResolvedAction(resolved: ResolvedAction, nameOf: (instan
         return `${nameOf(t.targetId)} regains ${t.regained} hit points${t.revived ? " and is back on their feet" : ""}${ended}`;
       }).join("; ");
       const table = resolved.leftToTable !== undefined && resolved.leftToTable.length > 0 ? ` The table rules on ${resolved.leftToTable.join(" and ")}.` : "";
-      const amount = resolved.pool === true ? `${resolved.rolled} hit points to share` : `${resolved.rolled} rolled`;
+      const amount = resolved.full === true ? "all hit points" : resolved.pool === true ? `${resolved.rolled} hit points to share` : `${resolved.rolled} rolled`;
       return `${nameOf(resolved.casterId)} casts ${resolved.spell} (${amount}): ${who}.${table}`;
     }
     case "concentration":

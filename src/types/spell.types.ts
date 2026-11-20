@@ -235,6 +235,8 @@ export interface StructuredSpellEffect {
    * Healing only; the fight shares it out down first, then the lowest, each to full or to the pool's end.
    */
   pool?: number | null;
+  /** The creature regains all its hit points instead of rolling `dice` (Power Word Heal, SRD 5.2). Healing only; `dice` is null then. */
+  full?: boolean | null;
 }
 
 export interface SpellEffectInstances {
