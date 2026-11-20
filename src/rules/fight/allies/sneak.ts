@@ -4,6 +4,7 @@
 
 import type { RunCombatant } from "../../../types/encounter.types.ts";
 import { isIncapacitated } from "../../conditions.ts";
+import { sortCombatantsByInitiative } from "../../combatantSort.ts";
 import { isHostileTo, type FactionSides } from "../sides.ts";
 import { withinFiveFeet } from "../targeting.ts";
 
@@ -16,4 +17,14 @@ export function enemyBesideTarget(combatants: readonly RunCombatant[], attackerI
   return combatants.some((c) =>
     c.instance_id !== attackerId && c.instance_id !== target.instance_id && c.bystander !== true && c.hp > 0
     && !isIncapacitated(c.conditions) && isHostileTo(c, target, factions) && withinFiveFeet(c, target) === true);
+}
+
+/**
+ * RULE sneak-attack-once-per-turn (PHB 2014 "Rogue: Sneak Attack" and PHB 2024 "Sneak Attack": "once per turn"): a turn is any
+ * creature's, so a Rogue who used it on their own turn may use it again on a Reaction in a foe's turn. The tally key names the
+ * fight's current turn, the round and the creature whose turn it is (`action_uses`, one use each), never the Rogue's own turns.
+ */
+export function sneakUseKey(fight: { round: number; activeIndex: number; combatants: readonly RunCombatant[] }): string {
+  const active = sortCombatantsByInitiative(fight.combatants)[fight.activeIndex];
+  return `sneak_attack/${fight.round}:${active === undefined ? `#${fight.activeIndex}` : active.instance_id}`;
 }

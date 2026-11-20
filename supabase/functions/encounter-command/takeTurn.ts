@@ -19,6 +19,7 @@
 import { losesFirstTurnToSurprise } from "../../../src/rules/initiative.ts";
 import { deathSaveRollOutcome, dyingStatus } from "../../../src/rules/dying.ts";
 import { boonDice } from "../../../src/rules/fight/boons.ts";
+import { sneakUseKey } from "../../../src/rules/fight/allies/sneak.ts";
 import { NORMAL_ROLL, rollWithRules } from "../../../src/lib/dice/diceRules.ts";
 import { dnd5eDiceRules } from "../../../src/systems/dnd5e/dice/rules.ts";
 import { allyProfile } from "../../../src/rules/fight/allies/profile.ts";
@@ -223,7 +224,7 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
     attacks: attacksOf, combatants: roster, moverId: from.instance_id, armorClassOf, ruleset: state.ruleset, spells: spellsOf, saveBonusOf, factions: env.factions,
     // RULE sneak-attack (the tactics weigh it as `resolve_attack` will apply it): an ally Rogue's dice on an attack it rides, until the turn's one use is spent.
     ...(ally ? { sneakDiceOf: (name: string) => {
-      const useKey = `sneak_attack/${from.shown_deeds === undefined ? 0 : from.shown_deeds.turns}`;
+      const useKey = sneakUseKey(state);
       if (!limitAvailability(from, useKey, { per_day: 1 }).available) return null;
       const sneak = allySneakAttack(env.players, from.party_member_id as string, name);
       return sneak === null ? null : sneak.dice;

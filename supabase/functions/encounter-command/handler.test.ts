@@ -3791,7 +3791,7 @@ describe("take_turn: an ally's Sneak Attack", () => {
     const h = harness(sneakFight({ victim: { conditions: RESTRAINED } }), { sources: SOURCES, players: rogueSheets(classRow("Rogue", 1)), map: mapOf(), dieFaces: [8, 3, 2, 5] });
     await runBatch(batch("b", tamTurn({ optionId: STAB })), h.deps);
     expect(hpOf(stored(h), "victim")).toBe(30);
-    expect(combatantOf(stored(h), "tam").action_uses).toEqual({ "sneak_attack/0": { used: 1, per_day: 1 } });
+    expect(combatantOf(stored(h), "tam").action_uses).toEqual({ "sneak_attack/1:tam": { used: 1, per_day: 1 } });
   });
 
   // PHB 2014 "Sneak Attack": no advantage is needed when another enemy of the target is within 5 feet of it and is not incapacitated. Pal stands
@@ -3842,13 +3842,15 @@ describe("take_turn: an ally's Sneak Attack", () => {
     expect(hpOf(stored(h), "victim")).toBe(40 - (3 + 3 + 5));
   });
 
-  // PHB 2014 "Sneak Attack": a new turn is a new use. The tally of last turn (key 0) stands and this turn (1) has none. Bug caught: the tally never resetting.
-  it("fails if last turn's Sneak Attack stops this turn's", async () => {
-    const tam = { shown_deeds: { dealt: 0, turns: 1, cast: 0, ranged: 0, melee: 0 }, action_uses: { "sneak_attack/0": { used: 1, per_day: 1 } } };
+  // PHB 2014 and 2024 "Sneak Attack": once per turn, and a turn is any creature's. A use spent this round on a Reaction in the ox's turn
+  // ("1:victim") leaves Tam's own turn ("1:tam") its own use. Bug caught: the tally keyed on the Rogue's own turns, so the Reaction's use
+  // stops the Rogue's next Sneak Attack, or the reverse.
+  it("fails if a Sneak Attack spent in another creature's turn stops the Rogue's own", async () => {
+    const tam = { shown_deeds: { dealt: 0, turns: 1, cast: 0, ranged: 0, melee: 0 }, action_uses: { "sneak_attack/1:victim": { used: 1, per_day: 1 } } };
     const h = harness(sneakFight({ victim: { conditions: RESTRAINED }, tam }), { sources: SOURCES, players: rogueSheets(classRow("Rogue", 1)), map: mapOf(), dieFaces: [8, 3, 2, 5] });
     await runBatch(batch("b", tamTurn({ optionId: STAB })), h.deps);
     expect(hpOf(stored(h), "victim")).toBe(30);
-    expect(combatantOf(stored(h), "tam").action_uses?.["sneak_attack/1"]).toEqual({ used: 1, per_day: 1 });
+    expect(combatantOf(stored(h), "tam").action_uses?.["sneak_attack/1:tam"]).toEqual({ used: 1, per_day: 1 });
   });
 
   // PHB 2014 "Critical Hits": a critical hit rolls all the attack's damage dice twice, Sneak Attack's included. d20 20 and 5 keep the 20;
@@ -4706,10 +4708,23 @@ describe("take_turn: a Rogue ally's tactics weigh Sneak Attack", () => {
   // PHB 2014 "Sneak Attack": once per turn. With this turn's use spent (the tally under this turn's key) the dagger has no edge and the sword is picked.
   // Bug caught: the weighing ignoring a spent use.
   it("stops favouring the dagger once the turn's Sneak Attack is spent", async () => {
-    const spent = { action_uses: { "sneak_attack/0": { used: 1, per_day: 1 } } };
+    const spent = { action_uses: { "sneak_attack/1:tam": { used: 1, per_day: 1 } } };
     const h = harness(sneakFight({ friend: {}, tam: spent }), { sources: SOURCES, players: armed(), map: mapOf(), dieFaces: [8, 4] });
     const result = await runBatch(batch("b", tamTurn()), h.deps);
     expect(result.effects[0]).toMatchObject({ turn: { optionId: "attack:actions:Longsword:victim" } });
+  });
+
+  // PHB 2014 and 2024 "Sneak Attack": once per turn, any creature's. In the ox's own turn (its Action spent, so a plain move is on offer) it walks off toward Bait, leaving Tam's reach; Tam's
+  // own-turn use is spent, but this is the ox's turn, so the Reaction has its own. Pal beside the ox makes it count, so the Reaction is the
+  // dagger (8 + 5 hits AC 13; d4 2 + 3 and the Sneak Attack d6 5: 10, 40 -> 30). Bug caught: the Reaction refused Sneak Attack because the
+  // key counted Tam's own turns, or the opportunity strike weighed without it and swung the longsword (8 hits, d8 2 + 3: 35).
+  it("fails if a Rogue's opportunity attack in a foe's turn does not Sneak Attack with the dagger", async () => {
+    const fight = sneakFight({ friend: {}, tam: { action_uses: { "sneak_attack/1:tam": { used: 1, per_day: 1 } } }, victim: { initiative: 20, action_used: true } });
+    fight.combatants_live.push(pc("bait", { faction_id: "p", hp: 10, max_hp: 10, initiative: 1, position: { x: 12, y: 1 } }));
+    const h = harness(fight, { sources: SOURCES, players: armed(), map: mapOf(), dieFaces: [8, 2, 5] });
+    const result = await runBatch(batch("b", takeTurn({ instanceId: "victim", optionId: "move:bait", playedMemberId: "pm-someone-else" })), h.deps);
+    expect(result.effects.find((e) => e.type === "opportunity")).toMatchObject({ attackerId: "tam", targetId: "victim" });
+    expect(hpOf(stored(h), "victim")).toBe(30);
   });
 });
 

@@ -25,7 +25,7 @@ import type { StatBlockListKey } from "../../../src/rules/statBlock/parseAction.
 import { holdsConcentration } from "../../../src/rules/conditionDurations.ts";
 import { attackRollMode } from "../../../src/rules/combat/attackRoll.ts";
 import { allySlotSpend, settleSlotSpend, type InnateSpend } from "../../../src/rules/fight/allies/spells.ts";
-import { enemyBesideTarget } from "../../../src/rules/fight/allies/sneak.ts";
+import { enemyBesideTarget, sneakUseKey } from "../../../src/rules/fight/allies/sneak.ts";
 import { allyAttackShape, allySneakAttack } from "../../../src/rules/fight/allies/statBlock.ts";
 import { RAGE_RESISTANCES, RAGING, divineSmiteFor, featureSpend, improvedSmiteFor, rageDamageFor, settleFeatureSpend } from "../../../src/rules/fight/allies/features.ts";
 import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "../../../src/rules/fight/targeting.ts";
@@ -576,8 +576,8 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
    * stands within 5 feet of it, is not incapacitated, and the attacker has no disadvantage. The mode is worked out here with the
    * same rule and the same facts the roll to hit will use (`attackRollMode`), because the roll cannot say it before the damage
    * is rolled; advantage and disadvantage that cancel leave neither, so only the adjacent enemy can qualify then. The dice ride
-   * the weapon's damage type and double on a critical hit like any other die of the hit. APP CONVENTION: "once per turn" is
-   * tallied as `sneak_attack/<own turns started>` in the combatant's `action_uses`, so the next turn is a new key.
+   * the weapon's damage type and double on a critical hit like any other die of the hit. "Once per turn" is any creature's turn,
+   * tallied under the fight's current turn (`sneakUseKey`, RULE sneak-attack-once-per-turn), so a Reaction in a foe's turn has its own use.
    * Only a party member the AI plays (an ally, #1021) has it: null for anyone else, a swing it does not ride, or one already spent.
    */
   const sneakAttackIn = (
@@ -588,7 +588,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     if (attacker.type !== "player" || attacker.party_member_id === undefined || attack === undefined) return null;
     const sneak = allySneakAttack(env.players, attacker.party_member_id, entry.name);
     if (sneak === null) return null;
-    const useKey = `sneak_attack/${attacker.shown_deeds === undefined ? 0 : attacker.shown_deeds.turns}`;
+    const useKey = sneakUseKey(holder.state);
     if (!limitAvailability(attacker, useKey, { per_day: 1 }).available) return null;
     const delivery = attack.delivery === "melee_or_ranged" ? (near ? "melee" : "ranged") : attack.delivery;
     const { mode } = attackRollMode({

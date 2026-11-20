@@ -13,7 +13,9 @@
 
 import { NO_OCCLUDERS } from "../../../src/lib/battlemap/occlusion.ts";
 import { combatantFootprint } from "../../../src/lib/battlemap/tokenFootprint.ts";
-import { actionAvailability } from "../../../src/rules/encounterTurn.ts";
+import { actionAvailability, limitAvailability } from "../../../src/rules/encounterTurn.ts";
+import { sneakUseKey } from "../../../src/rules/fight/allies/sneak.ts";
+import { allySneakAttack } from "../../../src/rules/fight/allies/statBlock.ts";
 import { cannotReactWhileSurprised } from "../../../src/rules/initiative.ts";
 import { applyFightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
@@ -119,7 +121,13 @@ function chooseStrike(state: FightState, attacker: RunCombatant, mover: RunComba
   }));
   const numbered = withNumbers(options, {
     attacks: usable, combatants: state.combatants, moverId: attacker.instance_id,
-    armorClassOf: (t) => knownArmorClass(t, env.players), ruleset: state.ruleset,
+    armorClassOf: (t) => knownArmorClass(t, env.players), ruleset: state.ruleset, factions: env.factions,
+    // RULE sneak-attack-once-per-turn: an ally Rogue's Reaction in a foe's turn has its own use, weighed as `resolve_attack` will apply it.
+    ...(attacker.type === "player" && attacker.party_member_id !== undefined ? { sneakDiceOf: (name: string) => {
+      if (!limitAvailability(attacker, sneakUseKey(state), { per_day: 1 }).available) return null;
+      const sneak = allySneakAttack(env.players, attacker.party_member_id as string, name);
+      return sneak === null ? null : sneak.dice;
+    } } : {}),
   });
   let best = numbered[0];
   for (const o of numbered) {
