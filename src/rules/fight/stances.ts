@@ -50,8 +50,9 @@ export { isIncapacitated };
  */
 export const HIDDEN = "Hidden";
 
-export function hiddenCondition(): AppliedCondition {
-  return { name: HIDDEN };
+/** The Hidden condition, carrying the Stealth total a search must meet (2024) or beat (2014). */
+export function hiddenCondition(stealth?: number): AppliedCondition {
+  return stealth === undefined ? { name: HIDDEN } : { name: HIDDEN, stealth };
 }
 
 export function isHidden(conditions: readonly AppliedCondition[]): boolean {
