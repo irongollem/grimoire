@@ -85,8 +85,23 @@ function harness(over: Partial<{ text: string | null; note: ReadingNote | null }
   return h;
 }
 
-const answered = async (response: Response) =>
-  response.headers.get("Content-Type") === "audio/mpeg" ? { status: response.status, audio: true } : { status: response.status, ...((await response.json()) as object) };
+/** What the function answers, as the tests read it: the JSON shapes in handler.ts, or the audio of a `listen`. */
+interface Answer {
+  status: number;
+  audio?: boolean;
+  error?: string;
+  message?: string;
+  chars?: number;
+  credits?: number;
+  has?: boolean;
+  made?: boolean;
+  removed?: number;
+}
+
+const answered = async (response: Response): Promise<Answer> =>
+  response.headers.get("Content-Type") === "audio/mpeg"
+    ? { status: response.status, audio: true }
+    : { status: response.status, ...((await response.json()) as Omit<Answer, "status">) };
 
 const ask = async (h: ReturnType<typeof harness>, action: string, who: string = DM, extra: Record<string, unknown> = {}) => {
   h.caller = who;
@@ -218,6 +233,7 @@ describe("how it is told", () => {
     // The harness prices both services alike, so the difference is the cues alone; a long note shows it.
     const long = (telling: string) => ask(harness({ text: doc(...Array.from({ length: 30 }, () => "word ".repeat(100))) }), "estimate", DM, { telling });
     const [x, y] = await Promise.all([long("storyteller"), long("plain")]);
+    if (typeof x.credits !== "number" || typeof y.credits !== "number") throw new Error("an estimate answered no credits");
     expect(x.credits).toBeGreaterThan(y.credits);
   });
 
