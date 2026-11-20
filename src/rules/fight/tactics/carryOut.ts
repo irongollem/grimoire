@@ -34,6 +34,12 @@ export type TurnStep =
   | { type: "break_free"; name: string; ability: string }
   /** One use of a limited or recharge ability, as the runner records it. */
   | { type: "spend"; useKey: string; limit: ActionLimit }
+  /**
+   * A class feature of a party member the AI plays is used (#1021, `bonusAction.ts`): Second Wind heals, Rage starts, Flurry of Blows
+   * spends its Ki. `targetId` is who a Flurry's swings are at (null for the others). What each does, and what the sheet is
+   * charged, is `take_turn`'s to carry out: the step only says which.
+   */
+  | { type: "feature"; feature: "second_wind" | "rage" | "flurry"; targetId: string | null }
   /** The Action or the Bonus Action of the turn is used up. */
   | { type: "use"; slot: "action" | "bonus" }
   /** A flee that ends on a way off the map (#1203): the creature is taken out of the fight, after everything else it did. */

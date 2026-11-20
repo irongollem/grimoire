@@ -13,7 +13,7 @@
 import type { FactionSides } from "../../../src/rules/fight/sides.ts";
 import type { EncounterEvent, RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { PartyMemberUpdate, SpellSlotEntry } from "../../../src/types/party.types.ts";
-import type { ExploreParty } from "../../../src/types/exploreParty.types.ts";
+import type { StoredClassResources } from "../../../src/rules/features/characterFeatures.ts";import type { ExploreParty } from "../../../src/types/exploreParty.types.ts";
 import type { AppliedCondition } from "../../../src/types/condition.types.ts";
 import { spellKey } from "../../../src/rules/fight/spells/castLimit.ts";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
@@ -331,6 +331,8 @@ export interface BatchDeps {
   writeGear(writes: GearWrite[]): Promise<void>;
   /** Writes an ally's spell slots after a cast, the whole list as it now stands (absolute, so a retry lands once). */
   writeSpellSlots(memberId: string, slots: SpellSlotEntry[]): Promise<void>;
+  /** Writes an ally's `class_resources` after a class feature spent a use (Rage, Second Wind, Action Surge, Ki), the whole object as it now stands (absolute, so a retry lands once). */
+  writeClassResources(memberId: string, resources: StoredClassResources): Promise<void>;
   /** One die of any size, from the server's secure source: what a resolving command rolls with. */
   rollDie(sides: number): number;
   /**
@@ -434,7 +436,7 @@ async function attempt(
   row: FightRow,
   deps: BatchDeps,
   notes: NoteJudgments,
-): Promise<{ state: FightState; effects: FightEffect[]; rolls: PostedRoll[]; spent: ResolveEnv["spent"]; slotsSpent: ResolveEnv["slotsSpent"] }> {
+): Promise<{ state: FightState; effects: FightEffect[]; rolls: PostedRoll[]; spent: ResolveEnv["spent"]; slotsSpent: ResolveEnv["slotsSpent"]; resourcesSpent: ResolveEnv["resourcesSpent"] }> {
   const fightDeps: FightDeps = {
     monsters: loaded.monsters,
     npcs: loaded.npcs,
@@ -458,6 +460,7 @@ async function attempt(
   const rolls: PostedRoll[] = [];
   const spent: ResolveEnv["spent"] = [];
   const slotsSpent: ResolveEnv["slotsSpent"] = [];
+  const resourcesSpent: ResolveEnv["resourcesSpent"] = [];
   // The stat blocks and the player sheets are read once per attempt, and only when the batch has an action to resolve.
   let sources: StatBlockSources | null = null;
   let players: PlayerSheets | null = null;
@@ -512,7 +515,7 @@ async function attempt(
     }
     // `undefined` is "not asked yet" (a null map is an answer: this fight has none).
     if (map === undefined) map = await deps.loadFightMap(request.encounterId);
-    return { fightDeps, sources, players, map, factions: loaded.factions, rollDie: deps.rollDie, spells, spellsListed, posted: rolls, spent, slotsSpent, judgeNote: notes.ask };
+    return { fightDeps, sources, players, map, factions: loaded.factions, rollDie: deps.rollDie, spells, spellsListed, posted: rolls, spent, slotsSpent, resourcesSpent, judgeNote: notes.ask };
   };
   for (const command of request.commands) {
     if (command.type === "sync_party" || LIFECYCLE_TYPES.has(command.type)) continue;
@@ -544,7 +547,7 @@ async function attempt(
     state = result.state;
     effects.push(...result.effects);
   }
-  return { state, effects, rolls, spent, slotsSpent };
+  return { state, effects, rolls, spent, slotsSpent, resourcesSpent };
 }
 
 /** Whether a write would leave the fight exactly as the row has it (the batch id aside). */
@@ -826,7 +829,7 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
       throw new FightCommandError(409, "This fight has ended.");
     }
 
-    const { state, effects, rolls, spent, slotsSpent } = await attempt(request, loaded, row, deps, notes);
+    const { state, effects, rolls, spent, slotsSpent, resourcesSpent } = await attempt(request, loaded, row, deps, notes);
     const write = writeOf(state, row.applied_command_ids, request.batchId);
     // Most syncs find the sheets as the fight already has them (the ring was this fight's own write to a sheet
     // coming back). Saving anyway would raise the version and ring every screen for nothing, on every hit.
@@ -847,6 +850,9 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
     // The slots an ally's casts used: one absolute write per member (the last cast's whole list), so a retry lands once.
     const lastSlots = new Map(slotsSpent.map((w) => [w.memberId, w.slots]));
     for (const [memberId, slots] of lastSlots) effectFailures.push(...(await performAll([{ name: "ally_spell_slots", run: () => deps.writeSpellSlots(memberId, slots) }])));
+    // The limited uses an ally's class features spent: one absolute write per member (the last whole object), so a retry lands once.
+    const lastResources = new Map(resourcesSpent.map((w) => [w.memberId, w.resources]));
+    for (const [memberId, resources] of lastResources) effectFailures.push(...(await performAll([{ name: "ally_class_resources", run: () => deps.writeClassResources(memberId, resources) }])));
     // Billed after the save, like the rolls, and only for calls that answered: a refused or failed one cost nothing we know of.
     effectFailures.push(...(await performAll(notes.answered.map((answer) => ({ name: "note_judgment", run: () => deps.recordNoteJudgment(answer.inputTokens) })))));
     return resultOf(true, saved.version, row, write, effects, effectFailures);

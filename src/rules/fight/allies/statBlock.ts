@@ -9,15 +9,34 @@ import type { MonsterStatBlock } from "../../../types/monster.types.ts";
 import type { PcCustomAttackRow, PcMeleeAttackRow, PcRangedAttackRow, PcThrownAttackRow } from "../../../types/pcAttack.types.ts";
 import { emptyDefenses, type StatBlockEntry } from "../../../types/statBlock.types.ts";
 import { proficiencyBonusOf } from "../../proficiencyBonus.ts";
+import { abilityMod } from "../../abilityScore.ts";
 import { attackEntryOf } from "../pcAttacks/entry.ts";
 import { pcAttackRowsOf } from "../pcAttacks/rows.ts";
 import { playerArmorClass, type PlayerSheets } from "../playerSheet.ts";
 import { allySpellcastingEntries, type CastTally } from "./spells.ts";
 import { availableAmmoFor, carriedGearOf, rangedAttackAvailable, rangedSpend, remainingOf, thrownAttackAvailable, thrownSpend, weaponChargesLeft, type AllySpend, type CarriedGear } from "../pcAttacks/gear.ts";
-import { attacksPerAttackAction, sneakAttackFor, type SneakAttack } from "./features.ts";
+import { attacksPerAttackAction, bestOfStrAndDex, featureReady, featureUse, martialArtsDie, memberClasses, sneakAttackFor, type AllyFeature, type SneakAttack } from "./features.ts";
+import type { AttackShape } from "../../features/resolve.ts";
+import { unarmedDamageBase } from "../../features/damageRoll.ts";
 
 /** The row the sheet lists for a stick picked up off the floor: never a weapon the character holds, so never one a turn swings. */
 const IMPROVISED_KEY = "improvised";
+
+const UNARMED_KEY = "unarmed";
+
+/**
+ * RULE martial-arts (PHB 2014 "Monk: Martial Arts"; PHB 2024 "Martial Arts"): a Monk's Unarmed Strike rolls the Martial Arts die in place of
+ * the flat 1 + Strength, and uses Dexterity or Strength, whichever is better, for the attack and the damage. The die is the sheet's
+ * catalogue `scaling` (`martialArtsDie`) and the damage is the sheet's own `unarmedDamageBase`. Any other member's strike is the row as
+ * listed (a Wild Shaped member's attacks are the form's, so this is never reached for one).
+ */
+function martialArtsRow(sheets: PlayerSheets, member: PlayerSheets["members"][number], row: AllyRow): AllyRow {
+  const die = martialArtsDie(sheets, member.id);
+  if (die === null) return row;
+  const mod = bestOfStrAndDex(member);
+  const damage = unarmedDamageBase({ strMod: abilityMod(member.str), dexMod: abilityMod(member.dex), martialArtsDie: die });
+  return { ...row, attackBonus: mod + proficiencyBonusOf(member), damageDice: `${damage.base}${damage.modifier === 0 ? "" : damage.modifier > 0 ? `+${damage.modifier}` : String(damage.modifier)}`, damageFixed: null } as AllyRow;
+}
 
 /** One attack an ally can make now: the entry on the block and the sheet row it was made from. */
 type AllyRow = PcMeleeAttackRow | PcRangedAttackRow | PcThrownAttackRow | PcCustomAttackRow;
@@ -41,8 +60,9 @@ function allyAttacks(sheets: PlayerSheets, memberId: string): AllyAttack[] | nul
   // Entries are found by name, so a held dagger that can be stabbed and thrown names its throw apart.
   const named = new Set<string>();
   const attacks: AllyAttack[] = [];
-  const take = (row: AllyRow, suffix: string) => {
-    if (row.key === IMPROVISED_KEY) return;
+  const take = (made: AllyRow, suffix: string) => {
+    if (made.key === IMPROVISED_KEY) return;
+    const row = made.key === UNARMED_KEY ? martialArtsRow(sheets, member, made) : made;
     const entry = attackEntryOf(row);
     if (entry === null) return;
     const name = named.has(entry.name) ? `${entry.name}${suffix}` : entry.name;
@@ -88,6 +108,30 @@ function extraAttackEntries(attacks: readonly AllyAttack[], perAction: number, g
   }));
 }
 
+const ACTION_SURGE = "Action Surge";
+
+/** The class feature a Multiattack entry of this block stands for (Action Surge), or null: what `take_turn` spends the sheet's use for. */
+export function allyEntryFeature(action: string): AllyFeature | null {
+  return action.startsWith(`${ACTION_SURGE} (`) ? "action_surge" : null;
+}
+
+/**
+ * RULE action-surge (PHB 2014 "Fighter: Action Surge"; PHB 2024 "Action Surge"): on their turn the Fighter takes one additional action, once
+ * per short rest (two uses from 17th level). The extra action is spent attacking: each attack that can be swung that many times
+ * is offered as one more Multiattack entry of twice the Attack action's swings, so the tactics weigh it by its expected damage
+ * like any other attack (and so use it whenever an attack is in reach and a use is left). It is on the block only while the sheet
+ * holds a use. Spells are not cast with the extra action yet.
+ */
+function actionSurgeEntries(sheets: PlayerSheets, memberId: string, attacks: readonly AllyAttack[], perAction: number, gear: CarriedGear): StatBlockEntry[] {
+  if (!featureReady(featureUse(sheets, memberId, "action_surge"))) return [];
+  const swings = perAction * 2;
+  return attacks.filter((a) => canSwingTimes(a.row, gear, swings)).map((a): StatBlockEntry => ({
+    name: `${ACTION_SURGE} (${a.entry.name})`,
+    description: `Takes an additional action: ${a.entry.name} x${swings}.`,
+    structured: { kind: "multiattack", source: "manual", multiattack: [{ action: a.entry.name, count: swings }] },
+  }));
+}
+
 /**
  * Sneak Attack on the attack named `action` of this member (`sneakAttackFor`: the dice and whether this attack is one it rides, both
  * the sheet's feature rules), or null: no Rogue levels, an attack it does not ride, a Wild Shaped member (the form's attacks are
@@ -100,6 +144,14 @@ export function allySneakAttack(sheets: PlayerSheets, memberId: string, action: 
   const found = (allyAttacks(sheets, memberId) ?? []).find((a) => a.entry.name === action);
   if (found === undefined) return null;
   return sneakAttackFor(sheets.casting.classes.filter((c) => c.party_member_id === memberId), member.ruleset, found.row.shape);
+}
+
+/** The sheet's shape of the attack named `action` on this member's block (weapon, finesse, Strength, unarmed), or null for a Wild Shaped member and for a name not on the block. */
+export function allyAttackShape(sheets: PlayerSheets, memberId: string, action: string): AttackShape | null {
+  const member = sheets.members.find((m) => m.id === memberId);
+  if (member === undefined || member.wildshape_state !== null) return null;
+  const found = (allyAttacks(sheets, memberId) ?? []).find((a) => a.entry.name === action);
+  return found === undefined ? null : found.row.shape;
 }
 
 /**
@@ -126,7 +178,7 @@ export function allyAttackSpend(sheets: PlayerSheets, memberId: string, action: 
  * member with spells ready, a Spellcasting entry per source. `tally` is the member's own combatant's `action_uses` (the casts the
  * fight already counts), which the slot counts of the entry are worked out against.
  */
-export function allyStatBlock(sheets: PlayerSheets, memberId: string, tally?: CastTally): MonsterStatBlock | null {
+export function allyStatBlock(sheets: PlayerSheets, memberId: string, tally?: CastTally, raging = false): MonsterStatBlock | null {
   const member = sheets.members.find((m) => m.id === memberId);
   if (member === undefined) return null;
   const armorClass = playerArmorClass(sheets, memberId);
@@ -154,7 +206,8 @@ export function allyStatBlock(sheets: PlayerSheets, memberId: string, tally?: Ca
   }
   const attacks = allyAttacks(sheets, memberId);
   if (attacks === null) return null;
-  const spellcasting = allySpellcastingEntries(sheets, memberId, tally);
+  // RULE rage (PHB 2014 "Rage"; PHB 2024 "Rage"): you can't cast spells or concentrate on them while raging, so a raging member's block lists none.
+  const spellcasting = raging ? [] : allySpellcastingEntries(sheets, memberId, tally);
 
   return {
     armor_class: armorClass,
@@ -168,7 +221,8 @@ export function allyStatBlock(sheets: PlayerSheets, memberId: string, tally?: Ca
     ...(spellcasting.length === 0 ? {} : { special_abilities: spellcasting }),
     actions: [
       ...attacks.map((a) => a.entry),
-      ...extraAttackEntries(attacks, attacksPerAttackAction(sheets.casting.classes.filter((c) => c.party_member_id === memberId)), carriedGearOf(sheets, memberId)),
+      ...extraAttackEntries(attacks, attacksPerAttackAction(memberClasses(sheets, memberId)), carriedGearOf(sheets, memberId)),
+      ...actionSurgeEntries(sheets, memberId, attacks, attacksPerAttackAction(memberClasses(sheets, memberId)), carriedGearOf(sheets, memberId)),
     ],
   };
 }

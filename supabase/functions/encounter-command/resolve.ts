@@ -17,6 +17,7 @@ import { dnd5eDiceRules } from "../../../src/systems/dnd5e/dice/rules.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { MonsterStatBlock } from "../../../src/types/monster.types.ts";
 import type { SpellSlotEntry } from "../../../src/types/party.types.ts";
+import type { StoredClassResources } from "../../../src/rules/features/characterFeatures.ts";
 import type { SaveAbility } from "../../../src/types/statBlock.types.ts";
 import type { StatBlockEntry } from "../../../src/types/statBlock.types.ts";
 import { statBlockOf, type StatBlockSources } from "../_shared/fightStatBlocks.ts";
@@ -25,7 +26,9 @@ import { holdsConcentration } from "../../../src/rules/conditionDurations.ts";
 import { attackRollMode } from "../../../src/rules/combat/attackRoll.ts";
 import { isIncapacitated } from "../../../src/rules/conditions.ts";
 import { isHostileTo } from "../../../src/rules/fight/sides.ts";
-import { allySneakAttack } from "../../../src/rules/fight/allies/statBlock.ts";
+import { allySlotSpend, settleSlotSpend } from "../../../src/rules/fight/allies/spells.ts";
+import { allyAttackShape, allySneakAttack } from "../../../src/rules/fight/allies/statBlock.ts";
+import { RAGE_RESISTANCES, RAGING, divineSmiteFor, rageDamageFor } from "../../../src/rules/fight/allies/features.ts";
 import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "../../../src/rules/fight/targeting.ts";
 import { applyFightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightDeps, FightResult } from "../../../src/rules/fight/fightEvents.ts";
@@ -418,6 +421,8 @@ export interface ResolveEnv {
   spent: Array<{ spend: AllySpend; speaker: string }>;
   /** The slots an ally's casts used up, as the sheet's whole slot list after each cast, in order, for the caller to write once the fight is saved (#1021). */
   slotsSpent: Array<{ memberId: string; slots: SpellSlotEntry[] }>;
+  /** The sheet's `class_resources` as they stand after an ally used a limited class feature (Rage, Second Wind, Action Surge, Ki), the whole list, in order, for the caller to write once the fight is saved (#1021). */
+  resourcesSpent: Array<{ memberId: string; resources: StoredClassResources }>;
   /**
    * Asks whether each turn goes against a creature's note (#1203), once per distinct `key`; null when asking is not
    * allowed or did not work. Left out where no note is ever consulted.
@@ -488,6 +493,12 @@ function dueCondition(c: RunCombatant, name: string, what: "save" | "damage") {
   return found as NonNullable<typeof found>;
 }
 
+/** RULE rage (PHB 2014 and 2024 "Rage"): a raging creature resists bludgeoning, piercing and slashing damage. */
+function ragingDefenses(c: RunCombatant, defenses: ReturnType<typeof combatantDefenses>): ReturnType<typeof combatantDefenses> {
+  if (!c.conditions.some((x) => x.name === RAGING)) return defenses;
+  return { ...defenses, resistances: [...defenses.resistances, { types: [...RAGE_RESISTANCES] }] };
+}
+
 /**
  * Applies one resolving command to the fight: rolls what it needs, adjudicates, and returns the fight it leaves
  * and what that raised, ending with a `resolved` effect that says what happened in numbers. Throws
@@ -500,7 +511,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     ruleset: state.ruleset,
     dice: makeDice(env.rollDie, supplyFor(command), env.posted),
     armorClassFor: (c) => armorClassOf(c, env.players),
-    defensesFor: (c) => combatantDefenses(c, env.sources),
+    defensesFor: (c) => ragingDefenses(c, combatantDefenses(c, env.sources)),
     saveBonusFor: (c, ability) => saveBonusOf(c, ability, env),
     live: (c) => holder.state.combatants.find((x) => x.instance_id === c.instance_id) ?? c,
     factionOf: (id) => holder.state.combatants.find((x) => x.instance_id === id)?.faction_id ?? null,
@@ -536,6 +547,21 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
   };
 
   /**
+   * RULE rage (PHB 2014 "Barbarian: Rage"; PHB 2024 "Rage"): a raging party member's Strength weapon attack adds the Rage Damage to the hit
+   * (`rageDamageFor`: the sheet catalogue's own value and riders). A flat amount, so a critical hit does not double it. The entry as it
+   * is for anyone who is not raging, and for an attack the rider does not ride.
+   */
+  const rageIn = (attacker: RunCombatant, entry: StatBlockEntry): StatBlockEntry => {
+    const attack = entry.structured?.attack;
+    if (attacker.type !== "player" || attacker.party_member_id === undefined || attack === undefined) return entry;
+    if (!attacker.conditions.some((c) => c.name === RAGING)) return entry;
+    const bonus = rageDamageFor(env.players, attacker.party_member_id, allyAttackShape(env.players, attacker.party_member_id, entry.name));
+    if (bonus === null) return entry;
+    const type = attack.hit[0] === undefined ? null : attack.hit[0].type;
+    return { ...entry, structured: { ...entry.structured, attack: { ...attack, hit: [...attack.hit, { dice: String(bonus), type }] } } };
+  };
+
+  /**
    * RULE sneak-attack (PHB 2014 "Rogue: Sneak Attack"; PHB 2024 "Sneak Attack"): once per turn, a hit with a finesse or ranged
    * weapon deals the Rogue's Sneak Attack dice more when the attacker has advantage on the roll, or another enemy of the target
    * stands within 5 feet of it, is not incapacitated, and the attacker has no disadvantage. The mode is worked out here with the
@@ -566,6 +592,22 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     if (mode !== "advantage" && !(mode === "normal" && flanked)) return null;
     const type = attack.hit[0] === undefined ? null : attack.hit[0].type;
     return { useKey, entry: { ...entry, structured: { ...entry.structured, attack: { ...attack, hit: [...attack.hit, { dice: sneak.dice, type }] } } } };
+  };
+
+  /**
+   * RULE divine-smite (PHB 2014 "Paladin: Divine Smite"; PHB 2024 "Divine Smite", `divineSmiteFor`): a Paladin's melee weapon hit adds the smite's radiant
+   * dice, doubled on a critical hit like any die, and spends the slot. Once per turn is the ally's tactic and not a rule of the book (2014 allows a smite on every hit): it keeps slots for the next fight. Tallied as `smite/<own turns started>` in
+   * `action_uses`, as Sneak Attack is (that one is the book's rule). In 2024 it is cast only while the Bonus Action is free. Null for anyone who is not an ally Paladin, a swing it does not ride, or one already spent.
+   */
+  const smiteIn = (attacker: RunCombatant, target: RunCombatant, entry: StatBlockEntry): { entry: StatBlockEntry; useKey: string; slotLevel: number; needsBonusAction: boolean } | null => {
+    const attack = entry.structured?.attack;
+    if (attacker.type !== "player" || attacker.party_member_id === undefined || attack === undefined) return null;
+    const kind = creatureKindOf(target, env.sources);
+    const smite = divineSmiteFor(env.players, attacker.party_member_id, allyAttackShape(env.players, attacker.party_member_id, entry.name), kind === "fiend" || kind === "undead");
+    if (smite === null || (smite.needsBonusAction && attacker.bonus_used === true)) return null;
+    const useKey = `smite/${attacker.shown_deeds === undefined ? 0 : attacker.shown_deeds.turns}`;
+    if (!limitAvailability(attacker, useKey, { per_day: 1 }).available) return null;
+    return { entry: { ...entry, structured: { ...entry.structured, attack: { ...attack, hit: [...attack.hit, ...smite.dice.map((dice) => ({ dice, type: "radiant" as const }))] } } }, useKey, slotLevel: smite.slotLevel, needsBonusAction: smite.needsBonusAction };
   };
 
   const castSpell = async (cast: Extract<ResolvingCommand, { type: "cast_spell" }>): Promise<void> => {
@@ -674,9 +716,11 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
         const near = command.withinFiveFeet ?? withinFiveFeet(attacker, target);
         if (near === null) refuse(`Say whether ${attacker.name} is within five feet of ${target.name}: one of them has no place on the map.`);
         const facts = rangedFacts(attacker, target, entry, near as boolean);
-        const sneak = sneakAttackIn(attacker, target, entry, near as boolean, facts);
+        const raged = rageIn(attacker, entry);
+        const sneak = sneakAttackIn(attacker, target, raged, near as boolean, facts);
+        const smite = smiteIn(attacker, target, sneak === null ? raged : sneak.entry);
         const done = await resolveAttackOn(ctx, {
-          attacker, entry: sneak === null ? entry : sneak.entry, target, withinFiveFeet: near as boolean, extraPenalty: command.penalty, magical: command.magical,
+          attacker, entry: smite === null ? (sneak === null ? raged : sneak.entry) : smite.entry, target, withinFiveFeet: near as boolean, extraPenalty: command.penalty, magical: command.magical,
           ...facts,
         });
         collected.push({ type: "resolved", resolved: done.summary });
@@ -685,6 +729,23 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
           const spent = applyFightCommand(holder.state, { type: "use_action", instanceId: attacker.instance_id, action: sneak.useKey, limit: { per_day: 1 } }, env.fightDeps);
           holder.state = spent.state;
           collected.push(...spent.effects);
+        }
+        // A Divine Smite is paid for by a hit that carried it: the slot goes to the sheet, and in 2024 the Bonus Action is the cast's.
+        if (smite !== null && done.summary.hit) {
+          const used = applyFightCommand(holder.state, { type: "use_action", instanceId: attacker.instance_id, action: smite.useKey, limit: { per_day: 1 } }, env.fightDeps);
+          holder.state = used.state;
+          collected.push(...used.effects);
+          if (smite.needsBonusAction) {
+            const bonus = applyFightCommand(holder.state, { type: "set_bonus_used", instanceId: attacker.instance_id, used: true }, env.fightDeps);
+            holder.state = bonus.state;
+            collected.push(...bonus.effects);
+          }
+          const memberId = attacker.party_member_id as string;
+          const slots = allySlotSpend(env.players, memberId, smite.slotLevel);
+          if (slots !== null) {
+            env.slotsSpent.push({ memberId, slots });
+            settleSlotSpend(env.players, memberId, slots);
+          }
         }
         break;
       }

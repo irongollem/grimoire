@@ -12,7 +12,7 @@
 // A creature that lists spells is offered its damage spells (#1021): a cone or a line is not offered, a cast is carried out by
 // `cast_spell` (which spends the slot or use and the Action), and nothing but damage is cast. A party member the AI plays (an ally, #1021) is seen
 // through a stat block made from their own sheet (`allyStatBlock`: their weapons and bare hands, or the form they are Wild Shaped into; a ranged attack
-// uses up ammunition and a throw the weapon, `env.spent`; the spells they have ready are a Spellcasting entry and a slot they cast with is written to the sheet, `env.slotsSpent`; Extra Attack is a Multiattack entry on the block and Sneak Attack is added by `resolve_attack`, `allies/features.ts`), so everything below plays them as it plays a monster; one at 0 hit points rolls a death save instead. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
+// uses up ammunition and a throw the weapon, `env.spent`; the spells they have ready are a Spellcasting entry and a slot they cast with is written to the sheet, `env.slotsSpent`; Extra Attack and Action Surge are Multiattack entries on the block, Sneak Attack, Rage and Divine Smite are added by `resolve_attack`, and the Bonus Action (Second Wind, Rage, Flurry of Blows, Martial Arts) is a modifier on the picked turn, `tactics/bonusAction.ts`; their limited uses are written to the sheet after the save, `env.resourcesSpent`; `allies/features.ts`), so everything below plays them as it plays a monster; one at 0 hit points rolls a death save instead. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
 // the fight after its move and the reply says so (`leftTheMap`); that is not a defeat. A broken creature with a way out (Etherealness, Invisible
 // Passage) uses it first (`escapedWith`). A Multiattack that drops its target does not redirect the swings it has left.
 
@@ -22,7 +22,9 @@ import { NORMAL_ROLL, rollWithRules } from "../../../src/lib/dice/diceRules.ts";
 import { dnd5eDiceRules } from "../../../src/systems/dnd5e/dice/rules.ts";
 import { allyProfile } from "../../../src/rules/fight/allies/profile.ts";
 import { settleSpend } from "../../../src/rules/fight/pcAttacks/gear.ts";
-import { allyAttackSpend, allyStatBlock } from "../../../src/rules/fight/allies/statBlock.ts";
+import { allyAttackShape, allyAttackSpend, allyEntryFeature, allyStatBlock } from "../../../src/rules/fight/allies/statBlock.ts";
+import { RAGING, featureReady, featureSpend, featureUse, martialArtsDie, rageDamageFor, rageStartedOnSheet, ragingCondition, settleFeatureSpend, type AllyFeature } from "../../../src/rules/fight/allies/features.ts";
+import { bonusSteps, chooseBonusAction, type BonusFeature } from "../../../src/rules/fight/tactics/bonusAction.ts";
 import { allySlotSpend, settleSlotSpend } from "../../../src/rules/fight/allies/spells.ts";
 import { applyFightCommand, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
@@ -30,7 +32,7 @@ import type { FightEffect, FightState } from "../../../src/rules/fight/fightStat
 import { saveBonusFromBlock } from "../../../src/rules/fight/resolution/saves.ts";
 import { playerSaveBonus } from "../../../src/rules/fight/playerSheet.ts";
 import { listedSpellNames } from "../../../src/rules/fight/spells/castNow.ts";
-import { stepsFor } from "../../../src/rules/fight/tactics/carryOut.ts";
+import { stepsFor, type TurnStep } from "../../../src/rules/fight/tactics/carryOut.ts";
 import { DODGING, disengagedCondition, dodgingCondition } from "../../../src/rules/fight/stances.ts";
 import { gateOptions, pickTurn } from "../../../src/rules/fight/tactics/pick.ts";
 import { withNumbers } from "../../../src/rules/fight/tactics/numbers.ts";
@@ -136,9 +138,18 @@ function takeDeathSave(state: FightState, mover: RunCombatant, command: TakeTurn
   };
 }
 
-export async function applyTakeTurn(state: FightState, command: TakeTurnCommand, callEnv: ResolveEnv): Promise<FightResult> {
-  const mover = state.combatants.find((c) => c.instance_id === command.instanceId);
-  if (!mover) return refuse(`No creature "${command.instanceId}" is in this fight.`);
+export async function applyTakeTurn(fightState: FightState, command: TakeTurnCommand, callEnv: ResolveEnv): Promise<FightResult> {
+  let state = fightState;
+  const sheetEffects: FightEffect[] = [];
+  const found = state.combatants.find((c) => c.instance_id === command.instanceId);
+  if (!found) return refuse(`No creature "${command.instanceId}" is in this fight.`);
+  // A rage the player started by hand on the sheet is a rage in the fight: the mover is Raging, and no use is spent for it again.
+  if (found.type === "player" && found.party_member_id !== undefined && found.hp > 0 && !found.conditions.some((c) => c.name === RAGING) && rageStartedOnSheet(callEnv.players, found.party_member_id)) {
+    const raged = applyFightCommand(state, { type: "apply_condition", instanceId: found.instance_id, condition: ragingCondition(found.instance_id) }, callEnv.fightDeps);
+    state = raged.state;
+    sheetEffects.push(...raged.effects);
+  }
+  const mover = state.combatants.find((c) => c.instance_id === command.instanceId) as RunCombatant;
   if (mover.bystander === true) return refuse(`${mover.name} is no fighter the rules can play: their turn is their own.`);
   const ally = mover.type === "player" && mover.party_member_id !== undefined;
   if (mover.hp <= 0) return ally ? takeDeathSave(state, mover, command, callEnv) : refuse(`${mover.name} is at 0 hit points and cannot take a turn.`);
@@ -157,7 +168,7 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
   for (const id of allyIds) {
     // The slot counts of its spells are worked out against the casts this fight already tallies for the member.
     const own = state.combatants.find((c) => c.type === "player" && c.party_member_id === id);
-    const made = allyStatBlock(callEnv.players, id, own?.action_uses);
+    const made = allyStatBlock(callEnv.players, id, own?.action_uses, own?.conditions.some((c) => c.name === RAGING) === true);
     if (made !== null) allies[id] = made;
   }
   const env: ResolveEnv = allyIds.size === 0 ? callEnv : { ...callEnv, sources: { ...callEnv.sources, allies } };
@@ -220,14 +231,25 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
   const option = gated.find((o) => o.id === chosen.optionId);
   if (option === undefined) return refuse("That option is not on offer.");
 
-  const steps = stepsFor(option, attacks);
+  let steps = stepsFor(option, attacks);
+  // A party member the AI plays may spend its Bonus Action on a class feature: a modifier on the turn the picker chose, not a turn of its own.
+  // Only when the rules picked: a turn the caller named is exactly that turn.
+  let bonusReason: string | null = null;
+  if (ally && picked !== "caller") {
+    const bonus = allyBonusAction(mover, option, env);
+    if (bonus !== null) {
+      bonusReason = bonus.reason;
+      steps = bonus.when === "before" ? [...bonus.steps, ...steps] : [...steps, ...bonus.steps];
+    }
+  }
   const leaves = steps.some((s) => s.type === "leave");
   const escape = option.kind === "escape" ? option.escape : undefined;
   // A move over a map the rules can read nothing on (a picture with no walls, rock or difficult ground drawn): say so.
   const bare = env.map !== null && option.feet !== null && option.feet > 0 && env.map.occluders.segments.length === 0 && env.map.solid.size === 0 && env.map.difficult.size === 0;
   const effects: FightEffect[] = [
-    { type: "turn_taken", turn: { instanceId: mover.instance_id, optionId: option.id, kind: option.kind, summary: option.summary, reason: chosen.reason, picked, ...(speaksInAFight(block, creatureTypeOf(mover, env)) ? { speaks: true as const } : {}), ...(ruledOutByNote === undefined ? {} : { ruledOutByNote }), ...(leaves && escape === undefined ? { leftTheMap: true as const } : {}), ...(escape === undefined ? {} : { escapedWith: escape.name, escapeEffect: escape.effect }), ...(bare ? { bareMap: true as const } : {}) } },
+    { type: "turn_taken", turn: { instanceId: mover.instance_id, optionId: option.id, kind: option.kind, summary: option.summary, reason: bonusReason === null ? chosen.reason : `${chosen.reason} ${bonusReason}`, picked, ...(speaksInAFight(block, creatureTypeOf(mover, env)) ? { speaks: true as const } : {}), ...(ruledOutByNote === undefined ? {} : { ruledOutByNote }), ...(leaves && escape === undefined ? { leftTheMap: true as const } : {}), ...(escape === undefined ? {} : { escapedWith: escape.name, escapeEffect: escape.effect }), ...(bare ? { bareMap: true as const } : {}) } },
   ];
+  effects.push(...sheetEffects);
   let next = state;
   const apply = (cmd: FightCommand) => {
     const result = applyFightCommand(next, cmd, env.fightDeps);
@@ -300,6 +322,30 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
         effects.push(...done.effects);
         break;
       }
+      case "feature": {
+        // A feature the sheet pays for: Second Wind heals, Rage starts, Flurry of Blows spends its Ki (#1021).
+        if (!ally) break;
+        const memberId = mover.party_member_id as string;
+        const flurryAt = step.targetId === null ? undefined : next.combatants.find((c) => c.instance_id === step.targetId);
+        // A Flurry whose target already dropped is not spent: the strikes after the Attack action have no one to land on.
+        if (step.feature === "flurry" && (flurryAt === undefined || flurryAt.hp <= 0)) break;
+        const use = featureUse(env.players, memberId, step.feature);
+        if (!featureReady(use)) break;
+        if (step.feature === "second_wind") {
+          // RULE second-wind (PHB 2014 "Fighter: Second Wind"; PHB 2024 "Second Wind"): regain 1d10 + the Fighter level hit points.
+          const roll = rollWithRules(dnd5eDiceRules, { 10: 1 }, use.classLevel, NORMAL_ROLL, env.rollDie);
+          roll.label = dnd5eDiceRules.tagLabel("Second Wind", NORMAL_ROLL, { 10: 1 });
+          env.posted.push({ result: roll, speaker: mover.name, serverRolled: true });
+          apply({ type: "adjust_hp", instanceId: mover.instance_id, delta: roll.total });
+        } else if (step.feature === "rage") {
+          // RULE rage (PHB 2014 "Rage"; PHB 2024 "Rage"): lasts one minute, ten rounds, which also ends it with the fight.
+          apply({ type: "apply_condition", instanceId: mover.instance_id, condition: ragingCondition(mover.instance_id) });
+          // RULE rage (PHB 2014 and 2024 "Rage"): you can't concentrate on a spell while raging, so starting a Rage ends the concentration held.
+          apply({ type: "end_concentration", instanceId: mover.instance_id });
+        }
+        paySheet(env, memberId, step.feature);
+        break;
+      }
       case "spend":
         apply({ type: "use_action", instanceId: mover.instance_id, action: step.useKey, limit: step.limit });
         break;
@@ -317,5 +363,40 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
         break;
     }
   }
+  // Action Surge is an entry of the block like any attack: the sheet is charged for it when that entry was the turn (#1021).
+  const surged = ally && option.attack !== null ? allyEntryFeature(option.attack.action) : null;
+  if (surged !== null) paySheet(env, mover.party_member_id as string, surged);
   return { state: next, effects };
 }
+
+/** Charges the sheet one use of a class feature and keeps it in memory, so the next turn of the request finds what this one left; written once the fight is saved. */
+function paySheet(env: ResolveEnv, memberId: string, feature: AllyFeature): void {
+  const resources = featureSpend(env.players, memberId, feature);
+  if (resources === null) return;
+  env.resourcesSpent.push({ memberId, resources });
+  settleFeatureSpend(env.players, memberId, resources);
+}
+
+/**
+ * The Bonus Action a party member the AI plays takes with the turn the picker chose (`chooseBonusAction`), as steps to run before or
+ * after it; null when it takes none. What is ready is read from the sheet: the class level, a use left, and a free Bonus Action.
+ */
+function allyBonusAction(mover: RunCombatant, option: TurnOption, env: ResolveEnv): { steps: TurnStep[]; when: "before" | "after"; reason: string } | null {
+  const id = mover.party_member_id as string;
+  const action = option.attack === null ? "" : option.attack.steps === null ? option.attack.action : option.attack.steps[0].action;
+  const ready = (f: AllyFeature) => featureReady(featureUse(env.players, id, f));
+  const readyFor: Record<BonusFeature, boolean> = {
+    second_wind: ready("second_wind"), rage: ready("rage"), flurry: ready("flurry"), martial_arts: martialArtsDie(env.players, id) !== null,
+  };
+  const choice = chooseBonusAction({
+    mover, chosen: option, ready: readyFor,
+    raging: mover.conditions.some((c) => c.name === RAGING),
+    rageRides: option.attack !== null && rageDamageFor(env.players, id, allyAttackShape(env.players, id, action)) !== null,
+    unarmed: action === UNARMED_STRIKE, unarmedAction: UNARMED_STRIKE,
+  });
+  if (choice === null) return null;
+  const steps = bonusSteps(choice, option.targetId, UNARMED_STRIKE);
+  return steps.length === 0 ? null : { steps, when: choice.when, reason: choice.reason };
+}
+
+const UNARMED_STRIKE = "Unarmed Strike";

@@ -28,7 +28,14 @@ export type PlayerSheetRow = Pick<
   | "speed" | "level" | "custom_attacks"
   // The slots an ally casts with, spent as they cast (#1021).
   | "spell_slots"
-> & { wildshape_state: WildshapeState | null };
+> & {
+  wildshape_state: WildshapeState | null;
+  /**
+   * The limited uses the sheet keeps (`class_resources`: Rage, Second Wind, Action Surge, Ki), spent by the features an ally fights
+   * with (#1021). Absent reads as no entry stored, which the sheet itself reads as every pool full.
+   */
+  class_resources?: PartyMember["class_resources"];
+};
 
 /**
  * A Wild Shape form's stat block as the server reads it: always the three scores that replace the character's own (a

@@ -1,4 +1,4 @@
-import { parseExpression, parsedToCounts, type DieSize } from "@/lib/dice/dice";
+import { parseExpression, parsedToCounts, type DieSize } from "../../lib/dice/dice.ts";
 
 /**
  * Putting a weapon's damage and its riders into one roll (#976). Pure: the
