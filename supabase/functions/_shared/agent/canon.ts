@@ -10,7 +10,7 @@
 // Two things it writes back, and nothing else of the canon: `bring_out` ticks a clue found or a passage told, and
 // the invention rule files facts as before. Never a clock, a reveal or a truth.
 
-import { tiptapToPlainText } from "../../../../src/lib/tiptap/tiptapText.ts";
+import { plainWithoutSecrets } from "../secretBlocks.ts";
 import { ABSOLUTE_CEILING, RELATIVE_MARGIN } from "../campaignSearch.ts";
 import { UUID_RE } from "./parse.ts";
 import type { AgentTool, ToolAnswer } from "./types.ts";
@@ -32,21 +32,12 @@ export const PREVIOUSLY_MAX = 600;
 export const LOOKUP_PARTS = ["truth", "force", "question", "lore", "premise"] as const;
 
 export function plain(text: string | null | undefined, max: number): string {
-  const flat = tiptapToPlainText(text).replace(/\s+/g, " ").trim();
+  // DM-only passages never reach the Narrator, whatever the field.
+  const flat = plainWithoutSecrets(text).replace(/\s+/g, " ").trim();
   return flat.length <= max ? flat : `${flat.slice(0, max - 1).trimEnd()}…`;
 }
 
 // ── Previously ────────────────────────────────────────────────────────────────────────────────────────────────
-
-/** Removes every `secretBlock` node, at any depth, as `private.withhold_secret_blocks` does for a player's copy. */
-function withoutSecretBlocks(node: unknown): unknown {
-  if (Array.isArray(node)) return node.map(withoutSecretBlocks).filter((n) => n !== null);
-  if (typeof node !== "object" || node === null) return node;
-  const record = node as Record<string, unknown>;
-  if (record.type === "secretBlock") return null;
-  if (Array.isArray(record.content)) return { ...record, content: withoutSecretBlocks(record.content) };
-  return record;
-}
 
 /**
  * A short plain excerpt of a chronicle entry (a note linked to a session): what the party knows happened, never a
@@ -54,14 +45,36 @@ function withoutSecretBlocks(node: unknown): unknown {
  */
 export function chronicleExcerpt(content: string | null, max: number = PREVIOUSLY_MAX): string {
   if (content === null || content.trim() === "") return "";
-  let text = content;
-  try {
-    const doc: unknown = JSON.parse(content);
-    if (typeof doc === "object" && doc !== null) text = JSON.stringify(withoutSecretBlocks(doc));
-  } catch {
-    // Legacy plain text.
+  return plain(content, max);
+}
+
+export interface SittingRow {
+  id: string;
+  number: number | null;
+  started_at: string | null;
+  played_on: string | null;
+  created_at: string;
+}
+
+export interface ChronicleRow {
+  session_id: string;
+  content: string | null;
+  created_at: string;
+}
+
+/**
+ * The chronicle entry of the latest sitting that has one, ordered as the session log orders (when it ran, else the
+ * day it was logged for, then its number), never by when the note was written: a chronicle written late for an
+ * earlier session is still that session's. Within a sitting, its newest note.
+ */
+export function latestChronicle(sessions: readonly SittingRow[], notes: readonly ChronicleRow[]): ChronicleRow | null {
+  const when = (s: SittingRow): number => Date.parse(s.started_at ?? s.played_on ?? s.created_at);
+  const ordered = [...sessions].sort((a, b) => when(b) - when(a) || (b.number ?? -1) - (a.number ?? -1));
+  for (const session of ordered) {
+    const mine = notes.filter((n) => n.session_id === session.id).sort(()=>0);
+    if (mine.length > 0) return mine[0];
   }
-  return plain(text, max);
+  return null;
 }
 
 /** The standing "Previously" block; empty with no earlier sitting. */
@@ -258,6 +271,8 @@ export interface CanonLookupEntry {
   title: string;
   /** The entry's text, and for lore every passage's. */
   text: string;
+  /** `all`, `some` or `secret` for a truth; absent for everything else. */
+  knowledge?: string | null;
   /** Who knows a truth only some know; empty for everything else. */
   knownTo: string[];
   /** The latest step a force has reached. */
@@ -269,7 +284,12 @@ export function lookupAnswer(entries: readonly CanonLookupEntry[]): string {
   return entries
     .map((e) => {
       const label =
-        e.part === "truth" ? (e.knownTo.length > 0 ? `Truth, known only to ${e.knownTo.join(", ")}: nobody else may say it` : "Truth known to all")
+        e.part === "truth"
+          ? e.knownTo.length > 0
+            ? `Truth, known only to ${e.knownTo.join(", ")}: nobody else may say it`
+            : e.knowledge === "some"
+              ? "Truth known to some, nobody named: nobody present may say it"
+              : "Truth known to all"
           : e.part === "question" ? "Open question: nobody settles it"
             : e.part === "force" ? "Force"
               : e.part === "lore" ? "Lore"

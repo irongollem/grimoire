@@ -58,11 +58,17 @@ create trigger note_sorting_signal_delete after delete on public.note_sorting
 insert into private.demo_campaign_tables (table_name, tier, copy, reason)
 values ('note_sorting', 1, false, 'A one-time list of the DM''s own notes still to sort; a copied campaign starts with nothing to sort.');
 
+-- A session report not linked to a session, and any other note that IS linked to one (a 'general' or 'dm' note tied
+-- to a session would otherwise become its chronicle entry, and reach the Chronicler's recall, without the DM saying
+-- so; production held none on 20 Nov 2026), go on the list as session notes for the DM to place.
 insert into public.note_sorting (note_id, user_id, campaign_id, was)
-select n.id, n.user_id, n.campaign_id, n.category
+select n.id, n.user_id, n.campaign_id,
+       case when n.category = 'lore' then 'lore' else 'session' end
   from public.notes n
  where n.campaign_id is not null
-   and (n.category = 'lore' or (n.category = 'session' and n.session_id is null));
+   and (n.category = 'lore'
+        or (n.category = 'session' and n.session_id is null)
+        or (n.category not in ('session', 'lore') and n.session_id is not null));
 
 -- ── 2. A canon entry has no chronicle part ────────────────────────────────────
 alter table public.canon_entries drop constraint canon_entries_part;

@@ -74,6 +74,18 @@ describe("useTableConversation", () => {
     expect(r.data.value?.sitting.credits_spent).toBe(3);
   });
 
+  // Bug caught: a fact the DM struck (it never happened) still told in the story.
+  it("leaves a struck fact out of the story", async () => {
+    fake.seed("agent_sessions", [session("s1")]);
+    fake.seed("story_facts", [
+      { id: "f1", campaign_id: "c1", agent_session_id: "s1", known_to_player: true, body: "Kept.", struck_at: null, created_at: "2026-11-10T10:00:00Z" },
+      { id: "f2", campaign_id: "c1", agent_session_id: "s1", known_to_player: true, body: "Struck.", struck_at: "2026-11-11T10:00:00Z", created_at: "2026-11-10T10:01:00Z" },
+    ]);
+    const r = mountWith(() => useTableConversation("s1", "c1"));
+    await vi.waitFor(() => expect(r.data.value).toBeDefined());
+    expect(r.data.value?.items.map((i) => ("text" in i ? i.text : ""))).toEqual(["Kept."]);
+  });
+
   // Bug caught: a reloaded sitting losing its countdown; the label (what is coming) reaching the page; or a clock
   // of another campaign being drawn because the read named only its id.
   it("reads how full this campaign's pressure clock is, and nothing else of it", async () => {

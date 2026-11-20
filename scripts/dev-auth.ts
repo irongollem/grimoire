@@ -256,12 +256,12 @@ function cloneRichestCampaign(dbUrl: string, ownerId: string): number {
     select gen_random_uuid() as id;
 
     insert into public.campaigns (
-      id, user_id, name, description, setting, current_year, calendar_id, theme,
+      id, user_id, name, setting, current_year, calendar_id, theme,
       excluded_monster_ids, health_visibility, immersive_rolls, disabled_class_names,
       optional_rules, allow_chronicle_promotion, is_archived, current_month, current_day,
       ai_enabled, game_system, currency
     )
-    select n.id, ${quote(ownerId)}, c.name || ' (fixture)', c.description, c.setting,
+    select n.id, ${quote(ownerId)}, c.name || ' (fixture)', c.setting,
            c.current_year, c.calendar_id, c.theme, c.excluded_monster_ids,
            c.health_visibility, c.immersive_rolls, c.disabled_class_names,
            c.optional_rules, c.allow_chronicle_promotion, c.is_archived,

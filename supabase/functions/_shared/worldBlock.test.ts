@@ -51,6 +51,20 @@ describe("worldBlockFromRows", () => {
     expect(block.pitch).toBe("A drowned kingdom.");
   });
 
+  // Bug caught: a pitch with a heading and a body (the book import) reached every generator as its heading alone.
+  it("reads a text premise's body under its heading, and the title alone when there is no body", () => {
+    const body = JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A drowned kingdom." }] }] });
+    expect(worldBlockFromRows(null, [premise("pitch", "The Sunken Crown", body)]).pitch).toBe("The Sunken Crown: A drowned kingdom.");
+    expect(worldBlockFromRows(null, [premise("voice", "Dry and warm", null)]).voice).toBe("Dry and warm");
+    expect(worldBlockFromRows(null, [premise("line", "Gore", body)]).lines).toEqual(["Gore"]);
+  });
+
+  // Bug caught: a secret block inside a premise body went to every generator.
+  it("never lets a DM-only block of a premise body through", () => {
+    const body = JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Open." }] }, { type: "secretBlock", content: [{ type: "paragraph", content: [{ type: "text", text: "HIDDEN" }] }] }] });
+    expect(worldBlockFromRows(null, [premise("pitch", "", body)]).pitch).toBe("Open.");
+  });
+
   it("orders entries by sort_order and joins several voice entries", () => {
     const block = worldBlockFromRows(null, [
       row({ part: "premise", premise_kind: "voice", title: "second", sort_order: 5 }),
@@ -108,6 +122,16 @@ describe("worldImageSetting", () => {
     expect(setting).toContain("Gouache, muted greens");
     expect(setting).toContain("Never depict: Gore");
     expect(setting).not.toContain("PITCH");
+    expect(setting).not.toContain("VOICE");
+  });
+
+  // Bug caught: an old setting prompt that carried the visual style (migrated into the pitch) was lost from every picture.
+  it("falls back to the pitch, capped, when there is no look, and still never carries the voice", () => {
+    const setting = worldImageSetting(
+      worldBlockFromRows("Sothery", [premise("pitch", `Watercolour fens. ${"x".repeat(600)}`), premise("voice", "VOICE-MARKER")]),
+    );
+    expect(setting).toContain("Setting: Watercolour fens.");
+    expect(setting.length).toBeLessThan(450);
     expect(setting).not.toContain("VOICE");
   });
 

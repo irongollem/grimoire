@@ -4,6 +4,7 @@ import {
   capCanonHere,
   CANON_LIST_MAX,
   chronicleExcerpt,
+  latestChronicle,
   LOOKUP_HITS_MAX,
   LOOKUP_PARTS,
   lookupAnswer,
@@ -147,6 +148,13 @@ describe("the lookup", () => {
     expect(text).toContain("known only to Miss Pellam: nobody else may say it");
   });
 
+  // Bug caught: a some-know truth with nobody named was worded "Truth known to all", so the Narrator said it freely.
+  it("never words a some-know truth as known to all, named knowers or not", () => {
+    const text = lookupAnswer([{ part: "truth", title: "The abbot is a lich", text: "", knowledge: "some", knownTo: [], step: null }]);
+    expect(text).not.toContain("known to all");
+    expect(text).toContain("nobody named");
+  });
+
   it("includes a lore entry's text, passages and all, and a force's latest step", () => {
     const text = lookupAnswer([
       { part: "lore", title: "The Drowned Bell", text: "A bell. Second passage: it rang once.", knownTo: [], step: null },
@@ -158,6 +166,25 @@ describe("the lookup", () => {
 
   it("tells the Narrator an empty lookup is its to invent, within the record", () => {
     expect(lookupAnswer([])).toContain("yours to invent");
+  });
+});
+
+describe("latestChronicle", () => {
+  const sitting = (id: string, started_at: string, number: number | null = null) => ({ id, number, started_at, played_on: null, created_at: started_at });
+  // Bug caught: the newest note won over the latest sitting.
+  it("picks the latest sitting's note, even when an earlier sitting's note was written later", () => {
+    const sessions = [sitting("a", "2026-10-01T00:00:00Z"), sitting("b", "2026-10-08T00:00:00Z")];
+    const notes = [
+      { session_id: "a", content: "A", created_at: "2026-11-01T00:00:00Z" },
+      { session_id: "b", content: "B", created_at: "2026-10-09T00:00:00Z" },
+    ];
+    expect(latestChronicle(sessions, notes)?.content).toBe("B");
+  });
+
+  it("goes back to an earlier sitting when the latest has no chronicle, and to nothing when none has", () => {
+    const sessions = [sitting("a", "2026-10-01T00:00:00Z"), sitting("b", "2026-10-08T00:00:00Z")];
+    expect(latestChronicle(sessions, [{ session_id: "a", content: "A", created_at: "2026-10-02T00:00:00Z" }])?.content).toBe("A");
+    expect(latestChronicle(sessions, [])).toBeNull();
   });
 });
 

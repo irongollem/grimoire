@@ -26,7 +26,7 @@ import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
-import { worldBlockText } from "../_shared/worldBlock.ts";
+import { premiseEntryText, worldBlockText } from "../_shared/worldBlock.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import {
   clueShape,
@@ -276,7 +276,7 @@ serve(withCors(async (req: Request) => {
       const rows = await readRows<{ premise_kind: string | null; title: string; body: string | null }>(
         admin.from("canon_entries").select("premise_kind, title, body").eq("campaign_id", campaign.id).eq("part", "premise"),
       );
-      const existing = rows.map((r) => ({ kind: r.premise_kind, text: r.title.trim() || toPlainText(r.body).trim() }))
+      const existing = rows.map((r) => ({ kind: r.premise_kind, text: premiseEntryText(r.premise_kind, r.title, r.body) }))
         .filter((r) => r.text !== "");
       system = base(premiseShape());
       user_ = `${steer}The DM's pitch is above. Entries the campaign already has (do not repeat them):\n` +

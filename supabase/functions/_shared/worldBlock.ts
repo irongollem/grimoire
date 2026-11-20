@@ -10,7 +10,7 @@
  * Pure (no Deno-only imports) so the browser imports it as
  * `@edge-shared/worldBlock.ts`.
  */
-import { tiptapToPlainText } from "../../../src/lib/tiptap/tiptapText.ts";
+import { plainWithoutSecrets } from "./secretBlocks.ts";
 
 export interface WorldBlock {
   world: string | null;
@@ -41,11 +41,25 @@ export const WORLD_BLOCK_CANON_FILTER = "part.eq.premise,and(part.eq.truth,knowl
 const GROUNDING =
   "Campaign context provided by the DM (use it to ground tone, names, factions, and themes, but do not invent new facts that contradict it):";
 
-function entryText(row: CanonRowForBlock): string {
-  const title = row.title.trim();
-  if (title) return title;
-  return tiptapToPlainText(row.body).trim();
+/** Premise kinds whose text is the body, under a heading the DM or the book import gave it. */
+const TEXT_KINDS: ReadonlySet<string> = new Set(["pitch", "voice", "look", "table", "theme"]);
+
+/**
+ * What a premise entry says: for a kind that carries text, its body's plain text, headed by its title when both
+ * exist and differ; a title alone stands. A line, a veil or a truth is its title, a body standing in when empty.
+ * One rule for every generator and for the canon suggester's "already have" list.
+ */
+export function premiseEntryText(kind: string | null, titleRaw: string, bodyRaw: string | null): string {
+  const title = titleRaw.trim();
+  const body = plainWithoutSecrets(bodyRaw).trim();
+  if (kind !== null && TEXT_KINDS.has(kind)) {
+    if (body === "") return title;
+    return title === "" || title === body ? body : `${title}: ${body}`;
+  }
+  return title !== "" ? title : body;
 }
+
+const entryText = (row: CanonRowForBlock): string => premiseEntryText(row.part === "premise" ? row.premise_kind : null, row.title, row.body);
 
 export function worldBlockFromRows(setting: string | null, rows: CanonRowForBlock[]): WorldBlock {
   const ordered = [...rows].sort((a, b) => a.sort_order - b.sort_order);
@@ -96,11 +110,23 @@ export function worldBlockText(block: WorldBlock): string {
   return `\n\n${GROUNDING}\n\n${sections.join("\n\n")}`;
 }
 
-/** The setting string for a picture: the world's name, its look, and what is never shown. "" when empty. */
+/** The pitch stands in for a missing look in a picture, short: it is style context, not the story. */
+const PITCH_AS_LOOK_MAX = 400;
+
+/**
+ * The setting string for a picture: the world's name, its look (the pitch's start when there is no look, since an
+ * old setting prompt that carried the visual style migrated into the pitch), and what is never shown. Never the
+ * voice. "" when empty.
+ */
 export function worldImageSetting(block: WorldBlock): string {
   const parts: string[] = [];
   if (block.world) parts.push(block.world);
-  if (block.look) parts.push(`Look: ${block.look.replace(/\s*\n+\s*/g, " ")}`);
+  const flat = (t: string): string => t.replace(/\s*\n+\s*/g, " ");
+  if (block.look) parts.push(`Look: ${flat(block.look)}`);
+  else if (block.pitch) {
+    const pitch = flat(block.pitch);
+    parts.push(`Setting: ${pitch.length <= PITCH_AS_LOOK_MAX ? pitch : `${pitch.slice(0, PITCH_AS_LOOK_MAX - 1).trimEnd()}…`}`);
+  }
   if (block.lines.length) parts.push(`Never depict: ${block.lines.join("; ")}`);
   return parts.join(". ");
 }

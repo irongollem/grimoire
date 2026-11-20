@@ -13,6 +13,9 @@ import { toVectorLiteral } from "../_shared/embeddings.ts";
 import {
   capCanonHere,
   chronicleExcerpt,
+  latestChronicle,
+  type ChronicleRow,
+  type SittingRow,
   LOOKUP_PARTS,
   plain,
   readableMatches,
@@ -67,7 +70,7 @@ export function canonStore(input: {
     if (entryIds.length === 0) return out;
     const links = await supabase
       .from("world_links")
-      .select("from_canon_entry_id, to_kind, to_npc_id, to_faction_id")
+      .select("from_canon_entry_id, to_kind, to_npc_id, to_faction_id, to_party_member_id")
       .eq("campaign_id", campaignId)
       .eq("from_kind", "canon")
       .eq("type", "known_to")
@@ -76,16 +79,20 @@ export function canonStore(input: {
     const rows = (links.data ?? []) as Row[];
     const npcIds = [...new Set(rows.map((r) => r.to_npc_id).filter((v): v is string => typeof v === "string"))];
     const factionIds = [...new Set(rows.map((r) => r.to_faction_id).filter((v): v is string => typeof v === "string"))];
-    const [npcs, factions, members] = await Promise.all([
+    const partyIds = [...new Set(rows.map((r) => r.to_party_member_id).filter((v): v is string => typeof v === "string"))];
+    const [npcs, factions, members, party] = await Promise.all([
       npcIds.length === 0 ? Promise.resolve({ data: [] as Row[], error: null }) : supabase.from("npcs").select("id, name").eq("campaign_id", campaignId).in("id", npcIds),
       factionIds.length === 0 ? Promise.resolve({ data: [] as Row[], error: null }) : supabase.from("factions").select("id, name").eq("campaign_id", campaignId).in("id", factionIds),
       factionIds.length === 0 ? Promise.resolve({ data: [] as Row[], error: null }) : supabase.from("faction_npcs").select("faction_id, npc_id").in("faction_id", factionIds),
+      partyIds.length === 0 ? Promise.resolve({ data: [] as Row[], error: null }) : supabase.from("party_members").select("id, name").eq("campaign_id", campaignId).in("id", partyIds),
     ]);
+    if (party.error) throw party.error;
     if (npcs.error) throw npcs.error;
     if (factions.error) throw factions.error;
     if (members.error) throw members.error;
     const npcName = new Map((npcs.data ?? []).map((r) => [str((r as Row).id), str((r as Row).name)]));
     const factionName = new Map((factions.data ?? []).map((r) => [str((r as Row).id), str((r as Row).name)]));
+    const partyName = new Map((party.data ?? []).map((r) => [str((r as Row).id), str((r as Row).name)]));
     const presentName = new Map(present.map((p) => [p.id, p.name]));
     for (const row of rows) {
       const entry = str(row.from_canon_entry_id);
@@ -93,6 +100,8 @@ export function canonStore(input: {
       const npc = typeof row.to_npc_id === "string" ? row.to_npc_id : null;
       const faction = typeof row.to_faction_id === "string" ? row.to_faction_id : null;
       if (npc !== null) names.push(npcName.get(npc) ?? presentName.get(npc) ?? "");
+      const member = typeof row.to_party_member_id === "string" ? row.to_party_member_id : null;
+      if (member !== null) names.push(partyName.get(member) ?? "");
       if (faction !== null) {
         const members_ = ((members.data ?? []) as Row[]).filter((m) => m.faction_id === faction).map((m) => str(m.npc_id));
         // The faction's people who are here may say it; the faction's name says who else it belongs to.
@@ -129,18 +138,15 @@ export function canonStore(input: {
     },
 
     async previously(campaignId, runningSessionId) {
-      let query = supabase
-        .from("notes")
-        .select("content")
-        .eq("campaign_id", campaignId)
-        .not("session_id", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      if (runningSessionId !== null) query = query.neq("session_id", runningSessionId);
-      const { data, error } = await query;
-      if (error) throw error;
-      const row = ((data ?? []) as Row[])[0];
-      return row === undefined ? "" : chronicleExcerpt(typeof row.content === "string" ? row.content : null);
+      const [sessions, notes] = await Promise.all([
+        supabase.from("campaign_sessions").select("id, number, started_at, played_on, created_at").eq("campaign_id", campaignId),
+        supabase.from("notes").select("session_id, content, created_at").eq("campaign_id", campaignId).not("session_id", "is", null),
+      ]);
+      if (sessions.error) throw sessions.error;
+      if (notes.error) throw notes.error;
+      const over = ((sessions.data ?? []) as SittingRow[]).filter((s) => s.id !== runningSessionId);
+      const chronicle = latestChronicle(over, (notes.data ?? []) as ChronicleRow[]);
+      return chronicle === null ? "" : chronicleExcerpt(chronicle.content);
     },
 
     async here(campaignId, locationId, present) {
@@ -261,6 +267,7 @@ export function canonStore(input: {
         return {
           part: h.part,
           title: h.title,
+          knowledge: h.knowledge,
           text,
           knownTo: knownTo.get(h.id) ?? [],
           step: steps.get(h.id) ?? null,
