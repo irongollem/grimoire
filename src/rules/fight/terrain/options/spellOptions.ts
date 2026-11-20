@@ -1,5 +1,5 @@
 // Rule 11 and 12: the options that spend the Action on something other than an attack, a spell cast from where the
-// creature stands and a check to break free of a hold.
+// creature stands (or, when it has none there, from a square it walks to) and a check to break free of a hold.
 
 import type { RunCombatant } from "../../../../types/encounter.types.ts";
 import { isAllyOf } from "../../allies.ts";
@@ -8,36 +8,43 @@ import type { FightMap } from "../battleMap.ts";
 import { boonTargetings, type BoonTargeting } from "../boonTargeting.ts";
 import { healTargetings, type HealTargeting } from "../healTargeting.ts";
 import { spellTargetings, type SpellTargeting } from "../spellTargeting.ts";
-import { andList } from "./phrases.ts";
-import { emptyMovement, isLiving, isOnBoard } from "./scene.ts";
+import { castVerb, andList, exposurePhrase, provokesPhrase } from "./phrases.ts";
+import { castKey, movedSpellTargetings, type MovedTargeting } from "./movedSpells.ts";
+import { emptyMovement, exposureAt, isLiving, isOnBoard, type Scene } from "./scene.ts";
 import { MAX_HEAL_OPTIONS, MAX_SPELL_OPTIONS, type TurnOption, type TurnOptionsInput } from "./types.ts";
 
 export type SpellTargetingScene = { map: FightMap };
 
-/** Rule 11: a cast as an option. It carries no movement: it is cast from where the creature stands. */
-function spellOption(mover: RunCombatant, names: ReadonlyMap<string, string>, t: SpellTargeting): TurnOption {
+/**
+ * Rule 11: a cast as an option. It carries no movement when it is cast from where the creature stands; a cast from a square it
+ * walks to (`movedSpells.ts`) carries the walk as an approach attack does: destination, path, feet, provokes and exposure.
+ */
+function spellOption(mover: RunCombatant, names: ReadonlyMap<string, string>, t: SpellTargeting, walk?: { moved: MovedTargeting; scene: Scene }): TurnOption {
   const { cast } = t;
   const nameOf = (id: string) => names.get(id) ?? id;
   const level = cast.castLevel > 0 ? ` (level ${cast.castLevel})` : "";
   const who = andList(t.targetIds.map(nameOf));
-  const where = t.centerId === null ? `from where ${mover.name} stands, catching ${who}` : t.targetIds.length > 1 ? `at ${nameOf(t.centerId)}, catching ${who}` : `at ${who}`;
+  const where = t.centerId === null ? `from ${walk === undefined ? `where ${mover.name} stands` : "there"}, catching ${who}` : t.targetIds.length > 1 ? `at ${nameOf(t.centerId)}, catching ${who}` : `at ${who}`;
   const friends = t.friendsCaught.length === 0 ? "" : `; also catches ${andList(t.friendsCaught.map(nameOf))}`;
+  const exposure = walk === undefined ? [] : exposureAt(walk.scene, walk.moved.rc.cell);
   return {
-    id: `spell:${cast.spell}:${cast.castLevel}:${t.centerId === null ? "self" : t.centerId}`,
+    // A moved cast has its own id: a cast from here that would catch a friend can sit in the list beside it, at the same centre.
+    id: `spell:${cast.spell}:${cast.castLevel}:${t.centerId === null ? "self" : t.centerId}${walk === undefined ? "" : ":walk"}`,
     kind: "spell",
     targetId: t.centerId,
     ...emptyMovement(),
+    ...(walk === undefined ? {} : { destination: walk.moved.rc.cell, path: walk.moved.rc.path, feet: walk.moved.rc.feet, provokes: walk.moved.provokes, exposure }),
     attack: null,
     spell: { name: cast.spell, castLevel: cast.castLevel, kind: cast.kind, targetIds: t.targetIds, friendsCaught: t.friendsCaught, spends: cast.useKey !== null, distanceFeet: t.distanceFeet, hitChance: null, expectedDamage: null },
-    summary: `Cast ${cast.spell}${level} ${where}${friends}`,
+    summary: `${castVerb(walk === undefined ? null : walk.moved.rc.feet)} ${cast.spell}${level} ${where}${friends}${walk === undefined ? "" : `${exposurePhrase(names, exposure)}${provokesPhrase(names, walk.moved.provokes)}`}`,
   };
 }
 
 /** Rule 11: the spell options, best first, cut to `MAX_SPELL_OPTIONS`. Only a creature with its Action free casts. */
-export function spellOptionsOf(input: TurnOptionsInput, mover: RunCombatant, names: ReadonlyMap<string, string>, scene: SpellTargetingScene | null): TurnOption[] {
+export function spellOptionsOf(input: TurnOptionsInput, mover: RunCombatant, names: ReadonlyMap<string, string>, scene: SpellTargetingScene | null, walk?: Scene): TurnOption[] {
   if (input.spells === undefined || input.spells.length === 0 || mover.action_used === true) return [];
   const living = input.combatants.filter((c) => c.instance_id !== mover.instance_id && isLiving(c) && (scene === null || isOnBoard(c)));
-  const targetings = spellTargetings({
+  const base = {
     mover,
     hostiles: living.filter((c) => isHostileTo(mover, c, input.factions ?? [])),
     // An ally fights on the mover's side; a Neutral is neither foe nor ally, so no heal or buff is aimed at it (`isAllyOf`).
@@ -45,13 +52,20 @@ export function spellOptionsOf(input: TurnOptionsInput, mover: RunCombatant, nam
     scene: scene === null ? null : { occluders: scene.map.occluders, onBoard: input.combatants.filter(isOnBoard) },
     spells: input.spells,
     kindOf: input.kindOf,
-  });
+  };
+  const targetings = spellTargetings(base);
   const nearest = (t: SpellTargeting) => (t.distanceFeet === null ? 0 : t.distanceFeet);
-  return targetings
+  const here = targetings
     .map((t, order) => ({ t, order }))
     .sort((a, b) => a.t.friendsCaught.length - b.t.friendsCaught.length || b.t.targetIds.length - a.t.targetIds.length || nearest(a.t) - nearest(b.t) || a.order - b.order)
     .slice(0, MAX_SPELL_OPTIONS)
     .map(({ t }) => spellOption(mover, names, t));
+  if (walk === undefined) return here;
+  // Rule 11, moving for a better cast: only a spell with no safe option from here is looked for from a square the creature walks to.
+  const usable = new Set(targetings.filter((t) => t.friendsCaught.length === 0).map((t) => castKey(t.cast)));
+  const moved = movedSpellTargetings(walk, base, input.spells.filter((cast) => !usable.has(castKey(cast))));
+  const walks = [...moved.values()].map((m) => spellOption(mover, names, m.targeting, { moved: m, scene: walk }));
+  return [...here, ...walks].slice(0, MAX_SPELL_OPTIONS);
 }
 
 /**

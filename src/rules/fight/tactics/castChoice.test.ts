@@ -119,11 +119,13 @@ describe("a creature that casts chooses a spell", () => {
     expect(none.option?.spell?.name).toBe("Fire Bolt");
   });
 
-  // Bug caught: a cone is approximated as a sphere and offered. A mage whose only damaging spell is a cone has no spell option.
-  it("offers no cone and no line", () => {
+  // Bug caught: a cone is approximated as a sphere (a 20 ft area centred on a goblin 30 ft off) and offered from where the mage stands.
+  // The goblins are 30 to 40 ft away and the area is 20 ft long from the caster, so nothing is in it from here; the mage may walk
+  // up to cast (rule 11, moving for a better cast), which is the only way a cone or a line is offered here.
+  it("offers no cone and no line from where the mage stands", () => {
     for (const shape of ["cone", "line"]) {
       const { options } = play({ combatants: goblins(6, 7, 8), records: [fireball({ aoe_shape: shape })] });
-      expect(options.some((o) => o.kind === "spell")).toBe(false);
+      expect(options.some((o) => o.kind === "spell" && (o.feet === null || o.feet === 0))).toBe(false);
     }
   });
 

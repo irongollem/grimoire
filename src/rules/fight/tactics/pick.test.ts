@@ -255,6 +255,20 @@ describe("pickTurn: rule attack", () => {
     expect(pickTurn(o, prof({ int: 7 }), ctxOf([OGRE, FRESCO]))?.optionId).toBe("attack:actions:Greatclub:fresco");
   });
 
+  // RULE provokes, for casts as for attacks: a moved spell option that walks through a threatened square provokes. A trained caster
+  // takes the cast that provokes nothing (Fire Bolt, 7) over a stronger one that walks into a reach (Fireball, 23); a simple one does not
+  // mind. Bug caught: a cast weighed by its damage alone, so a clever mage walks into an opportunity attack to cast.
+  it("fails if a trained caster walks into an opportunity attack to cast when a cast from where it stands is on offer", () => {
+    const spellOf = (name: string, expected: number, provokes: number): TurnOption => ({
+      id: `spell:${name}:3:fresco`, kind: "spell", targetId: "fresco", destination: provokes > 0 ? { x: 2, y: 0 } : null, path: null, feet: provokes > 0 ? 20 : null,
+      attack: null, distanceFeet: null, provokes: Array.from({ length: provokes }, (_, i) => ({ enemyId: `e${i}`, step: 0 })), exposure: [], summary: name,
+      spell: { name, castLevel: 3, kind: "save", targetIds: ["fresco"], friendsCaught: [], spends: true, distanceFeet: 30, hitChance: 0.6, expectedDamage: expected },
+    });
+    const o = [spellOf("Fire Bolt", 7, 0), spellOf("Fireball", 23, 1)];
+    expect(pickTurn(o, prof({ int: 8 }), ctxOf([OGRE, FRESCO]))?.optionId).toBe("spell:Fire Bolt:3:fresco");
+    expect(pickTurn(o, prof({ int: 7 }), ctxOf([OGRE, FRESCO]))?.optionId).toBe("spell:Fireball:3:fresco");
+  });
+
   it("a trained creature still takes the best of the provoking options when all of them provoke", () => {
     const o = [atk({ target: "fresco", action: "Slam", expected: 5, provokes: 1 }), atk({ target: "fresco", action: "Greatclub", expected: 9, provokes: 1 })];
     expect(pickTurn(o, prof({ int: 8 }), ctxOf([OGRE, FRESCO]))?.optionId).toBe("attack:actions:Greatclub:fresco");

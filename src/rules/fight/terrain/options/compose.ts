@@ -30,7 +30,7 @@ import { MAX_TURN_OPTIONS, type TurnOption, type TurnOptionsInput } from "./type
 /**
  * The options of the creature whose id is `moverId`. Rules, in the order they are listed in the docs:
  * 1 Attack, 2 Dash, 3 Disengage, 4 Dodge, 5 Hide, 6 nothing measurable, 7 who gets nothing, 8 Multiattack, 9 the cap, 10 Flee,
- * 11 Spell (a damage spell cast from where the creature stands; see `spellTargeting.ts` for what it may be cast at),
+ * 11 Spell (a damage spell cast from where the creature stands, or from one square it walks to when it has none there: `movedSpells.ts`; see `spellTargeting.ts` for what it may be cast at),
  * 12 Break free (an ability check to end a condition a spell holds it in; see `breakFreeOptions`),
  * 13 Heal (a healing spell cast from where the creature stands at someone of its side who is hurt or down; see `healTargeting.ts`).
  * 14 Boon (a boon spell, Bless or Shield of Faith, cast from where the creature stands at those of its side it reaches; see `boonTargeting.ts`).
@@ -125,7 +125,7 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
       if (move) options.push({ option: move, nearness: nearness(t) });
     }
   }
-  return capped(options, fixed, [...spellOptionsOf(input, mover, names, { map }), ...healOptionsOf(input, mover, names, { map }), ...boonOptionsOf(input, mover, names, { map }), ...breakFreeOptions(input, mover)]);
+  return capped(options, fixed, [...spellOptionsOf(input, mover, names, { map }, actionFree ? scene : undefined), ...healOptionsOf(input, mover, names, { map }), ...boonOptionsOf(input, mover, names, { map }), ...breakFreeOptions(input, mover)]);
 }
 
 /**

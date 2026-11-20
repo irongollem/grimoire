@@ -2401,6 +2401,26 @@ describe("take_turn casts a spell", () => {
     expect(mage.spellListedReads).toHaveLength(1);
     expect(mage.spellListedReads[0]).toEqual(expect.arrayContaining(["fireball", "fire bolt"]));
   });
+
+  // Rule 11, moving for a better cast. The mage (speed 30 ft) is at (1,1) and the ox at (12,1): 10 squares of gap, 55 ft, outside a 30 ft Fire Bolt (gap 5 squares at most).
+  // It must stand at x >= 6 (12 - 6 - 1 = 5): a 25 ft walk, within its 30 ft. Every square of column 6 with |y - 1| <= 5 costs 25 ft (diagonals are 5 ft) and is 30 ft
+  // from the ox; the straight walk, nearest its start as the crow flies, is (6,1). The cast is made from there: the bolt hits (15 + 6 = 21 against AC 13) and the mage's position is the destination.
+  // Bug caught: the walk is chosen but the saved position stays where the mage was (the cast is then rolled from the old square), or no walk is offered and the mage does nothing.
+  it("fails if a mage out of range does not walk, then cast, and end the turn on the square it walked to", async () => {
+    const fight = row({
+      combatants_live: [
+        combatant("mage", { monster_id: "m-mage", faction_id: "m", hp: 40, max_hp: 40, initiative: 12, position: { x: 1, y: 1 } }),
+        combatant("t1", { monster_id: "m-ox", faction_id: "p", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 12, y: 1 } }),
+      ],
+    });
+    const h = harness(fight, { sources: MAGE_SOURCES, map: mapOf(), spells: [fireBolt({ range: "30 feet" })], dieFaces: [15, 3, 4, 1, 1, 1, 1] });
+    const result = await runBatch(batch("b", takeTurn({ instanceId: "mage" })), h.deps);
+    const after = stored(h);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { kind: "spell", picked: "rules", summary: "Walk 25 ft and cast Fire Bolt at t1" } });
+    expect(by(after, "mage").position).toEqual({ x: 6, y: 1 });
+    expect(hpOf(after, "t1")).toBeLessThan(40);
+    expect(by(after, "mage").action_used).toBe(true);
+  });
 });
 
 // SRD 5.1 Fear: "While frightened by this spell, a creature must take the Dash action and move away from you by the safest

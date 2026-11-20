@@ -156,3 +156,30 @@ describe("stepsFor: break free (#1021)", () => {
     expect(steps).toEqual([{ type: "cast", spell: "Bless", castLevel: 1, targetIds: ["pip", "brug"] }]);
   });
 });
+
+describe("stepsFor: a cast from a square it walks to (#1021, moving for a better cast)", () => {
+  const walkedCast = () =>
+    option("spell", {
+      id: "spell:Fire Bolt:0:fresco:walk", targetId: "fresco", destination: { x: 4, y: 0 }, feet: 20,
+      path: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 3, y: 0 }, { x: 4, y: 0 }],
+      spell: { name: "Fire Bolt", castLevel: 0, kind: "attack", targetIds: ["fresco"], friendsCaught: [], spends: false, distanceFeet: 30, hitChance: null, expectedDamage: null },
+    });
+
+  // The cast is made from where the creature ends, so the walk is first, and `cast_spell` marks the Action itself (no `use` step).
+  // Bug caught: the cast comes before the walk (cast from the old square, out of range), or the walk is dropped, so the creature casts from where it stands.
+  it("is the move, then the cast, with no use step", () => {
+    expect(stepsFor(walkedCast(), [])).toEqual([
+      { type: "move", to: { x: 4, y: 0 }, feet: 20 },
+      { type: "cast", spell: "Fire Bolt", castLevel: 0, targetIds: ["fresco"] },
+    ]);
+  });
+
+  // A Bonus Action heal rides the turn and is put in front of the chosen turn's steps (`takeTurn.ts`: `[...stepsFor(heal), ...steps]`), so it is cast from where the
+  // creature stands, before the walk. Bug caught: the heal's steps carry a move of their own, or the walk lands before the heal, so the heal is cast from the new square.
+  it("keeps a riding Bonus Action heal in front of the walk", () => {
+    const heal = option("heal", { targetId: "pip", heal: { name: "Healing Word", castLevel: 1, slot: "bonus_action", targetIds: ["pip"], downIds: [], lowIds: ["pip"], spends: true, expectedEach: 5, distanceFeet: 5 } });
+    const steps = [...stepsFor(heal, []), ...stepsFor(walkedCast(), [])];
+    expect(steps.map((s) => s.type)).toEqual(["cast", "move", "cast"]);
+    expect(steps[0]).toMatchObject({ type: "cast", spell: "Healing Word", heal: true });
+  });
+});

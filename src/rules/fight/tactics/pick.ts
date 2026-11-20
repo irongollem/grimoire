@@ -287,7 +287,13 @@ function hitPointsLeft(option: SpellOption, ctx: PickContext): number {
  * spell counts at its value (`valueOf`), so a clever creature does not Hold a foe at 2 hit points either.
  */
 function castCandidates(spells: readonly SpellOption[], attacks: readonly TurnOption[], profile: TacticalProfile, ctx: PickContext): SpellOption[] {
-  const safe = spells.filter((o) => o.spell.friendsCaught.length === 0);
+  let safe = spells.filter((o) => o.spell.friendsCaught.length === 0);
+  // RULE provokes (as `bestAttack`): a trained or tactical creature skips a cast that walks into an opportunity attack (a moved spell
+  // option) when another cast does not.
+  if (profile.tier === "trained" || profile.tier === "tactical") {
+    const clean = safe.filter((o) => o.provokes.length === 0);
+    if (clean.length > 0) safe = clean;
+  }
   const counted = countsWorth(profile, attacks, safe);
   const free = [...attacks.map(expectedOf), ...safe.filter((o) => !o.spell.spends).map((o) => valueOf(o, counted))].reduce<number>((best, e) => Math.max(best, rankOf(e)), Number.NEGATIVE_INFINITY);
   return safe.filter((o) => !(o.spell.spends && free >= hitPointsLeft(o, ctx)));
