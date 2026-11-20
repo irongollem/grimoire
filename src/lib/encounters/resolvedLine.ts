@@ -10,9 +10,11 @@ export function describeResolvedAction(resolved: ResolvedAction, nameOf: (instan
     case "attack": {
       const verdict = resolved.hit ? (resolved.critical ? "critical hit" : "hit") : resolved.fumble ? "miss (a natural 1)" : "miss";
       const head = `${nameOf(resolved.attackerId)} attacks ${nameOf(resolved.targetId)} with ${resolved.action}: ${verdict}, ${resolved.total} against AC ${resolved.targetAc}`;
+      // The target's Reaction (Shield) is said after the numbers it changed: "miss, 15 against AC 17, but Shield turns it aside".
+      const turned = resolved.reaction !== undefined ? `, but ${resolved.reaction.spell} turns it aside` : "";
       const hurt = resolved.hit && resolved.damageTotal > 0 ? `, ${resolved.damageTotal} damage${dyingWords(resolved.dying)}` : "";
       const rider = resolved.save ? ` ${saveWords(resolved.save, nameOf)}` : "";
-      return `${head}${hurt}.${rider}`;
+      return `${head}${turned}${hurt}.${rider}`;
     }
     case "save": {
       const who = resolved.targets.map((t) => saveWords(t, nameOf)).join(" ");

@@ -63,3 +63,19 @@ export function boonEntryFor(record: SpellRecord, castLevel: number): BoonEntry 
   };
   return { boonable: true, grants: given, targetCount: base + more * (castLevel - record.level), slot, rounds: grants.rounds, concentration: record.concentration };
 }
+
+/**
+ * RULE shield (PHB 2014 and 2024 "Shield": casting time a Reaction, "which you take when you are hit by an attack"; until the start of your
+ * next turn you have a +5 bonus to AC, including against the triggering attack). The boon of a spell cast as a Reaction when the caster is
+ * hit, or null for any other record. `boonEntryFor` keeps refusing it: a turn's options cast only Actions and Bonus Actions.
+ * Magic Missile's half of the trigger ("or targeted by the magic missile spell") is not built: only a hit by an attack roll is a trigger here.
+ */
+export function reactionBoonFor(record: SpellRecord, castLevel: number): { grants: ConditionGrants } | null {
+  if (castLevel < record.level) return null;
+  if (!/^(1 )?reaction\b/.test((record.casting_time ?? "").trim().toLowerCase())) return null;
+  const effects = (record.effects ?? []).filter((e) => e.grants !== undefined && e.grants !== null);
+  if (effects.length !== 1) return null;
+  const grants = effects[0].grants as SpellGrants;
+  if (grants.reaction !== "when_hit" || typeof grants.ac !== "number") return null;
+  return { grants: { ac: grants.ac } };
+}

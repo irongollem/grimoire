@@ -19,6 +19,12 @@ describe("describeResolvedAction", () => {
     expect(line).toBe("Ogre attacks Fresco with Greatclub: hit, 19 against AC 15, 9 damage and drops to 0 hit points.");
   });
 
+  // Bug caught: a hit turned into a miss by the target's Shield told as a plain miss, with no word of why the total beat the armour class it quotes.
+  it("fails if a Shield that turned a hit aside is not said after the numbers it changed", () => {
+    const line = describeResolvedAction(attack({ hit: false, total: 15, targetAc: 17, damageTotal: 0, reaction: { by: "fresco", spell: "Shield" } }), nameOf);
+    expect(line).toBe("Ogre attacks Fresco with Greatclub: miss, 15 against AC 17, but Shield turns it aside.");
+  });
+
   it("fails if a save made and a save failed read the same", () => {
     const base = { targetId: "fresco", natural: 9, total: 12, autoFail: false, coverBonus: 0 as const, share: "half" as const, damage: [], dying: null, conditionsApplied: [], conditionsImmune: [] };
     const made = describeResolvedAction({ kind: "save", attackerId: "ogre", action: "Fire Breath", ability: "dex", dc: 13, targets: [{ ...base, success: true, damageTotal: 5 }] }, nameOf);

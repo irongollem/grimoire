@@ -38,7 +38,7 @@ import {
   type PostedRoll,
   type StatBlockSources,
 } from "./handler";
-import { blackTentacles, charmMonster, clericBlock, cureWounds, fear, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithFear, mageWithHold, mageWithTentacles, healingWord, massHealingWord, heal, massHeal, powerWordHeal, bless, shieldOfFaith } from "../../../src/rules/fight/spells/spellTestKit";
+import { blackTentacles, charmMonster, clericBlock, cureWounds, fear, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithFear, mageWithHold, mageWithTentacles, healingWord, massHealingWord, heal, massHeal, powerWordHeal, bless, shieldOfFaith, shield } from "../../../src/rules/fight/spells/spellTestKit";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice";
 import { ownRecord } from "../_shared/fightSpells";
 import type { AppliedCondition } from "../../../src/types/condition.types";
@@ -4861,5 +4861,200 @@ describe("take_turn: Pact Magic slots", () => {
     const h = await cast(multiclass("cls-wiz", [{ ...SPELLCASTING_3, used: 2 }, PACT_3]));
     expect(h.slotWrites.at(-1)?.slots).toEqual([{ ...SPELLCASTING_3, used: 2 }, { ...PACT_3, used: 1 }]);
     expect(hpOf(stored(h), "victim")).toBe(32);
+  });
+});
+
+// ── Shield: a Reaction a creature the rules play casts when it is hit (#1021) ─────────────────────────────
+
+describe("a Reaction: Shield", () => {
+  // PHB 2014 and 2024 "Shield": a Reaction taken when hit by an attack; +5 AC until the start of the caster's next turn, the triggering attack included.
+  // The wolf's Bite is +4 for 1d6+2 and the mage (AC 12, "1st level (4 slots): magic missile, shield") stands beside it. A natural d20 of 11 totals 15.
+  const SHIELD_SOURCES: StatBlockSources = {
+    monsters: [{ id: "m-mage", name: "Mage", stat_block: mageBlock() } as unknown as Monster, monster("m-wolf")],
+    npcs: [],
+    companions: [],
+  };
+  const duelWithMage = (mage: Partial<RunCombatant> = {}) =>
+    row({
+      combatants_live: [
+        combatant("wolf", { monster_id: "m-wolf", faction_id: "m", hp: 11, max_hp: 11, initiative: 12, position: { x: 1, y: 1 } }),
+        combatant("mage", { monster_id: "m-mage", faction_id: "p", hp: 40, max_hp: 40, initiative: 8, position: { x: 2, y: 1 }, ...mage }),
+      ],
+    });
+  const bites = (over: Record<string, unknown> = {}) => attack({ targetId: "mage", ...over });
+  const withShield = (fight: FightRow, dieFaces: number[], over: { spells?: SpellRecord[]; ruleset?: "2014" | "2024" } = {}) =>
+    harness(fight, { sources: SHIELD_SOURCES, map: mapOf(), spells: over.spells ?? [shield()], ruleset: over.ruleset, dieFaces });
+  const shielded = (r: FightRow) => combatantOf(r, "mage").conditions.find((c) => c.name === "Shield");
+  const attackLine = (result: { effects: Array<{ type: string }> }) => (result.effects.find((e) => e.type === "resolved") as unknown as { resolved: Record<string, unknown> }).resolved;
+
+  // Total 15 meets AC 12 (a hit) and falls short of 12 + 5 = 17: Shield turns it into a miss. Nothing else is rolled (no damage die), 40 hit points stay.
+  // The Reaction and one 1st-level slot are spent, the condition carries +5 and ends at the start of the mage's own next turn, the summary names the reaction and quotes AC 17.
+  // Bugs caught: the hit stands after the cast (the roll not decided again), the cast spends no Reaction or slot, the condition lasts rounds instead of until the next turn.
+  it("fails if a hit of 15 on a mage with Shield does not become a miss at AC 17, spending the Reaction and a 1st-level slot", async () => {
+    const h = withShield(duelWithMage(), [11]);
+    const result = await runBatch(batch("s1", bites()), h.deps);
+    const after = stored(h);
+    expect(hpOf(after, "mage")).toBe(40);
+    expect(h.dieCalls).toBe(1);
+    expect(combatantOf(after, "mage").reactionUsed).toBe(true);
+    expect(combatantOf(after, "mage").action_uses).toEqual({ "slots/1": { used: 1, per_day: 4 } });
+    expect(combatantOf(after, "mage").action_used).not.toBe(true);
+    expect(shielded(after)).toMatchObject({ name: "Shield", grants: { ac: 5 }, source: { id: "mage", spell: "Shield" }, ends: { kind: "turn", at: "start", of: "self" } });
+    expect(attackLine(result)).toMatchObject({ kind: "attack", natural: 11, total: 15, targetAc: 17, hit: false, damageTotal: 0, reaction: { by: "mage", spell: "Shield" } });
+    expect(combatantOf(after, "mage").shown_deeds).toMatchObject({ cast: 1 });
+  });
+
+  // Total 18 meets 17 even with Shield: the slot would be wasted, so nothing is cast. d20 14 + 4 = 18 hits; 1d6+2 with a 3 deals 5 (40 -> 35).
+  // Bug caught: Shield cast on every hit (the comparison against the bare AC, or `<=`).
+  it("fails if Shield is cast on a hit of 18, which it would not turn", async () => {
+    const h = withShield(duelWithMage(), [14, 3]);
+    await runBatch(batch("s2", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(35);
+    expect(combatantOf(stored(h), "mage").reactionUsed).not.toBe(true);
+    expect(combatantOf(stored(h), "mage").action_uses).toBeUndefined();
+    expect(shielded(stored(h))).toBeUndefined();
+  });
+
+  // PHB 2014 ch. 9 "Rolling 20": a natural 20 hits whatever the AC. d20 20 (total 24) is a critical hit: 2d6+2 with 3 and 3 deals 8 (40 -> 32). Shield could not turn it.
+  // Bug caught: Shield cast on a natural 20 (a slot and the Reaction gone for nothing).
+  it("fails if Shield is cast against a natural 20", async () => {
+    const h = withShield(duelWithMage(), [20, 3, 3]);
+    await runBatch(batch("s3", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(32);
+    expect(combatantOf(stored(h), "mage").reactionUsed).not.toBe(true);
+    expect(shielded(stored(h))).toBeUndefined();
+  });
+
+  // PHB 2014 ch. 9 "Reactions": one Reaction per round. A mage that already used it takes the 15: 40 - 5 = 35 (a 3 on the d6, plus 2). Bug caught: a second Reaction in a round.
+  it("fails if Shield is cast with the Reaction already used", async () => {
+    const h = withShield(duelWithMage({ reactionUsed: true }), [11, 3]);
+    await runBatch(batch("s4", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(35);
+    expect(shielded(stored(h))).toBeUndefined();
+  });
+
+  // RULE spell-slots (PHB 2014 ch. 10): a spell is cast with a slot of its level or higher. With the four 1st-level slots spent, Shield is cast at the next level the mage
+  // has a slot for, the 3rd (it lists 3rd level, 3 slots): that tally rises to 1 of 3 and the 1st stays at 4 of 4. Bug caught: no upcast (a cast refused for want of a 1st-level slot).
+  it("fails if Shield is not cast from the next slot up when the 1st-level slots are spent", async () => {
+    const h = withShield(duelWithMage({ action_uses: { "slots/1": { used: 4, per_day: 4 } } }), [11]);
+    await runBatch(batch("s5", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(40);
+    expect(combatantOf(stored(h), "mage").action_uses).toEqual({ "slots/1": { used: 4, per_day: 4 }, "slots/3": { used: 1, per_day: 3 } });
+  });
+
+  // With every slot the mage lists spent (4 of 4, 3 of 3, 3 of 3) nothing can cast it: the 15 hits, 5 damage (40 -> 35). Bug caught: a Shield cast with no slot left.
+  it("fails if Shield is cast with no slot left", async () => {
+    const spent = { "slots/1": { used: 4, per_day: 4 }, "slots/3": { used: 3, per_day: 3 }, "slots/4": { used: 3, per_day: 3 } };
+    const h = withShield(duelWithMage({ action_uses: spent }), [11, 3]);
+    await runBatch(batch("s6", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(35);
+    expect(shielded(stored(h))).toBeUndefined();
+  });
+
+  // A Shield already up counts in the AC the roll was made against (12 + 5 = 17). A 17 hits it; casting again would add nothing and spend a slot. 40 - 5 = 35.
+  // Bug caught: Shield cast on top of Shield.
+  it("fails if Shield is cast on a creature that already has it", async () => {
+    const up = { name: "Shield", grants: { ac: 5 }, source: { id: "mage", spell: "Shield" }, ends: { kind: "turn" as const, at: "start" as const, of: "self" as const } };
+    const h = withShield(duelWithMage({ conditions: [up] }), [13, 3]);
+    await runBatch(batch("s7", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(35);
+    expect(combatantOf(stored(h), "mage").action_uses).toBeUndefined();
+    expect(combatantOf(stored(h), "mage").reactionUsed).not.toBe(true);
+  });
+
+  // PHB 2014 ch. 9 "Reactions" and "Conditions: Incapacitated": an Incapacitated creature cannot take Reactions. The 15 hits: 35. Bug caught: a Reaction taken while Incapacitated.
+  it("fails if an Incapacitated mage casts Shield", async () => {
+    const h = withShield(duelWithMage({ conditions: [{ name: "Incapacitated" }] }), [11, 3]);
+    await runBatch(batch("s8", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(35);
+    expect(shielded(stored(h))).toBeUndefined();
+  });
+
+  // A creature at 0 hit points is dead or dying and takes no Reaction. The 15 hits it; Shield is not cast. Bug caught: a Reaction (and a slot) spent by a creature that is down.
+  it("fails if a mage at 0 hit points casts Shield", async () => {
+    const h = withShield(duelWithMage({ hp: 0 }), [11, 3]);
+    await runBatch(batch("s8b", bites()), h.deps);
+    expect(shielded(stored(h))).toBeUndefined();
+    expect(combatantOf(stored(h), "mage").action_uses).toBeUndefined();
+  });
+
+  // PHB 2014 ch. 9 "Surprise": a surprised creature cannot take a Reaction until its first turn ends (2014 only). The 15 hits: 35. Bug caught: a surprised mage reacting.
+  it("fails if a surprised mage casts Shield under the 2014 rules", async () => {
+    const h = withShield(duelWithMage({ surprised: true }), [11, 3]);
+    await runBatch(batch("s9", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(35);
+  });
+
+  // A spell record the library has not reviewed is not read for mechanics (`automatable`): the 15 hits, 35. Bug caught: an unreviewed record rolled as if checked.
+  it("fails if an unreviewed Shield record is cast", async () => {
+    const h = withShield(duelWithMage(), [11, 3], { spells: [shield({ mechanics_reviewed: false })] });
+    await runBatch(batch("s10", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(35);
+    expect(shielded(stored(h))).toBeUndefined();
+  });
+
+  // A creature whose block does not list Shield never casts it, whatever the library holds: the ox's bite of 15 (a 11 and +4) hits the wolf (AC 12), 1d6+2 with a 3 deals 5 (11 -> 6).
+  // Bug caught: Shield cast by a creature that does not list it.
+  it("fails if a creature that does not list Shield casts it", async () => {
+    const fight = row({
+      combatants_live: [
+        combatant("ox", { monster_id: "m-ox", faction_id: "p", hp: 40, max_hp: 40, initiative: 12, position: { x: 2, y: 1 } }),
+        combatant("wolf", { monster_id: "m-wolf", faction_id: "m", hp: 11, max_hp: 11, initiative: 8, position: { x: 1, y: 1 } }),
+      ],
+    });
+    const sources: StatBlockSources = { monsters: [monster("m-ox"), monster("m-wolf")], npcs: [], companions: [] };
+    const h = harness(fight, { sources, map: mapOf(), spells: [shield()], dieFaces: [11, 3] });
+    await runBatch(batch("s11", attack({ attackerId: "ox", targetId: "wolf" })), h.deps);
+    expect(hpOf(stored(h), "wolf")).toBe(6);
+    expect(combatantOf(stored(h), "wolf").reactionUsed).not.toBe(true);
+  });
+
+  // The Shield lapses "until the start of your next turn": the wolf (initiative 12) bites, the mage (8) is next. Bug caught: a condition with the wrong end (the end of its turn, never).
+  it("fails if the Shield does not end at the start of the mage's next turn", async () => {
+    const h = withShield(duelWithMage(), [11]);
+    await runBatch(batch("s12", bites()), h.deps);
+    expect(shielded(stored(h))).toBeDefined();
+    await runBatch(batch("s13", { type: "next_turn" }), h.deps);
+    expect(combatantOf(stored(h), "mage").conditions.some((c) => c.name === "Shield")).toBe(false);
+    // The Reaction is the mage's again at the start of its own turn (PHB 2014 ch. 9 "Reactions").
+    expect(combatantOf(stored(h), "mage").reactionUsed).toBe(false);
+  });
+
+  // A player in a DM's own fight (no `playedMemberId`) and the character the person plays choose for themselves: the server has no stat block for them and casts nothing.
+  // Nessa (AC 18) is hit by 19 (a 15 and +4): 1d6+2 with a 5 deals 7 (20 -> 13). Bug caught: a player's Reaction taken for them.
+  it("fails if the server casts Shield for a player the person plays", async () => {
+    const fight = row({
+      combatants_live: [
+        combatant("wolf", { monster_id: "m-wolf", faction_id: "m", hp: 11, max_hp: 11, initiative: 12, position: { x: 1, y: 1 } }),
+        pc("nessa", { faction_id: "p", hp: 20, max_hp: 20, initiative: 8, position: { x: 0, y: 1 } }),
+      ],
+    });
+    const h = harness(fight, { sources: SOURCES, players: NESSA_IN_PLATE, map: mapOf(), spells: [shield()], dieFaces: [15, 5] });
+    await runBatch(batch("s14", attack({ targetId: "nessa" })), h.deps);
+    expect(hpOf(stored(h), "nessa")).toBe(13);
+    const played = harness(fight, { sources: SOURCES, players: NESSA_IN_PLATE, map: mapOf(), spells: [shield()], dieFaces: [15, 5] });
+    await runBatch(batch("s15", takeTurn({ playedMemberId: "pm-nessa", optionId: "attack:actions:Bite:nessa" })), played.deps);
+    expect(hpOf(stored(played), "nessa")).toBe(13);
+    expect(combatantOf(stored(played), "nessa").reactionUsed).not.toBe(true);
+  });
+
+  // An AI-played ally: Tam, a 5th-level Wizard (Dex 10, no armour: AC 10) with Shield prepared and two 1st-level slots, while the person plays someone else (`pm-pip`).
+  // The wolf's d20 8 + 4 = 12 hits AC 10 and falls short of 15: Shield turns it, a miss. One slot is written to the sheet (1 of 2) once the fight is saved, and the Reaction is spent.
+  // Bug caught: an ally struck with no Reaction taken, or a cast whose slot is never written to the sheet.
+  it("fails if an ally the AI plays does not cast Shield against a hit it turns, writing the slot to the sheet", async () => {
+    const sheets = wizardTamSheets({ slots: [{ level: 1, max: 2, used: 0 }], spells: [{ id: "Shield-row", party_member_id: "pm-tam", name: "Shield", level: 1, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-wiz", casting_ability: null, uses_per_day: null, uses_remaining: null }] });
+    const fight = row({
+      combatants_live: [
+        combatant("wolf", { monster_id: "m-wolf", faction_id: "m", hp: 11, max_hp: 11, initiative: 12, position: { x: 1, y: 1 } }),
+        pc("tam", { faction_id: "p", hp: 20, max_hp: 20, initiative: 8, position: { x: 2, y: 1 } }),
+      ],
+    });
+    const h = harness(fight, { sources: SOURCES, players: sheets, map: mapOf(), spells: [shield()], dieFaces: [8] });
+    const result = await runBatch(batch("s16", takeTurn({ playedMemberId: "pm-pip", optionId: "attack:actions:Bite:tam" })), h.deps);
+    expect(hpOf(stored(h), "tam")).toBe(20);
+    expect(combatantOf(stored(h), "tam").reactionUsed).toBe(true);
+    expect(combatantOf(stored(h), "tam").conditions.find((c) => c.name === "Shield")).toMatchObject({ grants: { ac: 5 } });
+    expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 1, max: 2, used: 1 }] }]);
+    expect(result.effectFailures).toEqual([]);
   });
 });

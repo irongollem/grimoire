@@ -194,7 +194,9 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
     const made = allyStatBlock(callEnv.players, id, own?.action_uses, own?.conditions.some((c) => c.name === RAGING) === true);
     if (made !== null) allies[id] = made;
   }
-  const env: ResolveEnv = allyIds.size === 0 ? callEnv : { ...callEnv, sources: { ...callEnv.sources, allies } };
+  // `playedMemberId` rides the env so a Reaction in this turn (a struck ally's Shield) is the rules' only for the members the person does not play.
+  const withPlayed: ResolveEnv = command.playedMemberId === undefined ? callEnv : { ...callEnv, playedMemberId: command.playedMemberId };
+  const env: ResolveEnv = allyIds.size === 0 ? withPlayed : { ...withPlayed, sources: { ...callEnv.sources, allies } };
   const block = statBlockOf(mover, env.sources);
   // A player character the server cannot read (no sheet, or a form whose block was not read) has no stat block here: a player takes their own turn.
   if (block === null) return refuse(`${mover.name} has no stat block the server can read, so it cannot play ${mover.name}'s turn.`);
