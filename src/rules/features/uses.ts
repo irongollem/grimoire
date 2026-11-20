@@ -1,5 +1,5 @@
-import type { UsesCost } from "./mechanics.types";
-import type { ResourcePool, StoredClassResources } from "./characterFeatures";
+import type { UsesCost } from "./mechanics.types.ts";
+import type { ResourcePool, StoredClassResources } from "./characterFeatures.ts";
 
 /**
  * Spending and restoring a feature's uses (#976). Pure: the sheet, the Actions

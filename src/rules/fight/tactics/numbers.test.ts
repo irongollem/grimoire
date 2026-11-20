@@ -4,7 +4,7 @@ import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { AppliedCondition } from "../../../types/condition.types.ts";
 import type { RulesetKey } from "../../../types/ruleset.types.ts";
 import type { AttackStructure, StatBlockEntry } from "../../../types/statBlock.types.ts";
-import type { TurnOption, TurnOptionAttack, UsableAttack } from "../terrain/turnOptions.ts";
+import type { TurnOption, TurnOptionAttack, UsableAttack } from "../terrain/options/types.ts";
 import { castableNow } from "../spells/castNow.ts";
 import { fireball, fireBolt, mageBlock } from "../spells/spellTestKit.ts";
 import { chanceOfNatural20, chanceToFail, chanceToHit, UNKNOWN_SAVE_FAIL_CHANCE, withNumbers, type NumbersContext } from "./numbers.ts";
@@ -255,6 +255,15 @@ describe("spell options (#1021)", () => {
     return withNumbers([opt], ctx)[0].spell;
   };
 
+  // Fireball DC 14 against +0 fails 0.65 (13 of 20 faces fail). Bless adds 2.5 to the save: 2.5 faces of 20 = 0.125 fewer fail, so 0.525.
+  // Bug caught: a save boon is not read, or the unknown-bonus 0.5 is shifted by it.
+  it("a Blessed target fails its save less often (0.65 to 0.525), and an unknown save bonus stays 0.5 with Bless", () => {
+    const blessed: AppliedCondition = { name: "Bless", grants: { attack: "1d4", save: "1d4" } };
+    const opt = spellOption("Fireball", 3, "save", ["fresco"]);
+    expect(run(opt, { targets: { fresco: { conditions: [blessed] } } })?.hitChance).toBeCloseTo(0.525, 10);
+    expect(run(opt, { targets: { fresco: { conditions: [blessed] } }, bonus: null })?.hitChance).toBe(UNKNOWN_SAVE_FAIL_CHANCE);
+  });
+
   // SRD 5.1 "Fireball": 8d6 averages 28; DC 14 against a +0 save fails on 13 of 20 faces: 0.65*28 + 0.35*14 = 23.1 per target.
   // Bug caught: the failure chance is the attack-roll one (a 20 always saving or a 1 always failing), or half damage is dropped.
   it("weighs a save spell by the chance each target fails: 3 targets of 0.65*28 + 0.35*14 = 23.1 make 69.3", () => {
@@ -389,5 +398,109 @@ describe("what the fight has shown of a target's defenses (#1021)", () => {
     // Resistant (halved): 11.55 for a, so 34.65 together.
     ctx.combatants = [mage, creature("a", { shown_defenses: { fire: "resistant" } }), creature("b")];
     expect(withNumbers([opt], ctx)[0].spell?.expectedDamage).toBeCloseTo(23.1 * 1.5, 10);
+  });
+});
+
+describe("Sneak Attack weighed by the tactics (#1021)", () => {
+  // PHB 2014 "Rogue: Sneak Attack": once per turn, +3d6 at 5th level on a finesse or ranged weapon hit with advantage, or with an enemy of the
+  // target within 5 feet and no disadvantage. A +5 dagger (1d4+3) and a +5 longsword (1d8+3) against AC 15: a 9 on the die, so 11 faces of 20 hit (0.55).
+  const DAGGER = attackEntry("Dagger", { bonus: 5, hit: [{ dice: "1d4+3", type: "piercing" }] });
+  const LONGSWORD = attackEntry("Longsword", { bonus: 5, hit: [{ dice: "1d8+3", type: "slashing" }] });
+  const FACTIONS = [{ id: "m", hostile_to: ["p"] }, { id: "p", hostile_to: ["m"] }];
+  // The dagger rides Sneak Attack, the longsword (a heavy sword, no finesse) does not.
+  const sneakDiceOf = (name: string) => (name === "Dagger" ? "3d6" : null);
+  const weigh = (action: string, over: { mover?: Partial<RunCombatant>; target?: Partial<RunCombatant>; buddy?: Partial<RunCombatant> | null; dice?: (name: string) => string | null; steps?: TurnOptionAttack["steps"] } = {}) => {
+    const mover = creature("ogre", over.mover);
+    const ctx: NumbersContext = {
+      attacks: [DAGGER, LONGSWORD, attackEntry("Extra Attack (Dagger)", { bonus: 5, hit: [{ dice: "1d4+3", type: "piercing" }] })],
+      combatants: [mover, creature("fresco", over.target), ...(over.buddy === null || over.buddy === undefined ? [] : [creature("buddy", { faction_id: "m", ...over.buddy })])],
+      moverId: "ogre", armorClassOf: () => 15, ruleset: "2014", factions: FACTIONS, sneakDiceOf: over.dice === undefined ? sneakDiceOf : over.dice,
+    };
+    return withNumbers([option({ steps: over.steps === undefined ? null : over.steps }, action)], ctx)[0].attack?.expectedDamage as number;
+  };
+  const DAGGER_PLAIN = 0.55 * 5.5 + 0.05 * 2.5;
+  const SNEAK_DICE = 0.6 * 10.5;
+
+  // Bug caught: the Rogue's tactics ignoring Sneak Attack, so a longsword (4.35) beat a dagger (3.15) every turn.
+  it("makes a dagger beat a longsword when an enemy of the target stands beside it", () => {
+    const dagger = weigh("Dagger", { buddy: {} });
+    expect(dagger).toBeCloseTo(DAGGER_PLAIN + SNEAK_DICE, 10);
+    expect(dagger).toBeGreaterThan(weigh("Longsword", { buddy: {} }));
+  });
+
+  // Bug caught: Sneak Attack counted with nothing to qualify it (no advantage, no one beside the target): the dagger is only 3.15 then.
+  it("adds nothing with no advantage and no enemy beside the target", () => {
+    expect(weigh("Dagger")).toBeCloseTo(DAGGER_PLAIN, 10);
+    expect(weigh("Longsword")).toBeCloseTo(0.55 * 7.5 + 0.05 * 4.5, 10);
+  });
+
+  // PHB 2014 "Sneak Attack": the other enemy must not be incapacitated, and a creature at 0 hit points is no threat. Bug caught: any creature beside the target counted.
+  it("does not count a stunned or downed creature beside the target, or a creature that is no foe of it", () => {
+    expect(weigh("Dagger", { buddy: { conditions: [cond("Stunned")] } })).toBeCloseTo(DAGGER_PLAIN, 10);
+    expect(weigh("Dagger", { buddy: { hp: 0 } })).toBeCloseTo(DAGGER_PLAIN, 10);
+    expect(weigh("Dagger", { buddy: { faction_id: "p" } })).toBeCloseTo(DAGGER_PLAIN, 10);
+  });
+
+  // Advantage alone is enough: a Restrained target gives it (PHB 2014 "Conditions"). One in advantage: hits 1 - 0.45^2 = 0.7975, a natural 20 0.0975.
+  it("applies with advantage and no one beside the target", () => {
+    const hit = 1 - 0.45 * 0.45;
+    const nat20 = 1 - 0.95 * 0.95;
+    expect(weigh("Dagger", { target: { conditions: [cond("Restrained")] } })).toBeCloseTo(hit * 5.5 + nat20 * 2.5 + hit * 10.5 + nat20 * 10.5, 10);
+  });
+
+  // PHB 2014 "Sneak Attack": no disadvantage on the roll. Poisoned gives disadvantage, which the beside-the-target route cannot override. Bug caught: disadvantage ignored.
+  it("does not apply with disadvantage even with an enemy beside the target", () => {
+    const hit = 0.55 * 0.55;
+    const nat20 = 0.05 * 0.05;
+    expect(weigh("Dagger", { mover: { conditions: [cond("Poisoned")] }, buddy: {} })).toBeCloseTo(hit * 5.5 + nat20 * 2.5, 10);
+  });
+
+  // Bug caught: dice added for a mover with no Sneak Attack (every monster), or when the turn's one use is spent (`sneakDiceOf` null).
+  it("adds nothing when the mover has none, or its use is spent", () => {
+    expect(weigh("Dagger", { buddy: {}, dice: () => null })).toBeCloseTo(DAGGER_PLAIN, 10);
+  });
+
+  // Once per turn: two dagger swings carry one Sneak Attack, not two. The dice go to the first swing that hits: 0.6*10.5 for the first,
+  // and for the second only the 0.45 chance the first missed.
+  it("credits a Multiattack with one Sneak Attack, not one per swing", () => {
+    const two = weigh("Extra Attack (Dagger)", { buddy: {}, steps: [{ action: "Dagger", count: 2 }], dice: sneakDiceOf });
+    expect(two).toBeCloseTo(2 * DAGGER_PLAIN + SNEAK_DICE + 0.45 * SNEAK_DICE, 10);
+  });
+});
+
+describe("boons in the estimates (#1021)", () => {
+  const shield: AppliedCondition = { name: "Shield of Faith", grants: { ac: 2 } };
+  const bless: AppliedCondition = { name: "Bless", grants: { attack: "1d4", save: "1d4" } };
+  const bane: AppliedCondition = { name: "Bane", grants: { attack: "-1d4" } };
+  const CLUB6: UsableAttack = attackEntry("Greatclub", { bonus: 3 });
+
+  it("fails if the target's Shield of Faith is not read: +3 vs AC 15 needs a 12, 9/20 = 0.45; vs AC 17 needs 14, 7/20 = 0.35", () => {
+    expect(numbersOf(option(), { attacks: [CLUB6] }).hit).toBeCloseTo(0.45, 10);
+    expect(numbersOf(option(), { attacks: [CLUB6], target: { conditions: [shield] } }).hit).toBeCloseTo(0.35, 10);
+  });
+
+  it("fails if the attacker's boon is read off the target instead: a Blessed target does not hit harder against itself, and a Blessed attacker does", () => {
+    // Bless mean 2.5: +3 becomes +5.5. +5 vs AC 15 needs 10: 11/20 = 0.55; +6 needs 9: 12/20 = 0.60; halfway = 0.575.
+    expect(numbersOf(option(), { attacks: [CLUB6], target: { conditions: [bless] } }).hit).toBeCloseTo(0.45, 10);
+    expect(numbersOf(option(), { attacks: [CLUB6], mover: { conditions: [bless] } }).hit).toBeCloseTo(0.575, 10);
+  });
+
+  it("fails if a taking-away boon is ignored: Bane (-2.5) turns +3 into +0.5; +0 needs 15: 6/20 = 0.30, +1 needs 14: 7/20 = 0.35, halfway 0.325", () => {
+    expect(numbersOf(option(), { attacks: [CLUB6], mover: { conditions: [bane] } }).hit).toBeCloseTo(0.325, 10);
+  });
+
+  it("fails if a fractional bonus is rounded or the natural limits are lost: whole bonuses are unchanged, +25.5 vs AC 5 is still 19/20, -9.5 vs AC 30 still 1/20", () => {
+    expect(chanceToHit(6, 15, "normal")).toBeCloseTo(0.6, 10);
+    expect(chanceToHit(25.5, 5, "normal")).toBeCloseTo(0.95, 10);
+    expect(chanceToHit(-9.5, 30, "normal")).toBeCloseTo(0.05, 10);
+    // Monotonic: +5.5 sits strictly between +5 (0.55) and +6 (0.60).
+    expect(chanceToHit(5.5, 15, "normal")).toBeCloseTo(0.575, 10);
+    // Advantage applies after: 1 - (1 - 0.575)^2 = 0.819375.
+    expect(chanceToHit(5.5, 15, "advantage")).toBeCloseTo(0.819375, 10);
+  });
+
+  it("fails if a fractional save bonus is not interpolated: DC 14 at +2 saves on 12 or more (9/20), at +3 on 11 or more (10/20); +2.5 is 9.5/20 saving, so it fails 0.525", () => {
+    expect(chanceToFail(2, 14, "normal")).toBeCloseTo(0.55, 10);
+    expect(chanceToFail(2.5, 14, "normal")).toBeCloseTo(0.525, 10);
   });
 });

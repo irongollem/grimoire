@@ -18,6 +18,11 @@ export interface StatBlockSources {
   monsters: Monster[];
   npcs: NpcListRow[];
   companions: Companion[];
+  /**
+   * Party members the server plays (allies, #1021), keyed by `party_member_id`: the block made from their sheet
+   * (`allyStatBlock`). Left out, a player character has no block.
+   */
+  allies?: Record<string, MonsterStatBlock>;
 }
 
 /** The ids a roster's stat blocks are read by. */
@@ -26,8 +31,9 @@ export function statBlockIdsOf(combatants: readonly RunCombatant[]): { monsterId
   return { monsterIds: ids((c) => c.monster_id), npcIds: ids((c) => c.npc_id), companionIds: ids((c) => c.companion_id) };
 }
 
-/** The stat block behind a combatant, or null for a party member or a source that is gone. */
+/** The stat block behind a combatant, or null for a party member the server does not play (`sources.allies`) or a source that is gone. */
 export function statBlockOf(c: RunCombatant, sources: StatBlockSources): MonsterStatBlock | null {
+  if (c.type === "player" && c.party_member_id) return sources.allies?.[c.party_member_id] ?? null;
   if (c.monster_id) return sources.monsters.find((m) => m.id === c.monster_id)?.stat_block ?? null;
   if (c.npc_id) return sources.npcs.find((n) => n.id === c.npc_id)?.stat_block ?? null;
   if (c.companion_id) return sources.companions.find((x) => x.id === c.companion_id)?.stat_block ?? null;

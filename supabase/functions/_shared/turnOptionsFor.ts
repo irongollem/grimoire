@@ -4,15 +4,16 @@
 
 import type { FactionSides } from "../../../src/rules/fight/sides.ts";
 import { combatantSpeed } from "../../../src/lib/encounters/combatantSpeed.ts";
-import { strongestBreakFreeAbility } from "../../../src/rules/fight/actionResolution.ts";
+import { strongestBreakFreeAbility } from "../../../src/rules/fight/resolution/breakFree.ts";
 import { actionAvailability } from "../../../src/rules/encounterTurn.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { movementBudgetFeet } from "../../../src/rules/fight/terrain/movementBudget.ts";
 import { DEFAULT_REACH_FEET } from "../../../src/rules/fight/terrain/sight.ts";
 import { creatureKindOf } from "../../../src/rules/fight/spells/creatureKind.ts";
-import { castableNow, type CastNow } from "../../../src/rules/fight/spells/castNow.ts";
+import { boonableNow, castableNow, healableNow, type CastNow } from "../../../src/rules/fight/spells/castNow.ts";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
-import { turnOptions, type TurnOption, type UsableAttack } from "../../../src/rules/fight/terrain/turnOptions.ts";
+import { turnOptions } from "../../../src/rules/fight/terrain/options/compose.ts";
+import { type TurnOption, type UsableAttack } from "../../../src/rules/fight/terrain/options/types.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { MonsterStatBlock } from "../../../src/types/monster.types.ts";
 import type { RulesetKey } from "../../../src/types/ruleset.types.ts";
@@ -76,6 +77,8 @@ export function assembleTurnOptions(facts: TurnOptionsFacts): { options: TurnOpt
   const block = statBlockOf(mover, sources);
   const attacks = usableAttacks(mover, block);
   const spells = block === null || facts.spellRecords === undefined ? [] : castableNow(block, mover, facts.spellRecords, facts.ruleset, { kindsChecked: true });
+  const heals = block === null || facts.spellRecords === undefined ? [] : healableNow(block, mover, facts.spellRecords, facts.ruleset);
+  const boons = block === null || facts.spellRecords === undefined ? [] : boonableNow(block, mover, facts.spellRecords, facts.ruleset);
   const options = turnOptions({
     combatants: facts.combatants,
     moverId: mover.instance_id,
@@ -85,6 +88,8 @@ export function assembleTurnOptions(facts: TurnOptionsFacts): { options: TurnOpt
     reachOf: (c) => meleeReachFeet(statBlockOf(c, sources)),
     ruleset: facts.ruleset,
     spells,
+    heals,
+    boons,
     kindOf: (c) => creatureKindOf(c, sources),
     breakFreeAbility: (way) => strongestBreakFreeAbility(block, way),
     factions: facts.factions,

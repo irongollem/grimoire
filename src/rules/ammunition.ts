@@ -1,4 +1,4 @@
-import type { Item } from "@/types/item.types";
+import type { Item } from "../types/item.types.ts";
 
 /** Ammunition categories a ranged weapon can draw from. */
 export const AMMO_TAGS = ["arrow", "bolt", "bullet", "needle", "dart", "firearm-bullet"] as const;

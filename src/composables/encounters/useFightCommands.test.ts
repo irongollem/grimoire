@@ -255,6 +255,18 @@ describe("useFightCommands", () => {
       expect(run.outcomes).toHaveLength(2);
     });
 
+    // Bug caught: the played character's id never reaching the server, so every party member's reaction is reported as the player's own.
+    it("fails if the played member's id is not sent with the turn", async () => {
+      attach();
+      net.invoke.mockResolvedValue({ data: answer(20, 5), error: null });
+      const { api } = mountComposable();
+      await flushPromises();
+      net.invoke.mockClear();
+      net.invoke.mockResolvedValue({ data: answer(20, 6, { effects: [{ type: "turn_taken", turn }] }), error: null });
+      await api.takeTurn("ogre", "pm-fresco");
+      expect(sent().map((b) => b.commands)).toEqual([[{ type: "take_turn", instanceId: "ogre", playedMemberId: "pm-fresco" }]]);
+    });
+
     it("fails if a replayed batch (no turn_taken effect) is answered with an invented turn", async () => {
       attach();
       net.invoke.mockResolvedValue({ data: answer(20, 5), error: null });

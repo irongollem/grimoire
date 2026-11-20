@@ -155,3 +155,114 @@ export function mageWithFear(): MonsterStatBlock {
     )],
   });
 }
+
+const healEffect = (dice: string, over: Partial<StructuredSpellEffect> = {}): StructuredSpellEffect => ({
+  id: "base", phase: "impact", outcome: "automatic", target: { type: "creature", count: 1 }, kind: "healing", dice,
+  multiplier: 1, damageType: null, condition: null, description: null, scaling: { mode: "slot", dice }, modifier: "spellcasting_ability", ...over,
+});
+
+/** A healing record as the library stores one: no attack, no save, no damage, one structured healing effect. */
+function healer(over: Partial<SpellRecord>): SpellRecord {
+  return {
+    id: "heal", name: "Heal", level: 1, range: "Touch", ruleset: "2014", source: "srd-2014", concentration: false, attack_type: null,
+    save_attribute: null, save_effect: null, damage_rolls: null, healing_dice: null, aoe_shape: null, aoe_size: null, higher_level_damage: null,
+    mechanics_reviewed: true, effects: [], condition_effect: null, casting_time: "Action", casting_time_custom: null, ...over,
+  };
+}
+
+/** The reviewed library rows of "Cure Wounds": 1d8 (2014) or 2d8 (2024) plus the spellcasting modifier, the same dice again per slot level above 1st; an Action, range Touch. */
+export function cureWounds(over: Partial<SpellRecord> = {}): SpellRecord {
+  const ruleset = over.ruleset ?? "2014";
+  const dice = ruleset === "2024" ? "2d8" : "1d8";
+  return healer({ id: `cure_wounds_${ruleset}`, name: "Cure Wounds", ruleset, healing_dice: dice, effects: [healEffect(dice)], ...over });
+}
+
+/** The library rows of "Healing Word": 1d4 (2014) or 2d4 (2024) plus the modifier; a Bonus Action (stored as "Special" and "bonus-action"), range 60 feet. */
+export function healingWord(over: Partial<SpellRecord> = {}): SpellRecord {
+  const ruleset = over.ruleset ?? "2014";
+  const dice = ruleset === "2024" ? "2d4" : "1d4";
+  return healer({
+    id: `healing_word_${ruleset}`, name: "Healing Word", ruleset, range: "60 ft.", healing_dice: dice, effects: [healEffect(dice)],
+    casting_time: "Special", casting_time_custom: "bonus-action", ...over,
+  });
+}
+
+/** "Mass Healing Word" 2014: 1d4 plus the modifier for up to six creatures, a Bonus Action, 3rd level, +1d4 per level above. */
+export function massHealingWord(over: Partial<SpellRecord> = {}): SpellRecord {
+  return healer({
+    id: "mass_healing_word_2014", name: "Mass Healing Word", level: 3, range: "60 ft.", healing_dice: "1d4",
+    effects: [healEffect("1d4", { target: { type: "creature", count: 6 } })], casting_time: "Special", casting_time_custom: "bonus-action", ...over,
+  });
+}
+
+/**
+ * "Heal" as the library stores it: 70 hit points (a flat "70" in `dice`, no modifier), +10 per slot level above 6th, a 6th-level Action
+ * at 60 feet. 2014 ends Blinded and Deafened and "diseases" (which the app has no condition for); 2024 ends Blinded, Deafened and Poisoned.
+ */
+export function heal(over: Partial<SpellRecord> = {}): SpellRecord {
+  const ruleset = over.ruleset ?? "2014";
+  const ends = ruleset === "2024" ? ["Blinded", "Deafened", "Poisoned"] : ["Blinded", "Deafened", "diseases"];
+  return healer({
+    id: `heal_${ruleset}`, name: "Heal", level: 6, range: "60 ft.", ruleset, healing_dice: null,
+    effects: [healEffect("70", { modifier: null, scaling: { mode: "slot", dice: "10" }, ends, unaffected: [] })],
+    ...over,
+  });
+}
+
+const boonEffect = (grants: NonNullable<StructuredSpellEffect["grants"]>, count: number, description: string): StructuredSpellEffect => ({
+  id: "base", phase: "impact", outcome: "automatic", target: { type: "creature", count }, kind: "text", dice: null,
+  multiplier: 1, damageType: null, condition: null, description, scaling: null, modifier: null, grants,
+});
+
+/** "Bless" (PHB 2014 and 2024): up to three creatures within 30 feet add a d4 to attack rolls and saves, one more per slot level above 1st; an Action, Concentration up to 1 minute. */
+export function bless(over: Partial<SpellRecord> = {}): SpellRecord {
+  const ruleset = over.ruleset ?? "2014";
+  return healer({
+    id: `bless_${ruleset}`, name: "Bless", level: 1, range: "30 ft.", ruleset, concentration: true,
+    effects: [boonEffect({ attack: "1d4", save: "1d4", rounds: 10, morePerSlot: 1 }, 3, "A d4 on attack rolls and saving throws.")],
+    ...over,
+  });
+}
+
+/** "Shield of Faith" (PHB 2014 and 2024): one creature within 60 feet gains +2 AC; a Bonus Action, Concentration up to 10 minutes. */
+export function shieldOfFaith(over: Partial<SpellRecord> = {}): SpellRecord {
+  const ruleset = over.ruleset ?? "2014";
+  return healer({
+    id: `shield_of_faith_${ruleset}`, name: "Shield of Faith", level: 1, range: "60 ft.", ruleset, concentration: true,
+    casting_time: "Special", casting_time_custom: "bonus-action",
+    effects: [boonEffect({ ac: 2, rounds: 100 }, 1, "+2 bonus to AC.")],
+    ...over,
+  });
+}
+
+/** "Power Word Heal" (SRD 5.2): one creature regains all its hit points and loses Charmed, Frightened, Paralyzed, Poisoned and Stunned; a 9th-level Action, 60 feet. */
+export function powerWordHeal(over: Partial<SpellRecord> = {}): SpellRecord {
+  return healer({
+    id: "power_word_heal_2024", name: "Power Word Heal", level: 9, range: "60 ft.", ruleset: "2024", source: "srd-2024", healing_dice: null,
+    effects: [healEffect("", { dice: null, full: true, modifier: null, scaling: null, ends: ["Charmed", "Frightened", "Paralyzed", "Poisoned", "Stunned"], unaffected: [] })],
+    ...over,
+  });
+}
+
+/** "Mass Heal": a pool of 700 hit points shared among any number of creatures in range, a 9th-level Action, 60 feet. */
+export function massHeal(over: Partial<SpellRecord> = {}): SpellRecord {
+  const ruleset = over.ruleset ?? "2014";
+  const ends = ruleset === "2024" ? ["Blinded", "Deafened", "Poisoned"] : ["Blinded", "Deafened", "diseases"];
+  return healer({
+    id: `mass_heal_${ruleset}`, name: "Mass Heal", level: 9, range: "60 ft.", ruleset, healing_dice: null,
+    effects: [healEffect("", { dice: null, pool: 700, modifier: null, scaling: null, target: { type: "creature", count: null }, ends, unaffected: ruleset === "2014" ? ["undead", "construct"] : [] })],
+    ...over,
+  });
+}
+
+/** An acolyte-like cleric: Wisdom 16 (+3), spell save DC 13, 4 first-level slots for cure wounds and healing word, 2 third-level slots for mass healing word, a sacred flame cantrip. */
+export function clericBlock(over: Partial<MonsterStatBlock> = {}): MonsterStatBlock {
+  return mageBlock({
+    int: 10, wis: 16, challenge_rating: "2",
+    special_abilities: [other(
+      "Spellcasting",
+      "The cleric is a 5th-level spellcaster. Its spellcasting ability is Wisdom (spell save DC 13, +5 to hit with spell attacks). The cleric has the following cleric spells prepared:\n\n* Cantrips (at will): sacred flame\n* 1st level (4 slots): cure wounds, healing word\n* 3rd level (2 slots): mass healing word",
+    )],
+    ...over,
+  });
+}

@@ -129,7 +129,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useDrawWeapon } from "@/composables/table/useDrawWeapon";
-import { usePcAttackRows, type PcAttackRow } from "@/composables/encounters/usePcAttackRows";
+import { usePcAttackRows } from "@/composables/encounters/usePcAttackRows";
+import type { PcAttackRow } from "@/types/pcAttack.types";
 import { useHotkeys } from "@/composables/useHotkeys";
 import KeyCap from "@/components/common/controls/KeyCap.vue";
 import { actOutcome, type ActKind } from "@/lib/table/solo/fight/acts";
@@ -143,12 +144,14 @@ import type { BoardLine } from "@/lib/table/solo/fight/boardLines";
 import { useTableHelpers } from "@/composables/table/useTableHelpers";
 import { useTableFoes } from "@/composables/table/useTableFoes";
 import type { FightChange, FightTurn } from "@/lib/table/solo/fight/fightChange";
-import { attackEntryOf, damageDicePlan } from "@/lib/table/solo/fight/pcAttack";
+import { attackEntryOf, damageDicePlan } from "@/rules/fight/pcAttacks/entry";
 import type { RollAnswer, RollAsk } from "@/lib/table/solo/soloTypes";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { PartyMember } from "@/types/party.types";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { deathSaveRollOutcome, dyingStatus } from "@/rules/dying";
+import { deathSaveBoonBonus } from "@/rules/fight/boons";
+import { rollDie } from "@/lib/dice/dice";
 import SoloDeathSave from "./SoloDeathSave.vue";
 import SoloFightMap from "./SoloFightMap.vue";
 import SoloFightRoster from "./SoloFightRoster.vue";
@@ -323,7 +326,10 @@ async function onDeathSave(face: number, atTable: boolean): Promise<void> {
   if (!me || resolving.value) return;
   resolving.value = true;
   try {
-    const out = deathSaveRollOutcome({ successes: member.death_save_successes, failures: member.death_save_failures }, member.conditions, face);
+    // PHB "Bless": a death save is a saving throw, so a boon the fight gave the character adds its die, rolled by the app (the player
+    // was asked for the d20 only). The natural 1 and 20 decide on the d20 alone.
+    const bonus = deathSaveBoonBonus(face, me.conditions, rollDie);
+    const out = deathSaveRollOutcome({ successes: member.death_save_successes, failures: member.death_save_failures }, member.conditions, face, bonus);
     await updateMember({
       id: member.id,
       update: {

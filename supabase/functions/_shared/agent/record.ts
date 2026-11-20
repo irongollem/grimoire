@@ -107,18 +107,6 @@ export function parseRecordInput(input: Record<string, unknown>): { ok: true; va
   return { ok: true, value: { fact: body, about, hidden: input.hidden === true, closes } };
 }
 
-/**
- * The facts that stand: not struck, and not closed by a later fact that itself stands. A struck fact never happened
- * (the DM's Strike, #1226): the narrator never reads it, and a fact it would have closed is open again.
- */
-export function openFacts<T extends { id: string; struck_at: string | null }>(
-  facts: readonly T[],
-  closers: readonly { supersedes_id: string; struck_at: string | null }[],
-): T[] {
-  const closed = new Set(closers.filter((c) => c.struck_at === null).map((c) => c.supersedes_id));
-  return facts.filter((f) => f.struck_at === null && !closed.has(f.id));
-}
-
 /** A fact as the narrator reads it. `when` is a short label such as "Session 3". */
 export interface RecordedFact {
   id: string;

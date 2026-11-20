@@ -4,7 +4,7 @@ import { makeTurnTools, type FiledFact, type TurnToolsInput } from "./turnTools"
 import { NO_QUESTS, type QuestMove } from "../_shared/agent/quests";
 import type { FightPlan } from "../_shared/agent/fight";
 import type { PendingRoll } from "../_shared/agent/playerRoll";
-import type { SessionRow } from "./handler";
+import type { SessionRow } from "./turnTypes";
 import type { CallModel } from "../_shared/agent/types";
 import { NO_CANON_HERE, type BroughtOut } from "../_shared/agent/canon";
 import { NO_CHECK_MATERIAL } from "../_shared/agent/canonCheck";

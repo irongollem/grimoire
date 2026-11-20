@@ -13,9 +13,12 @@ import type { RulesetKey } from "../../../types/ruleset.types.ts";
 import type { StatBlockEntry } from "../../../types/statBlock.types.ts";
 import { limitAvailability, type ActionLimit } from "../../encounterTurn.ts";
 import { spellcastingOf } from "../../statBlock/spellcastingProse.ts";
-import { castableBy, slotLimitAt } from "./castLimit.ts";
+import { abilityMod } from "../../abilityScore.ts";
+import { castableBy, slotLimitAt, type Castable } from "./castLimit.ts";
 import { pickSpellRecord, type SpellRecord } from "./spellChoice.ts";
 import { kindLimitOf } from "./creatureKind.ts";
+import { boonEntryFor, isBoonSpell, type BoonPlan } from "./boonEntry.ts";
+import { healEntryFor, isHealingSpell, type HealPlan } from "./healEntry.ts";
 import { spellEntryFor } from "./spellEntry.ts";
 
 /** The area a spell covers, from the record's `aoe_shape` and the first number of its `aoe_size`. */
@@ -82,10 +85,21 @@ function slotFor(statBlock: MonsterStatBlock, combatant: RunCombatant, level: nu
   return null;
 }
 
+/** The slot (or use) a cast of `record` would spend and the level it is cast at, or null when the creature has none left. Mirrors `cast_spell`: a slot spell is cast at the level its group lists (or a higher slot), anything else at the spell's own level (0 for a cantrip). */
+function castingSlot(statBlock: MonsterStatBlock, combatant: RunCombatant, listed: Castable, record: SpellRecord): { castLevel: number; useKey: string | null; limit: ActionLimit | null } | null {
+  const slotted = listed.limit !== null && listed.level !== null && listed.level > 0 && listed.group.frequency.kind === "slots";
+  if (slotted && listed.useKey !== null && listed.limit !== null && listed.level !== null) {
+    const slot = slotFor(statBlock, combatant, listed.level, { useKey: listed.useKey, limit: listed.limit });
+    return slot === null ? null : { castLevel: slot.level, useKey: slot.useKey, limit: slot.limit };
+  }
+  if (listed.useKey !== null && listed.limit !== null && !limitAvailability(combatant, listed.useKey, listed.limit).available) return null;
+  return { castLevel: listed.level === 0 ? 0 : record.level, useKey: listed.useKey, limit: listed.limit };
+}
+
 /**
  * Every listed spell the creature can cast now with a record that has its numbers (a campaign's own, or a reviewed
- * library one) and an entry the fight can roll. A spell with no record, an unreviewed one, one that heals or has no
- * damage, and one with no use left is simply absent.
+ * library one) and an entry the fight can roll. A spell with no record, an unreviewed one, one that has no
+ * damage (a healing one is `healableNow`'s) and one with no use left is simply absent.
  */
 export function castableNow(
   statBlock: MonsterStatBlock,
@@ -103,25 +117,81 @@ export function castableNow(
     if (chosen === null || !chosen.automatable) continue;
     const { record } = chosen;
 
-    // Mirrors `cast_spell`: a slot spell is cast at the level its group lists (or a higher slot), anything else at the
-    // spell's own level (0 for a cantrip).
-    const slotted = listed.limit !== null && listed.level !== null && listed.level > 0 && listed.group.frequency.kind === "slots";
-    let castLevel: number;
-    let useKey: string | null = listed.useKey;
-    let limit: ActionLimit | null = listed.limit;
-    if (slotted && listed.useKey !== null && listed.limit !== null && listed.level !== null) {
-      const slot = slotFor(statBlock, combatant, listed.level, { useKey: listed.useKey, limit: listed.limit });
-      if (slot === null) continue;
-      ({ useKey, limit } = slot);
-      castLevel = slot.level;
-    } else {
-      castLevel = listed.level === 0 ? 0 : record.level;
-      if (useKey !== null && limit !== null && !limitAvailability(combatant, useKey, limit).available) continue;
-    }
+    const slot = castingSlot(statBlock, combatant, listed, record);
+    if (slot === null) continue;
+    const { castLevel, useKey, limit } = slot;
 
     const entry = spellEntryFor(record, castLevel, { saveDc: listed.saveDc, attackBonus: listed.attackBonus, casterLevel: listed.casterLevel }, { kindsChecked: options.kindsChecked === true });
     if (!entry.automatable) continue;
     out.push({ spell: record.name, record, castLevel, useKey, limit, kind: entry.kind, entry: entry.entry, area: areaOf(record), kindLimit: kindLimitOf(record) });
+  }
+  return out;
+}
+
+/** A healing spell the creature could cast on its turn right now (#1021): what it restores and what it spends. The tactics offer it at those who need it. */
+export interface HealNow {
+  /** The record's name: what `cast_spell` names the spell by. */
+  spell: string;
+  record: SpellRecord;
+  castLevel: number;
+  useKey: string | null;
+  limit: ActionLimit | null;
+  plan: HealPlan;
+  /** The record's range text ("Touch", "60 feet"): `rangeFeetOf` reads it. */
+  range: string;
+}
+
+/** The spellcasting modifier a creature adds to its healing: its listed casting ability's score through the one modifier rule, null when the entry names no ability. */
+export function spellcastingModifierOf(statBlock: MonsterStatBlock, ability: Castable["ability"]): number | null {
+  if (ability === null) return null;
+  const score = ability === "INT" ? statBlock.int : ability === "WIS" ? statBlock.wis : statBlock.cha;
+  return abilityMod(score);
+}
+
+/**
+ * Every listed healing spell the creature can cast now with a record the rules can roll (reviewed or its own, a structured
+ * healing effect, cast as an Action or a Bonus Action) and a use left, one per sensible slot as `castableNow` does for damage.
+ */
+export function healableNow(statBlock: MonsterStatBlock, combatant: RunCombatant, records: readonly SpellRecord[], ruleset: RulesetKey): HealNow[] {
+  const out: HealNow[] = [];
+  for (const name of listedSpellNames(statBlock)) {
+    const listed = castableBy(statBlock, name);
+    if (listed === null) continue;
+    const chosen = pickSpellRecord(name, records, ruleset);
+    if (chosen === null || !chosen.automatable || !isHealingSpell(chosen.record)) continue;
+    const slot = castingSlot(statBlock, combatant, listed, chosen.record);
+    if (slot === null) continue;
+    const plan = healEntryFor(chosen.record, slot.castLevel, { modifier: spellcastingModifierOf(statBlock, listed.ability) });
+    if (!plan.healable) continue;
+    out.push({ spell: chosen.record.name, record: chosen.record, castLevel: slot.castLevel, useKey: slot.useKey, limit: slot.limit, plan, range: chosen.record.range });
+  }
+  return out;
+}
+
+/** A boon spell the creature could cast on its turn right now (#1021): what each target gains and what it spends. */
+export interface BoonNow {
+  spell: string;
+  record: SpellRecord;
+  castLevel: number;
+  useKey: string | null;
+  limit: ActionLimit | null;
+  plan: BoonPlan;
+  range: string;
+}
+
+/** Every listed boon spell (Bless, Shield of Faith) the creature can cast now with a record the rules can read and a use left, as `healableNow` does for heals. */
+export function boonableNow(statBlock: MonsterStatBlock, combatant: RunCombatant, records: readonly SpellRecord[], ruleset: RulesetKey): BoonNow[] {
+  const out: BoonNow[] = [];
+  for (const name of listedSpellNames(statBlock)) {
+    const listed = castableBy(statBlock, name);
+    if (listed === null) continue;
+    const chosen = pickSpellRecord(name, records, ruleset);
+    if (chosen === null || !chosen.automatable || !isBoonSpell(chosen.record)) continue;
+    const slot = castingSlot(statBlock, combatant, listed, chosen.record);
+    if (slot === null) continue;
+    const plan = boonEntryFor(chosen.record, slot.castLevel);
+    if (!plan.boonable) continue;
+    out.push({ spell: chosen.record.name, record: chosen.record, castLevel: slot.castLevel, useKey: slot.useKey, limit: slot.limit, plan, range: chosen.record.range });
   }
   return out;
 }

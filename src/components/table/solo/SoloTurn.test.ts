@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
-import type { PcAttackRow } from "@/composables/encounters/usePcAttackRows";
+import type { PcAttackRow } from "@/types/pcAttack.types";
 import type { PartyMember } from "@/types/party.types";
 
 const rows = vi.hoisted(() => ({ list: [] as unknown[], carried: [] as { id: string; name: string }[] }));

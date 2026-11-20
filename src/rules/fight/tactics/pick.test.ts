@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { MonsterStatBlock } from "../../../types/monster.types.ts";
 import { emptyDefenses, type StatBlockEntry } from "../../../types/statBlock.types.ts";
-import type { TurnOption, TurnOptionExposure, TurnOptionKind } from "../terrain/turnOptions.ts";
+import type { TurnOption, TurnOptionExposure, TurnOptionKind } from "../terrain/options/types.ts";
 import { gateOptions, isBroken, pickTurn, type PickContext } from "./pick.ts";
 import { type MoraleRule, tacticalProfile } from "./profile.ts";
 // oxlint-disable-next-line unicorn/no-thenable -- `then` is the stat block's own morale field (#1203), not a promise
@@ -200,6 +200,12 @@ describe("pickTurn: rule target", () => {
     const lowest = prof({ tactics: { targets: "lowest_armor" } });
     expect(pickTurn(o, lowest, ctxOf([OGRE, FRESCO, CHICORY], { fresco: 16, chicory: 11 }))?.optionId).toBe("attack:actions:Greatclub:chicory");
     expect(pickTurn(o, lowest, ctxOf([OGRE, FRESCO, CHICORY], { fresco: null, chicory: 20 }))?.optionId).toBe("attack:actions:Greatclub:chicory");
+  });
+
+  it("lowest_armor counts Shield of Faith: printed AC 14 + 2 = 16 loses to printed AC 15 (fails if the target's boon is not read)", () => {
+    const shielded = who("fresco", { conditions: [{ name: "Shield of Faith", grants: { ac: 2 } }] });
+    const lowest = prof({ tactics: { targets: "lowest_armor" } });
+    expect(pickTurn(opts("fresco", "chicory"), lowest, ctxOf([OGRE, shielded, CHICORY], { fresco: 14, chicory: 15 }))?.optionId).toBe("attack:actions:Greatclub:chicory");
   });
 
   it("breaks a tie by the order of the fight: two equally near targets give the one listed first among combatants", () => {
@@ -513,5 +519,67 @@ describe("rule flee-by-spell", () => {
     const mover = who("ogre", { hp: 5 });
     const { pick } = run(mover, [...nearAttacks, other("dodge"), fleeOpt()], [mover, FRESCO, CHICORY]);
     expect(pick).toEqual({ optionId: "flee", reason: "Falls back: at 5 of 20 hit points it breaks and flees." });
+  });
+});
+
+// ── boons (#1021, `boonChoice.ts`) ──────────────────────────────────────────────────
+describe("pickTurn: a boon is cast early", () => {
+  const friends = [who("pip", { faction_id: "m" }), who("brug", { faction_id: "m" }), who("tam", { faction_id: "m" })];
+  const roster = [OGRE, ...friends, FRESCO];
+  const blessOf = (over: Partial<NonNullable<TurnOption["boon"]>> = {}): TurnOption => ({
+    id: "boon:Bless:1", kind: "boon", targetId: "pip", destination: null, path: null, feet: null, attack: null, distanceFeet: null, provokes: [], exposure: [], summary: "bless",
+    boon: { name: "Bless", castLevel: 1, slot: "action", targetIds: ["pip", "brug", "tam"], spends: true, distanceFeet: 5, targetCount: 3, concentration: true, ...over },
+  });
+  const flame: TurnOption = {
+    id: "spell:Sacred Flame:0:fresco", kind: "spell", targetId: "fresco", destination: null, path: null, feet: null, attack: null, distanceFeet: null, provokes: [], exposure: [], summary: "flame",
+    spell: { name: "Sacred Flame", castLevel: 0, kind: "save", targetIds: ["fresco"], friendsCaught: [], spends: false, distanceFeet: 30, hitChance: 0.6, expectedDamage: 4.5 },
+  };
+  const healOf = (): TurnOption => ({
+    id: "heal:Cure Wounds:1:pip", kind: "heal", targetId: "pip", destination: null, path: null, feet: null, attack: null, distanceFeet: null, provokes: [], exposure: [], summary: "heal",
+    heal: { name: "Cure Wounds", castLevel: 1, slot: "action", targetIds: ["pip"], downIds: ["pip"], lowIds: [], spends: true, expectedEach: 7.5, distanceFeet: 5 },
+  });
+  const pickAt = (round: number, options: TurnOption[], combatants: RunCombatant[] = roster) =>
+    pickTurn(options, prof(), { ...ctxOf(combatants), round });
+
+  // APP CONVENTION "cast early": in round 1 a cleric with three friends in range casts Bless before its Sacred Flame; in round 3 it attacks.
+  // Bug caught: Bless never cast, or cast in every round.
+  it("fails if Bless is not cast in round 1 or is cast in round 3", () => {
+    const options = [flame, blessOf(), atk({ target: "fresco", expected: 6, hit: 0.7 })];
+    expect(pickAt(1, options)?.optionId).toBe("boon:Bless:1");
+    expect(pickAt(3, options)?.optionId).not.toBe("boon:Bless:1");
+  });
+
+  // RULE boon-concentration: a caster already concentrating attacks instead. Bug caught: the boon ends the spell the caster holds.
+  it("fails if Bless is cast while the caster concentrates", () => {
+    const busy = who("ogre", { concentration: { spellId: null, spellName: "Hold Person", castAtLevel: 2, startedRound: 1, appliedEffectIds: [] } });
+    const options = [blessOf(), atk({ target: "fresco", expected: 6, hit: 0.7 })];
+    expect(pickAt(1, options, [busy, ...friends, FRESCO])?.optionId).toBe("attack:actions:Greatclub:fresco");
+  });
+
+  // The maintainer's order, heal first: a friend down at 0 is healed (Cure Wounds) rather than Blessed. Bug caught: the boon checked before the heal.
+  it("fails if a friend down is Blessed instead of healed", () => {
+    expect(pickAt(1, [blessOf(), healOf()])?.optionId).toBe("heal:Cure Wounds:1:pip");
+  });
+
+  // RULE boon-reach: Bless reaching one creature (count 3) is not worth the Action; the creature attacks. Bug caught: the minimum of two targets missing.
+  it("fails if Bless is cast when it reaches only one creature", () => {
+    const options = [blessOf({ targetIds: ["pip"] }), atk({ target: "fresco", expected: 6, hit: 0.7 })];
+    expect(pickAt(1, options)?.optionId).toBe("attack:actions:Greatclub:fresco");
+  });
+
+  // A Bonus Action boon is no turn of its own: with only it and a dodge on offer the turn is the dodge. Bug caught: Shield of Faith picked as the whole turn.
+  it("fails if a Bonus Action boon is picked as the turn", () => {
+    const shield = blessOf({ name: "Shield of Faith", slot: "bonus_action", targetIds: ["pip"], targetCount: 1 });
+    expect(pickAt(1, [shield, other("dodge")])?.optionId).toBe("dodge");
+  });
+
+  // With only the Bonus Action boon on offer there is no turn to pick: it rides one, it is not one. Bug caught: the Bonus Action filter missing, so Shield of Faith is the whole turn.
+  it("fails if a lone Bonus Action boon is taken as the only turn on offer", () => {
+    expect(pickAt(1, [blessOf({ name: "Shield of Faith", slot: "bonus_action", targetIds: ["pip"], targetCount: 1 })])).toBeNull();
+  });
+
+  // Past its round a boon is no fallback either: with an attack on offer the creature attacks, and the boon is not "the first turn on offer". Bug caught: the filter of cast kinds missing "boon".
+  it("fails if a boon that was ruled out is taken as the turn that is left", () => {
+    expect(pickAt(5, [blessOf(), other("hide")])?.optionId).toBe("hide");
   });
 });

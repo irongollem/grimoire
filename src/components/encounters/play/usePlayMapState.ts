@@ -1,4 +1,4 @@
-import { computed, onScopeDispose, ref, toValue, watch, type MaybeRefOrGetter, type Ref } from "vue";
+import { computed, ref, toValue, watch, type MaybeRefOrGetter, type Ref } from "vue";
 import { useEncounterRoom } from "@/composables/encounters/useEncounterRoom";
 import { useEncounterLive, liveState } from "@/composables/encounters/useEncounterLive";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
@@ -15,16 +15,12 @@ import { scatterInRoom as scatterInCells } from "@/lib/battlemap/scatter";
 import { useLocationNames } from "@/composables/locations/useLocations";
 import type { FogCellKey } from "@/lib/battlemap/fogMask";
 import type { CellKey } from "@/types/dungeonMap.types";
-import { gridFromRatio, imageGrid, type MapGrid } from "@/lib/battlemap/imageGrid";
-import { useMapMemory } from "@/composables/locations/useMapMemory";
-import { useMapDoors } from "@/composables/locations/useMapDoors";
-import { usePartySight } from "@/composables/encounters/usePartySight";
-import { useRememberSight } from "@/composables/locations/useRememberSight";
+import { gridFromRatio } from "@/lib/battlemap/imageGrid";
+import { useFightMapSight } from "@/composables/encounters/useFightMapSight";
 import { useAssertLocationState, useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { zoneIdAt } from "@/lib/battlemap/darkness";
 import { roomCellsAt } from "@/lib/battlemap/roomFog";
 import { doorAt, effectiveDoors } from "@/lib/battlemap/doors";
-import { occludersOf } from "@/lib/battlemap/occlusion";
 import type { MoveTerrain } from "@/lib/battlemap/movement";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { isInteriorType } from "@/lib/locations/tiers";
@@ -104,10 +100,6 @@ export function usePlayMapState(
   const canWrite = computed(() => !following.value);
   // The picture's shape is how the fight server knows where the map ends (#1202); only the DM's own window records it.
   useHealPictureShape({ place: () => surface.value?.mapLocation, enabled: () => canWrite.value && auth.isDM });
-  const memory = useMapMemory(
-    () => campaign.activeCampaign?.id ?? null,
-    () => surface.value?.mapLocation.id ?? null,
-  );
 
   function reportMemoryFailure(error: unknown) {
     toast.error(toast.fromError(error, "Couldn't save the fog."));
@@ -178,12 +170,17 @@ export function usePlayMapState(
     if (row.value) scheduleMapPush({ magicalDarkness: darknessZones.value });
   }
 
+  // ── The map's memory, doors and what the party sees ─────────────────────────
+  // Shared with the solo table's map. Here every placed token looks, and only the DM's own window writes memory.
+  const { memory, doorStates, setDoor, viewers, sight, occluders } = useFightMapSight({
+    surface: () => surface.value,
+    imageSize,
+    zones: darknessZones,
+    tokens: placed,
+    mayRemember: canWrite,
+  });
+
   // ── Doors ───────────────────────────────────────────────────────────────
-  // A door's play state is the map's, like the fog (#1134): exploring and every fight on this map share it, live or not.
-  const { doorStates, setDoor } = useMapDoors(
-    () => campaign.activeCampaign?.id ?? null,
-    () => surface.value?.mapLocation.id ?? null,
-  );
 
   function doorIdAt(x: number, y: number): string | null {
     const drawn = surface.value?.live?.doors;
@@ -229,22 +226,7 @@ export function usePlayMapState(
     { immediate: true },
   );
 
-  // ── What the party sees, and the rooms they enter ────────────────────────
-  const grid = computed<MapGrid | null>(() => imageGrid(surface.value?.calibration.cells_per_image_width, toValue(imageSize)));
-
-  const { viewers, sight } = usePartySight({
-    live: () => surface.value?.live ?? null,
-    doorStates,
-    zones: darknessZones,
-    tokens: placed,
-    grid,
-  });
-  useRememberSight({
-    memory,
-    sight,
-    enabled: () => canWrite.value && !!campaign.activeCampaign?.id && !!surface.value?.mapLocation.id,
-  });
-
+  // ── The rooms the party enters ───────────────────────────────────────────
   // Entering a room marks it Explored (decision 7). Once per room per session, never undone, DM window only.
   const roomIndex = computed(() => (surface.value ? roomCellIndex(regions.value ?? [], surface.value.calibration) : new Map<CellKey, string>()));
   const tracedRoomIds = computed(() => [...new Set(roomIndex.value.values())]);
@@ -264,19 +246,11 @@ export function usePlayMapState(
     { immediate: true },
   );
 
-  // The attack flows beside the map read the walls from the store (a foe behind a wall is not beside an archer).
-  store.setOccluders(() => {
-    const live = surface.value?.live;
-    return live ? occludersOf(live, doorStates.value) : null;
-  });
-  onScopeDispose(() => store.setOccluders(null));
-
   /** What a move crosses: the difficult zones the map draws, and the walls and closed doors a big token can wedge in. */
   const moveTerrain = computed<MoveTerrain>(() => {
-    const live = surface.value?.live;
     return {
       difficult: new Set(terrainZones.value.flatMap((z) => z.battleCells)),
-      walls: live ? occludersOf(live, doorStates.value).segments : [],
+      walls: occluders.value ? occluders.value.segments : [],
     };
   });
 

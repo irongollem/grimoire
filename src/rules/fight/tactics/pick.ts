@@ -8,14 +8,22 @@
 // Pure and edge-importable (relative `.ts` imports only).
 
 import type { RunCombatant } from "../../../types/encounter.types.ts";
-import { compareExposure, fleeSourceOf, wayOffPhrase, type TurnOption, type TurnOptionSpell } from "../terrain/turnOptions.ts";
+import { boonArmorClass } from "../boons.ts";
+import { compareExposure } from "../terrain/options/scene.ts";
+import { fleeSourceOf } from "../terrain/options/flee.ts";
+import { wayOffPhrase } from "../terrain/options/phrases.ts";
+import { type TurnOption, type TurnOptionSpell } from "../terrain/options/types.ts";
 import type { MoraleRule, TacticalProfile } from "./profile.ts";
+import { chooseActionBoon, isBoonOption } from "./boonChoice.ts";
+import { chooseActionHeal, isHealOption } from "./healChoice.ts";
 import { seenAs, seenDamagePerTurn } from "./shownThreat.ts";
 import { usableWayOut, type WayOut } from "./wayOut.ts";
 
 export interface PickContext {
   combatants: readonly RunCombatant[];
   moverId: string;
+  /** The fight's current round: a boon is cast only early (`boonChoice.ts`); left out, none is. */
+  round?: number;
   /** A target's armor class, or null when it is not known (the `lowest_armor` rule ranks it last). */
   armorClassOf: (target: RunCombatant) => number | null;
 }
@@ -153,6 +161,12 @@ const woundedShare = (c: RunCombatant) => (c.max_hp > 0 ? c.hp / c.max_hp : 1);
 /** Compares numbers that may be unknown: unknown is last. */
 const lastIfNull = (a: number | null, b: number | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a - b);
 
+/** A target's armor class with its boons (Shield of Faith) on top; null stays null. */
+function armorOf(target: RunCombatant, ctx: PickContext): number | null {
+  const printed = ctx.armorClassOf(target);
+  return printed === null ? null : printed + boonArmorClass(target.conditions);
+}
+
 /**
  * RULE target: the `targets` setting chooses among the targets that have an option. `nearest` is the smallest distance;
  * `most_wounded` the lowest share of hit points; `spellcasters_first` a target holding a concentration spell, else
@@ -173,7 +187,7 @@ function chooseTarget(groups: readonly Group[], profile: TacticalProfile, ctx: P
         return huntRank(a.target) - huntRank(b.target) || woundedShare(a.target) - woundedShare(b.target);
       }
       case "lowest_armor":
-        return lastIfNull(ctx.armorClassOf(a.target), ctx.armorClassOf(b.target));
+        return lastIfNull(armorOf(a.target, ctx), armorOf(b.target, ctx));
     }
   };
   const group = [...groups].sort((a, b) => byRule(a, b) || a.order - b.order)[0];
@@ -390,7 +404,9 @@ function runAway(options: readonly TurnOption[], mover: RunCombatant, cause: str
  * rule picks with that target's best option; with no attack on offer it closes on a target, else it Dodges, else
  * takes the first option.
  */
-export function pickTurn(options: readonly TurnOption[], profile: TacticalProfile, ctx: PickContext): TurnPick | null {
+export function pickTurn(offered: readonly TurnOption[], profile: TacticalProfile, ctx: PickContext): TurnPick | null {
+  // A Bonus Action heal or boon is no turn of its own: it rides the turn chosen here (`healChoice.ts`, `boonChoice.ts`).
+  const options = offered.filter((o) => !(isHealOption(o) && o.heal.slot === "bonus_action") && !(isBoonOption(o) && o.boon.slot === "bonus_action"));
   if (options.length === 0) return null;
   const mover = ctx.combatants.find((c) => c.instance_id === ctx.moverId);
   const broken = mover !== undefined && isBroken(profile, mover);
@@ -440,6 +456,14 @@ export function pickTurn(options: readonly TurnOption[], profile: TacticalProfil
     }
   }
 
+  // RULE heal-down, heal-low (`healChoice.ts`): getting an ally up, or one below half back on their feet, comes before an attack or a damage spell.
+  const heal = chooseActionHeal(options, ctx.combatants);
+  if (heal !== null) return { optionId: heal.option.id, reason: heal.reason };
+
+  // RULE boon-early (`boonChoice.ts`): a boon is cast early, while the fight is ahead of it, before the attacks.
+  const boon = mover === undefined ? null : chooseActionBoon(options, ctx.combatants, mover, ctx.round);
+  if (boon !== null) return { optionId: boon.option.id, reason: boon.reason };
+
   const attacks = options.filter((o) => o.kind === "attack");
   const attackChoice = attacks.length === 0 ? null : chooseTarget(groupByTarget(attacks, ctx, (o) => (o.attack === null ? null : o.attack.distanceFeet)), profile, ctx);
   const best = attackChoice === null ? null : { option: bestAttack(attackChoice.group.options, profile), target: attackChoice.group.target };
@@ -448,12 +472,14 @@ export function pickTurn(options: readonly TurnOption[], profile: TacticalProfil
     const cast = bestCast(castCandidates(casts, attacks, profile, ctx), best, attacks, profile, ctx);
     if (cast !== null) {
       const why = cast.why !== null ? cast.why : attackChoice === null || cast.retargeted ? null : attackChoice.why;
-      return { optionId: cast.option.id, reason: describeCast(cast.option, why, ctx, best === null ? null : best.option, cast.counted) };
+      const surge = cast.option.spell.surge;
+      const surged = surge === undefined ? "" : ` With Action Surge it then takes a second action: ${surge.second.summary.charAt(0).toLowerCase()}${surge.second.summary.slice(1)}, so the figures count both.`;
+      return { optionId: cast.option.id, reason: `${describeCast(cast.option, why, ctx, best === null ? null : best.option, cast.counted)}${surged}` };
     }
   }
   if (attackChoice !== null && best !== null) return { optionId: best.option.id, reason: describeAttack(best.option, best.target, attackChoice.why) };
   // A cast that was ruled out is no turn to fall back on: what is left is judged without it, unless nothing else is on offer.
-  const left = options.filter((o) => o.kind !== "spell");
+  const left = options.filter((o) => o.kind !== "spell" && o.kind !== "heal" && o.kind !== "boon");
   const turns = left.length > 0 ? left : options;
   if (turns.length === 1) return { optionId: turns[0].id, reason: `Takes the only turn on offer: ${turns[0].summary}.` };
 

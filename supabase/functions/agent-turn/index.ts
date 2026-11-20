@@ -5,8 +5,6 @@
 import type { AgentProvider } from "../_shared/agent/providerIo.ts";
 import { loadTurnsInReach } from "../_shared/agent/turnsInReach.ts";
 import { giveHandout, loadHandouts, loadPicture } from "./showIo.ts";
-import type { Road } from "../../../src/lib/travel/roads.ts";
-import { entriesOf } from "../_shared/agent/roadTables.ts";
 import { CHILD_TURN_THRESHOLDS, readsAsChild, STRIKE_WINDOW_DAYS } from "../_shared/agent/conduct.ts";
 import { belongingsText, MAX_BELONGINGS, type Belonging } from "../_shared/agent/belongings.ts";
 import { MAX_PEOPLES } from "../_shared/agent/peoples.ts";
@@ -37,32 +35,30 @@ import { hazardFromRow, type KeptHazard } from "../_shared/agent/hazard.ts";
 import { agentToolsFrom, bindTools, SOLO_TABLE_TOOLS, TABLE_REFUSED_TYPES } from "../_shared/agent/mcpTools.ts";
 import { buildNpcProfile, NPC_PROFILE_COLUMNS, shownNpcName, type NpcProfileRow } from "../_shared/npcProfile.ts";
 import { campaignToday } from "../_shared/npcAge.ts";
-import { toPlainText } from "../_shared/ai-prompt.ts";
 import { BESIDE_MAX, PLACES_MAX, CHARACTERS_MAX, type SceneView } from "../_shared/agent/scene.ts";
 import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { loadPartyMember } from "../_shared/agent/characterIo.ts";
 import { secureDie } from "../_shared/serverRoll.ts";
-import { openFacts, RECORD_SECTION_MAX, type RecordedFact } from "../_shared/agent/record.ts";
+import type { RecordedFact } from "../_shared/agent/record.ts";
 import { revealToCharacter } from "./revealIo.ts";
 import { makeHandsStore } from "./handsIo.ts";
 import { finishFight, layFightLoot, loadFights, setFight, setPursuit, startFight, statlessFighters } from "./fightIo.ts";
 import type { Prologue } from "../_shared/agent/prologue.ts";
-import { parsePendingRoll } from "../_shared/agent/playerRoll.ts";
 import { loadAgentCalibration, loadModelPrice, resolveAgentProvider } from "../_shared/agent/providerIo.ts";
 import { applyQuestMove, loadQuests } from "./questIo.ts";
 import { CANON_JUDGE_TIMEOUT_MS, narrationJudgeFor } from "./narrationJudge.ts";
 import { canonStore } from "./canonIo.ts";
 import { EmbeddingProviderConfigError, resolveEmbeddingProvider } from "../_shared/embeddings.ts";
 import type { TurnRow } from "../_shared/agent/transcript.ts";
-import {
-  beginTurn,
-  type AgentEvent,
-  type AgentTurnDeps,
-  type CampaignRow,
-  type Refusal,
-  type SessionRow,
-} from "./handler.ts";
+import { beginTurn } from "./handler.ts";
+import { candidateFactIds, factFailure, NEWEST_FACTS, openFacts, recordFrom, recordTies, sessionIdsOf, sessionNumbers } from "./recordRows.ts";
+import { sceneFrom } from "./sceneRows.ts";
+import { travelMapFrom } from "./travelRows.ts";
+import { afterUse, asCompanion, characterInsert, characterRewrite, companionMemoriesText, companionRows, foundCharacters, isUntouchedTableCharacter, memoryRowsFor, profileWithBelongings } from "./characterRows.ts";
+import { escapeLike } from "./likeEscape.ts";
+import { nextSessionNumber, openedSession, prologueFrom, sessionRow, wholeCredits } from "./sessionRows.ts";
+import type { AgentEvent, AgentTurnDeps, CampaignRow, Refusal, SessionRow } from "./turnTypes.ts";
 
 /** How many of a party member's memories their own call is given: the newest. */
 const COMPANION_MEMORIES = 12;
@@ -75,37 +71,6 @@ function json(status: number, body: unknown): Response {
 }
 
 const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id, pressure_clock_id, party_member_id, opened_play_session, left_at, pending_roll, fight_encounter_id, pursuit_encounter_id, updated_at";
-
-/** Beside what is tied to this place and these people, the campaign's newest facts always reach the narrator. */
-const NEWEST_FACTS = 15;
-
-function sessionRow(row: Record<string, unknown>): SessionRow {
-  return {
-    id: row.id as string,
-    user_id: row.user_id as string,
-    campaign_id: row.campaign_id as string,
-    summary: (row.summary as string | null) ?? null,
-    summary_through_seq: Number(row.summary_through_seq),
-    scene_location_id: (row.scene_location_id as string | null) ?? null,
-    campaign_session_id: (row.campaign_session_id as string | null) ?? null,
-    pressure_clock_id: (row.pressure_clock_id as string | null) ?? null,
-    party_member_id: (row.party_member_id as string | null) ?? null,
-    opened_play_session: row.opened_play_session === true,
-    left_at: (row.left_at as string | null) ?? null,
-    updated_at: String(row.updated_at),
-    // Anything this code did not write reads as nothing asked: a roll is never scored against a DC it cannot trust.
-    pending_roll: parsePendingRoll(row.pending_roll),
-    fight_encounter_id: (row.fight_encounter_id as string | null) ?? null,
-    pursuit_encounter_id: (row.pursuit_encounter_id as string | null) ?? null,
-  };
-}
-
-// The database answers with the whole credits to bill. A value that is not a number must never become "bill nothing".
-function wholeCredits(data: unknown): number {
-  const due = Number(data);
-  if (data === null || data === undefined || !Number.isFinite(due)) throw new Error("the database did not say what is due");
-  return due;
-}
 
 serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
@@ -159,12 +124,11 @@ serve(withCors(async (req: Request) => {
     if (!companionSpeaks(companion)) return null;
     const lived = await admin.from("party_member_memories").select("kind, body").eq("party_member_id", memberId).eq("campaign_id", campaignId).order("created_at", { ascending: false }).limit(COMPANION_MEMORIES);
     if (lived.error) throw lived.error;
-    const memories = (lived.data ?? []).reverse().map((m) => `- ${m.body as string}`);
     return {
       id: member.id,
       shownName: member.name,
       profile: companionProfile(companion),
-      memories: memories.length === 0 ? "" : `What you remember of this story so far:\n${memories.join("\n")}`,
+      memories: companionMemoriesText(lived.data ?? []),
     };
   }
 
@@ -201,7 +165,7 @@ serve(withCors(async (req: Request) => {
 
     // The campaign's own hazard of that name first, then the library's: what exists is used before anything is made.
     async findHazard(campaignId, name): Promise<KeptHazard | null> {
-      const exact = name.replace(/[\\%_]/g, (c) => `\\${c}`);
+      const exact = escapeLike(name);
       const columns = "name, effect_description, save_type, save_dc, damage_entries";
       const own = await admin.from("traps").select(columns).eq("campaign_id", campaignId).ilike("name", exact).limit(1).maybeSingle();
       if (own.error) throw own.error;
@@ -256,11 +220,9 @@ serve(withCors(async (req: Request) => {
         .limit(1)
         .maybeSingle();
       if (lastError) throw lastError;
-      const next = last && typeof last.number === "number" ? last.number + 1 : 1;
-      const { data, error } = await supabase.rpc("start_campaign_session", { p_campaign_id: campaignId, p_number: next });
+      const { data, error } = await supabase.rpc("start_campaign_session", { p_campaign_id: campaignId, p_number: nextSessionNumber(last) });
       if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : data;
-      return row && typeof row.id === "string" ? { id: row.id, opened: (running ?? []).length === 0 } : null;
+      return openedSession(data, running);
     },
 
     async createSession({ userId, campaignId, provider, model, sceneLocationId, campaignSessionId, openedPlaySession, partyMemberId, narratorVoice }): Promise<SessionRow> {
@@ -424,11 +386,10 @@ serve(withCors(async (req: Request) => {
       ]);
       if (carried.error) throw carried.error;
       const belongings = belongingsText((carried.data ?? []) as Belonging[]);
-      const profile = buildNpcProfile(npc, campaignToday(rawCampaign));
       return {
         id: npc.id,
         shownName: shownNpcName(npc),
-        profile: belongings === null ? profile : `${profile}\n\n${belongings}`,
+        profile: profileWithBelongings(buildNpcProfile(npc, campaignToday(rawCampaign)), belongings),
         memories: formatNpcMemories(memories, npc),
       };
     },
@@ -438,10 +399,9 @@ serve(withCors(async (req: Request) => {
     async loadCompanions(campaignId, playedId) {
       const { data, error } = await admin.from("party_members").select("id, ai_speaks").eq("campaign_id", campaignId).order("sort_order", { ascending: true }).limit(COMPANIONS_MAX + 1);
       if (error) throw error;
-      const others = (data ?? []).filter((row) => row.id !== playedId).slice(0, COMPANIONS_MAX);
-      const loaded = await Promise.all(others.map(async (row) => {
+      const loaded = await Promise.all(companionRows(data ?? [], playedId).map(async (row) => {
         const member = await loadPartyMember(admin, campaignId, row.id as string);
-        return member === null ? null : { ...member, aiSpeaks: row.ai_speaks === true };
+        return member === null ? null : asCompanion(member, row);
       }));
       return loaded.filter((c): c is Companion => c !== null);
     },
@@ -475,27 +435,7 @@ serve(withCors(async (req: Request) => {
       if (parent.error) throw parent.error;
       if (children.error) throw children.error;
       if (people.error) throw people.error;
-      return {
-        id: place.id as string,
-        name: place.name as string,
-        kind: (place.location_type as string | null) ?? null,
-        description: toPlainText(place.description as string | null),
-        within: parent.data ? (parent.data.name as string) : null,
-        withinId: parent.data ? (place.parent_id as string) : null,
-        beside: (siblings.data ?? []).map((c) => ({ id: c.id as string, name: c.name as string })),
-        places: (children.data ?? []).map((c) => ({ id: c.id as string, name: c.name as string })),
-        characters: (people.data ?? []).map((n) => {
-          return {
-            id: n.id as string,
-            name: shownNpcName({
-              name: n.name as string,
-              disguise_name: n.disguise_name as string | null,
-              is_revealed: n.is_revealed === true,
-            }),
-            occupation: (n.occupation as string | null) ?? null,
-          };
-        }),
-      };
+      return sceneFrom(place, parent.data, siblings.data ?? [], children.data ?? [], people.data ?? []);
     },
 
     async setPendingRoll(sessionId, campaignId, pending): Promise<void> {
@@ -546,10 +486,7 @@ serve(withCors(async (req: Request) => {
         generatedAt: new Date().toISOString(),
         edited: false,
       };
-      const common = (m: { kind: string; body: string }) => ({ campaign_id: campaignId, user_id: userId, kind: m.kind, body: m.body, session_id: campaignSessionId, ai_provenance: provenance });
-      const npcRows = memories.filter((m) => npcIds.has(m.characterId)).map((m) => ({ npc_id: m.characterId, ...common(m) }));
-      // What one of the party lived through while their player was away: theirs to read when they are back.
-      const memberRows = memories.filter((m) => memberIds.has(m.characterId)).map((m) => ({ party_member_id: m.characterId, ...common(m) }));
+      const { npcRows, memberRows } = memoryRowsFor({ memories, npcIds, memberIds, campaignId, userId, campaignSessionId, provenance });
       if (npcRows.length > 0) {
         const { error } = await admin.from("npc_memories").insert(npcRows);
         if (error) throw error;
@@ -565,19 +502,17 @@ serve(withCors(async (req: Request) => {
     // Candidates are what is tied to this place or these people, plus the campaign's newest facts, so something
     // filed just now about somewhere else still reaches the narrator.
     async loadRecord(campaignId, about): Promise<RecordedFact[]> {
-      const ties: string[] = [];
-      if (about.locationId !== null) ties.push(`location_id.eq.${about.locationId}`);
-      if (about.characterIds.length > 0) ties.push(`npc_id.in.(${about.characterIds.join(",")})`);
+      const ties = recordTies(about);
       const [linked, newest] = await Promise.all([
-        ties.length === 0
+        ties === null
           ? Promise.resolve({ data: [] as Array<{ fact_id: string }>, error: null })
-          : supabase.from("story_fact_links").select("fact_id").eq("campaign_id", campaignId).or(ties.join(",")),
+          : supabase.from("story_fact_links").select("fact_id").eq("campaign_id", campaignId).or(ties),
         supabase.from("story_facts").select("id").eq("campaign_id", campaignId).is("struck_at", null)
           .order("created_at", { ascending: false }).limit(NEWEST_FACTS),
       ]);
       if (linked.error) throw linked.error;
       if (newest.error) throw newest.error;
-      const ids = [...new Set([...(linked.data ?? []).map((l) => l.fact_id as string), ...(newest.data ?? []).map((f) => f.id as string)])];
+      const ids = candidateFactIds(linked.data ?? [], newest.data ?? []);
       if (ids.length === 0) return [];
 
       const [facts, closers] = await Promise.all([
@@ -587,33 +522,18 @@ serve(withCors(async (req: Request) => {
       ]);
       if (facts.error) throw facts.error;
       if (closers.error) throw closers.error;
-      // A struck fact never happened: it is not read, and what it would have closed stays open (`openFacts`).
-      const open = openFacts(
-        (facts.data ?? []).map((f) => ({ ...f, id: f.id as string, struck_at: (f.struck_at as string | null) ?? null })),
-        (closers.data ?? []).map((c) => ({ supersedes_id: c.supersedes_id as string, struck_at: (c.struck_at as string | null) ?? null })),
-      );
+      const open = openFacts(facts.data ?? [], closers.data ?? []);
 
-      const sessionIds = [...new Set(open.map((f) => f.session_id as string | null).filter((id): id is string => id !== null))];
-      const numbers = new Map<string, number>();
+      const sessionIds = sessionIdsOf(open);
+      let numbers = new Map<string, number>();
       if (sessionIds.length > 0) {
         const { data, error } = await supabase.from("campaign_sessions").select("id, number")
           .eq("campaign_id", campaignId).in("id", sessionIds);
         if (error) throw error;
-        for (const s of data ?? []) if (typeof s.number === "number") numbers.set(s.id as string, s.number);
+        numbers = sessionNumbers(data ?? []);
       }
 
-      return open
-        .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))
-        .slice(-RECORD_SECTION_MAX)
-        .map((f) => {
-          const number = f.session_id === null ? undefined : numbers.get(f.session_id as string);
-          return {
-            id: f.id as string,
-            body: f.body as string,
-            hidden: f.known_to_player !== true,
-            when: number === undefined ? null : `Session ${number}`,
-          };
-        });
+      return recordFrom(open, numbers);
     },
 
     async fileFact({ campaignId, campaignSessionId, agentSessionId, provider, model, fact, about, hidden, closes }) {
@@ -641,9 +561,7 @@ serve(withCors(async (req: Request) => {
       if (error || !data) {
         console.error("agent-turn: filing a fact failed:", error);
         // A `closes` that is not a fact of this campaign is the one failure the narrator can fix.
-        return { error: closes !== null && (error?.code === "23503" || error?.code === "23514")
-          ? "The fact to close was not found on this campaign's record, so nothing was filed. Use an id listed under \"On record\"."
-          : "The fact could not be put on record. Say what happens without filing it." };
+        return { error: factFailure(closes, error?.code) };
       }
       const factId = data.id as string;
       if (about.length > 0) {
@@ -664,7 +582,7 @@ serve(withCors(async (req: Request) => {
     // By name or by disguise, whichever the party knows them under. `%`, `_` and `\` are escaped: the text came
     // out of a model's tool call and must match as written, not as a pattern.
     async findCharacters(campaignId, name) {
-      const pattern = `%${name.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      const pattern = `%${escapeLike(name)}%`;
       const columns = "id, name, disguise_name, is_revealed";
       const [byName, byDisguise] = await Promise.all([
         supabase.from("npcs").select(columns).eq("campaign_id", campaignId).ilike("name", pattern).limit(10),
@@ -672,18 +590,7 @@ serve(withCors(async (req: Request) => {
       ]);
       if (byName.error) throw byName.error;
       if (byDisguise.error) throw byDisguise.error;
-      const seen = new Map<string, { id: string; shownName: string }>();
-      for (const n of [...(byName.data ?? []), ...(byDisguise.data ?? [])]) {
-        seen.set(n.id as string, {
-          id: n.id as string,
-          shownName: shownNpcName({
-            name: n.name as string,
-            disguise_name: n.disguise_name as string | null,
-            is_revealed: n.is_revealed === true,
-          }),
-        });
-      }
-      return [...seen.values()];
+      return foundCharacters(byName.data ?? [], byDisguise.data ?? []);
     },
 
     // Through the caller's own client, so the campaign's rules for an NPC's place apply to this write as to any other.
@@ -722,24 +629,10 @@ serve(withCors(async (req: Request) => {
         supabase.from("campaign_rules").select("enabled").eq("campaign_id", campaignId).eq("rule_key", "rations").maybeSingle(),
       ]);
       if (rations.error) throw rations.error;
-      const edition = gameSystem === "dnd5e-2014" ? "2014" : gameSystem === "dnd5e-2024" ? "2024" : null;
       if (placed.error) throw placed.error;
       if (places.error) throw places.error;
       if (roads.error) throw roads.error;
-      return {
-        places: (places.data ?? []).map((p) => ({ id: p.id as string, name: p.name as string, parentId: p.parent_id as string | null })),
-        // `distance` is numeric; anything that does not read as a number is not a road to travel by.
-        roads: (roads.data ?? []).map(({ roll_table: _table, ...r }) => ({ ...r, distance: Number(r.distance) }) as Road).filter((r) => Number.isFinite(r.distance)),
-        roadTables: (roads.data ?? []).flatMap((row) => {
-          const table = (Array.isArray(row.roll_table) ? row.roll_table[0] : row.roll_table) as { id: string; name: string; dice: string; entries: unknown } | null | undefined;
-          return table ? [{ roadId: row.id as string, table: { id: table.id, name: table.name, dice: table.dice, entries: entriesOf(table.entries) } }] : [];
-        }),
-        food: rations.data !== null && rations.data.enabled === true ? edition : null,
-        tables: (placed.data ?? []).flatMap((row) => {
-          const table = (Array.isArray(row.roll_table) ? row.roll_table[0] : row.roll_table) as { id: string; name: string; dice: string; entries: unknown } | null | undefined;
-          return table ? [{ id: table.id, name: table.name, dice: table.dice, entries: entriesOf(table.entries), placeId: row.location_id as string }] : [];
-        }),
-      };
+      return travelMapFrom({ places: places.data ?? [], roads: roads.data ?? [], placed: placed.data ?? [], rations: rations.data, gameSystem });
     },
     layFightLoot: (campaignId, encounterId, placeId, held) => layFightLoot(admin, campaignId, encounterId, placeId, held),
     startFight: (ctx, plan) => startFight(supabase, admin, ctx, plan),
@@ -761,15 +654,15 @@ serve(withCors(async (req: Request) => {
         .select("id, quantity")
         .eq("npc_id", characterId)
         .eq("campaign_id", campaignId)
-        .ilike("name", thing.replace(/[%_\\]/g, "\\$&"))
+        .ilike("name", escapeLike(thing))
         .gt("quantity", 0)
         .limit(1)
         .maybeSingle();
       if (error) throw error;
       if (!data) return false;
-      const left = (data.quantity as number) - 1;
-      const write = left > 0
-        ? await admin.from("npc_inventory").update({ quantity: left }).eq("id", data.id as string)
+      const after = afterUse(data.quantity as number);
+      const write = after.kind === "update"
+        ? await admin.from("npc_inventory").update({ quantity: after.quantity }).eq("id", data.id as string)
         : await admin.from("npc_inventory").delete().eq("id", data.id as string);
       if (write.error) throw write.error;
       return true;
@@ -778,8 +671,7 @@ serve(withCors(async (req: Request) => {
     async isTableMadeCharacter(campaignId, characterId) {
       const { data, error } = await supabase.from("npcs").select("ai_provenance").eq("id", characterId).eq("campaign_id", campaignId).maybeSingle();
       if (error) throw error;
-      const p = data?.ai_provenance as { generatorType?: unknown; edited?: unknown } | null | undefined;
-      return p?.generatorType === "agent_turn_character" && p.edited === false;
+      return isUntouchedTableCharacter(data?.ai_provenance);
     },
     // A person the narrator made up, written as the caller: the DM's own RLS and their plan's limit on characters
     // decide, exactly as when they add someone by hand. What is true of them goes into the backstory, which a
@@ -796,7 +688,7 @@ serve(withCors(async (req: Request) => {
         // Only a record the table made and nobody has edited: the filter is in the write itself.
         const updated = await supabase
           .from("npcs")
-          .update({ backstory: intro.about, ...(intro.occupation === null ? {} : { occupation: intro.occupation }), ai_provenance: provenance })
+          .update(characterRewrite(intro, provenance))
           .eq("id", intro.replaces)
           .eq("campaign_id", ctx.campaignId)
           .eq("ai_provenance->>generatorType", "agent_turn_character")
@@ -808,16 +700,7 @@ serve(withCors(async (req: Request) => {
       }
       const { data, error } = await supabase
         .from("npcs")
-        .insert({
-          user_id: ctx.userId,
-          campaign_id: ctx.campaignId,
-          name: intro.name,
-          occupation: intro.occupation,
-          backstory: intro.about,
-          location_id: intro.here ? ctx.locationId : null,
-          player_visible_to: intro.known && ctx.memberId !== null ? [ctx.memberId] : [],
-          ai_provenance: provenance,
-        })
+        .insert(characterInsert(ctx, intro, provenance))
         .select("id, name")
         .single();
       if (error || !data) throw error ?? new Error("the record was not written");
@@ -852,14 +735,7 @@ serve(withCors(async (req: Request) => {
         .select("id, agent_sessions!inner(campaign_id)", { count: "exact", head: true })
         .eq("agent_sessions.campaign_id", campaignId);
       if (played.error) throw played.error;
-      if ((played.count ?? 0) > 0) return null;
-      return {
-        questId,
-        beatId,
-        beatTitle: (beat.data.title as string | null) ?? "",
-        locationId: (beat.data.staged_at_location_id as string | null) ?? null,
-        readAloud: toPlainText(beat.data.read_aloud as string | null),
-      };
+      return prologueFrom(questId, beatId, beat.data, played.count ?? 0);
     },
 
     async beginPrologue(campaignId, prologue): Promise<void> {

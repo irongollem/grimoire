@@ -12,8 +12,8 @@
 
 import type { FactionSides } from "../../../src/rules/fight/sides.ts";
 import type { EncounterEvent, RunCombatant } from "../../../src/types/encounter.types.ts";
-import type { PartyMemberUpdate } from "../../../src/types/party.types.ts";
-import type { ExploreParty } from "../../../src/types/exploreParty.types.ts";
+import type { PartyMemberUpdate, SpellSlotEntry } from "../../../src/types/party.types.ts";
+import type { StoredClassResources } from "../../../src/rules/features/characterFeatures.ts";import type { ExploreParty } from "../../../src/types/exploreParty.types.ts";
 import type { AppliedCondition } from "../../../src/types/condition.types.ts";
 import { spellKey } from "../../../src/rules/fight/spells/castLimit.ts";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
@@ -23,6 +23,7 @@ import type { NpcListRow } from "../../../src/types/npc.types.ts";
 import type { EncounterTurnCommand } from "../../../src/rules/encounterTurn.ts";
 import { isShownDefense } from "../../../src/rules/fight/tactics/shownDefenses.ts";
 import { isShownDeedDelta } from "../../../src/rules/fight/tactics/shownThreat.ts";
+import { applyWithRageUpkeep, settleRages } from "../../../src/rules/fight/allies/rageUpkeep.ts";
 import { applyFightCommand, FIGHT_OWN_COMMAND_TYPES, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightDeps } from "../../../src/rules/fight/fightEvents.ts";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
@@ -30,7 +31,8 @@ import { ingestPartyRows, partyMemberIdsOf } from "../_shared/fightPartyIngest.t
 import { endOfFightPatches } from "../../../src/rules/fight/fightEnd.ts";
 import { fightXp, type FightXpAward } from "../../../src/rules/fight/fightXp.ts";
 import { startedFromRound, type FightEffect, type FightState } from "../../../src/rules/fight/fightState.ts";
-import type { PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
+import type { GearWrite, ThrownDrop } from "../../../src/rules/fight/pcAttacks/gear.ts";
+import { NO_CASTING, type PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import { FightCommandError } from "./commandError.ts";
@@ -324,6 +326,16 @@ export interface BatchDeps {
   loadFightMap(encounterId: string): Promise<FightMap | null>;
   /** Posts a roll to the campaign log, stamped when `serverRolled`. */
   postRoll(roll: PostedRoll): Promise<void>;
+  /** Puts a weapon an ally threw on the ground, as the campaign chat's thrown-weapon drop anyone can pick up (`speaker` is the thrower's name). */
+  dropThrown(drop: ThrownDrop, memberId: string, speaker: string): Promise<void>;
+  /** Writes what an ally's attacks used up to the campaign's inventory (ammunition, the thrown weapon's stack). Every write is absolute, so a retry lands once. */
+  writeGear(writes: GearWrite[]): Promise<void>;
+  /** Writes an ally's spell slots after a cast, the whole list as it now stands (absolute, so a retry lands once). */
+  writeSpellSlots(memberId: string, slots: SpellSlotEntry[]): Promise<void>;
+  /** Writes the uses an ally's innate spell has left (`character_spells.uses_remaining`) after a cast, as an absolute count (so a retry lands once). */
+  writeInnateUses(memberId: string, spellRowId: string, remaining: number): Promise<void>;
+  /** Writes an ally's `class_resources` after a class feature spent a use (Rage, Second Wind, Action Surge, Ki), the whole object as it now stands (absolute, so a retry lands once). */
+  writeClassResources(memberId: string, resources: StoredClassResources): Promise<void>;
   /** One die of any size, from the server's secure source: what a resolving command rolls with. */
   rollDie(sides: number): number;
   /**
@@ -427,7 +439,7 @@ async function attempt(
   row: FightRow,
   deps: BatchDeps,
   notes: NoteJudgments,
-): Promise<{ state: FightState; effects: FightEffect[]; rolls: PostedRoll[] }> {
+): Promise<{ state: FightState; effects: FightEffect[]; rolls: PostedRoll[]; spent: ResolveEnv["spent"]; slotsSpent: ResolveEnv["slotsSpent"]; resourcesSpent: ResolveEnv["resourcesSpent"]; innateSpent: ResolveEnv["innateSpent"] }> {
   const fightDeps: FightDeps = {
     monsters: loaded.monsters,
     npcs: loaded.npcs,
@@ -449,6 +461,10 @@ async function attempt(
   }
 
   const rolls: PostedRoll[] = [];
+  const spent: ResolveEnv["spent"] = [];
+  const slotsSpent: ResolveEnv["slotsSpent"] = [];
+  const resourcesSpent: ResolveEnv["resourcesSpent"] = [];
+  const innateSpent: ResolveEnv["innateSpent"] = [];
   // The stat blocks and the player sheets are read once per attempt, and only when the batch has an action to resolve.
   let sources: StatBlockSources | null = null;
   let players: PlayerSheets | null = null;
@@ -499,30 +515,41 @@ async function attempt(
     if (players === null) {
       const memberIds = [...new Set(state.combatants.flatMap((c) => (c.type === "player" && c.party_member_id ? [c.party_member_id] : [])))];
       // A fight with no player in it has nothing to read.
-      players = memberIds.length > 0 ? await deps.loadPlayerSheets(memberIds) : { members: [], inventory: [], items: [], beasts: [] };
+      players = memberIds.length > 0 ? await deps.loadPlayerSheets(memberIds) : { members: [], inventory: [], items: [], beasts: [], casting: NO_CASTING };
     }
     // `undefined` is "not asked yet" (a null map is an answer: this fight has none).
     if (map === undefined) map = await deps.loadFightMap(request.encounterId);
-    return { fightDeps, sources, players, map, factions: loaded.factions, rollDie: deps.rollDie, spells, spellsListed, posted: rolls, judgeNote: notes.ask };
+    return { fightDeps, sources, players, map, factions: loaded.factions, rollDie: deps.rollDie, spells, spellsListed, posted: rolls, spent, slotsSpent, resourcesSpent, innateSpent, judgeNote: notes.ask };
+  };
+  /** The Rages in the fight after a command (`rageUpkeep.ts`): the state they leave it in, their effects added to `effects`. */
+  const settled = (from: FightState, to: FightState, into: FightEffect[]): FightState => {
+    const upkept = settleRages(from, to, fightDeps);
+    into.push(...upkept.effects);
+    return upkept.state;
   };
   for (const command of request.commands) {
     if (command.type === "sync_party" || LIFECYCLE_TYPES.has(command.type)) continue;
+    // What this command does to a raging ally (PHB 2014 and 2024 "Rage"): judged on the fight as the command found it and as it left it.
+    const found = state;
     if (isTakeTurnCommand(command)) {
       const result = await applyTakeTurn(state, command, await resolveEnv());
       state = result.state;
       effects.push(...result.effects);
+      state = settled(found, state, effects);
       continue;
     }
     if (isProvokeCommand(command)) {
       const result = await applyProvoke(state, command, await resolveEnv());
       state = result.state;
       effects.push(...result.effects);
+      state = settled(found, state, effects);
       continue;
     }
     if (isResolvingCommand(command)) {
       const result = await applyResolvingCommand(state, command, await resolveEnv());
       state = result.state;
       effects.push(...result.effects);
+      state = settled(found, state, effects);
       continue;
     }
     if (command.type === "add_combatants") {
@@ -531,11 +558,12 @@ async function attempt(
       const taken = command.combatants.find((c) => present.has(c.instance_id));
       if (taken) throw new FightCommandError(400, `${taken.instance_id} is already in this fight.`);
     }
-    const result = applyFightCommand(state, command as FightCommand, fightDeps);
+    // A plain command, the Rages kept around it (`next_turn` judges the ending turn's Rage first): the apply the browser shares.
+    const result = applyWithRageUpkeep(state, command as FightCommand, fightDeps);
     state = result.state;
     effects.push(...result.effects);
   }
-  return { state, effects, rolls };
+  return { state, effects, rolls, spent, slotsSpent, resourcesSpent, innateSpent };
 }
 
 /** Whether a write would leave the fight exactly as the row has it (the batch id aside). */
@@ -817,7 +845,7 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
       throw new FightCommandError(409, "This fight has ended.");
     }
 
-    const { state, effects, rolls } = await attempt(request, loaded, row, deps, notes);
+    const { state, effects, rolls, spent, slotsSpent, resourcesSpent, innateSpent } = await attempt(request, loaded, row, deps, notes);
     const write = writeOf(state, row.applied_command_ids, request.batchId);
     // Most syncs find the sheets as the fight already has them (the ring was this fight's own write to a sheet
     // coming back). Saving anyway would raise the version and ring every screen for nothing, on every hit.
@@ -828,6 +856,22 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
     const effectFailures = await perform(effects, deps);
     // The rolls are the log's record of what the fight now holds, so they are posted only for the attempt that was saved.
     effectFailures.push(...(await performAll(rolls.map((roll) => ({ name: "roll", run: () => deps.postRoll(roll) })))));
+    // What the allies' attacks used up, after the save like the rolls. The weapon is put on the ground before the stack is
+    // written, and a drop that failed leaves the stack alone (a weapon is not lost for a post that never happened), as the browser does it.
+    for (const { spend, speaker } of spent) {
+      const dropFailures = spend.drop === null ? [] : await performAll([{ name: "thrown_drop", run: () => deps.dropThrown(spend.drop as ThrownDrop, spend.memberId, speaker) }]);
+      effectFailures.push(...dropFailures);
+      if (dropFailures.length === 0) effectFailures.push(...(await performAll([{ name: "ally_gear", run: () => deps.writeGear(spend.writes) }])));
+    }
+    // The slots an ally's casts used: one absolute write per member (the last cast's whole list), so a retry lands once.
+    const lastSlots = new Map(slotsSpent.map((w) => [w.memberId, w.slots]));
+    for (const [memberId, slots] of lastSlots) effectFailures.push(...(await performAll([{ name: "ally_spell_slots", run: () => deps.writeSpellSlots(memberId, slots) }])));
+    // The uses an ally's daily-limited innate spells spent: one absolute write per grant (the last count), so a retry lands once.
+    const lastInnate = new Map(innateSpent.map((w) => [w.spellRowId, w]));
+    for (const w of lastInnate.values()) effectFailures.push(...(await performAll([{ name: "ally_innate_uses", run: () => deps.writeInnateUses(w.memberId, w.spellRowId, w.remaining) }])));
+    // The limited uses an ally's class features spent: one absolute write per member (the last whole object), so a retry lands once.
+    const lastResources = new Map(resourcesSpent.map((w) => [w.memberId, w.resources]));
+    for (const [memberId, resources] of lastResources) effectFailures.push(...(await performAll([{ name: "ally_class_resources", run: () => deps.writeClassResources(memberId, resources) }])));
     // Billed after the save, like the rolls, and only for calls that answered: a refused or failed one cost nothing we know of.
     effectFailures.push(...(await performAll(notes.answered.map((answer) => ({ name: "note_judgment", run: () => deps.recordNoteJudgment(answer.inputTokens) })))));
     return resultOf(true, saved.version, row, write, effects, effectFailures);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RunCombatant } from "../../../types/encounter.types.ts";
-import { areaFeetOf, castableNow, listedSpellNames } from "./castNow.ts";
-import { fireball, fireBolt, mageBlock } from "./spellTestKit.ts";
+import { areaFeetOf, castableNow, boonableNow, healableNow, listedSpellNames } from "./castNow.ts";
+import { bless, clericBlock, cureWounds, fireball, fireBolt, healingWord, mageBlock, shieldOfFaith } from "./spellTestKit.ts";
 
 const mage = (over: Partial<RunCombatant> = {}): RunCombatant => ({
   instance_id: "mage", type: "monster", name: "Mage", faction_id: "m", initiative: null, hp: 40, max_hp: 40, ac: "12", conditions: [], curses: [],
@@ -66,5 +66,66 @@ describe("castableNow", () => {
 
   it("offers nothing to a creature with no Spellcasting entry", () => {
     expect(castableNow(mageBlock({ special_abilities: [] }), mage(), [fireball(), fireBolt()], "2014")).toEqual([]);
+  });
+});
+
+describe("healableNow", () => {
+  const cleric = (over: Partial<RunCombatant> = {}) => mage({ name: "Cleric", ...over });
+
+  // The cleric lists cure wounds and healing word under "1st level (4 slots)", sacred flame as a cantrip. Fire Bolt is not on its list.
+  // Wisdom 16 is +3. Bug caught: the modifier read from the wrong ability (Intelligence 10 is +0), or a heal offered at the wrong slot level.
+  it("offers each listed heal at its own level with the casting ability's modifier, and no damage spell", () => {
+    const now = healableNow(clericBlock(), cleric(), [cureWounds(), healingWord(), fireBolt()], "2014");
+    expect(now.map((h) => `${h.spell}@${h.castLevel}`)).toEqual(["Cure Wounds@1", "Healing Word@1"]);
+    expect(now[0].plan).toMatchObject({ dice: "1d8", modifier: 3, slot: "action" });
+    expect(now[1].plan).toMatchObject({ dice: "1d4", modifier: 3, slot: "bonus_action" });
+    expect(now[0]).toMatchObject({ useKey: "slots/1", limit: { per_day: 4 } });
+  });
+
+  // With every 1st-level slot spent a 1st-level heal is not offered at all; the cleric's 3rd-level slots do not stand in for a spell
+  // listed lower only when a higher slot exists ("castingSlot": the lowest higher level with a slot, which the cleric has: level 3).
+  // Bug caught: a heal cast on credit when its slots are gone, or the upcast to a higher slot left out.
+  it("fails if a heal is offered with no slot, or is not upcast into the next slot the creature has", () => {
+    const spent = cleric(used("slots/1", 4, 4));
+    const now = healableNow(clericBlock(), spent, [cureWounds()], "2014");
+    expect(names(now)).toEqual(["Cure Wounds@3"]);
+    expect(now[0].plan.dice).toBe("3d8");
+    const none = cleric({ action_uses: { "slots/1": { used: 4, per_day: 4 }, "slots/3": { used: 2, per_day: 2 } } });
+    expect(healableNow(clericBlock(), none, [cureWounds()], "2014")).toEqual([]);
+  });
+
+  // The damage pipeline must not take a healing spell for a damage spell with no dice. Bug caught: Cure Wounds offered as a cast.
+  it("fails if a healing spell is also offered as a damage cast", () => {
+    expect(castableNow(clericBlock(), cleric(), [cureWounds(), healingWord()], "2014")).toEqual([]);
+  });
+
+  // A record nobody has reviewed is not rolled: a library row is proved before its numbers are trusted.
+  it("fails if an unreviewed healing record is offered", () => {
+    expect(healableNow(clericBlock(), cleric(), [cureWounds({ mechanics_reviewed: false })], "2014")).toEqual([]);
+  });
+
+  it("fails if a heal that adds the casting modifier is offered to a creature whose entry names no ability", () => {
+    const block = clericBlock({ special_abilities: [{ name: "Spellcasting", description: "The cleric casts spells.\n\n* 1st level (4 slots): cure wounds", structured: { kind: "other", source: "parsed" } }] });
+    expect(healableNow(block, cleric(), [cureWounds()], "2014")).toEqual([]);
+  });
+});
+
+describe("boonableNow", () => {
+  const cleric = (over: Partial<RunCombatant> = {}) => mage({ name: "Cleric", ...over });
+  const blessing = (lines: string) => clericBlock({ special_abilities: [{ name: "Spellcasting", description: `The cleric is a 5th-level spellcaster. Its spellcasting ability is Wisdom (spell save DC 13, +5 to hit with spell attacks). The cleric has the following cleric spells prepared:\n\n${lines}`, structured: { kind: "other", source: "parsed" } }] });
+
+  // PHB "Bless" is level 1, "Shield of Faith" a Bonus Action: both are offered at the slot they are listed under, with the reach of that slot.
+  // Bug caught: a boon never offered to the tactics, or offered with the wrong reach or action slot.
+  it("offers each listed boon with its reach and action slot, and nothing that is a heal", () => {
+    const now = boonableNow(blessing("* 1st level (4 slots): bless, shield of faith, cure wounds"), cleric(), [bless(), shieldOfFaith(), cureWounds()], "2014");
+    expect(names(now)).toEqual(["Bless@1", "Shield of Faith@1"]);
+    expect(now[0].plan).toMatchObject({ targetCount: 3, slot: "action", rounds: 10, concentration: true });
+    expect(now[1].plan).toMatchObject({ targetCount: 1, slot: "bonus_action", grants: { ac: 2 } });
+  });
+
+  // Bug caught: Bless offered on credit when its slots are spent.
+  it("fails if a boon is offered with every slot spent", () => {
+    expect(boonableNow(blessing("* 1st level (4 slots): bless"), cleric(used("slots/1", 4, 4)), [bless()], "2014")).toEqual([]);
+    expect(names(boonableNow(blessing("* 1st level (4 slots): bless"), cleric(used("slots/1", 3, 4)), [bless()], "2014"))).toEqual(["Bless@1"]);
   });
 });

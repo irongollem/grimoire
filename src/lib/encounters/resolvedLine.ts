@@ -20,6 +20,18 @@ export function describeResolvedAction(resolved: ResolvedAction, nameOf: (instan
     }
     case "cast":
       return `${nameOf(resolved.casterId)} casts ${resolved.spell}. ${resolved.why}`;
+    case "heal": {
+      const who = resolved.targets.map((t) => {
+        if (t.unaffected) return `${nameOf(t.targetId)} is not affected`;
+        const ended = t.ended !== undefined && t.ended.length > 0 ? `, and is no longer ${t.ended.join(" or ")}` : "";
+        return `${nameOf(t.targetId)} regains ${t.regained} hit points${t.revived ? " and is back on their feet" : ""}${ended}`;
+      }).join("; ");
+      const table = resolved.leftToTable !== undefined && resolved.leftToTable.length > 0 ? ` The table rules on ${resolved.leftToTable.join(" and ")}.` : "";
+      const amount = resolved.full === true ? "all hit points" : resolved.pool === true ? `${resolved.rolled} hit points to share` : `${resolved.rolled} rolled`;
+      return `${nameOf(resolved.casterId)} casts ${resolved.spell} (${amount}): ${who}.${table}`;
+    }
+    case "boon":
+      return `${nameOf(resolved.casterId)} casts ${resolved.spell} on ${listNames(resolved.targetIds.map(nameOf))}.`;
     case "concentration":
       return `${nameOf(resolved.instanceId)} ${resolved.maintained ? "keeps" : "loses"} concentration (${resolved.total} against DC ${resolved.dc}).`;
     case "condition_save":
@@ -41,4 +53,10 @@ function dyingWords(outcome: DyingOutcome): string {
   if (outcome === "died") return " and dies";
   if (outcome === "dropped") return " and drops to 0 hit points";
   return "";
+}
+
+/** "Pip", "Pip and Brug", "Pip, Brug and Tam". */
+function listNames(names: string[]): string {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }

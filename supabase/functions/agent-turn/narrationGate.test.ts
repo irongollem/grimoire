@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { narrationGate } from "./narration";
-import type { AgentEvent } from "./handler";
+import type { AgentEvent } from "./turnTypes";
 import type { AgentLine } from "../_shared/agent/types";
 
 const line = (name: string, text: string): AgentLine => ({ kind: "spoken", speaker: { id: null, name }, text });

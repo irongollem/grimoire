@@ -8,11 +8,11 @@ import type { FactionSides } from "../../../src/rules/fight/sides.ts";
 import { DEFAULT_FACTIONS } from "../../../src/types/encounter.types.ts";
 import { withCors } from "../_shared/cors.ts";
 import { adminClient, callerUserId, loadEncounterAsDm } from "../_shared/fightAccess.ts";
-import { customContentScope, loadMonsters, loadNpcs, loadStatBlocks } from "../_shared/fightStatBlocks.ts";
+import { loadMonsters, loadNpcs, loadStatBlocks } from "../_shared/fightStatBlocks.ts";
 import { loadSpellsListed, loadSpellsNamed } from "../_shared/fightSpells.ts";
-import { loadCustomItems } from "../_shared/fightItems.ts";
 import { loadFightMapInput } from "../_shared/fightMap.ts";
 import { loadPartyIngestRows } from "../_shared/fightPartyIngest.ts";
+import { loadPlayerSheets } from "../_shared/fightPlayerSheets.ts";
 import { gameSystemEdition } from "../_shared/gameSystem.ts";
 import { fightMapOf } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
@@ -20,16 +20,11 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { underNoteCap } from "../_shared/tacticsJudge.ts";
 import { judge, JEV_MODEL, judgingKey } from "../_shared/typesafe.ts";
 import { rollMessageRow, secureDie } from "../_shared/serverRoll.ts";
-import { inventoryItemRef } from "../../../src/lib/itemRef.ts";
+import { itemRefColumns } from "../../../src/lib/itemRef.ts";
 import { isUuid } from "../../../src/lib/library/contentIdentity.ts";
-import { libraryMonsterRow } from "../../../src/lib/library/libraryMonsterRow.ts";
 import { DEFAULT_RULESET } from "../../../src/types/ruleset.types.ts";
 import type { EncounterEvent } from "../../../src/types/encounter.types.ts";
 import type { ExploreParty } from "../../../src/types/exploreParty.types.ts";
-import type { PartyInventoryItem } from "../../../src/types/inventory.types.ts";
-import type { Item } from "../../../src/types/item.types.ts";
-import { normalizeLibraryItem } from "../../../src/lib/items/normalizeLibraryItem.ts";
-import type { BeastScores, PlayerSheetRow } from "../../../src/rules/fight/playerSheet.ts";
 import { idClock } from "../../../src/rules/fight/fightSpawn.ts";
 import {
   FightCommandError,
@@ -222,50 +217,7 @@ serve(withCors(async (req: Request) => {
       loadStatBlocks: (ids) => loadStatBlocks(admin, campaignId, ids),
       loadSpells: (name) => loadSpellsNamed(admin, campaignId, campaign.user_id, name),
       loadSpellsListed: (names) => loadSpellsListed(admin, campaignId, campaign.user_id, names),
-      async loadPlayerSheets(memberIds) {
-        // Every read is scoped to this campaign. The inventory ids come from this campaign's own rows (a database
-        // trigger keeps an inventory row's item in the same campaign or a global row its owner may use), and an
-        // item is read only when it is this campaign's or its Dungeon Masters' own, so a forged id names nothing of another account's.
-        const { data: members, error: memberError } = await admin
-          .from("party_members")
-          .select("id, ruleset, class, subclass, ac_formula, class_choices, str, dex, con, int, wis, cha, proficiency_bonus, saving_throw_proficiencies, wildshape_state")
-          .eq("campaign_id", campaignId)
-          .in("id", memberIds);
-        if (memberError) throw new Error(`party_members: ${memberError.message}`);
-        const { data: inventory, error: inventoryError } = await admin
-          .from("party_inventory").select("*").eq("campaign_id", campaignId).in("carried_by", memberIds);
-        if (inventoryError) throw new Error(`party_inventory: ${inventoryError.message}`);
-        const rows = inventory as PartyInventoryItem[];
-        const refs = [...new Set(rows.flatMap((r) => inventoryItemRef(r) ?? []))];
-        const items: Item[] = [];
-        const customIds = refs.filter(isUuid);
-        const libraryIds = refs.filter((id) => !isUuid(id));
-        if (customIds.length > 0) {
-          items.push(...(await loadCustomItems(admin, campaignId, customIds)));
-        }
-        if (libraryIds.length > 0) {
-          const { data, error } = await admin.from("library_items").select("*").in("id", libraryIds);
-          if (error) throw new Error(`library_items: ${error.message}`);
-          items.push(...data.map(normalizeLibraryItem));
-        }
-        // A Wild Shape form's STR, DEX and CON replace the character's own on a save.
-        const formIds = [...new Set((members as PlayerSheetRow[]).flatMap((m) => m.wildshape_state?.monster_id ?? []))];
-        const beasts: BeastScores[] = [];
-        const libraryForms = formIds.filter((id) => !isUuid(id));
-        const customForms = formIds.filter(isUuid);
-        if (libraryForms.length > 0) {
-          const { data, error } = await admin.from("library_monsters").select("*").in("id", libraryForms);
-          if (error) throw new Error(`library_monsters: ${error.message}`);
-          beasts.push(...data.map(libraryMonsterRow).map((m) => ({ id: m.id, stat_block: m.stat_block })));
-        }
-        if (customForms.length > 0) {
-          const { data, error } = await admin
-            .from("monsters").select("id, stat_block").in("id", customForms).or(await customContentScope(admin, campaignId));
-          if (error) throw new Error(`monsters: ${error.message}`);
-          beasts.push(...(data as BeastScores[]));
-        }
-        return { members: members as PlayerSheetRow[], inventory: rows, items, beasts };
-      },
+      loadPlayerSheets: (memberIds) => loadPlayerSheets(admin, campaignId, memberIds),
       async loadFightMap(encounterId) {
         // Read in this campaign's own scope (`loadFightMapInput` filters on it); null is "no map the rules can use".
         const input = await loadFightMapInput(admin, campaignId, encounterId);
@@ -276,6 +228,53 @@ serve(withCors(async (req: Request) => {
         const row = rollMessageRow(result, { campaignId, userId, senderName: speaker, recipientUserId: null }, serverRolled);
         const { error } = await admin.from("campaign_messages").insert(row);
         if (error) throw new Error(`campaign_messages: ${error.message}`);
+      },
+      async dropThrown(drop, memberId, speaker) {
+        // The campaign chat's thrown-weapon drop, as the browser posts one (`useThrownWeapon`): a recoverable item anyone grabs, never a Need or Greed roll.
+        const { error } = await admin.from("campaign_messages").insert({
+          campaign_id: campaignId,
+          user_id: userId,
+          recipient_user_id: null,
+          sender_name: speaker,
+          message: `dropped ${drop.name}`,
+          type: "item_drop",
+          metadata: {
+            ...itemRefColumns(drop.itemRef),
+            item_name: drop.name, item_rarity: drop.rarity, quantity: 1, is_container: false, quality: drop.quality, thrown: true,
+            quantity_remaining: 1, claims: [], image_url: drop.imageUrl, description: drop.description,
+            claimed_by_user_id: null, claimed_by_name: null, claimed_party_member_id: null,
+            for_party_member_id: memberId,
+          },
+        });
+        if (error) throw new Error(`campaign_messages: ${error.message}`);
+      },
+      async writeGear(writes) {
+        // Scoped to this campaign: a row id of another campaign's is never touched.
+        for (const write of writes) {
+          const rows = admin.from("party_inventory");
+          const { error } = write.kind === "remove"
+            ? await rows.delete().eq("id", write.inventoryId).eq("campaign_id", campaignId)
+            : await rows.update(write.kind === "quantity" ? { quantity: write.quantity } : { current_charges: write.charges }).eq("id", write.inventoryId).eq("campaign_id", campaignId);
+          if (error) throw new Error(`party_inventory: ${error.message}`);
+        }
+      },
+      async writeSpellSlots(memberId, slots) {
+        // Scoped to this campaign: another campaign's member is never touched. The whole list, so a retry lands once.
+        const { error } = await admin.from("party_members").update({ spell_slots: slots }).eq("id", memberId).eq("campaign_id", campaignId);
+        if (error) throw new Error(`party_members: ${error.message}`);
+      },
+      async writeInnateUses(memberId, spellRowId, remaining) {
+        // Scoped to this campaign: the grant must belong to a member of it, so another campaign's row is never touched. The absolute count, so a retry lands once.
+        const { data: member, error: memberError } = await admin.from("party_members").select("id").eq("id", memberId).eq("campaign_id", campaignId).maybeSingle();
+        if (memberError) throw new Error(`party_members: ${memberError.message}`);
+        if (!member) throw new Error("party_members: no such member in this campaign");
+        const { error } = await admin.from("character_spells").update({ uses_remaining: remaining }).eq("id", spellRowId).eq("party_member_id", memberId);
+        if (error) throw new Error(`character_spells: ${error.message}`);
+      },
+      async writeClassResources(memberId, resources) {
+        // Scoped to this campaign: another campaign's member is never touched. The whole object, so a retry lands once.
+        const { error } = await admin.from("party_members").update({ class_resources: resources }).eq("id", memberId).eq("campaign_id", campaignId);
+        if (error) throw new Error(`party_members: ${error.message}`);
       },
       async judgeNote(noteQuestions, alreadyThisBatch) {
         // The same rule as campaign search's rerank: AI on for the campaign and a platform key, else the rules pick alone.

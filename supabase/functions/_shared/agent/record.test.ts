@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeRecordTool, openFacts, parseRecordInput, recordSection, RECORD_SECTION_MAX, type RecordInput, type RecordedFact } from "./record";
+import { makeRecordTool, parseRecordInput, recordSection, RECORD_SECTION_MAX, type RecordInput, type RecordedFact } from "./record";
 
 const A = "00000000-0000-4000-8000-0000000000a1";
 const B = "00000000-0000-4000-8000-0000000000b2";
@@ -184,18 +184,3 @@ describe("makeRecordTool and the canon check (#1226)", () => {
   });
 });
 
-describe("openFacts (the DM's Strike, #1226)", () => {
-  const f = (id: string, struck_at: string | null = null) => ({ id, struck_at });
-
-  it("leaves a struck fact out, or the Narrator keeps telling something the DM said never happened", () => {
-    expect(openFacts([f("a"), f("b", "2026-11-20T10:00:00Z")], []).map((x) => x.id)).toEqual(["a"]);
-  });
-
-  it("leaves a fact closed by a later one out", () => {
-    expect(openFacts([f("a"), f("b")], [{ supersedes_id: "a", struck_at: null }]).map((x) => x.id)).toEqual(["b"]);
-  });
-
-  it("keeps a fact open when the fact that would have closed it was struck, since that never happened", () => {
-    expect(openFacts([f("a")], [{ supersedes_id: "a", struck_at: "2026-11-20T10:00:00Z" }]).map((x) => x.id)).toEqual(["a"]);
-  });
-});

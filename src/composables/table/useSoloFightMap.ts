@@ -1,22 +1,17 @@
-import { computed, onScopeDispose, ref, shallowRef, toRef, toValue, watch, type MaybeRefOrGetter } from "vue";
+import { computed, ref, shallowRef, toRef, toValue, watch, type MaybeRefOrGetter } from "vue";
 import { pointerToCell } from "@/components/player/playerMapMove";
 import type { PlayTool } from "@/components/encounters/play/playTypes";
 import { footprintOf } from "@/components/encounters/play/playRoster";
 import { liveState, useEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { useEncounterRoom } from "@/composables/encounters/useEncounterRoom";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
-import { usePartySight } from "@/composables/encounters/usePartySight";
-import { useMapDoors } from "@/composables/locations/useMapDoors";
-import { useMapMemory } from "@/composables/locations/useMapMemory";
+import { useFightMapSight } from "@/composables/encounters/useFightMapSight";
 import { saveMapVoid } from "@/composables/locations/mapVoid";
-import { useRememberSight } from "@/composables/locations/useRememberSight";
 import { useToast } from "@/composables/useToast";
 import { cellSizeInDisplay, gridLinePositions, gridOriginInDisplay } from "@/lib/battlemap/battleMapGeometry";
-import { imageGrid, type MapGrid } from "@/lib/battlemap/imageGrid";
 import { NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
 import { measureFeet, snapToSquareMiddle, type MeasurePoint } from "@/lib/battlemap/measure";
 import { snapAnchor, type Cell } from "@/lib/battlemap/movement";
-import { occludersOf } from "@/lib/battlemap/occlusion";
 import { partyVisibleCombatants, shownCells } from "@/lib/battlemap/partySight";
 import { readPictureFloor, voidAround } from "@/lib/battlemap/pictureFloor";
 import { soloSeating } from "@/lib/table/solo/soloSeating";
@@ -88,29 +83,18 @@ export function useSoloFightMap(options: {
   const sizeOf = (c: RunCombatant) => footprintOf(c, monsters.value);
 
   // ── The picture's grid, sight and memory ──────────────────────────────────────────────────────────────────────
-  const grid = computed<MapGrid | null>(() =>
-    imageGrid(surface.value?.calibration.cells_per_image_width, imageReady.value ? { w: imageNaturalW.value, h: imageNaturalH.value } : null),
-  );
   const zones = computed<readonly DarknessZone[]>(() => (row.value ? row.value.magical_darkness : NO_ZONES));
-  const { doorStates } = useMapDoors(
-    () => campaign.activeCampaign?.id ?? null,
-    () => surface.value?.mapLocation.id ?? null,
-  );
   // Only the played character looks: the player sees what their character sees, nothing of the rest of the party.
-  const { viewers, sight } = usePartySight({
-    live: () => surface.value?.live ?? null,
-    doorStates,
+  // What the character has seen stays on the map for the next fight or room, as for a Dungeon Master's party, so
+  // this window writes memory whenever a campaign and place are known (no follower mode here, unlike the DM's screen).
+  const { memory, doorStates, grid, viewers, sight, occluders } = useFightMapSight({
+    surface: () => surface.value,
+    imageSize: () => (imageReady.value ? { w: imageNaturalW.value, h: imageNaturalH.value } : null),
     zones,
     tokens: () => combatants.value.filter((c) => c.position),
-    grid,
     onlyInstanceId: playedId,
+    mayRemember: true,
   });
-  const memory = useMapMemory(
-    () => campaign.activeCampaign?.id ?? null,
-    () => surface.value?.mapLocation.id ?? null,
-  );
-  // What the character has seen stays on the map for the next fight or room, as for a Dungeon Master's party.
-  useRememberSight({ memory, sight, enabled: () => !!campaign.activeCampaign?.id && !!surface.value?.mapLocation.id });
   const shown = computed(() => shownCells(memory.memory.value, sight.value));
   const tokens = computed<RunCombatant[]>(() => partyVisibleCombatants(combatants.value, sight.value, playedId.value));
 
@@ -138,9 +122,8 @@ export function useSoloFightMap(options: {
     () => [pictureFloor.value, surface.value?.mapLocation.id, surface.value?.imageUrl, campaign.activeCampaign?.id] as const,
     ([floor, locationId, url, campaignId]) => {
       const g = grid.value;
-      const live = surface.value?.live;
       if (!floor || !locationId || !url || !campaignId || !g) return;
-      if (!unwalled(live ? occludersOf(live, doorStates.value) : null)) return;
+      if (!unwalled(occluders.value)) return;
       const key = `${locationId}:${url}:${g.cols}x${g.rows}`;
       if (savedVoidFor === key) return;
       savedVoidFor = key;
@@ -201,25 +184,17 @@ export function useSoloFightMap(options: {
   // Where the character can get to this turn, by the same search the creatures move by: round walls, closed doors
   // and other creatures, at the price of each square. It runs as far as a Dash would reach, so the map can show
   // both what the turn can walk now and what it could with the Action spent on moving.
-  // The attack beside the map reads the walls from the store (a foe behind a wall is not beside an archer).
-  store.setOccluders(() => {
-    const live = surface.value?.live;
-    return live ? occludersOf(live, doorStates.value) : null;
-  });
-  onScopeDispose(() => store.setOccluders(null));
-
   const leftFeet = computed(() => Math.max(0, toValue(options.speedFeet) - toValue(options.movedFeet)));
   const reach = computed(() => {
     const me = played.value;
-    const live = surface.value?.live;
     if (!me?.position || !toValue(options.canMove)) return null;
-    const occluders = live ? occludersOf(live, doorStates.value) : null;
+    const occ = occluders.value;
     const g = grid.value;
     const terrain: ReachInput["terrain"] = {
       difficult: new Set(terrainZones.value.flatMap((z) => z.battleCells)),
-      blocking: occluders ? occluders.segments : [],
+      blocking: occ ? occ.segments : [],
       // A map with no walls drawn has only its picture to go by: what the picture shows no ground on is not walked.
-      solid: unwalled(occluders) && g && pictureFloor.value ? voidAround(pictureFloor.value, g) : occluders ? occluders.solid : new Set<string>(),
+      solid: unwalled(occ) && g && pictureFloor.value ? voidAround(pictureFloor.value, g) : occ ? occ.solid : new Set<string>(),
       // A picture whose height is not read yet has rows as far as anyone stands.
       bounds: g ? { minX: 0, minY: 0, maxX: g.cols - 1, maxY: g.rows - 1 } : { minX: 0, minY: 0, maxX: 199, maxY: 199 },
     };

@@ -149,7 +149,7 @@ export function spellEntryFor(record: SpellRecord, castLevel: number, caster: Sp
   const conditionOnly = dealt.parts.length === 0 && conditions.length > 0;
   if (dealt.parts.length === 0 && !conditionOnly) {
     const heals = (record.healing_dice ?? "").trim() !== "" || (record.effects ?? []).some((e) => e.kind === "healing");
-    return no(heals ? `${record.name} heals rather than harms, and the rules do not roll healing yet.` : `${record.name} has no damage in its data.`);
+    return no(heals ? `${record.name} heals rather than harms: it is resolved as healing, never as damage.` : `${record.name} has no damage in its data.`);
   }
 
   if (isAttack) {

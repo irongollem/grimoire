@@ -59,6 +59,22 @@ export interface AppliedCondition {
    * imposed). It is about how the bearer gets free, so it sits here and not on `source`.
    */
   breakFree?: { abilities: SaveAbility[]; skill?: "athletics" | "acrobatics"; dc: number };
+  /**
+   * What the record adds to the bearer's own numbers while it lasts (#1021, a spell's boon: Bless, Shield of Faith). Named after
+   * the spell, so a second cast replaces the first (one record per name), which is the book's "Combining Magical Effects".
+   */
+  grants?: ConditionGrants;
+}
+
+/**
+ * A boon's numbers. `attack` and `save` are dice added to each of the bearer's attack rolls and saving throws ("1d4" for Bless;
+ * a leading "-" takes away, as Bane would), rolled apart from the d20 so the natural die is still read as it fell. `ac` is added
+ * to the bearer's armour class.
+ */
+export interface ConditionGrants {
+  attack?: string;
+  save?: string;
+  ac?: number;
 }
 
 /** The start or the end of a turn. */

@@ -1,6 +1,6 @@
-import type { PreparedAbility, SubclassSpellcasting } from "@/levelup/customTypes";
-import type { CasterType } from "@/types/spell.types";
-import { abilityMod } from "./abilityScore";
+import type { PreparedAbility, SubclassSpellcasting } from "../levelup/customTypes.ts";
+import type { CasterType } from "../types/spell.types.ts";
+import { abilityMod } from "./abilityScore.ts";
 
 /**
  * Where a class row's spellcasting comes from. The rule is the server's

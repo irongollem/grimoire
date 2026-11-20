@@ -1,9 +1,9 @@
 // Types for DM-defined custom subclasses and class variants.
 // These live alongside the SRD class types in src/levelup/ to keep the domain self-contained.
 
-import type { VersionedContentMetadata } from "@/types/content.types";
-import type { AiProvenance } from "@/ai/provenance";
-import type { CasterType } from "@/types/spell.types";
+import type { VersionedContentMetadata } from "../types/content.types.ts";
+import type { AiProvenance } from "../ai/provenance.ts";
+import type { CasterType } from "../types/spell.types.ts";
 
 /** Ability scores that can feed max-prepared calculations. */
 export type PreparedAbility = "wis" | "int" | "cha";

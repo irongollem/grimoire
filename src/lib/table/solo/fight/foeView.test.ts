@@ -64,4 +64,22 @@ describe("asThePlayerSees", () => {
     const out = asThePlayerSees([me, c("buddy", "players", 5, 10)], "me", factions);
     expect(out[1].side).toBe("other");
   });
+
+  // Bug caught: an ally the AI plays shown as a word (the party knows its own), or a foe shown with numbers.
+  it("shows an ally's numbers and marks it, but a foe stays a word", () => {
+    const ally = c("ally1", "players", 9, 20, { type: "player", party_member_id: "m2" });
+    const out = asThePlayerSees([me, ally, c("orc", "enemy", 15, 30, { type: "player", party_member_id: "m3" })], "me", factions);
+    expect(out[1].health).toEqual({ kind: "numbers", hp: 9, maxHp: 20 });
+    expect(out[1].ally).toBe(true);
+    expect(out[2].health.kind).toBe("word");
+    expect(out[2].ally).toBeUndefined();
+    expect(out[0].ally).toBeUndefined();
+  });
+
+  // Bug caught: a player-type with no party member (a stand-in) treated as an ally.
+  it("does not call a player-type without a party member an ally", () => {
+    const out = asThePlayerSees([me, c("x", "players", 9, 20, { type: "player" })], "me", factions);
+    expect(out[1].ally).toBeUndefined();
+    expect(out[1].health.kind).toBe("word");
+  });
 });
