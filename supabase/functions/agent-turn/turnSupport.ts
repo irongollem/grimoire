@@ -11,6 +11,7 @@ import { sceneSection, trimScene, type TrimmedScene } from "../_shared/agent/sce
 import { recordSection, type RecordedFact } from "../_shared/agent/record.ts";
 import { CANON_GUIDE, canonHereSection, NO_CANON_HERE, previouslySection, type CanonHere } from "../_shared/agent/canon.ts";
 import { memoriesSection, type SceneMemory } from "../_shared/agent/memories.ts";
+import { inventionsSection, type PendingInvention } from "../_shared/agent/invention.ts";
 import { NO_SITE, siteSection, type SiteState } from "../_shared/agent/site.ts";
 import { todaySection } from "../_shared/agent/today.ts";
 import { playerCharacterSection, type PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
@@ -119,6 +120,8 @@ export function stateFor(input: {
   site?: SiteState;
   /** What the characters here remember of the party; absent when none do or it could not be read. */
   memories?: readonly SceneMemory[];
+  /** The played character's inventions waiting on a ruling; absent when none or nobody is played. */
+  inventions?: readonly PendingInvention[];
 }): string {
   // The fights sit with the scene: they are about the place the party stands in. Nothing to say, no section.
   const fights = fightsSection(input.fights ?? NO_FIGHTS, input.fightTurn ? budgetLine(input.fightTurn) : null);
@@ -130,8 +133,9 @@ export function stateFor(input: {
   const today = todaySection(input.today);
   const site = siteSection(input.site ?? NO_SITE);
   const memories = memoriesSection(input.memories ?? []);
+  const inventions = inventionsSection(input.inventions ?? []);
   const optional = (text: string) => (text === "" ? [] : [text]);
-  return [sceneSection(input.scene), ...optional(today), ...optional(site), ...optional(memories), ...companions, ...sky, ...(fights === "" ? [] : [fights]), ...carried, ...handouts, questsSection(input.quests ?? NO_QUESTS), ...(canon === "" ? [] : [canon]), recordSection(input.record)].join("\n\n");
+  return [sceneSection(input.scene), ...optional(today), ...optional(site), ...optional(memories), ...optional(inventions), ...companions, ...sky, ...(fights === "" ? [] : [fights]), ...carried, ...handouts, questsSection(input.quests ?? NO_QUESTS), ...(canon === "" ? [] : [canon]), recordSection(input.record)].join("\n\n");
 }
 
 /** What is marked true of the party's place and its rooms. A read that fails is no state: the turn still runs. */
@@ -152,6 +156,17 @@ export async function memoriesOf(deps: AgentTurnDeps, campaignId: string, scene:
     return await deps.loadSceneMemories(campaignId, scene.characters.map((c) => c.id));
   } catch (error) {
     console.error("agent-turn: reading what the characters remember failed:", error);
+    return [];
+  }
+}
+
+/** The played character's inventions waiting on a ruling. A read that fails is none: the turn still runs, with no ruling to make. */
+export async function inventionsOf(deps: AgentTurnDeps, campaignId: string, memberId: string | null): Promise<PendingInvention[]> {
+  if (memberId === null) return [];
+  try {
+    return await deps.loadPendingInventions(campaignId, memberId);
+  } catch (error) {
+    console.error("agent-turn: reading the inventions waiting on a ruling failed:", error);
     return [];
   }
 }

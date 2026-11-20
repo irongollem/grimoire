@@ -73,7 +73,7 @@ export async function beginTurn(input: {
       try {
         const { session, prologue } = await openSitting(scope);
         const ctx = await readTurnContext(scope, session);
-        const { character, stored, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere } = ctx;
+        const { character, stored, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere, inventions } = ctx;
         const fightRunning = fights !== null && fights.fight !== null && fights.fight.phase === "running";
         const turnTools = makeTurnTools({
           deps,
@@ -89,6 +89,8 @@ export async function beginTurn(input: {
           quests: questState === null ? null : { state: questState, queued: fx.queued },
           // A held payoff is fired by the story, not in a round of a fight.
           fireHeld: !fightRunning,
+          // A ruling is the story's too: offered only with a character whose invention is waiting, and none is read in a fight (`turnContext.ts`).
+          rulings: character === null || inventions.length === 0 ? null : { pending: inventions, onRule: (ruling) => { fx.rulings.push(ruling); } },
           playerName: character ? character.name : undefined,
           playedId: character ? character.id : undefined,
           partyIds: companions.map((c) => c.id),

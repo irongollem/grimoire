@@ -8,7 +8,7 @@ import { skySection } from "../_shared/agent/sky.ts";
 import { possessionsSection, type Coins, type Possessions } from "../_shared/agent/hands.ts";
 import { historyFrom, systemWithSummary, type StoredTurn } from "../_shared/agent/transcript.ts";
 import { coinsText, coinValuesOf } from "./handsIo.ts";
-import { characterOf, fightsOf, memoriesOf, questsOf, recordOf, safely, sceneOf, siteOf, stateFor, systemFor } from "./turnSupport.ts";
+import { characterOf, fightsOf, inventionsOf, memoriesOf, questsOf, recordOf, safely, sceneOf, siteOf, stateFor, systemFor } from "./turnSupport.ts";
 import type { TurnScope } from "./turnScope.ts";
 import type { SessionRow } from "./turnTypes.ts";
 import { NO_CANON_HERE, type CanonHere } from "../_shared/agent/canon.ts";
@@ -55,6 +55,10 @@ export async function readTurnContext(scope: TurnScope, session: SessionRow) {
       console.error("agent-turn: checking the waiting fight failed:", error);
     }
   }
+  // What the player's character has invented and is waiting on a ruling for. Not in a fight on the board: nobody
+  // rules on a workbench in the middle of a round, and the tool is not offered there.
+  const fightRunning = fights !== null && fights.fight !== null && fights.fight.phase === "running";
+  const inventions = fightRunning || character === null ? [] : await inventionsOf(deps, campaign.id, character.id);
   // The world's peoples are common knowledge for the narrator and every character. Unreadable costs that
   // knowledge for a turn, never the turn.
   let peoples: string[] = [];
@@ -120,6 +124,6 @@ export async function readTurnContext(scope: TurnScope, session: SessionRow) {
   } catch (error) {
     console.error("agent-turn: reading the rest of the party failed:", error);
   }
-  const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts), companions: companionsSection(companions), sky: body.sky === undefined ? "" : skySection(body.sky), canon: canonHere, today: campaign.today, site, memories });
-  return { character, stored, lastSeqLoaded, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere };
+  const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts), companions: companionsSection(companions), sky: body.sky === undefined ? "" : skySection(body.sky), canon: canonHere, today: campaign.today, site, memories, inventions });
+  return { character, stored, lastSeqLoaded, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere, inventions };
 }

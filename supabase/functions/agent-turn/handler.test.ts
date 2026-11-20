@@ -12,6 +12,7 @@ import type { HazardRules, KeptHazard } from "../_shared/agent/hazard";
 import type { SiteState } from "../_shared/agent/site.ts";
 import { NO_SITE } from "../_shared/agent/site.ts";
 import type { SceneMemory } from "../_shared/agent/memories.ts";
+import type { InventionRuling, PendingInvention } from "../_shared/agent/invention.ts";
 import { STRIKES_BEFORE_CLOSED } from "../_shared/agent/conduct.ts";
 import type { HandsChange } from "../_shared/agent/hands.ts";
 import { describe, expect, it, vi } from "vitest";
@@ -200,6 +201,10 @@ interface Harness {
     siteThrows: boolean;
     sceneMemories: SceneMemory[];
     sceneMemoriesThrow: boolean;
+    /** The played character's inventions waiting on a ruling, whether that read fails, and whether a ruling is refused. */
+    inventions: PendingInvention[];
+    inventionsThrow: boolean;
+    decideFails: boolean;
     /** Moves that fail to apply, by their position in the order applied. */
     failMoveAt: Set<number>;
     /** The party's arrival writes that fail (row 9). */
@@ -222,6 +227,9 @@ interface Harness {
   applied: Array<{ ctx: { campaignId: string; agentSessionId: string; today?: DatePoint | null }; move: QuestMove }>;
   /** Every date move asked of the database, and every chat line posted about one. */
   dateMoves: Array<{ campaignId: string; days: number }>;
+  /** Every invention read (campaign and character) and every ruling asked of the database. */
+  inventionReads: Array<{ campaignId: string; memberId: string }>;
+  rulingsMade: InventionRuling[];
   announced: string[];
   questLoads: Array<{ campaignId: string; pressureClockId: string | null }>;
   fightLoads: Array<{ campaignId: string; locationId: string | null; fightEncounterId: string | null }>;
@@ -346,6 +354,9 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       siteThrows: false,
       sceneMemories: [],
       sceneMemoriesThrow: false,
+      inventions: [],
+      inventionsThrow: false,
+      decideFails: false,
       failMoveAt: new Set<number>(),
       failArrival: new Set<"place" | "reveal" | "seat">(),
       advanceFails: false,
@@ -361,6 +372,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     canonAsked: { previously: [], here: [], lookups: [], brought: [] },
     applied: [],
     dateMoves: [],
+    inventionReads: [],
+    rulingsMade: [],
     announced: [],
     questLoads: [],
     pendingRolls: [],
@@ -624,6 +637,15 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     loadSceneMemories: async () => {
       if (h.state.sceneMemoriesThrow) throw new Error("db down");
       return h.state.sceneMemories;
+    },
+    loadPendingInventions: async (campaignId, memberId) => {
+      h.inventionReads.push({ campaignId, memberId });
+      if (h.state.inventionsThrow) throw new Error("db down");
+      return h.state.inventions;
+    },
+    decideInvention: async (ruling) => {
+      h.rulingsMade.push(ruling);
+      if (h.state.decideFails) throw new Error("rpc failed");
     },
     applyQuestMove: async (ctx, move) => {
       const at = h.applied.length;
@@ -4275,5 +4297,134 @@ describe("the canon at the table (#1226)", () => {
     const h = played();
     await play(h, { body: BODY });
     expect(h.requests[0].tools.map((t) => t.name)).toEqual(expect.arrayContaining(["canon_lookup", "bring_out"]));
+  });
+});
+
+describe("the Narrator rules on the played character's inventions (#1021 row 14)", () => {
+  const INV = "00000000-0000-4000-8000-0000000000d1";
+  const INV2 = "00000000-0000-4000-8000-0000000000d2";
+  const BODY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I show the lantern to the guildmaster.", mode: "do" };
+  const wren = (): PlayerCharacter => ({
+    id: WREN, name: "Wren Ashfield", pronouns: null, species: null, className: "Ranger", subclass: null, level: 3, hitPoints: null,
+  });
+  const lantern = (over: Partial<PendingInvention> = {}): PendingInvention => ({
+    id: INV, createdAt: "2026-11-18T10:00:00Z", discipline: "tinkering", name: "Glowmoss Lantern", rarity: "uncommon", itemType: "wondrous_item",
+    value: "100 gp", rules: "Sheds dim light in 30 feet.", mechanics: ["3 charges, dawn"], warnings: ["The rules text mentions advantage but none is declared."], newMaterials: [],
+    ...over,
+  });
+  const call = (id: string, input: Record<string, unknown>): ModelStep =>
+    step(10, { blocks: [{ type: "tool_call", id, name: "rule_invention", input }], stop: "tool_calls" });
+  const table = (script: Script, over: Partial<SessionRow> = {}): Harness => {
+    const h = harness(script);
+    h.state.characters.set(WREN, wren());
+    existingSession(h, { party_member_id: WREN, scene_location_id: CELLAR, ...over });
+    h.state.inventions = [lantern()];
+    return h;
+  };
+  const answers = (h: Harness, request: number) => h.requests[request].messages.flatMap((m) => m.blocks).filter((b) => b.type === "tool_result");
+
+  // Bug caught: the invention was read for nobody, or for the wrong campaign or character, so the Narrator ruled on a stranger's.
+  it("reads the inventions of the played character in this campaign and shows them in the state with their id and warnings", async () => {
+    const h = table([step(10)]);
+    await play(h, { body: BODY });
+    expect(h.inventionReads).toEqual([{ campaignId: CAMPAIGN, memberId: WREN }]);
+    const sent = opening(h.requests[0]);
+    expect(sent).toContain("## Inventions waiting on your ruling");
+    expect(sent).toContain(INV);
+    expect(sent).toContain("Warning: The rules text mentions advantage");
+    expect(h.requests[0].system).not.toContain(INV);
+    expect(h.requests[0].tools.map((t) => t.name)).toContain("rule_invention");
+  });
+
+  // Bug caught: an empty section header, and a tool that has nothing to rule on, offered anyway.
+  it("shows nothing and offers no tool with nothing waiting, and reads nothing with nobody played", async () => {
+    const none = table([step(10)]);
+    none.state.inventions = [];
+    await play(none, { body: BODY });
+    expect(opening(none.requests[0])).not.toContain("Inventions waiting");
+    expect(none.requests[0].tools.map((t) => t.name)).not.toContain("rule_invention");
+    const nobody = harness([step(10)]);
+    existingSession(nobody, { scene_location_id: CELLAR });
+    nobody.state.inventions = [lantern()];
+    await play(nobody, { body: BODY });
+    expect(nobody.inventionReads).toEqual([]);
+    expect(opening(nobody.requests[0])).not.toContain("Inventions waiting");
+  });
+
+  // Bug caught: a failed read took the turn down instead of costing the ruling.
+  it("runs the turn without the section when the read fails", async () => {
+    const h = table([step(10)]);
+    h.state.inventionsThrow = true;
+    await play(h, { body: BODY });
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(opening(h.requests[0])).not.toContain("Inventions waiting");
+    expect(h.requests[0].tools.map((t) => t.name)).not.toContain("rule_invention");
+  });
+
+  // Bug caught: the ruling never reached the database, or reached it with another invention, decision or a note on an approval.
+  it("approves through decide_crafting_invention only once the turn is kept, with the id and no note", async () => {
+    const h = table([call("r1", { invention_id: INV, decision: "approve" }), step(10)]);
+    await play(h, { body: BODY });
+    expect(h.rulingsMade).toEqual([{ inventionId: INV, decision: "approve", note: null, name: "Glowmoss Lantern" }]);
+    expect(answers(h, 1)[0]).toMatchObject({ isError: false, content: "When the turn is kept, Glowmoss Lantern is approved." });
+  });
+
+  it("returns with the note, trimmed, and says so", async () => {
+    const h = table([call("r1", { invention_id: INV, decision: "return", note: "  The moss glows, but it cannot also grant advantage.  " }), step(10)]);
+    await play(h, { body: BODY });
+    expect(h.rulingsMade).toEqual([{ inventionId: INV, decision: "return", note: "The moss glows, but it cannot also grant advantage.", name: "Glowmoss Lantern" }]);
+    expect(answers(h, 1)[0]).toMatchObject({ content: "When the turn is kept, Glowmoss Lantern is returned with your note." });
+  });
+
+  // Bug caught: an approval made for a turn the player never kept, and made again when they sent it again.
+  it("rules on nothing for a turn that was not kept", async () => {
+    const h = table([call("r1", { invention_id: INV, decision: "approve" }), step(10)]);
+    h.state.conflict = true;
+    await play(h, { body: BODY });
+    expect(h.rulingsMade).toEqual([]);
+  });
+
+  // Bug caught: a database that refuses the ruling (already decided from the Workshop) throwing away a paid turn.
+  it("keeps the turn when the ruling cannot be made", async () => {
+    const h = table([call("r1", { invention_id: INV, decision: "approve" }), step(10)]);
+    h.state.decideFails = true;
+    await play(h, { body: BODY });
+    expect(h.appends).toHaveLength(1);
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
+  // Bug caught: an id the model made up, or one of another character's, ruled on because only its shape was checked.
+  it("refuses an id that was not shown and rules on nothing", async () => {
+    const h = table([call("r1", { invention_id: INV2, decision: "approve" }), step(10)]);
+    await play(h, { body: BODY });
+    expect(answers(h, 1)[0]).toMatchObject({ isError: true, content: expect.stringContaining(INV) });
+    expect(h.rulingsMade).toEqual([]);
+  });
+
+  // Bug caught: a send-back with no note, leaving the player to guess what to change.
+  it("refuses a return without a note and a note over a thousand characters", async () => {
+    const h = table([call("r1", { invention_id: INV, decision: "return" }), call("r2", { invention_id: INV, decision: "return", note: "x".repeat(1001) }), step(10)]);
+    await play(h, { body: BODY });
+    expect(answers(h, 2).map((r) => r.isError)).toEqual([true, true]);
+    expect(h.rulingsMade).toEqual([]);
+  });
+
+  // Bug caught: two rulings on one invention in a turn, the second silently undoing the first.
+  it("refuses a second ruling on the same invention in a turn", async () => {
+    const h = table([call("r1", { invention_id: INV, decision: "approve" }), call("r2", { invention_id: INV, decision: "return", note: "No." }), step(10)]);
+    await play(h, { body: BODY });
+    expect(answers(h, 2).map((r) => r.isError)).toEqual([false, true]);
+    expect(h.rulingsMade.map((r) => r.decision)).toEqual(["approve"]);
+  });
+
+  // Bug caught: a ruling in the middle of a round, when the board owns the story.
+  it("neither shows nor offers the ruling in a fight, and refuses it if called anyway", async () => {
+    const h = table([call("r1", { invention_id: INV, decision: "approve" }), step(10)], { fight_encounter_id: FIGHT });
+    h.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "Rosie confronts Sift", phase: "running", round: 1, fighters: [] } };
+    await play(h, { body: BODY });
+    expect(opening(h.requests[0])).not.toContain("Inventions waiting");
+    expect(h.requests[0].tools.map((t) => t.name)).not.toContain("rule_invention");
+    expect(answers(h, 1)[0]).toMatchObject({ isError: true });
+    expect(h.rulingsMade).toEqual([]);
   });
 });

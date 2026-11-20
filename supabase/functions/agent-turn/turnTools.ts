@@ -18,6 +18,7 @@ import type { FightState } from "../_shared/agent/fight.ts";
 import { alreadyRecorded, existsText, INTRODUCE_TOOL, INTRODUCE_TOOL_NAME, INTRODUCTIONS_PER_TURN, introducedText, parseIntroduction, type Introduction } from "../_shared/agent/introduce.ts";
 import { GO_TO_TOOL, makeSceneTool } from "../_shared/agent/scene.ts";
 import { parsePassDays, PASS_DAYS_TOOL, PASS_DAYS_TOOL_NAME, passedText } from "../_shared/agent/days.ts";
+import { planRuling, RULE_INVENTION_TOOL, RULE_INVENTION_TOOL_NAME, type InventionRuling, type PendingInvention } from "../_shared/agent/invention.ts";
 import { FIRE_CONSEQUENCE_TOOL, FIRE_CONSEQUENCE_TOOL_NAME, parseFireInput, planFire } from "../_shared/agent/consequence.ts";
 import { ROLL_TABLE_TOOL, ROLL_TABLE_TOOL_NAME, rollAnswer } from "../_shared/agent/roadTables.ts";
 import { parseTravel, rollableTables, TRAVEL_TOOL, TRAVEL_TOOL_NAME, travelAnswer, type TravelMap } from "../_shared/agent/travel.ts";
@@ -153,6 +154,11 @@ export interface TurnToolsInput {
   onDaysPassed: ((days: number) => void) | null;
   /** Offered only with the quests read and no fight on the board: a held payoff is the story's to fire, not a round's. */
   fireHeld?: boolean;
+  /**
+   * The played character's inventions waiting on a ruling and where a ruling goes (#1103). Null in a fight, with
+   * nobody played or nothing waiting, and then the tool is not offered.
+   */
+  rulings?: { pending: readonly PendingInvention[]; onRule(ruling: InventionRuling): void } | null;
 }
 
 export interface TurnTools {
@@ -561,6 +567,18 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     return { content: planned.says, isError: false };
   };
 
+  // The Dungeon Master's ruling on an invention, queued and made only if the turn is kept. Checked against the
+  // inventions the turn was shown, and once for each: a second ruling would fight the first.
+  const ruled: InventionRuling[] = [];
+  const ruleInvention = (toolInput: Record<string, unknown>) => {
+    if (!input.rulings) return { content: "No invention is ruled on now, not in the middle of a fight.", isError: true };
+    const planned = planRuling(input.rulings.pending, ruled, toolInput);
+    if (!planned.ok) return { content: planned.error, isError: true };
+    ruled.push(planned.ruling);
+    input.rulings.onRule(planned.ruling);
+    return { content: planned.says, isError: false };
+  };
+
   // Once a turn, with the total: two calls would move the date twice for what the story told once.
   let daysPassed = false;
   const passDays = (toolInput: Record<string, unknown>) => {
@@ -589,7 +607,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, BRING_OUT_TOOL, CANON_LOOKUP_TOOL, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.onHazard === undefined ? [] : [HAZARD_TOOL]), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), ...(input.quests !== null && input.fireHeld === true ? [FIRE_CONSEQUENCE_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, BRING_OUT_TOOL, CANON_LOOKUP_TOOL, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.onHazard === undefined ? [] : [HAZARD_TOOL]), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), ...(input.quests !== null && input.fireHeld === true ? [FIRE_CONSEQUENCE_TOOL] : []), ...(input.rulings ? [RULE_INVENTION_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
@@ -607,6 +625,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (input.travel && name === TRAVEL_TOOL_NAME) return travel(toolInput);
       if (input.travel && name === ROLL_TABLE_TOOL_NAME) return rollTable(toolInput);
       if (name === FIRE_CONSEQUENCE_TOOL_NAME) return Promise.resolve(fireConsequence(toolInput));
+      if (name === RULE_INVENTION_TOOL_NAME) return Promise.resolve(ruleInvention(toolInput));
       if (input.onDaysPassed && name === PASS_DAYS_TOOL_NAME) return Promise.resolve(passDays(toolInput));
       if (name === KEEP_TALKING_TOOL_NAME) {
         floorKept = true;

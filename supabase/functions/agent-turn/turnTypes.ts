@@ -5,6 +5,7 @@
 
 import type { CanonStore } from "./canonIo.ts";
 import type { SiteState } from "../_shared/agent/site.ts";
+import type { InventionRuling, PendingInvention } from "../_shared/agent/invention.ts";
 import type { SceneMemory } from "../_shared/agent/memories.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import type { AgentProvider } from "../_shared/agent/providerIo.ts";
@@ -334,6 +335,10 @@ export interface AgentTurnDeps {
   loadSiteState(campaignId: string, locationId: string): Promise<SiteState>;
   /** The newest memories of the characters who are here, as the Narrator is shown them. Throws on a failed read. */
   loadSceneMemories(campaignId: string, characterIds: string[]): Promise<SceneMemory[]>;
+  /** The played character's inventions waiting on a ruling in this campaign, oldest first (#1103). Throws on a failed read. */
+  loadPendingInventions(campaignId: string, memberId: string): Promise<PendingInvention[]>;
+  /** Rules on one invention through `decide_crafting_invention`, as the caller (the owner holds the DM membership). Called only after the turn was saved; throws on any failure. */
+  decideInvention(ruling: InventionRuling): Promise<void>;
   /**
    * Applies one quest move through the same database functions the quest screen calls. Called only after the turn
    * was saved, in the order the moves were made; throws on any failure.

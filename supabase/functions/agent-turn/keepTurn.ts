@@ -190,6 +190,9 @@ async function carryOutKeptTurn(
     const shown = pressureShown(questState, fx.queued);
     if (shown !== null || questState.pressure !== null) emit({ type: "pressure", pressure: shown });
   }
+  // Rulings on the played character's inventions, as the caller who holds the DM membership. Each its own `safely`: one
+  // the database refuses (already decided from the Workshop meanwhile) costs that ruling, never the turn.
+  for (const ruling of fx.rulings) await safely(() => deps.decideInvention(ruling));
   await settleFight(scope, fx, session, ctx, here);
   // (The fight's own line on the record is filed in `settleFight`, where the conversation lets go of it.)
   // What changed hands, in the order it was told. One that cannot be made (the giver's pockets changed, the

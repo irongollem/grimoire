@@ -33,6 +33,7 @@ import { campaignToday } from "../_shared/npcAge.ts";
 import { dateTextFor, todayText } from "../_shared/agent/today.ts";
 import { loadSceneMemories } from "./memoryIo.ts";
 import { loadSiteState } from "./siteIo.ts";
+import { decideInvention, loadPendingInventions } from "./inventionIo.ts";
 import { BESIDE_MAX, PLACES_MAX, CHARACTERS_MAX, type SceneView } from "../_shared/agent/scene.ts";
 import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
@@ -810,6 +811,10 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     // scopes it by the campaign's own places); the memories as the caller, like the record: they are the DM's rows.
     loadSiteState: (campaignId, locationId) => loadSiteState(admin, campaignId, locationId),
     loadSceneMemories: (campaignId, characterIds) => loadSceneMemories(supabase, campaignId, characterIds),
+    // Inventions as the caller: the owner of an AI table is the campaign's DM (`campaigns_create_dm_membership`), which is
+    // what `decide_crafting_invention` checks, and a service role has no `auth.uid()` for it to check.
+    loadPendingInventions: (campaignId, memberId) => loadPendingInventions(supabase, campaignId, memberId),
+    decideInvention: (ruling) => decideInvention(supabase, ruling),
 
     // The canon (#1226 story 9): read as the caller (DM-only tables); the nearest-entries function and the world
     // block as the server, for the one campaign the handler has already checked.
