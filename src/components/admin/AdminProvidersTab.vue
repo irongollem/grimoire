@@ -31,6 +31,7 @@
     <SimulacrumConfig />
     <GithubIntegrationConfig />
     <JudgmentModelConfig />
+    <SpeechServicesConfig />
     <!--
       The vendor control keeps its own inline backfill, because re-embedding is
       part of the switch rather than a separate chore to remember. The
@@ -354,6 +355,7 @@ import { useAiUsageStats } from "@/composables/ai/useAiUsageStats";
 import SimulacrumConfig from "@/components/admin/SimulacrumConfig.vue";
 import GithubIntegrationConfig from "@/components/admin/GithubIntegrationConfig.vue";
 import JudgmentModelConfig from "@/components/admin/JudgmentModelConfig.vue";
+import SpeechServicesConfig from "@/components/admin/SpeechServicesConfig.vue";
 import EmbeddingVendorControl from "@/components/admin/EmbeddingVendorControl.vue";
 import PlatformKeyField from "@/components/admin/PlatformKeyField.vue";
 import ProviderCapabilityCell from "@/components/admin/ProviderCapabilityCell.vue";

@@ -12,16 +12,19 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // "github" holds the fine-grained PAT used by create-bug-report to file
 // issues — not an AI provider, but reuses the same encrypted-at-rest vault.
 // "typesafe" holds the TypeSafe API key for the Jev judgment model (#1061).
-export type Provider = "openai" | "anthropic" | "gemini" | "meshy" | "github" | "typesafe";
+// "elevenlabs" and "inworld" hold the speech services' keys (#1021, `speech.ts`).
+export type Provider = "openai" | "anthropic" | "gemini" | "meshy" | "github" | "typesafe" | "elevenlabs" | "inworld";
 
 export async function fetchPlatformKeys(
   admin: SupabaseClient,
   providers: Provider[],
 ): Promise<Partial<Record<Provider, string>>> {
-  const { data } = await admin
+  const { data, error } = await admin
     .from("platform_api_keys")
     .select("provider, encrypted_key")
     .in("provider", providers);
+  // A read that failed is not "no key": answering {} would quietly run every caller on its no-key path.
+  if (error) throw error;
 
   if (!data?.length) return {};
 

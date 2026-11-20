@@ -21,7 +21,7 @@ function harness(over: Partial<{ text: string | null; note: ReadingNote | null }
     flagged: false,
     canPay: true,
     synthThrows: false,
-    store: new Map<string, Uint8Array>(),
+    store: new Map<string, Uint8Array<ArrayBuffer>>(),
     spoken: [] as Array<{ service: string; voiceId: string; text: string }>,
     charged: [] as number[],
     released: [] as string[][],
@@ -55,7 +55,7 @@ function harness(over: Partial<{ text: string | null; note: ReadingNote | null }
     },
     loadAudio: async (key) => h.store.get(key) ?? null,
     keepAudio: async (key, audio) => {
-      h.store.set(key, audio);
+      h.store.set(key, new Uint8Array(audio)); // a copy, as the round trip through the bucket gives back
     },
     campaignExists: async () => h.campaignThere,
     // As the real one: everything in the store that the note does not refer to now goes.

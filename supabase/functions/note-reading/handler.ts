@@ -52,7 +52,7 @@ export interface NoteReadingDeps {
   release(ids: string[]): Promise<void>;
   charge(userId: string, credits: number, log: { service: SpeechService }): Promise<void>;
   synthesize(voice: { service: SpeechService; id: string }, text: string): Promise<Uint8Array>;
-  loadAudio(key: string): Promise<Uint8Array | null>;
+  loadAudio(key: string): Promise<Uint8Array<ArrayBuffer> | null>;
   keepAudio(key: string, audio: Uint8Array): Promise<void>;
   /**
    * Removes the campaign's recordings that no note refers to any more: of a deleted note, or of a telling since
@@ -104,7 +104,7 @@ export type ReadingOutcome =
   | { ok: false; status: number; error: string }
   | { ok: true; kind: "estimate"; chars: number; credits: number; has: boolean }
   | { ok: true; kind: "made"; chars: number; credits: number }
-  | { ok: true; kind: "audio"; audio: Uint8Array }
+  | { ok: true; kind: "audio"; audio: Uint8Array<ArrayBuffer> }
   | { ok: true; kind: "swept"; removed: number };
 
 const refuse = (status: number, error: string): ReadingOutcome => ({ ok: false, status, error });

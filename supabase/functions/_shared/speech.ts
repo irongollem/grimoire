@@ -22,19 +22,28 @@ export interface SpeechEnv {
   elevenKey: string | undefined;
   inworldKey: string | undefined;
   elevenModel: string;
-  /** The stack's own switch for spoken lines (`TABLE_VOICE_TRIAL=on`): a key alone does not turn voices on. */
-  trialOn: boolean;
 }
 
 /**
- * Whether this stack speaks at all: the first service's key and the switch, both. The one reading of it, for the
- * function that speaks a line, the one that reads a note aloud, and a turn of the table deciding whether to key its lines.
+ * Whether this stack speaks at all: the first service's key is set. The one reading of it, for the function that
+ * speaks a line, the one that reads a note aloud, and a turn of the table deciding whether to key its lines.
  */
-export const voicesOn = (env: SpeechEnv): boolean => !!env.elevenKey && env.trialOn;
+export const voicesOn = (env: SpeechEnv): boolean => !!env.elevenKey;
 
-export function speechEnvFrom(env: (key: string) => string | undefined): SpeechEnv {
+/** The `platform_api_keys` rows the speech services' keys are kept under. */
+export const SPEECH_KEY_PROVIDERS = ["elevenlabs", "inworld"] as const;
+
+/**
+ * The speech services' keys are the admin's, set in Admin > Providers like every other provider's and kept
+ * encrypted in `platform_api_keys`. The caller reads them per request (`fetchPlatformKeys(admin,
+ * SPEECH_KEY_PROVIDERS)`), so a key set or cleared there takes effect at once; this module stays free of the vault so
+ * it can be imported anywhere. There is no separate switch: a key is how voices are turned on, as it is for the
+ * judging model, and clearing it turns them off. (They were function secrets plus `TABLE_VOICE_TRIAL=on` while speech
+ * was not charged for.) `TABLE_VOICE_MODEL` is still the environment's, to name another ElevenLabs model.
+ */
+export function speechEnvFrom(keys: { elevenlabs?: string; inworld?: string }, env: (key: string) => string | undefined): SpeechEnv {
   const named = env("TABLE_VOICE_MODEL");
-  return { elevenKey: env("ELEVENLABS_API_KEY"), inworldKey: env("INWORLD_API_KEY"), elevenModel: named !== undefined && named.trim() !== "" ? named.trim() : DEFAULT_ELEVEN_MODEL, trialOn: env("TABLE_VOICE_TRIAL") === "on" };
+  return { elevenKey: keys.elevenlabs, inworldKey: keys.inworld, elevenModel: named !== undefined && named.trim() !== "" ? named.trim() : DEFAULT_ELEVEN_MODEL };
 }
 
 export const hasSpeechService = (env: SpeechEnv, service: SpeechService): boolean => (service === "inworld" ? !!env.inworldKey : !!env.elevenKey);

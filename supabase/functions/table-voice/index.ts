@@ -12,7 +12,7 @@ import { clipName, lineKeyFits } from "../_shared/agent/lineKey.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { clipKey, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
 import { shownInTurns, speakLine, voiceRates, type TableVoiceDeps } from "./handler.ts";
-import { base64FromBytes, bytesFromBase64, hasSpeechService, loadSpeechRate, speechEnvFrom, speechModelOf, synthesizeSpeech, voicesOn } from "../_shared/speech.ts";
+import { base64FromBytes, bytesFromBase64, hasSpeechService, loadSpeechRate, SPEECH_KEY_PROVIDERS, speechEnvFrom, speechModelOf, synthesizeSpeech, voicesOn } from "../_shared/speech.ts";
 import { recordGeneration, releaseCredits, reserveCredits, reservationRefusal } from "../_shared/credits.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
@@ -22,7 +22,6 @@ import { ageOf, inworldText, isNarratorVoice, NARRATION_MAX_CHARS, sexFromGender
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-const speech = speechEnvFrom((key) => Deno.env.get(key));
 
 // The clips have a store of their own (the maintainer's choice, 17 Nov 2026): a private R2 bucket that nothing
 // serves but this function, to the conversation's own owner. Without R2 credentials nothing is kept and every line
@@ -54,6 +53,9 @@ serve(withCors(async (req: Request) => {
   } catch {
     return json(400, { error: "Invalid JSON body." });
   }
+
+  // The admin's keys, read for this request (`speechEnvFrom`).
+  const speech = speechEnvFrom(await fetchPlatformKeys(admin, [...SPEECH_KEY_PROVIDERS]), (key) => Deno.env.get(key));
 
   const deps: TableVoiceDeps = {
     voiceOn: () => voicesOn(speech),

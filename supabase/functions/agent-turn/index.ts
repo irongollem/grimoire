@@ -11,7 +11,7 @@ import { MAX_PEOPLES } from "../_shared/agent/peoples.ts";
 import { lineKey } from "../_shared/agent/lineKey.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { speechEnvFrom, voicesOn } from "../_shared/speech.ts";
+import { SPEECH_KEY_PROVIDERS, speechEnvFrom, voicesOn } from "../_shared/speech.ts";
 import { tableAiEnabled } from "../_shared/featureAccess.ts";
 import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
@@ -803,7 +803,7 @@ serve(withCors(async (req: Request) => {
 
     // The same switch `table-voice` answers to: without it no line is given a key.
     voiceKey:
-      voicesOn(speechEnvFrom((key) => Deno.env.get(key)))
+      voicesOn(speechEnvFrom(await fetchPlatformKeys(admin, [...SPEECH_KEY_PROVIDERS]), (key) => Deno.env.get(key)))
         ? (sessionId, line) => lineKey(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, sessionId, line)
         : null,
 

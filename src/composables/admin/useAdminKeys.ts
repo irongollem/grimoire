@@ -3,10 +3,11 @@ import { supabase } from "@/lib/supabase";
 
 // "meshy" is managed from the Simulacrum panel (SimulacrumConfig.vue),
 // "github" from GithubIntegrationConfig.vue and "typesafe" (the Jev judgment
-// model, #1061) from JudgmentModelConfig.vue. None of them is a provider a
-// campaign can choose for text or images, so all three are deliberately absent
-// from PROVIDERS below.
-export type KeyProvider = "openai" | "anthropic" | "gemini" | "meshy" | "github" | "typesafe";
+// model, #1061) from JudgmentModelConfig.vue; "elevenlabs" and "inworld" (the
+// speech services, #1021) from SpeechServicesConfig.vue. None of them is a
+// provider a campaign can choose for text or images, so all are deliberately
+// absent from PROVIDERS below.
+export type KeyProvider = "openai" | "anthropic" | "gemini" | "meshy" | "github" | "typesafe" | "elevenlabs" | "inworld";
 
 export interface PlatformKeyRow {
   provider: KeyProvider;

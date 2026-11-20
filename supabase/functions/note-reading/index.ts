@@ -1,6 +1,6 @@
 // note-reading (#1021 row 19): a note read aloud in the Narrator's voice. The rules are `handler.ts`'s; this file
 // wires the database, the speech service and the voices' store. It answers only where voices are switched on for
-// the stack (ELEVENLABS_API_KEY and TABLE_VOICE_TRIAL=on), except for listening, which needs only the recording.
+// the stack (an ElevenLabs key in Admin > Providers, `voicesOn`), except for listening, which needs only the recording.
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { tableAiEnabled } from "../_shared/featureAccess.ts";
@@ -12,12 +12,11 @@ import { isNarratorVoice } from "../_shared/narratorVoice.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { sweepNoteReadings, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
-import { hasSpeechService, loadSpeechRate, speechEnvFrom, speechModelOf, synthesizeSpeech, voicesOn, VoicesSpent } from "../_shared/speech.ts";
+import { hasSpeechService, loadSpeechRate, SPEECH_KEY_PROVIDERS, speechEnvFrom, speechModelOf, synthesizeSpeech, voicesOn, VoicesSpent } from "../_shared/speech.ts";
 import { readNote, type NoteReadingDeps } from "./handler.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-const speech = speechEnvFrom((key) => Deno.env.get(key));
 // The same private store the table's clips are kept in: nothing serves it but a function that has checked the caller.
 const voiceStore = voiceStoreFrom((key) => Deno.env.get(key));
 
@@ -43,6 +42,9 @@ serve(withCors(async (req: Request) => {
   } catch {
     return json(400, { error: "Invalid JSON body." });
   }
+
+  // The admin's keys, read for this request (`speechEnvFrom`).
+  const speech = speechEnvFrom(await fetchPlatformKeys(admin, [...SPEECH_KEY_PROVIDERS]), (key) => Deno.env.get(key));
 
   const deps: NoteReadingDeps = {
     voiceOn: () => voicesOn(speech) && voiceStore !== null,
