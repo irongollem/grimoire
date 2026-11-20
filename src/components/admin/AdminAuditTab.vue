@@ -168,6 +168,7 @@ function detailSummary(entry: AdminAuditEntry): string {
     case "credit_pack_refund":
       return `${d.credits ?? "?"} credits · clawed back ${d.clawed_back ?? "nothing (needs reconciling)"}`;
     case "account_freeze":
+    case "table_reopen":
       return typeof d.reason === "string" ? d.reason : "";
     case "account_erasure":
       return `${d.ledger_rows_anonymized ?? 0} ledger rows anonymized`;

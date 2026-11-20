@@ -13,7 +13,7 @@ import type { SiteState } from "../_shared/agent/site.ts";
 import { NO_SITE } from "../_shared/agent/site.ts";
 import type { SceneMemory } from "../_shared/agent/memories.ts";
 import type { InventionRuling, PendingInvention } from "../_shared/agent/invention.ts";
-import { STRIKES_BEFORE_CLOSED } from "../_shared/agent/conduct.ts";
+import { STRIKES_BEFORE_CLOSED, violenceLine } from "../_shared/agent/conduct.ts";
 import type { HandsChange } from "../_shared/agent/hands.ts";
 import { describe, expect, it, vi } from "vitest";
 import { beginTurn, handleAgentTurn } from "./handler";
@@ -294,7 +294,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     reserved: [],
     script,
     state: {
-      campaign: { id: CAMPAIGN, user_id: DM, name: "Cup Town", game_system: "dnd5e-2024", ai_enabled: true, date: START_DATE },
+      campaign: { id: CAMPAIGN, user_id: DM, name: "Cup Town", game_system: "dnd5e-2024", ai_enabled: true, table_violence: "standard", date: START_DATE },
       isDm: true,
       provider: { provider: "openai", model: "m1", isByok, callModel },
       price: { inputPerMillion: 0, outputPerMillion: 10, cachedInputPerMillion: null },
@@ -1697,6 +1697,16 @@ describe("where the party is", () => {
   const goTo = (input: Record<string, unknown>): ModelStep =>
     step(10, { blocks: [{ type: "tool_call", id: "g1", name: "go_to", input }], stop: "tool_calls" });
 
+  // Bug caught: the violence setting read from the campaign row but never handed to the narrator's instructions.
+  it("gives the narrator the violence wording of the campaign's setting", async () => {
+    const h = harness();
+    existingSession(h, { scene_location_id: CELLAR });
+    h.state.campaign = { ...h.state.campaign!, table_violence: "grim" };
+    await play(h, { body: GO });
+    expect(h.requests[0].system).toContain(violenceLine("grim"));
+    expect(h.requests[0].system).not.toContain(violenceLine("standard"));
+  });
+
   it("keeps the scene out of the instructions and puts it ahead of the player's words, or a moved party costs the whole prompt cache", async () => {
     const h = harness();
     existingSession(h, { scene_location_id: CELLAR, summary: "SUMMARY-MARK the party fled." });
@@ -2533,7 +2543,7 @@ describe("quests and time", () => {
   it("puts the date, what is marked on the place and what the characters remember in the state, not the instructions", async () => {
     const h = harness();
     existingSession(h, { scene_location_id: CELLAR });
-    h.state.campaign = { id: CAMPAIGN, user_id: DM, name: "Cup Town", game_system: "dnd5e-2024", ai_enabled: true, today: "7 Marpenoth, 1492 DR" };
+    h.state.campaign = { id: CAMPAIGN, user_id: DM, name: "Cup Town", game_system: "dnd5e-2024", ai_enabled: true, table_violence: "standard", today: "7 Marpenoth, 1492 DR" };
     h.state.site = { places: [{ name: "Cellar", facts: ["cleared"] }], doors: [] };
     h.state.sceneMemories = [{ npcId: "n1", name: "Maren", body: "The party paid the ferry toll.", createdAt: "2026-11-01T10:00:00Z" }];
     await play(h, { body: BODY });

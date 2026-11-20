@@ -115,3 +115,16 @@ export function useAdminUsers() {
 
   return { ...query, setPlan, grantCredits, setSuspended, setBanned, deleteUser }
 }
+
+/**
+ * Reopen an account's closed AI table (#1021): the strikes that closed it stop counting from now on.
+ * A reason is required by the RPC and written to the audit log; the form refuses an empty one before any request is made.
+ */
+export function useReopenTable() {
+  return useMutation({
+    mutationFn: async ({ userId, reason }: { userId: string; reason: string }) => {
+      const { error } = await supabase.rpc('admin_reopen_table', { p_user_id: userId, p_reason: reason.trim() })
+      if (error) throw error
+    },
+  })
+}

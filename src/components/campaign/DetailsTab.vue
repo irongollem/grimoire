@@ -34,6 +34,12 @@
 
     <SettingChoiceList v-model="form.player_sight" label="SIGHT" :options="PLAYER_SIGHT_OPTIONS" />
 
+    <div>
+      <SettingChoiceList v-model="form.table_violence" label="VIOLENCE AND HORROR AT THE AI TABLE" :options="TABLE_VIOLENCE_OPTIONS" />
+      <!-- Fixed for every table, so it is said here beside the one dial rather than left to be discovered. -->
+      <p class="text-caption text-muted-foreground mt-1.5">The rules on sexual content are the same at every table and cannot be changed.</p>
+    </div>
+
     <!-- Immersive Rolls -->
     <div>
       <label class="flex items-start gap-3 cursor-pointer">
@@ -119,6 +125,12 @@ const PLAYER_SIGHT_OPTIONS = [
   { value: "own" as const, label: "Each their own", desc: "A player's phone shows only what their own character can see. For online play." },
 ] as const;
 
+const TABLE_VIOLENCE_OPTIONS = [
+  { value: "gentle" as const, label: "Gentle", desc: "Danger and defeat are told without lingering on wounds, blood or cruelty. For younger or gentler players." },
+  { value: "standard" as const, label: "Standard", desc: "Told plainly, the way a D&D table tells it, without relish." },
+  { value: "grim" as const, label: "Grim", desc: "Wounds, fear and horror are told with weight and consequence, still never gore for its own sake." },
+] as const;
+
 function buildForm(c: Campaign | null) {
   return {
     name: c?.name ?? "",
@@ -126,6 +138,7 @@ function buildForm(c: Campaign | null) {
     health_visibility: (c?.health_visibility as "strategic" | "immersive" | "unknown") ?? "strategic",
     map_memory: c?.map_memory ?? "remembered",
     player_sight: c?.player_sight ?? "shared",
+    table_violence: c?.table_violence ?? "standard",
     immersive_rolls: c?.immersive_rolls ?? false,
     battle_map_show_tokens: c?.battle_map_show_tokens ?? true,
   };
@@ -145,6 +158,7 @@ const CONFLICT_LABELS: Record<keyof CampaignForm, string> = {
   health_visibility: "Health visibility",
   map_memory: "Map memory",
   player_sight: "Sight",
+  table_violence: "AI table violence",
   immersive_rolls: "Immersive Rolls",
   battle_map_show_tokens: "VTT tokens",
 };
@@ -158,6 +172,7 @@ function campaignRow(f: CampaignForm) {
     health_visibility: f.health_visibility,
     map_memory: f.map_memory,
     player_sight: f.player_sight,
+    table_violence: f.table_violence,
     immersive_rolls: f.immersive_rolls,
     battle_map_show_tokens: f.battle_map_show_tokens,
   };

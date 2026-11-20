@@ -54,6 +54,7 @@
       />
 
       <AdminTableGrant :user-id="user.user_id" :is-child="user.is_child" />
+      <AdminTableReopen v-if="!user.is_child" :user-id="user.user_id" />
 
       <!-- Soft freeze (paid actions) -->
       <AppButton
@@ -101,6 +102,7 @@ import AdminTableGrant from "@/components/admin/AdminTableGrant.vue";
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import AdminTableReopen from "@/components/admin/AdminTableReopen.vue";
 import type { AdminUser, ExemptReason } from "@/composables/admin/useAdminUsers";
 import { accountSegment, SEGMENT_INFO, type AccountSegment } from "@/lib/admin/accountSegments";
 import { outreachMailto, renderOutreach, type OutreachTemplate } from "@/lib/admin/outreachEmail";

@@ -4,8 +4,9 @@
 // run before the stream opens so a refusal is a real status code; the turn itself runs inside the stream.
 import type { AgentProvider } from "../_shared/agent/providerIo.ts";
 import { loadTurnsInReach } from "../_shared/agent/turnsInReach.ts";
+import { countStrikes } from "./strikesIo.ts";
 import { giveHandout, loadHandouts, loadPicture, loadPlace } from "./showIo.ts";
-import { CHILD_TURN_THRESHOLDS, readsAsChild, STRIKE_WINDOW_DAYS } from "../_shared/agent/conduct.ts";
+import { CHILD_TURN_THRESHOLDS, readsAsChild, tableViolenceOf } from "../_shared/agent/conduct.ts";
 import { belongingsText, MAX_BELONGINGS, type Belonging } from "../_shared/agent/belongings.ts";
 import { MAX_PEOPLES } from "../_shared/agent/peoples.ts";
 import { lineKey } from "../_shared/agent/lineKey.ts";
@@ -157,7 +158,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     async loadCampaign(campaignId): Promise<CampaignRow | null> {
       const { data, error } = await admin
         .from("campaigns")
-        .select("id, user_id, name, ai_enabled, game_system, text_provider, current_year, current_month, current_day, calendar_id, custom_calendar")
+        .select("id, user_id, name, ai_enabled, table_violence, game_system, text_provider, current_year, current_month, current_day, calendar_id, custom_calendar")
         .eq("id", campaignId)
         .maybeSingle();
       if (error) throw error;
@@ -169,6 +170,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
         user_id: data.user_id,
         name: data.name,
         game_system: data.game_system,
+        table_violence: tableViolenceOf(data.table_violence),
         ai_enabled: await tableAiEnabled(admin, data),
         today: dateOrNull(data),
         date: campaignToday(data),
@@ -298,18 +300,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
 
     // What the screen refused of this account's own messages, lately. Only what they sent counts: a turn of the
     // Dungeon Master's that was withheld is not the player's strike.
-    async strikes(userId) {
-      const since = new Date(Date.now() - STRIKE_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
-      const { count, error } = await admin
-        .from("prompt_screenings")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("generation_type", "agent_turn")
-        .eq("blocked", true)
-        .gte("created_at", since);
-      if (error) throw error;
-      return count ?? 0;
-    },
+    strikes: (userId) => countStrikes(admin, userId, Date.now()),
 
     async isFlaggedOutput(text, childTookPart) {
       try {

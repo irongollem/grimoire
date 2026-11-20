@@ -32,6 +32,7 @@ import type { Prologue } from "../_shared/agent/prologue.ts";
 import type { FightPlan, FightsInView } from "../_shared/agent/fight.ts";
 import type { PendingRoll, RollAsk, Rolled } from "../_shared/agent/playerRoll.ts";
 import type { NarrationJudge } from "./narration.ts";
+import type { TableViolence } from "../_shared/agent/conduct.ts";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
 import type { AgentLine, AgentTool, AgentUsage, CallTool, DmRoll } from "../_shared/agent/types.ts";
 import type { JobLedger } from "../_shared/pipeline/creditHold.ts";
@@ -102,6 +103,8 @@ export interface CampaignRow {
   name: string;
   game_system: string | null;
   ai_enabled: boolean | null;
+  /** How hard the narrator tells violence and horror (the DM's setting); the sexual-content rules have no setting. */
+  table_violence: TableViolence;
   /** The campaign's date as its calendar names it; null when no date is set. Per-turn state, never standing text. */
   today?: string | null;
   /** The same date as numbers, for what a kept turn performs on today's date; null when no date is set. */

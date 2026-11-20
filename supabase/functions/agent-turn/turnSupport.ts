@@ -79,7 +79,7 @@ export function systemFor(input: {
   previously?: string;
 }): string {
   const { campaign } = input;
-  const parts = [soloTableSystem({ id: campaign.id, name: campaign.name, rulesetLabel: rulesetLabelFor(campaign.game_system) })];
+  const parts = [soloTableSystem({ id: campaign.id, name: campaign.name, rulesetLabel: rulesetLabelFor(campaign.game_system), violence: campaign.table_violence })];
   // The canon (#1226): what is always carried, short. The rest is looked up (`canon_lookup`) or shown where the party stands.
   if (input.world !== undefined && input.world !== "") parts.push(input.world);
   parts.push(CANON_GUIDE);
