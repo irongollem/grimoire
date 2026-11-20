@@ -3,66 +3,19 @@ import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tansta
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
 import { writeCanonicalLibraryArt, MONSTER_CANONICAL_ART, type CanonicalArtEdit } from "./writeCanonicalLibraryArt";
-import type { Monster } from "@/types/monster.types";
+import {
+  ART_COLUMNS,
+  mergeLibraryMonsterArtLayers,
+  type LibraryArtEntry,
+  type LibraryArtMap,
+  type LibraryArtRow,
+} from "@/lib/library/monsterArtLayers";
 
 const QUERY_KEY = "library-monster-art";
 /** Exported so a second query on the same art keys (useEntityEmbedData.ts)
  *  applies the same staleness window rather than immediately refetching under
  *  a shorter default. */
 export const LIBRARY_MONSTER_ART_STALE_TIME = 1000 * 60 * 30; // 30 minutes — art changes rarely
-
-export interface LibraryArtEntry {
-  image_url: string | null;
-  cutout_url: string | null;
-  portrait_focal_point: { x: number; y: number } | null;
-}
-
-export interface LibraryArtMap {
-  [entryId: string]: LibraryArtEntry;
-}
-
-interface LibraryArtRow {
-  entry_id: string;
-  image_url: string | null;
-  cutout_url: string | null;
-  portrait_focal_point: { x: number; y: number } | null;
-}
-
-const ART_COLUMNS = "entry_id, image_url, cutout_url, portrait_focal_point";
-
-function toEntry(row: LibraryArtRow): LibraryArtEntry {
-  return { image_url: row.image_url, cutout_url: row.cutout_url, portrait_focal_point: row.portrait_focal_point };
-}
-
-/**
- * Canonical art (library_monster_art_canonical — unowned, admin-managed) and a
- * user's private overrides (library_monster_art) are fetched from separate
- * tables. This is the override-precedence resolution — but PER FIELD rather
- * than per whole row (#917 story 1): a DM who overrides only the cutout
- * (leaving image_url null on their own row) still gets the canonical picture
- * for the fields they didn't touch, rather than losing it because *an*
- * override row exists. A null on the own row means "no override for this
- * field", never "clear this field" — there is no way to blank a canonical
- * field from a private override today.
- */
-export function mergeLibraryMonsterArtLayers(
-  canonicalRows: readonly LibraryArtRow[],
-  ownRows: readonly LibraryArtRow[],
-): LibraryArtMap {
-  const map: LibraryArtMap = {};
-  for (const row of canonicalRows) {
-    map[row.entry_id] = toEntry(row);
-  }
-  for (const row of ownRows) {
-    const canonical = map[row.entry_id];
-    map[row.entry_id] = {
-      image_url: row.image_url ?? canonical?.image_url ?? null,
-      cutout_url: row.cutout_url ?? canonical?.cutout_url ?? null,
-      portrait_focal_point: row.portrait_focal_point ?? canonical?.portrait_focal_point ?? null,
-    };
-  }
-  return map;
-}
 
 /**
  * One monster's art: the canonical + own-override merge for a single
@@ -105,43 +58,6 @@ export async function fetchLibraryMonsterArtEntries(entryIds: readonly string[])
 
   return mergeLibraryMonsterArtLayers(canonicalRes.data, ownRes.data);
 }
-
-/**
- * Applies a merged art-layer entry onto a shared (library) monster row, per
- * field — an art field the entry leaves null falls back to the row's own
- * value rather than blanking it. Pure so it's usable both by
- * `useMonsterWithArt` (a live shared row) and by the Scriptorium embed
- * fetcher (`useEntityEmbedData.ts`), which needs the exact same merge without
- * paying for a second copy of it.
- */
-export function withLibraryArt<T extends Pick<Monster, "image_url" | "cutout_url" | "portrait_focal_point">>(
-  row: T,
-  art: LibraryArtEntry | undefined,
-): T {
-  if (!art) return row;
-  return {
-    ...row,
-    image_url: art.image_url ?? row.image_url,
-    cutout_url: art.cutout_url ?? row.cutout_url,
-    portrait_focal_point: art.portrait_focal_point ?? row.portrait_focal_point,
-  };
-}
-
-/**
- * `withLibraryArt` over a list of library rows, keyed by row id. The monster
- * grids render portraits too, so they merge the same layers the detail view
- * does: without this a DM's focal point or private picture showed in the
- * modal and not on the card (#955). Rows without an entry, or a map that has
- * not loaded yet, come back unchanged.
- */
-export function withLibraryArtAll<T extends Pick<Monster, "id" | "image_url" | "cutout_url" | "portrait_focal_point">>(
-  rows: readonly T[],
-  artMap: LibraryArtMap | undefined,
-): T[] {
-  if (!artMap) return [...rows];
-  return rows.map((row) => withLibraryArt(row, artMap[row.id]));
-}
-
 
 /** Every cache that holds a monster's art or the library row it was synced into. */
 function invalidateMonsterArtReaders(queryClient: QueryClient): Promise<unknown> {

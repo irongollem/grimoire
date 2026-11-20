@@ -158,7 +158,8 @@ import PlayerWildShapeSlotTrade from "@/components/player/PlayerWildShapeSlotTra
 import WildshapePreviewLightbox from "@/components/player/WildshapePreviewLightbox.vue";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
-import { fetchLibraryMonsterArtEntry, withLibraryArt } from "@/composables/library/useLibraryMonsterArt";
+import { fetchLibraryMonsterArtEntry } from "@/composables/library/useLibraryMonsterArt";
+import { withLibraryArt } from "@/lib/library/monsterArtLayers";
 import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonstersByIds";
 import { useClassDefinitionLookup } from "@/composables/party/useClassDefinitionLookup";
 import { useUpdatePartyMember } from "@/composables/party/useParty";

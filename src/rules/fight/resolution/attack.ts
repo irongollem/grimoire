@@ -40,6 +40,8 @@ export interface AttackOutcome {
   /** What to pass to `rollDamageParts` (with `critical`); null on a miss or an undecided hit. */
   damageParts: DamagePart[] | null;
   roll: RollResult;
+  /** A Reaction the target took after the roll (Shield, #1021): `by` is its instance id. `targetAc` is then the armour class it raised. */
+  reaction?: { by: string; spell: string };
 }
 
 export interface AttackInput extends RollOptions {
@@ -88,7 +90,7 @@ export async function rollToHit(ctx: ResolutionContext, input: AttackInput): Pro
   if (cover === "total") throw new ActionRefused(`${target.name} has total cover from ${attacker.name}, so it cannot be targeted by "${entry.name}".`);
   const coverAc = cover === null ? 0 : coverBonus(cover).ac;
   // RULE shield-of-faith (PHB "Shield of Faith"): +2 AC, on top of the armour and of cover. Read live: a boon that just ended is gone.
-  const targetAc = printedAc === null ? null : printedAc + coverAc + boonArmorClass(ctx.live(target).conditions);
+  let targetAc = printedAc === null ? null : printedAc + coverAc + boonArmorClass(ctx.live(target).conditions);
   const roll = await rollD20(ctx, `${entry.name} attack vs ${target.name}`, attack.bonus + penalty, mode, attacker, input);
   if (!roll) return null;
   // An attack made is an attack seen, hit or miss, and of the delivery it was made with (#1021).
@@ -103,7 +105,18 @@ export async function rollToHit(ctx: ResolutionContext, input: AttackInput): Pro
   const total = natural + bonus + penalty;
   // The rules decide whenever there is an AC to compare against. An unreadable
   // AC leaves everything but a natural 1 or 20 to the DM.
-  const ruled = targetAc === null ? null : resolveAttackRoll({ d20: natural, bonus, targetAc, penalty, autoCrit });
+  let ruled = targetAc === null ? null : resolveAttackRoll({ d20: natural, bonus, targetAc, penalty, autoCrit });
+  // RULE shield (PHB "Shield": a Reaction taken when you are hit by an attack, +5 AC "including against the triggering attack"): the hit
+  // is asked about only once the rules said "hit", and the roll is decided again against the armour class the reaction raised.
+  let reaction: { by: string; spell: string } | undefined;
+  if (ruled !== null && ruled.hit && targetAc !== null && ctx.reactToHit) {
+    const answer = await ctx.reactToHit(target, { natural, total, armorClass: targetAc });
+    if (answer !== null) {
+      reaction = { by: target.instance_id, spell: answer.spell };
+      targetAc = answer.armorClass;
+      ruled = resolveAttackRoll({ d20: natural, bonus, targetAc, penalty, autoCrit });
+    }
+  }
   const hit = ruled ? ruled.hit : fumble ? false : natural === 20 ? true : null;
   const critical = ruled ? ruled.critical : hit === true;
   return {
@@ -124,6 +137,7 @@ export async function rollToHit(ctx: ResolutionContext, input: AttackInput): Pro
     autoCrit,
     damageParts: hit === true ? attack.hit : null,
     roll,
+    ...(reaction !== undefined ? { reaction } : {}),
   };
 }
 
@@ -208,6 +222,7 @@ export async function resolveAttackOn(
       damageTotal: damage ? damage.total : 0,
       dying: damage ? damage.dying : null,
       save: rider ? rider.summary.targets[0] ?? null : null,
+      ...(outcome.reaction !== undefined ? { reaction: outcome.reaction } : {}),
     },
   };
 }

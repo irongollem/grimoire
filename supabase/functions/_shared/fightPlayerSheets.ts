@@ -16,16 +16,15 @@ import type { CharacterSpell } from "../../../src/types/spell.types.ts";
 import { loadCustomItems } from "./fightItems.ts";
 import { customContentScope } from "./fightStatBlocks.ts";
 
-export async function loadPlayerSheets(admin: SupabaseClient, campaignId: string, memberIds: string[]): Promise<PlayerSheets> {
-  // Every read is scoped to this campaign. The inventory ids come from this campaign's own rows (a database
-  // trigger keeps an inventory row's item in the same campaign or a global row its owner may use), and an
-  // item is read only when it is this campaign's or its Dungeon Masters' own, so a forged id names nothing of another account's.
-  const { data: members, error: memberError } = await admin
-    .from("party_members")
-    .select("id, ruleset, class, subclass, ac_formula, class_choices, str, dex, con, int, wis, cha, proficiency_bonus, saving_throw_proficiencies, wildshape_state, speed, level, custom_attacks, spell_slots, class_resources")
-    .eq("campaign_id", campaignId)
-    .in("id", memberIds);
-  if (memberError) throw new Error(`party_members: ${memberError.message}`);
+/**
+ * The campaign's inventory rows the members carry and the items those name: what worn gear (and so armour class) is worked out
+ * from. Scoped to this campaign in the query, as the rest of this file is. Also read by the roster a fight opens with.
+ */
+export async function loadInventoryAndItems(
+  admin: SupabaseClient,
+  campaignId: string,
+  memberIds: string[],
+): Promise<{ rows: PartyInventoryItem[]; items: Item[] }> {
   const { data: inventory, error: inventoryError } = await admin
     .from("party_inventory").select("*").eq("campaign_id", campaignId).in("carried_by", memberIds);
   if (inventoryError) throw new Error(`party_inventory: ${inventoryError.message}`);
@@ -42,6 +41,20 @@ export async function loadPlayerSheets(admin: SupabaseClient, campaignId: string
     if (error) throw new Error(`library_items: ${error.message}`);
     items.push(...data.map(normalizeLibraryItem));
   }
+  return { rows, items };
+}
+
+export async function loadPlayerSheets(admin: SupabaseClient, campaignId: string, memberIds: string[]): Promise<PlayerSheets> {
+  // Every read is scoped to this campaign. The inventory ids come from this campaign's own rows (a database
+  // trigger keeps an inventory row's item in the same campaign or a global row its owner may use), and an
+  // item is read only when it is this campaign's or its Dungeon Masters' own, so a forged id names nothing of another account's.
+  const { data: members, error: memberError } = await admin
+    .from("party_members")
+    .select("id, ruleset, class, subclass, ac_formula, class_choices, str, dex, con, int, wis, cha, proficiency_bonus, saving_throw_proficiencies, wildshape_state, speed, level, custom_attacks, spell_slots, class_resources")
+    .eq("campaign_id", campaignId)
+    .in("id", memberIds);
+  if (memberError) throw new Error(`party_members: ${memberError.message}`);
+  const { rows, items } = await loadInventoryAndItems(admin, campaignId, memberIds);
   // A Wild Shape form's STR, DEX and CON replace the character's own on a save.
   const formIds = [...new Set((members as PlayerSheetRow[]).flatMap((m) => m.wildshape_state?.monster_id ?? []))];
   const beasts: BeastScores[] = [];

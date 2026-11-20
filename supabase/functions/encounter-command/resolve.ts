@@ -24,7 +24,7 @@ import { statBlockOf, type StatBlockSources } from "../_shared/fightStatBlocks.t
 import type { StatBlockListKey } from "../../../src/rules/statBlock/parseAction.ts";
 import { holdsConcentration } from "../../../src/rules/conditionDurations.ts";
 import { attackRollMode } from "../../../src/rules/combat/attackRoll.ts";
-import { allySlotSpend, settleSlotSpend, type InnateSpend } from "../../../src/rules/fight/allies/spells.ts";
+import { allyInnateSpend, allySlotSpend, settleInnateSpend, settleSlotSpend, slotPoolFor, type InnateSpend } from "../../../src/rules/fight/allies/spells.ts";
 import { enemyBesideTarget, sneakUseKey } from "../../../src/rules/fight/allies/sneak.ts";
 import { allyAttackShape, allySneakAttack } from "../../../src/rules/fight/allies/statBlock.ts";
 import { RAGE_RESISTANCES, RAGING, divineSmiteFor, featureSpend, improvedSmiteFor, rageDamageFor, settleFeatureSpend } from "../../../src/rules/fight/allies/features.ts";
@@ -44,7 +44,10 @@ import { pickSpellRecord, type SpellRecord } from "../../../src/rules/fight/spel
 import { creatureKindOf, kindAllowed, kindLimitOf, kindPhrase } from "../../../src/rules/fight/spells/creatureKind.ts";
 import { spellEntryFor } from "../../../src/rules/fight/spells/spellEntry.ts";
 import { CONDITIONS } from "../../../src/rules/conditions.ts";
-import { boonEntryFor, isBoonSpell, type BoonPlan } from "../../../src/rules/fight/spells/boonEntry.ts";
+import { boonEntryFor, isBoonSpell, reactionBoonFor, type BoonPlan } from "../../../src/rules/fight/spells/boonEntry.ts";
+import { reactionCastPlan, reactionTurnsHit, reactsByRules } from "../../../src/rules/fight/spells/reactionCast.ts";
+import { cannotReactWhileSurprised } from "../../../src/rules/initiative.ts";
+import { isIncapacitated } from "../../../src/rules/fight/stances.ts";
 import { castSlotOf, healEntryFor, isHealingSpell, type HealPlan } from "../../../src/rules/fight/spells/healEntry.ts";
 import { spellcastingModifierOf } from "../../../src/rules/fight/spells/castNow.ts";
 import { takesTurnsInFight } from "../../../src/rules/fight/standing.ts";
@@ -437,6 +440,11 @@ export interface ResolveEnv {
    * allowed or did not work. Left out where no note is ever consulted.
    */
   judgeNote?: (key: string, request: JudgeRequest) => Promise<JudgeResult | null>;
+  /**
+   * `take_turn`, when the caller says which party member the person plays (#1021): every other party member the server has a sheet for is
+   * an ally the rules play, so its Reaction (Shield) is the rules' to take. Left out (a DM's own fight), every player is a person.
+   */
+  playedMemberId?: string;
 }
 
 function boxOf(c: RunCombatant): Box | null {
@@ -526,12 +534,70 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     factionOf: (id) => holder.state.combatants.find((x) => x.instance_id === id)?.faction_id ?? null,
     // Positions are read from the fight as it stands now: an earlier command in the batch may have moved a creature.
     coverFor: (attacker, target) => coverOf(env.map, holder.state, ctx.live(attacker), ctx.live(target)),
+    reactToHit: (target, roll) => shieldReaction(target, roll),
     apply(cmd) {
       const result = applyFightCommand(holder.state, cmd, env.fightDeps);
       holder.state = result.state;
       collected.push(...result.effects);
       return result.effects;
     },
+  };
+
+  /**
+   * RULE shield (PHB 2014 and 2024 "Shield": a Reaction taken "when you are hit by an attack", +5 AC until the start of your next turn, the
+   * triggering attack included): a creature the rules play (`reactsByRules`) that lists Shield, has its Reaction and a slot or use left, and
+   * would turn this hit into a miss (`reactionTurnsHit`), casts it. The Reaction, the slot (an ally's written to its sheet as `cast_spell`
+   * does), the deed and the condition are applied to the fight; the answer is the armour class to decide the roll against again.
+   * Magic Missile's half of the trigger ("or targeted by the magic missile spell") is not built: only a hit by an attack roll is one.
+   */
+  const shieldReaction = async (target: RunCombatant, roll: { natural: number; total: number; armorClass: number }): Promise<{ spell: string; armorClass: number } | null> => {
+    const me = ctx.live(target);
+    if (!reactsByRules(me, env.playedMemberId)) return null;
+    if (me.hp <= 0 || isIncapacitated(me.conditions) || me.reactionUsed === true || cannotReactWhileSurprised(me, state.ruleset)) return null;
+    // A Shield already up counts in the armour class the roll was made against; a second would add nothing.
+    if (me.conditions.some((c) => c.name.toLowerCase() === "shield")) return null;
+    const block = statBlockOf(me, env.sources);
+    // Read nothing for a creature that does not list the spell: most hits land on creatures that never cast it.
+    if (block === null || castableBy(block, "Shield") === null) return null;
+    const chosen = pickSpellRecord("Shield", await env.spells("Shield"), state.ruleset);
+    if (chosen === null || !chosen.automatable) return null;
+    const plan = reactionCastPlan(me, block, "Shield", chosen.record.level);
+    if (plan === null) return null;
+    const boon = reactionBoonFor(chosen.record, plan.castLevel);
+    const bonus = boon === null ? undefined : boon.grants.ac;
+    if (boon === null || bonus === undefined || !reactionTurnsHit(roll, bonus)) return null;
+    const step = (command: Parameters<typeof applyFightCommand>[1]) => {
+      const result = applyFightCommand(holder.state, command, env.fightDeps);
+      holder.state = result.state;
+      collected.push(...result.effects);
+    };
+    step({ type: "set_reaction_used", instanceId: me.instance_id, used: true });
+    if (plan.useKey !== null && plan.limit !== null) step({ type: "use_action", instanceId: me.instance_id, action: plan.useKey, limit: plan.limit });
+    step({ type: "show_deed", instanceId: me.instance_id, deed: { cast: 1 } });
+    // Until the start of the bearer's own next turn (the book's "until the start of your next turn"), not a count of rounds.
+    ctx.apply({
+      type: "apply_condition",
+      instanceId: me.instance_id,
+      condition: { name: chosen.record.name, grants: boon.grants, source: { id: me.instance_id, spell: chosen.record.name }, ends: { kind: "turn", at: "start", of: "self" } },
+    });
+    // An ally's slot or daily use is the sheet's: written once the fight is saved, as a cast in its own turn is.
+    if (me.type === "player" && me.party_member_id !== undefined) {
+      const memberId = me.party_member_id;
+      if (plan.how === "slots") {
+        const slots = allySlotSpend(env.players, memberId, plan.castLevel, slotPoolFor(env.players, memberId, "Shield"));
+        if (slots !== null) {
+          env.slotsSpent.push({ memberId, slots });
+          settleSlotSpend(env.players, memberId, slots);
+        }
+      } else if (plan.how === "per_day") {
+        const spend = allyInnateSpend(env.players, memberId, "Shield");
+        if (spend !== null) {
+          env.innateSpent.push(spend);
+          settleInnateSpend(env.players, spend);
+        }
+      }
+    }
+    return { spell: chosen.record.name, armorClass: roll.armorClass + bonus };
   };
 
   /** Spends the cast, then rolls it as an attack per target or a save for all, or says why it cannot. */

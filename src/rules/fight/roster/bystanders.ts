@@ -1,9 +1,9 @@
-import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
-import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
-import { combatStats } from "@/rules/encounterCombatLogic";
-import { getNpcDisplayFocalPoint, getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
-import type { RunCombatant } from "@/types/encounter.types";
-import type { Npc } from "@/types/npc.types";
+import { sizeToFootprint } from "../../../lib/battlemap/tokenFootprint.ts";
+import { resolveTokenArt } from "../../../lib/battlemap/tokenArt.ts";
+import { combatStats } from "../../encounterCombatLogic.ts";
+import { getNpcDisplayFocalPoint, getNpcDisplayName, getNpcDisplayPortrait } from "../../../lib/npcDisplay.ts";
+import type { RunCombatant } from "../../../types/encounter.types.ts";
+import type { Npc } from "../../../types/npc.types.ts";
 
 type BystanderSource = Pick<
   Npc,
