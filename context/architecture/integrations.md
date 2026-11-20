@@ -88,6 +88,35 @@ flowchart LR
   the generators read it with the service role through
   `_shared/campaignKeys.ts`, which pins the read to the current owner and checks
   Pro at use time. An owner change empties the row.
+- **One request pipeline for every paid function (#1234).** The platform path
+  runs through three primitives in `supabase/functions/_shared/pipeline/`, and
+  nothing else touches credits. `serveUser` does CORS, the method, auth and
+  hands the handler the caller; every refusal is `jsonError(status, code,
+  sentence)` (`respond.ts`), and the client's `edgeErrorMessage` shows the
+  sentence, so a client that branches on the *code* reads it with
+  `functionErrorPayload`. `loadAiCampaign` reads the campaign with its error
+  checked (a failed read is 500, never "not found"), applies the access rule
+  the function names (`dm` by default, `member`, `owner`, or a function), then
+  the AI switch (`ai_enabled`, or `tableAiEnabled` for the AI table); access
+  comes first so an outsider learns nothing about the settings.
+  `withCreditHold` reserves, runs the paid work and releases **exactly once in
+  `finally`**; ledger lines are queued on the hold (`charge`, `free`) and
+  written after the release, a ledger write that fails is reported and never
+  fails the answer, and the charges of work that threw are written free (the
+  platform's spend stays visible, the user is not charged). A background job
+  takes the hold with `hold.handOff()` and settles it with `settleHandedOff`,
+  whose work ends when the result is stored and charged: job bookkeeping after
+  that cannot turn a delivered result into "failed, not charged". A
+  reservation whose RPC fails answers 503 `metering_unavailable`, not 402.
+  Order in every function: auth, account gate, body, campaign and access,
+  rate limit, everything that can be computed before paying, then the hold.
+  `creditHoldOnly.test.ts` fails if any other file calls `reserveCredits`,
+  `releaseCredits`, `recordGeneration`, `recordSpend` or `spendCredits`.
+  **Why not a server:** the audit that led here (20 Nov 2026, 79 functions,
+  ~220 calls a day, no runtime-limit failures) found the cost of growth was
+  ~30 hand-wired copies of this pipeline drifting into real credit-hold bugs,
+  not the hosting; #578 holds the conditions under which running our own
+  service would be worth it.
 - **Embeddings** (`embed-content`, `embed-monsters` → 8 pgvector
   `*_embeddings` tables) are platform-wide single-provider, pinned to 1536
   dims, never BYOK. Retrieval feeds the generators (RAG).
