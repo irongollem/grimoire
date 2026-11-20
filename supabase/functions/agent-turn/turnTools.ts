@@ -30,7 +30,7 @@ import { fightsSection, planFight, START_FIGHT_TOOL, statlessText, type FightPla
 import { ASK_ROLL_TOOL, askedText, parseAskRollInput, type PendingRoll } from "../_shared/agent/playerRoll.ts";
 import type { StoredTurn } from "../_shared/agent/transcript.ts";
 import type { AgentLine, AgentTool, CallModel, CallTool } from "../_shared/agent/types.ts";
-import type { AgentTurnDeps, SessionRow } from "./handler.ts";
+import type { AgentTurnDeps, SessionRow } from "./turnTypes.ts";
 
 /** A fact filed during this turn. It is on record already, and is taken off again when the turn is not kept. */
 export interface FiledFact {

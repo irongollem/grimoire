@@ -43,14 +43,20 @@ export async function sendLeftBehind(
 }
 
 /**
- * The encounter as it is fought. A fight from the AI table is fought by the played character alone: the encounter
- * may list a whole party, and a solo player would be handed every other sheet to play. With no solo member the
- * encounter is returned untouched, so the DM's own fight keeps its party. The member is fielded even when the
- * encounter did not list them.
+ * The encounter as it is fought. A fight from the AI table is fought by the played character and the party members
+ * the AI plays beside them (#1021, allies: those whose player let the AI act for them, `aiPlays`). Every other
+ * party member the encounter lists stays out: a solo player is never handed another player's sheet to play. With no
+ * solo member the encounter is returned untouched, so the DM's own fight keeps its party. The played member is
+ * fielded first, even when the encounter did not list them.
  */
-export function foughtEncounter<E extends { party_member_ids: string[] }>(encounter: E, onlyMemberId: string | null): E {
+export function foughtEncounter<E extends { party_member_ids: string[] }>(
+  encounter: E,
+  onlyMemberId: string | null,
+  aiPlays: (memberId: string) => boolean = () => false,
+): E {
   if (onlyMemberId === null) return encounter;
-  return { ...encounter, party_member_ids: [onlyMemberId] };
+  const allies = encounter.party_member_ids.filter((id) => id !== onlyMemberId && aiPlays(id));
+  return { ...encounter, party_member_ids: [onlyMemberId, ...allies] };
 }
 
 /**
@@ -193,7 +199,7 @@ export function useOpenRun(encounterId: Readonly<Ref<string>> | ComputedRef<stri
 
   async function openRun(enc: Encounter, mons: Monster[], par: PartyMember[], npcList: NpcListRow[], traps: TrapEntry[]) {
     const onlyMember = options.onlyMemberId?.() ?? null;
-    const fought = foughtEncounter(enc, onlyMember);
+    const fought = foughtEncounter(enc, onlyMember, (id) => par.some((m) => m.id === id && m.ai_speaks === true));
     const built = buildRunCombatants({ encounter: fought, party: par, companions: companions.value ?? [], monsters: mons, npcs: npcList, species: [...speciesById.value.values()], acFor, jackFor });
     // Only the AI table seats the characters who are in the room: a DM's own run adds whom they choose.
     const inTheRoom = onlyMember !== null ? bystandersOf(npcList, enc.location_id, built) : [];

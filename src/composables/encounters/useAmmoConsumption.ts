@@ -1,33 +1,39 @@
 import { computed, type Ref } from "vue";
 import { useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/items/usePartyInventory";
-import { AMMO_TAGS, ANY_AMMO_TAG, ammoTagFromName, type AmmoTag, type WeaponAmmoTag } from "@/rules/ammunition";
+import { inventoryItemRef } from "@/lib/itemRef";
+import {
+  ammoWrite, availableAmmoFor as availableAmmo, chargeWrite, remainingOf, takeUnit, weaponChargesLeft, weaponMaxCharges as maxChargesOf,
+  type CarriedGear, type GearWrite,
+} from "@/rules/fight/pcAttacks/gear";
+import type { WeaponAmmoTag } from "@/rules/ammunition";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 
-/**
- * Decrements an inventory stack's quantity by one, or removes the row
- * entirely when it was the last one. Shared by anything that spends one unit
- * of a stackable inventory item (ammo, thrown weapons).
- */
+/** The mutations that write a stack back; what `runGearWrite` and `consumeOneFromStack` need. */
 export interface StackMutators {
   updateInventoryItem: ReturnType<typeof useUpdateInventoryItem>;
   removeInventoryItem: ReturnType<typeof useRemoveInventoryItem>;
 }
 
+/** Runs one write the shared ammunition rules (`rules/fight/pcAttacks/gear.ts`) worked out. */
+export function runGearWrite(write: GearWrite, mutators: StackMutators) {
+  if (write.kind === "remove") mutators.removeInventoryItem.mutate(write.inventoryId);
+  else mutators.updateInventoryItem.mutate({ id: write.inventoryId, update: write.kind === "quantity" ? { quantity: write.quantity } : { current_charges: write.charges } });
+}
+
+/** Spends one unit of a stackable inventory item (a thrown weapon), removing the row when it was the last. */
 export function consumeOneFromStack(inv: PartyInventoryItem, mutators: StackMutators) {
-  if (inv.quantity > 1) {
-    mutators.updateInventoryItem.mutate({ id: inv.id, update: { quantity: inv.quantity - 1 } });
-  } else {
-    mutators.removeInventoryItem.mutate(inv.id);
-  }
+  runGearWrite(takeUnit(inv), mutators);
 }
 
 /**
- * Ammunition selection + consumption for a single combatant, shared by the DM
- * encounter runner (`RunnerPcAttacks`) and the player's own combat tab
- * (`PlayerCombatTab`). Both supply their own reactive view of the member's
- * inventory and a vault-item lookup, because they source the vault differently
- * (full vault vs. player-visible items).
+ * Ammunition selection + consumption for a single combatant, shared by the DM encounter runner (`RunnerPcAttacks`) and
+ * the player's own combat tab (`PlayerCombatTab`). The rules (which stack, what a shot costs) are
+ * `rules/fight/pcAttacks/gear.ts`, the same ones the server uses for an ally; this only supplies the reactive inventory and
+ * runs the writes. Each caller supplies its own vault-item lookup, because they source the vault differently.
+ *
+ * An item is found through `inventoryItemRef`, so a stack sourced from the shared library resolves its item (tags, charges)
+ * as a campaign item's does. The browser used to read `item_id` alone, which left a library stack unclassified by its item.
  */
 export function useAmmoConsumption(
   memberInventory: Ref<PartyInventoryItem[]>,
@@ -35,90 +41,27 @@ export function useAmmoConsumption(
 ) {
   const updateInventoryItem = useUpdateInventoryItem();
   const removeInventoryItem = useRemoveInventoryItem();
+  const mutators: StackMutators = { updateInventoryItem, removeInventoryItem };
 
-  const memberContainerIds = computed<Set<string>>(() => {
-    const s = new Set<string>();
-    for (const i of memberInventory.value) if (i.is_container) s.add(i.id);
-    return s;
-  });
+  const gear = computed<CarriedGear>(() => ({
+    inventory: memberInventory.value,
+    itemOf: (inv) => {
+      const ref = inventoryItemRef(inv);
+      return ref === null ? undefined : vaultItemMap.value.get(ref);
+    },
+  }));
 
-  /** Classifies an inventory stack's own ammo kind — the same tag `weaponAmmoTag` would want to match. */
-  function ammoStackTag(inv: PartyInventoryItem): AmmoTag | null {
-    const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-    if (vaultItem) {
-      if (vaultItem.tags.includes("firearm")) return "firearm-bullet";
-      return AMMO_TAGS.find((t) => vaultItem.tags.includes(t)) ?? null;
-    }
-    return ammoTagFromName(inv.name);
-  }
+  const availableAmmoFor = (ammoTag: WeaponAmmoTag) => availableAmmo(ammoTag, gear.value);
+  const ammoRemainingCount = (inv: PartyInventoryItem | null) => (inv === null ? 0 : remainingOf(inv, gear.value));
 
-  /** The best matching, non-empty ammo stack for `ammoTag`: quiver/container → belt → backpack. */
-  function availableAmmoFor(ammoTag: WeaponAmmoTag): PartyInventoryItem | null {
-    const candidates = memberInventory.value.filter((inv) => {
-      const tag = ammoStackTag(inv);
-      if (tag === null) return false;
-      // The generic "any" tag (weapon needs ammo, kind unknown) matches any recognized ammo stack.
-      if (ammoTag !== ANY_AMMO_TAG && tag !== ammoTag) return false;
-      const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-      const maxCharges = vaultItem?.charges ?? null;
-      const remaining = inv.current_charges !== null ? inv.current_charges : maxCharges;
-      if (remaining !== null && remaining <= 0) return false;
-      if (remaining === null && inv.quantity <= 0) return false;
-      return true;
-    });
-    const inContainer = candidates.filter((i) => i.location === "container" && memberContainerIds.value.has(i.container_id ?? ""));
-    const onBelt = candidates.filter((i) => i.location === "belt");
-    const inBackpack = candidates.filter((i) => i.location === "backpack");
-    return inContainer[0] ?? onBelt[0] ?? inBackpack[0] ?? null;
-  }
-
-  function ammoRemainingCount(inv: PartyInventoryItem | null): number {
-    if (!inv) return 0;
-    const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-    const maxCharges = vaultItem?.charges ?? null;
-    if (inv.current_charges !== null) return inv.current_charges;
-    if (maxCharges !== null) return maxCharges;
-    return inv.quantity;
-  }
-
-  /** Spends one unit of ammo from the best matching stack — a charge, or a stack quantity. */
   function consumeAmmo(ammoTag: WeaponAmmoTag) {
-    const inv = availableAmmoFor(ammoTag);
-    if (!inv) return;
-    const vaultItem = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-    const maxCharges = vaultItem?.charges ?? null;
-    if (maxCharges !== null) {
-      const current = inv.current_charges !== null ? inv.current_charges : maxCharges;
-      updateInventoryItem.mutate({ id: inv.id, update: { current_charges: Math.max(0, current - 1) } });
-    } else {
-      consumeOneFromStack(inv, { updateInventoryItem, removeInventoryItem });
-    }
+    const write = ammoWrite(ammoTag, gear.value);
+    if (write !== null) runGearWrite(write, mutators);
   }
 
-  // ── Self-charged weapons (laser rifle, internal-magazine firearms, etc.) ────
-  function weaponMaxCharges(weaponInvId: string): number {
-    const inv = memberInventory.value.find((i) => i.id === weaponInvId);
-    const vaultItem = inv?.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
-    return vaultItem?.charges ?? 0;
-  }
+  const weaponMaxCharges = (weaponInvId: string) => maxChargesOf(weaponInvId, gear.value);
+  const weaponSelfChargesRemaining = (weaponInvId: string, maxCharges: number) => weaponChargesLeft(weaponInvId, gear.value, maxCharges);
+  const consumeWeaponCharge = (weaponInvId: string, maxCharges: number) => runGearWrite(chargeWrite(weaponInvId, gear.value, maxCharges), mutators);
 
-  function weaponSelfChargesRemaining(weaponInvId: string, maxCharges: number): number {
-    const inv = memberInventory.value.find((i) => i.id === weaponInvId);
-    if (!inv) return 0;
-    return inv.current_charges !== null ? inv.current_charges : maxCharges;
-  }
-
-  function consumeWeaponCharge(weaponInvId: string, maxCharges: number) {
-    const remaining = weaponSelfChargesRemaining(weaponInvId, maxCharges);
-    updateInventoryItem.mutate({ id: weaponInvId, update: { current_charges: Math.max(0, remaining - 1) } });
-  }
-
-  return {
-    availableAmmoFor,
-    ammoRemainingCount,
-    consumeAmmo,
-    weaponMaxCharges,
-    weaponSelfChargesRemaining,
-    consumeWeaponCharge,
-  };
+  return { availableAmmoFor, ammoRemainingCount, consumeAmmo, weaponMaxCharges, weaponSelfChargesRemaining, consumeWeaponCharge };
 }

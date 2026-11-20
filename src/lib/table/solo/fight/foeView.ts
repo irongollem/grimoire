@@ -12,6 +12,8 @@ export interface SeenCombatant {
   isYou: boolean;
   side: "you" | "foe" | "other";
   health: SeenHealth;
+  /** A party member the AI plays: the party knows its own, so they show as numbers, and the roster says they act alone. */
+  ally?: true;
 }
 
 /**
@@ -33,6 +35,7 @@ export function asThePlayerSees(
       : played !== undefined && areHostile(factions, played.faction_id, c.faction_id)
         ? "foe"
         : "other";
+    const ally = !isYou && side === "other" && c.type === "player" && c.party_member_id !== undefined && c.party_member_id !== null && played !== undefined && c.faction_id === played.faction_id;
     if (c.reveal_state === "unseen") {
       seen.push({ instanceId: c.instance_id, name: "???", isYou, side, health: { kind: "word", word: "Unknown" } });
       continue;
@@ -42,7 +45,8 @@ export function asThePlayerSees(
       name: c.name,
       isYou,
       side,
-      health: isYou ? { kind: "numbers", hp: c.hp, maxHp: c.max_hp } : { kind: "word", word: healthWord(c.hp, c.max_hp) },
+      ...(ally ? { ally: true as const } : {}),
+      health: isYou || ally ? { kind: "numbers", hp: c.hp, maxHp: c.max_hp } : { kind: "word", word: healthWord(c.hp, c.max_hp) },
     });
   }
   return seen;

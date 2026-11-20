@@ -1,4 +1,4 @@
-import { inventoryItemRef } from "@/lib/itemRef";
+import { thrownDropOf } from "@/rules/fight/pcAttacks/gear";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/items/usePartyInventory";
@@ -26,24 +26,18 @@ export function useThrownWeapon() {
     // Land one on the ground — a normal recoverable chat drop anyone can grab.
     // Post first, consume after: a failed post must not use up the weapon.
     // Handled here because both callers fire and forget.
+    // What lies on the ground is worked out by the shared rules (`thrownDropOf`, the one the server uses for an ally): the resolved
+    // reference, not the raw column (a library-sourced weapon keeps its catalogue link in `library_item_id`).
+    const drop = thrownDropOf(inv, item);
     try {
-      await sendItemDrop(
-        inv.name,
-        // The resolved reference, not the raw column: a library-sourced weapon
-        // keeps its catalogue link in `library_item_id`, and passing `item_id`
-        // put it on the ground as unlinked free text.
-        inventoryItemRef(inv),
-        1,
-        item?.rarity ?? "mundane",
-        {
-          senderName,
-          imageUrl: item?.image_url ?? null,
-          description: item?.description ?? null,
-          isContainer: false,
-          quality: inv.quality,
-          thrown: true,
-        },
-      );
+      await sendItemDrop(drop.name, drop.itemRef, 1, drop.rarity, {
+        senderName,
+        imageUrl: drop.imageUrl,
+        description: drop.description,
+        isContainer: false,
+        quality: drop.quality,
+        thrown: true,
+      });
     } catch (e) {
       reportChatFailure(e, "drop the thrown weapon to the chat");
       return;

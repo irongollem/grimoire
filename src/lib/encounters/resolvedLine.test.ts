@@ -35,4 +35,24 @@ describe("describeResolvedAction: break free", () => {
     expect(describeResolvedAction(tried(true), nameOf)).toBe("Fresco tries to break free of Restrained with a STR check: 14 (a 11 on the die) against DC 14, and is free.");
     expect(describeResolvedAction(tried(false), nameOf)).toContain("and stays held.");
   });
+
+  // Bug caught: a boon's line naming only the first target, or joining three names with bare commas.
+  it("fails if a boon's line leaves out a target or joins the names badly", () => {
+    const boon = (targetIds: string[]): ResolvedAction => ({ kind: "boon", casterId: "ogre", spell: "Bless", castLevel: 1, targetIds });
+    expect(describeResolvedAction(boon(["fresco"]), nameOf)).toBe("Ogre casts Bless on Fresco.");
+    expect(describeResolvedAction(boon(["fresco", "ogre"]), nameOf)).toBe("Ogre casts Bless on Fresco and Ogre.");
+    expect(describeResolvedAction(boon(["fresco", "ogre", "fresco"]), nameOf)).toBe("Ogre casts Bless on Fresco, Ogre and Fresco.");
+  });
+
+  // Heal ends conditions and leaves "diseases" to the table; Mass Heal shares a pool. Bug caught: a line that says only hit points, so the table never learns a
+  // condition came off or that the diseases are theirs to rule.
+  it("fails if a heal's line leaves out the conditions it ended, the diseases left to the table, or that the amount is a pool", () => {
+    const heal = (over: Partial<Extract<ResolvedAction, { kind: "heal" }>>): ResolvedAction => ({
+      kind: "heal", casterId: "ogre", spell: "Heal", castLevel: 6, rolled: 70, targets: [{ targetId: "fresco", regained: 70, revived: false, unaffected: false, ended: ["Blinded", "Deafened"] }], ...over,
+    });
+    expect(describeResolvedAction(heal({ leftToTable: ["diseases"] }), nameOf)).toBe("Ogre casts Heal (70 rolled): Fresco regains 70 hit points, and is no longer Blinded or Deafened. The table rules on diseases.");
+    expect(describeResolvedAction(heal({ spell: "Mass Heal", rolled: 700, pool: true, targets: [{ targetId: "fresco", regained: 20, revived: false, unaffected: false }] }), nameOf)).toBe("Ogre casts Mass Heal (700 hit points to share): Fresco regains 20 hit points.");
+    // Power Word Heal rolls nothing: the line must not say "0 rolled".
+    expect(describeResolvedAction(heal({ spell: "Power Word Heal", castLevel: 9, rolled: 0, full: true, targets: [{ targetId: "fresco", regained: 33, revived: false, unaffected: false }] }), nameOf)).toBe("Ogre casts Power Word Heal (all hit points): Fresco regains 33 hit points.");
+  });
 });

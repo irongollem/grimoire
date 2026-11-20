@@ -1,5 +1,5 @@
 // Who a damage spell could be cast at from where the caster stands (#1021, row 5b step B): the geometry of a cast, kept
-// apart from the turn options that wrap it (`turnOptions.ts` turns each targeting into an option with an id and a summary).
+// apart from the turn options that wrap it (`options/compose.ts` turns each targeting into an option with an id and a summary).
 // Pure and edge-importable (relative `.ts` imports only). It stands on the same range, line and distance helpers the
 // attack options use (`distanceFeet`, `coverBetween`).
 //

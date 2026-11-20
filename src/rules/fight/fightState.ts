@@ -4,7 +4,7 @@ import type { SaveAbility, SrdConditionName } from "../../types/statBlock.types.
 import type { DefenseApplied } from "../combat/typedDamage.ts";
 import type { DyingOutcome } from "../dying.ts";
 import type { EncounterTurnEvent, EncounterTurnState } from "../encounterTurn.ts";
-import type { TurnOptionKind } from "./terrain/turnOptions.ts";
+import type { TurnOptionKind } from "./terrain/options/types.ts";
 
 /**
  * Everything a fight holds that a server must also hold to advance it: the
@@ -54,7 +54,8 @@ export type FightEffect =
 export interface TurnTaken {
   instanceId: string;
   optionId: string;
-  kind: TurnOptionKind;
+  /** What the turn was: one of the options, or a downed party member's death save (`deathSave`). */
+  kind: TurnOptionKind | "death_save";
   summary: string;
   /** Why this option: the picker's sentence, or a plain note that the caller chose. */
   reason: string;
@@ -74,6 +75,12 @@ export interface TurnTaken {
   leftTheMap?: true;
   /** Only for an escape (#1203): the name of the way out the broken creature used (Etherealness, Invisible Passage). */
   escapedWith?: string;
+  /**
+   * Only for a party member the rules play who is down (#1021, allies in a fight): their turn was a death save, rolled
+   * by the server (SRD 5.1 "Death Saving Throws", `deathSaveRollOutcome`). `status` is where it left them: still
+   * dying, stable, dead, or back up at 1 hit point after a natural 20. The turn's `kind` is "death_save" then.
+   */
+  deathSave?: { d20: number; label: string; status: "dying" | "stable" | "dead" | "up" };
   /** With `escapedWith`: "leaves" means the creature was removed from the fight, "unseen" that it is now Invisible and still on the map. */
   escapeEffect?: "leaves" | "unseen";
   /**
@@ -147,6 +154,24 @@ export type ResolvedAction =
    * a `save` or an `attack` named for the spell.
    */
   | { kind: "cast"; casterId: string; spell: string; castLevel: number; targetIds: string[]; why: string }
+  /**
+   * A healing spell the rules rolled (#1021): one roll (the spell's dice plus the caster's spellcasting modifier) shared by every
+   * target, each regaining what fits under its maximum. `unaffected` is a target the spell does nothing for (undead or a construct
+   * under the 2014 text); `revived` is one brought up from 0 hit points.
+   */
+  | {
+    kind: "heal"; casterId: string; spell: string; castLevel: number; rolled: number;
+    /** `ended`: the conditions the spell took off that creature (Heal). */
+    targets: { targetId: string; regained: number; revived: boolean; unaffected: boolean; ended?: string[] }[];
+    /** A pool the caster shared out (Mass Heal): `rolled` is the pool, not a roll. */
+    pool?: true;
+    /** Every target regained all its hit points (Power Word Heal): nothing was rolled and `rolled` is 0. */
+    full?: true;
+    /** What the spell ends that the app has no condition for ("diseases"): the table's to rule. */
+    leftToTable?: string[];
+  }
+  /** A boon spell the rules gave (#1021): each target now holds a condition named for the spell, carrying its grants. */
+  | { kind: "boon"; casterId: string; spell: string; castLevel: number; targetIds: string[] }
   | { kind: "concentration"; instanceId: string; dc: number; natural: number; total: number; maintained: boolean }
   | { kind: "condition_save"; instanceId: string; name: string; dc: number; total: number | null; success: boolean }
   /** A creature spent its Action on an ability check to get free of a condition a spell holds it in (Black Tentacles). */

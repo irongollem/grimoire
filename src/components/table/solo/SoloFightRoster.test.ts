@@ -42,4 +42,14 @@ describe("SoloFightRoster", () => {
     expect(during.text()).toContain("Turn order");
     expect(during.text()).toContain("Round 3");
   });
+
+  // Bug caught: the caption on a foe or on the played character, or missing on an ally.
+  it("says an ally acts on their own, and no one else", () => {
+    const ally: SeenCombatant = { instanceId: "a1", name: "Tam", isYou: false, side: "other", ally: true, health: { kind: "numbers", hp: 9, maxHp: 20 } };
+    const w = roster({ seen: [you, ally, goblin] });
+    expect(rowOf(w, "Tam").text()).toContain("acts on their own");
+    expect(rowOf(w, "Tam").text()).toContain("9 of 20");
+    expect(rowOf(w, "Mira").text()).not.toContain("acts on their own");
+    expect(rowOf(w, "Goblin").text()).not.toContain("acts on their own");
+  });
 });

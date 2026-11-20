@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TacticalProfile } from "../../../src/rules/fight/tactics/profile.ts";
-import type { TurnOption } from "../../../src/rules/fight/terrain/turnOptions.ts";
+import type { TurnOption } from "../../../src/rules/fight/terrain/options/types.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import {
   CHOICE_QUESTION,

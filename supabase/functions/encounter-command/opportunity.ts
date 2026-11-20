@@ -13,7 +13,9 @@
 
 import { NO_OCCLUDERS } from "../../../src/lib/battlemap/occlusion.ts";
 import { combatantFootprint } from "../../../src/lib/battlemap/tokenFootprint.ts";
-import { actionAvailability } from "../../../src/rules/encounterTurn.ts";
+import { actionAvailability, limitAvailability } from "../../../src/rules/encounterTurn.ts";
+import { sneakUseKey } from "../../../src/rules/fight/allies/sneak.ts";
+import { allySneakAttack } from "../../../src/rules/fight/allies/statBlock.ts";
 import { cannotReactWhileSurprised } from "../../../src/rules/initiative.ts";
 import { applyFightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
@@ -28,7 +30,8 @@ import {
   type Box,
   type ProvokedAttack,
 } from "../../../src/rules/fight/terrain/sight.ts";
-import { isOnBoard, type TurnOption, type UsableAttack } from "../../../src/rules/fight/terrain/turnOptions.ts";
+import { isOnBoard } from "../../../src/rules/fight/terrain/options/scene.ts";
+import { type TurnOption, type UsableAttack } from "../../../src/rules/fight/terrain/options/types.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { StatBlockListKey } from "../../../src/rules/statBlock/parseAction.ts";
 import { statBlockOf } from "../_shared/fightStatBlocks.ts";
@@ -118,7 +121,13 @@ function chooseStrike(state: FightState, attacker: RunCombatant, mover: RunComba
   }));
   const numbered = withNumbers(options, {
     attacks: usable, combatants: state.combatants, moverId: attacker.instance_id,
-    armorClassOf: (t) => knownArmorClass(t, env.players), ruleset: state.ruleset,
+    armorClassOf: (t) => knownArmorClass(t, env.players), ruleset: state.ruleset, factions: env.factions,
+    // RULE sneak-attack-once-per-turn: an ally Rogue's Reaction in a foe's turn has its own use, weighed as `resolve_attack` will apply it.
+    ...(attacker.type === "player" && attacker.party_member_id !== undefined ? { sneakDiceOf: (name: string) => {
+      if (!limitAvailability(attacker, sneakUseKey(state), { per_day: 1 }).available) return null;
+      const sneak = allySneakAttack(env.players, attacker.party_member_id as string, name);
+      return sneak === null ? null : sneak.dice;
+    } } : {}),
   });
   let best = numbered[0];
   for (const o of numbered) {
@@ -132,6 +141,12 @@ function chooseStrike(state: FightState, attacker: RunCombatant, mover: RunComba
 export interface StrikeOptions {
   /** `take_turn`: a player who may strike is reported as `provoked_player`. `provoke`: a player rolls their own dice and is left out. */
   reportPlayers: boolean;
+  /**
+   * `take_turn`, when the caller says who the person plays (#1021): only that character's Reaction is the player's own.
+   * Any other party member the server has a stat block for strikes like a monster would (`take_turn` gives the played one no
+   * block, so their Reaction stays theirs). Left out, every player is reported.
+   */
+  playedMemberId?: string;
 }
 
 /**
@@ -153,7 +168,8 @@ export async function strikeOnLeaving(
     if (moverNow().hp <= 0) break;
     const attacker = next.combatants.find((c) => c.instance_id === provoked.enemyId);
     if (attacker === undefined || attacker.hp <= 0) continue;
-    if (attacker.type === "player") {
+    const isAlly = attacker.type === "player" && options.playedMemberId !== undefined && statBlockOf(attacker, env.sources) !== null;
+    if (attacker.type === "player" && !isAlly) {
       if (options.reportPlayers) effects.push({ type: "provoked_player", moverId, playerId: attacker.instance_id, step: provoked.step });
       continue;
     }

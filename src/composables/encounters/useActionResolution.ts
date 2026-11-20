@@ -6,27 +6,11 @@ import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import { combatantDefenses, effectiveArmorClass, parseArmorClass } from "@/rules/fight/targeting";
 import { useParty } from "@/composables/party/useParty";
 import { useArmorClass } from "@/composables/party/useArmorClass";
-import {
-  applyDamage as applyDamageTo,
-  applySaveOutcome as applySaveOutcomeTo,
-  overrideAttack,
-  rollConcentrationCheck,
-  rollConditionSaveFor,
-  rollDamageParts,
-  rollSaves,
-  rollToHit,
-  saveBonusFromBlock,
-  settleSave,
-  type AttackOutcome,
-  type ConcentrationCheck,
-  type ConditionSaveRoll,
-  type DamageAmount,
-  type DamageApplied,
-  type ResolutionContext,
-  type RollOptions,
-  type SaveApplied,
-  type SaveTargetResult,
-} from "@/rules/fight/actionResolution";
+import { applyDamage as applyDamageTo, rollDamageParts, type DamageAmount, type DamageApplied } from "@/rules/fight/resolution/damage";
+import { applySaveOutcome as applySaveOutcomeTo, rollSaves, saveBonusFromBlock, settleSave, type SaveApplied, type SaveTargetResult } from "@/rules/fight/resolution/saves";
+import { overrideAttack, rollToHit, type AttackOutcome } from "@/rules/fight/resolution/attack";
+import { rollConcentrationCheck, rollConditionSaveFor, type ConcentrationCheck, type ConditionSaveRoll } from "@/rules/fight/resolution/conditionSaves";
+import { type ResolutionContext, type RollOptions } from "@/rules/fight/resolution/context";
 import type { Companion } from "@/types/companion.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { MonsterStatBlock } from "@/types/monster.types";
@@ -36,7 +20,7 @@ import type { DamagePart, Defenses, DefenseBypass, SaveAbility, StatBlockEntry }
  * The runner's action-resolution flow (#1017), with no UI in it.
  *
  * The steps themselves, and the pure rules under them, live in
- * `rules/fight/actionResolution`, which the `encounter-command` function runs
+ * `rules/fight/resolution/`, which the `encounter-command` function runs
  * too. This composable is the browser's half: it supplies the dice (through
  * `usePromptedRoll`, so the DM's physical-dice mode and the chat post are
  * honoured), the lookups (the party's live sheet AC, the monsters, NPCs and
@@ -46,16 +30,10 @@ import type { DamagePart, Defenses, DefenseBypass, SaveAbility, StatBlockEntry }
  * or `success` on the outcome, never the rules.
  */
 
-export type {
-  AttackOutcome,
-  ConcentrationCheck,
-  ConditionSaveRoll,
-  DamageAmount,
-  DamageApplied,
-  SaveApplied,
-  SaveDamageShare,
-  SaveTargetResult,
-} from "@/rules/fight/actionResolution";
+export type { AttackOutcome } from "@/rules/fight/resolution/attack";
+export type { ConcentrationCheck, ConditionSaveRoll } from "@/rules/fight/resolution/conditionSaves";
+export type { DamageAmount, DamageApplied } from "@/rules/fight/resolution/damage";
+export type { SaveApplied, SaveDamageShare, SaveTargetResult } from "@/rules/fight/resolution/saves";
 
 export function useActionResolution(options: { companions?: MaybeRefOrGetter<Companion[]> } = {}) {
   const store = useEncounterRunStore();

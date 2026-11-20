@@ -3,7 +3,7 @@ import type {
   FeatCategory,
   FeatPrerequisites,
   FeatureMechanics,
-} from "@/rules/features/mechanics.types";
+} from "../mechanics.types.ts";
 
 /**
  * The SRD catalogues (#976): what each official feature and feat *does*, keyed

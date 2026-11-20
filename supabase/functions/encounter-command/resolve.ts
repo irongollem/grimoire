@@ -1,5 +1,5 @@
 // Resolving commands (#1201, stage 3): "this creature uses this action on that target", rolled and adjudicated by
-// code. The steps are the browser's own (`src/rules/fight/actionResolution`); this file supplies what the server
+// code. The steps are the browser's own (`src/rules/fight/resolution/`); this file supplies what the server
 // brings to them: the stat blocks it loaded, the dice (its own secure die, or the faces a person rolled, which are
 // then only scored), and the fight state the batch is working on. Pure with the die and the sources injected.
 //
@@ -11,45 +11,50 @@
 import { rangedAttackFacts } from "../../../src/rules/fight/terrain/sight.ts";
 import { NO_OCCLUDERS } from "../../../src/lib/battlemap/occlusion.ts";
 import type { FactionSides } from "../../../src/rules/fight/sides.ts";
-import { ALL_DICE, type RollResult } from "../../../src/lib/dice/dice.ts";
+import { ALL_DICE, parseExpression, parsedToCounts, type RollResult } from "../../../src/lib/dice/dice.ts";
 import { NORMAL_ROLL, rollWithRules, type RolledFaces } from "../../../src/lib/dice/diceRules.ts";
 import { dnd5eDiceRules } from "../../../src/systems/dnd5e/dice/rules.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { MonsterStatBlock } from "../../../src/types/monster.types.ts";
+import type { SpellSlotEntry } from "../../../src/types/party.types.ts";
+import type { StoredClassResources } from "../../../src/rules/features/characterFeatures.ts";
 import type { SaveAbility } from "../../../src/types/statBlock.types.ts";
 import type { StatBlockEntry } from "../../../src/types/statBlock.types.ts";
 import { statBlockOf, type StatBlockSources } from "../_shared/fightStatBlocks.ts";
 import type { StatBlockListKey } from "../../../src/rules/statBlock/parseAction.ts";
 import { holdsConcentration } from "../../../src/rules/conditionDurations.ts";
+import { attackRollMode } from "../../../src/rules/combat/attackRoll.ts";
+import { allySlotSpend, settleSlotSpend, type InnateSpend } from "../../../src/rules/fight/allies/spells.ts";
+import { enemyBesideTarget, sneakUseKey } from "../../../src/rules/fight/allies/sneak.ts";
+import { allyAttackShape, allySneakAttack } from "../../../src/rules/fight/allies/statBlock.ts";
+import { RAGE_RESISTANCES, RAGING, divineSmiteFor, featureSpend, improvedSmiteFor, rageDamageFor, settleFeatureSpend } from "../../../src/rules/fight/allies/features.ts";
 import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "../../../src/rules/fight/targeting.ts";
 import { applyFightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightDeps, FightResult } from "../../../src/rules/fight/fightEvents.ts";
-import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
-import {
-  ActionRefused,
-  resolveAttackOn,
-  breakFreeModifier,
-  resolveBreakFreeOn,
-  resolveConcentrationOn,
-  resolveConditionSaveOn,
-  resolveOngoingDamageOn,
-  resolveSaveOn,
-  saveBonusFromBlock,
-  type DiceAsk,
-  type DiceSource,
-  type ResolutionContext,
-} from "../../../src/rules/fight/actionResolution.ts";
+import type { FightEffect, FightState, ResolvedAction } from "../../../src/rules/fight/fightState.ts";
+import { ActionRefused, type DiceAsk, type DiceSource, type ResolutionContext } from "../../../src/rules/fight/resolution/context.ts";
+import { resolveAttackOn } from "../../../src/rules/fight/resolution/attack.ts";
+import { breakFreeModifier, resolveBreakFreeOn } from "../../../src/rules/fight/resolution/breakFree.ts";
+import { resolveConcentrationOn, resolveConditionSaveOn } from "../../../src/rules/fight/resolution/conditionSaves.ts";
+import { resolveOngoingDamageOn } from "../../../src/rules/fight/resolution/ongoingDamage.ts";
+import { resolveSaveOn, saveBonusFromBlock } from "../../../src/rules/fight/resolution/saves.ts";
 import { playerAbilityModifier, playerArmorClass, playerSaveBonus, type PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
 import { castableBy, slotLimitAt } from "../../../src/rules/fight/spells/castLimit.ts";
 import { pickSpellRecord, type SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
 import { creatureKindOf, kindAllowed, kindLimitOf, kindPhrase } from "../../../src/rules/fight/spells/creatureKind.ts";
 import { spellEntryFor } from "../../../src/rules/fight/spells/spellEntry.ts";
+import { CONDITIONS } from "../../../src/rules/conditions.ts";
+import { boonEntryFor, isBoonSpell, type BoonPlan } from "../../../src/rules/fight/spells/boonEntry.ts";
+import { castSlotOf, healEntryFor, isHealingSpell, type HealPlan } from "../../../src/rules/fight/spells/healEntry.ts";
+import { spellcastingModifierOf } from "../../../src/rules/fight/spells/castNow.ts";
+import { takesTurnsInFight } from "../../../src/rules/fight/standing.ts";
 import { limitAvailability } from "../../../src/rules/encounterTurn.ts";
 import { combatantFootprint } from "../../../src/lib/battlemap/tokenFootprint.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { coverBetween, type Box, type Cover } from "../../../src/rules/fight/terrain/sight.ts";
-import { isOnBoard } from "../../../src/rules/fight/terrain/turnOptions.ts";
+import { isOnBoard } from "../../../src/rules/fight/terrain/options/scene.ts";
+import type { AllySpend } from "../../../src/rules/fight/pcAttacks/gear.ts";
 import { FightCommandError } from "./commandError.ts";
 import type { BreakFreeSkill } from "../../../src/types/statBlock.types.ts";
 
@@ -309,7 +314,10 @@ function toRolledFaces(ask: DiceAsk, flat: number[]): RolledFaces {
 function makeDice(rollDie: (sides: number) => number, supply: Supply, posted: PostedRoll[]): DiceSource {
   return (ask) => {
     const mode = ask.mode ?? NORMAL_ROLL;
-    const flat = supply(ask);
+    // A person's faces answer only the rolls they were asked for, a d20 or a damage roll. Any other die (a boon's d4, PHB "Bless",
+    // rolled after the d20 for the same creature) is the server's own; a supply keyed by roller would otherwise read a save's d20
+    // face as the d4.
+    const flat = ask.isDamage === true || ask.counts[20] !== undefined ? supply(ask) : null;
     // A person's faces are scored and never re-rolled; the roll is theirs (`manual`), and carries no stamp.
     const result: RollResult = flat
       ? { ...dnd5eDiceRules.score(ask.counts, ask.modifier, mode, toRolledFaces(ask, flat)), manual: true }
@@ -416,6 +424,14 @@ export interface ResolveEnv {
   map: FightMap | null;
   /** Receives every roll the command makes, in order, for the caller to post once the fight is saved. */
   posted: PostedRoll[];
+  /** What the allies' attacks used up (ammunition, a thrown weapon), in order, for the caller to write once the fight is saved (#1021). */
+  spent: Array<{ spend: AllySpend; speaker: string }>;
+  /** The slots an ally's casts used up, as the sheet's whole slot list after each cast, in order, for the caller to write once the fight is saved (#1021). */
+  slotsSpent: Array<{ memberId: string; slots: SpellSlotEntry[] }>;
+  /** The sheet's `class_resources` as they stand after an ally used a limited class feature (Rage, Second Wind, Action Surge, Ki), the whole list, in order, for the caller to write once the fight is saved (#1021). */
+  resourcesSpent: Array<{ memberId: string; resources: StoredClassResources }>;
+  /** The uses an ally's casts of daily-limited innate spells left on their `character_spells` rows, as absolute counts, in order, for the caller to write once the fight is saved (#1021). */
+  innateSpent: InnateSpend[];
   /**
    * Asks whether each turn goes against a creature's note (#1203), once per distinct `key`; null when asking is not
    * allowed or did not work. Left out where no note is ever consulted.
@@ -486,6 +502,12 @@ function dueCondition(c: RunCombatant, name: string, what: "save" | "damage") {
   return found as NonNullable<typeof found>;
 }
 
+/** RULE rage (PHB 2014 and 2024 "Rage"): a raging creature resists bludgeoning, piercing and slashing damage. */
+function ragingDefenses(c: RunCombatant, defenses: ReturnType<typeof combatantDefenses>): ReturnType<typeof combatantDefenses> {
+  if (!c.conditions.some((x) => x.name === RAGING)) return defenses;
+  return { ...defenses, resistances: [...defenses.resistances, { types: [...RAGE_RESISTANCES] }] };
+}
+
 /**
  * Applies one resolving command to the fight: rolls what it needs, adjudicates, and returns the fight it leaves
  * and what that raised, ending with a `resolved` effect that says what happened in numbers. Throws
@@ -498,7 +520,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     ruleset: state.ruleset,
     dice: makeDice(env.rollDie, supplyFor(command), env.posted),
     armorClassFor: (c) => armorClassOf(c, env.players),
-    defensesFor: (c) => combatantDefenses(c, env.sources),
+    defensesFor: (c) => ragingDefenses(c, combatantDefenses(c, env.sources)),
     saveBonusFor: (c, ability) => saveBonusOf(c, ability, env),
     live: (c) => holder.state.combatants.find((x) => x.instance_id === c.instance_id) ?? c,
     factionOf: (id) => holder.state.combatants.find((x) => x.instance_id === id)?.faction_id ?? null,
@@ -530,6 +552,138 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
       factions: env.factions,
       range: attack.range === undefined ? null : attack.range,
       occluders: env.map === null ? NO_OCCLUDERS : env.map.occluders,
+    });
+  };
+
+  /**
+   * RULE rage (PHB 2014 "Barbarian: Rage"; PHB 2024 "Rage"): a raging party member's Strength weapon attack adds the Rage Damage to the hit
+   * (`rageDamageFor`: the sheet catalogue's own value and riders). A flat amount, so a critical hit does not double it. The entry as it
+   * is for anyone who is not raging, and for an attack the rider does not ride.
+   */
+  const rageIn = (attacker: RunCombatant, entry: StatBlockEntry): StatBlockEntry => {
+    const attack = entry.structured?.attack;
+    if (attacker.type !== "player" || attacker.party_member_id === undefined || attack === undefined) return entry;
+    if (!attacker.conditions.some((c) => c.name === RAGING)) return entry;
+    const bonus = rageDamageFor(env.players, attacker.party_member_id, allyAttackShape(env.players, attacker.party_member_id, entry.name));
+    if (bonus === null) return entry;
+    const type = attack.hit[0] === undefined ? null : attack.hit[0].type;
+    return { ...entry, structured: { ...entry.structured, attack: { ...attack, hit: [...attack.hit, { dice: String(bonus), type }] } } };
+  };
+
+  /**
+   * RULE sneak-attack (PHB 2014 "Rogue: Sneak Attack"; PHB 2024 "Sneak Attack"): once per turn, a hit with a finesse or ranged
+   * weapon deals the Rogue's Sneak Attack dice more when the attacker has advantage on the roll, or another enemy of the target
+   * stands within 5 feet of it, is not incapacitated, and the attacker has no disadvantage. The mode is worked out here with the
+   * same rule and the same facts the roll to hit will use (`attackRollMode`), because the roll cannot say it before the damage
+   * is rolled; advantage and disadvantage that cancel leave neither, so only the adjacent enemy can qualify then. The dice ride
+   * the weapon's damage type and double on a critical hit like any other die of the hit. "Once per turn" is any creature's turn,
+   * tallied under the fight's current turn (`sneakUseKey`, RULE sneak-attack-once-per-turn), so a Reaction in a foe's turn has its own use.
+   * Only a party member the AI plays (an ally, #1021) has it: null for anyone else, a swing it does not ride, or one already spent.
+   */
+  const sneakAttackIn = (
+    attacker: RunCombatant, target: RunCombatant, entry: StatBlockEntry, near: boolean,
+    facts: { hostileWithinFiveFeetOfAttacker?: boolean; longRange?: boolean },
+  ): { entry: StatBlockEntry; useKey: string } | null => {
+    const attack = entry.structured?.attack;
+    if (attacker.type !== "player" || attacker.party_member_id === undefined || attack === undefined) return null;
+    const sneak = allySneakAttack(env.players, attacker.party_member_id, entry.name);
+    if (sneak === null) return null;
+    const useKey = sneakUseKey(holder.state);
+    if (!limitAvailability(attacker, useKey, { per_day: 1 }).available) return null;
+    const delivery = attack.delivery === "melee_or_ranged" ? (near ? "melee" : "ranged") : attack.delivery;
+    const { mode } = attackRollMode({
+      attackerConditions: attacker.conditions, targetConditions: target.conditions, delivery, withinFiveFeet: near,
+      hostileWithinFiveFeetOfAttacker: facts.hostileWithinFiveFeetOfAttacker, longRange: facts.longRange, ruleset: holder.state.ruleset,
+    });
+    const flanked = enemyBesideTarget(holder.state.combatants, attacker.instance_id, target, env.factions);
+    if (mode !== "advantage" && !(mode === "normal" && flanked)) return null;
+    const type = attack.hit[0] === undefined ? null : attack.hit[0].type;
+    return { useKey, entry: { ...entry, structured: { ...entry.structured, attack: { ...attack, hit: [...attack.hit, { dice: sneak.dice, type }] } } } };
+  };
+
+  /**
+   * RULE divine-smite (PHB 2014 "Paladin: Divine Smite"; PHB 2024 "Divine Smite", `divineSmiteFor`): a Paladin's melee weapon hit adds the smite's radiant
+   * dice, doubled on a critical hit like any die, and spends the slot. Once per turn is the ally's tactic and not a rule of the book (2014 allows a smite on every hit): it keeps slots for the next fight. Tallied as `smite/<own turns started>` in
+   * `action_uses`, as Sneak Attack is (that one is the book's rule). In 2024 it is cast only while the Bonus Action is free. Null for anyone who is not an ally Paladin, a swing it does not ride, or one already spent.
+   */
+  const smiteIn = (attacker: RunCombatant, target: RunCombatant, entry: StatBlockEntry): { entry: StatBlockEntry; useKey: string; slotLevel: number | null; needsBonusAction: boolean } | null => {
+    const attack = entry.structured?.attack;
+    if (attacker.type !== "player" || attacker.party_member_id === undefined || attack === undefined) return null;
+    const kind = creatureKindOf(target, env.sources);
+    const smite = divineSmiteFor(env.players, attacker.party_member_id, allyAttackShape(env.players, attacker.party_member_id, entry.name), kind === "fiend" || kind === "undead");
+    if (smite === null || (smite.needsBonusAction && attacker.bonus_used === true)) return null;
+    const useKey = `smite/${attacker.shown_deeds === undefined ? 0 : attacker.shown_deeds.turns}`;
+    if (!limitAvailability(attacker, useKey, { per_day: 1 }).available) return null;
+    return { entry: { ...entry, structured: { ...entry.structured, attack: { ...attack, hit: [...attack.hit, ...smite.dice.map((dice) => ({ dice, type: "radiant" as const }))] } } }, useKey, slotLevel: smite.slotLevel, needsBonusAction: smite.needsBonusAction };
+  };
+
+  /**
+   * RULE improved-divine-smite (PHB 2014 "Improved Divine Smite"; PHB 2024 "Radiant Strikes", `improvedSmiteFor`): a Paladin of 11th level adds 1d8 radiant damage to every melee weapon
+   * hit (2024: an Unarmed Strike too), with no slot and no limit of once a turn. The entry as it is for anyone else and for an attack it does not ride.
+   */
+  const improvedIn = (attacker: RunCombatant, entry: StatBlockEntry): StatBlockEntry => {
+    const attack = entry.structured?.attack;
+    if (attacker.type !== "player" || attacker.party_member_id === undefined || attack === undefined) return entry;
+    const dice = improvedSmiteFor(env.players, attacker.party_member_id, allyAttackShape(env.players, attacker.party_member_id, entry.name));
+    return dice === null ? entry : { ...entry, structured: { ...entry.structured, attack: { ...attack, hit: [...attack.hit, { dice, type: "radiant" as const }] } } };
+  };
+
+  /**
+   * Restores hit points for a healing spell (RULE healing-amount, `healEntryFor`): the dice are rolled once and every target regains
+   * that; a pool spell (Mass Heal, RULE healing-pool) rolls nothing and shares its hit points out, the downed first, then the lowest
+   * share of their hit points, each to full or to what is left. A target the spell does nothing for (`excludes`) is reported as not
+   * affected, the others regain what fits under their maximum, and one at 0 hit points who is alive is brought back up by `adjust_hp`
+   * (`healingOutcome`: Unconscious and the death saves end). The conditions the spell ends (RULE healing-ends) leave each affected
+   * creature; a name the app has no condition for is left to the table and said so in the result's `leftToTable`.
+   */
+  type HealResult = Extract<ResolvedAction, { kind: "heal" }>["targets"][number];
+  const resolveHeal = async (caster: RunCombatant, targets: RunCombatant[], record: SpellRecord, castLevel: number, plan: HealPlan): Promise<void> => {
+    let amount = plan.pool ?? 0;
+    // Power Word Heal (RULE healing-full) rolls nothing: each target is given what it misses.
+    if (plan.pool === null && !plan.full) {
+      const parsed = parseExpression(plan.dice);
+      if (parsed === null) refuse(`${record.name}'s healing "${plan.dice}" cannot be rolled.`);
+      const dice = (parsed as NonNullable<typeof parsed>);
+      const rolled = await ctx.dice({ counts: parsedToCounts(dice.terms), modifier: dice.modifier + plan.modifier, label: `${record.name} (healing)`, senderName: caster.name });
+      if (rolled === null) {
+        collected.push({ type: "resolved", resolved: { kind: "cast", casterId: caster.instance_id, spell: record.name, castLevel, targetIds: targets.map((t) => t.instance_id), why: "Nobody rolled the healing, so what it restored is the table's to rule." } });
+        return;
+      }
+      // App convention, as for damage: a roll that comes out negative restores nothing.
+      amount = Math.max(0, rolled.result.total);
+    }
+    const affected = (target: RunCombatant): boolean => {
+      const kind = creatureKindOf(target, env.sources);
+      return !(kind !== null && plan.excludes.includes(kind));
+    };
+    // The pool goes to the downed first, then the lowest share of hit points (the order the targets are offered in); a dice heal does not care.
+    const share = (c: RunCombatant): number => ctx.live(c).hp / Math.max(1, ctx.live(c).max_hp);
+    const order = plan.pool === null ? targets : [...targets].sort((x, y) => share(x) - share(y));
+    let left = amount;
+    const known = new Set<string>(CONDITIONS.map((n) => n.toLowerCase()));
+    const leftToTable = plan.ends.filter((name) => !known.has(name.toLowerCase()));
+    const byId = new Map<string, HealResult>(order.map((target): readonly [string, HealResult] => {
+      if (!affected(target)) return [target.instance_id, { targetId: target.instance_id, regained: 0, revived: false, unaffected: true }] as const;
+      const before = ctx.live(target).hp;
+      const missing = Math.max(0, ctx.live(target).max_hp - Math.max(0, before));
+      const give = plan.full ? missing : plan.pool === null ? amount : Math.min(missing, left);
+      left -= plan.pool === null ? 0 : give;
+      if (give > 0) ctx.apply({ type: "adjust_hp", instanceId: target.instance_id, delta: give });
+      const ended: string[] = [];
+      for (const name of plan.ends) {
+        const held = ctx.live(target).conditions.find((x) => x.name.toLowerCase() === name.toLowerCase());
+        if (held === undefined) continue;
+        ctx.apply({ type: "remove_condition", instanceId: target.instance_id, name: held.name });
+        ended.push(held.name);
+      }
+      const after = ctx.live(target).hp;
+      return [target.instance_id, { targetId: target.instance_id, regained: Math.max(0, after - before), revived: before <= 0 && after > 0, unaffected: false, ...(ended.length > 0 ? { ended } : {}) }] as const;
+    }));
+    // Reported in the order the targets were named.
+    const results = targets.map((t) => byId.get(t.instance_id) as HealResult);
+    collected.push({
+      type: "resolved",
+      resolved: { kind: "heal", casterId: caster.instance_id, spell: record.name, castLevel, rolled: amount, targets: results, ...(plan.pool !== null ? { pool: true as const } : {}), ...(plan.full ? { full: true as const } : {}), ...(leftToTable.length > 0 ? { leftToTable } : {}) },
     });
   };
 
@@ -579,10 +733,35 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
       const unknown = targets.find((t) => creatureKindOf(t, env.sources) === null);
       if (unknown !== undefined) kindWhy = `${record.name} works only on ${kindPhrase(kindLimit)}, and the game cannot tell what kind of creature ${unknown.name} is. Its outcome is the table's to rule.`;
     }
-    const entry = spellEntryFor(record, castLevel, {
-      saveDc: listed.saveDc, attackBonus: listed.attackBonus, casterLevel: listed.casterLevel,
-    }, { kindsChecked: kindLimit !== null && kindWhy === null });
-    const rolled = automatable && entry.automatable && kindWhy === null;
+    // A healing spell restores hit points instead of dealing damage (`healEntryFor`): one roll, shared by every target.
+    const healing = isHealingSpell(record);
+    const plan = healing ? healEntryFor(record, castLevel, { modifier: spellcastingModifierOf(block as MonsterStatBlock, listed.ability) }) : null;
+    // A boon spell (Bless, Shield of Faith) puts a condition carrying its grants on its targets (`boonEntryFor`).
+    const boon = !healing && isBoonSpell(record);
+    const boonPlan = boon ? boonEntryFor(record, castLevel) : null;
+    const boonable = boon && automatable && boonPlan !== null && boonPlan.boonable;
+    // PHB 2014 and 2024 "Healing Word" and "Shield of Faith": a Bonus Action, so the Bonus Action is what a cast of it uses.
+    const bonusCast = (healing && castSlotOf(record) === "bonus_action") || (boonable && (boonPlan as BoonPlan).slot === "bonus_action");
+    if (bonusCast && caster.bonus_used === true) refuse(`${caster.name} has already used its Bonus Action this turn, so it cannot cast ${record.name}.`);
+    // PHB 2014 ch. 9 "Death Saving Throws": healing never brings back the dead.
+    if (healing) {
+      const dead = targets.find((t) => t.hp <= 0 && !takesTurnsInFight(t));
+      if (dead !== undefined) refuse(`${dead.name} is dead, and ${record.name} does not bring back the dead.`);
+    }
+    if (boonable) {
+      const reach = (boonPlan as BoonPlan).targetCount;
+      if (targets.length === 0) refuse(`Name at least one target for ${record.name}.`);
+      // PHB 2014 and 2024 "Bless": up to three creatures, one more for each slot level above 1st; the plan holds the count at this level.
+      if (targets.length > reach) refuse(`${record.name} reaches up to ${reach} ${reach === 1 ? "creature" : "creatures"} at level ${castLevel}, and ${targets.length} were named.`);
+      // PHB 2014 ch. 9 "Death Saving Throws": the dead are past a blessing too.
+      const dead = targets.find((t) => t.hp <= 0 && !takesTurnsInFight(t));
+      if (dead !== undefined) refuse(`${dead.name} is dead, and ${record.name} does not reach the dead.`);
+    }
+    const entry = healing || boon
+      ? { automatable: false as const, why: healing ? (plan !== null && !plan.healable ? plan.why : "") : boonPlan !== null && !boonPlan.boonable ? boonPlan.why : "" }
+      : spellEntryFor(record, castLevel, { saveDc: listed.saveDc, attackBonus: listed.attackBonus, casterLevel: listed.casterLevel }, { kindsChecked: kindLimit !== null && kindWhy === null });
+    const healed = healing && automatable && plan !== null && plan.healable && kindWhy === null;
+    const rolled = healed || (automatable && entry.automatable && kindWhy === null);
     if (rolled && targets.length === 0) refuse(`Name at least one target for ${record.name}.`);
 
     // Everything that can be refused for the cast itself is behind us: from here the cast is spent.
@@ -601,10 +780,32 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     }
     if (record.concentration) step({ type: "start_concentration", instanceId: caster.instance_id, spell: record.name, castLevel });
     if (useKey !== null && limit !== null) step({ type: "use_action", instanceId: caster.instance_id, action: useKey, limit });
-    step({ type: "set_action_used", instanceId: caster.instance_id, used: true });
+    step({ type: bonusCast ? "set_bonus_used" : "set_action_used", instanceId: caster.instance_id, used: true });
     // A spell cast is a spell seen (#1021), whether or not its outcome is rolled here.
     step({ type: "show_deed", instanceId: caster.instance_id, deed: { cast: 1 } });
 
+    if (boonable && kindWhy === null) {
+      const given = boonPlan as BoonPlan;
+      for (const target of targets) {
+        // One record per name: a second Bless on the same creature replaces the first. A concentration boon is sourced on the caster, so ending the concentration takes it off.
+        ctx.apply({
+          type: "apply_condition",
+          instanceId: target.instance_id,
+          condition: {
+            name: record.name,
+            grants: given.grants,
+            source: { id: caster.instance_id, spell: record.name, ...(given.concentration ? { concentration: true as const } : {}) },
+            ends: { kind: "rounds", remaining: given.rounds },
+          },
+        });
+      }
+      collected.push({ type: "resolved", resolved: { kind: "boon", casterId: caster.instance_id, spell: record.name, castLevel, targetIds: targets.map((t) => t.instance_id) } });
+      return;
+    }
+    if (healed) {
+      await resolveHeal(caster, targets, record, castLevel, plan as HealPlan);
+      return;
+    }
     if (!rolled || !entry.automatable) {
       const why = !automatable
         ? `${record.name}'s rules are not checked in the library, so its outcome is the table's to rule.`
@@ -638,11 +839,47 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
         const entry = entryOf(attacker, command.list, command.action, env.sources);
         const near = command.withinFiveFeet ?? withinFiveFeet(attacker, target);
         if (near === null) refuse(`Say whether ${attacker.name} is within five feet of ${target.name}: one of them has no place on the map.`);
+        const facts = rangedFacts(attacker, target, entry, near as boolean);
+        const raged = rageIn(attacker, entry);
+        const sneak = sneakAttackIn(attacker, target, raged, near as boolean, facts);
+        const smite = smiteIn(attacker, target, sneak === null ? raged : sneak.entry);
         const done = await resolveAttackOn(ctx, {
-          attacker, entry, target, withinFiveFeet: near as boolean, extraPenalty: command.penalty, magical: command.magical,
-          ...rangedFacts(attacker, target, entry, near as boolean),
+          attacker, entry: improvedIn(attacker, smite === null ? (sneak === null ? raged : sneak.entry) : smite.entry), target, withinFiveFeet: near as boolean, extraPenalty: command.penalty, magical: command.magical,
+          ...facts,
         });
         collected.push({ type: "resolved", resolved: done.summary });
+        // The turn's one Sneak Attack is spent by a hit that carried it; a miss leaves it for the next swing.
+        if (sneak !== null && done.summary.hit) {
+          const spent = applyFightCommand(holder.state, { type: "use_action", instanceId: attacker.instance_id, action: sneak.useKey, limit: { per_day: 1 } }, env.fightDeps);
+          holder.state = spent.state;
+          collected.push(...spent.effects);
+        }
+        // A Divine Smite is paid for by a hit that carried it: the slot goes to the sheet, and in 2024 the Bonus Action is the cast's.
+        if (smite !== null && done.summary.hit) {
+          const used = applyFightCommand(holder.state, { type: "use_action", instanceId: attacker.instance_id, action: smite.useKey, limit: { per_day: 1 } }, env.fightDeps);
+          holder.state = used.state;
+          collected.push(...used.effects);
+          if (smite.needsBonusAction) {
+            const bonus = applyFightCommand(holder.state, { type: "set_bonus_used", instanceId: attacker.instance_id, used: true }, env.fightDeps);
+            holder.state = bonus.state;
+            collected.push(...bonus.effects);
+          }
+          const memberId = attacker.party_member_id as string;
+          if (smite.slotLevel === null) {
+            // 2024 Paladin's Smite: the free cast is a use of the sheet's own pool, not a slot.
+            const resources = featureSpend(env.players, memberId, "paladins_smite");
+            if (resources !== null) {
+              env.resourcesSpent.push({ memberId, resources });
+              settleFeatureSpend(env.players, memberId, resources);
+            }
+          } else {
+            const slots = allySlotSpend(env.players, memberId, smite.slotLevel);
+            if (slots !== null) {
+              env.slotsSpent.push({ memberId, slots });
+              settleSlotSpend(env.players, memberId, slots);
+            }
+          }
+        }
         break;
       }
       case "resolve_save": {

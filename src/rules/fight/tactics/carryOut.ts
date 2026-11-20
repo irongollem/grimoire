@@ -19,7 +19,7 @@ import type { Cell } from "../../../lib/battlemap/movement.ts";
 import { actionLimit, actionUseKey, type ActionLimit } from "../../encounterTurn.ts";
 import { DISENGAGED, DODGING } from "../stances.ts";
 import type { StatBlockListKey } from "../../statBlock/parseAction.ts";
-import type { TurnOption, UsableAttack } from "../terrain/turnOptions.ts";
+import type { TurnOption, UsableAttack } from "../terrain/options/types.ts";
 
 export type TurnStep =
   /** The Dodge or Disengage action's condition goes on the mover, until its next turn starts. */
@@ -29,11 +29,19 @@ export type TurnStep =
   /** One resolved attack: a Multiattack is several of these, in printed order. */
   | { type: "swing"; list: StatBlockListKey; action: string; targetId: string }
   /** One spell cast (#1021): `cast_spell` spends the slot or use and marks the Action itself, so no `spend` or `use` step goes with it. */
-  | { type: "cast"; spell: string; castLevel: number; targetIds: string[] }
+  | { type: "cast"; spell: string; castLevel: number; targetIds: string[]; /** A healing spell: its targets may be down at 0 hit points, which a damage spell's may not. */ heal?: true }
   /** An ability check to end a condition a spell holds the mover in (#1021): `break_free` takes the Action itself, so no `use` step goes with it. */
   | { type: "break_free"; name: string; ability: string }
   /** One use of a limited or recharge ability, as the runner records it. */
   | { type: "spend"; useKey: string; limit: ActionLimit }
+  /**
+   * A class feature of a party member the AI plays is used (#1021, `bonusAction.ts`): Second Wind heals, Rage starts, Flurry of Blows
+   * spends its Ki. `targetId` is who a Flurry's swings are at (null for the others). What each does, and what the sheet is
+   * charged, is `take_turn`'s to carry out: the step only says which.
+   */
+  | { type: "feature"; feature: "second_wind" | "rage" | "rage_extend" | "flurry"; targetId: string | null }
+  /** Action Surge's extra action begins (#1021, `surgeCast.ts`): the sheet is charged a use of it, and what follows is the extra action. */
+  | { type: "surge" }
   /** The Action or the Bonus Action of the turn is used up. */
   | { type: "use"; slot: "action" | "bonus" }
   /** A flee that ends on a way off the map (#1203): the creature is taken out of the fight, after everything else it did. */
@@ -56,6 +64,8 @@ function slotOf(option: TurnOption): "action" | "bonus" | null {
       return option.escape === undefined ? "action" : option.escape.slot;
     // `cast_spell` marks the Action itself (and spends the slot), so a cast needs no `use` step here.
     case "spell":
+    case "heal":
+    case "boon":
     case "break_free":
     case "move":
     case "surrender":
@@ -102,6 +112,15 @@ export function stepsFor(option: TurnOption, attacks: readonly UsableAttack[]): 
   // A cast is one command: it spends the slot or use and takes the Action itself.
   if (option.kind === "spell" && option.spell !== undefined && option.spell !== null) {
     steps.push({ type: "cast", spell: option.spell.name, castLevel: option.spell.castLevel, targetIds: option.spell.targetIds });
+    // An Action Surge's extra action: the cast, the surge, then the second turn from where the mover stands (it walks nowhere: `surgeCast.ts` offers only what stays put).
+    if (option.spell.surge !== undefined) steps.push({ type: "surge" }, ...stepsFor(option.spell.surge.second, attacks));
+  }
+  if (option.kind === "heal" && option.heal !== undefined && option.heal !== null) {
+    steps.push({ type: "cast", spell: option.heal.name, castLevel: option.heal.castLevel, targetIds: option.heal.targetIds, heal: true });
+  }
+  // A boon is a cast like any other: no `heal` flag, so a target at 0 hit points is dropped before the cast.
+  if (option.kind === "boon" && option.boon !== undefined && option.boon !== null) {
+    steps.push({ type: "cast", spell: option.boon.name, castLevel: option.boon.castLevel, targetIds: option.boon.targetIds });
   }
   if (option.kind === "break_free" && option.breakFree !== undefined) steps.push({ type: "break_free", name: option.breakFree.name, ability: option.breakFree.ability });
   const slot = slotOf(option);

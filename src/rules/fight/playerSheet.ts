@@ -7,7 +7,10 @@ import type { PartyInventoryItem } from "../../types/inventory.types.ts";
 import type { Item } from "../../types/item.types.ts";
 import type { AbilityScores } from "../../types/multiclass.types.ts";
 import type { WildshapeState } from "../../types/encounter.types.ts";
+import type { MonsterStatBlock } from "../../types/monster.types.ts";
 import type { PartyMember } from "../../types/party.types.ts";
+import type { CharacterClass } from "../../types/multiclass.types.ts";
+import type { SpellcastingClassDefinitions } from "../spellcastingByClass.ts";
 import type { SaveAbility } from "../../types/statBlock.types.ts";
 import { parseArmorClass } from "./targeting.ts";
 import { calculateAc, savingThrowItemBonus, wornGearByMember } from "../armorClass.ts";
@@ -20,13 +23,65 @@ export type PlayerSheetRow = Pick<
   | "id" | "ruleset" | "class" | "subclass" | "ac_formula" | "class_choices"
   | "str" | "dex" | "con" | "int" | "wis" | "cha"
   | "proficiency_bonus" | "saving_throw_proficiencies"
-> & { wildshape_state: WildshapeState | null };
+  // What an ally the server plays is built from (#1021): its walking speed, the level the proficiency bonus falls back on,
+  // and the attacks the player wrote on their sheet.
+  | "speed" | "level" | "custom_attacks"
+  // The slots an ally casts with, spent as they cast (#1021).
+  | "spell_slots"
+> & {
+  wildshape_state: WildshapeState | null;
+  /**
+   * The limited uses the sheet keeps (`class_resources`: Rage, Second Wind, Action Surge, Ki), spent by the features an ally fights
+   * with (#1021). Absent reads as no entry stored, which the sheet itself reads as every pool full.
+   */
+  class_resources?: PartyMember["class_resources"];
+};
 
-/** The scores of a Wild Shape form's stat block, by the monster id the form names. */
+/**
+ * A Wild Shape form's stat block as the server reads it: always the three scores that replace the character's own (a
+ * save needs no more), and the rest of the block (speed, attacks, traits) as the row holds it, which an ally the AI plays
+ * fights with (`allyStatBlock`, #1021).
+ */
+export type FormStatBlock = Pick<AbilityScores, "str" | "dex" | "con"> & Partial<Omit<MonsterStatBlock, "str" | "dex" | "con">>;
+
+/** A Wild Shape form's stat block, by the monster id the form names. */
 export interface BeastScores {
   id: string;
-  stat_block: Pick<AbilityScores, "str" | "dex" | "con"> | null;
+  stat_block: FormStatBlock | null;
 }
+
+/**
+ * One spell a character has, as the server reads it for an ally to cast (#1021): the `character_spells` columns the
+ * ready-to-cast rule reads, with the spell's own name and level (the grant names it by id).
+ */
+export interface AllySpellRow {
+  /** The `character_spells` row, which a cast of a daily-limited spell writes its remaining uses to. */
+  id: string;
+  party_member_id: string;
+  name: string;
+  level: number;
+  is_known: boolean;
+  is_prepared: boolean;
+  always_prepared: boolean;
+  /** "class" for a spell from a class; anything else is innate (a racial or item grant). */
+  source_type: string;
+  source_class_id: string | null;
+  casting_ability: "int" | "wis" | "cha" | null;
+  /** Innate casting: null is "at will", otherwise the uses a day. */
+  uses_per_day: number | null;
+  /** The uses left today of an innate spell with a daily limit; null reads as none, as the sheet reads it. */
+  uses_remaining: number | null;
+}
+
+/** What an ally needs to cast: the spells they have, their class rows and the class definitions those rows are pinned to (`computeSpellcastingByClass`). */
+export interface AllyCasting {
+  spells: AllySpellRow[];
+  classes: CharacterClass[];
+  definitions: SpellcastingClassDefinitions;
+}
+
+/** No one in the sheets casts (a fight with no player in it, or a read that has no use for spells). */
+export const NO_CASTING: AllyCasting = { spells: [], classes: [], definitions: { system: [], custom: [], subclasses: [] } };
 
 /** Everything the server read about a fight's player characters. */
 export interface PlayerSheets {
@@ -37,6 +92,8 @@ export interface PlayerSheets {
   items: Item[];
   /** The stat blocks of the forms the members are shaped into. */
   beasts: BeastScores[];
+  /** The spells, classes and class definitions the allies cast from. */
+  casting: AllyCasting;
 }
 
 function memberRow(sheets: PlayerSheets, memberId: string): PlayerSheetRow | null {

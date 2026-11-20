@@ -9,6 +9,8 @@ import type { GridCalibration } from "../../../src/types/location.types";
 import type { Monster } from "../../../src/types/monster.types";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest";
 import type { RunCombatant } from "../../../src/types/encounter.types";
+import type { CharacterClass } from "../../../src/types/multiclass.types";
+import { NO_CASTING, type PlayerSheets } from "../../../src/rules/fight/playerSheet";
 import { emptyDefenses, type StatBlockEntry } from "../../../src/types/statBlock.types";
 import { meleeReachFeet } from "../_shared/turnOptionsFor";
 import { computeOptions, OptionsError, validateOptionsRequest, type OptionsDeps, type OptionsFight } from "./handler";
@@ -47,6 +49,8 @@ interface Setup {
   /** The players' own rows; none by default. */
   party?: PartyIngestRow[];
   map?: FightMapInput | null;
+  /** What the server reads of the players' sheets; none by default (a player then has no stat block). */
+  sheets?: PlayerSheets;
   version?: number;
   spells?: SpellRecord[];
   /** Every list of names the spell loader was asked for. */
@@ -59,6 +63,7 @@ function deps(s: Setup): OptionsDeps {
     loadPartyRows: async () => structuredClone(s.party ?? []),
     loadStatBlocks: async () => ({ monsters: s.monsters ?? [monster("m-wolf", [attack("Bite")])], npcs: [], companions: [] }),
     loadMemberSpeeds: async () => s.speeds ?? [],
+    loadPlayerSheets: async () => structuredClone(s.sheets ?? { members: [], inventory: [], items: [], beasts: [], casting: NO_CASTING }),
     loadMapInput: async () => (s.map === undefined ? OPEN_GROUND : s.map),
     loadSpellsListed: async (names) => {
       s.spellReads?.push(names);
@@ -188,6 +193,78 @@ describe("meleeReachFeet", () => {
     expect(meleeReachFeet(block(withReach("Claw", "melee")))).toBe(5);
     expect(meleeReachFeet(block(withReach("Spit", "ranged", 30)))).toBe(5);
     expect(meleeReachFeet(null)).toBe(5);
+  });
+});
+
+// An ally is listed the way `take_turn` plays them (#1021). Dex 16 is +3 and proficiency +2: Unarmed Strike is +5 for 1 + Str modifier
+// (Str 10, so 1) damage. The sheet holds no weapon.
+const SAM: PlayerSheets = {
+  members: [{
+    id: "pm-pc", ruleset: "2014", class: "Fighter", subclass: null, ac_formula: null, class_choices: {},
+    str: 10, dex: 16, con: 12, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: [], speed: 25, level: 1, custom_attacks: [], spell_slots: [],
+    wildshape_state: null,
+  }],
+  inventory: [], items: [], beasts: [], casting: NO_CASTING,
+};
+
+describe("computeOptions for an ally", () => {
+  // Bug caught: a party member the server plays listed with no attack (no stat block), so the DM's list disagreed with take_turn.
+  it("fails if an ally with a sheet is not offered the attacks that sheet makes", async () => {
+    const r = await ask({ combatants: [hero(0, 3, { faction_id: "m" }), wolf({ faction_id: "p", position: { x: 1, y: 3 } })], sheets: SAM, speeds: [{ id: "pm-pc", speed: 25 }] }, "pc");
+    expect(ids(r)).toContain("attack:actions:Unarmed Strike:wolf");
+  });
+
+  // Bug caught: the DM's list for a caster ally leaving out its spells, or counting a cast the fight already tallied twice. Level 5 Wizard
+  // (Int 16, proficiency 3): Fireball is DC 14. One of two 3rd-level slots is spent on the sheet and tallied by the fight: one is left.
+  it("fails if a caster ally's list leaves out a spell it has a slot for, or counts a tallied cast twice", async () => {
+    const wizard = { id: "cls-wiz", party_member_id: "pm-pc", class_name: "Wizard", class_definition_id: "def-wiz", class_definition_kind: "system", subclass_name: null, subclass_definition_id: null, subclass_variant: null, levels: 5, is_primary: true, hit_dice_used: 0, sort_order: 0, capabilities: [] } as unknown as CharacterClass;
+    const sheets: PlayerSheets = {
+      ...SAM,
+      members: [{ ...SAM.members[0], int: 16, level: 5, proficiency_bonus: 3, spell_slots: [{ level: 3, max: 2, used: 1 }] }],
+      casting: {
+        spells: [{ id: "fb-row", party_member_id: "pm-pc", name: "Fireball", level: 3, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-wiz", casting_ability: null, uses_per_day: null, uses_remaining: null }],
+        classes: [wizard],
+        definitions: { system: [{ id: "def-wiz", caster_type: "prepared", prepared_ability: "int" }], custom: [], subclasses: [] },
+      },
+    };
+    const caster = hero(0, 3, { faction_id: "m", action_uses: { "slots/3": { used: 1, per_day: 2 } } });
+    const r = await ask({ combatants: [caster, wolf({ faction_id: "p", position: { x: 6, y: 3 } })], sheets, spells: [fireball()], speeds: [{ id: "pm-pc", speed: 25 }] }, "pc");
+    expect(ids(r).some((id) => id.startsWith("spell:Fireball:3:"))).toBe(true);
+  });
+
+  // PHB 2014 "Extra Attack" and "Fighter: Action Surge": the DM's list shows what take_turn plays. A 5th-level Fighter (two attacks, four on the surge) holding `pieces` of each of a dagger and a
+  // handaxe to throw: with one of each the two pieces make the mixed Extra Attack and no surge (two swings are no more than the Attack action); with two of each the surge swings all four.
+  // Bug caught: a surge listed that adds no swing, or a mixed set left out of the list.
+  it.each([
+    { pieces: 1, offered: ["Extra Attack (Handaxe (thrown) + Dagger (thrown))"], notOffered: ["Action Surge (Handaxe (thrown) + Dagger (thrown))"] },
+    { pieces: 2, offered: ["Extra Attack (Handaxe (thrown))", "Action Surge (Handaxe (thrown) + Dagger (thrown))"], notOffered: [] },
+  ])("lists the mixed sets a Fighter with $pieces of each throwing weapon can make", async ({ pieces, offered, notOffered }) => {
+    const weapon = (id: string, name: string, dice: string) => ({ id, name, item_type: "weapon", properties: ["light", "thrown"], tags: [], subtype: null, charges: null, weapon_range: "20/60", damage_rolls: [{ dice, type: "piercing" }], rarity: "mundane", image_url: null, description: "" });
+    const stack = (id: string, itemId: string, name: string) => ({ id, item_id: itemId, library_item_id: null, name, quantity: pieces, carried_by: "pm-pc", slot: "main_hand", location: "equipped", quality: "standard" });
+    const fighter = { id: "cls-fig", party_member_id: "pm-pc", class_name: "Fighter", class_definition_id: "def-fig", class_definition_kind: "system", subclass_name: null, subclass_definition_id: null, subclass_variant: null, levels: 5, is_primary: true, hit_dice_used: 0, sort_order: 0, capabilities: [] } as unknown as CharacterClass;
+    const sheets = {
+      ...SAM,
+      members: [{ ...SAM.members[0], str: 16, level: 5 }],
+      inventory: [stack("inv-dagger", "dagger", "Dagger"), stack("inv-axe", "axe", "Handaxe")],
+      items: [weapon("dagger", "Dagger", "1d4"), weapon("axe", "Handaxe", "1d6")],
+      casting: { ...NO_CASTING, classes: [fighter] },
+    } as unknown as PlayerSheets;
+    const r = await ask({ combatants: [hero(0, 3, { faction_id: "m" }), wolf({ faction_id: "p", position: { x: 6, y: 3 } })], sheets, speeds: [{ id: "pm-pc", speed: 25 }] }, "pc");
+    for (const name of offered) expect(ids(r)).toContain(`attack:actions:${name}:wolf`);
+    for (const name of notOffered) expect(ids(r)).not.toContain(`attack:actions:${name}:wolf`);
+  });
+
+  // App convention: an ally never flees. Bug caught: Flee listed for an ally, which take_turn would refuse as not on offer.
+  it("fails if an ally is offered Flee", async () => {
+    const r = await ask({ combatants: [hero(0, 3, { faction_id: "m" }), wolf({ faction_id: "p", position: { x: 3, y: 3 } })], sheets: SAM, speeds: [{ id: "pm-pc", speed: 25 }] }, "pc");
+    expect(r.options.some((o) => o.kind === "flee")).toBe(false);
+    expect(r.options.some((o) => o.kind === "dodge")).toBe(true);
+  });
+
+  // Bug caught: a monster's options changed by the ally rule (Flee dropped for everyone).
+  it("keeps Flee for a monster", async () => {
+    const r = await ask({ combatants: [wolf({ hp: 2 }), hero(3, 0)] });
+    expect(r.options.some((o) => o.kind === "flee")).toBe(true);
   });
 });
 

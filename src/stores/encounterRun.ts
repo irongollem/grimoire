@@ -14,7 +14,8 @@ import type { AppliedCondition } from "@/types/condition.types";
 import { holdsConcentration, type ConditionEndReason } from "@/rules/conditionDurations";
 import type { ActionLimit, EncounterTurnEvent } from "@/rules/encounterTurn";
 import { rollInitiativeValue, adoptedStatsFor } from "@/rules/encounterCombatLogic";
-import { applyFightCommand, type FightCommand } from "@/rules/fight/fightCommands";
+import type { FightCommand } from "@/rules/fight/fightCommands";
+import { applyWithRageUpkeep } from "@/rules/fight/allies/rageUpkeep";
 import type { FightDeps } from "@/rules/fight/fightEvents";
 import { isTurnEvent, type FightEffect, type FightState } from "@/rules/fight/fightState";
 import { companionCombatant, idClock, spawnMonsters, spawnNpcs } from "@/rules/fight/fightSpawn";
@@ -269,7 +270,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
    *  (HP changes, legendary spend), none for a command that waits. */
   function dispatch(command: FightCommand): EncounterTurnEvent[] {
     const before = snapshot();
-    const result = link.queue(command, before) ?? applyFightCommand(before, command, fightDeps());
+    const result = link.queue(command, before) ?? applyWithRageUpkeep(before, command, fightDeps());
     if (result.state === null) return [];
     turnChanged([command]);
     adoptState(before, result.state);

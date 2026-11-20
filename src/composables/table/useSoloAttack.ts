@@ -2,19 +2,17 @@ import { HIDDEN, isHidden } from "@/rules/fight/stances";
 import { computed, ref, readonly } from "vue";
 import { rangedFactsFor } from "@/composables/encounters/rangedFacts";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import type { PcAttackRow } from "@/composables/encounters/usePcAttackRows";
+import type { PcAttackRow } from "@/types/pcAttack.types";
 import { rollDie, type DieSize } from "@/lib/dice/dice";
+import { NORMAL_ROLL, rollWithRules } from "@/lib/dice/diceRules";
+import { dnd5eDiceRules } from "@/systems/dnd5e/dice/rules";
 import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "@/rules/fight/targeting";
-import { attackLines, attackEntryOf, d20FromFaces, damageDicePlan, damageFromFaces, damageLine, facesFit, type DamageMath } from "@/lib/table/solo/fight/pcAttack";
+import { attackLines, damageLine, type DamageMath } from "@/lib/table/solo/fight/pcAttack";
+import { attackEntryOf, d20FromFaces, damageDicePlan, damageFromFaces, facesFit } from "@/rules/fight/pcAttacks/entry";
 import type { BoardLine } from "@/lib/table/solo/fight/boardLines";
-import {
-  ActionRefused,
-  applyDamage,
-  rollDamageParts,
-  rollToHit,
-  type DiceAsk,
-  type ResolutionContext,
-} from "@/rules/fight/actionResolution";
+import { ActionRefused, type DiceAsk, type ResolutionContext } from "@/rules/fight/resolution/context";
+import { applyDamage, rollDamageParts } from "@/rules/fight/resolution/damage";
+import { rollToHit } from "@/rules/fight/resolution/attack";
 import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { StatBlockEntry } from "@/types/statBlock.types";
@@ -23,7 +21,7 @@ import type { RulesetKey } from "@/types/ruleset.types";
 /**
  * One attack by the played character, step by step, with no UI of its own (the page draws each step).
  *
- * The rules are `rules/fight/actionResolution` (`rollToHit`, `rollDamageParts`, `applyDamage`), the same ones the
+ * The rules are `rules/fight/resolution/` (`rollToHit` in attack.ts, `rollDamageParts` and `applyDamage` in damage.ts), the same ones the
  * server and the DM's runner use. What differs is where the dice come from: here they are the faces the player's
  * screen rolled or the player typed from real dice, never a prompt. The target's armour class and hit points are
  * read to decide the outcome and are never put in the state or in the lines that come back.
@@ -176,10 +174,12 @@ export function useSoloAttack(options: SoloAttackOptions) {
     const target = combatant(before.targetId);
     state.value = { step: "resolving" };
     try {
-      const ctx = context(async (ask) => ({
-        result: d20FromFaces(answer.faces, ask.mode ?? "normal", ask.modifier, ask.label),
-        byPerson: answer.atTable,
-      }));
+      // The player's faces answer the d20 only. Any other die this roll asks for (a boon's d4: PHB "Bless") is the app's to
+      // roll, since the player was asked for a d20 and nothing else.
+      const ctx = context(async (ask) =>
+        ask.counts[20] === undefined
+          ? { result: rollWithRules(dnd5eDiceRules, ask.counts, ask.modifier, NORMAL_ROLL, rollDie), byPerson: false }
+          : { result: d20FromFaces(answer.faces, ask.mode ?? "normal", ask.modifier, ask.label), byPerson: answer.atTable });
       // Without a map the distance is unknown: a melee attack is taken as made from next to the foe, a ranged one as not.
       const near = withinFiveFeet(attacker, target) ?? before.row.kind === "melee";
       const outcome = await rollToHit(ctx, { attacker, entry, target, withinFiveFeet: near, ...rangedFor(attacker, target, entry), dmMode: answer.mode, silent: true });

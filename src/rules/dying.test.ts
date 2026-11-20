@@ -162,11 +162,19 @@ describe("reviveOutcome and death save rolls", () => {
 
   // PHB 2014 "Dropping to 0 Hit Points"
   it("rolls follow the book", () => {
-    expect(deathSaveRollOutcome(fresh, [{ name: "Unconscious" }], 20)).toMatchObject({ current_hp: 1, conditions: [] });
-    expect(deathSaveRollOutcome(fresh, [], 1).saves.failures).toBe(2);
-    expect(deathSaveRollOutcome(fresh, [], 10).saves.successes).toBe(1);
-    expect(deathSaveRollOutcome(fresh, [], 9).saves.failures).toBe(1);
-    expect(deathSaveRollOutcome({ successes: 0, failures: 2 }, [], 1).saves.failures).toBe(3);
+    expect(deathSaveRollOutcome(fresh, [{ name: "Unconscious" }], 20, 0)).toMatchObject({ current_hp: 1, conditions: [] });
+    expect(deathSaveRollOutcome(fresh, [], 1, 0).saves.failures).toBe(2);
+    expect(deathSaveRollOutcome(fresh, [], 10, 0).saves.successes).toBe(1);
+    expect(deathSaveRollOutcome(fresh, [], 9, 0).saves.failures).toBe(1);
+    expect(deathSaveRollOutcome({ successes: 0, failures: 2 }, [], 1, 0).saves.failures).toBe(3);
+  });
+
+  // PHB "Bless": a death saving throw is a saving throw, so the d4 counts: 8 + 2 = 10 succeeds. The natural 1 and 20 are the d20's own:
+  // a 1 with +9 is still two failures. Bug caught: the bonus ignored, or added to the natural die so a 1 is rescued.
+  it("fails if a boon's bonus is not counted, or rescues a natural 1", () => {
+    expect(deathSaveRollOutcome(fresh, [], 8, 2).saves).toEqual({ successes: 1, failures: 0 });
+    expect(deathSaveRollOutcome(fresh, [], 8, 1).saves).toEqual({ successes: 0, failures: 1 });
+    expect(deathSaveRollOutcome(fresh, [], 1, 9).saves.failures).toBe(2);
   });
 });
 

@@ -125,8 +125,10 @@ export function useFightCommands(encounterId: Ref<string>, options: { onLost: ()
    * Asks the server to play one creature's turn and shows the fight it answers with, the token moved. It never ends
    * the turn. Throws when it cannot be done: a refusal (the server's sentence is the message) or no connection.
    */
-  async function takeTurn(instanceId: string): Promise<TurnRun> {
-    const answer = await lifecycle({ type: "take_turn", instanceId });
+  async function takeTurn(instanceId: string, playedMemberId?: string): Promise<TurnRun> {
+    // `playedMemberId`: the party member the person plays. Without it the server reports every player who may strike a
+    // departing foe; with it, every other party member strikes by the rules (#1021).
+    const answer = await lifecycle(playedMemberId === undefined ? { type: "take_turn", instanceId } : { type: "take_turn", instanceId, playedMemberId });
     let turn: TurnTaken | null = null;
     const outcomes: ResolvedAction[] = [];
     const provokedPlayer: TurnRun["provokedPlayer"] = [];

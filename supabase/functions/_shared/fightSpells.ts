@@ -6,13 +6,24 @@
 // turned into "no such spell".
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { withFlatHealing } from "../../../src/rules/fight/spells/healEntry.ts";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
 
 const LIBRARY_COLUMNS =
-  "id, name, level, range, ruleset, source, concentration, attack_type, save_attribute, save_effect, damage_rolls, healing_dice, aoe_shape, aoe_size, higher_level_damage, mechanics_reviewed, effects, condition_effect";
+  "id, name, level, range, ruleset, source, concentration, attack_type, save_attribute, save_effect, damage_rolls, healing_dice, aoe_shape, aoe_size, higher_level_damage, mechanics_reviewed, effects, condition_effect, casting_time, casting_time_custom";
 /** A campaign's own spell has no reviewed flag and no structured effects: its flat columns are all there is, and they are the DM's word (and its `condition_effect`, which the DM fills). */
 const CUSTOM_COLUMNS =
-  "id, name, level, range, ruleset, source, concentration, attack_type, save_attribute, save_effect, damage_rolls, healing_dice, aoe_shape, aoe_size, higher_level_damage, condition_effect";
+  "id, name, level, range, ruleset, source, concentration, attack_type, save_attribute, save_effect, damage_rolls, healing_dice, higher_level_healing, aoe_shape, aoe_size, higher_level_damage, condition_effect, casting_time, casting_time_custom";
+
+/**
+ * A campaign's own spell as the casting rules read it: marked `own`, and its flat healing columns (`healing_dice`,
+ * `higher_level_healing`) turned into the one structured healing effect (`withFlatHealing`), so a DM's own Cure Wounds heals like a
+ * library one. This is the one place a custom row is mapped, whichever loader read it.
+ */
+export function ownRecord(row: SpellRecord & { higher_level_healing?: string | null }): SpellRecord {
+  const { higher_level_healing: higher, ...record } = row;
+  return withFlatHealing({ ...record, own: true }, higher === undefined ? null : higher);
+}
 
 /** `ilike` reads % and _ as wildcards and \ as its escape: a name is matched literally, in any letter case. */
 export function literalPattern(name: string): string {
@@ -33,7 +44,7 @@ export async function loadSpellsNamed(admin: SupabaseClient, campaignId: string,
   if (custom.error) throw new Error(`spells: ${custom.error.message}`);
   const library = await admin.from("library_spells").select(LIBRARY_COLUMNS).ilike("name", pattern);
   if (library.error) throw new Error(`library_spells: ${library.error.message}`);
-  return [...(custom.data as unknown as SpellRecord[]).map((row): SpellRecord => ({ ...row, own: true })), ...(library.data as unknown as SpellRecord[])];
+  return [...(custom.data as unknown as (SpellRecord & { higher_level_healing: string | null })[]).map(ownRecord), ...(library.data as unknown as SpellRecord[])];
 }
 
 /**
@@ -64,5 +75,5 @@ export async function loadSpellsListed(admin: SupabaseClient, campaignId: string
   if (custom.error) throw new Error(`spells: ${custom.error.message}`);
   const library = await admin.from("library_spells").select(LIBRARY_COLUMNS).or(named);
   if (library.error) throw new Error(`library_spells: ${library.error.message}`);
-  return [...(custom.data as unknown as SpellRecord[]).map((row): SpellRecord => ({ ...row, own: true })), ...(library.data as unknown as SpellRecord[])];
+  return [...(custom.data as unknown as (SpellRecord & { higher_level_healing: string | null })[]).map(ownRecord), ...(library.data as unknown as SpellRecord[])];
 }

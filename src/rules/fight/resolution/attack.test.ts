@@ -1,0 +1,315 @@
+/**
+ * Resolving an attack: the roll to hit, the damage and what it shows, driven by scripted dice against the real fight
+ * engine. Every expected number is worked out in the comment above it from the rule it comes from, never read off a
+ * run. PHB 2014 means the 2014 Player's Handbook, SRD 5.2 the 2024 System Reference Document.
+ */
+import { describe, expect, it } from "vitest";
+import type { RunCombatant } from "@/types/encounter.types";
+import { emptyDefenses, type StatBlockEntry } from "@/types/statBlock.types";
+import { combatant } from "../fightTestKit";
+import type { Cover } from "../terrain/sight";
+import { resolveAttackOn } from "./attack";
+import { ActionRefused } from "./context";
+import { bite, scripted, table, victim, wolf } from "./resolutionTestKit";
+
+describe("resolveAttackOn: to hit and damage", () => {
+  // PHB 2014 "Making an Attack": the attack hits when the total equals or exceeds the target's AC. d20 9 + 4 = 13 against
+  // AC 13 hits; d20 8 + 4 = 12 misses. 1d6+2 with a 5 on the die deals 7, taken off 40 hit points.
+  it("a total equal to AC hits and takes exactly the rolled damage off; one short misses and rolls no damage", async () => {
+    const hit = scripted([[9], [5]]);
+    const t = table([wolf(), victim()], { dice: hit.dice });
+    const done = await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    expect(done.summary).toMatchObject({ natural: 9, total: 13, targetAc: 13, hit: true, critical: false, damageTotal: 7 });
+    expect(t.hp("victim")).toBe(33);
+
+    const miss = scripted([[8]]);
+    const t2 = table([wolf(), victim()], { dice: miss.dice });
+    const missed = await resolveAttackOn(t2.ctx, { attacker: t2.get("wolf"), entry: bite("1d6+2"), target: t2.get("victim"), withinFiveFeet: true });
+    expect(missed.summary).toMatchObject({ total: 12, hit: false, damageTotal: 0, damage: [] });
+    expect(miss.asks).toHaveLength(1);
+    expect(t2.hp("victim")).toBe(40);
+  });
+
+  // PHB 2014 "Critical Hits": a natural 20 hits whatever the AC and the damage dice are rolled twice, the modifier added
+  // once. 2d6+3 becomes 4d6+3: faces 6+5+4+3 = 18, plus 3 = 21, off 40 leaves 19. Doubling the modifier would leave 16.
+  it("a natural 20 hits whatever the armour and doubles the dice, not the modifier", async () => {
+    const s = scripted([[20], [6, 5, 4, 3]]);
+    const t = table([wolf(), victim({ ac: "30" })], { dice: s.dice });
+    const done = await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("2d6+3"), target: t.get("victim"), withinFiveFeet: true });
+    expect(done.summary).toMatchObject({ hit: true, critical: true, damageTotal: 21 });
+    expect(s.asks[1]).toMatchObject({ counts: { 6: 4 }, modifier: 3, isDamage: true });
+    expect(t.hp("victim")).toBe(19);
+  });
+
+  // PHB 2014 "Making an Attack": a natural 1 misses whatever the modifiers. 1 + 4 = 5 would beat AC 4, but it misses.
+  it("a natural 1 misses even when the total beats the armour", async () => {
+    const s = scripted([[1]]);
+    const t = table([wolf(), victim({ ac: "4" })], { dice: s.dice });
+    const done = await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6"), target: t.get("victim"), withinFiveFeet: true });
+    expect(done.summary).toMatchObject({ total: 5, hit: false, fumble: true });
+    expect(t.hp("victim")).toBe(40);
+  });
+
+  // PHB 2014 "Damage Resistance and Vulnerability": resistance halves the damage (rounded down), vulnerability doubles it,
+  // immunity takes none. A 7 piercing: resistant floor(7/2) = 3, vulnerable 14, immune 0.
+  it.each([
+    ["resistance", { resistances: [{ types: ["piercing" as const] }] }, 3, 37],
+    ["vulnerability", { vulnerabilities: [{ types: ["piercing" as const] }] }, 14, 26],
+    ["immunity", { immunities: [{ types: ["piercing" as const] }] }, 0, 40],
+  ])("the target's %s is applied to the damage before hit points are taken off", async (_name, defense, taken, left) => {
+    const s = scripted([[15], [5]]);
+    const t = table([wolf(), victim()], { dice: s.dice, defenses: { victim: { ...emptyDefenses(), ...defense } } });
+    const done = await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    expect(done.summary.damageTotal).toBe(taken);
+    expect(done.summary.damage[0]).toMatchObject({ rolled: 7, applied: taken });
+    expect(t.hp("victim")).toBe(left);
+    // An immune target loses nothing, so no hit-point command is issued at all.
+    expect(done.commands.some((c) => c.type === "adjust_hp")).toBe(taken > 0);
+  });
+
+  // PHB 2014 "Damage Resistance and Vulnerability": a 7 piercing halved is 3, doubled 14, negated 0. Each changed the amount,
+  // so the fight now shows the victim's defense; a creature with no defense shows nothing.
+  // Bug caught: a defense that changed damage is not remembered, or a plain hit records "takes it normally".
+  it.each([
+    ["resistance", { resistances: [{ types: ["piercing" as const] }] }, "resistant"],
+    ["vulnerability", { vulnerabilities: [{ types: ["piercing" as const] }] }, "vulnerable"],
+    ["immunity", { immunities: [{ types: ["piercing" as const] }] }, "immune"],
+  ])("a blow a %s changed shows the victim's defense to the fight", async (_name, defense, shown) => {
+    const s = scripted([[15], [5]]);
+    const t = table([wolf(), victim()], { dice: s.dice, defenses: { victim: { ...emptyDefenses(), ...defense } } });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("victim").shown_defenses).toEqual({ piercing: shown });
+    expect(t.get("wolf").shown_defenses).toBeUndefined();
+  });
+
+  // Bug caught: damage nothing changed teaches the fight something.
+  it("shows nothing when no defense changed the damage", async () => {
+    const s = scripted([[15], [5]]);
+    const t = table([wolf(), victim()], { dice: s.dice, defenses: { victim: { ...emptyDefenses(), resistances: [{ types: ["fire" as const] }] } } });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("victim").shown_defenses).toBeUndefined();
+  });
+
+  // 1d4-5 with a 2 is negative and deals nothing (app convention), so a piercing resistance changes nothing: 0 halved is 0.
+  // Bug caught: a defense that had no effect on a zero is recorded as a lesson.
+  it("shows nothing when the damage was already nothing", async () => {
+    const t = table([wolf(), victim()], { dice: scripted([[15], [2]]).dice, defenses: { victim: { ...emptyDefenses(), resistances: [{ types: ["piercing" as const] }] } } });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d4-5"), target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("victim").shown_defenses).toBeUndefined();
+  });
+
+  // A hit of slashing 5 plus fire 3 against fire resistance: the fire is halved, the slashing is not.
+  // Bug caught: every part of a mixed hit is recorded as resisted because one of them was.
+  it("records only the part a defense changed in a mixed hit", async () => {
+    const s = scripted([[15], [5], [3]]);
+    const t = table([wolf(), victim()], { dice: s.dice, defenses: { victim: { ...emptyDefenses(), resistances: [{ types: ["fire" as const] }] } } });
+    const mixed: StatBlockEntry = {
+      name: "Flaming Sword", description: "",
+      structured: { kind: "attack", source: "manual", attack: { delivery: "melee", bonus: 4, hit: [{ dice: "1d6", type: "slashing" }, { dice: "1d6", type: "fire" }] } },
+    };
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: mixed, target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("victim").shown_defenses).toEqual({ fire: "resistant" });
+  });
+
+  // Bug caught: a mundane blow's lesson is stored under the plain type for a magical one too, or the other way round.
+  // A mundane 7 piercing against "resistant unless magical" is halved and shows "piercing"; a magical one against plain
+  // resistance shows "piercing:magical", a different key a mundane lookup never reads.
+  it("keeps a mundane blow's lesson apart from a magical one's", async () => {
+    const nonmagical = { ...emptyDefenses(), resistances: [{ types: ["piercing" as const], unless: ["magical" as const] }] };
+    const mundane = table([wolf(), victim()], { dice: scripted([[15], [5]]).dice, defenses: { victim: nonmagical } });
+    await resolveAttackOn(mundane.ctx, { attacker: mundane.get("wolf"), entry: bite("1d6+2"), target: mundane.get("victim"), withinFiveFeet: true });
+    expect(mundane.get("victim").shown_defenses).toEqual({ piercing: "resistant" });
+
+    const magic = table([wolf(), victim()], { dice: scripted([[15], [5]]).dice, defenses: { victim: { ...emptyDefenses(), resistances: [{ types: ["piercing" as const] }] } } });
+    await resolveAttackOn(magic.ctx, { attacker: magic.get("wolf"), entry: bite("1d6+2"), target: magic.get("victim"), withinFiveFeet: true, magical: true });
+    expect(magic.get("victim").shown_defenses).toEqual({ "piercing:magical": "resistant" });
+  });
+
+  // PHB 2014 "Advantage and Disadvantage": advantage keeps the higher of two d20s. A Blinded target gives attackers
+  // advantage (appendix A "Blinded"): faces 4 and 15 keep 15, +4 = 19 beats AC 18 (the 4 alone would miss).
+  it("advantage from the target's condition keeps the higher of two d20s", async () => {
+    const s = scripted([[4, 15], [3]]);
+    const t = table([wolf(), victim({ ac: "18", conditions: [{ name: "Blinded" }] })], { dice: s.dice });
+    const done = await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6"), target: t.get("victim"), withinFiveFeet: true });
+    expect(s.asks[0].mode).toBe("advantage");
+    expect(done.summary).toMatchObject({ natural: 15, total: 19, hit: true, mode: "advantage" });
+  });
+
+  // PHB 2014 "Advantage and Disadvantage": advantage and disadvantage cancel, however many of each. A Blinded target
+  // (advantage) against a Poisoned attacker (disadvantage, appendix A "Poisoned") is a straight roll: one die, 10 + 4 = 14.
+  it("advantage and disadvantage cancel to one plain d20", async () => {
+    const s = scripted([[10], [3]]);
+    const t = table([combatant("wolf", { hp: 11, max_hp: 11, conditions: [{ name: "Poisoned" }] }), victim({ ac: "13", conditions: [{ name: "Blinded" }] })], {
+      dice: s.dice,
+    });
+    const done = await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6"), target: t.get("victim"), withinFiveFeet: true });
+    expect(s.asks[0].mode).toBe("normal");
+    expect(done.summary).toMatchObject({ natural: 10, total: 14, mode: "normal" });
+  });
+
+  // PHB 2014 appendix A "Paralyzed": an attack that hits is a critical hit if the attacker is within 5 feet. Paralyzed also
+  // gives advantage: faces 12 and 3 keep 12, 12 + 4 = 16 beats AC 10. The critical doubles 1d6+2 to 2d6+2: 4 + 3 = 7, +2 = 9.
+  // From beyond 5 feet it is a plain hit: 1d6+2 with a 4 deals 6.
+  it("a hit on a paralyzed target within five feet is a critical, and from farther away it is not", async () => {
+    const near = scripted([[12, 3], [4, 3]]);
+    const t = table([wolf(), victim({ ac: "10", conditions: [{ name: "Paralyzed" }] })], { dice: near.dice });
+    const crit = await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    expect(crit.summary).toMatchObject({ hit: true, critical: true, damageTotal: 9 });
+    expect(near.asks[1].counts).toEqual({ 6: 2 });
+
+    const far = scripted([[12, 3], [4]]);
+    const t2 = table([wolf(), victim({ ac: "10", conditions: [{ name: "Paralyzed" }] })], { dice: far.dice });
+    const plain = await resolveAttackOn(t2.ctx, { attacker: t2.get("wolf"), entry: bite("1d6+2"), target: t2.get("victim"), withinFiveFeet: false });
+    expect(plain.summary).toMatchObject({ hit: true, critical: false, damageTotal: 6 });
+  });
+
+  // App convention: a further penalty (a called shot) comes off the total as well as the roll's modifier. d20 17 + 4 - 5 = 16
+  // misses AC 17; without the penalty the 21 would hit.
+  it("a penalty on the roll to hit is counted in the total", async () => {
+    const s = scripted([[17]]);
+    const t = table([wolf(), victim({ ac: "17" })], { dice: s.dice });
+    const done = await resolveAttackOn(t.ctx, {
+      attacker: t.get("wolf"), entry: bite("1d6"), target: t.get("victim"), withinFiveFeet: true, extraPenalty: -5,
+    });
+    expect(s.asks[0].modifier).toBe(-1);
+    expect(done.summary).toMatchObject({ total: 16, hit: false });
+  });
+
+  // PHB 2014 ch. 9 "Ranged Attacks in Close Combat" and "Long Range": each is one disadvantage on a ranged roll. The two
+  // facts reach the roll through the attack input; two disadvantages are still one, so the roll takes the lower of two d20s.
+  // Bug: a ranged attack never got either disadvantage in resolution; one flag stood for "5 ft from the target" only.
+  it("a ranged attack with a hostile beside the attacker, or at long range, rolls with disadvantage; with neither it is straight", async () => {
+    const bow: StatBlockEntry = {
+      name: "Shortbow", description: "",
+      structured: { kind: "attack", source: "manual", attack: { delivery: "ranged", bonus: 4, range: { normal: 80, long: 320 }, hit: [{ dice: "1d6", type: "piercing" }] } },
+    };
+    // A straight roll takes one face, a roll with disadvantage two: the script gives the faces each case needs.
+    const modeOf = async (facts: { hostileWithinFiveFeetOfAttacker?: boolean; longRange?: boolean }, faces: number[]) => {
+      const s = scripted([faces, [3]]);
+      const t = table([wolf(), victim()], { dice: s.dice });
+      await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bow, target: t.get("victim"), withinFiveFeet: false, ...facts });
+      return s.asks[0].mode ?? "normal";
+    };
+    expect(await modeOf({}, [9])).toBe("normal");
+    expect(await modeOf({ hostileWithinFiveFeetOfAttacker: true }, [9, 15])).toBe("disadvantage");
+    expect(await modeOf({ longRange: true }, [9, 15])).toBe("disadvantage");
+  });
+
+  it("refuses a target whose armour class has no number, instead of guessing a hit", async () => {
+    const t = table([wolf(), victim({ ac: "see sheet" })], { dice: scripted([[15]]).dice });
+    await expect(
+      resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6"), target: t.get("victim"), withinFiveFeet: true }),
+    ).rejects.toBeInstanceOf(ActionRefused);
+  });
+
+  it("resolves the save a hit forces on the creature that was hit, after the damage", async () => {
+    const ghoul: StatBlockEntry = {
+      name: "Claws",
+      description: "",
+      structured: {
+        kind: "attack", source: "manual",
+        attack: { delivery: "melee", bonus: 4, hit: [{ dice: "2d4+2", type: "slashing" }] },
+        save: { ability: "con", dc: 10, fail: [], success: "none", conditions: [{ name: "Paralyzed" }] },
+      },
+    };
+    // d20 15 hits AC 13; 2d4+2 with 3 + 2 deals 7. The victim's Con save: d20 4 + 0 = 4 < DC 10, so it is Paralyzed.
+    const s = scripted([[15], [3, 2], [4]]);
+    const t = table([wolf(), victim()], { dice: s.dice, bonus: { victim: 0 } });
+    const done = await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: ghoul, target: t.get("victim"), withinFiveFeet: true });
+    expect(t.hp("victim")).toBe(33);
+    expect(done.summary.save).toMatchObject({ success: false, conditionsApplied: ["Paralyzed"] });
+    expect(t.get("victim").conditions.map((c) => c.name)).toEqual(["Paralyzed"]);
+  });
+});
+
+
+// PHB 2014 ch. 9 "Cover": half cover +2 to AC and Dexterity saves, three-quarters +5, total cannot be targeted directly.
+describe("cover on the server's attacks", () => {
+  const attackWith = async (cover: Cover | undefined, faces: number[][], targetOver: Partial<RunCombatant> = {}) => {
+    const s = scripted(faces);
+    const t = table([wolf(), victim(targetOver)], { dice: s.dice, cover: cover === undefined ? undefined : { victim: cover } });
+    const done = await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    return { done, t, s };
+  };
+
+  // Wolf +4, d20 11: total 15. AC 13 plus half cover +2 is 15, and 15 meets 15, so it hits (boundary). With d20 10 the total
+  // is 14: it would hit AC 13 and misses AC 15. Cover that was dropped would leave "targetAc: 13" and the 14 a hit.
+  it("fails if half cover does not add 2 to the armour class, on both sides of the new number", async () => {
+    const hit = await attackWith("half", [[11], [5]]);
+    expect(hit.done.summary).toMatchObject({ total: 15, targetAc: 15, cover: "half", coverAc: 2, hit: true, damageTotal: 7 });
+    const miss = await attackWith("half", [[10]]);
+    expect(miss.done.summary).toMatchObject({ total: 14, targetAc: 15, cover: "half", coverAc: 2, hit: false, damageTotal: 0 });
+    expect(miss.t.hp("victim")).toBe(40);
+  });
+
+  // Same wolf: AC 13 + 5 = 18. d20 14 totals 18 and hits; d20 13 totals 17 and misses (it would be a hit against 15, half cover's AC).
+  it("fails if three-quarters cover adds 2 instead of 5, on both sides of the new number", async () => {
+    const hit = await attackWith("three_quarters", [[14], [5]]);
+    expect(hit.done.summary).toMatchObject({ total: 18, targetAc: 18, cover: "three_quarters", coverAc: 5, hit: true });
+    const miss = await attackWith("three_quarters", [[13]]);
+    expect(miss.done.summary).toMatchObject({ total: 17, targetAc: 18, coverAc: 5, hit: false });
+  });
+
+  // No cover, or an unknown one, leaves AC 13: d20 9 + 4 = 13 hits, and the summary says what was known.
+  it("fails if 'none' or an unknown cover changes the armour class", async () => {
+    const none = await attackWith("none", [[9], [5]]);
+    expect(none.done.summary).toMatchObject({ targetAc: 13, cover: "none", coverAc: 0, hit: true });
+    const unknown = await attackWith(undefined, [[9], [5]]);
+    expect(unknown.done.summary).toMatchObject({ targetAc: 13, cover: null, coverAc: 0, hit: true });
+    const notKnown = table([wolf(), victim()], { dice: scripted([[9], [5]]).dice, cover: {} });
+    const done = await resolveAttackOn(notKnown.ctx, { attacker: notKnown.get("wolf"), entry: bite("1d6+2"), target: notKnown.get("victim"), withinFiveFeet: true });
+    expect(done.summary).toMatchObject({ targetAc: 13, cover: null, coverAc: 0 });
+  });
+
+  // PHB 2014 ch. 9: total cover cannot be targeted directly. Refused naming both, before any die is thrown (the script holds none).
+  it("fails if an attack on a target with total cover rolls a die or hurts it", async () => {
+    const s = scripted([]);
+    const t = table([wolf(), victim()], { dice: s.dice, cover: { victim: "total" } });
+    await expect(
+      resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true }),
+    ).rejects.toThrow(/victim has total cover from wolf/);
+    expect(s.asks).toHaveLength(0);
+    expect(t.hp("victim")).toBe(40);
+  });
+});
+
+describe("what an attack shows of its maker (#1021)", () => {
+  // d20 9 + 4 = 13 hits AC 13; 1d6+2 with a 5 on the die deals 7.
+  // Bug caught: the delivery is not recorded, or recorded for hits only so a miss teaches nothing.
+  it("records a melee attack, and the damage dealt, on the attacker", async () => {
+    const t = table([wolf(), victim()], { dice: scripted([[9], [5]]).dice });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("wolf").shown_deeds).toEqual({ dealt: 7, turns: 0, cast: 0, ranged: 0, melee: 1 });
+    expect(t.get("victim").shown_deeds).toBeUndefined();
+  });
+
+  // d20 8 + 4 = 12 misses AC 13: the swing was seen, nothing was dealt.
+  it("records a missed attack's delivery and no damage", async () => {
+    const t = table([wolf(), victim()], { dice: scripted([[8]]).dice });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("wolf").shown_deeds).toEqual({ dealt: 0, turns: 0, cast: 0, ranged: 0, melee: 1 });
+  });
+
+  // A ranged entry counts as ranged. Bug caught: every attack is counted as melee, so no creature is ever seen as an archer.
+  it("records a ranged attack as ranged", async () => {
+    const bow: StatBlockEntry = { name: "Shortbow", description: "", structured: { kind: "attack", source: "manual", attack: { delivery: "ranged", bonus: 4, hit: [{ dice: "1d6+2", type: "piercing" }] } } };
+    const t = table([wolf(), victim()], { dice: scripted([[9], [5]]).dice });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bow, target: t.get("victim"), withinFiveFeet: false });
+    expect(t.get("wolf").shown_deeds).toMatchObject({ ranged: 1, melee: 0, dealt: 7 });
+  });
+
+  // 7 piercing against resistance is 3 (halved, rounded down): the fight saw 3 dealt, not the 7 rolled.
+  // Bug caught: the damage rolled is recorded instead of what landed, so a resisted creature looks as dangerous as it would be unresisted.
+  it("records the damage that landed after a resistance, not the damage rolled", async () => {
+    const t = table([wolf(), victim()], { dice: scripted([[9], [5]]).dice, defenses: { victim: { ...emptyDefenses(), resistances: [{ types: ["piercing" as const] }] } } });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("wolf").shown_deeds?.dealt).toBe(3);
+  });
+
+  // Bug caught: an immune target teaches the fight a creature dealt damage, so it is feared for blows that did nothing.
+  it("records no damage when an immunity took all of it", async () => {
+    const t = table([wolf(), victim()], { dice: scripted([[9], [5]]).dice, defenses: { victim: { ...emptyDefenses(), immunities: [{ types: ["piercing" as const] }] } } });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("wolf").shown_deeds).toMatchObject({ dealt: 0, melee: 1 });
+  });
+});

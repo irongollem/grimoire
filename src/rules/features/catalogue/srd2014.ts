@@ -1,8 +1,8 @@
 import type {
   FeatureChoice,
   FeatureMechanics,
-} from "@/rules/features/mechanics.types";
-import type { FeatCatalogue, FeatureCatalogue } from "./types";
+} from "../mechanics.types.ts";
+import type { FeatCatalogue, FeatureCatalogue } from "./types.ts";
 
 /**
  * SRD 5.1 (2014): mechanics of the class and subclass features, by Open5e

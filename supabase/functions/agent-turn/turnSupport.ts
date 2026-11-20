@@ -14,7 +14,7 @@ import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTableProm
 import { NO_QUESTS, pressureIsSpent, pressureTick, questsSection, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
 import type { CallModel } from "../_shared/agent/types.ts";
 import type { CreditLogFields } from "../_shared/credits.ts";
-import type { AgentTurnDeps, CampaignRow, SessionRow } from "./handler.ts";
+import type { AgentTurnDeps, CampaignRow, SessionRow } from "./turnTypes.ts";
 
 // The session's credits hold six decimals; accruing at the same precision keeps what is sent equal to what is stored.
 export function round6(n: number): number {

@@ -13,7 +13,8 @@
  * Pure: no Vue, no network, no clock. The store holds one of these and the transport composable
  * (`useFightCommands`) moves batches over the wire; both only call the functions below.
  */
-import { applyFightCommand, type FightCommand } from "@/rules/fight/fightCommands";
+import type { FightCommand } from "@/rules/fight/fightCommands";
+import { applyWithRageUpkeep } from "@/rules/fight/allies/rageUpkeep";
 import type { FightDeps } from "@/rules/fight/fightEvents";
 import { startedFromRound, type FightEffect, type FightState } from "@/rules/fight/fightState";
 
@@ -99,7 +100,7 @@ export function queueCommand(sync: FightSync, current: FightState, command: Figh
       return 1;
     },
   };
-  const result = applyFightCommand(current, command, probing);
+  const result = applyWithRageUpkeep(current, command, probing);
   const spawned = result.effects.some((e) => e.type === "spawned");
   if (asked || spawned) {
     const batch: PendingBatch = { id: newId(), kind: "server", commands: [command], sealed: false, folded: false, surfaced: [] };
@@ -123,7 +124,7 @@ export function replay(sync: FightSync, frame: FightFrame, deps: FightDeps): Fig
   let state = stateOf(sync.confirmed, frame);
   for (const batch of sync.pending) {
     if (batch.kind !== "optimistic" || batch.folded) continue;
-    for (const command of batch.commands) state = applyFightCommand(state, command, deps).state;
+    for (const command of batch.commands) state = applyWithRageUpkeep(state, command, deps).state;
   }
   return state;
 }

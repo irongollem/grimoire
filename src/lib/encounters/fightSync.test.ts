@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { EncounterEvent } from "@/types/encounter.types";
 import type { FightCommand } from "@/rules/fight/fightCommands";
-import type { FightEffect } from "@/rules/fight/fightState";
+import type { FightEffect, FightState } from "@/rules/fight/fightState";
+import { RAGING, ragingCondition } from "@/rules/fight/allies/features";
 import { combatant, deps, fight } from "@/rules/fight/fightTestKit";
 import {
   MAX_BATCH_COMMANDS,
@@ -231,5 +232,29 @@ describe("effects shown once", () => {
   it("fails if two equal effects are both cancelled by one shown", () => {
     const batch = { id: "b", kind: "optimistic" as const, commands: [], sealed: true, folded: false, surfaced: [check] };
     expect(unseenEffects(batch, [check, check])).toEqual([check]);
+  });
+});
+
+describe("a Rage the server keeps, shown before it answers (#1021)", () => {
+  // PHB 2014 "Rage": it ends when the Barbarian's turn ends and it has neither attacked nor taken damage since its last turn. The server
+  // judges it on every command; the screen applies the same rule so it does not keep showing a Rage the server has ended.
+  const raging = (): ConfirmedFight => {
+    const state = fight([
+      combatant("tam", { type: "player", party_member_id: "pm-tam", initiative: 15, hp: 30, max_hp: 30, conditions: [ragingCondition("tam", "2014")] }),
+      combatant("ogre", { initiative: 5 }),
+    ]);
+    return { combatants: state.combatants, round: state.round, activeIndex: state.activeIndex, eventsFired: state.eventsFired, lairFiredRounds: state.lairFiredRounds, version: 1 };
+  };
+  const ragingNow = (state: FightState | null) => state?.combatants.find((c) => c.instance_id === "tam")?.conditions.some((c) => c.name === RAGING);
+
+  // Bug caught: the browser's apply of `next_turn` skips the rule, so a Rage the server ends stays on the DM's screen.
+  it("fails if ending a turn with no attack and no damage does not show the Rage gone", () => {
+    expect(ragingNow(make(startSync(raging()), { type: "next_turn" }).shown)).toBe(false);
+  });
+
+  // Damage taken keeps it going (the same rule's other half), so the screen must not take it off.
+  it("fails if a Rage kept going by damage taken is shown gone when the turn ends", () => {
+    const hurt = make(startSync(raging()), { type: "adjust_hp", instanceId: "tam", delta: -4 });
+    expect(ragingNow(make(hurt.sync, { type: "next_turn" }).shown)).toBe(true);
   });
 });

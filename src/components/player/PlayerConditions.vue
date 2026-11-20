@@ -113,6 +113,7 @@ import ExhaustionChip from "@/components/common/statblock/ExhaustionChip.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { deathSaveRollOutcome, dyingStatus } from "@/rules/dying";
+import { boonDice } from "@/rules/fight/boons";
 
 const props = defineProps<{ member: PartyMember }>();
 const emit = defineEmits<{ roll: [result: { label: string; dice: number; modifier: number; total: number }] }>();
@@ -157,10 +158,20 @@ async function rollDeathSave() {
   const r = await promptRoll({ counts: { 20: 1 }, modifier: 0, label: "Death Save", silent: true });
   if (!r) return;
   const d = r.breakdown.find(b => !b.dropped)!.val;
+  // PHB "Bless": a death save is a saving throw, so each boon the sheet carries adds its die, which the player rolls as they rolled the
+  // d20. A natural 1 or 20 decides on the d20 alone, so then nothing more is asked.
+  let bonus = 0;
+  if (d !== 1 && d !== 20) {
+    for (const die of boonDice(props.member.conditions, "save")) {
+      const extra = await promptRoll({ counts: die.counts, modifier: 0, label: `${die.name} (death save)`, silent: true });
+      if (extra) bonus += die.sign * extra.total + die.flat;
+    }
+  }
   const rolled = deathSaveRollOutcome(
     { successes: props.member.death_save_successes, failures: props.member.death_save_failures },
     props.member.conditions,
     d,
+    bonus,
   );
   const outcome = rolled.label;
   const update: PartyMemberUpdate = {
