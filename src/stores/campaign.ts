@@ -49,13 +49,19 @@ export const useCampaignStore = defineStore("campaign", () => {
   // The owner's stored keys as ciphertext (#1228), for the AI tab to tell a
   // stored key from none. Null for anyone but the owner, and until it loads.
   const storedKeys = ref<CampaignApiKeys | null>(null);
-  // Keys that arrived with a campaign read (useCampaignById embeds them), kept
-  // for the next load of that campaign so it needs no request of its own. Used
-  // once: a later load reads afresh.
-  const primedKeys = new Map<string, { keys: CampaignApiKeys | null }>();
-  function primeStoredKeys(campaignId: string, keys: CampaignApiKeys | null) {
-    primedKeys.set(campaignId, { keys });
+  // Keys on their way from a campaign read (useCampaignById embeds them) or
+  // from the AI tab's save. The next load of that campaign takes them instead
+  // of a request of its own, which is what keeps the DM boot to its request
+  // budget: a warm boot shows the cached row first and the refetch that
+  // follows is the one carrying the keys. Each is used once.
+  const keysOnTheWay = new Map<string, Promise<CampaignApiKeys | null>>();
+  function keysArriving(campaignId: string, keys: Promise<CampaignApiKeys | null>) {
+    keysOnTheWay.set(campaignId, keys);
   }
+  // Whose keys are loaded, and in which storage mode: a campaign row that is
+  // merely updated (the weather, the group portrait) reloads the same campaign,
+  // and its keys have not changed.
+  let keysLoadedFor: { campaignId: string; localMode: boolean } | null = null;
 
   // Decryptions in flight for the current load. Until they settle the refs
   // above are empty, so whether the campaign pays with its own key is not known
@@ -216,9 +222,12 @@ export const useCampaignStore = defineStore("campaign", () => {
   // a co-DM or a player has none to load and generates on platform credits;
   // their generations still run server-side on the owner's key.
   function loadProviderKeys(campaign: Campaign) {
+    const localMode = localKeyModeChosen();
+    const sameKeys = keysLoadedFor?.campaignId === campaign.id && keysLoadedFor.localMode === localMode;
+    if (sameKeys && !keysOnTheWay.has(campaign.id)) return;
+    keysLoadedFor = { campaignId: campaign.id, localMode };
     newKeysGeneration();
     storedKeys.value = null;
-    const localMode = localKeyModeChosen();
     for (const [provider, localKey] of Object.entries(LOCAL_KEYS)) {
       const ref_ = providerKeyRefs[provider];
       if (!ref_) continue;
@@ -228,8 +237,6 @@ export const useCampaignStore = defineStore("campaign", () => {
     }
 
     const ownerId = useAuthStore().user?.id;
-    const primed = primedKeys.get(campaign.id);
-    primedKeys.delete(campaign.id);
     if (ownerId === undefined || campaign.user_id !== ownerId) return;
 
     const land = (stored: CampaignApiKeys | null) => {
@@ -242,12 +249,15 @@ export const useCampaignStore = defineStore("campaign", () => {
         trackKey(decryptApiKey(encrypted), (key) => { ref_.value = key; }, () => { ref_.value = ""; });
       }
     };
-    if (primed) {
-      land(primed.keys);
-      return;
-    }
+    // One task's grace, so a campaign read that has only just started can say
+    // its keys are coming; otherwise they are read on their own.
+    const keys = new Promise<void>((resolve) => setTimeout(resolve, 0)).then(() => {
+      const arriving = keysOnTheWay.get(campaign.id);
+      keysOnTheWay.delete(campaign.id);
+      return arriving === undefined ? fetchCampaignApiKeys(campaign.id, ownerId) : arriving;
+    });
     trackKey(
-      fetchCampaignApiKeys(campaign.id, ownerId),
+      keys,
       land,
       (error) => reportHandledError(error, "campaign.loadProviderKeys"),
     );
@@ -309,6 +319,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     activeCampaignId.value      = null;
     activeCampaign.value        = null;
     newKeysGeneration();
+    keysLoadedFor               = null;
     storedKeys.value            = null;
     decryptedOpenAiKey.value    = "";
     decryptedAnthropicKey.value = "";
@@ -415,7 +426,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     decryptedAnthropicKey,
     decryptedGeminiKey,
     storedKeys,
-    primeStoredKeys,
+    keysArriving,
     providerKeysLoading,
     switchToCampaign,
     clearActiveCampaign,

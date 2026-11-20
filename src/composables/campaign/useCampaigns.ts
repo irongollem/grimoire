@@ -329,17 +329,27 @@ export function usePlayerCampaigns() {
 
 /** Fetch a single campaign by ID — usable by players after campaigns_member_select RLS is in place */
 async function fetchCampaignById(id: string): Promise<Campaign> {
+  // The owner's keys ride along so loading the campaign costs one request, not
+  // two (#1228). They go to the store, never onto the row: the row is shared
+  // with every reader of this cache entry. The store hears they are coming
+  // before the request goes, so a load that starts meanwhile waits for them.
+  let deliver: (keys: CampaignApiKeys | null) => void = () => {};
+  let fail: (error: unknown) => void = () => {};
+  const keys = new Promise<CampaignApiKeys | null>((resolve, reject) => { deliver = resolve; fail = reject; });
+  keys.catch(() => { /* reported by the query; a load that takes the keys reports its own */ });
+  useCampaignStore().keysArriving(id, keys);
+
   const { data, error } = await supabase
     .from("campaigns")
     .select(`*, ${CAMPAIGN_API_KEYS_EMBED}`)
     .eq("id", id)
     .single();
-  if (error) throw error;
-  // The owner's keys ride along so loading the campaign costs one request, not
-  // two (#1228). They go to the store, never onto the row: the row is shared
-  // with every reader of this cache entry.
-  const { campaign_api_keys: keys, ...campaign } = data as Campaign & { campaign_api_keys: CampaignApiKeys | null };
-  useCampaignStore().primeStoredKeys(id, keys);
+  if (error) {
+    fail(error);
+    throw error;
+  }
+  const { campaign_api_keys: embedded, ...campaign } = data as Campaign & { campaign_api_keys: CampaignApiKeys | null };
+  deliver(embedded);
   return campaign as Campaign;
 }
 

@@ -533,7 +533,7 @@ async function save() {
     }
     // What was just saved is what the reload below should use: no read back,
     // and never an older copy a campaign read primed before this save.
-    campaign.primeStoredKeys(campaign.activeCampaignId, encryptedKeys);
+    campaign.keysArriving(campaign.activeCampaignId, Promise.resolve(encryptedKeys));
     const updated = await updateCampaign({
       id: campaign.activeCampaignId,
       update: {

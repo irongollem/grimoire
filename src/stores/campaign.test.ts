@@ -406,20 +406,36 @@ describe("provider keys — a decryption lands only in the load that started it"
     expect(fetchCampaignApiKeys).toHaveBeenCalledWith("a", "owner");
   });
 
-  // The boot read embeds the keys (useCampaignById), so loading the campaign
-  // it fetched must not spend a second request on them: the DM boot journeys
-  // hold the request count to a budget.
-  it("uses keys that arrived with the campaign read once, then reads afresh", async () => {
+  // The campaign read embeds the keys (useCampaignById) and says so before its
+  // request goes, so a load meanwhile must not spend a request of its own: the
+  // DM boot journeys hold the request count to a budget.
+  it("takes the keys a campaign read is bringing instead of reading them itself", async () => {
     serveKeys();
-    decryptApiKey.mockResolvedValue("sk-primed");
+    decryptApiKey.mockResolvedValue("sk-arriving");
     const store = useCampaignStore();
-    store.primeStoredKeys("a", { openai_api_key: "enc:v1:primed", anthropic_api_key: null, gemini_api_key: null });
+    let deliver: (keys: { openai_api_key: string; anthropic_api_key: null; gemini_api_key: null }) => void = () => {};
+    store.keysArriving("a", new Promise((resolve) => { deliver = resolve; }));
     store.switchToCampaign(campaignWith("a", "enc:v1:a"));
-    await vi.waitFor(() => expect(store.decryptedOpenAiKey).toBe("sk-primed"));
+    deliver({ openai_api_key: "enc:v1:arriving", anthropic_api_key: null, gemini_api_key: null });
+    await vi.waitFor(() => expect(store.decryptedOpenAiKey).toBe("sk-arriving"));
     expect(fetchCampaignApiKeys).not.toHaveBeenCalled();
+  });
+
+  it("keeps a campaign's keys when its row is merely updated, and takes new ones when they are saved", async () => {
+    serveKeys();
+    decryptApiKey.mockImplementation(async (blob: string) => blob.replace("enc:v1:", "sk-"));
+    const store = useCampaignStore();
+    store.switchToCampaign(campaignWith("a", "enc:v1:a"));
+    await vi.waitFor(() => expect(store.decryptedOpenAiKey).toBe("sk-a"));
 
     store.switchToCampaign(campaignWith("a", "enc:v1:a"));
-    await vi.waitFor(() => expect(fetchCampaignApiKeys).toHaveBeenCalledTimes(1));
+    expect(store.providerKeysLoading).toBe(false);
+    expect(store.decryptedOpenAiKey).toBe("sk-a");
+
+    store.keysArriving("a", Promise.resolve({ openai_api_key: "enc:v1:saved", anthropic_api_key: null, gemini_api_key: null }));
+    store.switchToCampaign(campaignWith("a", "enc:v1:a"));
+    await vi.waitFor(() => expect(store.decryptedOpenAiKey).toBe("sk-saved"));
+    expect(fetchCampaignApiKeys).toHaveBeenCalledTimes(1);
   });
 
   // The keys are the owner's alone (#1228): a co-DM must not even ask for them.
