@@ -46,6 +46,10 @@ import { spellEntryFor } from "../../../src/rules/fight/spells/spellEntry.ts";
 import { CONDITIONS } from "../../../src/rules/conditions.ts";
 import { boonEntryFor, isBoonSpell, reactionBoonFor, type BoonPlan } from "../../../src/rules/fight/spells/boonEntry.ts";
 import { reactionCastPlan, reactionTurnsHit, reactsByRules } from "../../../src/rules/fight/spells/reactionCast.ts";
+import { counterEntryFor } from "../../../src/rules/fight/spells/counterEntry.ts";
+import { isHostileTo } from "../../../src/rules/fight/sides.ts";
+import { saveRollMode } from "../../../src/rules/combat/savingThrow.ts";
+import { getExhaustionD20Penalty } from "../../../src/rules/conditions.ts";
 import { cannotReactWhileSurprised } from "../../../src/rules/initiative.ts";
 import { isIncapacitated } from "../../../src/rules/fight/stances.ts";
 import { castSlotOf, healEntryFor, isHealingSpell, type HealPlan } from "../../../src/rules/fight/spells/healEntry.ts";
@@ -55,7 +59,7 @@ import { limitAvailability } from "../../../src/rules/encounterTurn.ts";
 import { combatantFootprint } from "../../../src/lib/battlemap/tokenFootprint.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
-import { coverBetween, type Box, type Cover } from "../../../src/rules/fight/terrain/sight.ts";
+import { coverBetween, distanceFeet, type Box, type Cover } from "../../../src/rules/fight/terrain/sight.ts";
 import { isOnBoard } from "../../../src/rules/fight/terrain/options/scene.ts";
 import type { AllySpend } from "../../../src/rules/fight/pcAttacks/gear.ts";
 import { FightCommandError } from "./commandError.ts";
@@ -524,6 +528,12 @@ function ragingDefenses(c: RunCombatant, defenses: ReturnType<typeof combatantDe
 export async function applyResolvingCommand(state: FightState, command: ResolvingCommand, env: ResolveEnv): Promise<FightResult> {
   const holder = { state };
   const collected: FightEffect[] = [];
+  /** Puts one command into the fight as it stands and keeps what it raised. */
+  const step = (command: Parameters<typeof applyFightCommand>[1]) => {
+    const result = applyFightCommand(holder.state, command, env.fightDeps);
+    holder.state = result.state;
+    collected.push(...result.effects);
+  };
   const ctx: ResolutionContext = {
     ruleset: state.ruleset,
     dice: makeDice(env.rollDie, supplyFor(command), env.posted),
@@ -566,11 +576,6 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     const boon = reactionBoonFor(chosen.record, plan.castLevel);
     const bonus = boon === null ? undefined : boon.grants.ac;
     if (boon === null || bonus === undefined || !reactionTurnsHit(roll, bonus)) return null;
-    const step = (command: Parameters<typeof applyFightCommand>[1]) => {
-      const result = applyFightCommand(holder.state, command, env.fightDeps);
-      holder.state = result.state;
-      collected.push(...result.effects);
-    };
     step({ type: "set_reaction_used", instanceId: me.instance_id, used: true });
     if (plan.useKey !== null && plan.limit !== null) step({ type: "use_action", instanceId: me.instance_id, action: plan.useKey, limit: plan.limit });
     step({ type: "show_deed", instanceId: me.instance_id, deed: { cast: 1 } });
@@ -580,24 +585,134 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
       instanceId: me.instance_id,
       condition: { name: chosen.record.name, grants: boon.grants, source: { id: me.instance_id, spell: chosen.record.name }, ends: { kind: "turn", at: "start", of: "self" } },
     });
-    // An ally's slot or daily use is the sheet's: written once the fight is saved, as a cast in its own turn is.
-    if (me.type === "player" && me.party_member_id !== undefined) {
-      const memberId = me.party_member_id;
-      if (plan.how === "slots") {
-        const slots = allySlotSpend(env.players, memberId, plan.castLevel, slotPoolFor(env.players, memberId, "Shield"));
-        if (slots !== null) {
-          env.slotsSpent.push({ memberId, slots });
-          settleSlotSpend(env.players, memberId, slots);
-        }
-      } else if (plan.how === "per_day") {
-        const spend = allyInnateSpend(env.players, memberId, "Shield");
-        if (spend !== null) {
-          env.innateSpent.push(spend);
-          settleInnateSpend(env.players, spend);
-        }
+    spendAlliesCast(me, plan, "Shield");
+    return { spell: chosen.record.name, armorClass: roll.armorClass + bonus };
+  };
+
+  /** An ally's slot or daily use is the sheet's: written once the fight is saved, as a cast in its own turn is. Nothing for a creature with no sheet. */
+  const spendAlliesCast = (me: RunCombatant, plan: { castLevel: number; how: "slots" | "per_day" | "at_will" | "cantrips" }, spell: string): void => {
+    if (me.type !== "player" || me.party_member_id === undefined) return;
+    const memberId = me.party_member_id;
+    if (plan.how === "slots") {
+      const slots = allySlotSpend(env.players, memberId, plan.castLevel, slotPoolFor(env.players, memberId, spell));
+      if (slots !== null) {
+        env.slotsSpent.push({ memberId, slots });
+        settleSlotSpend(env.players, memberId, slots);
+      }
+    } else if (plan.how === "per_day") {
+      const spend = allyInnateSpend(env.players, memberId, spell);
+      if (spend !== null) {
+        env.innateSpent.push(spend);
+        settleInnateSpend(env.players, spend);
       }
     }
-    return { spell: chosen.record.name, armorClass: roll.armorClass + bonus };
+  };
+
+  /**
+   * RULE counterspell (PHB 2014 "Counterspell": a Reaction taken "when you see a creature within 60 feet of you casting a spell"; "If the
+   * creature is casting a spell of 3rd level or lower, the spell fails and has no effect. If it is casting a spell of 4th level or higher,
+   * make an ability check using your spellcasting ability. The DC equals 10 + the spell's level. On a success, the spell fails"; "At Higher
+   * Levels": cast with a slot of 4th level or higher, the spell fails automatically if its level is no higher than the slot's. PHB 2024
+   * "Counterspell": "The creature makes a Constitution saving throw. On a failed save, the spell dissipates with no effect, and the action,
+   * Bonus Action, or Reaction used to cast it is wasted. If that spell was cast with a spell slot, the slot isn't expended.")
+   * Who may: a creature the rules play that is hostile to the caster, standing, not Incapacitated or (2014) surprised, with its Reaction,
+   * listing the spell with a slot or use, within the record's reach of the caster and seeing it (a map's walls; with no map sight is not
+   * checked, with no positions the creature does not counter). The nearest such creature counters, ties by the fight's initiative order.
+   * APP CONVENTION: only a leveled spell (a cantrip is never worth the slot) and only a spell a hostile casts. The counterer's own spell
+   * is cast here and not through `castSpell`, so it cannot itself be countered (no counter of a counter in this story).
+   * 2014 casts at the lowest slot no lower than the spell when it has one (no check), else at 3rd level with the check; 2024 at the lowest
+   * slot of 3rd level or higher. The counterer's Reaction, slot and deed are spent whether or not the spell stops. Null: not countered.
+   */
+  const counterReaction = async (caster: RunCombatant, castLevel: number): Promise<{
+    counterId: string; counterSpell: string; check?: { total: number; dc: number }; save?: { total: number; dc: number }; stopped: boolean;
+  } | null> => {
+    if (castLevel <= 0) return null;
+    const live = holder.state.combatants;
+    const from = boxOf(caster);
+    const candidates = live.filter((c) => {
+      if (c.instance_id === caster.instance_id || !isHostileTo(c, caster, env.factions)) return false;
+      if (!reactsByRules(c, env.playedMemberId)) return false;
+      if (c.hp <= 0 || isIncapacitated(c.conditions) || c.reactionUsed === true || cannotReactWhileSurprised(c, state.ruleset)) return false;
+      const block = statBlockOf(c, env.sources);
+      return block !== null && castableBy(block, "Counterspell") !== null;
+    });
+    if (candidates.length === 0 || from === null) return null;
+    const chosen = pickSpellRecord("Counterspell", await env.spells("Counterspell"), state.ruleset);
+    if (chosen === null || !chosen.automatable) return null;
+    const counter = counterEntryFor(chosen.record);
+    if (counter === null) return null;
+    const turnOrder = (c: RunCombatant): number => live.indexOf(c);
+    const initiativeOf = (c: RunCombatant): number => (c.initiative === null || c.initiative === undefined ? Number.NEGATIVE_INFINITY : c.initiative);
+    const reached = candidates.flatMap((c) => {
+      const at = boxOf(c);
+      if (at === null) return [];
+      const feet = distanceFeet(at, from);
+      if (feet > counter.rangeFeet) return [];
+      // Sight: only a wall, a shut door or rock stops it (total cover); other creatures never do.
+      if (env.map !== null && coverBetween(at, from, env.map.occluders, []) === "total") return [];
+      return [{ c, feet }];
+    }).sort((a, b) => a.feet - b.feet || initiativeOf(b.c) - initiativeOf(a.c) || turnOrder(a.c) - turnOrder(b.c));
+
+    for (const { c } of reached) {
+      const block = statBlockOf(c, env.sources) as MonsterStatBlock;
+      const listed = castableBy(block, "Counterspell");
+      if (listed === null) continue;
+      // The edition is the record's own; one with none named is the fight's.
+      const edition = counter.ruleset === null ? state.ruleset : counter.ruleset;
+      // 2014: a slot no lower than the spell is automatic; else the 3rd-level slot and the check. 2024: the lowest slot of 3rd level or higher.
+      let plan = reactionCastPlan(c, block, chosen.record.name, chosen.record.level);
+      let check: { modifier: number; dc: number } | null = null;
+      let saveDc: number | null = null;
+      if (edition === "2014") {
+        const high = castLevel > chosen.record.level ? reactionCastPlan(c, block, chosen.record.name, castLevel) : plan;
+        if (high !== null && high.castLevel >= castLevel) plan = high;
+        else if (plan !== null && plan.castLevel < castLevel) {
+          const modifier = spellcastingModifierOf(block, listed.ability);
+          // A creature whose block names no spellcasting ability cannot make the check, so it does not spend its Reaction on a long shot.
+          if (modifier === null) continue;
+          check = { modifier, dc: 10 + castLevel };
+        }
+      } else {
+        saveDc = listed.saveDc;
+        // A counter whose save DC the block does not give cannot be forced on the caster.
+        if (saveDc === null) continue;
+      }
+      if (plan === null) continue;
+      let casterBonus: number | null = null;
+      if (saveDc !== null) {
+        try {
+          casterBonus = saveBonusOf(caster, "con", env);
+        } catch (e) {
+          if (e instanceof ActionRefused) continue;
+          throw e;
+        }
+        if (casterBonus === null) continue;
+      }
+
+      step({ type: "set_reaction_used", instanceId: c.instance_id, used: true });
+      if (plan.useKey !== null && plan.limit !== null) step({ type: "use_action", instanceId: c.instance_id, action: plan.useKey, limit: plan.limit });
+      step({ type: "show_deed", instanceId: c.instance_id, deed: { cast: 1 } });
+      spendAlliesCast(c, plan, chosen.record.name);
+
+      // Rolled without a roller id, so faces a person gave for the cast's own targets are never read as these rolls.
+      if (check !== null) {
+        const rolled = await ctx.dice({ counts: { 20: 1 }, modifier: check.modifier, label: `Counterspell: spellcasting check (DC ${check.dc})`, senderName: c.name });
+        if (rolled === null) return { counterId: c.instance_id, counterSpell: chosen.record.name, stopped: false };
+        const total = rolled.result.total;
+        return { counterId: c.instance_id, counterSpell: chosen.record.name, check: { total, dc: check.dc }, stopped: total >= check.dc };
+      }
+      if (saveDc !== null && casterBonus !== null) {
+        const { mode } = saveRollMode({ conditions: caster.conditions, ability: "con", ruleset: state.ruleset });
+        const penalty = getExhaustionD20Penalty(caster.conditions, state.ruleset);
+        const rolled = await ctx.dice({ counts: { 20: 1 }, modifier: casterBonus + penalty, label: `Counterspell: CON save (DC ${saveDc})`, mode, senderName: caster.name });
+        if (rolled === null) return { counterId: c.instance_id, counterSpell: chosen.record.name, stopped: false };
+        const total = rolled.result.total;
+        return { counterId: c.instance_id, counterSpell: chosen.record.name, save: { total, dc: saveDc }, stopped: total < saveDc };
+      }
+      // Automatic (2014): a slot no lower than the spell.
+      return { counterId: c.instance_id, counterSpell: chosen.record.name, stopped: true };
+    }
+    return null;
   };
 
   /** Spends the cast, then rolls it as an attack per target or a save for all, or says why it cannot. */
@@ -830,12 +945,30 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     const rolled = healed || (automatable && entry.automatable && kindWhy === null);
     if (rolled && targets.length === 0) refuse(`Name at least one target for ${record.name}.`);
 
+    // A hostile creature the rules play may answer the cast with a Reaction (Counterspell). Asked after everything that can be refused and
+    // before anything is spent, so a refused cast is never countered.
+    const countered = await counterReaction(caster, castLevel);
+    const stopped = countered !== null && countered.stopped;
+    if (countered !== null) {
+      collected.push({
+        type: "resolved",
+        resolved: {
+          kind: "countered", casterId: caster.instance_id, spell: record.name, castLevel, counterId: countered.counterId, counterSpell: countered.counterSpell,
+          ...(countered.check !== undefined ? { check: countered.check } : {}), ...(countered.save !== undefined ? { save: countered.save } : {}), stopped,
+        },
+      });
+    }
+    // 2024: a stopped spell wastes the Action but its slot or use is not expended (the save is the only road to "stopped" there). 2014 spends it.
+    const slotKept = stopped && countered !== null && countered.save !== undefined;
+
     // Everything that can be refused for the cast itself is behind us: from here the cast is spent.
-    const step = (command: Parameters<typeof applyFightCommand>[1]) => {
-      const result = applyFightCommand(holder.state, command, env.fightDeps);
-      holder.state = result.state;
-      collected.push(...result.effects);
-    };
+    if (stopped) {
+      // The spell fails: no concentration starts (and an earlier one is not ended), nothing resolves. The action it took is spent either way.
+      if (useKey !== null && limit !== null && !slotKept) step({ type: "use_action", instanceId: caster.instance_id, action: useKey, limit });
+      step({ type: bonusCast ? "set_bonus_used" : "set_action_used", instanceId: caster.instance_id, used: true });
+      step({ type: "show_deed", instanceId: caster.instance_id, deed: { cast: 1 } });
+      return;
+    }
     // A concentration spell ends the caster's earlier one first (PHB 2014 ch. 10 "Concentration").
     // BUILT: the conditions a concentration spell imposes carry the caster as a concentrating source (`concentration` on
     // the save below), so `end_concentration` and a failed concentration check end them. The caster itself is marked

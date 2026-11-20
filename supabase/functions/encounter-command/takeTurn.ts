@@ -373,7 +373,10 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
         // A slot an ally cast with is the sheet's: its whole list as it now stands, written once the fight is saved (#1021).
         // The spell is paid where the block lists it: a slot line spends a slot (a Warlock's spell the Pact Magic pool first), a "N/day" line
         // spends one of that grant's uses, and at will or a cantrip spends nothing (an at-will innate spell of level 2 takes no 2nd-level slot).
-        if (ally) {
+        // RULE counterspell (PHB 2024: "If that spell was cast with a spell slot, the slot isn't expended"): a cast the caster's failed Constitution save
+        // stopped leaves the sheet as it was; the fight's own tally was kept the same way (`resolve.ts`).
+        const slotKept = done.effects.some((e) => e.type === "resolved" && e.resolved.kind === "countered" && e.resolved.casterId === mover.instance_id && e.resolved.save !== undefined && e.resolved.stopped);
+        if (ally && !slotKept) {
           const memberId = mover.party_member_id as string;
           const how = castableBy(block, step.spell)?.group.frequency.kind;
           if (how === "slots") {

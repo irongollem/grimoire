@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import type { EncounterEvent, RunCombatant } from "../../../src/types/encounter.types";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest";
-import type { Monster } from "../../../src/types/monster.types";
+import type { Monster, MonsterStatBlock } from "../../../src/types/monster.types";
 import { emptyDefenses, type StatBlockEntry } from "../../../src/types/statBlock.types";
 import { NO_CASTING, type PlayerSheets } from "../../../src/rules/fight/playerSheet";
 import type { GearWrite, ThrownDrop } from "../../../src/rules/fight/pcAttacks/gear";
@@ -38,7 +38,7 @@ import {
   type PostedRoll,
   type StatBlockSources,
 } from "./handler";
-import { blackTentacles, charmMonster, clericBlock, cureWounds, fear, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithFear, mageWithHold, mageWithTentacles, healingWord, massHealingWord, heal, massHeal, powerWordHeal, bless, shieldOfFaith, shield } from "../../../src/rules/fight/spells/spellTestKit";
+import { blackTentacles, charmMonster, clericBlock, cureWounds, fear, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithFear, mageWithHold, mageWithTentacles, healingWord, massHealingWord, heal, massHeal, powerWordHeal, bless, shieldOfFaith, shield, counterspell } from "../../../src/rules/fight/spells/spellTestKit";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice";
 import { ownRecord } from "../_shared/fightSpells";
 import type { AppliedCondition } from "../../../src/types/condition.types";
@@ -5056,5 +5056,290 @@ describe("a Reaction: Shield", () => {
     expect(combatantOf(stored(h), "tam").conditions.find((c) => c.name === "Shield")).toMatchObject({ grants: { ac: 5 } });
     expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 1, max: 2, used: 1 }] }]);
     expect(result.effectFailures).toEqual([]);
+  });
+});
+
+// ── Counterspell: a Reaction a creature the rules play casts when a hostile casts a spell (#1021) ──────────
+
+describe("a Reaction: Counterspell", () => {
+  // The caster and the warden are both SRD mages: spell save DC 14, Intelligence 17 (+3), Constitution 11 (+0), "3rd level (3 slots): counterspell, fireball",
+  // "4th level (3 slots): ice storm". The caster is at (1,1), 5 ft squares: a creature at x is (x - 2) squares of gap away, so (gap + 1) * 5 feet.
+  // x = 13 is 60 ft (within reach), x = 14 is 65 ft. The ox t1 stands on the caster's side of any wall, so the fireball itself is never covered.
+  const NO_FOURTH: MonsterStatBlock = mageBlock({
+    special_abilities: [{ name: "Spellcasting", description: "The mage is a 9th-level spellcaster. Its spellcasting ability is Intelligence (spell save DC 14, +6 to hit with spell attacks). The mage has the following wizard spells prepared:\n\n* 3rd level (3 slots): counterspell, fireball", structured: { kind: "other", source: "parsed" } } as StatBlockEntry],
+  });
+  const COUNTER_SOURCES: StatBlockSources = {
+    monsters: [{ id: "m-mage", name: "Mage", stat_block: mageBlock() } as unknown as Monster, { id: "m-low", name: "Low Mage", stat_block: NO_FOURTH } as unknown as Monster, monster("m-ox")],
+    npcs: [],
+    companions: [],
+  };
+  const duel = (warden: Partial<RunCombatant> = {}, caster: Partial<RunCombatant> = {}, extra: RunCombatant[] = []) =>
+    row({
+      combatants_live: [
+        combatant("caster", { monster_id: "m-mage", faction_id: "p", hp: 40, max_hp: 40, initiative: 12, position: { x: 1, y: 1 }, ...caster }),
+        combatant("warden", { monster_id: "m-mage", faction_id: "m", hp: 40, max_hp: 40, initiative: 8, position: { x: 4, y: 1 }, ...warden }),
+        combatant("t1", { monster_id: "m-ox", faction_id: "m", hp: 40, max_hp: 40, ac: "13", initiative: 4, position: { x: 1, y: 3 } }),
+        ...extra,
+      ],
+    });
+  const fireballAt = (over: Record<string, unknown> = {}): CommandRequest["commands"][number] =>
+    ({ type: "cast_spell", casterId: "caster", spell: "fireball", targetIds: ["t1"], ...over }) as CommandRequest["commands"][number];
+  const withCounter = (fight: FightRow, dieFaces: number[], over: { ruleset?: "2014" | "2024"; map?: FightMap | null; spells?: SpellRecord[]; sources?: StatBlockSources; factions?: { id: string; hostile_to: string[] }[] } = {}) => {
+    const ruleset = over.ruleset ?? "2014";
+    return harness(fight, {
+      sources: over.sources ?? COUNTER_SOURCES, ruleset, map: over.map === undefined ? null : over.map, factions: over.factions,
+      spells: over.spells ?? [counterspell({ ruleset }), fireball({ ruleset }), fireBolt({ ruleset })], dieFaces: [...dieFaces],
+    });
+  };
+  const SAVE_FAILS_FOR_FULL = [5, 1, 1, 1, 1, 1, 1, 1, 1]; // the ox's save (5 + 0 against DC 14 fails), then 8d6 of ones: 8
+  const countLine = (result: { effects: Array<{ type: string }> }) => (result.effects.find((e) => e.type === "resolved" && (e as unknown as { resolved: { kind: string } }).resolved.kind === "countered") as unknown as { resolved: Record<string, unknown> } | undefined)?.resolved;
+
+  // PHB 2014 "Counterspell": a 3rd-level spell is stopped by a 3rd-level slot with no check. No die is thrown at all (not the ox's save, not the damage), so the ox keeps 40.
+  // The caster still spends its 3rd-level slot, its Action and its cast; the warden spends its Reaction and one 3rd-level slot. No map, so sight is not checked.
+  // Bugs caught: the spell resolving after the counter, the caster's cost refunded, the counterer's Reaction or slot not spent, a check rolled for a spell the slot covers.
+  it("fails if a 3rd-level Fireball is not stopped without a check, or the costs are not all paid", async () => {
+    const h = withCounter(duel(), []);
+    const result = await runBatch(batch("c1", fireballAt()), h.deps);
+    const after = stored(h);
+    expect(hpOf(after, "t1")).toBe(40);
+    expect(h.dieCalls).toBe(0);
+    expect(combatantOf(after, "caster").action_uses).toEqual({ "slots/3": { used: 1, per_day: 3 } });
+    expect(combatantOf(after, "caster").action_used).toBe(true);
+    expect(combatantOf(after, "caster").shown_deeds).toMatchObject({ cast: 1 });
+    expect(combatantOf(after, "warden").reactionUsed).toBe(true);
+    expect(combatantOf(after, "warden").action_uses).toEqual({ "slots/3": { used: 1, per_day: 3 } });
+    expect(combatantOf(after, "warden").shown_deeds).toMatchObject({ cast: 1 });
+    expect(countLine(result)).toMatchObject({ kind: "countered", casterId: "caster", spell: "Fireball", castLevel: 3, counterId: "warden", counterSpell: "Counterspell", stopped: true });
+    expect(result.effects.some((e) => e.type === "resolved" && (e as unknown as { resolved: { kind: string } }).resolved.kind === "save")).toBe(false);
+  });
+
+  // PHB 2014 "Counterspell": a 4th-level spell against a warden with only 3rd-level slots is a check: d20 + Intelligence +3 against DC 10 + 4 = 14.
+  // A 10 totals 13 and fails: the Fireball (upcast, 9d6 of ones = 9) goes on, 40 -> 31, the ox failing with a 5. A 11 totals 14 and meets the DC: stopped, 40 stays.
+  // Both spend the warden's Reaction and a 3rd-level slot. Bugs caught: the DC off by one (`>` for `>=`), a failed check still stopping the spell, no check at all.
+  it("fails if the check against DC 14 does not stop the spell on 14 and let it through on 13", async () => {
+    const low = (id: string) => combatant(id, { monster_id: "m-low", faction_id: "m", hp: 40, max_hp: 40, initiative: 8, position: { x: 4, y: 1 } });
+    // Make the warden the one with no 4th-level slots.
+    const fight = (): FightRow => ({ ...duel(), combatants_live: [duel().combatants_live[0], low("warden"), duel().combatants_live[2]] });
+    const miss = withCounter(fight(), [10, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    const r1 = await runBatch(batch("c2", fireballAt({ castLevel: 4 })), miss.deps);
+    expect(hpOf(stored(miss), "t1")).toBe(31);
+    expect(countLine(r1)).toMatchObject({ check: { total: 13, dc: 14 }, stopped: false });
+    expect(combatantOf(stored(miss), "warden").reactionUsed).toBe(true);
+    expect(combatantOf(stored(miss), "warden").action_uses).toEqual({ "slots/3": { used: 1, per_day: 3 } });
+    expect(miss.posted.some((p) => p.result.label?.startsWith("Counterspell: spellcasting check"))).toBe(true);
+    const hit = withCounter(fight(), [11]);
+    const r2 = await runBatch(batch("c3", fireballAt({ castLevel: 4 })), hit.deps);
+    expect(hpOf(stored(hit), "t1")).toBe(40);
+    expect(countLine(r2)).toMatchObject({ check: { total: 14, dc: 14 }, stopped: true });
+    expect(combatantOf(stored(hit), "caster").action_uses).toEqual({ "slots/4": { used: 1, per_day: 3 } });
+  });
+
+  // PHB 2014 "Counterspell", At Higher Levels: a warden that holds a 4th-level slot (the default mage) stops a 4th-level spell with no check, spending that slot, not its 3rd.
+  // Bug caught: the lowest slot used regardless of the spell's level (a check rolled, or the 3rd-level slot spent).
+  it("fails if a 4th-level spell is not countered automatically by a 4th-level slot", async () => {
+    const h = withCounter(duel(), []);
+    const result = await runBatch(batch("c4", fireballAt({ castLevel: 4 })), h.deps);
+    expect(hpOf(stored(h), "t1")).toBe(40);
+    expect(h.dieCalls).toBe(0);
+    expect(combatantOf(stored(h), "warden").action_uses).toEqual({ "slots/4": { used: 1, per_day: 3 } });
+    expect(countLine(result)).toMatchObject({ stopped: true });
+    expect(countLine(result)).not.toHaveProperty("check");
+  });
+
+  // PHB 2024 "Counterspell": the caster makes a Constitution save against the counterer's spell save DC 14; the caster's Con 11 is +0. A 13 fails: the spell has no effect,
+  // the Action is wasted but the 3rd-level slot "isn't expended" (no tally), the warden pays its Reaction and slot. The ox keeps 40 and no damage die is thrown (one die call).
+  // Bugs caught: the slot spent anyway, the Action not wasted, the save made against the wrong DC or with the counterer's bonus, the spell resolving.
+  it("fails if a failed Constitution save does not stop the spell, waste the Action and keep the slot", async () => {
+    const h = withCounter(duel(), [13], { ruleset: "2024" });
+    const result = await runBatch(batch("c5", fireballAt()), h.deps);
+    const after = stored(h);
+    expect(hpOf(after, "t1")).toBe(40);
+    expect(h.dieCalls).toBe(1);
+    expect(combatantOf(after, "caster").action_used).toBe(true);
+    expect(combatantOf(after, "caster").action_uses).toBeUndefined();
+    expect(combatantOf(after, "warden").reactionUsed).toBe(true);
+    expect(combatantOf(after, "warden").action_uses).toEqual({ "slots/3": { used: 1, per_day: 3 } });
+    expect(countLine(result)).toMatchObject({ save: { total: 13, dc: 14 }, stopped: true });
+  });
+
+  // PHB 2024: a 14 meets DC 14 and the spell goes on: the ox's save 5 fails, 8d6 of ones deal 8 (40 -> 32), the caster pays its slot as for any cast.
+  // Bug caught: a made save still stopping the spell (`<=` for `<`).
+  it("fails if a made Constitution save does not let the spell go on", async () => {
+    const h = withCounter(duel(), [14, ...SAVE_FAILS_FOR_FULL], { ruleset: "2024" });
+    const result = await runBatch(batch("c6", fireballAt()), h.deps);
+    expect(hpOf(stored(h), "t1")).toBe(32);
+    expect(combatantOf(stored(h), "caster").action_uses).toEqual({ "slots/3": { used: 1, per_day: 3 } });
+    expect(countLine(result)).toMatchObject({ save: { total: 14, dc: 14 }, stopped: false });
+  });
+
+  // A stopped spell starts no concentration and ends none the caster held (nothing is resolved). The Fireball record is made a concentration spell; the caster
+  // already holds Bless. Bug caught: the countered spell still ending the caster's earlier concentration or starting its own.
+  it("fails if a countered concentration spell ends the caster's earlier concentration or starts its own", async () => {
+    const holding = { spellId: null, spellName: "Bless", castAtLevel: 1, startedRound: 1, appliedEffectIds: [] };
+    const h = withCounter(duel({}, { concentration: holding }), [], { spells: [counterspell(), fireball({ concentration: true })] });
+    await runBatch(batch("c7", fireballAt()), h.deps);
+    expect(combatantOf(stored(h), "caster").concentration).toEqual(holding);
+  });
+
+  // A cantrip is never countered (APP CONVENTION): Fire Bolt's attack d20 5 + 6 = 11 against the ox's AC 13 misses. The warden keeps its Reaction and slot.
+  // Bug caught: the slot spent on a cantrip.
+  it("fails if a cantrip is countered", async () => {
+    const h = withCounter(duel(), [5]);
+    const result = await runBatch(batch("c8", fireballAt({ spell: "fire bolt" })), h.deps);
+    expect(combatantOf(stored(h), "warden").reactionUsed).not.toBe(true);
+    expect(combatantOf(stored(h), "warden").action_uses).toBeUndefined();
+    expect(countLine(result)).toBeUndefined();
+  });
+
+  // Not countered: each of these leaves the Fireball to resolve (the ox's 5 fails, 8d6 of ones: 40 -> 32) and the warden's Reaction untouched.
+  const goesThrough = async (fight: FightRow, over: { map?: FightMap | null; factions?: { id: string; hostile_to: string[] }[] } = {}) => {
+    const h = withCounter(fight, SAVE_FAILS_FOR_FULL, over);
+    await runBatch(batch("c9", fireballAt()), h.deps);
+    expect(hpOf(stored(h), "t1")).toBe(32);
+    // The warden is exactly as it was: no Reaction spent, no slot (whatever it held before).
+    const was = combatantOf(fight, "warden");
+    expect(combatantOf(stored(h), "warden").reactionUsed).toBe(was.reactionUsed);
+    expect(combatantOf(stored(h), "warden").action_uses).toEqual(was.action_uses);
+  };
+  // Bug caught: a creature countering its own side's spell (the hostility test missing).
+  it("fails if a counterer of the caster's own side counters", async () => {
+    await goesThrough(duel({ faction_id: "p" }));
+  });
+  // Bug caught: the reach ignored. x = 14 is 65 ft, past the record's 60.
+  it("fails if a counterer 65 feet away counters", async () => {
+    await goesThrough(duel({ position: { x: 14, y: 1 } }));
+  });
+  // The control for the one above: x = 13 is exactly 60 ft and does counter. Bug caught: the reach off by one square the other way.
+  it("fails if a counterer exactly 60 feet away does not counter", async () => {
+    const h = withCounter(duel({ position: { x: 13, y: 1 } }), []);
+    await runBatch(batch("c10", fireballAt()), h.deps);
+    expect(hpOf(stored(h), "t1")).toBe(40);
+    expect(combatantOf(stored(h), "warden").reactionUsed).toBe(true);
+  });
+  // Bug caught: a second Reaction in a round.
+  it("fails if a counterer that already used its Reaction counters", async () => {
+    await goesThrough(duel({ reactionUsed: true }));
+  });
+  // Both slot levels it lists are spent (3 of 3, 3 of 3). Bug caught: a counter cast with no slot left.
+  it("fails if a counterer with no slot left counters", async () => {
+    await goesThrough(duel({ action_uses: { "slots/3": { used: 3, per_day: 3 }, "slots/4": { used: 3, per_day: 3 } } }));
+  });
+  // Bug caught: an Incapacitated creature taking a Reaction.
+  it("fails if an Incapacitated counterer counters", async () => {
+    await goesThrough(duel({ conditions: [{ name: "Incapacitated" }] }));
+  });
+  // A creature at 0 hit points takes no Reaction. Bug caught: a downed creature's Reaction (and slot) spent.
+  it("fails if a counterer at 0 hit points counters", async () => {
+    await goesThrough(duel({ hp: 0 }));
+  });
+  // PHB 2014 ch. 9 "Surprise": a surprised creature takes no Reaction until its first turn ends. Bug caught: a surprised warden reacting under 2014.
+  it("fails if a surprised counterer counters under the 2014 rules", async () => {
+    await goesThrough(duel({ surprised: true }));
+  });
+  // Bug caught: no position known (the distance read as 0): a counterer with no place on the map does not counter.
+  it("fails if a counterer with no known position counters", async () => {
+    await goesThrough(duel({ position: undefined }));
+  });
+  // A wall at x = 2 (full height of the row) stands between the caster (1,1) and the warden at (4,1): every line is blocked. Bug caught: a counter from a creature that cannot see the caster.
+  it("fails if a counterer behind a wall counters", async () => {
+    await goesThrough(duel(), { map: mapOf(TOTAL_WALL) });
+  });
+  // The control: the same map with no wall in the way counters. Bug caught: sight refusing every counter when a map is known.
+  it("fails if a counterer in the open on a map does not counter", async () => {
+    const h = withCounter(duel(), [], { map: mapOf() });
+    await runBatch(batch("c11", fireballAt()), h.deps);
+    expect(combatantOf(stored(h), "warden").reactionUsed).toBe(true);
+  });
+  // The played character is a person: with no `playedMemberId` the server never casts a player's Reaction. Nessa (a player with no stat block here) is the only would-be counterer.
+  // Bug caught: a player's Reaction taken for them.
+  it("fails if a player the person plays counters", async () => {
+    const fight = row({
+      combatants_live: [
+        combatant("caster", { monster_id: "m-mage", faction_id: "p", hp: 40, max_hp: 40, initiative: 12, position: { x: 1, y: 1 } }),
+        pc("nessa", { faction_id: "m", hp: 20, max_hp: 20, initiative: 8, position: { x: 4, y: 1 } }),
+        combatant("t1", { monster_id: "m-ox", faction_id: "m", hp: 40, max_hp: 40, ac: "13", initiative: 4, position: { x: 1, y: 3 } }),
+      ],
+    });
+    const h = harness(fight, { sources: COUNTER_SOURCES, players: NESSA_IN_PLATE, spells: [counterspell(), fireball()], dieFaces: SAVE_FAILS_FOR_FULL });
+    await runBatch(batch("c12", fireballAt()), h.deps);
+    expect(hpOf(stored(h), "t1")).toBe(32);
+    expect(combatantOf(stored(h), "nessa").reactionUsed).not.toBe(true);
+  });
+
+  // At most one counter per cast: two wardens, the nearer at (4,1) (15 ft) and the farther at (6,1) (25 ft). The nearer counters; the farther keeps its Reaction.
+  // Bug caught: every eligible creature countering (two Reactions and two slots for one spell), or the farther one chosen.
+  it("fails if two wardens both counter, or the farther one does", async () => {
+    const far = combatant("far", { monster_id: "m-mage", faction_id: "m", hp: 40, max_hp: 40, initiative: 20, position: { x: 6, y: 1 } });
+    const h = withCounter(duel({}, {}, [far]), []);
+    await runBatch(batch("c13", fireballAt()), h.deps);
+    expect(combatantOf(stored(h), "warden").reactionUsed).toBe(true);
+    expect(combatantOf(stored(h), "far").reactionUsed).not.toBe(true);
+    expect(combatantOf(stored(h), "far").action_uses).toBeUndefined();
+  });
+
+  // Equal distance (both 15 ft from (1,1): (4,1) and (1,4)): the one earlier in initiative order counters. The `twin` stands at initiative 20, the warden at 8.
+  // Bug caught: ties broken by roster position instead of the turn order.
+  it("fails if a tie in distance is not broken by the initiative order", async () => {
+    const twin = combatant("twin", { monster_id: "m-mage", faction_id: "m", hp: 40, max_hp: 40, initiative: 20, position: { x: 1, y: 4 } });
+    const h = withCounter(duel({}, {}, [twin]), []);
+    await runBatch(batch("c14", fireballAt()), h.deps);
+    expect(combatantOf(stored(h), "twin").reactionUsed).toBe(true);
+    expect(combatantOf(stored(h), "warden").reactionUsed).not.toBe(true);
+  });
+
+  // An AI-played ally's cast under 2024: Tam (a 5th-level Wizard, two 3rd-level slots) casts Fireball and a hostile mage standing 20 ft from her counters. Her Constitution
+  // save (a 1 on the d20, far below DC 14 with any bonus a Con 10 to 16 sheet has) fails, the spell is stopped and PHB 2024 says "the slot isn't expended": nothing is
+  // written to the sheet, though the Action is spent. Bug caught: the sheet's slot written for a spell that was stopped (the fight's tally was right, the sheet not).
+  it("fails if an ally whose spell a 2024 Counterspell stops still has the slot written to its sheet", async () => {
+    const mage = { id: "m-mage", name: "Mage", stat_block: mageBlock() } as unknown as Monster;
+    const fight = row({
+      combatants_live: [
+        pc("tam", { faction_id: "p", hp: 20, max_hp: 20, initiative: 12, position: { x: 1, y: 1 } }),
+        combatant("victim", { monster_id: "m-ox", faction_id: "m", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 6, y: 1 } }),
+        combatant("warden", { monster_id: "m-mage", faction_id: "m", hp: 40, max_hp: 40, initiative: 3, position: { x: 5, y: 2 } }),
+      ],
+    });
+    const h = harness(fight, {
+      sources: { ...SOURCES, monsters: [...SOURCES.monsters, mage] }, players: wizardTamSheets(), map: mapOf(), ruleset: "2024",
+      spells: [fireBolt({ ruleset: "2024" }), fireball({ ruleset: "2024" }), counterspell({ ruleset: "2024" })], dieFaces: [1],
+    });
+    const result = await runBatch(batch("t-ally", takeTurn({ instanceId: "tam", playedMemberId: "pm-pip", optionId: BALL })), h.deps);
+    expect(result.effectFailures).toEqual([]);
+    expect(hpOf(stored(h), "victim")).toBe(40);
+    expect(combatantOf(stored(h), "tam").action_used).toBe(true);
+    expect(combatantOf(stored(h), "warden").reactionUsed).toBe(true);
+    expect(h.slotWrites).toEqual([]);
+  });
+
+  // An ally the AI plays (Tam, a 5th-level Wizard with Counterspell prepared and two 3rd-level slots) counters a hostile mage's Fireball aimed at her: the spell is stopped (no
+  // damage, 20 stays), her Reaction is spent and ONE 3rd-level slot is written to her sheet (1 of 2), after the save. Bug caught: an ally's counter that never reaches the sheet.
+  const tamCounters = () => {
+    const grant = (name: string, level: number): AllySpellRow => ({ id: `${name}-row`, party_member_id: "pm-tam", name, level, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-wiz", casting_ability: null, uses_per_day: null, uses_remaining: null });
+    return wizardTamSheets({ spells: [grant("Counterspell", 3)] });
+  };
+  const mageVersusTam = () => row({
+    combatants_live: [
+      combatant("mage", { monster_id: "m-mage", faction_id: "m", hp: 40, max_hp: 40, initiative: 12, position: { x: 1, y: 1 } }),
+      pc("tam", { faction_id: "p", hp: 20, max_hp: 20, initiative: 8, position: { x: 4, y: 1 } }),
+    ],
+  });
+  const mageSources = (): StatBlockSources => ({ ...SOURCES, monsters: [...SOURCES.monsters, { id: "m-mage", name: "Mage", stat_block: mageBlock() } as unknown as Monster] });
+  it("fails if an ally the AI plays counters a Fireball without writing her slot to the sheet", async () => {
+    const h = harness(mageVersusTam(), { sources: mageSources(), players: tamCounters(), map: mapOf(), spells: [counterspell(), fireball()], dieFaces: [] });
+    const result = await runBatch(batch("t-c1", takeTurn({ instanceId: "mage", playedMemberId: "pm-pip", optionId: "spell:Fireball:3:tam" })), h.deps);
+    expect(result.effectFailures).toEqual([]);
+    expect(hpOf(stored(h), "tam")).toBe(20);
+    expect(combatantOf(stored(h), "tam").reactionUsed).toBe(true);
+    expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 3, max: 2, used: 1 }] }]);
+  });
+
+  // The same fight where the person plays Tam herself (and one with no one named: a DM's own fight): her Reaction is the person's, not the rules'. Her save (a 1) fails,
+  // 8d6 of ones deal 8 (20 -> 12), no Reaction, no slot written. Bug caught: a player's Reaction taken for them.
+  it.each([["pm-tam"], [undefined]])("fails if a player the person plays (%s) is made to counter", async (played) => {
+    const h = harness(mageVersusTam(), { sources: mageSources(), players: tamCounters(), map: mapOf(), spells: [counterspell(), fireball()], dieFaces: [1, 1, 1, 1, 1, 1, 1, 1, 1] });
+    await runBatch(batch("t-c2", takeTurn({ instanceId: "mage", ...(played === undefined ? {} : { playedMemberId: played }), optionId: "spell:Fireball:3:tam" })), h.deps);
+    expect(hpOf(stored(h), "tam")).toBe(12);
+    expect(combatantOf(stored(h), "tam").reactionUsed).not.toBe(true);
+    expect(h.slotWrites).toEqual([]);
   });
 });
