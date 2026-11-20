@@ -22,10 +22,12 @@ import { NORMAL_ROLL, rollWithRules } from "../../../src/lib/dice/diceRules.ts";
 import { dnd5eDiceRules } from "../../../src/systems/dnd5e/dice/rules.ts";
 import { allyProfile } from "../../../src/rules/fight/allies/profile.ts";
 import { settleSpend } from "../../../src/rules/fight/pcAttacks/gear.ts";
-import { allyAttackShape, allyAttackSpend, allyEntryFeature, allyStatBlock } from "../../../src/rules/fight/allies/statBlock.ts";
+import { limitAvailability } from "../../../src/rules/encounterTurn.ts";
+import { allyAttackShape, allyAttackSpend, allyEntryFeature, allySneakAttack, allyStatBlock } from "../../../src/rules/fight/allies/statBlock.ts";
 import { RAGING, featureReady, featureSpend, featureUse, martialArtsDie, rageDamageFor, rageStartedOnSheet, ragingCondition, settleFeatureSpend, type AllyFeature } from "../../../src/rules/fight/allies/features.ts";
 import { bonusSteps, chooseBonusAction, type BonusFeature } from "../../../src/rules/fight/tactics/bonusAction.ts";
-import { allySlotSpend, settleSlotSpend } from "../../../src/rules/fight/allies/spells.ts";
+import { allyInnateSpend, allySlotSpend, settleInnateSpend, settleSlotSpend, slotPoolFor } from "../../../src/rules/fight/allies/spells.ts";
+import { castableBy } from "../../../src/rules/fight/spells/castLimit.ts";
 import { applyFightCommand, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
 import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
@@ -200,7 +202,14 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
       ? (target.party_member_id ? playerSaveBonus(env.players, target.party_member_id, ability) : null)
       : saveBonusFromBlock(statBlockOf(target, env.sources), ability);
   const gated = withNumbers(gateOptions(options, profile, mover, state.combatants), {
-    attacks, combatants: state.combatants, moverId: mover.instance_id, armorClassOf, ruleset: state.ruleset, spells, saveBonusOf,
+    attacks, combatants: state.combatants, moverId: mover.instance_id, armorClassOf, ruleset: state.ruleset, spells, saveBonusOf, factions: env.factions,
+    // RULE sneak-attack (the tactics weigh it as `resolve_attack` will apply it): an ally Rogue's dice on an attack it rides, until the turn's one use is spent.
+    ...(ally ? { sneakDiceOf: (name: string) => {
+      const useKey = `sneak_attack/${mover.shown_deeds === undefined ? 0 : mover.shown_deeds.turns}`;
+      if (!limitAvailability(mover, useKey, { per_day: 1 }).available) return null;
+      const sneak = allySneakAttack(env.players, mover.party_member_id as string, name);
+      return sneak === null ? null : sneak.dice;
+    } } : {}),
   });
 
   // The Bonus Action heal this turn may carry (only when the rules pick the turn: one the caller named is exactly that turn, below).
@@ -318,11 +327,23 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
         next = done.state;
         effects.push(...done.effects);
         // A slot an ally cast with is the sheet's: its whole list as it now stands, written once the fight is saved (#1021).
+        // The spell is paid where the block lists it: a slot line spends a slot (a Warlock's spell the Pact Magic pool first), a "N/day" line
+        // spends one of that grant's uses, and at will or a cantrip spends nothing (an at-will innate spell of level 2 takes no 2nd-level slot).
         if (ally) {
-          const slots = allySlotSpend(env.players, mover.party_member_id as string, step.castLevel);
-          if (slots !== null) {
-            env.slotsSpent.push({ memberId: mover.party_member_id as string, slots });
-            settleSlotSpend(env.players, mover.party_member_id as string, slots);
+          const memberId = mover.party_member_id as string;
+          const how = castableBy(block, step.spell)?.group.frequency.kind;
+          if (how === "slots") {
+            const slots = allySlotSpend(env.players, memberId, step.castLevel, slotPoolFor(env.players, memberId, step.spell));
+            if (slots !== null) {
+              env.slotsSpent.push({ memberId, slots });
+              settleSlotSpend(env.players, memberId, slots);
+            }
+          } else if (how === "per_day") {
+            const spend = allyInnateSpend(env.players, memberId, step.spell);
+            if (spend !== null) {
+              env.innateSpent.push(spend);
+              settleInnateSpend(env.players, spend);
+            }
           }
         }
         break;

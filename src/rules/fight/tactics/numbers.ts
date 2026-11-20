@@ -21,6 +21,11 @@
 // weighed with no cover and no enemy-within-5-feet penalty, and a save with no cover bonus: none of the three is known
 // to the option.
 //
+// Sneak Attack is weighed too (#1021): when the mover is a Rogue ally whose use this turn is not spent (`sneakDiceOf`), an
+// eligible swing (advantage, or normal with an enemy of the target within 5 feet, `enemyBesideTarget`: the rule `resolve_attack`
+// applies) adds the dice once per option, as the chance this swing is the first eligible one to hit, so a Multiattack is not
+// credited with a Sneak Attack per swing. A dagger beats a longsword for a Rogue when it applies, by arithmetic and not by a special case.
+//
 // A spell that imposes a condition is worth something too (#1021, the clever layer): `expectedWorth` is, summed over the
 // targets, the chance each fails its save times what the condition is worth on it (`conditionWorth.ts`, in hit points,
 // built only from what the fight has shown of that target). A condition the target already bears is worth 0 on it, and a
@@ -34,6 +39,8 @@ import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { RulesetKey } from "../../../types/ruleset.types.ts";
 import type { AttackStructure, DamagePart, SaveAbility, SaveCondition, SaveStructure } from "../../../types/statBlock.types.ts";
 import { attackRollMode } from "../../combat/attackRoll.ts";
+import { enemyBesideTarget } from "../allies/sneak.ts";
+import type { FactionSides } from "../sides.ts";
 import { autoFailsSave, saveRollMode } from "../../combat/savingThrow.ts";
 import { getExhaustionD20Penalty } from "../../conditions.ts";
 import { coverBonus, DEFAULT_REACH_FEET } from "../terrain/sight.ts";
@@ -54,6 +61,13 @@ export interface NumbersContext {
   spells?: readonly CastNow[];
   /** A target's bonus on a save of this ability, or null when it is not known (the chance to fail is then `UNKNOWN_SAVE_FAIL_CHANCE`). */
   saveBonusOf?: (target: RunCombatant, ability: SaveAbility) => number | null;
+  /**
+   * The Sneak Attack dice the mover would add to a hit of the attack named so, or null: it has no Sneak Attack, the attack is not one it
+   * rides, or the turn's one use is already spent. Left out for a creature with no Sneak Attack (every monster).
+   */
+  sneakDiceOf?: (attackName: string) => string | null;
+  /** Who fights whom, for the enemy beside the target that makes Sneak Attack apply. Left out, nothing is hostile (a Sneak Attack then needs advantage). */
+  factions?: FactionSides;
 }
 
 /** APP CONVENTION: a target whose save bonus is not known (a character the server could not read) fails half the time. */
@@ -151,6 +165,10 @@ function numbersFor(attack: TurnOptionAttack, mover: RunCombatant, target: RunCo
   let swings = 0;
   let hits = 0;
   let damage: number | null = 0;
+  // Sneak Attack, once: the chance nothing eligible has hit yet, and what the dice add so far (null when a part cannot be read).
+  let nothingYet = 1;
+  let sneak: number | null = 0;
+  const beside = ctx.sneakDiceOf === undefined ? false : enemyBesideTarget(ctx.combatants, mover.instance_id, target, ctx.factions === undefined ? [] : ctx.factions);
   for (const step of steps) {
     const structure = named(step.action);
     if (structure === undefined) return null;
@@ -158,7 +176,18 @@ function numbersFor(attack: TurnOptionAttack, mover: RunCombatant, target: RunCo
     swings += step.count;
     hits += one.hit * step.count;
     damage = damage === null || one.damage === null ? null : damage + one.damage * step.count;
+    const dice = ctx.sneakDiceOf === undefined ? null : ctx.sneakDiceOf(step.action);
+    const mode = dice === null ? "normal" : modeOf(structure, attack, mover, target, ctx.ruleset);
+    if (dice !== null && (mode === "advantage" || (mode === "normal" && beside))) {
+      const type = structure.hit[0] === undefined ? null : structure.hit[0].type;
+      const extra = oneAttack({ ...structure, hit: [{ dice, type }] }, attack, mover, target, ac, ctx.ruleset);
+      for (let i = 0; i < step.count; i++) {
+        sneak = sneak === null || extra.damage === null ? null : sneak + nothingYet * extra.damage;
+        nothingYet *= 1 - one.hit;
+      }
+    }
   }
+  if (sneak !== null && damage !== null) damage += sneak;
   // A Multiattack's hit chance is the mean over its attacks, each weighted by how many it makes.
   return swings === 0 ? null : { hitChance: hits / swings, expectedDamage: damage };
 }

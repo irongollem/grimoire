@@ -55,6 +55,8 @@ export interface BeastScores {
  * ready-to-cast rule reads, with the spell's own name and level (the grant names it by id).
  */
 export interface AllySpellRow {
+  /** The `character_spells` row, which a cast of a daily-limited spell writes its remaining uses to. */
+  id: string;
   party_member_id: string;
   name: string;
   level: number;
@@ -67,6 +69,8 @@ export interface AllySpellRow {
   casting_ability: "int" | "wis" | "cha" | null;
   /** Innate casting: null is "at will", otherwise the uses a day. */
   uses_per_day: number | null;
+  /** The uses left today of an innate spell with a daily limit; null reads as none, as the sheet reads it. */
+  uses_remaining: number | null;
 }
 
 /** What an ally needs to cast: the spells they have, their class rows and the class definitions those rows are pinned to (`computeSpellcastingByClass`). */

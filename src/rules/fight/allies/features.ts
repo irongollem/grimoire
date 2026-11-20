@@ -28,21 +28,61 @@ function systemClasses(classes: readonly CharacterClass[]): CharacterClass[] {
 const levelIn = (classes: readonly CharacterClass[], name: string): number =>
   systemClasses(classes).filter((c) => c.class_name.trim().toLowerCase() === name).reduce((sum, c) => sum + c.levels, 0);
 
+/** What the sheet says beyond a class's level that Extra Attack reads: the edition, and the choices the sheet keeps (`class_choices`). */
+export interface ExtraAttackFacts {
+  ruleset: RulesetKey;
+  classChoices: Record<string, unknown>;
+}
+
+/** A name or names the sheet stored under a `class_choices` key (a pick is one string or a list of them), lower case. */
+function pickedIn(choices: Record<string, unknown>, key: string): string[] {
+  if (!Object.hasOwn(choices, key)) return [];
+  const value = choices[key];
+  const names = typeof value === "string" ? [value] : Array.isArray(value) ? value : [];
+  return names.filter((v): v is string => typeof v === "string").map((v) => v.trim().toLowerCase());
+}
+
+/** The level of the Bard's class row whose subclass is one of the colleges that gives Extra Attack (0 when there is none). */
+function extraAttackCollegeLevel(classes: readonly CharacterClass[], ruleset: RulesetKey): number {
+  // PHB 2014 College of Valor and Xanathar's College of Swords; the 2024 Player's Handbook has Valor and no Swords.
+  const colleges = ruleset === "2024" ? ["valor"] : ["valor", "swords"];
+  return systemClasses(classes)
+    .filter((c) => c.class_name.trim().toLowerCase() === "bard" && c.subclass_name !== null && colleges.includes(c.subclass_name.trim().toLowerCase().replace(/^college of /, "")))
+    .reduce((sum, c) => sum + c.levels, 0);
+}
+
+/** What one attack is, as far as Extra Attack cares: whether it is made with a weapon the Warlock's pact can bind (a held melee weapon, never bare hands). */
+export interface ExtraAttackAttack {
+  pactWeapon: boolean;
+}
+
 /**
  * RULE extra-attack (PHB 2014 "Extra Attack" of the Barbarian, Fighter, Monk, Paladin and Ranger; the 2024 Player's Handbook
  * gives the same classes the same feature): at 5th level the Attack action makes two attacks instead of one, and a Fighter makes
  * three at 11th and four at 20th level. The feature does not stack between classes ("if you gain Extra Attack from more than
  * one source, the extra attacks don't add"), so the best one counts. A level of Fighter counts only the Fighter's own levels,
- * and a homebrew class is not read. Not read yet: a College of Valor or Swords Bard's (6th level), the Warlock's Thirsting Blade.
- * Returns the attacks one Attack action holds, 1 when there is no Extra Attack.
+ * and a homebrew class is not read. Also read here, each from the sheet's own record of the choice:
+ * a Bard of the College of Valor (PHB 2014 and 2024) or the College of Swords (Xanathar's, 2014 only) makes two attacks from 6th Bard
+ * level (the class row's `subclass_name`); a Warlock with the Thirsting Blade invocation (PHB 2014 "Eldritch Invocations", 5th-level
+ * Warlock with the Pact of the Blade; PHB 2024 the same) attacks twice with the pact weapon, which is the one attack the Invocation
+ * names, so it counts for `pactWeapon` attacks only. APP CONVENTION: the sheet does not record which weapon is the pact weapon, so
+ * every held melee weapon of a Warlock with Pact of the Blade stands for it. Pact of the Blade is read from `pact_boon` (the 2014 Pact
+ * Boon) or from `eldritch_invocations` (where the 2024 Pact of the Blade is an invocation); Thirsting Blade from `eldritch_invocations`.
+ * Returns the attacks one Attack action holds for this attack, 1 when there is no Extra Attack.
  */
-export function attacksPerAttackAction(classes: readonly CharacterClass[]): number {
+export function attacksPerAttackAction(classes: readonly CharacterClass[], facts: ExtraAttackFacts, attack: ExtraAttackAttack): number {
   let attacks = 1;
   for (const name of ["barbarian", "monk", "paladin", "ranger"]) if (levelIn(classes, name) >= 5) attacks = Math.max(attacks, 2);
   const fighter = levelIn(classes, "fighter");
   if (fighter >= 20) attacks = Math.max(attacks, 4);
   else if (fighter >= 11) attacks = Math.max(attacks, 3);
   else if (fighter >= 5) attacks = Math.max(attacks, 2);
+  if (extraAttackCollegeLevel(classes, facts.ruleset) >= 6) attacks = Math.max(attacks, 2);
+  if (attack.pactWeapon && levelIn(classes, "warlock") >= 5) {
+    const invocations = pickedIn(facts.classChoices, "eldritch_invocations");
+    const blade = pickedIn(facts.classChoices, "pact_boon").includes("pact of the blade") || invocations.includes("pact of the blade");
+    if (blade && invocations.includes("thirsting blade")) attacks = Math.max(attacks, 2);
+  }
   return attacks;
 }
 

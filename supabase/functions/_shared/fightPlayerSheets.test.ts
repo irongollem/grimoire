@@ -69,6 +69,16 @@ describe("loadPlayerSheets: what an ally casts from", () => {
     expect(sheets.casting.spells.map((s) => s.name)).not.toContain("Other");
   });
 
+  // Bug caught: the grant's row id or its remaining uses dropped on the way (a daily innate spell then reads as spent, or its cast cannot be written back).
+  it("carries each grant's row id and remaining daily uses", async () => {
+    fake.seed("library_spells", [{ id: "srd_misty", name: "Misty Step", level: 2 }]);
+    fake.seed("character_spells", [
+      { id: "g-misty", party_member_id: "pm1", spell_id: "srd_misty", is_known: true, is_prepared: false, always_prepared: false, source_type: "racial", source_class_id: null, casting_ability: "cha", uses_per_day: 1, uses_remaining: 1 },
+    ]);
+    const misty = (await load(["pm1"])).casting.spells.find((s) => s.name === "Misty Step");
+    expect(misty).toMatchObject({ id: "g-misty", uses_per_day: 1, uses_remaining: 1 });
+  });
+
   // Bug caught: a custom class or subclass of an account that is not this campaign's DM read just because a character row points at its id.
   it("reads a custom class and subclass of this campaign's DM or owner, and not another account's", async () => {
     const { definitions } = (await load()).casting;

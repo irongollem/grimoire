@@ -122,8 +122,8 @@ async function loadAllyCasting(admin: SupabaseClient, campaignId: string, member
     const spell = named.get(g.spell_id);
     if (spell === undefined) return [];
     return [{
-      party_member_id: g.party_member_id, name: spell.name, level: spell.level, is_known: g.is_known, is_prepared: g.is_prepared, always_prepared: g.always_prepared,
-      source_type: g.source_type, source_class_id: g.source_class_id ?? null, casting_ability: g.casting_ability ?? null, uses_per_day: g.uses_per_day,
+      id: g.id, party_member_id: g.party_member_id, name: spell.name, level: spell.level, is_known: g.is_known, is_prepared: g.is_prepared, always_prepared: g.always_prepared,
+      source_type: g.source_type, source_class_id: g.source_class_id ?? null, casting_ability: g.casting_ability ?? null, uses_per_day: g.uses_per_day, uses_remaining: g.uses_remaining,
     }];
   });
   return { spells, classes, definitions: { system, custom, subclasses } };

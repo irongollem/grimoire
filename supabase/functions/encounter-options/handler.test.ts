@@ -222,7 +222,7 @@ describe("computeOptions for an ally", () => {
       ...SAM,
       members: [{ ...SAM.members[0], int: 16, level: 5, proficiency_bonus: 3, spell_slots: [{ level: 3, max: 2, used: 1 }] }],
       casting: {
-        spells: [{ party_member_id: "pm-pc", name: "Fireball", level: 3, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-wiz", casting_ability: null, uses_per_day: null }],
+        spells: [{ id: "fb-row", party_member_id: "pm-pc", name: "Fireball", level: 3, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-wiz", casting_ability: null, uses_per_day: null, uses_remaining: null }],
         classes: [wizard],
         definitions: { system: [{ id: "def-wiz", caster_type: "prepared", prepared_ability: "int" }], custom: [], subclasses: [] },
       },

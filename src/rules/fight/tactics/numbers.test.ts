@@ -391,3 +391,70 @@ describe("what the fight has shown of a target's defenses (#1021)", () => {
     expect(withNumbers([opt], ctx)[0].spell?.expectedDamage).toBeCloseTo(23.1 * 1.5, 10);
   });
 });
+
+describe("Sneak Attack weighed by the tactics (#1021)", () => {
+  // PHB 2014 "Rogue: Sneak Attack": once per turn, +3d6 at 5th level on a finesse or ranged weapon hit with advantage, or with an enemy of the
+  // target within 5 feet and no disadvantage. A +5 dagger (1d4+3) and a +5 longsword (1d8+3) against AC 15: a 9 on the die, so 11 faces of 20 hit (0.55).
+  const DAGGER = attackEntry("Dagger", { bonus: 5, hit: [{ dice: "1d4+3", type: "piercing" }] });
+  const LONGSWORD = attackEntry("Longsword", { bonus: 5, hit: [{ dice: "1d8+3", type: "slashing" }] });
+  const FACTIONS = [{ id: "m", hostile_to: ["p"] }, { id: "p", hostile_to: ["m"] }];
+  // The dagger rides Sneak Attack, the longsword (a heavy sword, no finesse) does not.
+  const sneakDiceOf = (name: string) => (name === "Dagger" ? "3d6" : null);
+  const weigh = (action: string, over: { mover?: Partial<RunCombatant>; target?: Partial<RunCombatant>; buddy?: Partial<RunCombatant> | null; dice?: (name: string) => string | null; steps?: TurnOptionAttack["steps"] } = {}) => {
+    const mover = creature("ogre", over.mover);
+    const ctx: NumbersContext = {
+      attacks: [DAGGER, LONGSWORD, attackEntry("Extra Attack (Dagger)", { bonus: 5, hit: [{ dice: "1d4+3", type: "piercing" }] })],
+      combatants: [mover, creature("fresco", over.target), ...(over.buddy === null || over.buddy === undefined ? [] : [creature("buddy", { faction_id: "m", ...over.buddy })])],
+      moverId: "ogre", armorClassOf: () => 15, ruleset: "2014", factions: FACTIONS, sneakDiceOf: over.dice === undefined ? sneakDiceOf : over.dice,
+    };
+    return withNumbers([option({ steps: over.steps === undefined ? null : over.steps }, action)], ctx)[0].attack?.expectedDamage as number;
+  };
+  const DAGGER_PLAIN = 0.55 * 5.5 + 0.05 * 2.5;
+  const SNEAK_DICE = 0.6 * 10.5;
+
+  // Bug caught: the Rogue's tactics ignoring Sneak Attack, so a longsword (4.35) beat a dagger (3.15) every turn.
+  it("makes a dagger beat a longsword when an enemy of the target stands beside it", () => {
+    const dagger = weigh("Dagger", { buddy: {} });
+    expect(dagger).toBeCloseTo(DAGGER_PLAIN + SNEAK_DICE, 10);
+    expect(dagger).toBeGreaterThan(weigh("Longsword", { buddy: {} }));
+  });
+
+  // Bug caught: Sneak Attack counted with nothing to qualify it (no advantage, no one beside the target): the dagger is only 3.15 then.
+  it("adds nothing with no advantage and no enemy beside the target", () => {
+    expect(weigh("Dagger")).toBeCloseTo(DAGGER_PLAIN, 10);
+    expect(weigh("Longsword")).toBeCloseTo(0.55 * 7.5 + 0.05 * 4.5, 10);
+  });
+
+  // PHB 2014 "Sneak Attack": the other enemy must not be incapacitated, and a creature at 0 hit points is no threat. Bug caught: any creature beside the target counted.
+  it("does not count a stunned or downed creature beside the target, or a creature that is no foe of it", () => {
+    expect(weigh("Dagger", { buddy: { conditions: [cond("Stunned")] } })).toBeCloseTo(DAGGER_PLAIN, 10);
+    expect(weigh("Dagger", { buddy: { hp: 0 } })).toBeCloseTo(DAGGER_PLAIN, 10);
+    expect(weigh("Dagger", { buddy: { faction_id: "p" } })).toBeCloseTo(DAGGER_PLAIN, 10);
+  });
+
+  // Advantage alone is enough: a Restrained target gives it (PHB 2014 "Conditions"). One in advantage: hits 1 - 0.45^2 = 0.7975, a natural 20 0.0975.
+  it("applies with advantage and no one beside the target", () => {
+    const hit = 1 - 0.45 * 0.45;
+    const nat20 = 1 - 0.95 * 0.95;
+    expect(weigh("Dagger", { target: { conditions: [cond("Restrained")] } })).toBeCloseTo(hit * 5.5 + nat20 * 2.5 + hit * 10.5 + nat20 * 10.5, 10);
+  });
+
+  // PHB 2014 "Sneak Attack": no disadvantage on the roll. Poisoned gives disadvantage, which the beside-the-target route cannot override. Bug caught: disadvantage ignored.
+  it("does not apply with disadvantage even with an enemy beside the target", () => {
+    const hit = 0.55 * 0.55;
+    const nat20 = 0.05 * 0.05;
+    expect(weigh("Dagger", { mover: { conditions: [cond("Poisoned")] }, buddy: {} })).toBeCloseTo(hit * 5.5 + nat20 * 2.5, 10);
+  });
+
+  // Bug caught: dice added for a mover with no Sneak Attack (every monster), or when the turn's one use is spent (`sneakDiceOf` null).
+  it("adds nothing when the mover has none, or its use is spent", () => {
+    expect(weigh("Dagger", { buddy: {}, dice: () => null })).toBeCloseTo(DAGGER_PLAIN, 10);
+  });
+
+  // Once per turn: two dagger swings carry one Sneak Attack, not two. The dice go to the first swing that hits: 0.6*10.5 for the first,
+  // and for the second only the 0.45 chance the first missed.
+  it("credits a Multiattack with one Sneak Attack, not one per swing", () => {
+    const two = weigh("Extra Attack (Dagger)", { buddy: {}, steps: [{ action: "Dagger", count: 2 }], dice: sneakDiceOf });
+    expect(two).toBeCloseTo(2 * DAGGER_PLAIN + SNEAK_DICE + 0.45 * SNEAK_DICE, 10);
+  });
+});

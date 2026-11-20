@@ -24,9 +24,8 @@ import { statBlockOf, type StatBlockSources } from "../_shared/fightStatBlocks.t
 import type { StatBlockListKey } from "../../../src/rules/statBlock/parseAction.ts";
 import { holdsConcentration } from "../../../src/rules/conditionDurations.ts";
 import { attackRollMode } from "../../../src/rules/combat/attackRoll.ts";
-import { isIncapacitated } from "../../../src/rules/conditions.ts";
-import { isHostileTo } from "../../../src/rules/fight/sides.ts";
-import { allySlotSpend, settleSlotSpend } from "../../../src/rules/fight/allies/spells.ts";
+import { allySlotSpend, settleSlotSpend, type InnateSpend } from "../../../src/rules/fight/allies/spells.ts";
+import { enemyBesideTarget } from "../../../src/rules/fight/allies/sneak.ts";
 import { allyAttackShape, allySneakAttack } from "../../../src/rules/fight/allies/statBlock.ts";
 import { RAGE_RESISTANCES, RAGING, divineSmiteFor, rageDamageFor } from "../../../src/rules/fight/allies/features.ts";
 import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "../../../src/rules/fight/targeting.ts";
@@ -426,6 +425,8 @@ export interface ResolveEnv {
   slotsSpent: Array<{ memberId: string; slots: SpellSlotEntry[] }>;
   /** The sheet's `class_resources` as they stand after an ally used a limited class feature (Rage, Second Wind, Action Surge, Ki), the whole list, in order, for the caller to write once the fight is saved (#1021). */
   resourcesSpent: Array<{ memberId: string; resources: StoredClassResources }>;
+  /** The uses an ally's casts of daily-limited innate spells left on their `character_spells` rows, as absolute counts, in order, for the caller to write once the fight is saved (#1021). */
+  innateSpent: InnateSpend[];
   /**
    * Asks whether each turn goes against a creature's note (#1203), once per distinct `key`; null when asking is not
    * allowed or did not work. Left out where no note is ever consulted.
@@ -589,9 +590,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
       attackerConditions: attacker.conditions, targetConditions: target.conditions, delivery, withinFiveFeet: near,
       hostileWithinFiveFeetOfAttacker: facts.hostileWithinFiveFeetOfAttacker, longRange: facts.longRange, ruleset: holder.state.ruleset,
     });
-    const flanked = holder.state.combatants.some((c) =>
-      c.instance_id !== attacker.instance_id && c.instance_id !== target.instance_id && c.bystander !== true && c.hp > 0
-      && !isIncapacitated(c.conditions) && isHostileTo(c, target, env.factions) && withinFiveFeet(c, target) === true);
+    const flanked = enemyBesideTarget(holder.state.combatants, attacker.instance_id, target, env.factions);
     if (mode !== "advantage" && !(mode === "normal" && flanked)) return null;
     const type = attack.hit[0] === undefined ? null : attack.hit[0].type;
     return { useKey, entry: { ...entry, structured: { ...entry.structured, attack: { ...attack, hit: [...attack.hit, { dice: sneak.dice, type }] } } } };

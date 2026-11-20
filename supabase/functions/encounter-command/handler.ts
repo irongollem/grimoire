@@ -331,6 +331,8 @@ export interface BatchDeps {
   writeGear(writes: GearWrite[]): Promise<void>;
   /** Writes an ally's spell slots after a cast, the whole list as it now stands (absolute, so a retry lands once). */
   writeSpellSlots(memberId: string, slots: SpellSlotEntry[]): Promise<void>;
+  /** Writes the uses an ally's innate spell has left (`character_spells.uses_remaining`) after a cast, as an absolute count (so a retry lands once). */
+  writeInnateUses(memberId: string, spellRowId: string, remaining: number): Promise<void>;
   /** Writes an ally's `class_resources` after a class feature spent a use (Rage, Second Wind, Action Surge, Ki), the whole object as it now stands (absolute, so a retry lands once). */
   writeClassResources(memberId: string, resources: StoredClassResources): Promise<void>;
   /** One die of any size, from the server's secure source: what a resolving command rolls with. */
@@ -436,7 +438,7 @@ async function attempt(
   row: FightRow,
   deps: BatchDeps,
   notes: NoteJudgments,
-): Promise<{ state: FightState; effects: FightEffect[]; rolls: PostedRoll[]; spent: ResolveEnv["spent"]; slotsSpent: ResolveEnv["slotsSpent"]; resourcesSpent: ResolveEnv["resourcesSpent"] }> {
+): Promise<{ state: FightState; effects: FightEffect[]; rolls: PostedRoll[]; spent: ResolveEnv["spent"]; slotsSpent: ResolveEnv["slotsSpent"]; resourcesSpent: ResolveEnv["resourcesSpent"]; innateSpent: ResolveEnv["innateSpent"] }> {
   const fightDeps: FightDeps = {
     monsters: loaded.monsters,
     npcs: loaded.npcs,
@@ -461,6 +463,7 @@ async function attempt(
   const spent: ResolveEnv["spent"] = [];
   const slotsSpent: ResolveEnv["slotsSpent"] = [];
   const resourcesSpent: ResolveEnv["resourcesSpent"] = [];
+  const innateSpent: ResolveEnv["innateSpent"] = [];
   // The stat blocks and the player sheets are read once per attempt, and only when the batch has an action to resolve.
   let sources: StatBlockSources | null = null;
   let players: PlayerSheets | null = null;
@@ -515,7 +518,7 @@ async function attempt(
     }
     // `undefined` is "not asked yet" (a null map is an answer: this fight has none).
     if (map === undefined) map = await deps.loadFightMap(request.encounterId);
-    return { fightDeps, sources, players, map, factions: loaded.factions, rollDie: deps.rollDie, spells, spellsListed, posted: rolls, spent, slotsSpent, resourcesSpent, judgeNote: notes.ask };
+    return { fightDeps, sources, players, map, factions: loaded.factions, rollDie: deps.rollDie, spells, spellsListed, posted: rolls, spent, slotsSpent, resourcesSpent, innateSpent, judgeNote: notes.ask };
   };
   for (const command of request.commands) {
     if (command.type === "sync_party" || LIFECYCLE_TYPES.has(command.type)) continue;
@@ -547,7 +550,7 @@ async function attempt(
     state = result.state;
     effects.push(...result.effects);
   }
-  return { state, effects, rolls, spent, slotsSpent, resourcesSpent };
+  return { state, effects, rolls, spent, slotsSpent, resourcesSpent, innateSpent };
 }
 
 /** Whether a write would leave the fight exactly as the row has it (the batch id aside). */
@@ -829,7 +832,7 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
       throw new FightCommandError(409, "This fight has ended.");
     }
 
-    const { state, effects, rolls, spent, slotsSpent, resourcesSpent } = await attempt(request, loaded, row, deps, notes);
+    const { state, effects, rolls, spent, slotsSpent, resourcesSpent, innateSpent } = await attempt(request, loaded, row, deps, notes);
     const write = writeOf(state, row.applied_command_ids, request.batchId);
     // Most syncs find the sheets as the fight already has them (the ring was this fight's own write to a sheet
     // coming back). Saving anyway would raise the version and ring every screen for nothing, on every hit.
@@ -850,6 +853,9 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
     // The slots an ally's casts used: one absolute write per member (the last cast's whole list), so a retry lands once.
     const lastSlots = new Map(slotsSpent.map((w) => [w.memberId, w.slots]));
     for (const [memberId, slots] of lastSlots) effectFailures.push(...(await performAll([{ name: "ally_spell_slots", run: () => deps.writeSpellSlots(memberId, slots) }])));
+    // The uses an ally's daily-limited innate spells spent: one absolute write per grant (the last count), so a retry lands once.
+    const lastInnate = new Map(innateSpent.map((w) => [w.spellRowId, w]));
+    for (const w of lastInnate.values()) effectFailures.push(...(await performAll([{ name: "ally_innate_uses", run: () => deps.writeInnateUses(w.memberId, w.spellRowId, w.remaining) }])));
     // The limited uses an ally's class features spent: one absolute write per member (the last whole object), so a retry lands once.
     const lastResources = new Map(resourcesSpent.map((w) => [w.memberId, w.resources]));
     for (const [memberId, resources] of lastResources) effectFailures.push(...(await performAll([{ name: "ally_class_resources", run: () => deps.writeClassResources(memberId, resources) }])));

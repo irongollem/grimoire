@@ -8,7 +8,7 @@ import { spellcastingOf } from "../../statBlock/spellcastingProse";
 import { castableNow, listedSpellNames } from "../spells/castNow";
 import { fireball, fireBolt } from "../spells/spellTestKit";
 import { NO_CASTING, type AllySpellRow, type PlayerSheetRow, type PlayerSheets } from "../playerSheet";
-import { allySlotSpend, allySpellcastingEntries, settleSlotSpend, slotsLeftAt } from "./spells";
+import { allyInnateSpend, allySlotSpend, allySpellcastingEntries, settleInnateSpend, settleSlotSpend, slotPoolFor, slotsLeftAt } from "./spells";
 import { allyStatBlock } from "./statBlock";
 
 const slot = (level: number, max: number, used = 0, over: Partial<SpellSlotEntry> = {}): SpellSlotEntry => ({ level, max, used, ...over });
@@ -32,7 +32,7 @@ const DEFINITIONS = {
 const MONK = classRow("cls-monk", "Monk", "def-monk");
 
 const grant = (name: string, level: number, over: Partial<AllySpellRow> = {}): AllySpellRow => ({
-  party_member_id: "pm-1", name, level, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-wiz", casting_ability: null, uses_per_day: null, ...over,
+  id: `${name}-row`, party_member_id: "pm-1", name, level, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-wiz", casting_ability: null, uses_per_day: null, uses_remaining: null, ...over,
 });
 
 /** Mira: level 5, proficiency +3, Intelligence 16 (+3), Wisdom 14 (+2), Charisma 18 (+4): Wizard DC 14 / +6, Cleric DC 13 / +5, Sorcerer DC 15 / +7. */
@@ -133,11 +133,10 @@ describe("an ally's spells", () => {
     expect(listedSpellNames(allyStatBlock(s, "pm-1") as MonsterStatBlock)).toEqual(["fire bolt"]);
   });
 
-  // An innate cantrip (a racial one) is cast off its own ability; one with a daily limit is not offered yet.
-  it("offers an at-will innate spell with its own ability and not one with a daily limit", () => {
+  // An innate cantrip (a racial one) is cast off its own ability (Charisma 18: 3 + 4 = +7).
+  it("offers an at-will innate spell with its own ability", () => {
     const racial = grant("Fire Bolt", 0, { source_type: "racial", source_class_id: null, casting_ability: "cha" });
     expect(castable(sheets({ classes: [], spells: [racial] }))[0].entry.structured).toMatchObject({ attack: { bonus: 7 } });
-    expect(offered(sheets({ classes: [], spells: [{ ...racial, uses_per_day: 1 }] }))).toEqual([]);
   });
 
   // Bug caught: a class that casts nothing (a Monk, who has a Wisdom DC for its features) casting the spells on its sheet.
@@ -148,6 +147,121 @@ describe("an ally's spells", () => {
   it("gives a member with nothing ready no Spellcasting entry at all", () => {
     expect(allyStatBlock(sheets(), "pm-1")?.special_abilities).toBeUndefined();
     expect(allyStatBlock({ ...sheets(), casting: NO_CASTING }, "pm-1")?.special_abilities).toBeUndefined();
+  });
+});
+
+describe("an ally's innate spells with a daily limit", () => {
+  const fireballRacial = (over: Partial<AllySpellRow> = {}) => grant("Fireball", 3, { source_type: "racial", source_class_id: null, casting_ability: "cha", uses_per_day: 2, uses_remaining: 2, ...over });
+  const innate = (spells: AllySpellRow[], c?: RunCombatant) => castable(sheets({ classes: [], spells, slots: [] }), c);
+
+  // SRD 5.1 "Innate Spellcasting": "N/day" is N casts of that spell. Charisma 18, proficiency +3: DC 15. Bug caught: a daily spell left out
+  // (the old behaviour), or cast against a slot line (limit keyed `slots/3` instead of the spell's own tally).
+  it("offers a daily innate spell while uses remain, tallied under its own key at the sheet's DC", () => {
+    const [now] = innate([fireballRacial()]);
+    expect(now).toMatchObject({ spell: "Fireball", castLevel: 3, useKey: "spell/fireball", limit: { per_day: 2 }, kind: "save" });
+    expect(now.entry.structured).toMatchObject({ save: { dc: 15 } });
+  });
+
+  // Bug caught: a spent daily spell still offered. `uses_remaining` null reads as none left, as the Spells tab reads it.
+  it("does not offer one with no use left, or with its remaining count unset", () => {
+    expect(innate([fireballRacial({ uses_remaining: 0 })])).toEqual([]);
+    expect(innate([fireballRacial({ uses_remaining: null })])).toEqual([]);
+    // Not even listed on the block: a "0/day" line is no line.
+    expect(allySpellcastingEntries(sheets({ classes: [], spells: [fireballRacial({ uses_remaining: 0 })], slots: [] }), "pm-1", undefined)).toEqual([]);
+  });
+
+  // Bug caught: the fight's tally subtracted from a sheet that already shows the cast (one of two used and written: 1 on the sheet, 1 tallied
+  // is two casts in all, not one), or a last use that the sheet already wrote read as gone.
+  it("counts a cast the sheet already took and the fight tallied once", () => {
+    const tallied = mira({ action_uses: { "spell/fireball": { used: 1, per_day: 2 } } });
+    const [now] = innate([fireballRacial({ uses_remaining: 1 })], tallied);
+    expect(now.limit).toEqual({ per_day: 2 });
+    expect(limitAvailability(tallied, now.useKey as string, now.limit as NonNullable<typeof now.limit>)).toMatchObject({ available: true, label: "1/2 left" });
+    // And with the last use written and tallied, none is left.
+    const done = mira({ action_uses: { "spell/fireball": { used: 2, per_day: 2 } } });
+    expect(innate([fireballRacial({ uses_remaining: 0 })], done)).toEqual([]);
+  });
+
+  // Bug caught: the daily line taking a slot-line shape, so the prose reader would give the spell a slot tally.
+  it("writes the line the monster pipeline reads as N per day each", () => {
+    const [entry] = allySpellcastingEntries(sheets({ classes: [], spells: [fireballRacial()], slots: [] }), "pm-1", undefined);
+    const [group] = spellcastingOf({ special_abilities: [entry] } as unknown as MonsterStatBlock)[0].prose.groups;
+    expect(group.frequency).toEqual({ kind: "per_day", count: 2, each: true });
+  });
+
+  // Bug caught: a class spell with a `uses_per_day` (never set by the app) read as innate and limited, or an at-will innate leveled spell given a daily count.
+  it("leaves an at-will innate spell unlimited", () => {
+    const [now] = castable(sheets({ classes: [], slots: [], spells: [grant("Fireball", 3, { source_type: "racial", source_class_id: null, casting_ability: "cha" })] }));
+    expect(now).toMatchObject({ spell: "Fireball", useKey: null, limit: null });
+  });
+});
+
+describe("allyInnateSpend", () => {
+  const racial = (over: Partial<AllySpellRow> = {}) => grant("Misty Step", 2, { source_type: "racial", source_class_id: null, casting_ability: "cha", uses_per_day: 1, uses_remaining: 1, ...over });
+
+  // Bug caught: the cast writing nothing, or writing the count before the cast (the same number back).
+  it("says the count left after one cast, and lets a second cast find it", () => {
+    const s = sheets({ classes: [], spells: [racial({ uses_per_day: 3, uses_remaining: 3 })] });
+    const first = allyInnateSpend(s, "pm-1", "Misty Step");
+    expect(first).toEqual({ memberId: "pm-1", spellRowId: "Misty Step-row", remaining: 2 });
+    settleInnateSpend(s, first as NonNullable<typeof first>);
+    expect(allyInnateSpend(s, "pm-1", "Misty Step")).toMatchObject({ remaining: 1 });
+  });
+
+  // Bug caught: a spent grant "spent" again into a negative count; a class spell (slots, not uses) or an at-will grant written to.
+  it("writes nothing for a grant with no use left, an at-will grant or a class spell", () => {
+    expect(allyInnateSpend(sheets({ classes: [], spells: [racial({ uses_remaining: 0 })] }), "pm-1", "Misty Step")).toBeNull();
+    expect(allyInnateSpend(sheets({ classes: [], spells: [racial({ uses_per_day: null, uses_remaining: null })] }), "pm-1", "Misty Step")).toBeNull();
+    expect(allyInnateSpend(sheets({ spells: [grant("Misty Step", 2)] }), "pm-1", "Misty Step")).toBeNull();
+    // A class spell never spends uses, whatever its row says (the app does not set a daily limit on one).
+    expect(allyInnateSpend(sheets({ spells: [grant("Misty Step", 2, { uses_per_day: 1, uses_remaining: 1 })] }), "pm-1", "Misty Step")).toBeNull();
+  });
+
+  // Bug caught: another member's grant of the same name spent.
+  it("spends the named member's own grant", () => {
+    expect(allyInnateSpend(sheets({ classes: [], spells: [racial()] }), "pm-other", "Misty Step")).toBeNull();
+  });
+});
+
+describe("Pact Magic slots", () => {
+  const WARLOCK = classRow("cls-wl", "Warlock", "def-wl");
+  const pactSlots = (over: Partial<SpellSlotEntry> = {}) => slot(2, 2, 0, { pool: "pact", recovery: "short", ...over });
+  const withPact = (slots: SpellSlotEntry[], spells: AllySpellRow[] = []) => {
+    const s = sheets({ classes: [WIZARD, WARLOCK], slots, spells });
+    s.casting.definitions.system.push({ id: "def-wl", caster_type: "known" as const, prepared_ability: "cha" as const });
+    return s;
+  };
+
+  // PHB 2014 "Multiclassing: Pact Magic": slots of either kind cast spells of either kind, so both count at their level.
+  // Bug caught: the pact pool left out of the count (a Warlock/Wizard seeing only half its slots).
+  it("counts pact slots with the spellcasting slots at their level", () => {
+    expect(slotsLeftAt([slot(2, 3), pactSlots()], 2)).toBe(5);
+  });
+
+  // The Warlock's spell spends the short-rest slot first, the Wizard's the spellcasting slot; the other pool is the fallback.
+  // Bug caught: the first unspent slot at the level spent whichever pool it came from (a Wizard spell eating the Warlock's short-rest slot).
+  it("spends the pool of the spell's own class first", () => {
+    const slots = [pactSlots(), slot(2, 3)];
+    const s = withPact(slots, [grant("Fireball", 3), grant("Hex", 1, { source_class_id: "cls-wl" })]);
+    expect(slotPoolFor(s, "pm-1", "Fireball")).toBe("spellcasting");
+    expect(slotPoolFor(s, "pm-1", "Hex")).toBe("pact");
+    expect(allySlotSpend(s, "pm-1", 2, "spellcasting")).toEqual([pactSlots(), slot(2, 3, 1)]);
+    expect(allySlotSpend(s, "pm-1", 2, "pact")).toEqual([pactSlots({ used: 1 }), slot(2, 3)]);
+  });
+
+  // PHB 2014 "Multiclassing: Pact Magic": either pool may cast either kind of spell, so an empty preferred pool falls back to the other.
+  // Bug caught: a Warlock spell with no pact slot left (spent) cast for free instead of from the Spellcasting slots, or refused.
+  it("falls back to the other pool when the preferred one has none at the level", () => {
+    const s = withPact([pactSlots({ used: 2 }), slot(2, 3)]);
+    expect(allySlotSpend(s, "pm-1", 2, "pact")).toEqual([pactSlots({ used: 2 }), slot(2, 3, 1)]);
+  });
+
+  // A custom class that recovers its slots on a short rest is a pact class too.
+  it("reads a custom class with short-rest slots as a pact class", () => {
+    const custom = { ...classRow("cls-cu", "Hexblade", "def-cu"), class_definition_kind: "custom" as const };
+    const s = sheets({ classes: [custom], spells: [grant("Hex", 1, { source_class_id: "cls-cu" })] });
+    s.casting.definitions.custom.push({ id: "def-cu", caster_type: "known" as const, prepared_ability: "cha" as const, slot_recovery: "short" as const });
+    expect(slotPoolFor(s, "pm-1", "Hex")).toBe("pact");
   });
 });
 

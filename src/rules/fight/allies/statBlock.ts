@@ -99,12 +99,11 @@ function canSwingTimes(row: AllyRow, gear: CarriedGear, count: number): boolean 
  * Multiattack entry of that many swings of it, the way a monster's Multiattack is (the tactics, the options and `take_turn` read
  * it unchanged). The swings are the same weapon: a mixed set of weapons is not offered yet.
  */
-function extraAttackEntries(attacks: readonly AllyAttack[], perAction: number, gear: CarriedGear): StatBlockEntry[] {
-  if (perAction < 2) return [];
-  return attacks.filter((a) => canSwingTimes(a.row, gear, perAction)).map((a): StatBlockEntry => ({
+function extraAttackEntries(attacks: readonly AllyAttack[], perAction: (attack: AllyAttack) => number, gear: CarriedGear): StatBlockEntry[] {
+  return attacks.filter((a) => perAction(a) >= 2 && canSwingTimes(a.row, gear, perAction(a))).map((a): StatBlockEntry => ({
     name: extraAttackName(a.entry.name),
-    description: `Makes ${perAction} attacks: ${a.entry.name} x${perAction}.`,
-    structured: { kind: "multiattack", source: "manual", multiattack: [{ action: a.entry.name, count: perAction }] },
+    description: `Makes ${perAction(a)} attacks: ${a.entry.name} x${perAction(a)}.`,
+    structured: { kind: "multiattack", source: "manual", multiattack: [{ action: a.entry.name, count: perAction(a) }] },
   }));
 }
 
@@ -122,13 +121,12 @@ export function allyEntryFeature(action: string): AllyFeature | null {
  * like any other attack (and so use it whenever an attack is in reach and a use is left). It is on the block only while the sheet
  * holds a use. Spells are not cast with the extra action yet.
  */
-function actionSurgeEntries(sheets: PlayerSheets, memberId: string, attacks: readonly AllyAttack[], perAction: number, gear: CarriedGear): StatBlockEntry[] {
+function actionSurgeEntries(sheets: PlayerSheets, memberId: string, attacks: readonly AllyAttack[], perAction: (attack: AllyAttack) => number, gear: CarriedGear): StatBlockEntry[] {
   if (!featureReady(featureUse(sheets, memberId, "action_surge"))) return [];
-  const swings = perAction * 2;
-  return attacks.filter((a) => canSwingTimes(a.row, gear, swings)).map((a): StatBlockEntry => ({
+  return attacks.filter((a) => canSwingTimes(a.row, gear, perAction(a) * 2)).map((a): StatBlockEntry => ({
     name: `${ACTION_SURGE} (${a.entry.name})`,
-    description: `Takes an additional action: ${a.entry.name} x${swings}.`,
-    structured: { kind: "multiattack", source: "manual", multiattack: [{ action: a.entry.name, count: swings }] },
+    description: `Takes an additional action: ${a.entry.name} x${perAction(a) * 2}.`,
+    structured: { kind: "multiattack", source: "manual", multiattack: [{ action: a.entry.name, count: perAction(a) * 2 }] },
   }));
 }
 
@@ -206,6 +204,9 @@ export function allyStatBlock(sheets: PlayerSheets, memberId: string, tally?: Ca
   }
   const attacks = allyAttacks(sheets, memberId);
   if (attacks === null) return null;
+  // How many swings one Attack action holds for an attack: the class table's, and for a Warlock's pact weapon the Thirsting Blade's.
+  const classes = memberClasses(sheets, memberId);
+  const perAction = (a: AllyAttack) => attacksPerAttackAction(classes, { ruleset: member.ruleset, classChoices: member.class_choices }, { pactWeapon: a.row.kind === "melee" && a.row.key !== UNARMED_KEY });
   // RULE rage (PHB 2014 "Rage"; PHB 2024 "Rage"): you can't cast spells or concentrate on them while raging, so a raging member's block lists none.
   const spellcasting = raging ? [] : allySpellcastingEntries(sheets, memberId, tally);
 
@@ -221,8 +222,8 @@ export function allyStatBlock(sheets: PlayerSheets, memberId: string, tally?: Ca
     ...(spellcasting.length === 0 ? {} : { special_abilities: spellcasting }),
     actions: [
       ...attacks.map((a) => a.entry),
-      ...extraAttackEntries(attacks, attacksPerAttackAction(memberClasses(sheets, memberId)), carriedGearOf(sheets, memberId)),
-      ...actionSurgeEntries(sheets, memberId, attacks, attacksPerAttackAction(memberClasses(sheets, memberId)), carriedGearOf(sheets, memberId)),
+      ...extraAttackEntries(attacks, perAction, carriedGearOf(sheets, memberId)),
+      ...actionSurgeEntries(sheets, memberId, attacks, perAction, carriedGearOf(sheets, memberId)),
     ],
   };
 }

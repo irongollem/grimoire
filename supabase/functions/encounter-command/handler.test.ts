@@ -84,6 +84,8 @@ interface Harness {
   gearWrites: GearWrite[][];
   /** The spell slot lists written to allies' sheets after their casts, in order. */
   slotWrites: Array<{ memberId: string; slots: SpellSlotEntry[] }>;
+  /** The uses left written to allies' innate spell rows after their casts, in order. */
+  innateWrites: Array<{ memberId: string; spellRowId: string; remaining: number }>;
   /** The `class_resources` written to allies' sheets after their class features were used, in order. */
   resourceWrites: Array<{ memberId: string; resources: StoredClassResources }>;
   /** How many times the server threw a die. */
@@ -124,6 +126,8 @@ function harness(
     dropFails?: boolean;
     /** A write of an ally's spell slots that fails. */
     slotsFail?: boolean;
+    /** A write of an ally's innate spell uses that fails. */
+    innateFail?: boolean;
     /** A write of an ally's class resources that fails. */
     resourcesFail?: boolean;
     /** The faces the server's die shows, one per throw in order; a throw past the end fails the test. */
@@ -157,6 +161,7 @@ function harness(
     gearWrites: [],
     slotWrites: [],
     resourceWrites: [],
+    innateWrites: [],
     dieCalls: 0,
     playerLoads: [],
     mapLoads: 0,
@@ -276,6 +281,11 @@ function harness(
       if (options.resourcesFail) throw new Error("sheet is down");
       h.log.push("resources");
       h.resourceWrites.push({ memberId, resources: structuredClone(resources) });
+    },
+    async writeInnateUses(memberId, spellRowId, remaining) {
+      if (options.innateFail) throw new Error("sheet is down");
+      h.log.push("innate");
+      h.innateWrites.push({ memberId, spellRowId, remaining });
     },
     async writeSpellSlots(memberId, slots) {
       if (options.slotsFail) throw new Error("sheet is down");
@@ -3115,7 +3125,7 @@ describe("take_turn: an ally's ammunition and thrown weapons", () => {
 function wizardTamSheets(over: { slots?: SpellSlotEntry[]; spells?: AllySpellRow[]; bear?: boolean; wildshape?: boolean } = {}): PlayerSheets {
   const base = tamSheets({ bare: true, bear: over.bear, wildshape: over.wildshape });
   const wizard = { id: "cls-wiz", party_member_id: "pm-tam", class_name: "Wizard", class_definition_id: "def-wiz", class_definition_kind: "system", subclass_name: null, subclass_definition_id: null, subclass_variant: null, levels: 5, is_primary: true, hit_dice_used: 0, sort_order: 0, capabilities: [] } as unknown as CharacterClass;
-  const grant = (name: string, level: number): AllySpellRow => ({ party_member_id: "pm-tam", name, level, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-wiz", casting_ability: null, uses_per_day: null });
+  const grant = (name: string, level: number): AllySpellRow => ({ id: `${name}-row`, party_member_id: "pm-tam", name, level, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-wiz", casting_ability: null, uses_per_day: null, uses_remaining: null });
   return {
     ...base,
     members: [{ ...base.members[0], int: 16, level: 5, proficiency_bonus: 3, spell_slots: over.slots ?? [{ level: 3, max: 2, used: 0 }] }],
@@ -3391,7 +3401,7 @@ describe("healing spells in a fight", () => {
 function clericTamSheets(over: { slots?: SpellSlotEntry[] } = {}): PlayerSheets {
   const base = tamSheets({ bare: true });
   const cleric = { id: "cls-clr", party_member_id: "pm-tam", class_name: "Cleric", class_definition_id: "def-clr", class_definition_kind: "system", subclass_name: null, subclass_definition_id: null, subclass_variant: null, levels: 5, is_primary: true, hit_dice_used: 0, sort_order: 0, capabilities: [] } as unknown as CharacterClass;
-  const grant = (name: string, level: number): AllySpellRow => ({ party_member_id: "pm-tam", name, level, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-clr", casting_ability: null, uses_per_day: null });
+  const grant = (name: string, level: number): AllySpellRow => ({ id: `${name}-row`, party_member_id: "pm-tam", name, level, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-clr", casting_ability: null, uses_per_day: null, uses_remaining: null });
   return {
     ...base,
     members: [{ ...base.members[0], wis: 16, level: 5, proficiency_bonus: 3, spell_slots: over.slots ?? [{ level: 1, max: 2, used: 0 }] }],
@@ -4017,5 +4027,113 @@ describe("take_turn: an ally Paladin's Divine Smite", () => {
     await runBatch(batch("b", tamTurn()), off.deps);
     expect(hpOf(stored(off), "victim")).toBe(33);
     expect(off.slotWrites).toEqual([]);
+  });
+});
+
+describe("take_turn: a Rogue ally's tactics weigh Sneak Attack", () => {
+  const DAGGER_OFF_HAND = { ...daggers(1), id: "inv-dagger2", slot: "off_hand" } as unknown as PartyInventoryItem;
+  const armed = () => withClasses(tamSheets({ gear: [heldSword, DAGGER_OFF_HAND], items: [LONGSWORD, DAGGER] }), classRow("Rogue", 1));
+
+  // PHB 2014 "Rogue: Sneak Attack": a finesse dagger with an enemy of the target beside it adds 1d6 once a turn; a longsword (1d8+3) is not a finesse weapon.
+  // Both hit at +5 against AC 13 (8 or better, 0.65). The longsword averages 4.5 + 3 on a hit and the dagger 2.5 + 3, so the sword is the better plain
+  // weapon, but Sneak Attack's 3.5 on the dagger turns it round. Bug caught: the picker weighing a Rogue by the weapon's own damage alone.
+  it("picks the dagger when a friend of the Rogue stands beside the target, and the longsword when none does", async () => {
+    const withFriend = harness(sneakFight({ friend: {} }), { sources: SOURCES, players: armed(), map: mapOf(), dieFaces: [8, 2, 5] });
+    const result = await runBatch(batch("b", tamTurn()), withFriend.deps);
+    expect(result.effects[0]).toMatchObject({ turn: { optionId: STAB, kind: "attack" } });
+    const alone = harness(sneakFight(), { sources: SOURCES, players: armed(), map: mapOf(), dieFaces: [8, 4] });
+    const second = await runBatch(batch("b", tamTurn()), alone.deps);
+    expect(second.effects[0]).toMatchObject({ turn: { optionId: "attack:actions:Longsword:victim", kind: "attack" } });
+  });
+
+  // PHB 2014 "Sneak Attack": once per turn. With this turn's use spent (the tally under this turn's key) the dagger has no edge and the sword is picked.
+  // Bug caught: the weighing ignoring a spent use.
+  it("stops favouring the dagger once the turn's Sneak Attack is spent", async () => {
+    const spent = { action_uses: { "sneak_attack/0": { used: 1, per_day: 1 } } };
+    const h = harness(sneakFight({ friend: {}, tam: spent }), { sources: SOURCES, players: armed(), map: mapOf(), dieFaces: [8, 4] });
+    const result = await runBatch(batch("b", tamTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ turn: { optionId: "attack:actions:Longsword:victim" } });
+  });
+});
+
+describe("take_turn: an ally's daily-limited innate spell", () => {
+  const racialFireball = (over: Partial<AllySpellRow> = {}): AllySpellRow => ({ id: "row-fireball", party_member_id: "pm-tam", name: "Fireball", level: 3, is_known: true, is_prepared: false, always_prepared: false, source_type: "racial", source_class_id: null, casting_ability: "cha", uses_per_day: 1, uses_remaining: 1, ...over });
+  const innateSheets = (spell: AllySpellRow) => ({ ...wizardTamSheets({ slots: [], spells: [spell] }), casting: { ...wizardTamSheets().casting, classes: [], spells: [spell] } });
+
+  // SRD 5.1 "Innate Spellcasting": a "1/day" spell is one cast a day, no slot. The cast writes the grant's remaining count (1 -> 0), absolute and
+  // after the fight is saved; no slot is written. 8 dice of 1 against a failed save: 40 -> 32. Bug caught: a daily spell cast for free
+  // (never written), or spending a spell slot the character does not have.
+  it("spends one use of the grant, written after the save, and no slot", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: innateSheets(racialFireball()), map: mapOf(), spells: [fireball()], dieFaces: [2, 1, 1, 1, 1, 1, 1, 1, 1] });
+    const result = await runBatch(batch("b", tamTurn({ optionId: BALL })), h.deps);
+    expect(result.effectFailures).toEqual([]);
+    expect(hpOf(stored(h), "victim")).toBe(32);
+    expect(h.innateWrites).toEqual([{ memberId: "pm-tam", spellRowId: "row-fireball", remaining: 0 }]);
+    expect(h.slotWrites).toEqual([]);
+    expect(h.log.indexOf("save")).toBeLessThan(h.log.indexOf("innate"));
+    expect(combatantOf(stored(h), "tam").action_uses).toEqual({ "spell/fireball": { used: 1, per_day: 1 } });
+  });
+
+  // Bug caught: a spent daily spell still on offer (the old code left it out; the new must not offer it with no use left).
+  it("does not offer the spell with no use left", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: innateSheets(racialFireball({ uses_remaining: 0 })), map: mapOf(), spells: [fireball()], dieFaces: [] });
+    await expect(runBatch(batch("b", tamTurn({ optionId: BALL })), h.deps)).rejects.toMatchObject({ message: "That option is not on offer." });
+  });
+
+  // Bug caught: a failed write undoing the fight, or going unreported.
+  it("reports a use that could not be written and keeps the fight", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: innateSheets(racialFireball()), map: mapOf(), spells: [fireball()], dieFaces: [2, 1, 1, 1, 1, 1, 1, 1, 1], innateFail: true });
+    const result = await runBatch(batch("b", tamTurn({ optionId: BALL })), h.deps);
+    expect(result.effectFailures).toEqual(["ally_innate_uses: sheet is down"]);
+    expect(hpOf(stored(h), "victim")).toBe(32);
+  });
+
+  // An at-will innate spell (no daily limit) of 3rd level takes neither a use nor a 3rd-level slot, though the wizard has two. Bug caught: any cast
+  // of a leveled spell spending the slot of its level, whatever line it was listed under.
+  it("spends nothing for an at-will innate spell, even with a slot of its level on the sheet", async () => {
+    const atWill = racialFireball({ uses_per_day: null, uses_remaining: null });
+    const sheets = { ...wizardTamSheets({ slots: [{ level: 3, max: 2, used: 0 }], spells: [atWill] }), };
+    sheets.casting = { ...sheets.casting, classes: [], spells: [atWill] };
+    const h = harness(archerFight(), { sources: SOURCES, players: sheets, map: mapOf(), spells: [fireball()], dieFaces: [2, 1, 1, 1, 1, 1, 1, 1, 1] });
+    await runBatch(batch("b", tamTurn({ optionId: BALL })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(32);
+    expect(h.slotWrites).toEqual([]);
+    expect(h.innateWrites).toEqual([]);
+  });
+});
+
+describe("take_turn: Pact Magic slots", () => {
+  const warlockClass = { id: "cls-wl", party_member_id: "pm-tam", class_name: "Warlock", class_definition_id: "def-wl", class_definition_kind: "system", subclass_name: null, subclass_definition_id: null, subclass_variant: null, levels: 5, is_primary: true, hit_dice_used: 0, sort_order: 0, capabilities: [] } as unknown as CharacterClass;
+  const SPELLCASTING_3: SpellSlotEntry = { level: 3, max: 2, used: 0 };
+  const PACT_3: SpellSlotEntry = { level: 3, max: 2, used: 0, pool: "pact", recovery: "short" };
+  const fireballFrom = (classId: string): AllySpellRow => ({ id: "row-fb", party_member_id: "pm-tam", name: "Fireball", level: 3, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: classId, casting_ability: null, uses_per_day: null, uses_remaining: null });
+  const multiclass = (classId: string, slots: SpellSlotEntry[]): PlayerSheets => {
+    const base = wizardTamSheets({ slots, spells: [fireballFrom(classId)] });
+    return { ...base, casting: { ...base.casting, classes: [...base.casting.classes, warlockClass], definitions: { ...base.casting.definitions, system: [...base.casting.definitions.system, { id: "def-wl", caster_type: "known", prepared_ability: "cha" }] } } };
+  };
+  const cast = async (players: PlayerSheets) => {
+    const h = harness(archerFight(), { sources: SOURCES, players, map: mapOf(), spells: [fireball()], dieFaces: [2, 1, 1, 1, 1, 1, 1, 1, 1] });
+    await runBatch(batch("b", tamTurn({ optionId: BALL })), h.deps);
+    return h;
+  };
+
+  // PHB 2014 "Multiclassing: Pact Magic": a Warlock's spell is cast from its short-rest Pact Magic slot. The pact slot is listed second here, so the
+  // first unspent slot at the level would be the spellcasting one. Bug caught: the cast always spending the first slot at the level.
+  it("spends the Pact Magic slot for a Warlock's spell", async () => {
+    const h = await cast(multiclass("cls-wl", [SPELLCASTING_3, PACT_3]));
+    expect(h.slotWrites.at(-1)?.slots).toEqual([SPELLCASTING_3, { ...PACT_3, used: 1 }]);
+  });
+
+  // The Wizard's own spell keeps to the Spellcasting slot even when the pact slot comes first. Bug caught: the Warlock's pool eaten by the Wizard's spell.
+  it("spends the Spellcasting slot for another class's spell", async () => {
+    const h = await cast(multiclass("cls-wiz", [PACT_3, SPELLCASTING_3]));
+    expect(h.slotWrites.at(-1)?.slots).toEqual([PACT_3, { ...SPELLCASTING_3, used: 1 }]);
+  });
+
+  // PHB 2014: slots of either kind cast a spell of either kind. A Wizard's spell with only pact slots left is cast with one. Bug caught: refused or free.
+  it("casts a Wizard's spell from the pact slot when no Spellcasting slot is left", async () => {
+    const h = await cast(multiclass("cls-wiz", [{ ...SPELLCASTING_3, used: 2 }, PACT_3]));
+    expect(h.slotWrites.at(-1)?.slots).toEqual([{ ...SPELLCASTING_3, used: 2 }, { ...PACT_3, used: 1 }]);
+    expect(hpOf(stored(h), "victim")).toBe(32);
   });
 });
