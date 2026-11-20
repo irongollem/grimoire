@@ -74,6 +74,25 @@ async function write(admin: SupabaseClient, payerId: string, entry: Line, workFa
   return recordGeneration(admin, payerId, reason, false, line.cost, line.log);
 }
 
+async function settle(
+  admin: SupabaseClient,
+  payerId: string,
+  release: string[],
+  lines: Line[],
+  workFailed: boolean,
+  report: ((err: unknown) => void) | undefined,
+): Promise<void> {
+  await releaseCredits(admin, release);
+  for (const entry of lines) {
+    try {
+      await write(admin, payerId, entry, workFailed);
+    } catch (e) {
+      console.error(`ledger write failed (${entry.reason}):`, e);
+      report?.(e);
+    }
+  }
+}
+
 export async function withCreditHold(
   admin: SupabaseClient,
   { payerId, reason, cost, report }: CreditHoldOptions,
@@ -114,14 +133,48 @@ export async function withCreditHold(
     throw e;
   } finally {
     settled = true;
-    if (!handedOff) await releaseCredits(admin, reservation.ids);
-    for (const entry of lines) {
-      try {
-        await write(admin, payerId, entry, workFailed);
-      } catch (e) {
-        console.error(`ledger write failed (${entry.reason}):`, e);
-        report?.(e);
-      }
-    }
+    await settle(admin, payerId, handedOff ? [] : reservation.ids, lines, workFailed, report);
+  }
+}
+
+/** The ledger a background job writes to: the same lines as a hold, without the hand-off. */
+export type JobLedger = Pick<CreditHold, "charge" | "free">;
+
+/**
+ * The background half of a handed-off hold (`hold.handOff()`), for the worker that does the paid work after the
+ * request has been answered (an image job under `EdgeRuntime.waitUntil`). Same rules as `withCreditHold`: the ids are
+ * released exactly once in `finally`, lines are written after the release, and the charges of work that threw are
+ * written free.
+ *
+ * The work ends when the result is **stored and charged**. Job bookkeeping after that (`completeImageJob`) belongs
+ * outside this scope: a failure there must not turn a delivered, paid result into "failed, not charged", which is what
+ * the hand-wired workers did (generate-character-doll, generate-chronicle-image, #1234).
+ */
+export async function settleHandedOff<T>(
+  admin: SupabaseClient,
+  { payerId, ids, report }: { payerId: string; ids: string[]; report?: (err: unknown) => void },
+  work: (ledger: JobLedger) => Promise<T>,
+): Promise<T> {
+  const lines: Line[] = [];
+  let settled = false;
+  const ledger: JobLedger = {
+    charge(lineReason, line) {
+      if (settled) throw new Error(`job ledger: charge "${lineReason}" after settling`);
+      lines.push({ kind: "charge", reason: lineReason, line });
+    },
+    free(lineReason, log) {
+      if (settled) throw new Error(`job ledger: free "${lineReason}" after settling`);
+      lines.push({ kind: "free", reason: lineReason, log });
+    },
+  };
+  let workFailed = false;
+  try {
+    return await work(ledger);
+  } catch (e) {
+    workFailed = true;
+    throw e;
+  } finally {
+    settled = true;
+    await settle(admin, payerId, ids, lines, workFailed, report);
   }
 }

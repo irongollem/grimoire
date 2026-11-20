@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseFake, type SupabaseFake } from "@/test/supabaseFake";
-import { withCreditHold, type CreditHold } from "./creditHold";
+import { settleHandedOff, withCreditHold, type CreditHold } from "./creditHold";
 
 // The ledger, as the RPCs leave it: holds taken and not yet released, and settled spends.
 let fake: SupabaseFake;
@@ -136,5 +136,36 @@ describe("withCreditHold", () => {
       return ok();
     });
     expect(() => kept!.charge("trap_generation", { cost: 3, isByok: false })).toThrow(/settled/);
+  });
+});
+
+describe("settleHandedOff", () => {
+  async function handedOff(): Promise<string[]> {
+    let ids: string[] = [];
+    await withCreditHold(admin(), opts, async (hold) => {
+      ids = hold.handOff();
+      return ok();
+    });
+    return ids;
+  }
+
+  it("charges a job that stored its result and releases the hold it was handed", async () => {
+    const ids = await handedOff();
+    await settleHandedOff(admin(), { payerId: "dm-1", ids }, async (ledger) => {
+      ledger.charge("character_doll", { cost: 3, isByok: false });
+    });
+    expect(held.size).toBe(0);
+    expect(spends).toEqual([{ reason: "character_doll", cost: 3 }]);
+  });
+
+  it("releases the hold of a job that failed before storing anything, without charging", async () => {
+    const ids = await handedOff();
+    await expect(
+      settleHandedOff(admin(), { payerId: "dm-1", ids }, async () => {
+        throw new Error("render refused");
+      }),
+    ).rejects.toThrow("render refused");
+    expect(held.size).toBe(0);
+    expect(spends).toEqual([]);
   });
 });
