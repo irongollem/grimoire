@@ -10,7 +10,8 @@ import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { DOLL_ASK_ERROR, dollErrorMessage, readDollFailure } from "@/composables/party/characterDollErrors";
+import { DOLL_ASK_ERROR, dollErrorMessage } from "@/composables/party/characterDollErrors";
+import { edgeRefusal } from "@edge-shared/edgeError.ts";
 
 /**
  * What drawing a doll costs: the `character_doll` price for its 1536x1024 sheets on OpenAI, the
@@ -58,7 +59,7 @@ export function useCharacterDoll() {
         body: { party_member_id: memberId },
       });
       if (fnError) {
-        const failure = await readDollFailure(fnError);
+        const failure = await edgeRefusal(fnError);
         code = failure.code;
         throw new Error(failure.sentence);
       }

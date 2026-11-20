@@ -1,8 +1,7 @@
 import { ref } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { functionErrorPayload } from "@edge-shared/functionError.ts";
+import { edgeRefusal } from "@edge-shared/edgeError.ts";
 import { waitForImageJob } from "@/ai/useImageJob";
 import { waitForRow } from "@/ai/waitForRow";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
@@ -92,9 +91,8 @@ function friendlyError(code: string | null, sentence: string): string {
 
 /** What a failed forge-mini call says, in words for the player. */
 export async function miniForgeError(fnError: { message?: string; context?: Response }): Promise<string> {
-  const payload = await functionErrorPayload(fnError);
-  const sentence = await edgeErrorMessage({ message: fnError.message, context: new Response(JSON.stringify(payload)) });
-  return friendlyError(payload?.error ?? null, sentence);
+  const { code, sentence } = await edgeRefusal(fnError);
+  return friendlyError(code, sentence);
 }
 
 /** Thin client for the forge-mini edge function (stylize/sculpt/resculpt/cancel/delete). */

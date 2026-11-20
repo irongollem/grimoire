@@ -16,7 +16,7 @@
 // path; a ledger write that fails is reported and logged, and never turns an answer into an error. If the work throws,
 // its queued charges are written as free lines instead: the platform's spend stays visible, and the user, who got an
 // error, is not charged. Nothing outside this file calls `reserveCredits`, `releaseCredits` or `recordGeneration`
-// (`noDirectCreditCalls.test.ts`).
+// (`creditHoldOnly.test.ts`).
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {

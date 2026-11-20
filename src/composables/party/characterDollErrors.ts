@@ -1,5 +1,3 @@
-import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { functionErrorPayload } from "@edge-shared/functionError.ts";
 
 /**
  * Plain, player-facing sentences for what generate-character-doll (or the job
@@ -7,18 +5,6 @@ import { functionErrorPayload } from "@edge-shared/functionError.ts";
  * usually the function's error code, sometimes a sentence the server wrote.
  */
 export const DOLL_FALLBACK_ERROR = "The doll could not be made. You have not been charged.";
-
-/**
- * What a failed generate-character-doll call said: the stable `code` from the body (the shared refusals answer
- * `{ error: code, message: sentence }`, and `edgeErrorMessage` shows the sentence, so the code is read from the body
- * itself) and the sentence to show when the code is not one the doll knows. A body can be read once, so both come from
- * one read.
- */
-export async function readDollFailure(fnError: { message?: string; context?: Response }): Promise<{ code: string | null; sentence: string }> {
-  const payload = await functionErrorPayload(fnError);
-  const sentence = await edgeErrorMessage({ message: fnError.message, context: new Response(JSON.stringify(payload)) });
-  return { code: payload?.error ?? null, sentence };
-}
 
 /**
  * Translate a generator error into a player-facing message. `code` is the response's error code when there was one
