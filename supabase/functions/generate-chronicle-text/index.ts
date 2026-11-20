@@ -5,15 +5,7 @@ import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { rulesetContextKey } from "../_shared/gameSystem.ts";
-import {
-  fetchCreditCost,
-  wholeCredits,
-  recordFreeGeneration,
-  recordGeneration,
-  releaseCredits,
-  reserveCredits,
-  reservationFailureResponse,
-} from "../_shared/credits.ts";
+import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
   AI_PROMPT_LIMIT_CHRONICLE,
@@ -23,7 +15,6 @@ import {
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
 import { collapseWhitespace, truncateAtWordBoundary } from "../_shared/embedTextUtil.ts";
-import { corsHeaders, withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import {
   resolveEmbeddingProvider,
@@ -34,9 +25,13 @@ import { retrieveCampaignEntities, formatEntityBlock } from "../_shared/campaign
 import { CHRONICLER_NOTE_SCOPE } from "../_shared/campaignSearch.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText } from "../_shared/worldBlock.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
+
 
 /**
  * Retrieval-grounded Chronicler recap generator (#600, third grounded
@@ -57,6 +52,11 @@ const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
+
+interface ChronicleCampaign extends BaseCampaign {
+  text_provider: string | null;
+  game_system: string | null;
+}
 
 // ── Prior-chronicles retrieval (#600) ────────────────────────────────────────
 
@@ -111,83 +111,64 @@ function formatPriorChroniclesBlock(notes: PriorNoteCandidate[]): string {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(withCors(async (req: Request) => {
-  const cors = corsHeaders(req); // kept for responses that set extra headers alongside CORS
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+// ── Handler ───────────────────────────────────────────────────────────────────
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate — including BYOK, which skips
   // the credit gate for both (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
-  let campaign_id: string, raw_text: string, tone_instruction: string, entity_descriptions: string[], existing_tags: string[], exclude_note_id: string | null;
-
-  try {
-    const body = await req.json();
-    campaign_id        = body.campaign_id;
-    raw_text           = body.raw_text;
-    tone_instruction   = body.tone_instruction ?? "";
-    entity_descriptions = Array.isArray(body.entity_descriptions) ? body.entity_descriptions : [];
-    // Optional — the campaign's existing note-tag vocabulary, so the model
-    // prefers reusing a tag over minting a near-duplicate. Client-supplied,
-    // so validated rather than trusted: only strings, trimmed, capped in
-    // length and count.
-    existing_tags = Array.isArray(body.existing_tags)
-      ? body.existing_tags
-          .filter((t: unknown): t is string => typeof t === "string")
-          .map((t: string) => t.trim())
-          .filter((t: string) => t.length > 0 && t.length <= 60)
-          .slice(0, 200)
-      : [];
-    // Optional — the note open in the editor, so match_campaign_notes never
-    // retrieves the very note this chronicle is about to be inserted into.
-    // May be absent: an unsaved note has no id yet, and older callers simply
-    // predate this field.
-    exclude_note_id = typeof body.exclude_note_id === "string" && body.exclude_note_id ? body.exclude_note_id : null;
-    if (!campaign_id || !raw_text) throw new Error("invalid");
-  } catch {
-    return new Response("Invalid body — need { campaign_id, raw_text, tone_instruction, entity_descriptions, existing_tags?, exclude_note_id? }", { status: 400 });
+  const body = await readJsonBody(req);
+  const campaign_id = typeof body?.campaign_id === "string" && body.campaign_id ? body.campaign_id : null;
+  const raw_text = typeof body?.raw_text === "string" && body.raw_text ? body.raw_text : null;
+  if (!body || !campaign_id || !raw_text) {
+    return jsonError(400, "invalid_body", "Need { campaign_id, raw_text, tone_instruction, entity_descriptions, existing_tags?, exclude_note_id? }.");
   }
+  const tone_instruction = typeof body.tone_instruction === "string" ? body.tone_instruction : "";
+  const entity_descriptions = Array.isArray(body.entity_descriptions)
+    ? body.entity_descriptions.filter((d: unknown): d is string => typeof d === "string")
+    : [];
+  // Optional — the campaign's existing note-tag vocabulary, so the model
+  // prefers reusing a tag over minting a near-duplicate. Client-supplied,
+  // so validated rather than trusted: only strings, trimmed, capped in
+  // length and count.
+  const existing_tags = Array.isArray(body.existing_tags)
+    ? body.existing_tags
+        .filter((t: unknown): t is string => typeof t === "string")
+        .map((t: string) => t.trim())
+        .filter((t: string) => t.length > 0 && t.length <= 60)
+        .slice(0, 200)
+    : [];
+  // Optional — the note open in the editor, so match_campaign_notes never
+  // retrieves the very note this chronicle is about to be inserted into.
+  // May be absent: an unsaved note has no id yet, and older callers simply
+  // predate this field.
+  const exclude_note_id = typeof body.exclude_note_id === "string" && body.exclude_note_id ? body.exclude_note_id : null;
 
   const promptCheck = validatePromptInput(raw_text, AI_PROMPT_LIMIT_CHRONICLE);
   if (!promptCheck.ok) return promptCheck.errorResponse;
 
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, game_system")
-    .eq("id", campaign_id)
-    .maybeSingle();
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
-
   // DMs only: this reads DM-only campaign content with the service role (see
   // _shared/campaignAccess.ts for why a player member must not get through).
-  if (!(await isCampaignDm(admin, campaign, user.id))) {
-    return new Response("Forbidden", { status: 403 });
-  }
+  const load = await loadAiCampaign<ChronicleCampaign>(admin, campaign_id, user.id, {
+    columns: ["text_provider", "game_system"],
+  });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
   // Ruleset-aware generation (#564): the context row follows the campaign's 5e system; Generic has none.
   const rulesetKey = rulesetContextKey(campaign.game_system);
 
-  const { data: promptRows } = await admin
+  const { data: promptRows, error: promptError } = await admin
     .from("ai_system_prompts").select("generator_type, content")
     .in("generator_type", ["chronicle_text", ...(rulesetKey ? [rulesetKey] : [])]);
+  if (promptError) throw promptError;
   const promptRow = promptRows?.find((r) => r.generator_type === "chronicle_text");
   // Missing row (older DBs that predate #564) is a silent skip, not an error.
   const rulesetContext =
     promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
-  if (!promptRow) return new Response("Prompt not configured", { status: 500 });
+  if (!promptRow) return jsonError(500, "prompt_not_configured", "This generator is not set up yet.");
 
   // Client-supplied entity descriptions, filled into the {entities} system-
   // prompt placeholder -- unrelated to the RAG-retrieved campaign-entity
@@ -228,14 +209,13 @@ serve(withCors(async (req: Request) => {
     platformKeys,
     providerConfigs,
   });
-  if (!text) return new Response(NO_TEXT_PROVIDER_MESSAGE, { status: 422 });
+  if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const baseChronicleTextCost = text.isByok ? 0 : await fetchCreditCost(admin, "chronicle_text");
   const chronicleTextCost = wholeCredits(
     applyMultiplier(baseChronicleTextCost, text.textMultiplier),
   );
-  // Atomic affordability gate: hold the balance across the paid call.
   // Throttle abusive burst volume before any paid provider work (issue #466).
   //
   // This MUST stay above the retrieval block below, not just above the text
@@ -244,193 +224,181 @@ serve(withCors(async (req: Request) => {
   // so the reservation is not a second line of defence for it. Gate first,
   // embed after -- see generate-quest's identical comment for the full
   // reasoning.
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
-    return new Response(
-      JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { ...cors, "Content-Type": "application/json" } },
-    );
-  }
-
-  const reservation = await reserveCredits(admin, user.id, chronicleTextCost, "chronicle_text");
-  if (!reservation.ok) {
-    return reservationFailureResponse(reservation);
-  }
-
-  // ── Semantic retrieval (#600 — the Chronicler) ─────────────────────────────
-  // An ENHANCEMENT, not a requirement: retrieval must never be able to take
-  // chronicle generation down. One try/catch around BOTH retrievals below --
-  // same "any single failure drops the WHOLE block" contract generate-quest's
-  // retrieveCampaignEntities documents, extended here to two retrieval kinds:
-  // a chronicle grounded in real NPCs but continuity-blind (or vice versa) is
-  // a more confusing failure mode than "no grounding this time." The failure
-  // path leaves both blocks empty and the prompt falls back to exactly the
-  // pre-#600 behavior (raw_text + the client-supplied entity_descriptions
-  // block only, via {entities} above).
-  //
-  // Zero-RESULT is different from failure: a legitimately empty retrieval
-  // (brand-new campaign, first-ever session) still counts as success, and
-  // the two blocks are independent of each other in that case -- a campaign
-  // with real NPCs but no prior notes yet still gets the entity block.
-  let retrievedEntityBlock = "";
-  let priorChroniclesBlock = "";
-
-  try {
-    const embedProvider = await resolveEmbeddingProvider(admin, {
-      openai: platformKeys.openai ?? null,
-      gemini: platformKeys.gemini ?? null,
-    });
-    const { vectors, usage: embedUsage } = await embedProvider.embed([raw_text]);
-
-    // Recorded HERE, not after the RPCs below -- real provider spend was
-    // incurred the moment embed() returned, and everything after this point
-    // can throw into the catch. Platform-paid, charged to nobody: is_byok
-    // stays false because we, not the user, paid for it -- see
-    // recordFreeGeneration's doc comment.
-    await recordFreeGeneration(admin, user.id, "entity_embedding", {
-      model:        embedProvider.model,
-      provider:     embedUsage.provider,
-      input_tokens: embedUsage.input_tokens,
-    });
-
-    // ONE embedding of raw_text, reused for BOTH retrievals below -- the
-    // session notes being turned into a chronicle ARE the query for "what in
-    // this campaign is relevant," for both entities and prior notes alike.
-    const queryVector = toVectorLiteral(vectors[0]);
-
-    const candidates = await retrieveCampaignEntities(admin, {
-      queryVector,
-      campaignId:     campaign_id,
-      // The OWNER, not the caller -- matching generate-quest's bestiary
-      // scoping. A campaign member generating a chronicle sees the DM's
-      // NPCs, factions and locations, not their own.
-      ownerId:        campaign.user_id,
-      embeddingModel: embedProvider.model,
-    });
-    const totalCandidates = candidates.npcs.length + candidates.locations.length + candidates.factions.length;
-    if (totalCandidates > 0) {
-      retrievedEntityBlock = formatEntityBlock(candidates, "writing the chronicle");
-    } else {
-      console.warn(`Chronicle retrieval found zero campaign entities for campaign ${campaign_id} — building the prompt without the entity block.`);
-    }
-
-    const noteMatch = await admin.rpc("match_campaign_notes", {
-      query_embedding:   queryVector,
-      p_campaign_id:     campaign_id,
-      p_owner_id:        campaign.user_id,
-      p_embedding_model: embedProvider.model,
-      p_exclude_id:      exclude_note_id,
-      // Notes linked to a session ONLY, though every note is embedded. A chronicle
-      // is player-facing prose; a session's note narrates what already happened
-      // at the table, while every other note is the DM's planning material, so
-      // an unrevealed twist retrieved from one would surface in the recap as a
-      // "callback", leaking the spoiler in the DM's own voice. Spoiler
-      // containment, not relevance tuning: do not widen this without a per-note
-      // "revealed" signal.
-      ...CHRONICLER_NOTE_SCOPE,
-      match_count:       PRIOR_NOTE_MATCH_COUNT,
-    });
-    if (noteMatch.error) throw new Error(`match_campaign_notes: ${noteMatch.error.message}`);
-    const matchedIds = ((noteMatch.data ?? []) as { id: string }[]).map((r) => r.id);
-
-    if (matchedIds.length > 0) {
-      type NoteContentRow = { id: string; title: string; content: string | null; created_at: string; session: { number: number | null; title: string | null; played_on: string | null; started_at: string | null } | null };
-      // overrideTypes: without generated types supabase-js reads the many-to-one
-      // `session` embed as an array; PostgREST returns one object (or null).
-      const { data: noteRows, error: noteError } = await admin
-        .from("notes")
-        .select("id, title, content, created_at, session:campaign_sessions(number, title, played_on, started_at)")
-        .in("id", matchedIds)
-        .overrideTypes<NoteContentRow[], { merge: false }>();
-      if (noteError) throw new Error(noteError.message);
-
-      // Re-sorted into chronological order for presentation -- the RPC's
-      // relevance ranking above only decided WHICH notes to include, not
-      // what order best serves "read this as a timeline." Session numbers are
-      // a DM label and may repeat or be absent, so order by the linked
-      // session's date (started_at, else played_on). Notes with no linked
-      // session or no date (matched by relevance rather than being an actual
-      // past session) sort last, since they aren't part of the sequence.
-      const sessionWhen = (r: NoteContentRow): string | null => r.session?.started_at ?? r.session?.played_on ?? null;
-      const sorted = noteRows.slice().sort((a, b) => {
-        const wa = sessionWhen(a);
-        const wb = sessionWhen(b);
-        if (wa == null && wb == null) return a.created_at.localeCompare(b.created_at);
-        if (wa == null) return 1;
-        if (wb == null) return -1;
-        const cmp = new Date(wa).getTime() - new Date(wb).getTime();
-        if (cmp !== 0) return cmp;
-        return a.created_at.localeCompare(b.created_at);
-      });
-
-      if (sorted.length > 0) {
-        priorChroniclesBlock = formatPriorChroniclesBlock(sorted.map((row) => ({
-          title:       row.title,
-          session_number: row.session?.number ?? null,
-          snippet:     truncateAtWordBoundary(collapseWhitespace(toPlainText(row.content)), PRIOR_NOTE_SNIPPET_CHAR_LIMIT),
-        })));
-      }
-    }
-  } catch (e) {
-    // Diagnosable, but never fatal.
-    const why = e instanceof EmbeddingProviderConfigError
-      ? `embedding provider not usable (${e.message})`
-      : e instanceof Error ? e.message : "unknown error";
-    console.warn(`Chronicle retrieval unavailable for campaign ${campaign_id}, falling back to the pre-#600 prompt: ${why}`);
-    retrievedEntityBlock = "";
-    priorChroniclesBlock = "";
-  }
-
-  // formatEntityBlock()/formatPriorChroniclesBlock() only format -- whether
-  // to call them at all was decided above, so a zero-candidate retrieval
-  // produces no prompt text at all rather than an empty ---BEGIN/END--- shell.
-  const userContent = `${wrapUserInput(raw_text)}${retrievedEntityBlock}${priorChroniclesBlock}`;
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
   const textModel = text.config?.text_model;
 
-  let textResult: TextResult;
+  // Hold the balance across the paid call; the hold is released whatever happens inside.
+  return withCreditHold(admin, { payerId: user.id, reason: "chronicle_text", cost: chronicleTextCost, report }, async (hold) => {
+    // ── Semantic retrieval (#600 — the Chronicler) ─────────────────────────────
+    // An ENHANCEMENT, not a requirement: retrieval must never be able to take
+    // chronicle generation down. One try/catch around BOTH retrievals below --
+    // same "any single failure drops the WHOLE block" contract generate-quest's
+    // retrieveCampaignEntities documents, extended here to two retrieval kinds:
+    // a chronicle grounded in real NPCs but continuity-blind (or vice versa) is
+    // a more confusing failure mode than "no grounding this time." The failure
+    // path leaves both blocks empty and the prompt falls back to exactly the
+    // pre-#600 behavior (raw_text + the client-supplied entity_descriptions
+    // block only, via {entities} above).
+    //
+    // Zero-RESULT is different from failure: a legitimately empty retrieval
+    // (brand-new campaign, first-ever session) still counts as success, and
+    // the two blocks are independent of each other in that case -- a campaign
+    // with real NPCs but no prior notes yet still gets the entity block.
+    let retrievedEntityBlock = "";
+    let priorChroniclesBlock = "";
 
-  try {
-    textResult = await callText({
-      text,
-      model: textModel,
-      system: systemContent,
-      user: userContent,
-      maxTokens: text.provider === "anthropic" ? 8192 : undefined,
-      outputFormat: "text",
+    try {
+      const embedProvider = await resolveEmbeddingProvider(admin, {
+        openai: platformKeys.openai ?? null,
+        gemini: platformKeys.gemini ?? null,
+      });
+      const { vectors, usage: embedUsage } = await embedProvider.embed([raw_text]);
+
+      // Recorded HERE, not after the RPCs below -- real provider spend was
+      // incurred the moment embed() returned, and everything after this point
+      // can throw into the catch. Platform-paid, charged to nobody: is_byok
+      // stays false because we, not the user, paid for it -- see
+      // recordFreeGeneration's doc comment.
+      hold.free("entity_embedding", {
+        model:        embedProvider.model,
+        provider:     embedUsage.provider,
+        input_tokens: embedUsage.input_tokens,
+      });
+
+      // ONE embedding of raw_text, reused for BOTH retrievals below -- the
+      // session notes being turned into a chronicle ARE the query for "what in
+      // this campaign is relevant," for both entities and prior notes alike.
+      const queryVector = toVectorLiteral(vectors[0]);
+
+      const candidates = await retrieveCampaignEntities(admin, {
+        queryVector,
+        campaignId:     campaign_id,
+        // The OWNER, not the caller -- matching generate-quest's bestiary
+        // scoping. A campaign member generating a chronicle sees the DM's
+        // NPCs, factions and locations, not their own.
+        ownerId:        campaign.user_id,
+        embeddingModel: embedProvider.model,
+      });
+      const totalCandidates = candidates.npcs.length + candidates.locations.length + candidates.factions.length;
+      if (totalCandidates > 0) {
+        retrievedEntityBlock = formatEntityBlock(candidates, "writing the chronicle");
+      } else {
+        console.warn(`Chronicle retrieval found zero campaign entities for campaign ${campaign_id} — building the prompt without the entity block.`);
+      }
+
+      const noteMatch = await admin.rpc("match_campaign_notes", {
+        query_embedding:   queryVector,
+        p_campaign_id:     campaign_id,
+        p_owner_id:        campaign.user_id,
+        p_embedding_model: embedProvider.model,
+        p_exclude_id:      exclude_note_id,
+        // Notes linked to a session ONLY, though every note is embedded. A chronicle
+        // is player-facing prose; a session's note narrates what already happened
+        // at the table, while every other note is the DM's planning material, so
+        // an unrevealed twist retrieved from one would surface in the recap as a
+        // "callback", leaking the spoiler in the DM's own voice. Spoiler
+        // containment, not relevance tuning: do not widen this without a per-note
+        // "revealed" signal.
+        ...CHRONICLER_NOTE_SCOPE,
+        match_count:       PRIOR_NOTE_MATCH_COUNT,
+      });
+      if (noteMatch.error) throw new Error(`match_campaign_notes: ${noteMatch.error.message}`);
+      const matchedIds = ((noteMatch.data ?? []) as { id: string }[]).map((r) => r.id);
+
+      if (matchedIds.length > 0) {
+        type NoteContentRow = { id: string; title: string; content: string | null; created_at: string; session: { number: number | null; title: string | null; played_on: string | null; started_at: string | null } | null };
+        // overrideTypes: without generated types supabase-js reads the many-to-one
+        // `session` embed as an array; PostgREST returns one object (or null).
+        const { data: noteRows, error: noteError } = await admin
+          .from("notes")
+          .select("id, title, content, created_at, session:campaign_sessions(number, title, played_on, started_at)")
+          .in("id", matchedIds)
+          .overrideTypes<NoteContentRow[], { merge: false }>();
+        if (noteError) throw new Error(noteError.message);
+
+        // Re-sorted into chronological order for presentation -- the RPC's
+        // relevance ranking above only decided WHICH notes to include, not
+        // what order best serves "read this as a timeline." Session numbers are
+        // a DM label and may repeat or be absent, so order by the linked
+        // session's date (started_at, else played_on). Notes with no linked
+        // session or no date (matched by relevance rather than being an actual
+        // past session) sort last, since they aren't part of the sequence.
+        const sessionWhen = (r: NoteContentRow): string | null => r.session?.started_at ?? r.session?.played_on ?? null;
+        const sorted = noteRows.slice().sort((a, b) => {
+          const wa = sessionWhen(a);
+          const wb = sessionWhen(b);
+          if (wa == null && wb == null) return a.created_at.localeCompare(b.created_at);
+          if (wa == null) return 1;
+          if (wb == null) return -1;
+          const cmp = new Date(wa).getTime() - new Date(wb).getTime();
+          if (cmp !== 0) return cmp;
+          return a.created_at.localeCompare(b.created_at);
+        });
+
+        if (sorted.length > 0) {
+          priorChroniclesBlock = formatPriorChroniclesBlock(sorted.map((row) => ({
+            title:       row.title,
+            session_number: row.session?.number ?? null,
+            snippet:     truncateAtWordBoundary(collapseWhitespace(toPlainText(row.content)), PRIOR_NOTE_SNIPPET_CHAR_LIMIT),
+          })));
+        }
+      }
+    } catch (e) {
+      // Diagnosable, but never fatal.
+      const why = e instanceof EmbeddingProviderConfigError
+        ? `embedding provider not usable (${e.message})`
+        : e instanceof Error ? e.message : "unknown error";
+      console.warn(`Chronicle retrieval unavailable for campaign ${campaign_id}, falling back to the pre-#600 prompt: ${why}`);
+      retrievedEntityBlock = "";
+      priorChroniclesBlock = "";
+    }
+
+    // formatEntityBlock()/formatPriorChroniclesBlock() only format -- whether
+    // to call them at all was decided above, so a zero-candidate retrieval
+    // produces no prompt text at all rather than an empty ---BEGIN/END--- shell.
+    const userContent = `${wrapUserInput(raw_text)}${retrievedEntityBlock}${priorChroniclesBlock}`;
+
+    let textResult: TextResult;
+    try {
+      textResult = await callText({
+        text,
+        model: textModel,
+        system: systemContent,
+        user: userContent,
+        maxTokens: text.provider === "anthropic" ? 8192 : undefined,
+        outputFormat: "text",
+      });
+    } catch (e) {
+      console.error("Chronicle text generation failed:", e);
+      return jsonError(502, "generation_failed", e instanceof Error ? e.message : "Text generation failed");
+    }
+
+    hold.charge("chronicle_text", {
+      cost: chronicleTextCost,
+      isByok: text.isByok,
+      log: {
+        model: textResult.usage.model, provider: textResult.usage.provider,
+        input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+      },
     });
-  } catch (e) {
-    await releaseCredits(admin, reservation.ids);
-    console.error("Chronicle text generation failed:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
-      { status: 502, headers: { ...cors, "Content-Type": "application/json" } },
-    );
-  }
 
-  await releaseCredits(admin, reservation.ids);
-  await recordGeneration(admin, user.id, "chronicle_text", text.isByok, chronicleTextCost, {
-    model: textResult.usage.model, provider: textResult.usage.provider,
-    input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
-  }).catch(console.error);
+    // The narrative is plain markdown now, but tolerate the legacy JSON wrapper
+    // in case a model still emits it (the old system prompt asked for one).
+    let chronicle = textResult.content;
+    try {
+      const parsed = JSON.parse(textResult.content) as { chronicle?: string };
+      if (parsed && typeof parsed.chronicle === "string") chronicle = parsed.chronicle;
+    } catch { /* plain markdown — use as-is */ }
 
-  // The narrative is plain markdown now, but tolerate the legacy JSON wrapper
-  // in case a model still emits it (the old system prompt asked for one).
-  let chronicle = textResult.content;
-  try {
-    const parsed = JSON.parse(textResult.content) as { chronicle?: string };
-    if (parsed && typeof parsed.chronicle === "string") chronicle = parsed.chronicle;
-  } catch { /* plain markdown — use as-is */ }
+    const ai_provenance: AiProvenance = {
+      generatorType: "chronicle_text",
+      provider: textResult.usage.provider,
+      model: textResult.usage.model,
+      generatedAt: new Date().toISOString(),
+      edited: false,
+    };
 
-  const ai_provenance: AiProvenance = {
-    generatorType: "chronicle_text",
-    provider: textResult.usage.provider,
-    model: textResult.usage.model,
-    generatedAt: new Date().toISOString(),
-    edited: false,
-  };
-
-  return new Response(
-    JSON.stringify({ chronicle, ai_provenance }),
-    { headers: { ...cors, "Content-Type": "application/json" } },
-  );
+    return json({ chronicle, ai_provenance });
+  });
 }));

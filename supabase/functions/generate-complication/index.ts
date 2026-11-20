@@ -5,15 +5,7 @@ import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { gameSystemEdition, NO_RULES_SYSTEM_MESSAGE, rulesetContextKey } from "../_shared/gameSystem.ts";
-import {
-  fetchCreditCost,
-  wholeCredits,
-  recordGeneration,
-  releaseCredits,
-  reserveCredits,
-  reservationFailureResponse,
-  recordFreeGeneration,
-} from "../_shared/credits.ts";
+import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
   AI_PROMPT_LIMIT_SHORT,
@@ -21,7 +13,6 @@ import {
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import {
@@ -38,9 +29,13 @@ import { retrieveMonsterCandidates, type CandidateMonster } from "../_shared/mon
 import { repairGeneratedNames } from "../_shared/nameRepairWire.ts";
 import { repaired } from "../_shared/nameRepair.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText } from "../_shared/worldBlock.ts";
+import { formatSnapshot, parseSnapshot } from "./snapshot.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 
 /**
  * Mid-fight complication / reinforcement generator (#604).
@@ -94,42 +89,6 @@ const MAX_UNEMBEDDED_MONSTERS = 8;
 
 // ── Live encounter snapshot ─────────────────────────────────────────────────
 
-/**
- * The state of the fight, as the runner sees it.
- *
- * Sent by the client rather than read from `encounter_state` server-side, and
- * that is deliberate: the runner's store is the live truth, while the DB row
- * lags behind it by up to a 300 ms debounce (useEncounterLive.schedulePush) —
- * and a DM who has not gone live at all has no row whatsoever. Trusting the
- * client here costs nothing: this is the DM's own encounter, the snapshot
- * grants no privilege, and the only thing it influences is the flavour of a
- * proposal they must then approve.
- */
-interface EncounterSnapshot {
-  name?: string;
-  round?: number;
-  factions?: string[];
-  combatants?: { name: string; faction: string; hp_pct: number; is_player: boolean }[];
-}
-
-const MAX_SNAPSHOT_COMBATANTS = 30;
-
-function formatSnapshot(snapshot: EncounterSnapshot): string {
-  const lines: string[] = [];
-  if (snapshot.name) lines.push(`Encounter: ${snapshot.name}`);
-  if (typeof snapshot.round === "number") lines.push(`Current round: ${snapshot.round}`);
-  if (snapshot.factions?.length) lines.push(`Sides: ${snapshot.factions.join(", ")}`);
-
-  const combatants = (snapshot.combatants ?? []).slice(0, MAX_SNAPSHOT_COMBATANTS);
-  if (combatants.length > 0) {
-    lines.push("On the board (name | side | remaining HP):");
-    for (const c of combatants) {
-      const pct = Number.isFinite(c.hp_pct) ? Math.max(0, Math.min(100, Math.round(c.hp_pct))) : 100;
-      lines.push(`${c.is_player ? "PC " : ""}${c.name}|${c.faction}|${pct}%`);
-    }
-  }
-  return lines.length > 0 ? `\n\nThe fight as it stands right now:\n${lines.join("\n")}` : "";
-}
 
 /** Creature candidates, as `Name|CR|type` lines. Separate from the entity
  *  block because these resolve against the BESTIARY downstream, not against
@@ -165,44 +124,29 @@ interface ComplicationAiResult {
   environment?: { label: string; description: string } | null;
 }
 
+interface ComplicationCampaign extends BaseCampaign {
+  text_provider: string | null;
+  game_system: string | null;
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate — including BYOK, which skips
   // the credit gate for both (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
-  let campaign_id: string, mode: Mode, prompt: string, snapshot: EncounterSnapshot;
-
-  try {
-    const body = await req.json();
-    campaign_id = body.campaign_id;
-    if (!campaign_id) throw new Error("invalid");
-    if (!isMode(body.mode)) throw new Error("invalid");
-    mode = body.mode;
-    // The steer is OPTIONAL here, unlike every other generator in this repo.
-    // Mid-fight the DM often wants "just give me something" with both hands on
-    // the initiative tracker; the encounter snapshot below is already a richer
-    // prompt than most generators get from typed input.
-    prompt = typeof body.prompt === "string" ? body.prompt : "";
-    snapshot = (body.snapshot ?? {}) as EncounterSnapshot;
-  } catch {
-    return new Response("Invalid body — need { campaign_id, mode }", { status: 400 });
-  }
+  const body = await readJsonBody(req);
+  const campaign_id = typeof body?.campaign_id === "string" && body.campaign_id ? body.campaign_id : undefined;
+  if (!body || !campaign_id || !isMode(body.mode)) return jsonError(400, "invalid_body", "Need { campaign_id, mode }.");
+  const mode = body.mode;
+  // The steer is OPTIONAL here, unlike every other generator in this repo.
+  // Mid-fight the DM often wants "just give me something" with both hands on
+  // the initiative tracker; the encounter snapshot below is already a richer
+  // prompt than most generators get from typed input.
+  const prompt = typeof body.prompt === "string" ? body.prompt : "";
+  const snapshot = parseSnapshot(body.snapshot);
 
   // _SHORT (500): this is a one-line steer typed mid-combat, not a composed
   // multi-field prompt. Empty passes — validatePromptInput is only reached
@@ -212,36 +156,31 @@ serve(withCors(async (req: Request) => {
     if (!promptCheck.ok) return promptCheck.errorResponse;
   }
 
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, game_system")
-    .eq("id", campaign_id)
-    .maybeSingle();
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
-
   // DMs only: this reads DM-only campaign content with the service role (see
   // _shared/campaignAccess.ts for why a player member must not get through).
-  if (!(await isCampaignDm(admin, campaign, user.id))) {
-    return new Response("Forbidden", { status: 403 });
-  }
+  const load = await loadAiCampaign<ComplicationCampaign>(admin, campaign_id, user.id, {
+    columns: ["text_provider", "game_system"],
+  });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
   // Ruleset-aware generation (#564): the context row follows the campaign's 5e system.
   // 5e-shaped output with no meaning in a Generic campaign (#934): the client
   // hides the button, this is the server-side backstop. No edition, no fallback.
   const ruleset = gameSystemEdition(campaign.game_system);
-  if (!ruleset) return new Response(NO_RULES_SYSTEM_MESSAGE, { status: 400 });
+  if (!ruleset) return jsonError(400, "no_rules_system", NO_RULES_SYSTEM_MESSAGE);
   const rulesetKey = rulesetContextKey(campaign.game_system);
 
   const promptType = PROMPT_ROW[mode];
-  const { data: promptRows } = await admin
+  const { data: promptRows, error: promptError } = await admin
     .from("ai_system_prompts").select("generator_type, content")
     .in("generator_type", [promptType, ...(rulesetKey ? [rulesetKey] : [])]);
+  if (promptError) throw promptError;
   const promptRow = promptRows?.find((r) => r.generator_type === promptType);
   // Missing row (older DBs that predate #564) is a silent skip, not an error.
   const rulesetContext =
     promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
-  if (!promptRow) return new Response("Prompt not configured", { status: 500 });
+  if (!promptRow) return jsonError(500, "prompt_not_configured", "This generator is not set up yet.");
 
   const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
     loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
@@ -262,7 +201,7 @@ serve(withCors(async (req: Request) => {
     platformKeys,
     providerConfigs,
   });
-  if (!text) return new Response(NO_TEXT_PROVIDER_MESSAGE, { status: 422 });
+  if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const baseCost = text.isByok ? 0 : await fetchCreditCost(admin, "complication_generation");
@@ -281,25 +220,7 @@ serve(withCors(async (req: Request) => {
   // complication they like will press it several times in a row. That is
   // expected use, and the shared bucket is what keeps it from becoming
   // unbounded platform spend.
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
-    return new Response(
-      JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
-  const reservation = await reserveCredits(admin, user.id, cost, "complication_generation");
-  if (!reservation.ok) return reservationFailureResponse(reservation);
-
-  // ── Semantic retrieval (#595 bestiary + #600 entities) ─────────────────────
-  // An ENHANCEMENT, never a requirement. Both corpora are retrieved from ONE
-  // embedding of the same query text, and the whole block is one try/catch:
-  // a partially-grounded proposal (real NPCs, hallucinated creatures) is a
-  // worse failure than an ungrounded one, because unresolvable creature names
-  // put nothing on the board and the DM only finds out at the preview.
-  let entities: { npcs: CandidateEntity[]; locations: CandidateEntity[]; factions: CandidateEntity[] } =
-    { npcs: [], locations: [], factions: [] };
-  let monsters: CandidateMonster[] = [];
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
   // What the retrieval query is ABOUT: the DM's steer when they typed one,
   // otherwise the fight itself. Embedding an empty string would return an
@@ -310,150 +231,155 @@ serve(withCors(async (req: Request) => {
       .filter(Boolean).join(", ") ||
     "a mid-combat complication";
 
-  try {
-    const embedProvider = await resolveEmbeddingProvider(admin, {
-      openai: platformKeys.openai ?? null,
-      gemini: platformKeys.gemini ?? null,
-    });
-    const { vectors, usage: embedUsage } = await embedProvider.embed([retrievalQuery]);
-
-    // Recorded HERE, not after the RPCs below — real provider spend was
-    // incurred the moment embed() returned, and everything after this point
-    // can throw into the catch. Platform-paid, charged to nobody.
-    await recordFreeGeneration(admin, user.id, "entity_embedding", {
-      model:        embedProvider.model,
-      provider:     embedUsage.provider,
-      input_tokens: embedUsage.input_tokens,
-    });
-
-    const queryVector = toVectorLiteral(vectors[0]);
-    // The OWNER, not the caller — a co-DM generating a complication sees the
-    // campaign owner's cast and bestiary, matching every other grounded
-    // generator's scoping.
-    [entities, monsters] = await Promise.all([
-      retrieveCampaignEntities(admin, {
-        queryVector,
-        campaignId:     campaign_id,
-        ownerId:        campaign.user_id,
-        embeddingModel: embedProvider.model,
-      }),
-      retrieveMonsterCandidates(admin, {
-        queryVector,
-        ownerId:        campaign.user_id,
-        campaignId:     campaign_id,
-        ruleset,
-        embeddingModel: embedProvider.model,
-        perSide:        MONSTERS_PER_SIDE[mode],
-        unembeddedCap:  MAX_UNEMBEDDED_MONSTERS,
-      }),
-    ]);
-  } catch (e) {
-    // Diagnosable, but never fatal.
-    const why = e instanceof EmbeddingProviderConfigError
-      ? `embedding provider not usable (${e.message})`
-      : e instanceof Error ? e.message : "unknown error";
-    console.warn(`Complication retrieval unavailable for campaign ${campaign_id}, generating without candidate blocks: ${why}`);
-    entities = { npcs: [], locations: [], factions: [] };
-    monsters = [];
-  }
-
-  const entityCount = entities.npcs.length + entities.locations.length + entities.factions.length;
-  const entityBlock = entityCount > 0 ? formatEntityBlock(entities, "writing the complication") : "";
-  const monsterBlock = monsters.length > 0 ? formatMonsterBlock(monsters) : "";
-
   // An empty steer is normal here (see the body parse), so the user content
   // may be snapshot + candidates alone. wrapUserInput is applied only to text
   // the DM actually typed — wrapping an empty string would tell the model it
-  // was handed an empty instruction.
+  // was handed an empty instruction. Built before the hold: the snapshot is
+  // client-controlled, so nothing that reads it may sit where a throw strands a reservation.
   const steer = prompt.trim() ? wrapUserInput(prompt.trim()) : "";
-  const userContent = `${steer}${formatSnapshot(snapshot)}${entityBlock}${monsterBlock}`;
+  const snapshotBlock = formatSnapshot(snapshot);
 
-  const textModel = text.config?.text_model;
+  return withCreditHold(admin, { payerId: user.id, reason: "complication_generation", cost, report }, async (hold) => {
+    // ── Semantic retrieval (#595 bestiary + #600 entities) ───────────────────
+    // An ENHANCEMENT, never a requirement. Both corpora are retrieved from ONE
+    // embedding of the same query text, and the whole block is one try/catch:
+    // a partially-grounded proposal (real NPCs, hallucinated creatures) is a
+    // worse failure than an ungrounded one, because unresolvable creature names
+    // put nothing on the board and the DM only finds out at the preview.
+    let entities: { npcs: CandidateEntity[]; locations: CandidateEntity[]; factions: CandidateEntity[] } =
+      { npcs: [], locations: [], factions: [] };
+    let monsters: CandidateMonster[] = [];
 
-  let textResult: TextResult;
-  try {
-    textResult = await callText({
-      text,
-      model: textModel,
-      system: systemContent,
-      user: userContent,
-      // One short object: a name, a few sentences of narration, and at most a
-      // handful of reinforcement entries. Far smaller than a quest batch or a
-      // 1d100 table, and mid-combat latency matters more here than headroom.
-      maxTokens: 900,
+    try {
+      const embedProvider = await resolveEmbeddingProvider(admin, {
+        openai: platformKeys.openai ?? null,
+        gemini: platformKeys.gemini ?? null,
+      });
+      const { vectors, usage: embedUsage } = await embedProvider.embed([retrievalQuery]);
+
+      // Queued HERE, not after the RPCs below — real provider spend was
+      // incurred the moment embed() returned, and everything after this point
+      // can throw into the catch. Platform-paid, charged to nobody.
+      hold.free("entity_embedding", {
+        model:        embedProvider.model,
+        provider:     embedUsage.provider,
+        input_tokens: embedUsage.input_tokens,
+      });
+
+      const queryVector = toVectorLiteral(vectors[0]);
+      // The OWNER, not the caller — a co-DM generating a complication sees the
+      // campaign owner's cast and bestiary, matching every other grounded
+      // generator's scoping.
+      [entities, monsters] = await Promise.all([
+        retrieveCampaignEntities(admin, {
+          queryVector,
+          campaignId:     campaign_id,
+          ownerId:        campaign.user_id,
+          embeddingModel: embedProvider.model,
+        }),
+        retrieveMonsterCandidates(admin, {
+          queryVector,
+          ownerId:        campaign.user_id,
+          campaignId:     campaign_id,
+          ruleset,
+          embeddingModel: embedProvider.model,
+          perSide:        MONSTERS_PER_SIDE[mode],
+          unembeddedCap:  MAX_UNEMBEDDED_MONSTERS,
+        }),
+      ]);
+    } catch (e) {
+      // Diagnosable, but never fatal.
+      const why = e instanceof EmbeddingProviderConfigError
+        ? `embedding provider not usable (${e.message})`
+        : e instanceof Error ? e.message : "unknown error";
+      console.warn(`Complication retrieval unavailable for campaign ${campaign_id}, generating without candidate blocks: ${why}`);
+      entities = { npcs: [], locations: [], factions: [] };
+      monsters = [];
+    }
+
+    const entityCount = entities.npcs.length + entities.locations.length + entities.factions.length;
+    const entityBlock = entityCount > 0 ? formatEntityBlock(entities, "writing the complication") : "";
+    const monsterBlock = monsters.length > 0 ? formatMonsterBlock(monsters) : "";
+    const userContent = `${steer}${snapshotBlock}${entityBlock}${monsterBlock}`;
+
+    let textResult: TextResult;
+    try {
+      textResult = await callText({
+        text,
+        model: text.config?.text_model,
+        system: systemContent,
+        user: userContent,
+        // One short object: a name, a few sentences of narration, and at most a
+        // handful of reinforcement entries. Far smaller than a quest batch or a
+        // 1d100 table, and mid-combat latency matters more here than headroom.
+        maxTokens: 900,
+      });
+    } catch (e) {
+      console.error("Complication text generation failed:", e);
+      return jsonError(502, "generation_failed", e instanceof Error ? e.message : "Text generation failed");
+    }
+
+    const malformed = () =>
+      jsonError(502, "generation_failed", "The complication came back unreadable. Nothing was charged; please try again.");
+    let data: ComplicationAiResult;
+    try {
+      data = JSON.parse(textResult.content) as ComplicationAiResult;
+    } catch {
+      return malformed();
+    }
+    // Narration is the one field with no useful fallback: an event the DM cannot
+    // read out is not a complication. Everything else is optional by design and
+    // is normalised client-side. A reply of `null` parses fine and has no narration either.
+    if (!data || typeof data.narration !== "string" || !data.narration.trim()) return malformed();
+
+    // Charged the moment the paid call has produced a usable result (delta 0 on BYOK).
+    hold.charge("complication_generation", {
+      cost,
+      isByok: text.isByok,
+      log: {
+        model: textResult.usage.model, provider: textResult.usage.provider,
+        input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+      },
     });
-  } catch (e) {
-    await releaseCredits(admin, reservation.ids);
-    console.error("Complication text generation failed:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
 
-  let data: ComplicationAiResult;
-  try {
-    data = JSON.parse(textResult.content) as ComplicationAiResult;
-  } catch {
-    await releaseCredits(admin, reservation.ids);
-    return new Response(
-      JSON.stringify({ error: "AI returned a malformed complication — please try again." }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
-  // Narration is the one field with no useful fallback: an event the DM cannot
-  // read out is not a complication. Everything else is optional by design and
-  // is normalised client-side.
-  if (typeof data.narration !== "string" || !data.narration.trim()) {
-    await releaseCredits(admin, reservation.ids);
-    return new Response(
-      JSON.stringify({ error: "AI returned a malformed complication — please try again." }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
+    // A near miss in a reinforcement's name is put to a judgment model against exactly the creatures and NPCs
+    // the prompt offered (the two lists the client resolves a reinforcement against) and rewritten to the
+    // offered name when it is confident (#1061). Free to the user; off until a typesafe key exists.
+    // A polish step: if it fails the proposal goes out unrepaired rather than a paid result turning into a 500.
+    if (Array.isArray(data.reinforcements)) {
+      try {
+        const reinforcements = data.reinforcements;
+        const [reinforcementRepairs] = await repairGeneratedNames(admin, user.id, [{
+          names: reinforcements
+            .filter((r) => typeof r?.name === "string")
+            .map((r) => ({ name: r.name, note: typeof r.role === "string" ? r.role : undefined })),
+          offered: [
+            ...monsters.map((c) => ({ name: c.name, hint: `CR ${c.cr} ${c.type}` })),
+            ...entities.npcs.map((c) => (c.descriptor ? { name: c.name, hint: c.descriptor } : { name: c.name })),
+          ],
+          context: "Reinforcements joining a D&D combat encounter. Each is a creature or a person.",
+        }]);
+        data = {
+          ...data,
+          reinforcements: reinforcements.map((r) =>
+            typeof r?.name === "string" ? { ...r, name: repaired(reinforcementRepairs, r.name) } : r),
+        };
+      } catch (e) {
+        console.warn("Complication name repair failed; returning the proposal unrepaired:", e);
+      }
+    }
 
-  // Release the hold; record the real spend (delta 0 on BYOK).
-  await releaseCredits(admin, reservation.ids);
-  await recordGeneration(admin, user.id, "complication_generation", text.isByok, cost, {
-    model: textResult.usage.model, provider: textResult.usage.provider,
-    input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
-  });
-
-  // A near miss in a reinforcement's name is put to a judgment model against exactly the creatures and NPCs
-  // the prompt offered (the two lists the client resolves a reinforcement against) and rewritten to the
-  // offered name when it is confident (#1061). Free to the user; off until a typesafe key exists.
-  if (Array.isArray(data.reinforcements)) {
-    const reinforcements = data.reinforcements;
-    const [reinforcementRepairs] = await repairGeneratedNames(admin, user.id, [{
-      names: reinforcements
-        .filter((r) => typeof r?.name === "string")
-        .map((r) => ({ name: r.name, note: typeof r.role === "string" ? r.role : undefined })),
-      offered: [
-        ...monsters.map((c) => ({ name: c.name, hint: `CR ${c.cr} ${c.type}` })),
-        ...entities.npcs.map((c) => (c.descriptor ? { name: c.name, hint: c.descriptor } : { name: c.name })),
-      ],
-      context: "Reinforcements joining a D&D combat encounter. Each is a creature or a person.",
-    }]);
-    data = {
-      ...data,
-      reinforcements: reinforcements.map((r) =>
-        typeof r?.name === "string" ? { ...r, name: repaired(reinforcementRepairs, r.name) } : r),
+    const ai_provenance: AiProvenance = {
+      generatorType: "complication_generation",
+      provider: textResult.usage.provider,
+      model: textResult.usage.model,
+      generatedAt: new Date().toISOString(),
+      edited: false,
     };
-  }
 
-  const ai_provenance: AiProvenance = {
-    generatorType: "complication_generation",
-    provider: textResult.usage.provider,
-    model: textResult.usage.model,
-    generatedAt: new Date().toISOString(),
-    edited: false,
-  };
-
-  return new Response(
     // `grounded` tells the panel whether unresolvable creature names are the
     // model guessing (retrieval down / bestiary not embedded) or simply a
     // creature this campaign does not have.
-    JSON.stringify({ ...data, mode, grounded: monsters.length > 0, ai_provenance }),
-    { headers: { "Content-Type": "application/json" } },
-  );
+    return json({ ...data, mode, grounded: monsters.length > 0, ai_provenance });
+  });
 }));

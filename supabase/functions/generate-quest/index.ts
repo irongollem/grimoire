@@ -5,15 +5,7 @@ import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { rulesetContextKey } from "../_shared/gameSystem.ts";
-import {
-  fetchCreditCost,
-  wholeCredits,
-  recordGeneration,
-  releaseCredits,
-  reserveCredits,
-  reservationFailureResponse,
-  recordFreeGeneration,
-} from "../_shared/credits.ts";
+import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
   AI_PROMPT_LIMIT,
@@ -21,7 +13,6 @@ import {
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import {
@@ -37,9 +28,12 @@ import {
 import { repairGeneratedNames } from "../_shared/nameRepairWire.ts";
 import { ENTITY_KINDS, entityRepairGroups, namesIn, repairedList } from "../_shared/nameRepair.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText } from "../_shared/worldBlock.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 
 /**
  * Retrieval-grounded AI quest-hook generator (#600).
@@ -160,36 +154,23 @@ const SCHEMA_EXTENSION_INSTRUCTION =
   "hook. Omit an array (or leave it empty) if a hook references nothing of that type.";
 
 // ── Handler ───────────────────────────────────────────────────────────────────
+interface QuestCampaign extends BaseCampaign {
+  text_provider: string | null;
+  game_system: string | null;
+}
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+// ── Handler ───────────────────────────────────────────────────────────────────
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate — including BYOK, which skips
   // the credit gate for both (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
-  let campaign_id: string, prompt: string;
-
-  try {
-    const body = await req.json();
-    campaign_id = body.campaign_id;
-    prompt      = body.prompt;
-    if (!campaign_id || !prompt) throw new Error("invalid");
-  } catch {
-    return new Response("Invalid body — need { campaign_id, prompt }", { status: 400 });
-  }
+  const body = await readJsonBody(req);
+  const campaign_id = typeof body?.campaign_id === "string" && body.campaign_id ? body.campaign_id : undefined;
+  const prompt = typeof body?.prompt === "string" && body.prompt ? body.prompt : undefined;
+  if (!campaign_id || !prompt) return jsonError(400, "invalid_body", "Need { campaign_id, prompt }.");
 
   // AI_PROMPT_LIMIT (1000), not _SHORT (500): the panel composes several
   // lines into this one string (party level, an optional giver/location
@@ -198,31 +179,26 @@ serve(withCors(async (req: Request) => {
   const promptCheck = validatePromptInput(prompt, AI_PROMPT_LIMIT);
   if (!promptCheck.ok) return promptCheck.errorResponse;
 
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, game_system")
-    .eq("id", campaign_id)
-    .maybeSingle();
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
-
   // DMs only: this reads DM-only campaign content with the service role (see
   // _shared/campaignAccess.ts for why a player member must not get through).
-  if (!(await isCampaignDm(admin, campaign, user.id))) {
-    return new Response("Forbidden", { status: 403 });
-  }
+  const load = await loadAiCampaign<QuestCampaign>(admin, campaign_id, user.id, {
+    columns: ["text_provider", "game_system"],
+  });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
   // Ruleset-aware generation (#564): the context row follows the campaign's 5e system; Generic has none.
   const rulesetKey = rulesetContextKey(campaign.game_system);
 
-  const { data: promptRows } = await admin
+  const { data: promptRows, error: promptError } = await admin
     .from("ai_system_prompts").select("generator_type, content")
     .in("generator_type", ["quest", ...(rulesetKey ? [rulesetKey] : [])]);
+  if (promptError) throw promptError;
   const promptRow = promptRows?.find((r) => r.generator_type === "quest");
   // Missing row (older DBs that predate #564) is a silent skip, not an error.
   const rulesetContext =
     promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
-  if (!promptRow) return new Response("Prompt not configured", { status: 500 });
+  if (!promptRow) return jsonError(500, "prompt_not_configured", "This generator is not set up yet.");
 
   const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
     loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
@@ -244,12 +220,7 @@ serve(withCors(async (req: Request) => {
     platformKeys,
     providerConfigs,
   });
-  if (!text) {
-    return new Response(
-      JSON.stringify({ error: NO_TEXT_PROVIDER_MESSAGE }),
-      { status: 422, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const baseCost = text.isByok ? 0 : await fetchCreditCost(admin, "quest_generation");
@@ -266,172 +237,156 @@ serve(withCors(async (req: Request) => {
   // embed after: otherwise any authenticated campaign member can loop this
   // endpoint and run up unbounded platform spend that no throttle and no
   // balance check ever sees. See generate-encounter for the same reasoning.
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
-    return new Response(
-      JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
-  const reservation = await reserveCredits(admin, user.id, cost, "quest_generation");
-  if (!reservation.ok) return reservationFailureResponse(reservation);
+  return withCreditHold(admin, { payerId: user.id, reason: "quest_generation", cost, report }, async (hold) => {
+    // ── Semantic retrieval (#600) ────────────────────────────────────────────
+    // An ENHANCEMENT, not a requirement: retrieval must never be able to take
+    // quest generation down. A missing vendor, a mid-flip config, a provider
+    // outage or an RPC error all cost grounding, not the feature — the whole
+    // block is one try/catch whose failure path leaves the candidate arrays
+    // empty and the prompt falls back to exactly what the client-side BYOK path
+    // already sends (see useQuestGeneration.ts): the "quest" system prompt +
+    // ruleset context + campaign setting, no entity block.
+    let candidates: { npcs: CandidateEntity[]; locations: CandidateEntity[]; factions: CandidateEntity[] } =
+      { npcs: [], locations: [], factions: [] };
+    let retrievalOk = false;
 
-  // ── Semantic retrieval (#600) ──────────────────────────────────────────────
-  // An ENHANCEMENT, not a requirement: retrieval must never be able to take
-  // quest generation down. A missing vendor, a mid-flip config, a provider
-  // outage or an RPC error all cost grounding, not the feature — the whole
-  // block is one try/catch whose failure path leaves the candidate arrays
-  // empty and the prompt falls back to exactly what the client-side BYOK path
-  // already sends (see useQuestGeneration.ts): the "quest" system prompt +
-  // ruleset context + campaign setting, no entity block.
-  let candidates: { npcs: CandidateEntity[]; locations: CandidateEntity[]; factions: CandidateEntity[] } =
-    { npcs: [], locations: [], factions: [] };
-  let retrievalOk = false;
-
-  try {
-    const embedProvider = await resolveEmbeddingProvider(admin, {
-      openai: platformKeys.openai ?? null,
-      gemini: platformKeys.gemini ?? null,
-    });
-    const { vectors, usage: embedUsage } = await embedProvider.embed([prompt]);
-
-    // Recorded HERE, not after the RPCs below — real provider spend was
-    // incurred the moment embed() returned, and everything after this point
-    // can throw into the catch. Recording later would mean a transient DB
-    // error silently converts real money into invisible spend. Platform-paid,
-    // charged to nobody: is_byok stays false because we, not the user, paid
-    // for it — see recordFreeGeneration's doc comment.
-    await recordFreeGeneration(admin, user.id, "entity_embedding", {
-      model:        embedProvider.model,
-      provider:     embedUsage.provider,
-      input_tokens: embedUsage.input_tokens,
-    });
-
-    candidates = await retrieveCampaignEntities(admin, {
-      queryVector:    toVectorLiteral(vectors[0]),
-      campaignId:     campaign_id,
-      // The OWNER, not the caller — matching generate-encounter's bestiary
-      // scoping. A campaign member generating a quest sees the DM's NPCs,
-      // factions and locations, not their own (players don't have any).
-      ownerId:        campaign.user_id,
-      embeddingModel: embedProvider.model,
-    });
-
-    const totalCandidates = candidates.npcs.length + candidates.locations.length + candidates.factions.length;
-    if (totalCandidates === 0) {
-      // Not necessarily an error — a brand-new campaign legitimately has no
-      // NPCs/locations/factions yet — but it means there is nothing to
-      // ground the hooks in, so it is worth a look if it happens for a
-      // long-running campaign that plainly has entities.
-      console.warn(`Quest retrieval found zero campaign entities for campaign ${campaign_id} — building the prompt without the entity block.`);
-    } else {
-      retrievalOk = true;
-    }
-  } catch (e) {
-    // Diagnosable, but never fatal.
-    const why = e instanceof EmbeddingProviderConfigError
-      ? `embedding provider not usable (${e.message})`
-      : e instanceof Error ? e.message : "unknown error";
-    console.warn(`Quest retrieval unavailable for campaign ${campaign_id}, falling back to the client-equivalent prompt: ${why}`);
-    candidates = { npcs: [], locations: [], factions: [] };
-  }
-
-  // formatEntityBlock() only formats — whether to call it at all is decided
-  // here, so a zero-candidate retrieval produces no prompt text at all
-  // rather than an empty ---BEGIN/END--- shell.
-  const entityBlock = retrievalOk ? formatEntityBlock(candidates, "writing hooks") : "";
-  const userContent = `${wrapUserInput(prompt)}${entityBlock}`;
-
-  const textModel = text.config?.text_model;
-
-  let textResult: TextResult;
-  try {
-    textResult = await callText({
-      text,
-      model: textModel,
-      system: systemContent,
-      user: userContent,
-      // Five hooks' worth of title/summary/tags, the npcs/locations/factions
-      // arrays, and (#822) a 3-5 beat spine with a dm_content paragraph per
-      // beat plus routes and per-objective raised_by fields — several times
-      // the payload of generate-encounter's single object, hence the larger
-      // budget than its 1200. Raised from 3000 when the spine was folded
-      // into the base prompt: up to 5 beats x 5 hooks of narration is the
-      // single largest contributor to this budget. Raised again from 6000
-      // when each beat gained its rumor and reveal copy: two short lines on
-      // up to 25 beats, and a response cut off mid-object is a 502 for the
-      // whole batch rather than one short hook.
-      maxTokens: 8000,
-    });
-  } catch (e) {
-    await releaseCredits(admin, reservation.ids);
-    console.error("Quest text generation failed:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
-  let questData: QuestGenerationResult;
-  try {
-    questData = JSON.parse(textResult.content) as QuestGenerationResult;
-  } catch {
-    await releaseCredits(admin, reservation.ids);
-    return new Response(
-      JSON.stringify({ error: "AI returned malformed quest data — please try again." }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
-  if (!Array.isArray(questData.hooks) || questData.hooks.length === 0) {
-    await releaseCredits(admin, reservation.ids);
-    return new Response(
-      JSON.stringify({ error: "AI returned malformed quest data — please try again." }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
-  // Release the hold; record the real spend (delta 0 on BYOK).
-  await releaseCredits(admin, reservation.ids);
-  await recordGeneration(admin, user.id, "quest_generation", text.isByok, cost, {
-    model: textResult.usage.model, provider: textResult.usage.provider,
-    input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
-  });
-
-  // A near miss in a hook's npcs, locations or factions is put to a judgment model against exactly the
-  // entities the prompt offered (per kind) and rewritten to the offered name when it is confident, so the
-  // client's exact-name resolver finds the record (#1061). Free to the user; off until a typesafe key exists.
-  const named = { npcs: new Set<string>(), locations: new Set<string>(), factions: new Set<string>() };
-  for (const hook of questData.hooks) {
-    for (const kind of ENTITY_KINDS) for (const n of namesIn(hook?.[kind])) named[kind].add(n);
-  }
-  const questRepairs = await repairGeneratedNames(admin, user.id, entityRepairGroups(
-    candidates,
-    { npcs: [...named.npcs], locations: [...named.locations], factions: [...named.factions] },
-    "Quest hooks for a D&D campaign.",
-  ));
-  questData = {
-    ...questData,
-    hooks: questData.hooks.map((hook) => {
-      if (!hook || typeof hook !== "object") return hook;
-      const fixed: QuestHookAiResult = { ...hook };
-      ENTITY_KINDS.forEach((kind, i) => {
-        const list = repairedList(questRepairs[i], hook[kind]);
-        if (list !== undefined) fixed[kind] = list as string[];
+    try {
+      const embedProvider = await resolveEmbeddingProvider(admin, {
+        openai: platformKeys.openai ?? null,
+        gemini: platformKeys.gemini ?? null,
       });
-      return fixed;
-    }),
-  };
+      const { vectors, usage: embedUsage } = await embedProvider.embed([prompt]);
 
-  const ai_provenance: AiProvenance = {
-    generatorType: "quest_generation",
-    provider: textResult.usage.provider,
-    model: textResult.usage.model,
-    generatedAt: new Date().toISOString(),
-    edited: false,
-  };
+      // Queued HERE, not after the RPCs below — real provider spend was
+      // incurred the moment embed() returned, and everything after this point
+      // can throw into the catch. A free line is written whatever the work
+      // does, so a transient DB error cannot turn real money into invisible
+      // spend. Platform-paid, charged to nobody.
+      hold.free("entity_embedding", {
+        model:        embedProvider.model,
+        provider:     embedUsage.provider,
+        input_tokens: embedUsage.input_tokens,
+      });
 
-  return new Response(
-    JSON.stringify({ ...questData, ai_provenance }),
-    { headers: { "Content-Type": "application/json" } },
-  );
+      candidates = await retrieveCampaignEntities(admin, {
+        queryVector:    toVectorLiteral(vectors[0]),
+        campaignId:     campaign_id,
+        // The OWNER, not the caller — matching generate-encounter's bestiary
+        // scoping. A campaign member generating a quest sees the DM's NPCs,
+        // factions and locations, not their own (players don't have any).
+        ownerId:        campaign.user_id,
+        embeddingModel: embedProvider.model,
+      });
+
+      const totalCandidates = candidates.npcs.length + candidates.locations.length + candidates.factions.length;
+      if (totalCandidates === 0) {
+        // Not necessarily an error — a brand-new campaign legitimately has no
+        // NPCs/locations/factions yet — but it means there is nothing to
+        // ground the hooks in, so it is worth a look if it happens for a
+        // long-running campaign that plainly has entities.
+        console.warn(`Quest retrieval found zero campaign entities for campaign ${campaign_id} — building the prompt without the entity block.`);
+      } else {
+        retrievalOk = true;
+      }
+    } catch (e) {
+      // Diagnosable, but never fatal.
+      const why = e instanceof EmbeddingProviderConfigError
+        ? `embedding provider not usable (${e.message})`
+        : e instanceof Error ? e.message : "unknown error";
+      console.warn(`Quest retrieval unavailable for campaign ${campaign_id}, falling back to the client-equivalent prompt: ${why}`);
+      candidates = { npcs: [], locations: [], factions: [] };
+    }
+
+    // formatEntityBlock() only formats — whether to call it at all is decided
+    // here, so a zero-candidate retrieval produces no prompt text at all
+    // rather than an empty ---BEGIN/END--- shell.
+    const entityBlock = retrievalOk ? formatEntityBlock(candidates, "writing hooks") : "";
+    const userContent = `${wrapUserInput(prompt)}${entityBlock}`;
+
+    let textResult: TextResult;
+    try {
+      textResult = await callText({
+        text,
+        model: text.config?.text_model,
+        system: systemContent,
+        user: userContent,
+        // Five hooks' worth of title/summary/tags, the npcs/locations/factions
+        // arrays, and (#822) a 3-5 beat spine with a dm_content paragraph per
+        // beat plus routes and per-objective raised_by fields — several times
+        // the payload of generate-encounter's single object, hence the larger
+        // budget than its 1200. Raised from 3000 when the spine was folded
+        // into the base prompt: up to 5 beats x 5 hooks of narration is the
+        // single largest contributor to this budget. Raised again from 6000
+        // when each beat gained its rumor and reveal copy: two short lines on
+        // up to 25 beats, and a response cut off mid-object is a 502 for the
+        // whole batch rather than one short hook.
+        maxTokens: 8000,
+      });
+    } catch (e) {
+      console.error("Quest text generation failed:", e);
+      return jsonError(502, "generation_failed", e instanceof Error ? e.message : "Text generation failed");
+    }
+
+    const malformed = () =>
+      jsonError(502, "generation_failed", "The quest hooks came back unreadable. Nothing was charged; please try again.");
+    let questData: QuestGenerationResult;
+    try {
+      questData = JSON.parse(textResult.content) as QuestGenerationResult;
+    } catch {
+      return malformed();
+    }
+    if (!questData || !Array.isArray(questData.hooks) || questData.hooks.length === 0) return malformed();
+
+    // Charged the moment the paid call has produced a usable result (delta 0 on BYOK).
+    hold.charge("quest_generation", {
+      cost,
+      isByok: text.isByok,
+      log: {
+        model: textResult.usage.model, provider: textResult.usage.provider,
+        input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+      },
+    });
+
+    // A near miss in a hook's npcs, locations or factions is put to a judgment model against exactly the
+    // entities the prompt offered (per kind) and rewritten to the offered name when it is confident, so the
+    // client's exact-name resolver finds the record (#1061). Free to the user; off until a typesafe key exists.
+    // A polish step: if it fails the hooks go out unrepaired rather than a paid result turning into a 500.
+    try {
+      const named = { npcs: new Set<string>(), locations: new Set<string>(), factions: new Set<string>() };
+      for (const hook of questData.hooks) {
+        for (const kind of ENTITY_KINDS) for (const n of namesIn(hook?.[kind])) named[kind].add(n);
+      }
+      const questRepairs = await repairGeneratedNames(admin, user.id, entityRepairGroups(
+        candidates,
+        { npcs: [...named.npcs], locations: [...named.locations], factions: [...named.factions] },
+        "Quest hooks for a D&D campaign.",
+      ));
+      questData = {
+        ...questData,
+        hooks: questData.hooks.map((hook) => {
+          if (!hook || typeof hook !== "object") return hook;
+          const fixed: QuestHookAiResult = { ...hook };
+          ENTITY_KINDS.forEach((kind, i) => {
+            const list = repairedList(questRepairs[i], hook[kind]);
+            if (list !== undefined) fixed[kind] = list as string[];
+          });
+          return fixed;
+        }),
+      };
+    } catch (e) {
+      console.warn("Quest name repair failed; returning the hooks unrepaired:", e);
+    }
+
+    const ai_provenance: AiProvenance = {
+      generatorType: "quest_generation",
+      provider: textResult.usage.provider,
+      model: textResult.usage.model,
+      generatedAt: new Date().toISOString(),
+      edited: false,
+    };
+
+    return json({ ...questData, ai_provenance });
+  });
 }));
