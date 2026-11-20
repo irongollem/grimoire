@@ -49,4 +49,17 @@ describe("journeyByMap", () => {
   it("measures nothing when an end has no pin on the map", () => {
     expect(journeyByMap({ shared, pins: [pin("brightwater", 0.2, 0.5)], scale, size, paceId: "normal" })).toBeNull();
   });
+
+  // The pins are 40 miles apart. Off the road: 40 x 1.5 = 60 miles, all difficult: 12 hours/day-equivalent = 5 days.
+  // Bug caught: the factor applied to the distance but the time left as plain going (or the reverse).
+  it("lengthens the line and counts it as difficult going when the rule is on, and leaves it alone when off", () => {
+    const pins = [pin("brightwater", 0.2, 0.5), pin("saltmarsh", 0.6, 0.5)];
+    const off = journeyByMap({ shared, pins, scale, size, paceId: "normal", offRoad: { factor: 1.5, difficult: true } })!;
+    expect(off.summary.distance).toBeCloseTo(60, 6);
+    expect(off.summary.time).toMatchObject({ days: 5, hours: 0 });
+    expect(off).toMatchObject({ offRoad: true, difficultDistance: expect.closeTo(60, 6) });
+    const plain = journeyByMap({ shared, pins, scale, size, paceId: "normal" })!;
+    expect(plain).toMatchObject({ offRoad: false, difficultDistance: 0 });
+    expect(plain.summary.time.calendarDays).toBe(2);
+  });
 });

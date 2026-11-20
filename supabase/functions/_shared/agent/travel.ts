@@ -12,7 +12,7 @@
 import { placesPassed, roadPlaceOf, shortestWay, type Way } from "../../../../src/lib/travel/way.ts";
 import type { Road } from "../../../../src/lib/travel/roads.ts";
 import { rationsNeeded } from "../../../../src/rules/rations.ts";
-import { DEFAULT_TRAVEL_PACE, formatTravelTime, fromMiles, getTravelPace, TRAVEL_PACES, travelTime, type TravelPaceId } from "../../../../src/rules/travelPace.ts";
+import { DEFAULT_TRAVEL_PACE, formatTravelTime, fromMiles, getTravelPace, journeyTime, TRAVEL_PACES, type TravelPaceId } from "../../../../src/rules/travelPace.ts";
 import { tablesAlong, tablesLine, type PlacedTable, type TableOnTheWay } from "./roadTables.ts";
 import type { AgentTool } from "./types.ts";
 import { UUID_RE } from "./parse.ts";
@@ -130,13 +130,16 @@ export function travelAnswer(fromId: string | null, toId: string, paceId: Travel
   const roadById = new Map(map.roads.map((road) => [road.id, road]));
   const unit = way.legs.every((leg) => roadById.get(leg.roadId)?.unit === "km") ? "km" : "mi";
   const distance = Math.round(fromMiles(way.miles, unit) * 10) / 10;
-  const time = travelTime(distance, unit, paceId);
+  // Difficult going (a pass, a bog) halves a day's distance, leg by leg (#1222).
+  const time = journeyTime(way.legs, paceId);
+  const hard = Math.round(fromMiles(way.legs.filter((leg) => leg.difficult).reduce((sum, leg) => sum + leg.miles, 0), unit) * 10) / 10;
   const pace = getTravelPace(paceId);
   const passed = placesPassed(way).map(nameOf);
   // A night is spent on the road after each full day of travel that is not the last stretch into the destination.
   const nights = Math.max(0, time.calendarDays - 1);
   const lines = [
     `By road from ${nameOf(start)} to ${nameOf(end)}: ${distance} ${unit}, ${formatTravelTime(time)} of travel at a ${pace.label.toLowerCase()} pace (${time.calendarDays} ${time.calendarDays === 1 ? "day" : "days"} on the calendar).`,
+    ...(hard > 0 ? [`${hard} ${unit} of it is difficult going, which halves a day's distance there.`] : []),
     passed.length === 0 ? "The road passes no other place of the campaign." : `The road passes ${passed.join(", then ")}.`,
     nights === 0 ? "They arrive the same day: no night on the road." : `${nights} ${nights === 1 ? "night" : "nights"} on the road.`,
     // The tables for this journey: each road's own first (the road is where the party is between two places),

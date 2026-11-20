@@ -22,6 +22,12 @@ describe("travelMapFrom", () => {
     expect(roads.map((r) => [r.id, r.distance])).toEqual([["a", 12], ["c", 3]]);
   });
 
+  // Bug caught: a difficult road read as easy going because the flag did not survive the row's shaping.
+  it("a road is difficult going only when its row says so", () => {
+    const { roads } = travelMapFrom({ ...base, roads: [{ id: "a", distance: 1, difficult: true }, { id: "b", distance: 1, difficult: false }, { id: "c", distance: 1 }] });
+    expect(roads.map((r) => r.difficult)).toEqual([true, false, false]);
+  });
+
   it("keeps a road's own table apart from the road row, whether the join gave an object or a one-element array", () => {
     const out = travelMapFrom({ ...base, roads: [{ id: "a", distance: 1, roll_table: table }, { id: "b", distance: 1, roll_table: [table] }, { id: "c", distance: 1, roll_table: null }] });
     expect(out.roadTables.map((r) => r.roadId)).toEqual(["a", "b"]);

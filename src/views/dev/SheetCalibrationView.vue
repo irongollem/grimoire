@@ -376,6 +376,7 @@ const sampleMember: PartyMember = {
     { level: 6, max: 1, used: 0 },
   ],
   current_location_id: null,
+  days_without_food: 0,
   carry_capacity_override: null,
   hit_dice_remaining: 9,
   class_resources: {

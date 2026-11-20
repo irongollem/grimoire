@@ -22,6 +22,8 @@ export interface Road {
   /** "the coast road"; empty when it has no name. */
   name: string;
   going: Going;
+  /** Difficult going (marsh, mountain, thick forest): by the book it halves the distance a day covers. */
+  difficult: boolean;
   /** The road's own encounter table (Dungeon Craft), when the DM gave it one. */
   roll_table_id: string | null;
 }
@@ -54,8 +56,8 @@ export function roadsFrom(placeId: string, roads: readonly Road[]): RoadFromHere
 
 const GOING_WORDS: Record<Going, string> = { road: "by road", track: "by track", river: "by river", sea: "by sea" };
 
-/** How a road reads in a place's entry: "40 mi by the coast road", "12 mi by track". */
-export function roadText(road: Pick<Road, "distance" | "unit" | "name" | "going">): string {
+/** How a road reads in a place's entry: "40 mi by the coast road", "12 mi by track, difficult going". */
+export function roadText(road: Pick<Road, "distance" | "unit" | "name" | "going" | "difficult">): string {
   const how = road.name.trim() !== "" ? `by ${road.name.trim()}` : GOING_WORDS[road.going];
-  return `${formatDistance(road.distance, road.unit)} ${how}`;
+  return `${formatDistance(road.distance, road.unit)} ${how}${road.difficult ? ", difficult going" : ""}`;
 }

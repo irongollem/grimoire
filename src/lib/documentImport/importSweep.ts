@@ -65,6 +65,7 @@ import type { EntityMatchSource, ImportDecision } from "./entityMatching";
 import { getEntityKindEntry } from "./entityKinds";
 import { normalizeEntityName } from "./entityName";
 import { planNpcKin, type KinWrite } from "./importSweepKin";
+import { planRoads, type RoadWrite } from "./importSweepRoads";
 import { planWorldLinks, type WorldLinkWrite } from "./importSweepWorldLinks";
 import { planCanonChildren } from "./importSweepCanon";
 import { writeBatchIsolatingFailures } from "@/lib/batchWrite";
@@ -249,6 +250,8 @@ export interface ImportSweepDeps {
   insertKinLinks: (links: KinWrite[]) => Promise<void>;
   /** Ties the page named, as `world_links` rows (#1084). One request; the sweep retries row by row only if it is refused. */
   insertWorldLinks: (links: WorldLinkWrite[]) => Promise<void>;
+  /** Roads the page states between places, as `location_roads` rows. One request; the sweep retries row by row only if it is refused. */
+  insertRoads: (roads: RoadWrite[]) => Promise<void>;
   /** The campaign's player characters by name: a truth can be known to one (`known_to`). */
   fetchPartyLookup: () => Promise<readonly NameLookupRow[]>;
   /** One canon child table's rows in ONE request; throws when the database refuses it, and the sweep then writes row
@@ -652,6 +655,16 @@ export async function runImportSweep(
   }
   // Best-effort: a refused link (often one already there) costs only itself.
   await writeBatchIsolatingFailures(plannedWorldLinks.writes, (batch) => deps.insertWorldLinks(batch));
+
+  // Roads the page states from a place to another ("Brightwater, 40 miles east along the coast road"), resolved
+  // against the same sweep-wide location lookup. Only the rows this sweep created carry them.
+  const plannedRoads = planRoads(linkedRowsByKind.locations ?? [], plainLookups.locations ?? [], campaignId);
+  for (const miss of plannedRoads.unresolved) {
+    const sourceName = displayNameById.get(miss.sourceId) ?? miss.sourceId;
+    unresolvedLinks.push(`${getEntityKindEntry("locations").labelSingular} "${sourceName}" → road to "${miss.name}"`);
+  }
+  // Best-effort: a refused road costs only itself.
+  await writeBatchIsolatingFailures(plannedRoads.writes, (batch) => deps.insertRoads(batch));
 
   // Family the page names ("the Baron's son"): resolved against the same
   // sweep-wide NPC lookup as every other name, written as kin_links.

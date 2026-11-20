@@ -3,7 +3,7 @@ import { journeyByRoad, passingText, roadTableIds, travellersOf } from "./journe
 import { roadPlaceOf } from "./way";
 import type { Road } from "./roads";
 
-const road = (id: string, a: string, b: string, distance: number, over: Partial<Road> = {}): Road => ({ id, from_location_id: a, to_location_id: b, distance, unit: "mi", name: "", going: "road", roll_table_id: null, ...over });
+const road = (id: string, a: string, b: string, distance: number, over: Partial<Road> = {}): Road => ({ id, from_location_id: a, to_location_id: b, distance, unit: "mi", name: "", going: "road", difficult: false, roll_table_id: null, ...over });
 // The inn's common room is inside the inn, which is inside Harbour.
 const parents: Record<string, string | null> = { "common-room": "inn", inn: "harbour", harbour: null, brightwater: null, farholt: null, island: null };
 const parentOf = (id: string): string | null => parents[id] ?? null;
@@ -102,5 +102,30 @@ describe("travellersOf", () => {
 
   it("counts nobody when nobody knows where the party is", () => {
     expect(travellersOf({ origin: "harbour", members: [{ id: "a", current_location_id: null }], partyAt: null, parentOf, roads: coast })).toEqual([]);
+  });
+});
+
+describe("journeyByRoad with difficult going and vessels", () => {
+  const way = [road("marsh", "harbour", "brightwater", 24, { difficult: true }), road("ford", "brightwater", "farholt", 24)];
+
+  // 24 difficult miles (two days) and 24 plain (one): 3 days, with the nights where the time says.
+  // Bug caught: the journey's time taken from the raw miles, so difficult going changed nothing.
+  it("takes longer over difficult going, says how much of it is, and camps by the clock", () => {
+    const journey = journeyByRoad({ fromId: "harbour", toId: "farholt", roads: way, parentOf, nameOf, paceId: "normal" })!;
+    expect(journey.summary.time).toMatchObject({ days: 3, hours: 0 });
+    expect(journey.difficultDistance).toBe(24);
+    expect(journey.stops).toEqual([{ kind: "night", night: 1 }, { kind: "place", name: "Brightwater" }, { kind: "night", night: 2 }]);
+    expect(journey.waterLegs).toBe(false);
+  });
+
+  // 96 miles by galley (4 mph) through the night is one day; on foot 4 days.
+  // Bug caught: the conveyance ignored, so a ship crossed the sea at a walking pace.
+  it("sails the water legs by the vessel and offers a vessel only where there is water", () => {
+    const sea = [road("strait", "harbour", "brightwater", 96, { going: "sea" })];
+    const input = { fromId: "harbour", toId: "brightwater", roads: sea, parentOf, nameOf, paceId: "normal" as const };
+    const aboard = journeyByRoad({ ...input, conveyance: { vessel: "galley", throughTheNight: true } })!;
+    expect(aboard.summary.time.calendarDays).toBe(1);
+    expect(aboard.waterLegs).toBe(true);
+    expect(journeyByRoad(input)!.summary.time.calendarDays).toBe(4);
   });
 });

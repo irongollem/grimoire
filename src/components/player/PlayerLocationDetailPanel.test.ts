@@ -25,6 +25,16 @@ vi.mock("@/composables/noticeBoards/usePlayerNoticeBoards", () => ({
 }));
 vi.mock("@/composables/player/useReadItems", () => ({ useReadItems: () => ({ isNew: () => false }) }));
 vi.mock("@/composables/bookNook/usePlaceNook", () => ({ usePlaceNook: () => ({ nook: ref(null) }) }));
+const roadState = vi.hoisted(() => ({
+  roads: [] as unknown[],
+  places: [{ id: "l2", name: "Saltmarsh" }] as { id: string; name: string }[],
+}));
+vi.mock("@/composables/locations/usePlayerLocationRoads", () => ({
+  usePlayerLocationRoads: () => ({ data: ref(roadState.roads) }),
+}));
+vi.mock("@/composables/locations/useLocations", () => ({
+  useSharedLocations: () => ({ data: ref(roadState.places) }),
+}));
 import PlayerLocationDetailPanel from "./PlayerLocationDetailPanel.vue";
 import type { Location } from "@/types/location.types";
 import type { PlayerNpc } from "@/types/npc.types";
@@ -149,5 +159,26 @@ describe("PlayerLocationDetailPanel what the DM has shared", () => {
     const w = panel({ map_url: "https://cdn.test/map.webp", is_map_shared: true, map_pins: [pin("a", true), pin("b", false)] });
     const pins = w.findComponent({ name: "LocationMap" }).props("pins") as { child_location_id: string }[];
     expect(pins.map((p) => p.child_location_id)).toEqual(["a"]);
+  });
+});
+
+describe("PlayerLocationDetailPanel roads", () => {
+  const road = (id: string, to: string) => ({
+    id, from_location_id: "l1", to_location_id: to, distance: 40, unit: "mi", name: "", going: "road", difficult: false, roll_table_id: null,
+  });
+
+  // Bug caught: a road to a place the player cannot name listed anyway (leaking that it exists).
+  it("lists a road by its far end's name and leaves out one to a place the player cannot name", () => {
+    roadState.roads = [road("r1", "l2"), road("r2", "l9")];
+    const w = panel({});
+    const items = w.findAll("[data-place-roads] li");
+    expect(items).toHaveLength(1);
+    expect(items[0]?.text()).toBe("Saltmarsh · 40 mi by road");
+  });
+
+  // Bug caught: an empty heading shown on a place with no roads.
+  it("hides the section when there are no roads", () => {
+    roadState.roads = [road("r2", "l9")];
+    expect(panel({}).find("[data-place-roads]").exists()).toBe(false);
   });
 });

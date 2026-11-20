@@ -1,5 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
-import { passagesOf, useCanonPassages, useCreateCanonPassage, useDeleteCanonPassage, useUpdateCanonPassage } from "@/composables/canon/useCanonPassages";
+import { passagesOf, useCanonPassages, useCreateCanonPassage, useDeleteCanonPassage } from "@/composables/canon/useCanonPassages";
+import { useUpdateCanonPassage } from "@/composables/canon/useCanonPassageEdits";
 import type { CanonLorePassage } from "@/types/canon.types";
 
 /**

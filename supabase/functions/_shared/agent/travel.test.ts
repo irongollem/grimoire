@@ -4,7 +4,7 @@ import { parseTravel, travelAnswer, type TravelMap } from "./travel.ts";
 
 const id = (n: number): string => `00000000-0000-4000-8000-00000000000${n}`;
 const [NEVERWINTER, PHANDALIN, LEILON, INN, ISLAND] = [1, 2, 3, 4, 5].map(id);
-const road = (n: number, a: string, b: string, distance: number, unit: Road["unit"] = "mi"): Road => ({ id: `r${n}`, from_location_id: a, to_location_id: b, distance, unit, name: "", going: "road", roll_table_id: null });
+const road = (n: number, a: string, b: string, distance: number, unit: Road["unit"] = "mi"): Road => ({ id: `r${n}`, from_location_id: a, to_location_id: b, distance, unit, name: "", going: "road", difficult: false, roll_table_id: null });
 const map: TravelMap = {
   places: [
     { id: NEVERWINTER, name: "Neverwinter", parentId: null },
@@ -30,6 +30,16 @@ describe("travelAnswer", () => {
     expect(content).toContain("The road passes Leilon.");
     expect(content).toContain("2 nights on the road.");
     expect(content).toContain(`call pass_days with 3 and go_to with ${PHANDALIN}`);
+  });
+
+  // PHB "Travel Pace": difficult terrain halves a day's distance. 24 mi of easy road plus 36 mi of difficult going
+  // is 1 day + 3 days of travel at 24 mi a day. Bug caught: the narrator told a mountain pass is as quick as a road.
+  it("counts difficult going at half the distance a day, and says how much of the way it is", () => {
+    const hard = { ...map, roads: [road(1, NEVERWINTER, LEILON, 24), { ...road(2, LEILON, PHANDALIN, 36), difficult: true }] };
+    const { content } = travelAnswer(NEVERWINTER, PHANDALIN, "normal", hard);
+    expect(content).toContain("60 mi, 4 days of travel");
+    expect(content).toContain("36 mi of it is difficult going");
+    expect(travelAnswer(NEVERWINTER, PHANDALIN, "normal", map).content).not.toContain("difficult going");
   });
 
   // Bug caught: the DM's own encounter table for a town on the road never offered, so every chance meeting is invented.

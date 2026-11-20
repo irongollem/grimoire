@@ -4,7 +4,7 @@
   <div v-if="journey" class="flex flex-col gap-2 border border-border bg-card px-3 py-2.5" data-testid="location-journey">
     <p class="text-body text-foreground">
       <span class="font-semibold">{{ formatDistance(journey.summary.distance, journey.summary.unit) }}</span>
-      from {{ journey.summary.from?.name }}, where the party is<template v-if="passing">, {{ passing }}</template><template v-if="straightOn">, in a straight line on the map of {{ straightOn }}</template>:
+      from {{ journey.summary.from?.name }}, where the party is<template v-if="passing">, {{ passing }}</template><template v-if="straightOn">, {{ offRoadOn ? `about ${formatDistance(journey.summary.distance, journey.summary.unit)} off the road, on the map of ${straightOn}` : `in a straight line on the map of ${straightOn}` }}</template><template v-if="difficultText">, {{ difficultText }}</template>:
       <span class="font-semibold">{{ formatTravelTime(journey.summary.time) }}</span>
       at a {{ paceLabel }} pace.
     </p>
@@ -14,7 +14,19 @@
     <p v-if="food" class="text-caption text-muted-foreground" data-testid="location-journey-food">{{ food }}</p>
     <div class="flex flex-wrap items-center gap-2">
       <SegmentedControl v-model="paceId" :options="PACE_OPTIONS" size="sm" aria-label="Travel pace" />
-      <AppButton class="ml-auto" variant="outline" size="sm" :icon="IconAddEvent" label="Add to calendar" data-testid="location-journey-plan" @click="eventOpen = true" />
+      <!-- How the water legs are travelled, only when the way has some (a river or the sea). -->
+      <template v-if="journey.waterLegs">
+        <AppSelect v-model="vesselChoice" size="sm" aria-label="How the water is crossed" data-testid="location-journey-vessel">
+          <option value="">On foot or rowing</option>
+          <option v-for="v in VESSELS" :key="v.id" :value="v.id">{{ v.label }}</option>
+        </AppSelect>
+        <AppCheckbox v-if="vesselChoice !== ''" v-model="throughTheNight" label="Sails through the night" />
+      </template>
+      <div class="ml-auto flex flex-wrap gap-2">
+        <AppButton variant="outline" size="sm" :icon="IconAddEvent" label="Add to calendar" data-testid="location-journey-plan" @click="eventOpen = true" />
+        <!-- Making the journey (decision 4): the party goes, the day moves on, and the food is eaten. -->
+        <AppButton size="sm" :icon="IconCompassRose" label="Set out" data-testid="location-journey-set-out" @click="setOutOpen = true" />
+      </div>
     </div>
     <!-- What the road may bring: the encounter tables of the roads this journey takes, for a stop on the way.
          Whether anything happens is the DM's call; the table only says what. -->
@@ -27,14 +39,28 @@
     </div>
     <!-- The travel event is the record of a trip, as it is for a route measured on a map (#932). -->
     <EventModal v-model="eventOpen" :prefill="eventPrefill" />
+    <SetOutDialog
+      v-if="setOutOpen"
+      open
+      :destination="{ id: locationId, name: nameOf(locationId) }"
+      :journey="journey"
+      :pace-label="paceLabel"
+      :traveller-ids="travelerIds"
+      :moves-party="movesParty"
+      :description="eventWords"
+      @close="setOutOpen = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import EventModal from "@/components/calendar/EventModal.vue";
+import SetOutDialog from "./SetOutDialog.vue";
 import RollTableResult from "@/components/dungeon-features/RollTableResult.vue";
 import { useRollTables } from "@/composables/dungeon-features/useRollTables";
 import { rollOnTable, type RollTableRollResult } from "@/lib/dungeon-features/rollTableRoll";
@@ -43,15 +69,17 @@ import { useAllLocations, useLocation } from "@/composables/locations/useLocatio
 import { useMapPictureSize } from "@/composables/locations/useMapPictureSize";
 import { useLocationRoads } from "@/composables/locations/useLocationRoads";
 import { useParty } from "@/composables/party/useParty";
-import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
+import { resolveRuleConfig, useIsRuleEnabled, useOptionalRules } from "@/composables/rules/useOptionalRules";
 import { rationsNeeded } from "@/rules/rations";
-import { IconAddEvent, IconDice } from "@/lib/icons";
+import { IconAddEvent, IconDice, IconCompassRose } from "@/lib/icons";
 import { routeDescription, routeEventPrefill } from "@/lib/locations/mapRoute";
 import { formatDistance } from "@/lib/locations/mapScale";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { journeyByRoad, passingText, roadTableIds, stopsText, travellersOf } from "@/lib/travel/journey";
 import { journeyByMap, sharedMapOf } from "@/lib/travel/mapLine";
-import { DEFAULT_TRAVEL_PACE, formatTravelTime, getTravelPace, TRAVEL_PACES, type TravelPaceId } from "@/rules/travelPace";
+import { tablesForPlaces } from "@/lib/travel/wayTables";
+import { useEntityPlacementsFor } from "@/composables/locations/useLocationPlacements";
+import { DEFAULT_TRAVEL_PACE, formatTravelTime, getTravelPace, TRAVEL_PACES, VESSELS, type Conveyance, type TravelPaceId, type VesselId } from "@/rules/travelPace";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
 
@@ -72,6 +100,16 @@ const PACE_OPTIONS = TRAVEL_PACES.map((p) => ({ value: p.id, label: p.label }));
 const paceId = ref<TravelPaceId>(DEFAULT_TRAVEL_PACE);
 const paceLabel = computed(() => getTravelPace(paceId.value).label.toLowerCase());
 
+// How the water legs are travelled (a vessel picked, and whether it sails round the clock).
+const vesselChoice = ref<"" | VesselId>("");
+const throughTheNight = ref(false);
+const conveyance = computed<Conveyance>(() => ({ vessel: vesselChoice.value === "" ? null : vesselChoice.value, throughTheNight: throughTheNight.value }));
+
+// The optional rule "Off the Road": a straight line on a map is lengthened and counts as difficult going.
+const offRoadOn = useIsRuleEnabled("off_road");
+const { data: ruleRows } = useOptionalRules();
+const offRoadFactor = computed(() => resolveRuleConfig(ruleRows.value, "off_road").factor);
+
 const byId = computed(() => new Map((locations.value ?? []).map((l) => [l.id, l])));
 
 const partyAt = computed(() => (campaign.activeCampaign ? campaign.activeCampaign.current_location_id : null));
@@ -87,6 +125,7 @@ const byRoad = computed(() => {
     parentOf,
     nameOf: (id) => byId.value.get(id)?.name ?? "a place that is gone",
     paceId: paceId.value,
+    conveyance: conveyance.value,
   });
 });
 
@@ -101,13 +140,20 @@ const pictureSize = useMapPictureSize(() => (mapPlace.value ? (mapPlace.value.ma
 const byMap = computed(() => {
   const place = mapPlace.value;
   if (!shared.value || !place || place.id !== shared.value.mapId) return null;
-  return journeyByMap({ shared: shared.value, pins: place.map_pins, scale: place.map_scale, size: pictureSize.value, paceId: paceId.value });
+  return journeyByMap({ shared: shared.value, pins: place.map_pins, scale: place.map_scale, size: pictureSize.value, paceId: paceId.value, offRoad: offRoadOn.value ? { factor: offRoadFactor.value, difficult: true } : undefined });
 });
 
 const journey = computed(() => byRoad.value ?? byMap.value);
 /** The place whose map the distance was measured on, when it was not found by road. */
 const straightOn = computed(() => (byRoad.value === null && byMap.value !== null && mapPlace.value ? mapPlace.value.name : null));
 const passing = computed(() => (journey.value ? passingText(journey.value.passing) : ""));
+
+/** "12 mi of it difficult going" when part of a road journey is; a journey off the road says so already. */
+const difficultText = computed(() => {
+  const j = journey.value;
+  if (!j || j.offRoad || j.difficultDistance <= 0) return "";
+  return `${formatDistance(j.difficultDistance, j.summary.unit)} of it difficult going`;
+});
 
 const stops = computed(() => (journey.value ? stopsText(journey.value.stops) : ""));
 
@@ -126,11 +172,24 @@ const food = computed(() => {
 
 // ── What the road may bring ──────────────────────────────────────────────────
 const { data: rollTables } = useRollTables();
+// The tables placed on places (Atlas placements): those of the places the journey touches hold for it, a place
+// with none taking those of the place it lies inside (`tablesForPlaces`, the AI table's rule too). Read for the
+// campaign's tables in one query, and only once there is a journey to offer them for.
+const tableIds = computed(() => (journey.value ? (rollTables.value ?? []).map((t) => t.id) : []));
+const { data: tablePlacements } = useEntityPlacementsFor("roll_table", tableIds);
 const wayTables = computed<RollTable[]>(() => {
   const j = journey.value;
   const all = rollTables.value;
   if (!j || !all || !roads.data.value) return [];
-  return roadTableIds(j, roads.data.value).flatMap((id) => all.filter((t) => t.id === id));
+  const byId = new Map(all.map((t) => [t.id, t]));
+  // A road's own table first: the road is where the party is between two places.
+  const onRoads = roadTableIds(j, roads.data.value);
+  const placed = (tablePlacements.value ?? []).flatMap((p) => (p.roll_table_id ? [{ id: p.roll_table_id, placeId: p.location_id }] : []));
+  const onPlaces = tablesForPlaces(j.placeIds, parentOf, placed).map(({ table }) => table.id);
+  return [...new Set([...onRoads, ...onPlaces])].flatMap((id) => {
+    const table = byId.get(id);
+    return table ? [table] : [];
+  });
 });
 const rolled = ref<RollTableRollResult | null>(null);
 function rollOn(table: RollTable): void {
@@ -148,12 +207,37 @@ const travelerIds = computed(() => {
   // A journey across a map starts at a pin, with no roads to stop the walk up from where someone stands.
   return travellersOf({ origin, members, partyAt: partyAt.value, parentOf, roads: byRoad.value === null ? [] : (roads.data.value ?? []) });
 });
+/** The travel event's words, the same whether the journey is planned on the calendar or made at once. */
+const eventWords = computed(() => {
+  const j = journey.value;
+  if (!j) return "";
+  const how = straightOn.value !== null ? (offRoadOn.value ? ` Off the road, measured on the map of ${straightOn.value}.` : ` Measured in a straight line on the map of ${straightOn.value}.`) : passing.value === "" ? "" : ` By road, ${passing.value}.`;
+  return `${routeDescription(j.summary)}${how}`;
+});
 const eventPrefill = computed(() => {
   const j = journey.value;
   if (!j) return undefined;
   const start = { year: campaign.todayYear, month: campaign.todayMonth, day: campaign.todayDay };
-  const how = straightOn.value !== null ? ` Measured in a straight line on the map of ${straightOn.value}.` : passing.value === "" ? "" : ` By road, ${passing.value}.`;
-  const words = `${routeDescription(j.summary)}${how}`;
-  return { ...routeEventPrefill(j.summary, start, calendar.adapter, travelerIds.value), description: toTiptapJson(words) };
+  return { ...routeEventPrefill(j.summary, start, calendar.adapter, travelerIds.value), description: toTiptapJson(eventWords.value) };
+});
+
+// ── Set out ─────────────────────────────────────────────────────────────────
+const setOutOpen = ref(false);
+// Setting out moves the party, which ends this journey and unmounts the dialog before it can say it closed; left
+// open, it would come back by itself when Undo brings the journey back.
+watch(journey, (j) => {
+  if (!j) setOutOpen.value = false;
+});
+const nameOf = (id: string): string => byId.value.get(id)?.name ?? "a place that is gone";
+/** The party's own place goes with them when it stands where the journey starts, or inside that place. */
+const movesParty = computed(() => {
+  const origin = journey.value?.summary.from?.id;
+  if (!origin || !partyAt.value) return false;
+  const seen = new Set<string>();
+  for (let at: string | null = partyAt.value; at !== null && !seen.has(at); at = parentOf(at)) {
+    if (at === origin) return true;
+    seen.add(at);
+  }
+  return false;
 });
 </script>

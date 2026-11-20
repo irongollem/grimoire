@@ -1,8 +1,8 @@
 import type { RouteSummary } from "@/lib/locations/mapRoute";
 import { effectiveLocationId } from "@/lib/partyPosition";
-import { fromMiles, getTravelPace, travelTime, type TravelPaceId } from "@/rules/travelPace";
+import { fromMiles, journeyTime, legHours, ON_FOOT, type Conveyance, type TravelPaceId } from "@/rules/travelPace";
 import type { Road } from "./roads";
-import { placesPassed, roadPlaceOf, shortestWay, stopsOf } from "./way";
+import { placesPassed, roadPlaceOf, shortestWay, stopsOfTimed } from "./way";
 
 /**
  * A journey along the roads from where the party is to a place (#1222).
@@ -47,10 +47,18 @@ export interface Journey {
   summary: RouteSummary;
   /** The places the road passes between its two ends, by name, in order. */
   passing: string[];
+  /** The places the journey touches, in order: where it starts, each place passed, where it ends. */
+  placeIds: string[];
   /** The roads the journey takes, in order; none for a journey measured across a map. */
   roadIds: string[];
   /** Where the journey can pause, in order: each night's camp and each place passed. None across a map. */
   stops: JourneyStop[];
+  /** How much of the distance is difficult going, in the summary's unit; 0 when none is. */
+  difficultDistance: number;
+  /** Whether any leg is a river or the sea, so a vessel is worth asking about. */
+  waterLegs: boolean;
+  /** A journey across a map with the "Off the Road" rule on: the distance already counts the winding. */
+  offRoad: boolean;
 }
 
 export type JourneyStop = { kind: "night"; night: number } | { kind: "place"; name: string };
@@ -88,7 +96,10 @@ export function journeyByRoad(input: {
   parentOf: (id: string) => string | null;
   nameOf: (id: string) => string;
   paceId: TravelPaceId;
+  /** How the party travels the water legs; on foot (or rowing at the pace) when left out. */
+  conveyance?: Conveyance;
 }): Journey | null {
+  const conveyance = input.conveyance ?? ON_FOOT;
   const from = roadPlaceOf(input.fromId, input.parentOf, input.roads);
   const to = roadPlaceOf(input.toId, input.parentOf, input.roads);
   if (from === null || to === null || from === to) return null;
@@ -102,13 +113,17 @@ export function journeyByRoad(input: {
       distance,
       unit,
       paceId: input.paceId,
-      time: travelTime(distance, unit, input.paceId),
+      time: journeyTime(way.legs, input.paceId, conveyance),
       from: { id: from, name: input.nameOf(from) },
       to: { id: to, name: input.nameOf(to) },
     },
     passing: placesPassed(way).map(input.nameOf),
+    placeIds: [from, ...placesPassed(way), to],
     roadIds: way.legs.map((leg) => leg.roadId),
-    stops: stopsOf(way, getTravelPace(input.paceId).milesPerDay).map((stop): JourneyStop => (stop.kind === "night" ? stop : { kind: "place", name: input.nameOf(stop.placeId) })),
+    stops: stopsOfTimed(way, (leg) => legHours(leg, input.paceId, conveyance)).map((stop): JourneyStop => (stop.kind === "night" ? stop : { kind: "place", name: input.nameOf(stop.placeId) })),
+    difficultDistance: fromMiles(way.legs.filter((leg) => leg.difficult).reduce((sum, leg) => sum + leg.miles, 0), unit),
+    waterLegs: way.legs.some((leg) => leg.going === "river" || leg.going === "sea"),
+    offRoad: false,
   };
 }
 

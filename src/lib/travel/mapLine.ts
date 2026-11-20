@@ -1,6 +1,6 @@
 import { summarizeRoute } from "@/lib/locations/mapRoute";
 import type { ImageSize } from "@/lib/locations/mapScale";
-import type { TravelPaceId } from "@/rules/travelPace";
+import { journeyTime, toMiles, type TravelPaceId } from "@/rules/travelPace";
 import type { MapPin, MapScale } from "@/types/location.types";
 import type { Journey } from "./journey";
 
@@ -62,6 +62,11 @@ export function journeyByMap(input: {
   scale: MapScale | null;
   size: ImageSize | null;
   paceId: TravelPaceId;
+  /**
+   * The "Off the Road" rule: with no road, nobody walks the straight line, so the distance is the line times
+   * `factor`, and `difficult` counts all of it as difficult going. Left out, the line as measured.
+   */
+  offRoad?: { factor: number; difficult: boolean };
 }): Journey | null {
   if (input.scale === null || input.size === null) return null;
   const from = pinOf(input.shared.fromBranch, input.pins);
@@ -76,5 +81,10 @@ export function journeyByMap(input: {
     input.size,
     input.paceId,
   );
-  return summary === null ? null : { summary, passing: [], roadIds: [], stops: [] };
+  if (summary === null) return null;
+  const off = input.offRoad;
+  if (off === undefined) return { summary, passing: [], placeIds: [from.child_location_id, to.child_location_id], roadIds: [], stops: [], difficultDistance: 0, waterLegs: false, offRoad: false };
+  const distance = summary.distance * off.factor;
+  const time = journeyTime([{ miles: toMiles(distance, summary.unit), difficult: off.difficult, going: "track" }], input.paceId);
+  return { summary: { ...summary, distance, time }, passing: [], placeIds: [from.child_location_id, to.child_location_id], roadIds: [], stops: [], difficultDistance: off.difficult ? distance : 0, waterLegs: false, offRoad: true };
 }

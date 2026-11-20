@@ -5,7 +5,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { LOCATION_ROADS_KEY } from "@/lib/campaignLiveSync/registry";
 import type { DistanceUnit, Going, Road } from "@/lib/travel/roads";
 
-const COLUMNS = "id, from_location_id, to_location_id, distance, unit, name, going, roll_table_id";
+const COLUMNS = "id, from_location_id, to_location_id, distance, unit, name, going, difficult, roll_table_id";
 
 /**
  * Every road of the active campaign (#1222). One read for the whole campaign, not one per place: the way between
@@ -35,6 +35,7 @@ export interface NewRoad {
   unit: DistanceUnit;
   name: string;
   going: Going;
+  difficult: boolean;
   /** The road's own encounter table, or null for none. */
   rollTableId: string | null;
 }
@@ -57,6 +58,7 @@ export function useAddLocationRoad() {
         unit: road.unit,
         name: road.name.trim(),
         going: road.going,
+        difficult: road.difficult,
         roll_table_id: road.rollTableId,
       });
       if (error) throw error;

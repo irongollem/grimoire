@@ -254,6 +254,12 @@ function buildDeps(
       if (error) throw error;
     },
 
+    // Roads the page states between places. Rows carry campaign_id; user_id is the column default.
+    insertRoads: async (roads) => {
+      const { error } = await supabase.from("location_roads").insert(roads);
+      if (error) throw error;
+    },
+
     updateQuestParent: async (questId, parentQuestId) => {
       const { error } = await supabase.from("quests").update({ parent_quest_id: parentQuestId }).eq("id", questId);
       if (error) throw error;

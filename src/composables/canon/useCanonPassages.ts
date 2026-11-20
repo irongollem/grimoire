@@ -6,8 +6,6 @@ import { useCampaignStore } from "@/stores/campaign";
 import { toast } from "@/lib/toast";
 import { queueCanonEmbedding } from "@/lib/canon/queueCanonEmbedding";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
-import { useCampaignSession } from "@/composables/campaign/useCampaignSession";
-import { partyListQuery } from "@/composables/party/useParty";
 import type { ClueKind } from "@/composables/canon/useCanonClues";
 import type { CanonLorePassage } from "@/types/canon.types";
 
@@ -39,11 +37,6 @@ export type NewCanonPassage = {
   | { quest_beat_id?: string; location_id?: never; npc_id?: never }
 );
 
-/** A passage's own columns the DM changes. `ai_provenance` is never sent by an edit: the database marks it edited. */
-export type CanonPassagePatch = Partial<
-  Pick<CanonLorePassage, "title" | "body" | "sort_order" | "player_visible_to" | "told_at" | "told_session_id" | "location_id" | "npc_id" | "quest_beat_id">
->;
-
 /** Every passage of the campaign, scoped in the query: RLS only bounds who may read, it does not choose the campaign. */
 export async function fetchCanonPassages(campaignId: string): Promise<CanonLorePassage[]> {
   const { data, error } = await supabase
@@ -69,15 +62,6 @@ export async function createCanonPassage(campaignId: string, input: NewCanonPass
   // A lore entry's one vector folds its passages in, so a new passage changes the entry's embed text (#1226).
   queueCanonEmbedding(created.entry_id);
   return created;
-}
-
-export async function updateCanonPassage(id: string, patch: CanonPassagePatch): Promise<void> {
-  // RLS answers a write it refuses with no error and no row; asking for the row back is how that is told from a save.
-  const { data, error } = await supabase.from("canon_lore_passages").update(patch).eq("id", id).select("id, entry_id");
-  if (error) throw error;
-  if (data.length === 0) throw new Error("That passage is gone, or you may not change it.");
-  // Only the heading and the text are embedded; telling it, placing it or reordering it leaves the vector as it was.
-  if ("title" in patch || "body" in patch) for (const row of data) queueCanonEmbedding(row.entry_id);
 }
 
 export async function deleteCanonPassage(id: string): Promise<void> {
@@ -112,15 +96,6 @@ export function useCreateCanonPassage() {
       if (cid === null) throw new Error("useCreateCanonPassage called without a campaign");
       return createCanonPassage(cid, input);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: [CANON_KEY] }),
-    onError: (e) => toast.error(toast.fromError(e)),
-  });
-}
-
-export function useUpdateCanonPassage() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: CanonPassagePatch }) => updateCanonPassage(id, patch),
     onSuccess: () => qc.invalidateQueries({ queryKey: [CANON_KEY] }),
     onError: (e) => toast.error(toast.fromError(e)),
   });
@@ -182,40 +157,4 @@ export function wherePatch(where: { kind: ClueKind; id: string } | null): Pick<C
   const patch = { location_id: null, npc_id: null, quest_beat_id: null } as Pick<CanonLorePassage, "location_id" | "npc_id" | "quest_beat_id">;
   if (where !== null) patch[WHERE_COLUMN[where.kind]] = where.id;
   return patch;
-}
-
-/**
- * The patch Tell the party writes: the time, the session that is running (none when the DM has not started one) and
- * every party member. Taking it back clears all three, because a told session with no told time is refused.
- */
-export function tellPatch(memberIds: readonly string[], sessionId: string | null, now: Date = new Date()): Pick<CanonLorePassage, "told_at" | "told_session_id" | "player_visible_to"> {
-  return { told_at: now.toISOString(), told_session_id: sessionId, player_visible_to: [...memberIds] };
-}
-
-export const TAKE_BACK_PATCH: Pick<CanonLorePassage, "told_at" | "told_session_id" | "player_visible_to"> = {
-  told_at: null,
-  told_session_id: null,
-  player_visible_to: [],
-};
-
-/**
- * Tell the party and Take back, shared by the passage in the lore entry and every "here" block at the table. Tell waits for the
- * party to load (reading it then if nothing has): telling it before would share the passage with nobody, silently.
- */
-export function useTellPassage() {
-  const { session } = useCampaignSession();
-  const qc = useQueryClient();
-  const campaign = useCampaignStore();
-  const { mutate } = useUpdateCanonPassage();
-  return {
-    // The roster is read when the DM tells, not when the block mounts: a page that only lists passages asks for no party.
-    // `to` names who hears it (a backstory passage is told to its character); without it the whole party does.
-    async tell(passage: Pick<CanonLorePassage, "id">, to?: readonly string[]) {
-      const ids = to ?? (await qc.fetchQuery(partyListQuery(campaign.activeCampaignId))).map((m) => m.id);
-      mutate({ id: passage.id, patch: tellPatch(ids, session.value?.id ?? null) });
-    },
-    takeBack(passage: Pick<CanonLorePassage, "id">) {
-      mutate({ id: passage.id, patch: TAKE_BACK_PATCH });
-    },
-  };
 }

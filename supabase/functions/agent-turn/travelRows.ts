@@ -28,7 +28,7 @@ export function travelMapFrom(input: {
   return {
     places: input.places.map((p) => ({ id: p.id as string, name: p.name as string, parentId: p.parent_id as string | null })),
     // `distance` is numeric; anything that does not read as a number is not a road to travel by.
-    roads: input.roads.map(({ roll_table: _table, ...r }) => ({ ...r, distance: Number(r.distance) }) as Road).filter((r) => Number.isFinite(r.distance)),
+    roads: input.roads.map(({ roll_table: _table, ...r }) => ({ ...r, distance: Number(r.distance), difficult: r.difficult === true }) as Road).filter((r) => Number.isFinite(r.distance)),
     roadTables: input.roads.flatMap((row) => {
       const table = embedded(row.roll_table);
       return table ? [{ roadId: row.id as string, table: { id: table.id, name: table.name, dice: table.dice, entries: entriesOf(table.entries) } }] : [];

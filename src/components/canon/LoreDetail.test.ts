@@ -13,10 +13,13 @@ vi.mock("@/composables/canon/useCanonPassages", async (orig) => {
     ...real,
     useCanonPassages: () => ({ data: passages }),
     useCreateCanonPassage: () => ({ mutateAsync: mocks.createPassage, isPending: ref(false) }),
-    useUpdateCanonPassage: () => ({ mutateAsync: mocks.updatePassage }),
     useDeleteCanonPassage: () => ({ mutateAsync: mocks.destroyPassage }),
   };
 });
+vi.mock("@/composables/canon/useCanonPassageEdits", async (orig) => ({
+  ...(await orig<typeof import("@/composables/canon/useCanonPassageEdits")>()),
+  useUpdateCanonPassage: () => ({ mutateAsync: mocks.updatePassage }),
+}));
 vi.mock("@/stores/calendar", () => ({
   useCalendarStore: () => ({ adapter: { epochName: "DR", months: [{ num: 1, name: "Hammer", days: 30 }], formatDate: (y: number, m: number | null) => `${m ?? "-"}/${y}` } }),
 }));

@@ -56,6 +56,7 @@
           :show-layer-bar="false"
           :measuring="measure.measuring.value"
           :route-points="measure.points.value"
+          :road-lines="roadLines"
           @measure-point="measure.addPoint"
           @pin-click="onPinOpen"
           @pin-go="onPinOpen"
@@ -172,6 +173,8 @@ import MapMeasurePanel from "@/components/locations/map/MapMeasurePanel.vue";
 import SiteRoomCard from "@/components/locations/site/SiteRoomCard.vue";
 import SiteWaysOutPanel from "@/components/locations/site/SiteWaysOutPanel.vue";
 import { useLocation } from "@/composables/locations/useLocations";
+import { useLocationRoads } from "@/composables/locations/useLocationRoads";
+import { mapRoadLines } from "@/lib/travel/mapRoads";
 import { useMapMeasure } from "@/composables/locations/useMapMeasure";
 import { usePlaceMapPins } from "@/composables/locations/usePlaceMapPins";
 import { useHotkeys } from "@/composables/useHotkeys";
@@ -244,6 +247,15 @@ useHotkeys(
 // ── Pins, written live while the pins tool is on (#958). ─────────────────────
 const { pins, candidates: pinCandidates } = usePlaceMapPins(() => location, () => [...index.byId.values()]);
 const editingPins = computed(() => tool.value === "pins");
+
+// ── The roads this map knows (#1222), straight between pins. A site has rooms, not towns, so none there. The
+//    nesting comes from the Atlas index this pane already holds. ─────────────────────────────────────────────
+const { data: allRoads } = useLocationRoads();
+const roadLines = computed(() =>
+  isSite.value || !allRoads.value
+    ? []
+    : mapRoadLines({ pins: pins.value, roads: allRoads.value, parentOf: (id) => index.byId.get(id)?.parent_id ?? null }),
+);
 
 /** A pin opens its place, except while pins are being edited: there a click selects, it does not travel. */
 function onPinOpen(childId: string): void {

@@ -621,7 +621,7 @@ serve(withCors(async (req: Request) => {
     async loadTravelMap(campaignId, gameSystem) {
       const [places, roads, placed, rations] = await Promise.all([
         supabase.from("locations").select("id, name, parent_id").eq("campaign_id", campaignId),
-        supabase.from("location_roads").select("id, from_location_id, to_location_id, distance, unit, name, going, roll_table_id, roll_table:roll_tables(id, name, dice, entries)").eq("campaign_id", campaignId),
+        supabase.from("location_roads").select("id, from_location_id, to_location_id, distance, unit, name, going, difficult, roll_table_id, roll_table:roll_tables(id, name, dice, entries)").eq("campaign_id", campaignId),
         // The roll tables placed on this campaign's places. A placement has no campaign of its own: its place has.
         supabase.from("location_placements").select("location_id, roll_table:roll_tables!inner(id, name, dice, entries), place:locations!inner(campaign_id)")
           .not("roll_table_id", "is", null).eq("place.campaign_id", campaignId),

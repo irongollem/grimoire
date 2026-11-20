@@ -68,6 +68,7 @@ import type {
   ExtractedDeity,
   ExtractedFactionStance,
   ExtractedNpcBond,
+  ExtractedRoad,
   ExtractedNpcKin,
   ExtractedPayloadMap,
   ExtractedQuest,
@@ -95,6 +96,7 @@ import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import type { SpellInsert, SpellSchool } from "@/types/spell.types";
 import { SPELL_SCHOOLS } from "@/types/spell.types";
 import { normalizeEntityName } from "./entityName";
+import { cleanRoads } from "./importSweepRoads";
 
 // ── The return envelope ──────────────────────────────────────────────────────
 
@@ -182,6 +184,8 @@ export interface EntityWorldLinks {
   controlled_location_names?: string[];
   /** Faction → its stance toward other factions, by name. */
   stances?: ExtractedFactionStance[];
+  /** Location → the roads its entry states to other places, by name → `location_roads` (`importSweepRoads.ts`). */
+  roads?: ExtractedRoad[];
 }
 
 /**
@@ -525,7 +529,8 @@ export function mapExtractedLocation(
     // audio_theme omitted — its own type comment says to omit for the column
     // default of null, which is exactly what applies here.
   };
-  return { row, links: { owner_npc_name: payload.owner_npc_name } };
+  const roads = cleanRoads(payload.roads);
+  return { row, links: { owner_npc_name: payload.owner_npc_name, ...(roads.length > 0 ? { roads } : {}) } };
 }
 
 /**

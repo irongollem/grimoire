@@ -92,12 +92,91 @@ export interface TravelTime {
 export function travelTime(distance: number, unit: DistanceUnit, paceId: TravelPaceId): TravelTime {
   const pace = getTravelPace(paceId);
   const miles = Math.max(0, toMiles(distance, unit));
+  return timeOfHours((miles / pace.milesPerDay) * TRAVEL_HOURS_PER_DAY);
+}
+
+/** A number of travel hours (eight to a day) as the app writes a time: part hours round up, float residue is dropped. */
+function timeOfHours(rawHours: number): TravelTime {
   // Rounded to a thousandth so 8.0000000001 hours does not tip into a new hour.
-  const totalHours = Math.round((miles / pace.milesPerDay) * TRAVEL_HOURS_PER_DAY * 1000) / 1000;
+  const totalHours = Math.round(rawHours * 1000) / 1000;
   const wholeHours = Math.ceil(totalHours);
   const days = Math.floor(wholeHours / TRAVEL_HOURS_PER_DAY);
   const hours = wholeHours - days * TRAVEL_HOURS_PER_DAY;
   return { totalHours, days, hours, calendarDays: Math.ceil(totalHours / TRAVEL_HOURS_PER_DAY) };
+}
+
+/*
+ * Mounts: a mount changes nothing here, on purpose. By the book (PHB "Travel Pace", "Mounts and Vehicles") a
+ * mount's faster speed is a gallop that lasts an hour before the animal tires, not a pace it keeps for a day, so
+ * a mounted party travels the day's distance of its pace like one on foot. No mount pace is offered.
+ */
+
+export type VesselId = "galley" | "keelboat" | "longship" | "rowboat" | "sailing_ship" | "warship" | "airship";
+
+export interface Vessel {
+  id: VesselId;
+  label: string;
+  /** PHB "Mounts and Vehicles", Waterborne Vehicles: miles in an hour. */
+  milesPerHour: number;
+}
+
+/** Waterborne vehicles by the book, in both editions. The Airship is a 2024 entry; the 2014 table has none. */
+export const VESSELS: readonly Vessel[] = [
+  { id: "galley", label: "Galley", milesPerHour: 4 },
+  { id: "keelboat", label: "Keelboat", milesPerHour: 1 },
+  { id: "longship", label: "Longship", milesPerHour: 3 },
+  { id: "rowboat", label: "Rowboat", milesPerHour: 1.5 },
+  { id: "sailing_ship", label: "Sailing ship", milesPerHour: 2 },
+  { id: "warship", label: "Warship", milesPerHour: 2.5 },
+  { id: "airship", label: "Airship", milesPerHour: 8 },
+];
+
+export function getVessel(id: VesselId): Vessel {
+  const vessel = VESSELS.find((v) => v.id === id);
+  if (!vessel) throw new Error(`Unknown vessel: ${id}`);
+  return vessel;
+}
+
+/**
+ * How the party gets along: on foot (or mounted, which is the same by the book) at a pace, or aboard a vessel on
+ * the water legs of a journey. The book gives a vessel no miles a day, so it sails the app's travel day of
+ * `TRAVEL_HOURS_PER_DAY` hours, or round the clock when `throughTheNight`.
+ */
+export interface Conveyance {
+  vessel: VesselId | null;
+  throughTheNight: boolean;
+}
+
+export const ON_FOOT: Conveyance = { vessel: null, throughTheNight: false };
+
+/** The stretch of a journey, as far as its time goes. */
+export interface TimedLeg {
+  miles: number;
+  /** Difficult terrain halves the distance a day covers (PHB "Travel Pace"). */
+  difficult: boolean;
+  going: "road" | "track" | "river" | "sea";
+}
+
+/**
+ * Travel hours (eight to a day) one leg takes. On land: the pace's miles a day, halved on difficult going, so
+ * twice the time. On a river or the sea with a vessel chosen: miles over the vessel's speed gives hours under
+ * way, and a vessel under way for 8 (or, through the night, 24) hours is one travel day, so those hours are
+ * rescaled to travel hours. Difficult going does not slow a vessel. A water leg with no vessel chosen is covered
+ * at the pace like land: the DM has not said the party takes a boat.
+ */
+export function legHours(leg: TimedLeg, paceId: TravelPaceId, conveyance: Conveyance): number {
+  const miles = Math.max(0, leg.miles);
+  const onWater = leg.going === "river" || leg.going === "sea";
+  if (onWater && conveyance.vessel !== null) {
+    const underWay = miles / getVessel(conveyance.vessel).milesPerHour;
+    return (underWay * TRAVEL_HOURS_PER_DAY) / (conveyance.throughTheNight ? 24 : TRAVEL_HOURS_PER_DAY);
+  }
+  return (miles / getTravelPace(paceId).milesPerDay) * TRAVEL_HOURS_PER_DAY * (leg.difficult ? 2 : 1);
+}
+
+/** How long a journey of several legs takes: the sum of its legs' hours, written like `travelTime`. */
+export function journeyTime(legs: readonly TimedLeg[], paceId: TravelPaceId, conveyance: Conveyance = ON_FOOT): TravelTime {
+  return timeOfHours(legs.reduce((hours, leg) => hours + legHours(leg, paceId, conveyance), 0));
 }
 
 /** "2 days, 3 hours", "5 hours", "1 day". Nothing at zero distance reads "0 hours". */

@@ -260,6 +260,27 @@ export interface ExtractedLocation {
    * shared-library item is placed by reference (`library_item_id`).
    */
   item_names?: string[];
+  /**
+   * Roads out of this place to other places of the document, only where the
+   * text states a distance. Resolved by name in the sweep's linking phase
+   * (`importSweepRoads.ts`) and written as `location_roads` rows.
+   */
+  roads?: ExtractedRoad[];
+}
+
+/** The ways a road can go, as `location_roads.going` holds them. */
+export const EXTRACTED_ROAD_GOINGS = ["road", "track", "river", "sea"] as const;
+export type ExtractedRoadGoing = (typeof EXTRACTED_ROAD_GOINGS)[number];
+
+/** A road the page states, from the place whose entry it sits in to `to_name`. */
+export interface ExtractedRoad {
+  to_name: string;
+  distance: number;
+  unit: "mi" | "km";
+  /** The road's own name when the page gives one ("the coast road"). */
+  name?: string;
+  going: ExtractedRoadGoing;
+  difficult: boolean;
 }
 
 export interface ExtractedItem {

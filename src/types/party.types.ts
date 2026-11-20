@@ -220,6 +220,8 @@ export interface PartyMember {
   weapon_masteries: string[];
   spell_slots: SpellSlotEntry[];
   current_location_id: string | null;
+  /** Days in a row without food on the road; written only where the campaign counts food (rule `rations`, #1222). */
+  days_without_food: number;
   carry_capacity_override: string | null; // expression: "*2", "+30", "-10", or bare number for absolute
   hit_dice_remaining?: number | null;
   /** Keyed by `FeatureUses.key`. `short_rest_regain` is what a short rest returns to a long-rest pool. */
@@ -250,8 +252,10 @@ export interface ConcentrationState {
  * primary `character_classes` row, so a client write is silently overwritten and
  * neither is accepted here. They stay on `PartyMember` for reading.
  */
-export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "owner_user_id" | "is_dm_managed" | "assumed_from_id" | "ac" | "created_at" | "updated_at" | "level_choices" | "ruleset" | "class" | "subclass"> & {
+export type PartyMemberInsert = Omit<PartyMember, "id" | "user_id" | "owner_user_id" | "is_dm_managed" | "assumed_from_id" | "ac" | "created_at" | "updated_at" | "level_choices" | "ruleset" | "class" | "subclass" | "days_without_food"> & {
   owner_user_id?: string | null;
+  /** The column's default (0) for a new character: nobody starts out hungry. */
+  days_without_food?: number;
   level_choices?: LevelChoices;
   ruleset: RulesetKey;
 };

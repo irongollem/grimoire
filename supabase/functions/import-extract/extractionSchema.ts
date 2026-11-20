@@ -231,6 +231,22 @@ const LOCATION_DATA = obj({
   // home), resolved in the sweep's linking phase. Mirrors QUEST_BEAT's own
   // item_names, which uses the same model for a beat's (non-room) loot.
   item_names: NULLABLE_STRING_ARRAY,
+  // Roads out of this place to other places of the document, only where the
+  // text states a distance → one location_roads row each, resolved by name in
+  // the sweep's linking phase (src/lib/documentImport/importSweepRoads.ts).
+  roads: {
+    type: ["array", "null"],
+    description:
+      "Roads from this place to other named places, ONLY where the text states a distance (\"Brightwater lies 40 miles east along the coast road\"). Never estimate a distance. A travel time with no distance (\"two days by the High Road\") is skipped. `name` is the road's own name when the text gives one (\"the coast road\"), else null. `going` is road, track, river or sea; `difficult` is true only when the text says the going is hard (mud, mountain pass, bad weather). Null if none.",
+    items: obj({
+      to_name: { type: "string" },
+      distance: { type: "number" },
+      unit: { type: "string", enum: ["mi", "km"] },
+      name: NULLABLE_STRING,
+      going: { type: "string", enum: ["road", "track", "river", "sea"] },
+      difficult: { type: "boolean" },
+    }),
+  },
 });
 
 const ITEM_DATA = obj({

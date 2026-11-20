@@ -6,7 +6,7 @@ import AtlasSiteMapMode from "./AtlasSiteMapMode.vue";
 import { buildAtlasIndex } from "@/lib/locations/tree";
 import type { Location } from "@/types/location.types";
 
-const mocks = vi.hoisted(() => ({ push: vi.fn() }));
+const mocks = vi.hoisted(() => ({ push: vi.fn(), pins: [] as unknown[], roads: [] as unknown[] }));
 
 vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
@@ -14,8 +14,9 @@ vi.mock("vue-router", async (importOriginal) => ({
 }));
 vi.mock("@/composables/locations/useLocations", () => ({ useLocation: () => ({ data: ref(null) }) }));
 vi.mock("@/composables/locations/usePlaceMapPins", () => ({
-  usePlaceMapPins: () => ({ pins: ref([]), candidates: ref([{ id: "inn", name: "The Inn" }]) }),
+  usePlaceMapPins: () => ({ pins: ref(mocks.pins), candidates: ref([{ id: "inn", name: "The Inn" }]) }),
 }));
+vi.mock("@/composables/locations/useLocationRoads", () => ({ useLocationRoads: () => ({ data: ref(mocks.roads) }) }));
 vi.mock("@/composables/locations/useLocationMapRegions", () => ({ useLocationMapRegions: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/locations/useSiteStructure", () => ({
   useSiteStructure: () => ({ doors: computed(() => []) }),
@@ -24,7 +25,7 @@ vi.mock("@/composables/locations/useSiteStructure", () => ({
 // The map itself: only its overlay slot and its region-click event matter here.
 const LocationMapStub = defineComponent({
   name: "LocationMap",
-  props: { mode: { type: String, default: "view" }, children: { type: Array, default: () => [] } },
+  props: { mode: { type: String, default: "view" }, roadLines: { type: Array, default: () => [] }, children: { type: Array, default: () => [] } },
   emits: ["descend", "pin-click"],
   setup(_p, { slots, expose }) {
     expose({ getImageNaturalSize: () => null });
@@ -70,7 +71,31 @@ function mountMode(loc: Location, kids: Location[] = []) {
 const editMap = (w: ReturnType<typeof mountMode>) =>
   w.findAllComponents(AppButton).find((b) => b.props("label") === "Edit map");
 
-beforeEach(() => mocks.push.mockClear());
+beforeEach(() => {
+  mocks.push.mockClear();
+  mocks.pins = [];
+  mocks.roads = [];
+});
+
+// #1222: a town's map draws the roads it knows between its pins; a site has rooms, not towns.
+describe("roads on the map", () => {
+  const pin = (id: string, x: number) => ({ child_location_id: id, child_name: id, child_type: "city", child_image_url: null, x, y: 0.5, visible_to_players: true });
+  const road = { id: "r", from_location_id: "a", to_location_id: "b", distance: 40, unit: "mi", name: "", going: "road", roll_table_id: null, difficult: false };
+
+  it("hands a town's map the road between two pinned places", () => {
+    mocks.pins = [pin("a", 0.1), pin("b", 0.9)];
+    mocks.roads = [road];
+    const w = mountMode(place({ id: "t", location_type: "city", map_url: "https://x/p.png" }));
+    expect(w.findComponent(LocationMapStub).props("roadLines")).toHaveLength(1);
+  });
+
+  it("hands a site none", () => {
+    mocks.pins = [pin("a", 0.1), pin("b", 0.9)];
+    mocks.roads = [road];
+    const w = mountMode(place({ id: "s", map_url: "https://x/p.png" }));
+    expect(w.findComponent(LocationMapStub).props("roadLines")).toEqual([]);
+  });
+});
 
 // #1125 frames 03 and 04: the Map tab reads the map; a site changes it with the Edit map button.
 describe("AtlasSiteMapMode", () => {
