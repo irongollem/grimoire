@@ -1,6 +1,7 @@
 import { serve } from "std/http/server.ts";
-import { createClient } from "@supabase/supabase-js";
-import { withCors } from "../_shared/cors.ts";
+import { createClient, type User } from "@supabase/supabase-js";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
 import { isAccountSuspended, isChildAccount, suspendedResponse } from "../_shared/accountGate.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
@@ -80,10 +81,6 @@ const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-}
 
 // ── Batch mode: target table config ──────────────────────────────────────
 
@@ -238,7 +235,7 @@ async function resolvePlatformProvider(): Promise<EmbeddingProvider | Response> 
     });
   } catch (e) {
     if (e instanceof EmbeddingProviderConfigError) {
-      return json({ error: "embedding_provider_unavailable", detail: e.message }, 503);
+      return jsonError(503, "embedding_provider_unavailable", "No embedding provider is available right now.", { detail: e.message });
     }
     throw e;
   }
@@ -247,7 +244,7 @@ async function resolvePlatformProvider(): Promise<EmbeddingProvider | Response> 
 async function handleBatch(body: { target?: unknown; limit?: unknown }, adminUserId: string): Promise<Response> {
   const target = body.target;
   if (target !== "library" && target !== "custom") {
-    return json({ error: "Invalid target -- must be 'library' or 'custom'" }, 400);
+    return jsonError(400, "invalid_target", "Invalid target: must be 'library' or 'custom'.");
   }
   const limit = clampBatchLimit(body.limit);
 
@@ -259,7 +256,7 @@ async function handleBatch(body: { target?: unknown; limit?: unknown }, adminUse
     ({ stale, scanned } = await findStaleCandidates(target, provider));
   } catch (e) {
     console.error("embed-monsters batch scan failed:", e);
-    return json({ error: e instanceof Error ? e.message : "Failed to scan for stale embeddings" }, 500);
+    return jsonError(500, "scan_failed", e instanceof Error ? e.message : "Failed to scan for stale embeddings");
   }
 
   const candidates = stale.slice(0, limit);
@@ -276,7 +273,7 @@ async function handleBatch(body: { target?: unknown; limit?: unknown }, adminUse
     ({ vectors, usage } = await provider.embed(candidates.map((c) => c.text)));
   } catch (e) {
     console.error("embed-monsters batch embed failed:", e);
-    return json({ error: e instanceof Error ? e.message : "Embedding failed" }, 502);
+    return jsonError(502, "embedding_failed", e instanceof Error ? e.message : "Embedding failed");
   }
 
   // Real provider spend was just incurred, regardless of whether the DB
@@ -303,26 +300,15 @@ async function handleBatch(body: { target?: unknown; limit?: unknown }, adminUse
   const { error: upsertError } = await upsertEmbeddingsInChunks(admin, config.sideTable, upsertRows, config.idColumn);
   if (upsertError) {
     console.error(`embed-monsters batch upsert failed (${config.sideTable}):`, upsertError.message);
-    return json({ error: "Failed to store embeddings" }, 500);
+    return jsonError(500, "store_failed", "Failed to store embeddings");
   }
 
   return json({ processed: candidates.length, skipped, remaining });
 }
 
-/** Shared front door of the per-user modes: bearer token -> verified user,
- * suspended accounts refused, child accounts skipped with a 200 (see below). */
-async function authenticateWriter(req: Request): Promise<{ id: string } | Response> {
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return json({ error: "Unauthorized" }, 401);
-
-  const caller = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await caller.auth.getUser();
-  if (authError || !user) return json({ error: "Unauthorized" }, 401);
-
+/** Shared front door of the per-user modes: suspended accounts refused, child accounts skipped with a 200 (see
+ * below). The bearer token was verified by `serveUser`. */
+async function authenticateWriter(user: User): Promise<{ id: string } | Response> {
   if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
   // Single mode runs fire-and-forget after a save, so a child is skipped with
@@ -335,7 +321,7 @@ async function authenticateWriter(req: Request): Promise<{ id: string } | Respon
     child = await isChildAccount(admin, user.id);
   } catch (e) {
     console.error("embed-monsters: child-account check failed:", e);
-    return json({ error: "account_check_failed" }, 503);
+    return jsonError(503, "account_check_failed", "Your account could not be checked. Please try again.");
   }
   if (child) return json({ skipped: "child_account" }, 200);
 
@@ -360,13 +346,12 @@ interface FullMonsterRow extends MonsterSourceRow {
   user_id: string;
 }
 
-async function handleSingle(req: Request, body: { monster_id?: unknown }): Promise<Response> {
+async function handleSingle(user: User, body: { monster_id?: unknown }): Promise<Response> {
   const monsterId = body.monster_id;
-  if (typeof monsterId !== "string" || !monsterId) return json({ error: "Missing monster_id" }, 400);
+  if (typeof monsterId !== "string" || !monsterId) return jsonError(400, "invalid_body", "Missing monster_id.");
 
-  const gate = await authenticateWriter(req);
+  const gate = await authenticateWriter(user);
   if (gate instanceof Response) return gate;
-  const user = gate;
 
   const { data: monsterData, error: monsterError } = await admin
     .from("monsters")
@@ -375,16 +360,16 @@ async function handleSingle(req: Request, body: { monster_id?: unknown }): Promi
     .maybeSingle();
   if (monsterError) {
     console.error("embed-monsters single lookup failed:", monsterError.message);
-    return json({ error: "Failed to load monster" }, 500);
+    return jsonError(500, "monster_read_failed", "Failed to load monster.");
   }
   const monster = monsterData as FullMonsterRow | null;
-  if (!monster) return json({ error: "Monster not found" }, 404);
+  if (!monster) return jsonError(404, "monster_not_found", "Monster not found.");
 
   // The whole authorization story for this mode: a DM may only trigger
   // embedding for their own monster, never someone else's, even though the
   // service-role client above bypasses RLS. Never trust a caller-supplied
   // user id -- identity comes only from the verified bearer token.
-  if (monster.user_id !== user.id) return json({ error: "Forbidden" }, 403);
+  if (monster.user_id !== user.id) return jsonError(403, "forbidden", "That monster is not yours.");
 
   const provider = await resolvePlatformProvider();
   if (provider instanceof Response) return provider;
@@ -399,7 +384,7 @@ async function handleSingle(req: Request, body: { monster_id?: unknown }): Promi
     .maybeSingle();
   if (existingError) {
     console.error("embed-monsters single stored-meta lookup failed:", existingError.message);
-    return json({ error: "Failed to load existing embedding" }, 500);
+    return jsonError(500, "embedding_read_failed", "Failed to load existing embedding.");
   }
   const stored = existingData as StoredEmbeddingRow | null;
 
@@ -414,7 +399,7 @@ async function handleSingle(req: Request, body: { monster_id?: unknown }): Promi
   // bucket with it deliberately: it is one daily ceiling on what an account can
   // spend of ours, not one per edge function.
   if (!(await checkRateLimit(admin, user.id, "entity_embedding"))) {
-    return json({ error: "rate_limited", monster_id: monsterId }, 429);
+    return jsonError(429, "rate_limited", "That is a lot of requests in a short time. Wait a minute and try again.", { monster_id: monsterId });
   }
 
   let vectors: number[][];
@@ -423,7 +408,7 @@ async function handleSingle(req: Request, body: { monster_id?: unknown }): Promi
     ({ vectors, usage } = await provider.embed([text]));
   } catch (e) {
     console.error("embed-monsters single embed failed:", e);
-    return json({ error: e instanceof Error ? e.message : "Embedding failed" }, 502);
+    return jsonError(502, "embedding_failed", e instanceof Error ? e.message : "Embedding failed");
   }
 
   // One row per actual embed -- the short-circuit above already returned
@@ -443,7 +428,7 @@ async function handleSingle(req: Request, body: { monster_id?: unknown }): Promi
   }, { onConflict: "monster_id" });
   if (upsertError) {
     console.error("embed-monsters single upsert failed:", upsertError.message);
-    return json({ error: "Failed to store embedding" }, 500);
+    return jsonError(500, "store_failed", "Failed to store embedding.");
   }
 
   return json({ embedded: true, monster_id: monsterId, source_hash: hash });
@@ -451,14 +436,13 @@ async function handleSingle(req: Request, body: { monster_id?: unknown }): Promi
 
 // ── Many mode ─────────────────────────────────────────────────────────────
 
-async function handleMany(req: Request, body: { monster_ids?: unknown }): Promise<Response> {
+async function handleMany(user: User, body: { monster_ids?: unknown }): Promise<Response> {
   const parsed = parseManyIds(body.monster_ids);
-  if ("error" in parsed) return json({ error: parsed.error }, parsed.status);
+  if ("error" in parsed) return jsonError(parsed.status, "invalid_body", parsed.error);
   const { ids } = parsed;
 
-  const gate = await authenticateWriter(req);
+  const gate = await authenticateWriter(user);
   if (gate instanceof Response) return gate;
-  const user = gate;
 
   const { data: rowData, error: rowError } = await admin
     .from("monsters")
@@ -466,7 +450,7 @@ async function handleMany(req: Request, body: { monster_ids?: unknown }): Promis
     .in("id", ids);
   if (rowError) {
     console.error("embed-monsters many lookup failed:", rowError.message);
-    return json({ error: "Failed to load monsters" }, 500);
+    return jsonError(500, "monster_read_failed", "Failed to load monsters.");
   }
   const rows = ((rowData ?? []) as Record<string, unknown>[]).map((r) => ({
     ...toMonsterSourceRow(r),
@@ -489,7 +473,7 @@ async function handleMany(req: Request, body: { monster_ids?: unknown }): Promis
     .in("monster_id", allowed.map((r) => r.id));
   if (storedError) {
     console.error("embed-monsters many stored-meta lookup failed:", storedError.message);
-    return json({ error: "Failed to load existing embeddings" }, 500);
+    return jsonError(500, "embedding_read_failed", "Failed to load existing embeddings.");
   }
   const storedById = new Map<string, StoredEmbeddingRow>();
   for (const s of (storedData ?? []) as Record<string, unknown>[]) {
@@ -516,7 +500,7 @@ async function handleMany(req: Request, body: { monster_ids?: unknown }): Promis
   // not fit is refused rather than partly done, so the client can stop. Same
   // `entity_embedding` bucket as single mode and embed-content.
   if (!(await checkRateLimit(admin, user.id, "entity_embedding", stale.length))) {
-    return json({ error: "rate_limited" }, 429);
+    return rateLimited();
   }
 
   let vectors: number[][];
@@ -525,7 +509,7 @@ async function handleMany(req: Request, body: { monster_ids?: unknown }): Promis
     ({ vectors, usage } = await provider.embed(stale.map((c) => c.text)));
   } catch (e) {
     console.error("embed-monsters many embed failed:", e);
-    return json({ error: e instanceof Error ? e.message : "Embedding failed" }, 502);
+    return jsonError(502, "embedding_failed", e instanceof Error ? e.message : "Embedding failed");
   }
 
   // ONE ledger row with the summed tokens, as batch mode records it.
@@ -547,7 +531,7 @@ async function handleMany(req: Request, body: { monster_ids?: unknown }): Promis
   result.embedded = stale.slice(0, stored).map((c) => c.id);
   if (upsertError) {
     console.error("embed-monsters many upsert failed:", upsertError.message);
-    return json({ error: "Failed to store embeddings", ...result }, 500);
+    return jsonError(500, "store_failed", "Failed to store embeddings.", result);
   }
   return json(result);
 }
@@ -562,15 +546,14 @@ const AUDIT_ID_CHUNK = 200;
  * own rows, since "many" (the repair) refuses anyone else's, and never
  * open5e_import rows, which match_custom_monsters does not read. No rate limit
  * and no ledger row: nothing here calls the provider. */
-async function handleAudit(req: Request, body: { campaign_id?: unknown }): Promise<Response> {
+async function handleAudit(user: User, body: { campaign_id?: unknown }): Promise<Response> {
   if (typeof body.campaign_id !== "string" || body.campaign_id.length === 0) {
-    return json({ error: "campaign_id is required" }, 400);
+    return jsonError(400, "invalid_body", "campaign_id is required.");
   }
   const campaignId = body.campaign_id;
 
-  const gate = await authenticateWriter(req);
+  const gate = await authenticateWriter(user);
   if (gate instanceof Response) return gate;
-  const user = gate;
 
   const { data: campaign, error: campaignError } = await admin
     .from("campaigns")
@@ -579,10 +562,10 @@ async function handleAudit(req: Request, body: { campaign_id?: unknown }): Promi
     .maybeSingle();
   if (campaignError) {
     console.error("embed-monsters audit campaign lookup failed:", campaignError.message);
-    return json({ error: "Failed to load campaign" }, 500);
+    return jsonError(500, "campaign_read_failed", "Failed to load campaign.");
   }
   if (!campaign || !(await isCampaignDm(admin, campaign, user.id))) {
-    return json({ error: "Forbidden" }, 403);
+    return jsonError(403, "forbidden", "Only the campaign's DM can do this.");
   }
 
   const provider = await resolvePlatformProvider();
@@ -628,43 +611,29 @@ async function handleAudit(req: Request, body: { campaign_id?: unknown }): Promi
     return json({ kinds: [{ kind: "monster", ...classifyEmbeddings(fresh, stored, provider.model) }] });
   } catch (e) {
     console.error("embed-monsters audit failed:", e);
-    return json({ error: "Failed to audit embeddings" }, 500);
+    return jsonError(500, "audit_failed", "Failed to audit embeddings.");
   }
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return json({ error: "Unauthorized" }, 401);
-
-  let body: { mode?: unknown; target?: unknown; limit?: unknown; monster_id?: unknown; monster_ids?: unknown; campaign_id?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return json({ error: "Invalid JSON body" }, 400);
-  }
+serve(serveUser(async ({ req, user }) => {
+  const body = (await readJsonBody(req)) as
+    | { mode?: unknown; target?: unknown; limit?: unknown; monster_id?: unknown; monster_ids?: unknown; campaign_id?: unknown }
+    | null;
+  if (!body) return jsonError(400, "invalid_body", "The request body must be a JSON object.");
 
   if (body.mode === "batch") {
+    // `requireAdmin` stays the one edge reader of the admin claim.
     const gate = await requireAdmin(req);
     if (gate instanceof Response) return gate;
     if (await isAccountSuspended(admin, gate.id)) return suspendedResponse();
     return handleBatch(body, gate.id);
   }
 
-  if (body.mode === "single") {
-    return handleSingle(req, body);
-  }
+  if (body.mode === "single") return handleSingle(user, body);
+  if (body.mode === "many") return handleMany(user, body);
+  if (body.mode === "audit") return handleAudit(user, body);
 
-  if (body.mode === "many") {
-    return handleMany(req, body);
-  }
-
-  if (body.mode === "audit") {
-    return handleAudit(req, body);
-  }
-
-  return json({ error: "Invalid mode -- must be 'batch', 'single', 'many' or 'audit'" }, 400);
+  return jsonError(400, "invalid_mode", "Invalid mode: must be 'batch', 'single', 'many' or 'audit'.");
 }));

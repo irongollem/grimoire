@@ -51,7 +51,9 @@
 import { gameSystemEdition } from "../_shared/gameSystem.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { withCors } from "../_shared/cors.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
@@ -310,19 +312,11 @@ async function fetchSimilarCandidates(
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+interface MatchCampaign extends BaseCampaign {
+  game_system: string | null;
+}
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
+serve(serveUser(async ({ user, req }) => {
   const userId = user.id;
 
   // Fail closed: the semantic tier embeds for free, so no credit or Pro check
@@ -332,52 +326,42 @@ serve(withCors(async (req: Request) => {
 
   let payload: ReturnType<typeof validatePayload>;
   try {
-    const body = await req.json().catch(() => null);
+    const body = await readJsonBody(req);
     payload = validatePayload(body);
   } catch (e) {
     const message = e instanceof PayloadValidationError ? e.message : "Invalid request body.";
-    return new Response(JSON.stringify({ error: message }), {
-      status: 400, headers: { "Content-Type": "application/json" },
-    });
+    return jsonError(400, "invalid_body", message);
   }
 
   // Ownership re-derived from auth.uid() via an explicit filter, never trusted
   // from the request -- same reasoning as import-extract.
-  const { data: importRow } = await admin
+  const { data: importRow, error: importError } = await admin
     .from("document_imports")
     .select("id, campaign_id")
     .eq("id", payload.documentImportId)
     .eq("user_id", userId)
     .maybeSingle();
-  if (!importRow) return new Response("Import not found", { status: 404 });
-
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("id, user_id, game_system, ai_enabled")
-    .eq("id", importRow.campaign_id)
-    .maybeSingle();
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
+  if (importError) throw importError;
+  if (!importRow) return jsonError(404, "import_not_found", "Import not found.");
 
   // DM specifically, not any member -- an import writes into every content
   // table, so producing candidates for one is DM-scoped work, same gate
-  // import-extract itself uses.
-  if (campaign.user_id !== userId) {
-    const { data: membership } = await admin
-      .from("campaign_members").select("role")
-      .eq("campaign_id", importRow.campaign_id).eq("user_id", userId).eq("role", "dm").maybeSingle();
-    if (!membership) return new Response("Forbidden", { status: 403 });
-  }
+  // import-extract itself uses. `ai_enabled` does not gate this request (name
+  // and meaning tiers are dedupe, not generation), so the AI switch is off here
+  // and read below, where it gates only the judging tier.
+  const load = await loadAiCampaign<MatchCampaign>(admin, importRow.campaign_id, userId, {
+    columns: ["game_system"],
+    aiSwitch: false,
+  });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
   // Bounds both tiers below: the name tier is cheap SQL, but the semantic
   // tier makes a real, platform-paid embedding call, and without a limiter
   // here a looping caller runs up unbounded platform spend with no credit
   // reservation to catch it (the same reasoning generate-quest's own
   // retrieval step documents -- see its "Pre-flight credit check" comment).
-  if (!(await checkRateLimit(admin, userId, "ai_generation"))) {
-    return new Response(JSON.stringify({ error: "rate_limited" }), {
-      status: 429, headers: { "Content-Type": "application/json" },
-    });
-  }
+  if (!(await checkRateLimit(admin, userId, "ai_generation"))) return rateLimited();
 
   // ── Name tier ────────────────────────────────────────────────────────────
   const matches: Partial<Record<SupportedKind, Record<string, Candidate[]>>> = {};
@@ -398,9 +382,7 @@ serve(withCors(async (req: Request) => {
     }
   } catch (e) {
     console.error(`import-match name tier failed for import ${payload.documentImportId}:`, e);
-    return new Response(JSON.stringify({ error: "Name matching failed." }), {
-      status: 500, headers: { "Content-Type": "application/json" },
-    });
+    return jsonError(500, "name_matching_failed", "Name matching failed. Please try again.");
   }
 
   // ── Semantic tier -- an enhancement, never a requirement ────────────────────
@@ -551,7 +533,5 @@ serve(withCors(async (req: Request) => {
     semantic = false;
   }
 
-  return new Response(JSON.stringify({ matches, semantic, judged }), {
-    headers: { "Content-Type": "application/json" },
-  });
+  return json({ matches, semantic, judged });
 }));
