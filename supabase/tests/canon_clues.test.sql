@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(10);
 
--- canon_clues and secrets (20261120033040, #1226 story 3): a clue belongs to a secret and lies at one place, person or
+-- canon_clues and secrets (20261120033038, #1226 story 3): a clue belongs to a secret and lies at one place, person or
 -- beat of the same campaign; only the campaign's DMs read clues; a secret reaches the party only once the DM reveals
 -- it, and only the members it was revealed to.
 

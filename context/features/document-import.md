@@ -43,7 +43,7 @@ resolve (see "One sweep, one linking phase" below):
 
 Any campaign book comes apart into the campaign's sections through this one import. Two kinds were added: **`deities`**
 (a row in `deities`, one per god; `quotaResource: "deities"`) and **`canon`** (a row in `canon_entries`, headed by its
-`title`, no quota). The prompt teaches both (migration `20261120033045`; the canon shape is its "The canon" section) and
+`title`, no quota). The prompt teaches both (migration `20261120033038`; the canon shape is its "The canon" section) and
 `extractionSchema.ts`, `import-extract`'s `ENTITY_KINDS` and `import-match`'s `SUPPORTED_KINDS` mirror them
 (`extractionSchemaKinds.test.ts` holds the copies equal to the client's list).
 
