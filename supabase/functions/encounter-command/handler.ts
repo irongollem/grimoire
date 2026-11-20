@@ -38,7 +38,7 @@ import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import { FightCommandError } from "./commandError.ts";
 import { isRecord, validateCombatants, validateReducerCommand } from "./commandShape.ts";
 import { applyProvoke, isProvokeCommand, validateProvokeCommand, type ProvokeCommand } from "./opportunity.ts";
-import { applyTakeTurn, isTakeTurnCommand, validateTakeTurnCommand, type TakeTurnCommand } from "./takeTurn.ts";
+import { applyTakeTurn, isTakeTurnCommand, MAX_MEMBER_ID_LENGTH, validateTakeTurnCommand, type TakeTurnCommand } from "./takeTurn.ts";
 import {
   applyResolvingCommand,
   isResolvingCommand,
@@ -98,8 +98,12 @@ export type SyncPartyCommand = { type: "sync_party" };
  * say in what order.
  */
 export type LifecycleCommand =
-  /** The caller builds the first roster: building it needs the character-sheet rules (armour class from gear, species, feats), which run in the browser. */
-  | { type: "open"; combatants: RunCombatant[]; legendaryCaps?: Record<string, number> }
+  /**
+   * The server builds the first roster from the encounter, the party and the campaign's own rows (#1021 row 16), with the shared rules in
+   * `src/rules/fight/roster/`. `playedMemberId` names the AI table's played character: the party is then that character and the members the AI
+   * plays, and the characters in the room join as bystanders. Absent, it is the DM's own fight of the encounter's party.
+   */
+  | { type: "open"; playedMemberId?: string }
   /** The session is started (and announced) by the browser, which hands over its id. */
   | { type: "go_live"; sessionId: string | null }
   /** `siteId` is the site the fight is anchored in, resolved by the caller through the map stack; the server only checks it is this campaign's place. */
@@ -123,10 +127,10 @@ export interface CommandRequest {
 function validateLifecycleCommand(command: Record<string, unknown>): void {
   switch (command.type) {
     case "open": {
-      validateCombatants("open", command.combatants, MAX_OPENED_COMBATANTS);
-      const caps = command.legendaryCaps;
-      if (caps !== undefined && (!isRecord(caps) || Object.values(caps).some((n) => typeof n !== "number"))) {
-        throw new FightCommandError(400, "legendaryCaps must map instance ids to numbers.");
+      // The roster is the server's to build; the one thing the caller says is whose table it is.
+      const played = command.playedMemberId;
+      if (played !== undefined && (typeof played !== "string" || played.length === 0 || played.length > MAX_MEMBER_ID_LENGTH)) {
+        throw new FightCommandError(400, "open: playedMemberId is the id of the party member the person plays.");
       }
       break;
     }
@@ -292,6 +296,11 @@ export interface BatchDeps {
   /** Inserts the first row of an encounter's fight; null when another writer inserted it first (the caller loads again). */
   createFight(encounterId: string, first: FightWrite & Pick<FightLifecycleWrite, "is_running" | "ended_at">): Promise<{ id: string; version: number } | null>;
   loadPartyRows(partyMemberIds: string[]): Promise<PartyIngestRow[]>;
+  /**
+   * The first roster of a fight, built from the database with the shared rules (#1021 row 16). Asked for only when a fresh fight is
+   * opened, never on a resume. Refuses (400) a `playedMemberId` that is not one of the campaign's active party members.
+   */
+  buildRoster(playedMemberId: string | null): Promise<{ combatants: RunCombatant[]; legendaryCaps: Record<string, number> }>;
   /** Whether `sessionId` is a session of this campaign (never another campaign's, never one that does not exist). */
   isCampaignSession(sessionId: string): Promise<boolean>;
   /** Writes where `version = expectedVersion`; the new version when a row was written, null when another writer got there first. */
@@ -650,19 +659,24 @@ const playerMemberIds = (combatants: readonly RunCombatant[]): string[] =>
 const clearInitiativeWrites = (ids: string[], deps: BatchDeps) =>
   ids.map((id) => ({ name: "clear_initiative", run: () => deps.persistPartyMember(id, { current_initiative: null }) }));
 
-/** `open` on an encounter with no row, or whose last fight ended: a new fight on `command.combatants`. */
+/** `open` on an encounter with no row, or whose last fight ended: a new fight on the roster the server builds. */
 async function openFight(request: CommandRequest, command: Extract<LifecycleCommand, { type: "open" }>, loaded: LoadedFight, deps: BatchDeps): Promise<BatchResult | null> {
+  const { combatants, legendaryCaps } = await deps.buildRoster(command.playedMemberId ?? null);
+  // The size guard the caller's list used to meet: a fight no table can run, or no one to run it.
+  if (combatants.length < 1 || combatants.length > MAX_OPENED_COMBATANTS) {
+    throw new FightCommandError(400, `This fight would field ${combatants.length} combatants; a fight needs between 1 and ${MAX_OPENED_COMBATANTS}.`);
+  }
   const fresh: StateSource = {
-    combatants_live: command.combatants,
+    combatants_live: combatants,
     current_round: 0,
     active_combatant_index: 0,
     events_fired: [],
     lair_fired_rounds: [],
   };
   let state = buildState(loaded, fresh);
-  if (command.legendaryCaps) {
-    // The same priming the runner applies to a roster it has just built (legendaryActionCaps).
-    state = applyFightCommand(state, { type: "prime_legendary_actions", caps: command.legendaryCaps }, {
+  if (Object.keys(legendaryCaps).length > 0) {
+    // The same priming the runner applied to a roster it had just built (legendaryActionCaps).
+    state = applyFightCommand(state, { type: "prime_legendary_actions", caps: legendaryCaps }, {
       monsters: loaded.monsters, npcs: loaded.npcs, now: deps.now, rollD20: deps.rollD20, rollD6: deps.rollD6,
     }).state;
   }

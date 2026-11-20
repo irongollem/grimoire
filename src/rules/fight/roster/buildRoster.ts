@@ -145,7 +145,7 @@ export function buildRunCombatants({
     });
   }
 
-  for (const compId of encounter.companion_ids ?? []) {
+  for (const compId of encounter.companion_ids) {
     const comp = companions.find((c) => c.id === compId);
     if (!comp) continue;
     // Benched ("elsewhere") companions sit out combat entirely until the DM or

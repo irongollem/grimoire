@@ -1,17 +1,7 @@
 import { computed } from "vue";
 import { useParty } from "@/composables/party/useParty";
 import { useCampaignMemorials } from "@/composables/memorials/useMemorials";
-import type { PartyMember } from "@/types/party.types";
-import type { CharacterMemorial } from "@/types/memorial.types";
-
-/** Members without a memorial in effect (restored_at is null means on the wall). */
-export function activeMembers(
-  members: readonly PartyMember[],
-  memorials: readonly CharacterMemorial[],
-): PartyMember[] {
-  const down = new Set(memorials.filter((m) => m.restored_at === null).map((m) => m.party_member_id));
-  return members.filter((m) => !down.has(m.id));
-}
+import { activeMembers } from "@/lib/party/activeMembers";
 
 /**
  * The party as it sits at the table: `useParty()` minus the fallen and retired.

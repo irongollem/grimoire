@@ -1,0 +1,98 @@
+import { describe, expect, it } from "vitest";
+import { mergeLibraryMonsterArtLayers, withLibraryArt, withLibraryArtAll } from "./monsterArtLayers";
+
+describe("mergeLibraryMonsterArtLayers", () => {
+  it("returns canonical art for an entry_id with no private override", () => {
+    const result = mergeLibraryMonsterArtLayers(
+      [{ entry_id: "goblin", image_url: "canonical.webp", cutout_url: null, portrait_focal_point: null }],
+      [],
+    );
+    expect(result).toEqual({ goblin: { image_url: "canonical.webp", cutout_url: null, portrait_focal_point: null } });
+  });
+
+  it("returns a private override for an entry_id with no canonical art", () => {
+    const result = mergeLibraryMonsterArtLayers(
+      [],
+      [{ entry_id: "goblin", image_url: "mine.webp", cutout_url: null, portrait_focal_point: { x: 0.5, y: 0.5 } }],
+    );
+    expect(result).toEqual({
+      goblin: { image_url: "mine.webp", cutout_url: null, portrait_focal_point: { x: 0.5, y: 0.5 } },
+    });
+  });
+
+  it("the user's own art always wins over canonical art for the same entry_id", () => {
+    const result = mergeLibraryMonsterArtLayers(
+      [{ entry_id: "goblin", image_url: "canonical.webp", cutout_url: null, portrait_focal_point: null }],
+      [{ entry_id: "goblin", image_url: "mine.webp", cutout_url: null, portrait_focal_point: { x: 0.2, y: 0.8 } }],
+    );
+    expect(result).toEqual({
+      goblin: { image_url: "mine.webp", cutout_url: null, portrait_focal_point: { x: 0.2, y: 0.8 } },
+    });
+  });
+
+  it("keeps the canonical picture when the own row only overrides the cutout (per-field merge, #917)", () => {
+    const result = mergeLibraryMonsterArtLayers(
+      [{ entry_id: "goblin", image_url: "canonical.webp", cutout_url: null, portrait_focal_point: null }],
+      [{ entry_id: "goblin", image_url: null, cutout_url: "mine-cut.webp", portrait_focal_point: null }],
+    );
+    expect(result.goblin).toEqual({ image_url: "canonical.webp", cutout_url: "mine-cut.webp", portrait_focal_point: null });
+  });
+
+  it("keeps the canonical cutout when the own row only overrides the picture", () => {
+    const result = mergeLibraryMonsterArtLayers(
+      [{ entry_id: "goblin", image_url: "canonical.webp", cutout_url: "canonical-cut.webp", portrait_focal_point: null }],
+      [{ entry_id: "goblin", image_url: "mine.webp", cutout_url: null, portrait_focal_point: null }],
+    );
+    expect(result.goblin).toEqual({ image_url: "mine.webp", cutout_url: "canonical-cut.webp", portrait_focal_point: null });
+  });
+});
+
+describe("withLibraryArt", () => {
+  const row = {
+    image_url: "row-picture.webp",
+    cutout_url: "row-cutout.webp",
+    portrait_focal_point: { x: 0.1, y: 0.1 },
+  } as unknown as Parameters<typeof withLibraryArt>[0];
+
+  it("returns the row unchanged when there is no art entry", () => {
+    expect(withLibraryArt(row, undefined)).toBe(row);
+  });
+
+  it("overrides every field the art entry sets", () => {
+    const result = withLibraryArt(row, {
+      image_url: "art-picture.webp",
+      cutout_url: "art-cutout.webp",
+      portrait_focal_point: { x: 0.9, y: 0.9 },
+    });
+    expect(result.image_url).toBe("art-picture.webp");
+    expect(result.cutout_url).toBe("art-cutout.webp");
+    expect(result.portrait_focal_point).toEqual({ x: 0.9, y: 0.9 });
+  });
+
+  it("falls back to the row's own value for a field the art entry leaves null", () => {
+    const result = withLibraryArt(row, { image_url: null, cutout_url: "art-cutout.webp", portrait_focal_point: null });
+    expect(result.image_url).toBe("row-picture.webp");
+    expect(result.cutout_url).toBe("art-cutout.webp");
+    expect(result.portrait_focal_point).toEqual({ x: 0.1, y: 0.1 });
+  });
+});
+
+describe("withLibraryArtAll", () => {
+  const rows = [
+    { id: "srd_srd_adult_brass_dragon", image_url: "brass.webp", cutout_url: null, portrait_focal_point: null },
+    { id: "srd_srd_goblin", image_url: "goblin.webp", cutout_url: null, portrait_focal_point: { x: 50, y: 30 } },
+  ] as unknown as Parameters<typeof withLibraryArtAll>[0];
+
+  it("gives a list row the focal point a DM set on its library art, keeping the canonical picture", () => {
+    const result = withLibraryArtAll(rows, {
+      srd_srd_adult_brass_dragon: { image_url: null, cutout_url: null, portrait_focal_point: { x: 23, y: 17 } },
+    });
+    expect(result[0].image_url).toBe("brass.webp");
+    expect(result[0].portrait_focal_point).toEqual({ x: 23, y: 17 });
+    expect(result[1]).toBe(rows[1]);
+  });
+
+  it("returns the rows unchanged while the art map has not loaded", () => {
+    expect(withLibraryArtAll(rows, undefined)).toEqual(rows);
+  });
+});

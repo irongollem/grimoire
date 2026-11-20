@@ -109,6 +109,8 @@ interface Harness {
   noteCosts: Array<{ inputTokens: number; savesBefore: number }>;
   /** Every fight XP award the server asked the database for. */
   xpAwards: FightXpAward[];
+  /** The `playedMemberId` of each roster the server built (null for the DM's own fight): only a fresh open builds one. */
+  rosterAsks: Array<string | null>;
 }
 
 function harness(
@@ -145,6 +147,10 @@ function harness(
     sessions?: string[];
     /** The campaign uses the Experience Points rule. */
     xpLevelling?: boolean;
+    /** The roster `buildRoster` answers with; the standard one when absent. */
+    roster?: { combatants: RunCombatant[]; legendaryCaps?: Record<string, number> };
+    /** The party members `buildRoster` accepts as the played one; any when absent. */
+    activeMembers?: string[];
   } = {},
 ): Harness {
   const h: Harness = {
@@ -175,6 +181,7 @@ function harness(
     noteAsks: [],
     noteCosts: [],
     xpAwards: [],
+    rosterAsks: [],
     deps: undefined as unknown as BatchDeps,
   };
   h.deps = {
@@ -196,6 +203,15 @@ function harness(
     },
     async loadPartyRows() {
       return structuredClone(options.party ?? []);
+    },
+    async buildRoster(playedMemberId) {
+      // The loader's own refusal of a character who is not an active member of the campaign's party.
+      if (playedMemberId !== null && options.activeMembers !== undefined && !options.activeMembers.includes(playedMemberId)) {
+        throw new FightCommandError(400, "open: playedMemberId is not an active member of this campaign's party.");
+      }
+      h.rosterAsks.push(playedMemberId);
+      const built = options.roster ?? { combatants: roster() };
+      return structuredClone({ combatants: built.combatants, legendaryCaps: built.legendaryCaps ?? {} });
     },
     async isCampaignSession(sessionId) {
       return (options.sessions ?? ["sess-1"]).includes(sessionId);
@@ -586,7 +602,7 @@ const roster = () => [pc("nessa", { hp: 20, max_hp: 20, initiative: null as unkn
 describe("fight lifecycle", () => {
   it("fails if open on an encounter with no row does not create the fight unstarted and hidden from players", async () => {
     const h = harness(null);
-    const result = await runBatch(batch("o1", { type: "open", combatants: roster() }), h.deps);
+    const result = await runBatch(batch("o1", { type: "open" }), h.deps);
     // A new fight is round 0, turn 0, saved but not shown to players, with this batch remembered.
     expect(stored(h)).toMatchObject({ current_round: 0, active_combatant_index: 0, is_running: false, ended_at: null, applied_command_ids: ["o1"] });
     expect(stored(h).combatants_live.map((c) => c.instance_id)).toEqual(["nessa", "goblin"]);
@@ -594,21 +610,60 @@ describe("fight lifecycle", () => {
   });
 
   it("fails if open primes no legendary pool when caps are given", async () => {
-    const h = harness(null);
-    await runBatch(batch("o1", { type: "open", combatants: roster(), legendaryCaps: { goblin: 3 } }), h.deps);
+    const h = harness(null, { roster: { combatants: roster(), legendaryCaps: { goblin: 3 } } });
+    await runBatch(batch("o1", { type: "open" }), h.deps);
     expect(stored(h).combatants_live.find((c) => c.instance_id === "goblin")).toMatchObject({ legendary_action_cap: 3, legendary_actions_remaining: 3 });
   });
 
   it("fails if a second open resets a fight that is under way (a reload must not wipe the damage)", async () => {
     const h = harness(null);
-    await runBatch(batch("o1", { type: "open", combatants: roster() }), h.deps);
+    await runBatch(batch("o1", { type: "open" }), h.deps);
     await runBatch(batch("d1", { type: "adjust_hp", instanceId: "goblin", delta: -3 }), h.deps);
     const before = structuredClone(stored(h));
-    const again = await runBatch(batch("o2", { type: "open", combatants: roster() }), h.deps);
+    const again = await runBatch(batch("o2", { type: "open" }), h.deps);
     // The goblin took 3 of its 7 and still has 4; nothing was written, so the version and the id list stand.
     expect(hpOf(again.state, "goblin")).toBe(4);
     expect(again.applied).toBe(false);
     expect(stored(h)).toEqual(before);
+  });
+
+  // Bug: a resume (a reload, a second device) building the roster again: a database read per reload, and a roster nobody asked for.
+  it("fails if opening a fight that is under way builds a roster", async () => {
+    const h = harness(opened({ combatants_live: [pc("nessa")] }));
+    const result = await runBatch(batch("o2", { type: "open", playedMemberId: "nessa" }), h.deps);
+    expect(result.applied).toBe(false);
+    expect(h.rosterAsks).toEqual([]);
+  });
+
+  // Bug: the played member dropped on the way, so the AI table's fight is fielded as the DM's own (everyone's sheet, no bystanders).
+  it("fails if a fresh open does not ask for the roster of the played member", async () => {
+    const h = harness(null, { activeMembers: ["nessa"] });
+    await runBatch(batch("o1", { type: "open", playedMemberId: "nessa" }), h.deps);
+    expect(h.rosterAsks).toEqual(["nessa"]);
+    const dm = harness(null);
+    await runBatch(batch("o4", { type: "open" }), dm.deps);
+    expect(dm.rosterAsks).toEqual([null]);
+  });
+
+  // Bug: an open for a character who is not in this party creating a fight anyway.
+  it("fails if an open naming a character outside the party writes a fight", async () => {
+    const h = harness(null, { activeMembers: ["nessa"] });
+    await expect(runBatch(batch("o1", { type: "open", playedMemberId: "stranger" }), h.deps)).rejects.toMatchObject({ status: 400 });
+    expect(h.store.row).toBeNull();
+    expect(h.saves).toBe(0);
+  });
+
+  // Bug: the 60-combatant ceiling lost when the roster stopped coming from the caller: a built roster of any size was saved.
+  it("fails if a built roster of 61 combatants, or of none, is saved", async () => {
+    const many = Array.from({ length: 61 }, (_, i) => combatant(`g${i}`, { hp: 1, max_hp: 1 }));
+    for (const combatants of [many, []]) {
+      const h = harness(null, { roster: { combatants } });
+      await expect(runBatch(batch("o1", { type: "open" }), h.deps)).rejects.toMatchObject({ status: 400 });
+      expect(h.store.row).toBeNull();
+    }
+    const sixty = harness(null, { roster: { combatants: many.slice(0, 60) } });
+    await runBatch(batch("o1", { type: "open" }), sixty.deps);
+    expect(stored(sixty).combatants_live).toHaveLength(60);
   });
 
   it("fails if open on an ended fight carries anything of the old one over", async () => {
@@ -617,7 +672,7 @@ describe("fight lifecycle", () => {
       applied_command_ids: ["old-1"], combatants_live: [combatant("ogre", { hp: 0, max_hp: 59 })],
     });
     const h = harness(old);
-    const result = await runBatch(batch("o9", { type: "open", combatants: roster() }), h.deps);
+    const result = await runBatch(batch("o9", { type: "open" }), h.deps);
     // Round 0, turn 0, no fired events, no lair rounds, only this batch's id, the new roster, not ended, not shown.
     expect(stored(h)).toMatchObject({
       current_round: 0, active_combatant_index: 0, events_fired: [], lair_fired_rounds: [], applied_command_ids: ["o9"], ended_at: null, is_running: false,
@@ -729,8 +784,8 @@ describe("fight lifecycle", () => {
     });
 
     it("fails if fighting an encounter again keeps the last fight's award mark, so the new fight would give nothing", async () => {
-      const h = harness(row({ ended_at: "2026-11-14T10:00:00.000Z" }), { xpLevelling: true });
-      await runBatch(batch("o1", { type: "open", combatants: [pc("nessa")] }), h.deps);
+      const h = harness(row({ ended_at: "2026-11-14T10:00:00.000Z" }), { xpLevelling: true, roster: { combatants: [pc("nessa")] } });
+      await runBatch(batch("o1", { type: "open" }), h.deps);
       expect(h.saved.at(-1)).toMatchObject({ xp_awarded_at: null, ended_at: null });
     });
   });
@@ -828,17 +883,17 @@ describe("fight lifecycle", () => {
     expect(result.ended_at).not.toBeNull();
   });
 
-  it("refuses a lifecycle command mixed with another, and open with no or too many combatants", () => {
+  it("refuses a lifecycle command mixed with another, and an open naming a malformed played member", () => {
     const send = (commands: unknown[]) => () => validateRequest({ encounterId: "e", batchId: "b", commands });
-    const one = { instance_id: "a", type: "monster", name: "A", hp: 1, max_hp: 1, conditions: [], curses: [], death_saves: { successes: 0, failures: 0 } };
     expect(send([{ type: "abandon" }, { type: "next_turn" }])).toThrow(FightCommandError);
     expect(send([{ type: "next_turn" }, { type: "end_combat" }])).toThrow(FightCommandError);
     expect(send([{ type: "go_live", sessionId: null }, { type: "go_live", sessionId: null }])).toThrow(FightCommandError);
     expect(send([{ type: "go_live" }])).toThrow(FightCommandError);
-    expect(send([{ type: "open", combatants: [] }])).toThrow(FightCommandError);
-    const many = (n: number) => Array.from({ length: n }, (_, i) => ({ ...one, instance_id: `a${i}` }));
-    expect(send([{ type: "open", combatants: many(61) }])).toThrow(FightCommandError);
-    expect(send([{ type: "open", combatants: many(60) }])).not.toThrow();
+    expect(send([{ type: "open", playedMemberId: "" }])).toThrow(FightCommandError);
+    expect(send([{ type: "open", playedMemberId: 7 }])).toThrow(FightCommandError);
+    expect(send([{ type: "open", playedMemberId: "x".repeat(101) }])).toThrow(FightCommandError);
+    expect(send([{ type: "open", playedMemberId: "x".repeat(100) }])).not.toThrow();
+    expect(send([{ type: "open" }])).not.toThrow();
     expect(send([{ type: "end_combat", siteId: 4 }])).toThrow(FightCommandError);
   });
 });
@@ -2661,7 +2716,6 @@ describe("a batch that must be refused before anything is saved", () => {
   // Bug: two combatants with one instance id: every command acts on the first match, and the second can never be reached or removed.
   it("fails if two combatants of one request share an instance id", () => {
     expect(send([{ type: "add_combatants", combatants: [good, { ...good, name: "B" }] }])).toThrow(FightCommandError);
-    expect(send([{ type: "open", combatants: [good, good] }])).toThrow(FightCommandError);
   });
 
   // Each case is a value the reducer would write into the fight as it is: NaN hit points, a condition that has no name, feet that subtract.

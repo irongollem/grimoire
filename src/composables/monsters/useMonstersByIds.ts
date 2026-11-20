@@ -1,7 +1,8 @@
 import { computed, toValue, type ComputedRef, type MaybeRefOrGetter } from "vue";
 import { keepPreviousData, useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { fetchLibraryMonsterArtEntries, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
+import { fetchLibraryMonsterArtEntries } from "@/composables/library/useLibraryMonsterArt";
+import { withLibraryArtAll } from "@/lib/library/monsterArtLayers";
 import { normaliseIds, useRowsByIds } from "@/composables/useRowsByIds";
 import { createIdBatcher } from "@/lib/batchById";
 import { isUuid } from "@/lib/library/contentIdentity";
