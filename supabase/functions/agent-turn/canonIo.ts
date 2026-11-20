@@ -236,11 +236,12 @@ export function canonStore(input: {
       })));
       if (hits.length === 0) return [];
       const ids = hits.map((h) => h.id);
-      const loreIds = hits.filter((h) => h.part === "lore").map((h) => h.id);
+      // A backstory is told in passages like lore, and has no title of its own: it goes by its character's name.
+      const loreIds = hits.filter((h) => h.part === "lore" || h.part === "backstory").map((h) => h.id);
       const forceIds = hits.filter((h) => h.part === "force").map((h) => h.id);
       const someIds = hits.filter((h) => h.part === "truth" && h.knowledge === "some").map((h) => h.id);
       const [bodies, passages, steps, knownTo] = await Promise.all([
-        supabase.from("canon_entries").select("id, body, wants").eq("campaign_id", campaignId).in("id", ids),
+        supabase.from("canon_entries").select("id, body, wants, party_member_id").eq("campaign_id", campaignId).in("id", ids),
         loreIds.length === 0
           ? Promise.resolve({ data: [] as Row[], error: null })
           : supabase.from("canon_lore_passages").select("entry_id, title, body").eq("campaign_id", campaignId).in("entry_id", loreIds).order("sort_order"),
@@ -250,6 +251,12 @@ export function canonStore(input: {
       if (bodies.error) throw bodies.error;
       if (passages.error) throw passages.error;
       const body = new Map(((bodies.data ?? []) as Row[]).map((r) => [str(r.id), r]));
+      const characterIds = [...new Set(((bodies.data ?? []) as Row[]).flatMap((r) => (typeof r.party_member_id === "string" ? [r.party_member_id] : [])))];
+      const characters = characterIds.length === 0
+        ? { data: [] as Row[], error: null }
+        : await supabase.from("party_members").select("id, name").eq("campaign_id", campaignId).in("id", characterIds);
+      if (characters.error) throw characters.error;
+      const characterName = new Map(((characters.data ?? []) as Row[]).map((r) => [str(r.id), str(r.name)]));
       const passagesOf = new Map<string, string[]>();
       for (const p of (passages.data ?? []) as Row[]) {
         const list = passagesOf.get(str(p.entry_id)) ?? [];
@@ -264,9 +271,10 @@ export function canonStore(input: {
           wants === "" ? "" : `It wants: ${wants}`,
           ...(passagesOf.get(h.id) ?? []),
         ].filter((t) => t !== "").join(" ");
+        const character = row === undefined ? undefined : characterName.get(str(row.party_member_id));
         return {
           part: h.part,
-          title: h.title,
+          title: h.part === "backstory" && character !== undefined ? character : h.title,
           knowledge: h.knowledge,
           text,
           knownTo: knownTo.get(h.id) ?? [],

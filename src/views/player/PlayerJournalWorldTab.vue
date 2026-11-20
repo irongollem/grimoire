@@ -126,7 +126,7 @@ import { useLowArt } from "@/composables/useLowArt";
 
 const { world: worldRef, isLoading, error } = usePlayerCanon();
 // A failed read says so (the query itself reports it to Sentry); it never reads as "nothing told yet".
-const world = computed(() => worldRef.value ?? { onlyMine: [], known: [], lore: [] });
+const world = computed(() => worldRef.value ?? { onlyMine: [], known: [], lore: [], backstories: [] });
 const hasAnything = computed(() => world.value.onlyMine.length + world.value.known.length + world.value.lore.length + chronicle.value.length > 0);
 
 // The Chronicle: shared notes linked to a session. The read is the same RPC DM Notes uses, so secret blocks never

@@ -22,12 +22,12 @@ import LorePassageRow from "./LorePassageRow.vue";
 
 const passage = (over: Partial<CanonLorePassage> = {}): CanonLorePassage => ({
   id: "g1", user_id: "u", campaign_id: "c", entry_id: "l1", title: "What was lost", body: null, sort_order: 1, player_visible_to: [], told_at: null,
-  told_session_id: null, location_id: null, npc_id: null, quest_beat_id: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
+  told_session_id: null, location_id: null, npc_id: null, quest_beat_id: null, author_id: "u", ai_provenance: null, created_at: "", updated_at: "", ...over,
 });
 
-const mountRow = (p: CanonLorePassage, first = false) =>
+const mountRow = (p: CanonLorePassage, first = false, extra: Record<string, unknown> = {}) =>
   mount(LorePassageRow, {
-    props: { passage: p, index: first ? 0 : 1, first, canMoveUp: !first, canMoveDown: true },
+    props: { passage: p, index: first ? 0 : 1, first, canMoveUp: !first, canMoveDown: true, ...extra },
     global: { stubs: { RichTextEditor: true, WherePicker: { name: "WherePicker", emits: ["choose"], template: "<button data-testid='choose' @click=\"$emit('choose', { kind: 'npc', id: 'n1' })\" />" }, CanonRef: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } },
   });
 
@@ -88,5 +88,36 @@ describe("LorePassageRow", () => {
     clues.value = [{ id: "k1", secret_id: "s1", passage_id: "g1" } as CanonClue, { id: "k2", secret_id: "s9", passage_id: "other" } as CanonClue];
     const w = mountRow(passage());
     expect(w.findAll("[data-testid=passage-clue-to]").map((a) => a.text())).toEqual(["The Stain is a wound in the dream"]);
+  });
+
+  describe("in a backstory (frame 14)", () => {
+    const target = { id: "m1", name: "Tansy" };
+
+    // Bug caught: Tell the party told the whole table a secret meant for one character, or the DM could not tell it to the character at all.
+    it("tells a DM passage to its character first, and to the party only by the other button", async () => {
+      const w = mountRow(passage(), false, { tellTarget: target });
+      expect(w.find("[data-testid=tell]").text()).toBe("Tell Tansy");
+      await w.find("[data-testid=tell]").trigger("click");
+      expect(mocks.tell).toHaveBeenLastCalledWith(expect.objectContaining({ id: "g1" }), ["m1"]);
+      await w.find("[data-testid=tell-party]").trigger("click");
+      expect(mocks.tell).toHaveBeenLastCalledWith(expect.objectContaining({ id: "g1" }));
+      expect(mocks.tell.mock.lastCall).toHaveLength(1);
+    });
+
+    it("says whose words these are", () => {
+      expect(mountRow(passage(), false, { byline: "Your passage" }).find("[data-testid=passage-byline]").text()).toBe("Your passage");
+      expect(mountRow(passage()).find("[data-testid=passage-byline]").exists()).toBe(false);
+    });
+
+    // Bug caught: the DM was offered Tell on a player's own passage, which is told when written, so a "Tell" there is a button that does nothing or re-tells it.
+    it("offers a player's own passage no Tell, no Take back and no place, only the DM's edit and remove", () => {
+      const w = mountRow(passage({ told_at: "2026-11-02T10:00:00Z", player_visible_to: ["m1"] }), false, { playersOwn: true, tellTarget: target });
+      expect(w.find("[data-testid=tell]").exists()).toBe(false);
+      expect(w.find("[data-testid=take-back]").exists()).toBe(false);
+      expect(w.find("[data-testid=passage-nowhere]").exists()).toBe(false);
+      expect(w.find("[data-testid=passage-state]").text()).toContain("Told");
+      expect(w.findAll("button").some((b) => b.text() === "Remove passage")).toBe(true);
+      expect(w.findComponent({ name: "AppInput" }).exists()).toBe(true);
+    });
   });
 });

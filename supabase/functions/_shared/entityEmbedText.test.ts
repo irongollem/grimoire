@@ -552,6 +552,20 @@ describe("buildCanonEmbedText (#1226)", () => {
     expect(text).toBe("lore. The Drowned Bell. First ring. It rang once. Later. The river gives things back.");
   });
 
+  // Bug this guards: a backstory has no title of its own, so without its character's name "what happened to Tansy's
+  // brother" finds an entry that is only passages with nobody's name on it.
+  it("embeds a backstory under its character's name, with its passages", () => {
+    const text = buildCanonEmbedText({
+      part: "backstory",
+      title: "",
+      wants: null,
+      body: null,
+      character: "Tansy Underbough",
+      passages: [{ id: "a", sort_order: 0, title: "The ferryman's coin", body: doc("The river gives back.") }],
+    });
+    expect(text).toBe("backstory. . Tansy Underbough. The ferryman's coin. The river gives back.");
+  });
+
   it("is stable whatever order the passages arrive in", () => {
     const passages = [
       { id: "a", sort_order: 1, title: "One", body: null },

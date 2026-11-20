@@ -24,6 +24,7 @@ export function canonEntry(over: Partial<CanonEntry> = {}): CanonEntry {
     world_year: null,
     world_month: null,
     world_day: null,
+    party_member_id: null,
     ai_provenance: null,
     created_at: "2026-11-19T10:00:00Z",
     updated_at: "2026-11-19T10:00:00Z",

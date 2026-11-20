@@ -136,7 +136,7 @@ describe("playerLocationHtml and playerQuestHtml", () => {
 describe("playerCanonHtml", () => {
   const entry = (over: Partial<PlayerCanonEntry>): PlayerCanonEntry => ({
     id: "e", part: "truth", premise_kind: null, knowledge: "all", title: "T", body: null, sort_order: 0, image_url: null,
-    created_at: "", updated_at: "", lore_kind: null, world_year: null, world_month: null, world_day: null, ...over,
+    created_at: "", updated_at: "", lore_kind: null, world_year: null, world_month: null, world_day: null, party_member_id: null, ...over,
   });
   const date = () => "Year 5";
   const body = JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Told." }] }] });
@@ -145,9 +145,10 @@ describe("playerCanonHtml", () => {
     onlyMine: [entry({ id: "mine", title: "Only I know", knowledge: "some" })],
     lore: [{
       entry: entry({ id: "lore", part: "lore", title: "The Fall", lore_kind: "history", world_year: 5, body }),
-      passages: [{ id: "p", entry_id: "lore", sort_order: 1, title: "Told passage", body, told_at: "x" }],
+      passages: [{ id: "p", entry_id: "lore", sort_order: 1, title: "Told passage", body, told_at: "x", by_dm: true, written_at: "x" }],
       latestAt: "x",
     }],
+    backstories: [],
   };
 
   it("prints a truth the player has, and lore with only the passages they were told", () => {

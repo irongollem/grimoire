@@ -302,7 +302,7 @@ const AOE_SHAPE = [
 ] as const;
 
 // src/types/canon.types.ts
-const CANON_PART = ["premise", "truth", "force", "secret", "question", "lore", "chronicle"] as const;
+const CANON_PART = ["premise", "truth", "force", "secret", "question", "lore", "backstory", "chronicle"] as const;
 const PREMISE_KIND = ["pitch", "theme", "table", "voice", "look", "line", "veil"] as const;
 const KNOWLEDGE_MARK = ["all", "some", "secret"] as const;
 

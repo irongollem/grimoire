@@ -17,6 +17,7 @@ Design: the canvas *Campaign Canon* (claude.ai artifact `MAukzQW1bDDG832DT4ZepT`
 | How the world works | none: columns of `campaigns` (calendar, today's date, climate, coins) | story 5 | n/a |
 | Secrets and open questions | `secret`, `question` | story 3 | a secret once the DM reveals it; never a question |
 | Lore, told in passages | `lore` | story 5 | the passages told |
+| Backstories | `backstory`, one per character (`party_member_id`) | story 10 | their own character's, always; another's when the DM shares it; only the passages told to them |
 | The Chronicle | none: the session's note (`notes.session_id`) | story 6 | what the DM shared |
 | What the table added | none: `story_facts` the AI table filed | story 9 | what the party knows and the DM has not struck |
 
@@ -145,6 +146,43 @@ there and the lore passages that come out there and are not yet told (never an e
 entry with text (`CanonSuggestions mode="lore"`, `useAcceptLore.ts`; the DM's own text goes to the server-path
 function). Nothing is written before Accept, and a split asks before it replaces the entry's passages; it writes the
 new ones before it removes the old.
+
+## Backstories, written together (Part VII, frame 14; story 10)
+
+A character's backstory is a piece of the canon told in passages, and the two writers are the character's player and the
+DM. **Its opening is not copied:** the character's own Backstory field (`party_members.player_description`, the "About"
+on the sheet) is the backstory's first part, **Before play**, and stays where it is, because a character can live outside
+any campaign and carries that text between campaigns and into the Hall of Heroes. Player and DM both edit it, through the
+ordinary party member update (`BackstoryBeforePlay.vue`, autosaved). Everything that grows from there is the campaign's:
+a `canon_entries` row with `part = 'backstory'` and `party_member_id` (one per character, a unique index), made on first
+use by `public.open_backstory(p_party_member_id)` (a definer, for the campaign's DMs and that character's player only,
+since a player cannot write `canon_entries`). The DM's page makes it the first time a character is opened
+(`useBackstoryEntry`); the player's **Add to my story** makes it before the first passage (`useMyStory`).
+
+The passages are `canon_lore_passages`, the lore passage table, with an `author_id` (the writer, defaulting to the
+signed-in user). The DM edits **every** passage, the player's included (maintainer, 20 Nov 2026), and writes their own,
+which start untold and are told like lore (by hand, at a place, person or beat, or by the Narrator): **Tell <character>**
+tells that character, **Tell the party** everyone. A player may insert, update and delete only the passages they wrote in
+their own character's backstory (`private.writes_own_backstory`); a trigger (`guard_player_passage`) tells it when
+written, lets them share it only with party members, and refuses a place, a beat or a changed author (42501). Each
+passage says whose it is: "Written by <player> · before play" or "... after session N" (N is the latest session that had
+started before it was written, `writtenWhen`) or "Your passage". **The people from this past** are the entry's
+connections (`ConnectionsSection`, subject `{ kind: "canon" }`, each tie with its own reveal), and **New NPC from this
+backstory** creates a person hidden from every player and tied `about` from the entry, then opens them
+(`useNewBackstoryNpc`).
+
+The DM's side is `BackstoriesSection` (one row per party member: "played by", passages, "n not yet told"; the contents
+column counts characters, not entries) and `BackstoryDetail` (opened with `?backstory=<party member id>`, or
+`?entry=<backstory entry id>`); `LorePassageRow` carries the byline, the player's-own variant (no Tell, no place) and the
+tell target, and `usePassageList` is the add/move/remove the lore entry shares. Who may read the entry besides its
+character is the entry's own `player_visible_to` (the **Share** control in the detail): `canon_entry_seen` lets a backstory
+reach its own character always and others when shared, and a passage reaches whom it was told to. **A player's "Share with
+the party" therefore only reaches the other characters once the DM has shared the entry with them.**
+
+The Narrator looks a backstory up by meaning (`backstory` is in `LOOKUP_PARTS`, answered under the character's name, its
+passages read as lore's are: the DM's untold ones are the Narrator's to bring out, never to state as settled); the
+entry's one vector holds the character's name and every passage (`buildCanonEmbedText`, `embed-content` selects the
+character). The MCP enum lists the part; the generic readers still refuse canon.
 
 ## AI help on each part
 

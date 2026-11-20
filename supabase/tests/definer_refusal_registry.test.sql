@@ -113,6 +113,7 @@ insert into definer_registry (name, kind, reason) values
   ('get_player_world_ties', 'refuses', null),
   ('get_player_canon', 'refuses', null),
   ('get_player_lore_passages', 'refuses', null),
+  ('open_backstory', 'refuses', null),
   ('get_prompt_screening_hints', 'refuses', null),
   ('get_quest_runtime_context', 'refuses', null),
   ('get_user_ledger', 'refuses', null),

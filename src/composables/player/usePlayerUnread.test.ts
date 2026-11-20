@@ -7,6 +7,7 @@ const state = vi.hoisted(() => ({
   notes: [] as unknown[],
   noticeBoards: [] as unknown[],
   lore: [] as { entry: { id: string; title: string }; latestAt: string }[],
+  backstories: [] as { entry: { id: string }; memberId: string; latestDmAt: string | null }[],
   newIds: new Set<string>(),
   questions: [] as { id: string; closed_at: string | null; mode: string; exclusive: boolean }[],
   questionAnswers: [] as { question_id: string; user_id: string; option_id: string | null }[],
@@ -34,7 +35,11 @@ vi.mock("@/composables/noticeBoards/usePlayerNoticeBoards", async () => {
 });
 vi.mock("@/composables/canon/usePlayerCanon", async () => {
   const { ref: r } = await import("vue");
-  return { usePlayerCanon: () => ({ world: r({ onlyMine: [], known: [], lore: state.lore }) }) };
+  return { usePlayerCanon: () => ({ world: r({ onlyMine: [], known: [], lore: state.lore, backstories: state.backstories }) }) };
+});
+vi.mock("@/composables/canon/useMyStory", async () => {
+  const { computed: c } = await import("vue");
+  return { useMyMemberId: () => c(() => "m-me") };
 });
 vi.mock("@/composables/player/useReadItems", () => ({
   useReadMarkers: () => ({ isNew: (type: string, id: string) => state.newIds.has(`${type}:${id}`) }),
@@ -58,6 +63,7 @@ beforeEach(() => {
   state.notes = [];
   state.noticeBoards = [];
   state.lore = [];
+  state.backstories = [];
   state.newIds = new Set();
   state.questions = [];
   state.questionAnswers = [];
@@ -87,7 +93,7 @@ describe("usePlayerUnread", () => {
     state.handouts = [{ id: "h1", updated_at: "2026-10-01" }];
     state.newIds.add("handout:h1");
     const { sections, journal, unreadPaths } = usePlayerUnread();
-    expect(sections.value).toEqual({ quests: false, puzzles: false, handouts: true, dmNotes: false, noticeBoards: false, world: false });
+    expect(sections.value).toEqual({ quests: false, puzzles: false, handouts: true, dmNotes: false, noticeBoards: false, world: false, story: false });
     expect(journal.value).toBe(true);
     expect(unreadPaths.value).toEqual(["/play/journal"]);
   });
@@ -118,6 +124,21 @@ describe("usePlayerUnread", () => {
     const { sections, unreadPaths } = usePlayerUnread();
     expect(sections.value.world).toBe(true);
     expect(unreadPaths.value).toEqual(["/play/journal"]);
+  });
+
+  // Bug this guards: My story lighting the Journal for a passage the player wrote themselves, or for someone else's
+  // shared backstory, so the dot promised news the tab did not hold.
+  it("lights My story for a passage the DM told this player, and not for another character's backstory or one never told", () => {
+    state.backstories = [{ entry: { id: "b-other" }, memberId: "m-other", latestDmAt: "2026-11-05" }, { entry: { id: "b-mine" }, memberId: "m-me", latestDmAt: null }];
+    state.newIds = new Set(["canon_backstory:b-other", "canon_backstory:b-mine"]);
+    expect(usePlayerUnread().sections.value.story).toBe(false);
+    state.backstories = [{ entry: { id: "b-mine" }, memberId: "m-me", latestDmAt: "2026-11-05" }];
+    const { sections, unreadPaths } = usePlayerUnread();
+    expect(sections.value.story).toBe(true);
+    expect(sections.value.world).toBe(false);
+    expect(unreadPaths.value).toEqual(["/play/journal"]);
+    state.newIds = new Set();
+    expect(usePlayerUnread().sections.value.story).toBe(false);
   });
 
   it("lights The World, not DM Notes, for a new shared session note, and the reverse for a plain note", () => {
@@ -188,22 +209,24 @@ describe("unread items", () => {
     ];
     state.noticeBoards = [{ id: "b1", name: "The Rusty Flagon's board", updated_at: "2026-10-05" }];
     state.lore = [{ entry: { id: "l1", title: "The Fall of the Bakers' Guild" }, latestAt: "2026-10-06" }];
-    state.newIds = new Set(["quest:q1", "quest:q0", "puzzle:p1", "handout:h1", "note:n1", "note:c1", "notice_board:b1", "canon_lore:l1"]);
+    state.backstories = [{ entry: { id: "b1" }, memberId: "m-me", latestDmAt: "2026-10-08" }];
+    state.newIds = new Set(["quest:q1", "quest:q0", "puzzle:p1", "handout:h1", "note:n1", "note:c1", "notice_board:b1", "canon_lore:l1", "canon_backstory:b1"]);
     const { items, sections } = usePlayerUnread();
-    expect(items.value.map((i) => i.id)).toEqual(["c1", "l1", "h1", "p1", "q1", "n1"]);
-    expect(items.value[0].to).toEqual({ name: "play-journal", query: { tab: "world" } });
-    expect(items.value[0].kind).toBe("chronicle");
-    expect(items.value[2].to).toEqual({ name: "play-handout", params: { id: "h1" } });
-    expect(items.value[4].to).toEqual({ name: "play-quest-detail", params: { id: "q1" } });
-    expect(items.value[3].to).toEqual({ name: "play-journal", query: { tab: "puzzles" } });
-    expect(items.value[5].to).toEqual({ name: "play-journal", query: { tab: "dm-notes" } });
+    expect(items.value.map((i) => i.id)).toEqual(["b1", "c1", "l1", "h1", "p1", "q1", "n1"]);
+    expect(items.value[0].to).toEqual({ name: "play-journal", query: { tab: "story" } });
+    expect(items.value[1].to).toEqual({ name: "play-journal", query: { tab: "world" } });
+    expect(items.value[1].kind).toBe("chronicle");
+    expect(items.value[3].to).toEqual({ name: "play-handout", params: { id: "h1" } });
+    expect(items.value[5].to).toEqual({ name: "play-quest-detail", params: { id: "q1" } });
+    expect(items.value[4].to).toEqual({ name: "play-journal", query: { tab: "puzzles" } });
+    expect(items.value[6].to).toEqual({ name: "play-journal", query: { tab: "dm-notes" } });
     expect(Object.values(sections.value).every(Boolean)).toBe(true);
   });
 
   it("is empty when everything is read, and tolerates undefined lists", () => {
     const never = () => false;
     expect(
-      collectUnreadItems({ quests: undefined, puzzles: undefined, handouts: undefined, notes: undefined, lore: undefined, isNew: { quest: never, puzzle: never, handout: never, note: never, lore: never, chronicle: never } }),
+      collectUnreadItems({ quests: undefined, puzzles: undefined, handouts: undefined, notes: undefined, lore: undefined, isNew: { quest: never, puzzle: never, handout: never, note: never, lore: never, chronicle: never, story: never } }),
     ).toEqual([]);
   });
 });

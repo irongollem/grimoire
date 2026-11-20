@@ -182,6 +182,9 @@
       @toggle-note="toggleNote"
     />
 
+    <!-- My story: the character's backstory, written together with the DM (#1226 story 10) -->
+    <PlayerJournalStoryTab v-else-if="activeTab === 'story'" />
+
     <!-- The World tab: truths and the lore the party has been told (#1226) -->
     <PlayerJournalWorldTab v-else-if="activeTab === 'world'" />
 
@@ -272,6 +275,7 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import PlayerJournalMyTab from "./PlayerJournalMyTab.vue";
 import PlayerJournalPartyTab from "./PlayerJournalPartyTab.vue";
 import PlayerJournalDmNotesTab from "./PlayerJournalDmNotesTab.vue";
+import PlayerJournalStoryTab from "./PlayerJournalStoryTab.vue";
 import PlayerJournalWorldTab from "./PlayerJournalWorldTab.vue";
 import PlayerJournalHandoutsTab from "./PlayerJournalHandoutsTab.vue";
 import PlayerJournalNoticeBoardsTab from "./PlayerJournalNoticeBoardsTab.vue";
@@ -373,7 +377,7 @@ const showClear = computed(
 );
 // A tome tab and the DM's, handout, board, quest and puzzle tabs hold nothing the player writes.
 const showNewEntry = computed(
-  () => !activeTome.value && !["dm-notes", "handouts", "notice-boards", "quest-log", "puzzles", "world"].includes(activeTab.value),
+  () => !activeTome.value && !["dm-notes", "handouts", "notice-boards", "quest-log", "puzzles", "world", "story"].includes(activeTab.value),
 );
 const sortOptions = computed(() =>
   activeTab.value === "party" ? SORT_OPTIONS_NO_MANUAL : SORT_OPTIONS_FULL,
@@ -434,8 +438,8 @@ const router = useRouter();
 // admitting an arbitrary tome item id — TabBar's own T stays inferred as
 // this widened type wherever activeTab feeds it, so the static tabs simply
 // show none-active while a tome tab is open.
-type TabId = "mine" | "party" | "quest-log" | "puzzles" | "dm-notes" | "handouts" | "notice-boards" | "world" | (string & {});
-const VALID_TABS: TabId[] = ["mine", "party", "world", "quest-log", "puzzles", "dm-notes", "handouts", "notice-boards"];
+type TabId = "mine" | "party" | "quest-log" | "puzzles" | "dm-notes" | "handouts" | "notice-boards" | "world" | "story" | (string & {});
+const VALID_TABS: TabId[] = ["mine", "story", "party", "world", "quest-log", "puzzles", "dm-notes", "handouts", "notice-boards"];
 
 // One tab per document item currently in the party's inventory — derived
 // from the inventory + player-visible-items queries rather than stored
@@ -465,6 +469,7 @@ function setTab(id: TabId) {
 
 const TABS = computed(() => [
   { id: "mine"      as const, label: "My Journal",    count: myEntries.value?.length ?? 0 },
+  { id: "story"     as const, label: "My story",      dot: unread.value.story },
   { id: "party"     as const, label: "Party Journal", count: sharedEntries.value?.length ?? 0 },
   { id: "world"     as const, label: "The World",     count: worldCount.value, dot: unread.value.world },
   // Count only quests that fall into a rendered group (see questGroups) — shared

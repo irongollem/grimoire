@@ -8,12 +8,15 @@ const route = reactive<{ query: Record<string, string> }>({ query: {} });
 const mocks = vi.hoisted(() => ({ replace: vi.fn(), scroll: vi.fn(), wide: { value: true }, destroy: vi.fn(), confirm: vi.fn() }));
 const data = ref<CanonEntry[]>([]);
 const tableFacts = ref<unknown[]>([]);
+const party = ref([{ id: "m1", name: "Tansy" }, { id: "m2", name: "Pim" }]);
 
 vi.mock("vue-router", () => ({ useRoute: () => route, useRouter: () => ({ replace: mocks.replace }) }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({
   useCanonEntries: () => ({ data, isLoading: ref(false), isError: ref(false) }),
   useDeleteCanonEntry: () => ({ mutateAsync: mocks.destroy }),
 }));
+vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: party }) }));
+vi.mock("@/composables/canon/useCanonPassages", () => ({ useCanonPassages: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/canon/useChronicle", () => ({ useChronicle: () => ({ written: ref(3) }) }));
 vi.mock("@/composables/canon/useTableFacts", () => ({ useTableFacts: () => ({ facts: { data: tableFacts } }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
@@ -38,12 +41,14 @@ const ForceDetailStub = { name: "ForceDetail", props: ["entry"], emits: ["delete
 
 const LoreDetailStub = { name: "LoreDetail", props: ["entry"], emits: ["delete"], template: "<div data-testid='lore-detail'>{{ entry.title }}<button data-testid='del-lore' @click=\"$emit('delete')\" /></div>" };
 
+const BackstoryDetailStub = { name: "BackstoryDetail", props: ["member"], template: "<div data-testid='backstory-detail'>{{ member.name }}</div>" };
+
 const mounted: { unmount: () => void }[] = [];
 
 function mountView() {
   const w = mount(CanonView, {
     attachTo: document.body,
-    global: { stubs: { PremiseSection: true, ForcesSection: true, ForceDetail: ForceDetailStub, SecretsSection: true, WorldWorksSection: true, LoreSection: true, ChronicleSection: true, TableAddedSection: true, AppButton: { template: '<a data-testid="bring-in" :href="to"><slot /></a>', props: ['to'] }, LoreDetail: LoreDetailStub, SecretDetail: SecretDetailStub, TruthDetail: TruthDetailStub, TruthsSection: TruthsStub, CanonContents: true } },
+    global: { stubs: { PremiseSection: true, ForcesSection: true, ForceDetail: ForceDetailStub, SecretsSection: true, WorldWorksSection: true, LoreSection: true, ChronicleSection: true, TableAddedSection: true, AppButton: { template: '<a data-testid="bring-in" :href="to"><slot /></a>', props: ['to'] }, LoreDetail: LoreDetailStub, SecretDetail: SecretDetailStub, TruthDetail: TruthDetailStub, TruthsSection: TruthsStub, CanonContents: true, BackstoriesSection: true, BackstoryDetail: BackstoryDetailStub } },
   });
   mounted.push(w);
   return w;
@@ -113,6 +118,31 @@ describe("CanonView", () => {
     await flushPromises();
     await w.find("[data-testid=del-lore]").trigger("click");
     expect(mocks.confirm.mock.calls[0]![0]).toContain("passages");
+  });
+
+  // Bug caught: a character with no backstory entry yet could not be opened, since the page only knew entries, so the
+  // DM could not start one from the list of characters.
+  it("opens a character's backstory from ?backstory=<party member>, before any entry exists for it", async () => {
+    route.query = { backstory: "m2" };
+    const w = mountView();
+    await flushPromises();
+    expect(w.find("[data-testid=backstory-detail]").text()).toBe("Pim");
+  });
+
+  // Bug caught: a search result or web link to a backstory entry opened nothing.
+  it("opens the character a backstory entry belongs to from ?entry=<entry id>", async () => {
+    data.value = [canonEntry({ id: "b1", campaign_id: "c1", part: "backstory", party_member_id: "m1", title: "" })];
+    route.query = { entry: "b1" };
+    const w = mountView();
+    await flushPromises();
+    expect(w.find("[data-testid=backstory-detail]").text()).toBe("Tansy");
+  });
+
+  it("opens nothing for a backstory of a character who is not in the party", async () => {
+    route.query = { backstory: "gone" };
+    const w = mountView();
+    await flushPromises();
+    expect(w.find("[data-testid=backstory-detail]").exists()).toBe(false);
   });
 
   it("opens nothing without ?entry", async () => {
@@ -202,5 +232,11 @@ describe("CanonView", () => {
     const counts = mountView().findComponent({ name: "CanonContents" }).props("counts") as Record<string, number>;
     expect(counts.table).toBe(2);
     expect(counts.chronicle).toBe(3);
+  });
+
+  // Bug caught: the contents column counting only the backstories already opened, so a party of two read "0" over a ledger of two rows.
+  it("counts one backstory per character, opened or not", () => {
+    const counts = mountView().findComponent({ name: "CanonContents" }).props("counts") as Record<string, number>;
+    expect(counts.backstories).toBe(2);
   });
 });

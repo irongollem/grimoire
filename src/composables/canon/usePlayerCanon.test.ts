@@ -17,10 +17,10 @@ import { useAppUiStore } from "@/stores/ui/app";
 const entry = (over: Partial<PlayerCanonEntry>): PlayerCanonEntry => ({
   id: "e", part: "truth", premise_kind: null, knowledge: "all", title: "t", body: null, sort_order: 0, image_url: null,
   created_at: "2026-11-01T10:00:00Z", updated_at: "2026-11-01T10:00:00Z", lore_kind: null, world_year: null, world_month: null,
-  world_day: null, ...over,
+  world_day: null, party_member_id: null, ...over,
 });
 const passage = (over: Partial<PlayerLorePassage>): PlayerLorePassage => ({
-  id: "p", entry_id: "l1", sort_order: 0, title: "I", body: null, told_at: null, ...over,
+  id: "p", entry_id: "l1", sort_order: 0, title: "I", body: null, told_at: null, by_dm: true, written_at: "2026-11-01T10:00:00Z", ...over,
 });
 
 describe("groupPlayerWorld", () => {
@@ -67,6 +67,50 @@ describe("groupPlayerWorld", () => {
     );
     expect(world.lore.find((l) => l.entry.id === "l1")?.latestAt).toBe("2026-11-09T10:00:00Z");
     expect(world.lore.find((l) => l.entry.id === "l2")?.latestAt).toBe("2026-10-01T00:00:00Z");
+  });
+});
+
+describe("groupPlayerWorld: backstories", () => {
+  const backstory = entry({ id: "b1", part: "backstory", knowledge: null, party_member_id: "m1" });
+
+  // Bug caught: a backstory's passages read as lore (shown under "Found out") or in the DM's sort order instead of the
+  // order the story grew.
+  it("keeps a backstory out of the lore and lists its passages in the order they were written", () => {
+    const world = groupPlayerWorld(
+      [backstory],
+      [
+        passage({ id: "later", entry_id: "b1", sort_order: 0, written_at: "2026-11-09T10:00:00Z", told_at: "2026-11-09T10:00:00Z" }),
+        passage({ id: "first", entry_id: "b1", sort_order: 5, written_at: "2026-11-02T10:00:00Z", told_at: "2026-11-02T10:00:00Z" }),
+      ],
+    );
+    expect(world.lore).toEqual([]);
+    expect(world.backstories).toHaveLength(1);
+    expect(world.backstories[0]?.memberId).toBe("m1");
+    expect(world.backstories[0]?.passages.map((p) => p.id)).toEqual(["first", "later"]);
+  });
+
+  // Bug caught: a backstory passage with no told time (the DM's, untold) shown like lore's free first passage, so the
+  // player read what the DM had not told them.
+  it("never lists a backstory passage that was not told", () => {
+    const world = groupPlayerWorld(
+      [backstory],
+      [passage({ id: "told", entry_id: "b1", told_at: "2026-11-05T10:00:00Z" }), passage({ id: "untold", entry_id: "b1", told_at: null })],
+    );
+    expect(world.backstories[0]?.passages.map((p) => p.id)).toEqual(["told"]);
+  });
+
+  // Bug caught: the player's own passages lit their own "New" dot, so writing a passage told them there was news.
+  it("dates the DM's last telling from the DM's passages only", () => {
+    const world = groupPlayerWorld(
+      [backstory],
+      [
+        passage({ id: "mine", entry_id: "b1", by_dm: false, told_at: "2026-11-20T10:00:00Z" }),
+        passage({ id: "dm1", entry_id: "b1", by_dm: true, told_at: "2026-11-05T10:00:00Z" }),
+        passage({ id: "dm2", entry_id: "b1", by_dm: true, told_at: "2026-11-08T10:00:00Z" }),
+      ],
+    );
+    expect(world.backstories[0]?.latestDmAt).toBe("2026-11-08T10:00:00Z");
+    expect(groupPlayerWorld([backstory], [passage({ id: "mine", entry_id: "b1", by_dm: false, told_at: "2026-11-20T10:00:00Z" })]).backstories[0]?.latestDmAt).toBeNull();
   });
 });
 

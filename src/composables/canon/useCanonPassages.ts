@@ -31,6 +31,8 @@ export type NewCanonPassage = {
   sort_order?: number;
   /** Set when the passage came from an accepted AI suggestion. */
   ai_provenance?: AiProvenance | null;
+  /** Who it is told to once told (a backstory passage the DM tells to its character only). */
+  player_visible_to?: string[];
 } & (
   | { location_id?: string; npc_id?: never; quest_beat_id?: never }
   | { npc_id?: string; location_id?: never; quest_beat_id?: never }
@@ -203,9 +205,10 @@ export function useTellPassage() {
   const { mutate } = useUpdateCanonPassage();
   return {
     // The roster is read when the DM tells, not when the block mounts: a page that only lists passages asks for no party.
-    async tell(passage: Pick<CanonLorePassage, "id">) {
-      const members = await qc.fetchQuery(partyListQuery(campaign.activeCampaignId));
-      mutate({ id: passage.id, patch: tellPatch(members.map((m) => m.id), session.value?.id ?? null) });
+    // `to` names who hears it (a backstory passage is told to its character); without it the whole party does.
+    async tell(passage: Pick<CanonLorePassage, "id">, to?: readonly string[]) {
+      const ids = to ?? (await qc.fetchQuery(partyListQuery(campaign.activeCampaignId))).map((m) => m.id);
+      mutate({ id: passage.id, patch: tellPatch(ids, session.value?.id ?? null) });
     },
     takeBack(passage: Pick<CanonLorePassage, "id">) {
       mutate({ id: passage.id, patch: TAKE_BACK_PATCH });

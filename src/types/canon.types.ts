@@ -12,6 +12,7 @@ export const CANON_PARTS = [
   "secret",
   "question",
   "lore",
+  "backstory",
   "chronicle",
 ] as const;
 export type CanonPart = (typeof CANON_PARTS)[number];
@@ -53,6 +54,8 @@ export interface CanonEntry {
   world_year: number | null;
   world_month: number | null;
   world_day: number | null;
+  /** Set only when `part` is `backstory`: the character whose past this is (one entry per character). */
+  party_member_id: string | null;
   ai_provenance: AiProvenance | null;
   created_at: string;
   updated_at: string;
@@ -79,6 +82,8 @@ export interface CanonLorePassage {
   location_id: string | null;
   npc_id: string | null;
   quest_beat_id: string | null;
+  /** Who wrote it: the DM, or (in a backstory) the character's player. Null once that account is gone. */
+  author_id: string | null;
   ai_provenance: AiProvenance | null;
   created_at: string;
   updated_at: string;

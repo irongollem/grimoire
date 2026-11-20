@@ -21,6 +21,8 @@
           <WorldWorksSection />
           <LoreSection :lore="lore" :selected-id="selectedLore?.id ?? null" @select="select" />
           <LoreDetail v-if="selectedLore && !wide" :key="selectedLore.id" :entry="selectedLore" @delete="removeSelected" />
+          <BackstoriesSection :party="party" :entries="backstories" :passages="allPassages ?? []" :selected-id="selectedBackstoryMember?.id ?? null" @select="selectBackstory" />
+          <BackstoryDetail v-if="selectedBackstoryMember && !wide" :key="selectedBackstoryMember.id" :member="selectedBackstoryMember" />
           <ChronicleSection :lore="lore" :forces="forces" />
           <TableAddedSection :truth-count="truths.length" />
           <!-- The header holds Bring in a book from a tablet up; a phone's header is the page's own bar. -->
@@ -29,11 +31,12 @@
       </div>
     </div>
 
-    <template v-if="selected && wide" #sidebar>
+    <template v-if="(selected || selectedBackstoryMember) && wide" #sidebar>
       <TruthDetail v-if="selectedTruth" :key="selectedTruth.id" :entry="selectedTruth" @delete="removeSelected" />
       <ForceDetail v-else-if="selectedForce" :key="selectedForce.id" :entry="selectedForce" @delete="removeSelected" />
       <SecretDetail v-else-if="selectedSecret" :key="selectedSecret.id" :entry="selectedSecret" @delete="removeSelected" />
       <LoreDetail v-else-if="selectedLore" :key="selectedLore.id" :entry="selectedLore" @delete="removeSelected" />
+      <BackstoryDetail v-else-if="selectedBackstoryMember" :key="selectedBackstoryMember.id" :member="selectedBackstoryMember" />
     </template>
   </PageHeader>
 </template>
@@ -49,6 +52,8 @@ import { useRoute, useRouter } from "vue-router";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import BackstoriesSection from "@/components/canon/BackstoriesSection.vue";
+import BackstoryDetail from "@/components/canon/BackstoryDetail.vue";
 import ChronicleSection from "@/components/canon/ChronicleSection.vue";
 import TableAddedSection from "@/components/canon/TableAddedSection.vue";
 import CanonContents from "@/components/canon/CanonContents.vue";
@@ -65,7 +70,9 @@ import WorldWorksSection from "@/components/canon/WorldWorksSection.vue";
 import { CANON_SECTIONS, sectionCounts, type CanonSectionId } from "@/lib/canon/canonParts";
 import { unreviewedCount } from "@/lib/canon/canonTableFacts";
 import { useCanonEntries, useDeleteCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useChronicle } from "@/composables/canon/useChronicle";
+import { useParty } from "@/composables/party/useParty";
 import { useTableFacts } from "@/composables/canon/useTableFacts";
 import { IconUpload } from "@/lib/icons";
 import { useAbove } from "@/composables/useBreakpoint";
@@ -84,11 +91,17 @@ const forces = computed(() => entries.value.filter((e) => e.part === "force"));
 const secrets = computed(() => entries.value.filter((e) => e.part === "secret"));
 const lore = computed(() => entries.value.filter((e) => e.part === "lore"));
 const questions = computed(() => entries.value.filter((e) => e.part === "question"));
+const backstories = computed(() => entries.value.filter((e) => e.part === "backstory"));
+const { data: partyData } = useParty();
+const party = computed(() => partyData.value ?? []);
+const { data: allPassages } = useCanonPassages();
 // The Chronicle counts the sessions with a chronicle entry written; What the table added, the lines still to review.
 const { written } = useChronicle();
 const tableRecord = useTableFacts();
 const counts = computed(() => ({
   ...sectionCounts(entries.value),
+  // One backstory per character, opened or not: the contents column counts the characters.
+  backstories: party.value.length,
   chronicle: written.value,
   table: unreviewedCount(tableRecord.facts.data.value ?? []),
 }));
@@ -103,9 +116,21 @@ const selectedForce = computed(() => forces.value.find((t) => t.id === entryPara
 const selectedLore = computed(() => lore.value.find((t) => t.id === entryParam.value) ?? null);
 const selected = computed(() => selectedTruth.value ?? selectedForce.value ?? selectedSecret.value ?? selectedLore.value);
 
+// A backstory is chosen by its character: `?backstory=<party member id>`, or `?entry=<its entry>` (search and the world
+// web point at the entry, which a character may not have yet).
+const selectedBackstoryMember = computed(() => {
+  const queried = typeof route.query.backstory === "string" ? route.query.backstory : null;
+  const viaEntry = backstories.value.find((e) => e.id === entryParam.value)?.party_member_id ?? null;
+  const id = queried ?? viaEntry;
+  return id === null ? null : party.value.find((m) => m.id === id) ?? null;
+});
+
 function select(id: string) {
   scrolledTo = id; // the DM is already looking at it: no scroll
-  void router.replace({ query: { ...route.query, entry: id } });
+  void router.replace({ query: { ...route.query, entry: id, backstory: undefined } });
+}
+function selectBackstory(memberId: string) {
+  void router.replace({ query: { ...route.query, backstory: memberId, entry: undefined } });
 }
 
 const { mutateAsync: destroy } = useDeleteCanonEntry();

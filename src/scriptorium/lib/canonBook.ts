@@ -106,6 +106,7 @@ const PART_LABEL: Record<CanonEntry["part"], string> = {
   secret: "Secret",
   question: "Question",
   lore: "Lore",
+  backstory: "Backstory",
   chronicle: "Chronicle",
 };
 

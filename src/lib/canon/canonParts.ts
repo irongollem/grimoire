@@ -13,9 +13,11 @@ export const CANON_SECTIONS = [
   // The world's own clock, calendar and coins are campaign columns, not entries: no part, so no count.
   { id: "world", numeral: "V", label: "How the world works", short: "World", parts: [], counted: false },
   { id: "lore", numeral: "VI", label: "Lore", short: "Lore", parts: ["lore"], counted: true },
+  // A backstory is one per character (frame 14): the page counts the characters, not the entries opened so far.
+  { id: "backstories", numeral: "VII", label: "Backstories", short: "Backstories", parts: ["backstory"], counted: true },
   // The Chronicle is the sessions' notes, not canon entries: no part, and its count (the sessions with a chronicle
   // entry written) is added by the page. What the table added is the Narrator's, set apart below a rule (frame 03).
-  { id: "chronicle", numeral: "VII", label: "Chronicle", short: "Chronicle", parts: [], counted: true },
+  { id: "chronicle", numeral: "VIII", label: "Chronicle", short: "Chronicle", parts: [], counted: true },
   { id: "table", numeral: "✦", label: "What the table added", short: "Table", parts: [], counted: true },
 ] as const;
 

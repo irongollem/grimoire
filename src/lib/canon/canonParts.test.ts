@@ -25,7 +25,7 @@ describe("plainTextToTiptap", () => {
 describe("sectionCounts", () => {
   it("counts a truth under Truths and not under Premise, so the contents column shows each part's own number", () => {
     const counts = sectionCounts([entry("premise", "1"), entry("premise", "2"), entry("truth", "3"), entry("lore", "4")]);
-    expect(counts).toEqual({ premise: 2, truths: 1, moving: 0, secrets: 0, world: 0, lore: 1, chronicle: 0, table: 0 });
+    expect(counts).toEqual({ premise: 2, truths: 1, moving: 0, secrets: 0, world: 0, lore: 1, backstories: 0, chronicle: 0, table: 0 });
   });
 
   it("counts secrets and open questions as one part, so the contents column adds up to what the part lists", () => {
@@ -35,7 +35,7 @@ describe("sectionCounts", () => {
 
   it("counts forces under What is moving, and keeps it between Truths and Secrets as the contents column draws it", () => {
     expect(sectionCounts([entry("force", "1"), entry("force", "2"), entry("truth", "3")]).moving).toBe(2);
-    expect(CANON_SECTIONS.map((s) => s.numeral)).toEqual(["I", "II", "III", "IV", "V", "VI", "VII", "✦"]);
+    expect(CANON_SECTIONS.map((s) => s.numeral)).toEqual(["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "✦"]);
     expect(CANON_SECTIONS.find((s) => s.id === "moving")?.parts).toEqual(["force"]);
   });
 
@@ -48,7 +48,7 @@ describe("sectionCounts", () => {
   // Bug caught: the Chronicle or What the table added listed before Lore, or the table's part numbered like a chapter.
   it("puts the Chronicle after Lore and What the table added last, with no entries of their own to count", () => {
     const ids = CANON_SECTIONS.map((s) => s.id);
-    expect(ids.slice(-3)).toEqual(["lore", "chronicle", "table"]);
+    expect(ids.slice(-4)).toEqual(["lore", "backstories", "chronicle", "table"]);
     expect(CANON_SECTIONS.find((s) => s.id === "chronicle")?.parts).toEqual([]);
     expect(CANON_SECTIONS.find((s) => s.id === "table")?.parts).toEqual([]);
   });

@@ -48,15 +48,15 @@ import PlayerJournalWorldTab from "./PlayerJournalWorldTab.vue";
 
 const truth = (id: string, title: string, knowledge: "all" | "some"): PlayerCanonEntry => ({
   id, part: "truth", premise_kind: null, knowledge, title, body: null, sort_order: 0, image_url: null,
-  created_at: "2026-11-01T00:00:00Z", updated_at: "2026-11-01T00:00:00Z", lore_kind: null, world_year: null, world_month: null, world_day: null,
+  created_at: "2026-11-01T00:00:00Z", updated_at: "2026-11-01T00:00:00Z", lore_kind: null, world_year: null, world_month: null, world_day: null, party_member_id: null,
 });
-const passage = (id: string, title: string, told_at: string | null): PlayerLorePassage => ({ id, entry_id: "l1", sort_order: 0, title, body: `${title} text`, told_at });
+const passage = (id: string, title: string, told_at: string | null): PlayerLorePassage => ({ id, entry_id: "l1", sort_order: 0, title, body: `${title} text`, told_at, by_dm: true, written_at: "2026-11-09T00:00:00Z" });
 const lore = (passages: PlayerLorePassage[]): PlayerLore => ({
   entry: { ...truth("l1", "The Fall of the Guild", "all"), part: "lore", knowledge: null, lore_kind: "history", body: "body text" },
   passages,
   latestAt: "2026-11-09T00:00:00Z",
 });
-const world = (over: Partial<PlayerWorld>): PlayerWorld => ({ onlyMine: [], known: [], lore: [], ...over });
+const world = (over: Partial<PlayerWorld>): PlayerWorld => ({ onlyMine: [], known: [], lore: [], backstories: [], ...over });
 
 beforeEach(() => {
   state.readAt = new Map();

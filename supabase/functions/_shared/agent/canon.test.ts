@@ -118,6 +118,15 @@ describe("makeBringOutTool", () => {
 describe("the lookup", () => {
   const match = (over: Partial<CanonMatch>): CanonMatch => ({ id: "x", part: "lore", knowledge: null, title: "T", distance: 0.5, ...over });
 
+  // Bug caught: a character's backstory missing from the lookup, so asking about their past found nothing even though the
+  // DM had written it (the DM's untold passages are the Narrator's to bring out, never to state as settled).
+  it("looks a backstory up under its character's name, labelled as one", () => {
+    expect(LOOKUP_PARTS as readonly string[]).toContain("backstory");
+    const text = lookupAnswer([{ part: "backstory", title: "Tansy Underbough", text: "The ferryman's coin.", knownTo: [], step: null }]);
+    expect(text).toContain("## Tansy Underbough (A character's backstory");
+    expect(text).toContain("The ferryman's coin.");
+  });
+
   it("never asks for a secret", () => {
     expect(LOOKUP_PARTS as readonly string[]).not.toContain("secret");
   });

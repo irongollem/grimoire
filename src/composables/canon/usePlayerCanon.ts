@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
+import { inWrittenOrder } from "@/lib/canon/canonBackstory";
 import type { KnowledgeMark, LoreKind } from "@/types/canon.types";
 
 /** One row of `get_player_canon`: an entry the player's audience reaches, secret blocks already withheld. */
@@ -23,6 +24,8 @@ export interface PlayerCanonEntry {
   world_year: number | null;
   world_month: number | null;
   world_day: number | null;
+  /** Set on a backstory: the character whose past it is. */
+  party_member_id: string | null;
 }
 
 /** One row of `get_player_lore_passages`: a passage this player has been told. */
@@ -33,6 +36,19 @@ export interface PlayerLorePassage {
   title: string;
   body: string | null;
   told_at: string | null;
+  /** True when the DM wrote it (a backstory passage the player did not write themselves). */
+  by_dm: boolean;
+  /** When it was written, which is the order a backstory grew in. */
+  written_at: string;
+}
+
+/** A character's backstory as this player reads it: the passages told to them, in the order the story grew. */
+export interface PlayerBackstory {
+  entry: PlayerCanonEntry;
+  memberId: string;
+  passages: PlayerLorePassage[];
+  /** When the DM last told this player something of it, for the journal's New mark; null when never. */
+  latestDmAt: string | null;
 }
 
 export interface PlayerLore {
@@ -49,6 +65,8 @@ export interface PlayerWorld {
   /** Truths known to all. */
   known: PlayerCanonEntry[];
   lore: PlayerLore[];
+  /** The backstories this player reads: their own character's, and any the DM shared. */
+  backstories: PlayerBackstory[];
 }
 
 /**
@@ -87,10 +105,18 @@ export function groupPlayerWorld(entries: readonly PlayerCanonEntry[], passages:
       const [by, bm, bd] = dateKey(b.entry);
       return ay - by || am - bm || ad - bd || a.entry.sort_order - b.entry.sort_order;
     });
+  const backstories = entries.flatMap((entry): PlayerBackstory[] => {
+    if (entry.part !== "backstory" || entry.party_member_id === null) return [];
+    // A backstory has no free first passage: one that carries no told time was never told, and is not shown.
+    const told = inWrittenOrder((byEntry.get(entry.id) ?? []).filter((p) => p.told_at !== null));
+    const dmTimes = told.flatMap((p) => (p.by_dm && p.told_at !== null ? [p.told_at] : [])).sort();
+    return [{ entry, memberId: entry.party_member_id, passages: told, latestDmAt: dmTimes.at(-1) ?? null }];
+  });
   return {
     onlyMine: truths.filter((e) => e.knowledge === "some"),
     known: truths.filter((e) => e.knowledge === "all"),
     lore,
+    backstories,
   };
 }
 

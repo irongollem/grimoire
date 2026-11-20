@@ -62,3 +62,38 @@ describe("canonStore.lookup", () => {
     expect(entry.text).not.toContain("SECRET-TEXT");
   });
 });
+
+describe("canonStore.lookup: a backstory", () => {
+  const backstory = () => {
+    const fake = createSupabaseFake();
+    // An empty title: a backstory has none of its own.
+    fake.onRpc("match_campaign_canon", () => [{ id: "b1", part: "backstory", knowledge: null, title: "", distance: 0.1 }]);
+    fake.seed("canon_entries", [{ id: "b1", campaign_id: "c1", body: null, wants: null, party_member_id: "pm1" }]);
+    fake.seed("party_members", [{ id: "pm1", campaign_id: "c1", name: "Tansy Underbough" }]);
+    return fake;
+  };
+
+  // Bug caught: the answer headed by the entry's empty title, so the Narrator read a past with nobody's name on it.
+  it("answers under the character's name, with the passages' text", async () => {
+    const fake = backstory();
+    fake.seed("canon_lore_passages", [{ entry_id: "b1", campaign_id: "c1", title: "The coin", body: doc(para("A ferryman gave her a coin.")), sort_order: 0 }]);
+    const [entry] = (await store(fake).lookup("c1", "her brother")) ?? [];
+    expect(entry?.part).toBe("backstory");
+    expect(entry?.title).toBe("Tansy Underbough");
+    expect(entry?.text).toContain("The coin: A ferryman gave her a coin.");
+  });
+
+  // Bug caught: passages read only for lore, so a backstory's text never reached the Narrator; or read without stripping the DM's secret block.
+  it("strips a DM-only secret block out of a passage, and ignores another campaign's passages", async () => {
+    const fake = backstory();
+    fake.seed("canon_lore_passages", [
+      { entry_id: "b1", campaign_id: "c1", title: "Truth", body: doc(para("Told openly."), { type: "secretBlock", content: [para("SECRET-TEXT")] }), sort_order: 0 },
+      { entry_id: "b1", campaign_id: "c2", title: "Elsewhere", body: doc(para("OTHER-CAMPAIGN")), sort_order: 1 },
+    ]);
+    const [entry] = (await store(fake).lookup("c1", "her brother")) ?? [];
+    expect(entry?.text).toContain("Told openly.");
+    expect(entry?.text).not.toContain("SECRET-TEXT");
+    expect(entry?.text).not.toContain("OTHER-CAMPAIGN");
+  });
+});
+

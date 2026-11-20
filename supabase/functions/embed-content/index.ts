@@ -237,7 +237,7 @@ const ENTITIES: Record<EntityKind, EntityConfig> = {
   // that never asks for `secret` (match_campaign_canon's parts).
   canon: {
     table: "canon_entries",
-    select: "id, user_id, campaign_id, updated_at, part, title, wants, body, passages:canon_lore_passages(id, sort_order, title, body)",
+    select: "id, user_id, campaign_id, updated_at, part, title, wants, body, passages:canon_lore_passages(id, sort_order, title, body), character:party_members(name)",
     sideTable: "canon_embeddings",
     idColumn: "entry_id",
     build: (row) =>
@@ -247,6 +247,7 @@ const ENTITIES: Record<EntityKind, EntityConfig> = {
         wants: (row.wants as string | null) ?? null,
         body: (row.body as string | null) ?? null,
         passages: row.passages as { id: string; sort_order: number; title: string; body: string | null }[],
+        character: (row.character as { name: string } | null)?.name ?? null,
       }),
   },
 };

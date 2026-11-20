@@ -29,7 +29,7 @@ export const LOOKUPS_PER_TURN = 4;
 export const PREVIOUSLY_MAX = 600;
 
 /** The parts the Narrator may look up. Never `secret`: it gets a secret's clues where the party stands, never its statement. */
-export const LOOKUP_PARTS = ["truth", "force", "question", "lore", "premise"] as const;
+export const LOOKUP_PARTS = ["truth", "force", "question", "lore", "backstory", "premise"] as const;
 
 export function plain(text: string | null | undefined, max: number): string {
   // DM-only passages never reach the Narrator, whatever the field.
@@ -293,7 +293,8 @@ export function lookupAnswer(entries: readonly CanonLookupEntry[]): string {
           : e.part === "question" ? "Open question: nobody settles it"
             : e.part === "force" ? "Force"
               : e.part === "lore" ? "Lore"
-                : "Premise";
+                : e.part === "backstory" ? "A character's backstory: what the DM has not told is theirs to tell"
+                  : "Premise";
       const lines = [`## ${e.title} (${label})`];
       if (e.text !== "") lines.push(plain(e.text, LOOKUP_ENTRY_CHARS));
       if (e.step !== null) lines.push(`Latest step: ${e.step}`);

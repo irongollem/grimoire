@@ -76,12 +76,13 @@ import LorePassageRow from "./LorePassageRow.vue";
 import WorldDateField from "./WorldDateField.vue";
 import { LORE_KIND_OPTIONS, entryDate, normaliseDate, worldDateLabel, type WorldDate } from "@/lib/canon/canonLore";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
-import { passagesOf, toldTally, useCanonPassages, useCreateCanonPassage, useDeleteCanonPassage, useUpdateCanonPassage } from "@/composables/canon/useCanonPassages";
+import { toldTally } from "@/composables/canon/useCanonPassages";
+import { usePassageList } from "@/composables/canon/usePassageList";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import { IconAdd, IconDelete } from "@/lib/icons";
 import { useCalendarStore } from "@/stores/calendar";
-import { LORE_KINDS, type CanonEntry, type CanonLorePassage, type LoreKind } from "@/types/canon.types";
+import { LORE_KINDS, type CanonEntry, type LoreKind } from "@/types/canon.types";
 import type { WorldRef } from "@/types/connections.types";
 
 const { entry } = defineProps<{ entry: CanonEntry }>();
@@ -92,8 +93,7 @@ const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
 const { mutate: update } = useUpdateCanonEntry();
 const { text, revision } = useCommittedText(() => entry.title, (next) => update({ id: entry.id, patch: { title: next } }));
 
-const { data: allPassages } = useCanonPassages();
-const passages = computed(() => passagesOf(allPassages.value ?? [], entry.id));
+const { passages, adding, addPassage, move, removePassage } = usePassageList(() => entry.id);
 const tally = computed(() => toldTally(passages.value));
 const plainText = computed(() => passages.value.map((p) => [p.title, tiptapToPlainText(p.body)].filter((t) => t !== "").join("\n")).filter((t) => t !== "").join("\n\n"));
 const pictureContext = computed(() => [entry.title, entry.lore_kind, passages.value[0] ? tiptapToPlainText(passages.value[0].body) : ""].filter((t) => t).join(". "));
@@ -109,39 +109,5 @@ function onKind(event: Event) {
 function onDate(date: WorldDate) {
   const d = normaliseDate(date);
   update({ id: entry.id, patch: { world_year: d.year, world_month: d.month, world_day: d.day } });
-}
-
-const { mutateAsync: createPassage, isPending: adding } = useCreateCanonPassage();
-const { mutateAsync: updatePassage } = useUpdateCanonPassage();
-const { mutateAsync: destroyPassage } = useDeleteCanonPassage();
-
-async function addPassage() {
-  const next = passages.value.reduce((max, p) => Math.max(max, p.sort_order), -1) + 1;
-  try {
-    await createPassage({ entry_id: entry.id, sort_order: next });
-  } catch {
-    // The mutation has already told the DM (toast).
-  }
-}
-
-/** Moves one passage a place by renumbering the order from its position, so equal or gappy numbers still reorder. */
-async function move(index: number, by: -1 | 1) {
-  const order: CanonLorePassage[] = [...passages.value];
-  const target = index + by;
-  if (target < 0 || target >= order.length) return;
-  [order[index], order[target]] = [order[target]!, order[index]!];
-  try {
-    for (const [i, p] of order.entries()) if (p.sort_order !== i) await updatePassage({ id: p.id, patch: { sort_order: i } });
-  } catch {
-    // The mutation has already told the DM (toast).
-  }
-}
-
-async function removePassage(p: CanonLorePassage) {
-  try {
-    await destroyPassage(p.id);
-  } catch {
-    // The mutation has already told the DM (toast).
-  }
 }
 </script>

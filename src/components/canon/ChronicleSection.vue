@@ -1,7 +1,7 @@
 <template>
   <section id="canon-chronicle" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-chronicle-heading">
     <div class="flex flex-wrap items-center gap-3">
-      <CanonRubric id="canon-chronicle-heading" class="min-w-0 flex-1" numeral="VII" title="Chronicle" />
+      <CanonRubric id="canon-chronicle-heading" class="min-w-0 flex-1" numeral="VIII" title="Chronicle" />
       <SegmentedControl v-model="ui.chronicleOrder" :options="ORDER_OPTIONS" size="sm" aria-label="Order" />
     </div>
     <p class="m-0 text-caption text-muted-foreground">What has happened, session by session. A session's notes are its chronicle entry; nothing is written twice.</p>

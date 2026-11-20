@@ -639,8 +639,10 @@ export interface EmbeddableCanon {
   title: string;
   wants: string | null;
   body: string | null;
-  /** A lore entry's passages, told or not: the Narrator looks the whole entry up. Empty for every other part. */
+  /** A lore or backstory entry's passages, told or not: the Narrator looks the whole entry up. Empty for every other part. */
   passages: EmbeddableCanonPassage[];
+  /** A backstory has no title of its own: it embeds its character's name. Absent for every other part. */
+  character?: string | null;
 }
 
 /**
@@ -652,6 +654,8 @@ export interface EmbeddableCanon {
  */
 export function buildCanonEmbedText(entry: EmbeddableCanon): string {
   const clauses: string[] = [`${collapseWhitespace(entry.part)}.`, `${collapseWhitespace(entry.title)}.`];
+  const character = entry.character ? normalizeField(entry.character) : null;
+  if (character) clauses.push(character.endsWith(".") ? character : `${character}.`);
   const wants = normalizeField(entry.wants);
   if (wants) clauses.push(wants.endsWith(".") ? wants : `${wants}.`);
   const body = buildRichTextClause(entry.body);

@@ -1,6 +1,7 @@
 <template>
   <li class="flex min-w-0 flex-col gap-3 border-b border-border py-4 last:border-b-0" :class="untold ? 'bg-muted/20' : ''" :data-told="!untold" data-testid="lore-passage">
     <div class="flex min-w-0 flex-col gap-2">
+      <span v-if="byline" class="text-label text-muted-foreground" data-testid="passage-byline">{{ byline }}</span>
       <div class="flex items-center gap-2">
         <span class="text-label text-primary">{{ numeral }}</span>
         <AppInput v-model="draft.title" size="body" tone="filled" aria-label="Passage heading" placeholder="A heading, such as What Bell-Note believes" class="min-w-0 flex-1" />
@@ -16,12 +17,19 @@
         <span class="inline-flex items-center gap-1.5 font-bold text-foreground" data-testid="passage-state">Told with the entry</span>
         <span class="text-muted-foreground">The first passage is what sharing the entry means.</span>
       </template>
+      <template v-else-if="playersOwn">
+        <!-- A player's passage is told when written, and the player places nothing of it: the DM edits it, no more. -->
+        <span class="inline-flex items-center gap-1.5 font-bold text-foreground" data-testid="passage-state">Told {{ toldOn }}<template v-if="toldTo"> to {{ toldTo }}</template></span>
+      </template>
       <template v-else>
         <span class="inline-flex items-center gap-1.5 font-bold text-foreground" data-testid="passage-state">
           <template v-if="untold">Not yet told</template>
           <template v-else>Told {{ toldOn }}<template v-if="toldTo"> to {{ toldTo }}</template></template>
         </span>
-        <AppButton v-if="untold" variant="primary" size="sm" label="Tell the party" class="self-start" data-testid="tell" @click="tell(passage)" />
+        <div v-if="untold" class="flex flex-wrap items-center gap-2">
+          <AppButton variant="primary" size="sm" :label="tellTarget ? `Tell ${tellTarget.name}` : 'Tell the party'" data-testid="tell" @click="tellFirst" />
+          <AppButton v-if="tellTarget" variant="ghost" size="sm" label="Tell the party" data-testid="tell-party" @click="tell(passage)" />
+        </div>
         <AppButton v-else variant="outline" size="sm" label="Take back" class="self-start" data-testid="take-back" @click="takeBack" />
 
         <span class="text-eyebrow text-muted-foreground">Comes out at</span>
@@ -53,7 +61,8 @@
 /**
  * One passage of a lore entry (frame 04b): a heading and rich text that save themselves, then what is told of it. The
  * first passage is told with the entry and is never offered to Tell; a later one shows who it was told to and a
- * Take back (which asks first), where it comes out, and any secret it is also a clue to.
+ * Take back (which asks first), where it comes out, and any secret it is also a clue to. In a backstory (frame 14) it
+ * also says whose words it is, a player's own offers no Tell or place, and the DM's tells its character first.
  */
 import { computed, reactive, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
@@ -73,12 +82,18 @@ import { useConfirm } from "@/composables/useConfirm";
 import { IconChevronDown, IconChevronUp, IconDelete } from "@/lib/icons";
 import type { CanonLorePassage } from "@/types/canon.types";
 
-const { passage, index, first, canMoveUp, canMoveDown } = defineProps<{
+const { passage, index, first, canMoveUp, canMoveDown, byline = null, playersOwn = false, tellTarget = null } = defineProps<{
   passage: CanonLorePassage;
   index: number;
   first: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  /** Whose words these are, in a backstory ("Written by Lotte · before play", "Your passage"). */
+  byline?: string | null;
+  /** A backstory passage its character's player wrote: told when written, so it offers no Tell and no place. */
+  playersOwn?: boolean;
+  /** A backstory passage is told to its character first: "Tell Tansy" beside "Tell the party". */
+  tellTarget?: { id: string; name: string } | null;
 }>();
 const emit = defineEmits<{ move: [by: -1 | 1]; remove: [] }>();
 
@@ -109,6 +124,10 @@ const toldTo = computed(() => {
 });
 
 const { tell, takeBack: take } = useTellPassage();
+function tellFirst() {
+  if (tellTarget) void tell(passage, [tellTarget.id]);
+  else void tell(passage);
+}
 const { confirm } = useConfirm();
 async function takeBack() {
   const ok = await confirm(`Take this passage back? It leaves the players' pages until you tell it again.`, { title: "Take the passage back", confirmLabel: "Take back", danger: false });
