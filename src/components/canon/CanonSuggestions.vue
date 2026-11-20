@@ -102,7 +102,7 @@ import { plainTextToTiptap } from "@/lib/canon/canonParts";
 import { useCanonClues, useCreateCanonClue, type NewCanonClue } from "@/composables/canon/useCanonClues";
 import { useCreateCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useAcceptForce } from "@/composables/canon/useCanonForces";
-import { useAcceptLore } from "@/composables/canon/useAcceptLore";
+import { splitReplacement, useAcceptLore } from "@/composables/canon/useAcceptLore";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useKnownTo } from "@/composables/canon/useKnownTo";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
@@ -224,7 +224,7 @@ const cost = computed(() => textCredits(costOf(copy.value.ledger)));
 
 const { mutateAsync: createEntry } = useCreateCanonEntry();
 const { mutateAsync: createClue } = useCreateCanonClue();
-const { data: allClues } = useCanonClues(() => mode === "clues");
+const { data: allClues } = useCanonClues(() => mode === "clues" || mode === "lore");
 const { mutateAsync: updateEntry } = useUpdateCanonEntry();
 const writeForce = useAcceptForce();
 const acceptLoreWrites = useAcceptLore();
@@ -321,7 +321,9 @@ async function acceptPremise(s: PremiseSuggestion) {
   if (existing) {
     const ok = await confirm("Replace the existing text?", { title: `Replace the ${s.kind}`, confirmLabel: "Replace", danger: false });
     if (!ok) return false;
-    await updateEntry({ id: existing.id, patch: { ...field, ...stamp() } });
+    // A voice or look is carried by its title, so a body left over from the old text would be read with the new one.
+    const patch = s.kind === "pitch" ? { ...field } : { ...field, body: null };
+    await updateEntry({ id: existing.id, patch: { ...patch, ...stamp() } });
     return true;
   }
   const count = entries.filter((e) => e.part === "premise" && e.premise_kind === s.kind).length;
@@ -366,11 +368,14 @@ async function acceptForce(s: ForceSuggestion) {
 async function acceptLore(s: LoreSuggestion) {
   if (lore?.entryId) {
     const existing = (allPassages.value ?? []).filter((p) => p.entry_id === lore.entryId);
+    const { replace, kept } = splitReplacement(existing, new Set((allClues.value ?? []).flatMap((c) => (c.passage_id === null ? [] : [c.passage_id]))));
     if (existing.length > 0) {
-      const ok = await confirm(`Replace this entry's ${existing.length === 1 ? "passage" : `${existing.length} passages`} with the split? What is told of them now is lost.`, { title: "Replace the passages", confirmLabel: "Replace" });
+      const keeps = kept.length === 0 ? "" : ` ${kept.length === 1 ? "One passage stays" : `${kept.length} passages stay`}, since it is already told or a clue points at it; the new ones come after.`;
+      const gone = replace.length === 0 ? "Nothing is replaced." : `Replace ${replace.length === 1 ? "this entry's untold passage" : `this entry's ${replace.length} untold passages`} with the split?`;
+      const ok = await confirm(`${gone}${keeps}`, { title: "Split into passages", confirmLabel: replace.length === 0 ? "Add the split" : "Replace" });
       if (!ok) return false;
     }
-    await acceptLoreWrites.split(s, lore.entryId, provenance.value, existing);
+    await acceptLoreWrites.split(s, lore.entryId, provenance.value, existing, replace);
     return true;
   }
   const count = entries.filter((e) => e.part === "lore").length;

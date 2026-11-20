@@ -663,6 +663,9 @@ begin
   update public.canon_force_ticks     set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
   update public.canon_force_quests    set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
   update public.canon_lore_passages   set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
+  -- Who wrote a passage moves with it (#1226 story 10, 20261120141642): the journal tells a DM's passage from the player's
+  -- by its author, so a passage the outgoing owner wrote must stay the DM's words.
+  update public.canon_lore_passages   set author_id = p_to where campaign_id = p_campaign_id and author_id = p_from;
   update public.note_sorting          set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
   update public.notice_board_pins     set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;
   update public.notice_boards         set user_id = p_to where campaign_id = p_campaign_id and user_id = p_from;

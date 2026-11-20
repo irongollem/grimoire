@@ -28,7 +28,7 @@ import { useGenerateMonster } from "@/composables/monsters/useGenerateMonster";
 import { useQuestSpineWriter } from "@/composables/quests/useQuestSpineWriter";
 import { insertQuestRefs } from "@/composables/quests/useQuests";
 import { queueQuestEmbedding } from "@/composables/quests/queueQuestEmbedding";
-import { queueCanonEmbedding } from "@/composables/canon/queueCanonEmbedding";
+import { queueCanonEmbedding } from "@/lib/canon/queueCanonEmbedding";
 import {
   runImportSweep as runImportSweepCore,
   type BeatAttachmentWrite,

@@ -5,7 +5,7 @@ import { getCurrentUser, supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { toast } from "@/lib/toast";
 import { fetchCanonEntries } from "@/lib/canon/canonEntries";
-import { queueCanonEmbedding } from "@/composables/canon/queueCanonEmbedding";
+import { queueCanonEmbedding } from "@/lib/canon/queueCanonEmbedding";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import type { CanonEntry, KnowledgeMark, LoreKind, PremiseKind } from "@/types/canon.types";
 

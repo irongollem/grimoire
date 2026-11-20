@@ -105,8 +105,13 @@ begin
   if (select auth.uid()) is null or private.is_campaign_dm(new.campaign_id) then
     return new;
   end if;
+  -- Where a passage comes out is the DM's to set: a player may not place one, nor move a place the DM set, but may
+  -- still edit the words of a passage the DM placed.
   if new.author_id is distinct from (select auth.uid())
-     or new.location_id is not null or new.npc_id is not null or new.quest_beat_id is not null
+     or (tg_op = 'INSERT' and (new.location_id is not null or new.npc_id is not null or new.quest_beat_id is not null))
+     or (tg_op = 'UPDATE' and (new.location_id is distinct from old.location_id
+                               or new.npc_id is distinct from old.npc_id
+                               or new.quest_beat_id is distinct from old.quest_beat_id))
      or (tg_op = 'UPDATE' and new.author_id is distinct from old.author_id)
      or exists (select 1 from unnest(new.player_visible_to) m
                  where not exists (select 1 from public.party_members pm

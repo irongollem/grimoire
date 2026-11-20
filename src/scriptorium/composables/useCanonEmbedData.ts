@@ -140,9 +140,6 @@ export function useCanonEmbedData(refs: Ref<EntityRef[]> | ComputedRef<EntityRef
             .map((c) => ({ title: c.title, where: clueWhere(c) })),
         };
       }
-      case "chronicle":
-        // The chronicle is the record of play, not canon a book draws on.
-        return undefined;
     }
   }
 

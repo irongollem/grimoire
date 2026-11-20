@@ -6,7 +6,7 @@ const { fake } = await vi.hoisted(async () => {
   return { fake: createSupabaseFake() };
 });
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "dm-1" }) }));
-vi.mock("./queueCanonEmbedding", () => ({ queueCanonEmbedding: vi.fn() }));
+vi.mock("@/lib/canon/queueCanonEmbedding", () => ({ queueCanonEmbedding: vi.fn() }));
 
 import { useCampaignStore } from "@/stores/campaign";
 import { makeFactATruth, reviewFact } from "./useTableFacts";

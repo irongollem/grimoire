@@ -8,9 +8,9 @@ const session = vi.hoisted(() => ({ user: { id: "dm-1" } as { id: string } | nul
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => session.user }));
 
 const queue = vi.hoisted(() => vi.fn());
-vi.mock("./queueCanonEmbedding", () => ({ queueCanonEmbedding: queue }));
+vi.mock("@/lib/canon/queueCanonEmbedding", () => ({ queueCanonEmbedding: queue }));
 
-import { createCanonPassage, fetchCanonPassages, firstPassageIds, passagesOf, TAKE_BACK_PATCH, tellPatch, toldTally, untoldPassagesAt, updateCanonPassage, wherePatch } from "./useCanonPassages";
+import { createCanonPassage, deleteCanonPassage, fetchCanonPassages, firstPassageIds, passagesOf, TAKE_BACK_PATCH, tellPatch, toldTally, untoldPassagesAt, updateCanonPassage, wherePatch } from "./useCanonPassages";
 import type { CanonLorePassage } from "@/types/canon.types";
 
 const row = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
@@ -65,6 +65,17 @@ describe("canon passages: embedding", () => {
   });
 
   // Bug caught: telling a passage re-embedded its entry although only heading and text are in the vector.
+  // Bug caught: a deleted passage left its entry's vector holding the old text; a refused delete read as success.
+  it("queues the entry when a passage is deleted, and throws when nothing was deleted", async () => {
+    fake.seed("canon_lore_passages", [row({ id: "g7", entry_id: "l7" })]);
+    await deleteCanonPassage("g7");
+    expect(fake.rows("canon_lore_passages")).toEqual([]);
+    expect(queue).toHaveBeenCalledWith("l7");
+    queue.mockClear();
+    await expect(deleteCanonPassage("g7")).rejects.toThrow(/gone/);
+    expect(queue).not.toHaveBeenCalled();
+  });
+
   it("queues the entry for a change of heading or text, not for telling or moving the passage", async () => {
     fake.seed("canon_lore_passages", [row({ id: "g1", entry_id: "l9" })]);
     await updateCanonPassage("g1", { told_at: "2026-11-20T10:00:00Z" });

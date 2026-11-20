@@ -1,4 +1,5 @@
 import { getCurrentUser, supabase } from "@/lib/supabase";
+import { queueCanonEmbedding } from "@/lib/canon/queueCanonEmbedding";
 import { appendTiptapDoc } from "@/lib/notes/appendTiptap";
 import type { NoteWas } from "@/lib/notes/noteSorting";
 import type { EntityNote } from "@/types/faction.types";
@@ -59,6 +60,8 @@ export async function writeLoreEntry(
     .select("id");
   if (error) throw error;
   if (data.length === 0) throw new Error("The lore entry was not saved: you may not add to this campaign's canon.");
+  // The entry is findable by meaning only once its vector exists.
+  queueCanonEmbedding((data[0] as { id: string }).id);
 }
 
 /** Sets the note's session, which makes it that session's chronicle entry. */

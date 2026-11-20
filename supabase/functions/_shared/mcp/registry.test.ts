@@ -11,7 +11,7 @@ import { MONSTER_SIZES, MONSTER_TYPES } from "@/types/monster.types";
 import { AOE_SHAPES, SAVE_ATTRIBUTES, SPELL_SCHOOLS } from "@/types/spell.types";
 import { TRAP_RESET_TYPES, TRAP_TRIGGERS, TRAP_TYPES } from "@/types/trap.types";
 import { RULE_CATEGORIES } from "@/types/rule.types";
-import { CANON_PARTS, KNOWLEDGE_MARKS, PREMISE_KINDS } from "@/types/canon.types";
+import { CANON_CREATE_PARTS, KNOWLEDGE_MARKS, PREMISE_KINDS } from "@/types/canon.types";
 
 // Guards the search bug where quest's `status` (typed `quest_status_enum`) was
 // listed in `searchFields`. The generic search builder OR-joins every
@@ -114,7 +114,7 @@ describe("ENTITY_REGISTRY enum vocabularies match the app's", () => {
     ["trap", "reset_type", TRAP_RESET_TYPES],
     ["trap", "save_type", SAVE_ATTRIBUTES],
     ["rule", "category", RULE_CATEGORIES],
-    ["canon", "part", CANON_PARTS],
+    ["canon", "part", CANON_CREATE_PARTS],
     ["canon", "premise_kind", PREMISE_KINDS],
     ["canon", "knowledge", KNOWLEDGE_MARKS],
   ])("%s.%s", (type, field, canonical) => {

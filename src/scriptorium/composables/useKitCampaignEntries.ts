@@ -86,10 +86,7 @@ export function useKitCampaignEntries() {
       subtitle: sc.class_name,
       dot: null,
     })),
-    // The chronicle is a record of play, not canon a book draws on.
-    ...(canon.value ?? [])
-      .filter((e) => e.part !== "chronicle")
-      .map((e) => ({ id: e.id, type: "canon" as const, name: canonEntryName(e), subtitle: canonPartLabel(e), dot: null })),
+    ...(canon.value ?? []).map((e) => ({ id: e.id, type: "canon" as const, name: canonEntryName(e), subtitle: canonPartLabel(e), dot: null })),
   ]);
 
   const isLoading = computed(

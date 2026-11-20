@@ -107,7 +107,6 @@ const PART_LABEL: Record<CanonEntry["part"], string> = {
   question: "Question",
   lore: "Lore",
   backstory: "Backstory",
-  chronicle: "Chronicle",
 };
 
 export function canonPartLabel(entry: Pick<CanonEntry, "part" | "premise_kind">): string {

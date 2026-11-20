@@ -2,7 +2,7 @@ import type { AiProvenance } from "../../supabase/functions/_shared/provenance/t
 /**
  * The campaign's canon (#1226): one table, `canon_entries`, holding the
  * premise, the truths, the forces, the secrets, the open questions, the lore
- * and the chronicle. The union literals mirror the migration's check
+ * and the backstories. The union literals mirror the migration's check
  * constraints; the MCP registry holds its enums equal to these.
  */
 export const CANON_PARTS = [
@@ -13,9 +13,14 @@ export const CANON_PARTS = [
   "question",
   "lore",
   "backstory",
-  "chronicle",
 ] as const;
 export type CanonPart = (typeof CANON_PARTS)[number];
+
+/**
+ * The parts a client may create an entry in directly. A backstory is opened for a character (`open_backstory`) and
+ * needs its `party_member_id`, so a plain create cannot make one. The MCP registry holds its create enum equal to this.
+ */
+export const CANON_CREATE_PARTS = ["premise", "truth", "force", "secret", "question", "lore"] as const;
 
 /** Set only when `part` is `premise`. */
 export const PREMISE_KINDS = ["pitch", "theme", "table", "voice", "look", "line", "veil"] as const;

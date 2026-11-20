@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(14);
 
 -- Backstories written together (#1226 story 10): a character's player writes and edits their own passages of their
 -- own character's backstory and nothing else of the canon; the DM edits every passage and writes untold ones; a
@@ -25,6 +25,9 @@ insert into public.campaign_members (campaign_id, user_id, role, display_name, p
   ('12260000-0000-4000-8000-000000000510', '12260000-0000-4000-8000-000000000502', 'player', 'Lotte', '12260000-0000-4000-8000-000000000520'),
   ('12260000-0000-4000-8000-000000000510', '12260000-0000-4000-8000-000000000503', 'player', 'Bram', '12260000-0000-4000-8000-000000000521')
 on conflict (campaign_id, user_id) do update set role = excluded.role, party_member_id = excluded.party_member_id;
+
+insert into public.locations (id, user_id, campaign_id, name) values
+  ('12260000-0000-4000-8000-000000000550', '12260000-0000-4000-8000-000000000501', '12260000-0000-4000-8000-000000000510', 'The Ferry Steps');
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -68,6 +71,12 @@ select lives_ok($$
     from public.canon_entries e where e.part = 'backstory' and e.party_member_id = '12260000-0000-4000-8000-000000000520';
   update public.canon_lore_passages set title = 'After the Mere, edited' where title = 'After the Mere'
 $$, 'the DM writes their own passage and edits the player''s');
+
+update public.canon_lore_passages set location_id = '12260000-0000-4000-8000-000000000550' where title = 'After the Mere, edited';
+select set_config('request.jwt.claim.sub', '12260000-0000-4000-8000-000000000502', true);
+select lives_ok($$ update public.canon_lore_passages set body = 'fixed a typo' where title = 'After the Mere, edited' $$,
+  'a player still edits the words of their passage after the DM touched it');
+select set_config('request.jwt.claim.sub', '12260000-0000-4000-8000-000000000501', true);
 
 -- ── What Lotte reads ─────────────────────────────────────────────────────────
 select set_config('request.jwt.claim.sub', '12260000-0000-4000-8000-000000000502', true);

@@ -8,9 +8,15 @@ vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => 
 
 import { appendToBackstory, appendToDmNote, fetchNotesToSort, linkNoteToSession, removeFromSortingList, writeLoreEntry } from "./noteSortingWrites";
 
+const { queue } = vi.hoisted(() => ({ queue: vi.fn() }));
+vi.mock("@/lib/canon/queueCanonEmbedding", () => ({ queueCanonEmbedding: queue }));
+
 const doc = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
 
-beforeEach(() => fake.reset());
+beforeEach(() => {
+  fake.reset();
+  queue.mockClear();
+});
 
 describe("writeLoreEntry", () => {
   it("files the note as a lore entry that keeps its text, its audience and its provenance", async () => {
@@ -22,6 +28,12 @@ describe("writeLoreEntry", () => {
     expect(fake.rows("canon_entries")).toEqual([
       expect.objectContaining({ campaign_id: "c1", user_id: "dm", part: "lore", title: "The Flood", body: doc("water"), player_visible_to: ["pm1"], ai_provenance: { model: "m" } }),
     ]);
+  });
+
+  // Bug caught: a sorted lore note was never queued for its embedding, so the Narrator's lookup could not find it by meaning.
+  it("queues the new entry's embedding", async () => {
+    await writeLoreEntry({ campaign_id: "c1", title: "The Flood", content: doc("water"), player_visible_to: [], ai_provenance: null });
+    expect(queue).toHaveBeenCalledWith(fake.rows("canon_entries")[0].id);
   });
 
   it("throws when the database refuses the entry, so the note is not deleted after it", async () => {

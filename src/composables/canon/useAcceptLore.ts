@@ -17,8 +17,23 @@ export function passageInput(entryId: string, p: Passage, sortOrder: number, pro
 }
 
 /**
+ * What a split may replace: a passage not yet told and not the place a clue points at. A told passage is what the
+ * players already heard, and a clue's passage would lose the link (`canon_clues.passage_id` goes null) if deleted.
+ */
+export function splitReplacement(
+  existing: readonly CanonLorePassage[],
+  cluePassageIds: ReadonlySet<string>,
+): { replace: CanonLorePassage[]; kept: CanonLorePassage[] } {
+  const replace: CanonLorePassage[] = [];
+  const kept: CanonLorePassage[] = [];
+  for (const p of existing) (p.told_at !== null || cluePassageIds.has(p.id) ? kept : replace).push(p);
+  return { replace, kept };
+}
+
+/**
  * Writes an accepted lore suggestion (#1226 story 5). A draft makes the entry and its passages; a split keeps the entry
- * and replaces its passages. Nothing is written before the DM accepts, and a split writes the new passages before it
+ * and replaces its untold, clue-free passages (`splitReplacement`); kept passages stay where they are and the new ones
+ * come after the last of all. Nothing is written before the DM accepts, and a split writes the new passages before it
  * removes the old ones, so a failure part-way leaves the old text in place.
  */
 export function useAcceptLore() {
@@ -33,10 +48,10 @@ export function useAcceptLore() {
     return entry.id;
   }
 
-  async function split(s: LoreSuggestion, entryId: string, provenance: AiProvenance | null, existing: readonly CanonLorePassage[]): Promise<void> {
+  async function split(s: LoreSuggestion, entryId: string, provenance: AiProvenance | null, existing: readonly CanonLorePassage[], replace: readonly CanonLorePassage[]): Promise<void> {
     const start = existing.reduce((max, p) => Math.max(max, p.sort_order), -1) + 1;
     for (const [i, p] of s.passages.entries()) await createPassage(passageInput(entryId, p, start + i, provenance));
-    for (const old of existing) await deletePassage(old.id);
+    for (const old of replace) await deletePassage(old.id);
   }
 
   return { draft, split };

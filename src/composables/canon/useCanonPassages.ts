@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { getCurrentUser, supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { toast } from "@/lib/toast";
-import { queueCanonEmbedding } from "@/composables/canon/queueCanonEmbedding";
+import { queueCanonEmbedding } from "@/lib/canon/queueCanonEmbedding";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { useCampaignSession } from "@/composables/campaign/useCampaignSession";
 import { partyListQuery } from "@/composables/party/useParty";
@@ -81,8 +81,12 @@ export async function updateCanonPassage(id: string, patch: CanonPassagePatch): 
 }
 
 export async function deleteCanonPassage(id: string): Promise<void> {
-  const { error } = await supabase.from("canon_lore_passages").delete().eq("id", id);
+  // RLS answers a refused delete with no error and no row, so the row is asked for back.
+  const { data, error } = await supabase.from("canon_lore_passages").delete().eq("id", id).select("id, entry_id");
   if (error) throw error;
+  if (data.length === 0) throw new Error("That passage is gone, or you may not delete it.");
+  // The entry's vector folds its passages in, so one less passage changes what it says.
+  for (const row of data) queueCanonEmbedding(row.entry_id);
 }
 
 /** Every passage of the active campaign. Refreshed by the doorbell (`canon_lore_passages`, under the canon key). */

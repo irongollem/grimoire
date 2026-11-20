@@ -132,6 +132,44 @@ export function canonStore(input: {
     return steps;
   }
 
+  /**
+   * The passages that may be offered to the Narrator to bring out. A lore entry's first passage is told with the entry
+   * and is never offered on its own; a lore passage of an entry not shared with the whole party would reach nobody when
+   * told; a backstory passage is offered on the place/person tie alone (it is told only to its own character).
+   */
+  async function offerablePassages(campaignId: string, candidates: Row[]): Promise<Row[]> {
+    if (candidates.length === 0) return [];
+    const entryIds = [...new Set(candidates.map((r) => str(r.entry_id)).filter((v) => v !== ""))];
+    const [entries, party, siblings] = await Promise.all([
+      supabase.from("canon_entries").select("id, part, player_visible_to").eq("campaign_id", campaignId).in("id", entryIds),
+      supabase.from("party_members").select("id").eq("campaign_id", campaignId),
+      supabase.from("canon_lore_passages").select("id, entry_id, sort_order, created_at").eq("campaign_id", campaignId).in("entry_id", entryIds),
+    ]);
+    if (entries.error) throw entries.error;
+    if (party.error) throw party.error;
+    if (siblings.error) throw siblings.error;
+    const entry = new Map(((entries.data ?? []) as Row[]).map((r) => [str(r.id), r]));
+    const partyIds = ((party.data ?? []) as Row[]).map((r) => str(r.id));
+    const first = new Map<string, Row>();
+    for (const p of (siblings.data ?? []) as Row[]) {
+      const key = str(p.entry_id);
+      const best = first.get(key);
+      const order = (r: Row): [number, string] => [typeof r.sort_order === "number" ? r.sort_order : 0, str(r.created_at)];
+      if (best === undefined) { first.set(key, p); continue; }
+      const [a, b] = [order(p), order(best)];
+      if (a[0] < b[0] || (a[0] === b[0] && a[1] < b[1])) first.set(key, p);
+    }
+    return candidates.filter((c) => {
+      const owner = entry.get(str(c.entry_id));
+      if (owner === undefined) return false;
+      if (owner.part === "backstory") return true;
+      if (owner.part !== "lore") return false;
+      if (first.get(str(c.entry_id))?.id === c.id) return false;
+      const shared = Array.isArray(owner.player_visible_to) ? owner.player_visible_to.filter((v): v is string => typeof v === "string") : [];
+      return partyIds.length > 0 && partyIds.every((id) => shared.includes(id));
+    });
+  }
+
   return {
     async worldText(campaignId) {
       return worldBlockText(await loadWorldBlock(admin, campaignId)).trim();
@@ -162,7 +200,7 @@ export function canonStore(input: {
           : supabase.from("canon_clues").select("id, secret_id, title").eq("campaign_id", campaignId).is("found_at", null).or(tied).order("sort_order").limit(LIST_READ_MAX),
         tied === ""
           ? Promise.resolve({ data: [] as Row[], error: null })
-          : supabase.from("canon_lore_passages").select("id, title, body").eq("campaign_id", campaignId).is("told_at", null).or(tied).order("sort_order").limit(LIST_READ_MAX),
+          : supabase.from("canon_lore_passages").select("id, entry_id, title, body").eq("campaign_id", campaignId).is("told_at", null).or(tied).order("sort_order").limit(LIST_READ_MAX),
         supabase.from("canon_entries").select("title").eq("campaign_id", campaignId).eq("part", "question").order("sort_order").limit(LIST_READ_MAX),
       ]);
       if (clues.error) throw clues.error;
@@ -206,9 +244,11 @@ export function canonStore(input: {
         }
       }
 
+      const offered = await offerablePassages(campaignId, (passages.data ?? []) as Row[]);
+
       return capCanonHere({
         clues: ((clues.data ?? []) as Row[]).map((r) => ({ id: str(r.id), secretId: str(r.secret_id), line: str(r.title) })),
-        passages: ((passages.data ?? []) as Row[]).map((r) => ({ id: str(r.id), title: str(r.title), text: str(r.body) })),
+        passages: offered.map((r) => ({ id: str(r.id), title: str(r.title), text: str(r.body) })),
         knows,
         questions: ((questions.data ?? []) as Row[]).map((r) => str(r.title)).filter((t) => t !== ""),
         forces,
@@ -316,15 +356,31 @@ export function canonStore(input: {
         if (error) throw error;
         return;
       }
-      // A passage told at the table is told to the party: the members of this campaign, as the DM's own Tell does.
-      const party = await supabase.from("party_members").select("id").eq("campaign_id", ctx.campaignId);
-      if (party.error) throw party.error;
+      // A lore passage is told to the party, the members of this campaign, as the DM's own Tell does. A backstory
+      // passage is told only to the entry's own character: it is that player's past, not the table's.
+      const passage = await supabase.from("canon_lore_passages").select("entry_id").eq("id", brought.id).eq("campaign_id", ctx.campaignId).maybeSingle();
+      if (passage.error) throw passage.error;
+      if (passage.data === null) throw new Error("That passage is not in this campaign.");
+      const owner = await supabase.from("canon_entries").select("part, party_member_id").eq("id", str((passage.data as Row).entry_id)).eq("campaign_id", ctx.campaignId).maybeSingle();
+      if (owner.error) throw owner.error;
+      if (owner.data === null) throw new Error("That passage has no entry.");
+      const ownerRow = owner.data as Row;
+      let told: string[];
+      if (ownerRow.part === "backstory") {
+        const character = str(ownerRow.party_member_id);
+        if (character === "") throw new Error("That backstory has no character to tell it to.");
+        told = [character];
+      } else {
+        const party = await supabase.from("party_members").select("id").eq("campaign_id", ctx.campaignId);
+        if (party.error) throw party.error;
+        told = ((party.data ?? []) as Row[]).map((r) => str(r.id));
+      }
       const { error } = await supabase
         .from("canon_lore_passages")
         .update({
           told_at: now,
           told_session_id: ctx.campaignSessionId,
-          player_visible_to: ((party.data ?? []) as Row[]).map((r) => str(r.id)),
+          player_visible_to: told,
         })
         .eq("id", brought.id)
         .eq("campaign_id", ctx.campaignId)

@@ -302,7 +302,8 @@ const AOE_SHAPE = [
 ] as const;
 
 // src/types/canon.types.ts
-const CANON_PART = ["premise", "truth", "force", "secret", "question", "lore", "backstory", "chronicle"] as const;
+// A backstory is opened by `open_backstory` (it needs a character), so a create never offers it.
+const CANON_CREATE_PART = ["premise", "truth", "force", "secret", "question", "lore"] as const;
 const PREMISE_KIND = ["pitch", "theme", "table", "voice", "look", "line", "veil"] as const;
 const KNOWLEDGE_MARK = ["all", "some", "secret"] as const;
 
@@ -786,7 +787,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
         campaign_id: { type: "uuid", required: true },
         part: {
           type: "enum",
-          values: CANON_PART,
+          values: CANON_CREATE_PART,
           required: true,
           description:
             "Where the entry belongs. Premise entries also need premise_kind; truths also need knowledge.",

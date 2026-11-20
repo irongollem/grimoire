@@ -422,8 +422,11 @@ as $$
         from public.canon_lore_passages p
         join public.canon_entries e on e.id = p.entry_id
        where p.told_at is null
-         and p.id <> (select f.id from public.canon_lore_passages f where f.entry_id = p.entry_id
-                       order by f.sort_order, f.created_at limit 1)
+         -- Lore's first passage is told with the entry, so it is never offered here; another part (a backstory) has
+         -- no free first passage. Written as part <> 'lore' so a later part is offered by default.
+         and (e.part <> 'lore'
+              or p.id <> (select f.id from public.canon_lore_passages f where f.entry_id = p.entry_id
+                           order by f.sort_order, f.created_at limit 1))
          and ((p_kind = 'location' and p.location_id = p_id)
               or (p_kind = 'npc' and p.npc_id = p_id)
               or (p_kind = 'quest_beat' and p.quest_beat_id = p_id))), '[]'::jsonb))

@@ -97,3 +97,61 @@ describe("canonStore.lookup: a backstory", () => {
   });
 });
 
+
+describe("canonStore.here: passages on offer", () => {
+  const seed = () => {
+    const fake = createSupabaseFake();
+    fake.seed("party_members", [{ id: "pm1", campaign_id: "c1", name: "Wren" }, { id: "pm2", campaign_id: "c1", name: "Tansy" }]);
+    fake.seed("canon_entries", [
+      { id: "shared", campaign_id: "c1", part: "lore", player_visible_to: ["pm1", "pm2"] },
+      { id: "half", campaign_id: "c1", part: "lore", player_visible_to: ["pm1"] },
+      { id: "past", campaign_id: "c1", part: "backstory", party_member_id: "pm1", player_visible_to: [] },
+    ]);
+    const base = { campaign_id: "c1", told_at: null, location_id: "l1", body: "{}" };
+    fake.seed("canon_lore_passages", [
+      { ...base, id: "s-first", entry_id: "shared", title: "First", sort_order: 0, created_at: "2026-01-01" },
+      { ...base, id: "s-second", entry_id: "shared", title: "Second", sort_order: 1, created_at: "2026-01-02" },
+      { ...base, id: "h-first", entry_id: "half", title: "HalfFirst", sort_order: 0, created_at: "2026-01-01" },
+      { ...base, id: "h-second", entry_id: "half", title: "HalfSecond", sort_order: 1, created_at: "2026-01-02" },
+      { ...base, id: "b-first", entry_id: "past", title: "Past", sort_order: 0, created_at: "2026-01-01" },
+    ]);
+    return fake;
+  };
+
+  // Bug caught: a lore entry's first passage (told with the entry), or one of an entry not shared with the whole party, was offered.
+  it("offers only a later passage of a fully shared lore entry, and a backstory's passage", async () => {
+    const here = await store(seed()).here("c1", "l1", []);
+    expect(here.passages.map((p) => p.id).sort()).toEqual(["b-first", "s-second"]);
+  });
+});
+
+describe("canonStore.bringOut: who a passage is told to", () => {
+  const seed = () => {
+    const fake = createSupabaseFake();
+    fake.seed("party_members", [{ id: "pm1", campaign_id: "c1", name: "Wren" }, { id: "pm2", campaign_id: "c1", name: "Tansy" }]);
+    fake.seed("canon_entries", [
+      { id: "lore", campaign_id: "c1", part: "lore" },
+      { id: "past", campaign_id: "c1", part: "backstory", party_member_id: "pm1" },
+    ]);
+    fake.seed("canon_lore_passages", [
+      { id: "lp", entry_id: "lore", campaign_id: "c1", told_at: null, player_visible_to: [] },
+      { id: "bp", entry_id: "past", campaign_id: "c1", told_at: null, player_visible_to: [] },
+    ]);
+    return fake;
+  };
+  const told = (fake: ReturnType<typeof createSupabaseFake>, id: string) =>
+    (fake.rows("canon_lore_passages").find((r) => r.id === id) as { player_visible_to: string[] }).player_visible_to;
+
+  // Bug caught: a backstory passage was told to every party member, leaking one player's past to the table.
+  it("tells a backstory passage only to its own character", async () => {
+    const fake = seed();
+    await store(fake).bringOut({ campaignId: "c1", campaignSessionId: null }, { kind: "passage", id: "bp" });
+    expect(told(fake, "bp")).toEqual(["pm1"]);
+  });
+
+  it("tells a lore passage to the whole party", async () => {
+    const fake = seed();
+    await store(fake).bringOut({ campaignId: "c1", campaignSessionId: null }, { kind: "passage", id: "lp" });
+    expect(told(fake, "lp").sort()).toEqual(["pm1", "pm2"]);
+  });
+});

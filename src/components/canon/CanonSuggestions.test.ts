@@ -29,14 +29,17 @@ vi.mock("@/composables/canon/useCanonEntries", () => ({
   useCreateCanonEntry: () => ({ mutateAsync: mocks.create }),
   useUpdateCanonEntry: () => ({ mutateAsync: mocks.update }),
 }));
-const existingClues = ref<{ secret_id: string }[]>([]);
+const existingClues = ref<{ secret_id: string; passage_id?: string | null }[]>([]);
 vi.mock("@/composables/canon/useCanonClues", () => ({
   useCreateCanonClue: () => ({ mutateAsync: mocks.createClue }),
   useCanonClues: () => ({ data: existingClues }),
 }));
-const passages = ref<{ id: string; entry_id: string; sort_order: number }[]>([]);
+const passages = ref<{ id: string; entry_id: string; sort_order: number; told_at?: string | null }[]>([]);
 vi.mock("@/composables/canon/useCanonPassages", () => ({ useCanonPassages: () => ({ data: passages }) }));
-vi.mock("@/composables/canon/useAcceptLore", () => ({ useAcceptLore: () => ({ draft: mocks.loreDraft, split: mocks.loreSplit }) }));
+vi.mock("@/composables/canon/useAcceptLore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/composables/canon/useAcceptLore")>()),
+  useAcceptLore: () => ({ draft: mocks.loreDraft, split: mocks.loreSplit }),
+}));
 vi.mock("@/composables/canon/useCanonForces", () => ({ useAcceptForce: () => mocks.acceptForce }));
 vi.mock("@/composables/canon/useKnownTo", () => ({ useKnownTo: () => ({ nameKnower: mocks.nameKnower }) }));
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
@@ -122,6 +125,17 @@ describe("CanonSuggestions", () => {
     expect(mocks.confirm).toHaveBeenCalledWith("Replace the existing text?", expect.anything());
     expect(mocks.create).not.toHaveBeenCalled();
     expect(mocks.update).toHaveBeenCalledWith({ id: "p1", patch: expect.objectContaining({ body: expect.stringContaining("A drowned kingdom."), ai_provenance: expect.anything() }) });
+  });
+
+  // Bug caught: replacing a voice patched only the title, so an old body was read together with the new text.
+  it("clears the old body when a suggested voice replaces an existing one, and leaves a pitch's title alone", async () => {
+    suggestions.value = [{ kind: "voice", text: "Dry and warm." }];
+    await click(mountIt("premise", [entry({ id: "v1", premise_kind: "voice" })]), "Accept");
+    expect(mocks.update).toHaveBeenCalledWith({ id: "v1", patch: expect.objectContaining({ title: "Dry and warm.", body: null }) });
+    mocks.update.mockClear();
+    suggestions.value = [{ kind: "pitch", text: "A drowned kingdom." }];
+    await click(mountIt("premise", [entry({ id: "p1", premise_kind: "pitch" })]), "Accept");
+    expect(mocks.update.mock.calls[0][0].patch).not.toHaveProperty("title");
   });
 
   it("writes nothing when the DM declines the replacement, and keeps the proposal", async () => {
@@ -292,11 +306,26 @@ describe("CanonSuggestions lore", () => {
 
   it("a split replaces only this entry's passages once confirmed, never another entry's", async () => {
     suggestions.value = [lore];
-    passages.value = [{ id: "g1", entry_id: "l1", sort_order: 0 }, { id: "g2", entry_id: "l2", sort_order: 0 }];
+    passages.value = [{ id: "g1", entry_id: "l1", sort_order: 0, told_at: null }, { id: "g2", entry_id: "l2", sort_order: 0, told_at: null }];
     mocks.loreSplit.mockResolvedValue(undefined);
     const w = mountIt("lore", [], null, splitTarget);
     await click(w, "Accept");
-    expect(mocks.loreSplit).toHaveBeenCalledWith(lore, "l1", expect.anything(), [expect.objectContaining({ id: "g1" })]);
+    expect(mocks.loreSplit).toHaveBeenCalledWith(lore, "l1", expect.anything(), [expect.objectContaining({ id: "g1" })], [expect.objectContaining({ id: "g1" })]);
+  });
+
+  // Bug caught: Split deleted every old passage, including ones already told to players and ones a clue points at.
+  it("a split keeps a told passage and a clue's passage, replaces the rest, and says what stays", async () => {
+    suggestions.value = [lore];
+    passages.value = [
+      { id: "told", entry_id: "l1", sort_order: 0, told_at: "2026-11-01T00:00:00Z" },
+      { id: "clued", entry_id: "l1", sort_order: 1, told_at: null },
+      { id: "free", entry_id: "l1", sort_order: 2, told_at: null },
+    ];
+    existingClues.value = [{ secret_id: "s1", passage_id: "clued" }];
+    mocks.loreSplit.mockResolvedValue(undefined);
+    await click(mountIt("lore", [], null, splitTarget), "Accept");
+    expect(mocks.confirm.mock.calls[0][0]).toContain("2 passages stay");
+    expect(mocks.loreSplit.mock.calls[0][4].map((p: { id: string }) => p.id)).toEqual(["free"]);
   });
 
   it("a split of an entry with no passages yet needs no confirm", async () => {

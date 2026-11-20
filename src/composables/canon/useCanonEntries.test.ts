@@ -9,7 +9,7 @@ const session = vi.hoisted(() => ({ user: { id: "dm-1" } as { id: string } | nul
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => session.user }));
 
 const queue = vi.hoisted(() => vi.fn());
-vi.mock("./queueCanonEmbedding", () => ({ queueCanonEmbedding: queue }));
+vi.mock("@/lib/canon/queueCanonEmbedding", () => ({ queueCanonEmbedding: queue }));
 
 import { createCanonEntry, deleteCanonEntry, updateCanonEntry } from "./useCanonEntries";
 
