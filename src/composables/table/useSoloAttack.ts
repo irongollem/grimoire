@@ -4,6 +4,8 @@ import { rangedFactsFor } from "@/composables/encounters/rangedFacts";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { PcAttackRow } from "@/types/pcAttack.types";
 import { rollDie, type DieSize } from "@/lib/dice/dice";
+import { NORMAL_ROLL, rollWithRules } from "@/lib/dice/diceRules";
+import { dnd5eDiceRules } from "@/systems/dnd5e/dice/rules";
 import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "@/rules/fight/targeting";
 import { attackLines, damageLine, type DamageMath } from "@/lib/table/solo/fight/pcAttack";
 import { attackEntryOf, d20FromFaces, damageDicePlan, damageFromFaces, facesFit } from "@/rules/fight/pcAttacks/entry";
@@ -172,10 +174,12 @@ export function useSoloAttack(options: SoloAttackOptions) {
     const target = combatant(before.targetId);
     state.value = { step: "resolving" };
     try {
-      const ctx = context(async (ask) => ({
-        result: d20FromFaces(answer.faces, ask.mode ?? "normal", ask.modifier, ask.label),
-        byPerson: answer.atTable,
-      }));
+      // The player's faces answer the d20 only. Any other die this roll asks for (a boon's d4: PHB "Bless") is the app's to
+      // roll, since the player was asked for a d20 and nothing else.
+      const ctx = context(async (ask) =>
+        ask.counts[20] === undefined
+          ? { result: rollWithRules(dnd5eDiceRules, ask.counts, ask.modifier, NORMAL_ROLL, rollDie), byPerson: false }
+          : { result: d20FromFaces(answer.faces, ask.mode ?? "normal", ask.modifier, ask.label), byPerson: answer.atTable });
       // Without a map the distance is unknown: a melee attack is taken as made from next to the foe, a ranged one as not.
       const near = withinFiveFeet(attacker, target) ?? before.row.kind === "melee";
       const outcome = await rollToHit(ctx, { attacker, entry, target, withinFiveFeet: near, ...rangedFor(attacker, target, entry), dmMode: answer.mode, silent: true });

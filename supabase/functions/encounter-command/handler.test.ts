@@ -1159,6 +1159,21 @@ describe("resolving commands", () => {
     expect(result.effects).toContainEqual(expect.objectContaining({ type: "resolved", resolved: expect.objectContaining({ kind: "save" }) }));
   });
 
+  // PHB "Bless": the d4 is the Blessed creature's own die, rolled after the d20. A person who rolled the save gave the d20 only, so the
+  // server rolls the d4: 11 (theirs) + 1 (the server's) = 12 < DC 14 fails, and the other takes the full 7 (40 -> 33). Bug caught: the
+  // person's 11 read again as the d4's face, 11 + 11 = 22, a save that should have failed.
+  it("fails if a person's save face is read as a Blessed creature's d4", async () => {
+    const fight = arena();
+    fight.combatants_live.push(combatant("other", { monster_id: "m-ox", hp: 40, max_hp: 40, initiative: 3, conditions: [{ name: "Bless", grants: { attack: "1d4", save: "1d4" } }] }));
+    const h = harness(fight, { sources: SOURCES, dieFaces: [5, 1, 3, 4] });
+    await runBatch(
+      batch("b", { type: "resolve_save", attackerId: "wolf", list: "actions", action: "Burst", targetIds: ["victim", "other"], faces: { saves: [null, [11]] } }),
+      h.deps,
+    );
+    expect(hpOf(stored(h), "other")).toBe(33);
+    expect(h.posted.map((p) => [p.speaker, p.serverRolled])).toEqual([["victim", true], ["other", false], ["other", true], ["wolf", true]]);
+  });
+
   // PHB 2014 "Saving Throws": nessa's Dex 14 is +2 and she is not proficient: d20 12 + 2 = 14 meets DC 14 and saves, taking half of
   // 2d6 = 3 + 4 = 7, rounded down, 3 (40 -> 37). With no bonus known the 12 would fail and take 7 (33).
   it("rolls a player's save with the bonus from their sheet", async () => {

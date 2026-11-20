@@ -314,7 +314,10 @@ function toRolledFaces(ask: DiceAsk, flat: number[]): RolledFaces {
 function makeDice(rollDie: (sides: number) => number, supply: Supply, posted: PostedRoll[]): DiceSource {
   return (ask) => {
     const mode = ask.mode ?? NORMAL_ROLL;
-    const flat = supply(ask);
+    // A person's faces answer only the rolls they were asked for, a d20 or a damage roll. Any other die (a boon's d4, PHB "Bless",
+    // rolled after the d20 for the same creature) is the server's own; a supply keyed by roller would otherwise read a save's d20
+    // face as the d4.
+    const flat = ask.isDamage === true || ask.counts[20] !== undefined ? supply(ask) : null;
     // A person's faces are scored and never re-rolled; the roll is theirs (`manual`), and carries no stamp.
     const result: RollResult = flat
       ? { ...dnd5eDiceRules.score(ask.counts, ask.modifier, mode, toRolledFaces(ask, flat)), manual: true }

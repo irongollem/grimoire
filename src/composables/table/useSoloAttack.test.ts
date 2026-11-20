@@ -70,6 +70,16 @@ describe("useSoloAttack roll to hit", () => {
     expect(lines[0]).toMatchObject({ kind: "roll", label: "Longsword against Orc: a miss" });
   });
 
+  it("fails if the player's d20 face is read again as a Blessed character's d4", async () => {
+    // PHB "Bless": a d4 added after the d20. The player gave the d20 only, so the app rolls the d4: 11 + 5 + (1 to 4) is 17 to 20,
+    // a miss against AC 25 whatever it rolls. Bug caught: the face 11 answering the d4 ask too, 11 + 5 + 11 = 27, a hit.
+    const a = setup();
+    a.mira()!.conditions = [{ name: "Bless", grants: { attack: "1d4", save: "1d4" } }];
+    a.orc()!.ac = "25";
+    await a.toHit([11], true);
+    expect(a.attack.state.value.step).toBe("idle");
+  });
+
   it("marks a typed roll as rolled at the table", async () => {
     // Bug caught: the atTable flag lost on the way to the story.
     const a = setup();
