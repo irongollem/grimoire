@@ -133,5 +133,5 @@ export function foundPatch(found: boolean, sessionId: string | null, now: Date =
 export function useSetClueFound() {
   const { session } = useCampaignSession();
   const { mutate } = useUpdateCanonClue();
-  return (clue: CanonClue, found: boolean) => mutate({ id: clue.id, patch: foundPatch(found, session.value?.id ?? null) });
+  return (clue: Pick<CanonClue, "id">, found: boolean) => mutate({ id: clue.id, patch: foundPatch(found, session.value?.id ?? null) });
 }

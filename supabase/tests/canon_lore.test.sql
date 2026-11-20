@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(10);
 
--- Lore told in passages (20261119232608, #1226 story 5): sharing a lore entry tells its first passage; a later passage
+-- Lore told in passages (20261120033042, #1226 story 5): sharing a lore entry tells its first passage; a later passage
 -- reaches only the members it was told to; telling a passage that is a clue finds the clue; passages hang off lore
 -- only; outsiders and other campaigns read nothing.
 

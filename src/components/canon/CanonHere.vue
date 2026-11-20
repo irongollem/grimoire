@@ -7,11 +7,11 @@
           <span class="min-w-0 flex-1">
             <span class="block text-body leading-snug text-foreground">{{ clue.title }}</span>
             <RouterLink
-              v-if="secretOf(clue)"
+              v-if="clue.secret_title"
               :to="{ path: '/canon', query: { entry: clue.secret_id } }"
               class="text-label text-muted-foreground underline-offset-2 hover:underline"
             >
-              Clue to: {{ secretOf(clue)?.title }}
+              Clue to: {{ clue.secret_title }}
             </RouterLink>
           </span>
           <AppCheckbox :model-value="clue.found_at !== null" label="Found" label-role="label" @update:model-value="(v: boolean) => setFound(clue, v)" />
@@ -26,11 +26,11 @@
           <span class="min-w-0 flex-1">
             <span class="block text-body leading-snug text-foreground">{{ p.title || "An untitled passage" }}</span>
             <RouterLink
-              v-if="entryOf(p)"
+              v-if="p.entry_title"
               :to="{ path: '/canon', query: { entry: p.entry_id } }"
               class="text-label text-muted-foreground underline-offset-2 hover:underline"
             >
-              From: {{ entryOf(p)?.title }}
+              From: {{ p.entry_title }}
             </RouterLink>
           </span>
           <AppButton variant="primary" size="sm" label="Tell the party" data-testid="tell-here" @click="tell(p)" />
@@ -51,23 +51,16 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
-import { useCluesAt, useSetClueFound, type ClueKind } from "@/composables/canon/useCanonClues";
-import { useCanonEntries } from "@/composables/canon/useCanonEntries";
-import { untoldPassagesAt, useCanonPassages, useTellPassage } from "@/composables/canon/useCanonPassages";
-import type { CanonClue, CanonLorePassage } from "@/types/canon.types";
+import { useSetClueFound, type ClueKind } from "@/composables/canon/useCanonClues";
+import { useCanonHere } from "@/composables/canon/useCanonHere";
+import { useTellPassage } from "@/composables/canon/useCanonPassages";
 
 const { kind, id } = defineProps<{ kind: ClueKind; id: string }>();
 
-const { clues } = useCluesAt(() => kind, () => id);
-const { data: entries } = useCanonEntries();
-const { data: allPassages } = useCanonPassages();
-const passages = computed(() => untoldPassagesAt(allPassages.value ?? [], kind, id));
-const byId = computed(() => new Map((entries.value ?? []).map((e) => [e.id, e])));
-const secretOf = (clue: CanonClue) => {
-  const e = byId.value.get(clue.secret_id);
-  return e?.part === "secret" ? e : null;
-};
-const entryOf = (p: CanonLorePassage) => byId.value.get(p.entry_id) ?? null;
+// One read for the block (get_canon_here), not the campaign's clues, entries and passages.
+const { data: here } = useCanonHere(() => kind, () => id);
+const clues = computed(() => here.value?.clues ?? []);
+const passages = computed(() => here.value?.passages ?? []);
 const setFound = useSetClueFound();
 const { tell } = useTellPassage();
 </script>

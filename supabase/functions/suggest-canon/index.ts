@@ -1,7 +1,7 @@
 import { serve } from "std/http/server.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { decryptValue } from "../_shared/vault.ts";
-import { isUserPro } from "../_shared/plan.ts";
+import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { rulesetContextKey } from "../_shared/gameSystem.ts";
@@ -207,7 +207,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, game_system, openai_api_key, anthropic_api_key, gemini_api_key")
+    .select("id, user_id, ai_enabled, text_provider, game_system")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -228,19 +228,9 @@ serve(withCors(async (req: Request) => {
   const rulesetContext = promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
   if (!promptRow) return new Response("Prompt not configured", { status: 500 });
 
-  // BYOK is Pro-only: ignore stored campaign keys unless the owner is currently Pro.
-  const ownerIsPro = await isUserPro(admin, campaign.user_id);
-  async function decryptKey(enc: string | null): Promise<string | null> {
-    if (!enc || !ownerIsPro) return null;
-    try { return await decryptValue(enc); } catch { return null; }
-  }
-
+  // The owner's BYOK keys live in campaign_api_keys (#1228), Pro-only, checked by the loader at use time.
   const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
-    Promise.all([
-      decryptKey(campaign.openai_api_key),
-      decryptKey(campaign.anthropic_api_key),
-      decryptKey(campaign.gemini_api_key),
-    ]),
+    loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);

@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(24);
 
--- canon_entries (20261119214935, #1226): the campaign's canon. Only the campaign's DMs read or write the table; a
+-- canon_entries (20261120033038, #1226): the campaign's canon. Only the campaign's DMs read or write the table; a
 -- player reads get_player_canon, which applies each part's audience (a truth's knowledge mark, the premise's reveal
 -- minus the AI's voice and look, never a force); a canon entry is a world-web end like any other.
 

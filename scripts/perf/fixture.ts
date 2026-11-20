@@ -111,8 +111,8 @@ async function main() {
     db,
     // ai_enabled is decided (off): null means "undecided", which opens the
     // "Bring AI to this campaign?" dialog over every page and blocks the clicks.
-    `insert into public.campaigns (user_id, name, description, ai_enabled)
-     values (${dm}, ${quote(CAMPAIGN_NAME)}, 'Synthetic campaign for the performance harness.', false)
+    `insert into public.campaigns (user_id, name, ai_enabled)
+     values (${dm}, ${quote(CAMPAIGN_NAME)}, false)
      returning id;`,
   ).split("\n")[0];
   const campaign = quote(campaignId);

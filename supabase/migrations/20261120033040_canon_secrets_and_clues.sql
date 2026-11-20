@@ -152,7 +152,7 @@ as $$
 $$;
 
 -- ── 4. Clues change hands with their campaign ─────────────────────────────────
--- Restated whole from 20261119214935 with the one line added.
+-- Restated whole from 20261120033038 with the one line added.
 CREATE OR REPLACE FUNCTION private.move_campaign_content(p_campaign_id uuid, p_from uuid, p_to uuid, p_scoped_homebrew boolean, p_player_rows boolean)
  RETURNS void
  LANGUAGE plpgsql

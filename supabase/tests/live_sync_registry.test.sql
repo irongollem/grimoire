@@ -129,6 +129,7 @@ insert into live_sync_exempt (name, reason) values
   ('player_read_items',         'one user''s read marks, written on every view: a ring would make every member re-read their own marks whenever anyone opens anything'),
   ('session_proposal_invites',  'deny-all; read by token through the RSVP RPCs, and no screen holds it'),
   ('spell_cast_records',        'a log no screen reads; a cast''s visible effects land on party_members and character_spells, which are live'),
+  ('canon_embeddings',          'derived search index, deny-all, read only by definer search'),
   ('faction_embeddings',        'derived search index, deny-all, read only by definer search'),
   ('item_embeddings',           'derived search index, deny-all, read only by definer search'),
   ('location_embeddings',       'derived search index, deny-all, read only by definer search'),

@@ -27,7 +27,7 @@ the `campaigns` row, which every member reads (#1228).
 
 ## Data
 
-- `canon_entries` (`20261119214935_campaign_canon.sql`): one table for every part; a part differs by a few columns,
+- `canon_entries` (`20261120033038_campaign_canon.sql`): one table for every part; a part differs by a few columns,
   and later stories add their own columns and child tables (a force's steps, a lore entry's passages, a secret's
   clues). RLS: the campaign's DMs read and write; players read only `get_player_canon`, which never returns the reveal
   list and withholds secret blocks in the body. It rings the campaign doorbell (`canon_entries` → `CANON_KEY`,

@@ -73,7 +73,6 @@ import {
   type DocumentPart,
   type DocumentUsage,
 } from "../_shared/documentGen.ts";
-import { buildInstruction } from "./buildInstruction.ts";
 import { EXTRACTION_SCHEMA } from "./extractionSchema.ts";
 
 const admin = createClient(

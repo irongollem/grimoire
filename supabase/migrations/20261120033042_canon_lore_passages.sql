@@ -272,7 +272,7 @@ revoke execute on function public.get_player_canon(uuid, uuid) from public, anon
 grant execute on function public.get_player_canon(uuid, uuid) to authenticated, service_role;
 
 -- ── 6. Passages change hands with their campaign ──────────────────────────────
--- Restated whole from 20261119231831 with the one line added.
+-- Restated whole from 20261120033041 with the one line added.
 CREATE OR REPLACE FUNCTION private.move_campaign_content(p_campaign_id uuid, p_from uuid, p_to uuid, p_scoped_homebrew boolean, p_player_rows boolean)
  RETURNS void
  LANGUAGE plpgsql
@@ -394,3 +394,39 @@ Rules:
 - Concrete and specific, in the campaign's voice. No em-dashes.
 - If the DM gave a title, a kind or a steer, follow it; if the DM already wrote text, split and deepen it rather than replacing its meaning.$prompt$)
 on conflict (generator_type) do nothing;
+
+-- ── 8. What the canon placed here, in one read ────────────────────────────────
+-- A place's, an NPC's or a beat's DM page shows the clues lying there and the passages that come out there and are not
+-- yet told ("Canon here", frames 05 and 04b). One read instead of the campaign's whole canon on every such page.
+-- Invoker: the canon tables' own RLS decides, so only the campaign's DMs read anything here.
+create function public.get_canon_here(p_kind text, p_id uuid)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'clues', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'id', c.id, 'title', c.title, 'secret_id', c.secret_id, 'secret_title', e.title,
+               'found_at', c.found_at, 'found_session_id', c.found_session_id) order by e.title, c.sort_order)
+        from public.canon_clues c
+        join public.canon_entries e on e.id = c.secret_id
+       where (p_kind = 'location' and c.location_id = p_id)
+          or (p_kind = 'npc' and c.npc_id = p_id)
+          or (p_kind = 'quest_beat' and c.quest_beat_id = p_id)), '[]'::jsonb),
+    'passages', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'id', p.id, 'title', p.title, 'entry_id', p.entry_id, 'entry_title', e.title) order by e.title, p.sort_order)
+        from public.canon_lore_passages p
+        join public.canon_entries e on e.id = p.entry_id
+       where p.told_at is null
+         and p.id <> (select f.id from public.canon_lore_passages f where f.entry_id = p.entry_id
+                       order by f.sort_order, f.created_at limit 1)
+         and ((p_kind = 'location' and p.location_id = p_id)
+              or (p_kind = 'npc' and p.npc_id = p_id)
+              or (p_kind = 'quest_beat' and p.quest_beat_id = p_id))), '[]'::jsonb))
+$$;
+revoke execute on function public.get_canon_here(text, uuid) from public, anon;
+grant execute on function public.get_canon_here(text, uuid) to authenticated, service_role;

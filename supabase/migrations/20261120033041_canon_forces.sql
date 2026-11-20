@@ -232,7 +232,7 @@ create trigger canon_force_steps_mark_edited
   for each row execute procedure private.canon_force_steps_mark_edited();
 
 -- ── 4. Forces change hands with their campaign ────────────────────────────────
--- Restated whole from 20261119231628 with three lines added.
+-- Restated whole from 20261120033040 with three lines added.
 CREATE OR REPLACE FUNCTION private.move_campaign_content(p_campaign_id uuid, p_from uuid, p_to uuid, p_scoped_homebrew boolean, p_player_rows boolean)
  RETURNS void
  LANGUAGE plpgsql

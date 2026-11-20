@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(8);
 
--- What is moving (20261119231831, #1226 story 4): a force's steps, ticks and quests hang off a force and nothing else,
+-- What is moving (20261120033041, #1226 story 4): a force's steps, ticks and quests hang off a force and nothing else,
 -- stay in their campaign, and only the campaign's DMs read them; a force never reaches a player.
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)

@@ -7,7 +7,7 @@ import { toast } from "@/lib/toast";
 import { queueCanonEmbedding } from "@/composables/canon/queueCanonEmbedding";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { useCampaignSession } from "@/composables/campaign/useCampaignSession";
-import { useParty } from "@/composables/party/useParty";
+import { partyListQuery } from "@/composables/party/useParty";
 import type { ClueKind } from "@/composables/canon/useCanonClues";
 import type { CanonLorePassage } from "@/types/canon.types";
 
@@ -194,16 +194,17 @@ export const TAKE_BACK_PATCH: Pick<CanonLorePassage, "told_at" | "told_session_i
 
 /**
  * Tell the party and Take back, shared by the passage in the lore entry and every "here" block at the table. Tell waits for the
- * party to load: telling it before would share the passage with nobody, silently.
+ * party to load (reading it then if nothing has): telling it before would share the passage with nobody, silently.
  */
 export function useTellPassage() {
   const { session } = useCampaignSession();
-  const { data: party } = useParty();
+  const qc = useQueryClient();
+  const campaign = useCampaignStore();
   const { mutate } = useUpdateCanonPassage();
   return {
-    tell(passage: Pick<CanonLorePassage, "id">) {
-      const members = party.value;
-      if (!members) return;
+    // The roster is read when the DM tells, not when the block mounts: a page that only lists passages asks for no party.
+    async tell(passage: Pick<CanonLorePassage, "id">) {
+      const members = await qc.fetchQuery(partyListQuery(campaign.activeCampaignId));
       mutate({ id: passage.id, patch: tellPatch(members.map((m) => m.id), session.value?.id ?? null) });
     },
     takeBack(passage: Pick<CanonLorePassage, "id">) {
