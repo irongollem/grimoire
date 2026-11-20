@@ -232,6 +232,28 @@ describe("computeOptions for an ally", () => {
     expect(ids(r).some((id) => id.startsWith("spell:Fireball:3:"))).toBe(true);
   });
 
+  // PHB 2014 "Extra Attack" and "Fighter: Action Surge": the DM's list shows what take_turn plays. A 5th-level Fighter (two attacks, four on the surge) holding `pieces` of each of a dagger and a
+  // handaxe to throw: with one of each the two pieces make the mixed Extra Attack and no surge (two swings are no more than the Attack action); with two of each the surge swings all four.
+  // Bug caught: a surge listed that adds no swing, or a mixed set left out of the list.
+  it.each([
+    { pieces: 1, offered: ["Extra Attack (Handaxe (thrown) + Dagger (thrown))"], notOffered: ["Action Surge (Handaxe (thrown) + Dagger (thrown))"] },
+    { pieces: 2, offered: ["Extra Attack (Handaxe (thrown))", "Action Surge (Handaxe (thrown) + Dagger (thrown))"], notOffered: [] },
+  ])("lists the mixed sets a Fighter with $pieces of each throwing weapon can make", async ({ pieces, offered, notOffered }) => {
+    const weapon = (id: string, name: string, dice: string) => ({ id, name, item_type: "weapon", properties: ["light", "thrown"], tags: [], subtype: null, charges: null, weapon_range: "20/60", damage_rolls: [{ dice, type: "piercing" }], rarity: "mundane", image_url: null, description: "" });
+    const stack = (id: string, itemId: string, name: string) => ({ id, item_id: itemId, library_item_id: null, name, quantity: pieces, carried_by: "pm-pc", slot: "main_hand", location: "equipped", quality: "standard" });
+    const fighter = { id: "cls-fig", party_member_id: "pm-pc", class_name: "Fighter", class_definition_id: "def-fig", class_definition_kind: "system", subclass_name: null, subclass_definition_id: null, subclass_variant: null, levels: 5, is_primary: true, hit_dice_used: 0, sort_order: 0, capabilities: [] } as unknown as CharacterClass;
+    const sheets = {
+      ...SAM,
+      members: [{ ...SAM.members[0], str: 16, level: 5 }],
+      inventory: [stack("inv-dagger", "dagger", "Dagger"), stack("inv-axe", "axe", "Handaxe")],
+      items: [weapon("dagger", "Dagger", "1d4"), weapon("axe", "Handaxe", "1d6")],
+      casting: { ...NO_CASTING, classes: [fighter] },
+    } as unknown as PlayerSheets;
+    const r = await ask({ combatants: [hero(0, 3, { faction_id: "m" }), wolf({ faction_id: "p", position: { x: 6, y: 3 } })], sheets, speeds: [{ id: "pm-pc", speed: 25 }] }, "pc");
+    for (const name of offered) expect(ids(r)).toContain(`attack:actions:${name}:wolf`);
+    for (const name of notOffered) expect(ids(r)).not.toContain(`attack:actions:${name}:wolf`);
+  });
+
   // App convention: an ally never flees. Bug caught: Flee listed for an ally, which take_turn would refuse as not on offer.
   it("fails if an ally is offered Flee", async () => {
     const r = await ask({ combatants: [hero(0, 3, { faction_id: "m" }), wolf({ faction_id: "p", position: { x: 3, y: 3 } })], sheets: SAM, speeds: [{ id: "pm-pc", speed: 25 }] }, "pc");

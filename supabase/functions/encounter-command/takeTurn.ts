@@ -24,7 +24,8 @@ import { allyProfile } from "../../../src/rules/fight/allies/profile.ts";
 import { settleSpend } from "../../../src/rules/fight/pcAttacks/gear.ts";
 import { limitAvailability } from "../../../src/rules/encounterTurn.ts";
 import { allyAttackShape, allyAttackSpend, allyEntryFeature, allySneakAttack, allyStatBlock } from "../../../src/rules/fight/allies/statBlock.ts";
-import { RAGING, featureReady, featureSpend, featureUse, martialArtsDie, rageDamageFor, rageStartedOnSheet, ragingCondition, settleFeatureSpend, type AllyFeature } from "../../../src/rules/fight/allies/features.ts";
+import { RAGING, featureReady, featureSpend, featureUse, monkTraining, rageDamageFor, rageStartedOnSheet, ragingConditionFor, settleFeatureSpend, type AllyFeature } from "../../../src/rules/fight/allies/features.ts";
+import { RAGE_STARTED, rageEndsThisTurn, tallied } from "../../../src/rules/fight/allies/rage.ts";
 import { bonusSteps, chooseBonusAction, type BonusFeature } from "../../../src/rules/fight/tactics/bonusAction.ts";
 import { allyInnateSpend, allySlotSpend, settleInnateSpend, settleSlotSpend, slotPoolFor } from "../../../src/rules/fight/allies/spells.ts";
 import { castableBy } from "../../../src/rules/fight/spells/castLimit.ts";
@@ -36,6 +37,7 @@ import { playerSaveBonus } from "../../../src/rules/fight/playerSheet.ts";
 import { listedSpellNames } from "../../../src/rules/fight/spells/castNow.ts";
 import { takesTurnsInFight } from "../../../src/rules/fight/standing.ts";
 import { chooseBonusHeal, isLeveledCast, withoutLeveledCasts } from "../../../src/rules/fight/tactics/healChoice.ts";
+import { surgeCasts as surgeCastsOf } from "../../../src/rules/fight/tactics/surgeCast.ts";
 import { stepsFor, type TurnStep } from "../../../src/rules/fight/tactics/carryOut.ts";
 import { DODGING, disengagedCondition, dodgingCondition } from "../../../src/rules/fight/stances.ts";
 import { gateOptions, pickTurn } from "../../../src/rules/fight/tactics/pick.ts";
@@ -148,8 +150,12 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
   const found = state.combatants.find((c) => c.instance_id === command.instanceId);
   if (!found) return refuse(`No creature "${command.instanceId}" is in this fight.`);
   // A rage the player started by hand on the sheet is a rage in the fight: the mover is Raging, and no use is spent for it again.
-  if (found.type === "player" && found.party_member_id !== undefined && found.hp > 0 && !found.conditions.some((c) => c.name === RAGING) && rageStartedOnSheet(callEnv.players, found.party_member_id)) {
-    const raged = applyFightCommand(state, { type: "apply_condition", instanceId: found.instance_id, condition: ragingCondition(found.instance_id) }, callEnv.fightDeps);
+  // Once, though: a Rage that ended in this fight (early or run out) is not started again for a sheet that still shows it active (`RAGE_STARTED`).
+  const sheetRage = found.type === "player" && found.party_member_id !== undefined && found.hp > 0 && !found.conditions.some((c) => c.name === RAGING) && !tallied(found, RAGE_STARTED) && rageStartedOnSheet(callEnv.players, found.party_member_id)
+    ? ragingConditionFor(callEnv.players, found.party_member_id as string, found.instance_id)
+    : null;
+  if (sheetRage !== null) {
+    const raged = applyFightCommand(state, { type: "apply_condition", instanceId: found.instance_id, condition: sheetRage }, callEnv.fightDeps);
     state = raged.state;
     sheetEffects.push(...raged.effects);
   }
@@ -201,16 +207,33 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
     target.type === "player"
       ? (target.party_member_id ? playerSaveBonus(env.players, target.party_member_id, ability) : null)
       : saveBonusFromBlock(statBlockOf(target, env.sources), ability);
-  const gated = withNumbers(gateOptions(options, profile, mover, state.combatants), {
-    attacks, combatants: state.combatants, moverId: mover.instance_id, armorClassOf, ruleset: state.ruleset, spells, saveBonusOf, factions: env.factions,
+  const numbersFor = (from: RunCombatant, roster: readonly RunCombatant[], offered: readonly TurnOption[], attacksOf: typeof attacks, spellsOf: typeof spells): TurnOption[] => withNumbers(gateOptions(offered, profile, from, roster), {
+    attacks: attacksOf, combatants: roster, moverId: from.instance_id, armorClassOf, ruleset: state.ruleset, spells: spellsOf, saveBonusOf, factions: env.factions,
     // RULE sneak-attack (the tactics weigh it as `resolve_attack` will apply it): an ally Rogue's dice on an attack it rides, until the turn's one use is spent.
     ...(ally ? { sneakDiceOf: (name: string) => {
-      const useKey = `sneak_attack/${mover.shown_deeds === undefined ? 0 : mover.shown_deeds.turns}`;
-      if (!limitAvailability(mover, useKey, { per_day: 1 }).available) return null;
-      const sneak = allySneakAttack(env.players, mover.party_member_id as string, name);
+      const useKey = `sneak_attack/${from.shown_deeds === undefined ? 0 : from.shown_deeds.turns}`;
+      if (!limitAvailability(from, useKey, { per_day: 1 }).available) return null;
+      const sneak = allySneakAttack(env.players, from.party_member_id as string, name);
       return sneak === null ? null : sneak.dice;
     } } : {}),
   });
+  const numbered = numbersFor(mover, state.combatants, options, attacks, spells);
+  // RULE action-surge-cast (PHB 2014 "Action Surge"; the 2024 surge is no Magic action, `surgeCast.ts`): with a use ready, a cast may carry the extra action.
+  const surgeCasts = ally && spells.length > 0 && mover.action_used !== true && allyMayCastWithSurge(env, mover)
+    ? surgeCastsOf(numbered, (first) => {
+      // The mover as the first cast leaves it: the slot (or use) it takes is tallied, so what follows is offered from what is left.
+      const cast = spells.find((c) => c.spell === first.spell?.name && c.castLevel === first.spell.castLevel);
+      if (cast === undefined || cast.useKey === null || cast.limit === null) return [];
+      const prior = mover.action_uses === undefined ? undefined : mover.action_uses[cast.useKey];
+      const tired: RunCombatant = { ...mover, action_uses: { ...mover.action_uses, [cast.useKey]: { ...cast.limit, used: (prior === undefined ? 0 : prior.used) + 1 } } };
+      const roster = state.combatants.map((c) => (c.instance_id === mover.instance_id ? tired : c));
+      const later = assembleTurnOptions({
+        combatants: roster, mover: tired, ruleset: state.ruleset, sources: env.sources, members: env.players.members, map: env.map, spellRecords, factions: env.factions, round: state.round,
+      });
+      return numbersFor(tired, roster, later.options, later.attacks, later.spells);
+    })
+    : [];
+  const gated = [...numbered, ...surgeCasts];
 
   // The Bonus Action heal this turn may carry (only when the rules pick the turn: one the caller named is exactly that turn, below).
   const bonusHeal = chooseBonusHeal(gated, state.combatants, mover);
@@ -362,6 +385,16 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
         const flurryAt = step.targetId === null ? undefined : next.combatants.find((c) => c.instance_id === step.targetId);
         // A Flurry whose target already dropped is not spent: the strikes after the Attack action have no one to land on.
         if (step.feature === "flurry" && (flurryAt === undefined || flurryAt.hp <= 0)) break;
+        if (step.feature === "rage_extend") {
+          // RULE rage (PHB 2024 "Rage"): a Bonus Action extends the Rage to the end of the next turn. No use is spent. Taking the condition off and putting it on
+          // again makes it a fresh one: the reducer keeps a condition armed that is applied over an armed one.
+          const raging = ragingConditionFor(env.players, memberId, mover.instance_id);
+          if (raging !== null && mover.conditions.some((c) => c.name === RAGING)) {
+            apply({ type: "remove_condition", instanceId: mover.instance_id, name: RAGING });
+            apply({ type: "apply_condition", instanceId: mover.instance_id, condition: raging });
+          }
+          break;
+        }
         const use = featureUse(env.players, memberId, step.feature);
         if (!featureReady(use)) break;
         if (step.feature === "second_wind") {
@@ -372,13 +405,18 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
           apply({ type: "adjust_hp", instanceId: mover.instance_id, delta: roll.total });
         } else if (step.feature === "rage") {
           // RULE rage (PHB 2014 "Rage"; PHB 2024 "Rage"): lasts one minute, ten rounds, which also ends it with the fight.
-          apply({ type: "apply_condition", instanceId: mover.instance_id, condition: ragingCondition(mover.instance_id) });
+          const raging = ragingConditionFor(env.players, memberId, mover.instance_id);
+          if (raging !== null) apply({ type: "apply_condition", instanceId: mover.instance_id, condition: raging });
           // RULE rage (PHB 2014 and 2024 "Rage"): you can't concentrate on a spell while raging, so starting a Rage ends the concentration held.
           apply({ type: "end_concentration", instanceId: mover.instance_id });
         }
         paySheet(env, memberId, step.feature);
         break;
       }
+      case "surge":
+        // Action Surge's extra action (PHB 2014 "Fighter: Action Surge"): the sheet is charged the use as it begins.
+        if (ally) paySheet(env, mover.party_member_id as string, "action_surge");
+        break;
       case "spend":
         apply({ type: "use_action", instanceId: mover.instance_id, action: step.useKey, limit: step.limit });
         break;
@@ -402,6 +440,16 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
   return { state: next, effects };
 }
 
+/**
+ * Whether an ally's extra action may be a cast: a Fighter's Action Surge is ready and the sheet follows the 2014 rules (PHB 2024 "Action Surge" excludes the
+ * Magic action, so under 2024 the surge is an attack's).
+ */
+function allyMayCastWithSurge(env: ResolveEnv, mover: RunCombatant): boolean {
+  const id = mover.party_member_id as string;
+  const member = env.players.members.find((m) => m.id === id);
+  return member !== undefined && member.ruleset === "2014" && featureReady(featureUse(env.players, id, "action_surge"));
+}
+
 /** Charges the sheet one use of a class feature and keeps it in memory, so the next turn of the request finds what this one left; written once the fight is saved. */
 function paySheet(env: ResolveEnv, memberId: string, feature: AllyFeature): void {
   const resources = featureSpend(env.players, memberId, feature);
@@ -418,14 +466,16 @@ function allyBonusAction(mover: RunCombatant, option: TurnOption, env: ResolveEn
   const id = mover.party_member_id as string;
   const action = option.attack === null ? "" : option.attack.steps === null ? option.attack.action : option.attack.steps[0].action;
   const ready = (f: AllyFeature) => featureReady(featureUse(env.players, id, f));
-  const readyFor: Record<BonusFeature, boolean> = {
-    second_wind: ready("second_wind"), rage: ready("rage"), flurry: ready("flurry"), martial_arts: martialArtsDie(env.players, id) !== null,
+  const readyFor: Record<Exclude<BonusFeature, "rage_extend">, boolean> = {
+    second_wind: ready("second_wind"), rage: ready("rage"), flurry: ready("flurry"), martial_arts: monkTraining(env.players, id) !== null,
   };
   const choice = chooseBonusAction({
     mover, chosen: option, ready: readyFor,
     raging: mover.conditions.some((c) => c.name === RAGING),
+    rageEndsThisTurn: rageEndsThisTurn(mover),
     rageRides: option.attack !== null && rageDamageFor(env.players, id, allyAttackShape(env.players, id, action)) !== null,
-    unarmed: action === UNARMED_STRIKE, unarmedAction: UNARMED_STRIKE,
+    attackAction: option.attack !== null && option.attack.list === "actions",
+    unarmedAction: UNARMED_STRIKE,
   });
   if (choice === null) return null;
   const steps = bonusSteps(choice, option.targetId, UNARMED_STRIKE);

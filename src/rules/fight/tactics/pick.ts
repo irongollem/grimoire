@@ -458,7 +458,9 @@ export function pickTurn(offered: readonly TurnOption[], profile: TacticalProfil
     const cast = bestCast(castCandidates(casts, attacks, profile, ctx), best, attacks, profile, ctx);
     if (cast !== null) {
       const why = cast.why !== null ? cast.why : attackChoice === null || cast.retargeted ? null : attackChoice.why;
-      return { optionId: cast.option.id, reason: describeCast(cast.option, why, ctx, best === null ? null : best.option, cast.counted) };
+      const surge = cast.option.spell.surge;
+      const surged = surge === undefined ? "" : ` With Action Surge it then takes a second action: ${surge.second.summary.charAt(0).toLowerCase()}${surge.second.summary.slice(1)}, so the figures count both.`;
+      return { optionId: cast.option.id, reason: `${describeCast(cast.option, why, ctx, best === null ? null : best.option, cast.counted)}${surged}` };
     }
   }
   if (attackChoice !== null && best !== null) return { optionId: best.option.id, reason: describeAttack(best.option, best.target, attackChoice.why) };

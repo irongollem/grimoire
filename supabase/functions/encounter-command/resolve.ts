@@ -27,7 +27,7 @@ import { attackRollMode } from "../../../src/rules/combat/attackRoll.ts";
 import { allySlotSpend, settleSlotSpend, type InnateSpend } from "../../../src/rules/fight/allies/spells.ts";
 import { enemyBesideTarget } from "../../../src/rules/fight/allies/sneak.ts";
 import { allyAttackShape, allySneakAttack } from "../../../src/rules/fight/allies/statBlock.ts";
-import { RAGE_RESISTANCES, RAGING, divineSmiteFor, rageDamageFor } from "../../../src/rules/fight/allies/features.ts";
+import { RAGE_RESISTANCES, RAGING, divineSmiteFor, featureSpend, improvedSmiteFor, rageDamageFor, settleFeatureSpend } from "../../../src/rules/fight/allies/features.ts";
 import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "../../../src/rules/fight/targeting.ts";
 import { applyFightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightDeps, FightResult } from "../../../src/rules/fight/fightEvents.ts";
@@ -602,7 +602,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
    * dice, doubled on a critical hit like any die, and spends the slot. Once per turn is the ally's tactic and not a rule of the book (2014 allows a smite on every hit): it keeps slots for the next fight. Tallied as `smite/<own turns started>` in
    * `action_uses`, as Sneak Attack is (that one is the book's rule). In 2024 it is cast only while the Bonus Action is free. Null for anyone who is not an ally Paladin, a swing it does not ride, or one already spent.
    */
-  const smiteIn = (attacker: RunCombatant, target: RunCombatant, entry: StatBlockEntry): { entry: StatBlockEntry; useKey: string; slotLevel: number; needsBonusAction: boolean } | null => {
+  const smiteIn = (attacker: RunCombatant, target: RunCombatant, entry: StatBlockEntry): { entry: StatBlockEntry; useKey: string; slotLevel: number | null; needsBonusAction: boolean } | null => {
     const attack = entry.structured?.attack;
     if (attacker.type !== "player" || attacker.party_member_id === undefined || attack === undefined) return null;
     const kind = creatureKindOf(target, env.sources);
@@ -611,6 +611,17 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     const useKey = `smite/${attacker.shown_deeds === undefined ? 0 : attacker.shown_deeds.turns}`;
     if (!limitAvailability(attacker, useKey, { per_day: 1 }).available) return null;
     return { entry: { ...entry, structured: { ...entry.structured, attack: { ...attack, hit: [...attack.hit, ...smite.dice.map((dice) => ({ dice, type: "radiant" as const }))] } } }, useKey, slotLevel: smite.slotLevel, needsBonusAction: smite.needsBonusAction };
+  };
+
+  /**
+   * RULE improved-divine-smite (PHB 2014 "Improved Divine Smite"; PHB 2024 "Radiant Strikes", `improvedSmiteFor`): a Paladin of 11th level adds 1d8 radiant damage to every melee weapon
+   * hit (2024: an Unarmed Strike too), with no slot and no limit of once a turn. The entry as it is for anyone else and for an attack it does not ride.
+   */
+  const improvedIn = (attacker: RunCombatant, entry: StatBlockEntry): StatBlockEntry => {
+    const attack = entry.structured?.attack;
+    if (attacker.type !== "player" || attacker.party_member_id === undefined || attack === undefined) return entry;
+    const dice = improvedSmiteFor(env.players, attacker.party_member_id, allyAttackShape(env.players, attacker.party_member_id, entry.name));
+    return dice === null ? entry : { ...entry, structured: { ...entry.structured, attack: { ...attack, hit: [...attack.hit, { dice, type: "radiant" as const }] } } };
   };
 
   /**
@@ -797,7 +808,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
         const sneak = sneakAttackIn(attacker, target, raged, near as boolean, facts);
         const smite = smiteIn(attacker, target, sneak === null ? raged : sneak.entry);
         const done = await resolveAttackOn(ctx, {
-          attacker, entry: smite === null ? (sneak === null ? raged : sneak.entry) : smite.entry, target, withinFiveFeet: near as boolean, extraPenalty: command.penalty, magical: command.magical,
+          attacker, entry: improvedIn(attacker, smite === null ? (sneak === null ? raged : sneak.entry) : smite.entry), target, withinFiveFeet: near as boolean, extraPenalty: command.penalty, magical: command.magical,
           ...facts,
         });
         collected.push({ type: "resolved", resolved: done.summary });
@@ -818,10 +829,19 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
             collected.push(...bonus.effects);
           }
           const memberId = attacker.party_member_id as string;
-          const slots = allySlotSpend(env.players, memberId, smite.slotLevel);
-          if (slots !== null) {
-            env.slotsSpent.push({ memberId, slots });
-            settleSlotSpend(env.players, memberId, slots);
+          if (smite.slotLevel === null) {
+            // 2024 Paladin's Smite: the free cast is a use of the sheet's own pool, not a slot.
+            const resources = featureSpend(env.players, memberId, "paladins_smite");
+            if (resources !== null) {
+              env.resourcesSpent.push({ memberId, resources });
+              settleFeatureSpend(env.players, memberId, resources);
+            }
+          } else {
+            const slots = allySlotSpend(env.players, memberId, smite.slotLevel);
+            if (slots !== null) {
+              env.slotsSpent.push({ memberId, slots });
+              settleSlotSpend(env.players, memberId, slots);
+            }
           }
         }
         break;

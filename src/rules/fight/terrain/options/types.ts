@@ -76,6 +76,11 @@ export interface TurnOptionSpell {
   expectedWorth?: number | null;
   /** The conditions a failed save of this cast imposes, by name; absent when there are none. */
   imposes?: readonly string[];
+  /**
+   * Only on a cast an Action Surge carries on (`tactics/surgeCast.ts`, #1021): the turn is this cast and then `second`, the extra action, from where the mover
+   * stands. Its numbers are both turns' together. Absent on every cast the options assembly makes.
+   */
+  surge?: { second: TurnOption };
 }
 
 /** Rule 13, the cap on heal options (#1021): a caster with a healing spell is offered it at the few who need it most, never at every scratch. */

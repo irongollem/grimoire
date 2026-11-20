@@ -39,7 +39,9 @@ export type TurnStep =
    * spends its Ki. `targetId` is who a Flurry's swings are at (null for the others). What each does, and what the sheet is
    * charged, is `take_turn`'s to carry out: the step only says which.
    */
-  | { type: "feature"; feature: "second_wind" | "rage" | "flurry"; targetId: string | null }
+  | { type: "feature"; feature: "second_wind" | "rage" | "rage_extend" | "flurry"; targetId: string | null }
+  /** Action Surge's extra action begins (#1021, `surgeCast.ts`): the sheet is charged a use of it, and what follows is the extra action. */
+  | { type: "surge" }
   /** The Action or the Bonus Action of the turn is used up. */
   | { type: "use"; slot: "action" | "bonus" }
   /** A flee that ends on a way off the map (#1203): the creature is taken out of the fight, after everything else it did. */
@@ -109,6 +111,8 @@ export function stepsFor(option: TurnOption, attacks: readonly UsableAttack[]): 
   // A cast is one command: it spends the slot or use and takes the Action itself.
   if (option.kind === "spell" && option.spell !== undefined && option.spell !== null) {
     steps.push({ type: "cast", spell: option.spell.name, castLevel: option.spell.castLevel, targetIds: option.spell.targetIds });
+    // An Action Surge's extra action: the cast, the surge, then the second turn from where the mover stands (it walks nowhere: `surgeCast.ts` offers only what stays put).
+    if (option.spell.surge !== undefined) steps.push({ type: "surge" }, ...stepsFor(option.spell.surge.second, attacks));
   }
   if (option.kind === "heal" && option.heal !== undefined && option.heal !== null) {
     steps.push({ type: "cast", spell: option.heal.name, castLevel: option.heal.castLevel, targetIds: option.heal.targetIds, heal: true });

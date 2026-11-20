@@ -133,6 +133,11 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
  */
 function capped(options: { option: TurnOption; nearness: number }[], fixed: TurnOption[], spells: readonly TurnOption[]): TurnOption[] {
   const room = Math.max(0, MAX_TURN_OPTIONS - fixed.length);
-  const kept = [...options].sort((a, b) => a.nearness - b.nearness).slice(0, room).map((o) => o.option);
+  const byNearness = [...options].sort((a, b) => a.nearness - b.nearness);
+  // Of equally near attacks the cut keeps a Multiattack before a single swing (an ally with several weapons lists a set of swings for each, and the sets are the better turns),
+  // and the list keeps its own order.
+  const isSet = (o: { option: TurnOption }): number => (o.option.attack !== null && o.option.attack.steps !== null ? 1 : 0);
+  const survivors = new Set(byNearness.map((o, order) => ({ o, order })).sort((a, b) => a.o.nearness - b.o.nearness || isSet(b.o) - isSet(a.o) || a.order - b.order).slice(0, room).map((r) => r.o));
+  const kept = byNearness.filter((o) => survivors.has(o)).map((o) => o.option);
   return [...kept, ...spells, ...fixed];
 }

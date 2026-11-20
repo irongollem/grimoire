@@ -14,20 +14,22 @@ import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { TurnStep } from "./carryOut.ts";
 import type { TurnOption } from "../terrain/options/types.ts";
 
-export type BonusFeature = "second_wind" | "rage" | "flurry" | "martial_arts";
+export type BonusFeature = "second_wind" | "rage" | "rage_extend" | "flurry" | "martial_arts";
 
 /** What the caller knows of the mover and of the turn the picker chose. */
 export interface BonusFacts {
   mover: RunCombatant;
   chosen: TurnOption;
   /** Which features the mover can use right now: the class level is there, a use is left, and the Bonus Action is free. */
-  ready: Readonly<Record<BonusFeature, boolean>>;
+  ready: Readonly<Record<Exclude<BonusFeature, "rage_extend">, boolean>>;
   /** The mover is already raging. */
   raging: boolean;
+  /** The mover is raging under the 2024 rules and it is the turn that would end the Rage (`rage.ts`): an attack roll this turn would extend it, a Bonus Action can too. */
+  rageEndsThisTurn: boolean;
   /** The chosen attack is a Strength melee weapon attack, the kind Rage adds its damage to. */
   rageRides: boolean;
-  /** The chosen attack is an Unarmed Strike (what Flurry of Blows and the Martial Arts Bonus Action follow). */
-  unarmed: boolean;
+  /** The chosen turn is the Attack action (an attack from the Actions list, any weapon or none): what Flurry of Blows follows. */
+  attackAction: boolean;
   /** The entry the chosen attack swings, for the Bonus Action's own swings at the same target. */
   unarmedAction: string;
 }
@@ -44,10 +46,12 @@ export interface BonusChoice {
  *   short-rest use), before the turn;
  * 2 Rage at the first turn it is about to fight in melee with a Strength weapon (the damage and resistance are worth the use
  *   only when there is a blow to land; once raging it does not start again), before the turn;
- * 3 Flurry of Blows after an Unarmed Strike turn, while Ki or Focus Points are left (PHB 2014 "Flurry of Blows": immediately after
- *   the Attack action; the app takes any Attack turn that swung Unarmed Strike as that);
- * 4 the Martial Arts Bonus Action, an unarmed strike after an Unarmed Strike turn, when there is no point to spend on a Flurry
- *   (PHB 2014 "Martial Arts": when you use the Attack action with an unarmed strike, one more unarmed strike as a Bonus Action).
+ * 2b (2024 "Rage") the Bonus Action that extends a Rage that would end this turn, when the turn chosen makes no attack roll to extend it with;
+ * 3 Flurry of Blows after the Attack action, while Ki or Focus Points are left (PHB 2014 "Flurry of Blows": "immediately after you take the Attack
+ *   action on your turn", with any attack, and PHB 2024 the same: it asks no monk weapon);
+ * 4 the Martial Arts Bonus Action, an unarmed strike after the Attack action made with an unarmed strike or a monk weapon, when there is no point to spend
+ *   on a Flurry (PHB 2014 "Martial Arts": "when you use the Attack action with an unarmed strike or a monk weapon"; PHB 2024: only Unarmed Strikes or Monk weapons).
+ *   `ready.martial_arts` is `monkTraining`: no armor or shield and every weapon held a monk weapon, so every attack such a Monk makes is one of those.
  * Null when none applies. Only an attack turn takes Rage, Flurry or Martial Arts; Second Wind comes with any turn.
  */
 export function chooseBonusAction(f: BonusFacts): BonusChoice | null {
@@ -59,8 +63,9 @@ export function chooseBonusAction(f: BonusFacts): BonusChoice | null {
   if (attacking && f.ready.rage && !f.raging && f.rageRides) {
     return { feature: "rage", when: "before", reason: "Rage: a melee attack is in reach and it is not raging yet." };
   }
-  if (attacking && f.unarmed && f.ready.flurry) return { feature: "flurry", when: "after", reason: "Flurry of Blows: it has Ki to spend on two more unarmed strikes." };
-  if (attacking && f.unarmed && f.ready.martial_arts) return { feature: "martial_arts", when: "after", reason: "Martial Arts: one more unarmed strike as a Bonus Action." };
+  if (!attacking && f.raging && f.rageEndsThisTurn) return { feature: "rage_extend", when: "after", reason: "Rage: it would end this turn, and this turn makes no attack to carry it on, so the Bonus Action extends it." };
+  if (attacking && f.attackAction && f.ready.flurry) return { feature: "flurry", when: "after", reason: "Flurry of Blows: it has Ki to spend on two more unarmed strikes." };
+  if (attacking && f.attackAction && f.ready.martial_arts) return { feature: "martial_arts", when: "after", reason: "Martial Arts: one more unarmed strike as a Bonus Action." };
   return null;
 }
 
@@ -69,6 +74,7 @@ export function bonusSteps(choice: BonusChoice, targetId: string | null, unarmed
   switch (choice.feature) {
     case "second_wind":
     case "rage":
+    case "rage_extend":
       return [{ type: "feature", feature: choice.feature, targetId: null }, { type: "use", slot: "bonus" }];
     case "flurry":
       return targetId === null

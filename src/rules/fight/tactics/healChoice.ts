@@ -25,7 +25,8 @@ export const isHealOption = (o: TurnOption): o is HealOption => o.kind === "heal
 
 /** A leveled cast: a slot spell or an at-will spell above a cantrip. */
 function castsALeveledSpell(o: TurnOption): boolean {
-  if (o.kind === "spell") return o.spell !== undefined && o.spell !== null && o.spell.castLevel > 0;
+  // A cast Action Surge carries on is a leveled cast when either of its two actions is (`surgeCast.ts`).
+  if (o.kind === "spell") return o.spell !== undefined && o.spell !== null && (o.spell.castLevel > 0 || (o.spell.surge !== undefined && castsALeveledSpell(o.spell.surge.second)));
   if (o.kind === "heal") return o.heal !== undefined && o.heal !== null && o.heal.castLevel > 0;
   return false;
 }

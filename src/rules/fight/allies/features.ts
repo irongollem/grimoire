@@ -19,6 +19,10 @@ import type { ResourcePool, StoredClassResources } from "../../features/characte
 import { abilityMod } from "../../abilityScore.ts";
 import { proficiencyBonusOf } from "../../proficiencyBonus.ts";
 import type { PlayerSheetRow, PlayerSheets } from "../playerSheet.ts";
+import type { Item } from "../../../types/item.types.ts";
+import { isRangedWeaponItem } from "../../ammunition.ts";
+import { wornGearByMember } from "../../armorClass.ts";
+import { inventoryItemRef } from "../../../lib/itemRef.ts";
 
 /** The rows of a member's classes that the book's own class features hang on: the SRD classes, not a homebrew one that shares a name. */
 function systemClasses(classes: readonly CharacterClass[]): CharacterClass[] {
@@ -122,7 +126,7 @@ export function sneakAttackFor(classes: readonly CharacterClass[], ruleset: Rule
  * catalogue's by-level amounts already read 0 below it for Action Surge, but Rage and Second Wind are level 1 and the Monk's
  * Ki and Focus points begin at 2nd level (the catalogue gives `class_level`, which would read 1 at 1st level).
  */
-export type AllyFeature = "second_wind" | "action_surge" | "rage" | "flurry";
+export type AllyFeature = "second_wind" | "action_surge" | "rage" | "flurry" | "paladins_smite";
 
 interface FeatureSource {
   className: string;
@@ -138,6 +142,8 @@ const SOURCES: Record<AllyFeature, FeatureSource> = {
   action_surge: { className: "fighter", minLevel: 2, key2014: "srd_fighter_action-surge", key2024: "srd-2024_fighter_action-surge" },
   rage: { className: "barbarian", minLevel: 1, key2014: "srd_barbarian_rage", key2024: "srd-2024_barbarian_rage" },
   flurry: { className: "monk", minLevel: 2, key2014: "srd_monk_ki", key2024: "srd-2024_monk_monks-focus", action: "Flurry of Blows" },
+  // 2024 only: the 2014 catalogue has no such row, so a 2014 member reads no use of it (`featureUse` is null).
+  paladins_smite: { className: "paladin", minLevel: 2, key2014: "srd_paladin_paladins-smite", key2024: "srd-2024_paladin_paladins-smite" },
 };
 
 /** A feature the member has, with the pool it spends and what is left of it. */
@@ -244,9 +250,9 @@ export const RAGE_RESISTANCES = ["bludgeoning", "piercing", "slashing"] as const
 /** The name of the condition a Rage puts on the Barbarian (and the one the damage and the resistance read). */
 export const RAGING = "Raging";
 
-/** What a Divine Smite adds to a hit: the slot it spends and the radiant dice, as separate parts of the hit. */
+/** What a Divine Smite adds to a hit: the slot it spends (null for the free cast of 2024's Paladin's Smite) and the radiant dice, as separate parts of the hit. */
 export interface DivineSmite {
-  slotLevel: number;
+  slotLevel: number | null;
   dice: string[];
   /** 2024: the smite is a spell cast as a Bonus Action after the hit, so it needs the Bonus Action. 2014: a feature, no action. */
   needsBonusAction: boolean;
@@ -258,8 +264,10 @@ export interface DivineSmite {
  * 5d8), and 1d8 more against a fiend or an undead. In 2014 it costs nothing but the slot; in 2024 it is cast as a Bonus Action after the
  * hit. The dice are the catalogue rider's own (`riderDice` over the slot spent, the fixed die of its fiend and undead rider); the attacks it rides are its
  * `applies_to` over the attack's sheet shape (`ridersFor`). The 2024 spell uses the same dice, so the one catalogue row serves both editions.
- * APP CONVENTION, the ally's tactic and not a rule of the book: it spends the lowest slot the Paladin has unspent (the thrifty choice, the slots being what its spells want too).
- * Not modelled: Paladin's Smite (the 2024 free cast once per long rest), Improved Divine Smite, Pact Magic slots.
+ * RULE paladins-smite (PHB 2024 "Paladin's Smite", 2nd level): the 2024 Paladin "can cast it once without expending a spell slot" and regains that on a Long Rest: a 1st-level cast
+ * (2d8, the spell's base) that spends the sheet's `paladins_smite` use, not a slot. APP CONVENTION: it is the cast taken first while the use is left, as it costs no slot.
+ * APP CONVENTION otherwise, the ally's tactic and not a rule of the book: it spends the lowest slot the Paladin has unspent (the thrifty choice, the slots being what its spells want too).
+ * Not modelled: Pact Magic slots for a smite as a separate choice (the lowest slot of either pool is taken).
  */
 export function divineSmiteFor(sheets: PlayerSheets, memberId: string, shape: AttackShape | null, againstFiendOrUndead: boolean): DivineSmite | null {
   const member = sheets.members.find((m) => m.id === memberId);
@@ -269,17 +277,50 @@ export function divineSmiteFor(sheets: PlayerSheets, memberId: string, shape: At
   if (riders === undefined || ridersFor(riders, shape, new Set()).length === 0) return null;
   const slotted = riders.find((r) => r.dice.kind === "slot");
   const fixed = riders.find((r) => r.dice.kind === "fixed");
-  const slot = member.spell_slots.filter((s) => s.level >= 1 && s.used < s.max).sort((a, b) => a.level - b.level)[0];
-  if (slotted === undefined || slot === undefined) return null;
-  const base = riderDice(slotted, { scalingValue: null, slotLevel: slot.level });
+  if (slotted === undefined) return null;
+  // Only 2024 has the use (the 2014 catalogue holds no `paladins_smite` row, so a 2014 member reads none).
+  const free = featureReady(featureUse(sheets, memberId, "paladins_smite"));
+  const slot = free ? undefined : member.spell_slots.filter((s) => s.level >= 1 && s.used < s.max).sort((a, b) => a.level - b.level)[0];
+  if (!free && slot === undefined) return null;
+  const base = riderDice(slotted, { scalingValue: null, slotLevel: slot === undefined ? 1 : slot.level });
   if (base === null) return null;
   const extra = againstFiendOrUndead && fixed !== undefined ? riderDice(fixed, { scalingValue: null }) : null;
-  return { slotLevel: slot.level, dice: extra === null ? [base] : [base, extra], needsBonusAction: member.ruleset === "2024" };
+  return { slotLevel: slot === undefined ? null : slot.level, dice: extra === null ? [base] : [base, extra], needsBonusAction: member.ruleset === "2024" };
 }
 
-/** The Raging condition: one minute, ten rounds, which also ends it with the fight (`conditionsAfterFight` drops a condition with an end). */
-export function ragingCondition(moverId: string): AppliedCondition {
-  return { name: RAGING, source: { id: moverId, spell: "Rage" }, ends: { kind: "rounds", remaining: 10 } };
+/**
+ * RULE improved-divine-smite (PHB 2014 "Paladin: Improved Divine Smite", 11th level: "Whenever you hit a creature with a melee weapon, the creature takes an extra 1d8 radiant
+ * damage"; PHB 2024 "Radiant Strikes", 11th level: the same extra 1d8 Radiant damage "when you hit a target with a melee weapon or an Unarmed Strike"). No slot, no use, no
+ * limit of once a turn: it rides every melee hit, and a critical doubles its die like any other. The die is the 2014 catalogue row's (`srd_paladin_improved-divine-smite`: the 2024
+ * catalogue has no row for Radiant Strikes, and the dice are the same). Null for a member under 11th Paladin level, a Wild Shaped one, or an attack it does not ride.
+ */
+export function improvedSmiteFor(sheets: PlayerSheets, memberId: string, shape: AttackShape | null): string | null {
+  const member = sheets.members.find((m) => m.id === memberId);
+  // A Wild Shaped member has no attack shape (`allyAttackShape`), so it reads null here too.
+  if (member === undefined || shape === null) return null;
+  if (levelIn(classesOf(sheets, memberId), "paladin") < 11) return null;
+  const rider = SRD_2014_FEATURES["srd_paladin_improved-divine-smite"]?.riders?.[0];
+  if (rider === undefined) return null;
+  // 2024 adds the Unarmed Strike to the melee weapon the 2014 rider rides.
+  const rides = ridersFor([rider], shape, new Set()).length > 0 || (member.ruleset === "2024" && shape.kind === "unarmed");
+  return rides ? riderDice(rider, { scalingValue: null }) : null;
+}
+
+/**
+ * The Raging condition. PHB 2014 "Rage": one minute, ten rounds, which also ends it with the fight (`conditionsAfterFight` drops a condition with an end).
+ * PHB 2024 "Rage": it lasts until the end of the Barbarian's next turn, so it is a `turn` end on the bearer, and the Barbarian carries it on by
+ * attacking on that turn (`rage.ts`). A condition applied during the bearer's own turn survives that turn's end, so a Rage started this turn lasts
+ * through the next one, as the book says.
+ */
+export function ragingCondition(moverId: string, ruleset: RulesetKey): AppliedCondition {
+  const ends: AppliedCondition["ends"] = ruleset === "2024" ? { kind: "turn", at: "end", of: "self" } : { kind: "rounds", remaining: 10 };
+  return { name: RAGING, source: { id: moverId, spell: "Rage" }, ends };
+}
+
+/** The Rage condition for this member's edition (their sheet's ruleset): what starting a Rage, or the sheet's own rage, puts on them. */
+export function ragingConditionFor(sheets: PlayerSheets, memberId: string, instanceId: string): AppliedCondition | null {
+  const member = sheets.members.find((m) => m.id === memberId);
+  return member === undefined ? null : ragingCondition(instanceId, member.ruleset);
 }
 
 /**
@@ -290,4 +331,47 @@ export function ragingCondition(moverId: string): AppliedCondition {
 export function rageStartedOnSheet(sheets: PlayerSheets, memberId: string): boolean {
   const member = sheets.members.find((m) => m.id === memberId);
   return member !== undefined && member.class_choices.rage_active === true && featureUse(sheets, memberId, "rage") !== null;
+}
+
+/**
+ * RULE monk-weapons (PHB 2014 "Monk: Martial Arts", "Monk Weapons": shortswords and any simple melee weapons that don't have the two-handed or heavy property;
+ * PHB 2024 "Martial Arts": Simple melee weapons and Martial melee weapons that have the Light property). A weapon's category is its `subtype` ("Simple Melee
+ * Weapons", "Martial Melee Weapons"); a weapon with no category in it is not one the app can call a monk weapon, except a shortsword by name (2014). A ranged
+ * weapon (an ammunition weapon, a "Ranged" category) is never one.
+ */
+export function isMonkWeapon(item: Item, ruleset: RulesetKey): boolean {
+  if (item.item_type !== "weapon" || isRangedWeaponItem(item)) return false;
+  const subtype = (item.subtype === null ? "" : item.subtype).toLowerCase();
+  const properties = item.properties.map((p) => p.toLowerCase());
+  const simple = subtype.startsWith("simple");
+  const martial = subtype.startsWith("martial");
+  if (ruleset === "2024") return simple || (martial && properties.includes("light"));
+  const shortsword = subtype.includes("shortsword") || item.name.trim().toLowerCase() === "shortsword";
+  return shortsword || (simple && !properties.includes("two-handed") && !properties.includes("heavy"));
+}
+
+/** What a Monk's Martial Arts gives this member right now: the die, or null when it does not apply (`monkTraining`). */
+export interface MonkTraining {
+  die: string;
+  ruleset: RulesetKey;
+}
+
+/**
+ * RULE martial-arts-conditions (PHB 2014 "Monk: Martial Arts": the benefits apply "while you are unarmed or wielding only monk weapons, and you aren't wearing
+ * armor or wielding a shield"; PHB 2024 "Martial Arts": "while you are unarmed or using only Monk weapons and you aren't wearing armor or wielding a Shield").
+ * Null for a member with no Monk levels (`martialArtsDie`), a Wild Shaped one, one wearing body armor or holding a shield, or holding a weapon that is not a monk weapon.
+ */
+export function monkTraining(sheets: PlayerSheets, memberId: string): MonkTraining | null {
+  const member = sheets.members.find((m) => m.id === memberId);
+  const die = martialArtsDie(sheets, memberId);
+  if (member === undefined || die === null) return null;
+  const worn = wornGearByMember(sheets.inventory, sheets.items)[memberId] ?? [];
+  if (worn.some((g) => (g.slot === "body" && g.item.item_type === "armor") || g.item.item_type === "shield")) return null;
+  const held = sheets.inventory.filter((inv) => inv.carried_by === memberId && (inv.slot === "main_hand" || inv.slot === "off_hand"));
+  for (const inv of held) {
+    const ref = inventoryItemRef(inv);
+    const item = ref === null ? undefined : sheets.items.find((i) => i.id === ref);
+    if (item !== undefined && item.item_type === "weapon" && !isMonkWeapon(item, member.ruleset)) return null;
+  }
+  return { die, ruleset: member.ruleset };
 }

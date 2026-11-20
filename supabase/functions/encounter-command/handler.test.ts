@@ -91,6 +91,8 @@ interface Harness {
   resourceWrites: Array<{ memberId: string; resources: StoredClassResources }>;
   /** How many times the server threw a die. */
   dieCalls: number;
+  /** The size of each die it threw, in order (20 for a d20). */
+  dieSides: number[];
   /** The party member ids of each `loadPlayerSheets` call. */
   playerLoads: string[][];
   /** How many times the fight's map was read. */
@@ -164,6 +166,7 @@ function harness(
     resourceWrites: [],
     innateWrites: [],
     dieCalls: 0,
+    dieSides: [],
     playerLoads: [],
     mapLoads: 0,
     spellReads: [],
@@ -293,8 +296,9 @@ function harness(
       h.log.push("slots");
       h.slotWrites.push({ memberId, slots: structuredClone(slots) });
     },
-    rollDie() {
+    rollDie(sides: number) {
       h.dieCalls += 1;
+      h.dieSides.push(sides);
       const face = options.dieFaces?.shift();
       if (face === undefined) throw new Error("The server threw a die the test did not script");
       return face;
@@ -3932,6 +3936,328 @@ describe("take_turn: an ally's Rage", () => {
   });
 });
 
+describe("an ally's Rage ends early (#1021)", () => {
+  // The Rage the server starts for an ally: sourced on its own bearer with the spell "Rage" (`ragingCondition`).
+  const RAGE_2014: AppliedCondition = { name: "Raging", source: { id: "tam", spell: "Rage" }, ends: { kind: "rounds", remaining: 10 } };
+  const rage2024 = (armed: boolean): AppliedCondition => ({ name: "Raging", source: { id: "tam", spell: "Rage" }, ends: { kind: "turn", at: "end", of: "self", armed } });
+  const NEXT = { type: "next_turn" } as CommandRequest["commands"][number];
+  const hurt = (delta: number) => ({ type: "adjust_hp", instanceId: "tam", delta }) as CommandRequest["commands"][number];
+  const ragingNow = (h: Harness) => combatantOf(stored(h), "tam").conditions.some((c) => c.name === "Raging");
+  const barbarian = (ruleset: "2014" | "2024" = "2014") => {
+    const sheets = withClasses(tamSheets(), classRow("Barbarian", 1));
+    sheets.members = sheets.members.map((m) => ({ ...m, ruleset }));
+    return sheets;
+  };
+  const fightWith = (conditions: AppliedCondition[], over: Partial<RunCombatant> = {}) => allyFight({ conditions, ...over });
+
+  // PHB 2014 "Barbarian: Rage": "It ends early ... if your turn ends and you haven't attacked a hostile creature since your last turn or taken damage since then."
+  // Tam rages, nobody swings and nobody hurts him, and his turn ends: the Rage goes out. Bug caught: a Rage that lasts the whole minute whatever happens.
+  it("fails if a 2014 Rage survives a turn that ended with no attack made and no damage taken", async () => {
+    const h = harness(fightWith([RAGE_2014]), { sources: SOURCES, players: barbarian(), map: mapOf(), dieFaces: [] });
+    const result = await runBatch(batch("b", NEXT), h.deps);
+    expect(ragingNow(h)).toBe(false);
+    expect(result.effects).toContainEqual({ type: "condition_ended", instanceId: "tam", name: "Raging", reason: "expired" });
+  });
+
+  // The same turn with an attack made (d20 8 + 5 = 13 hits AC 13, a 4 + 3 + 2): the Rage is kept going. Bug caught: the attack not counted, so a raging Barbarian that fought stops raging.
+  it("fails if a 2014 Rage ends after a turn the Barbarian attacked in", async () => {
+    const h = harness(fightWith([RAGE_2014]), { sources: SOURCES, players: barbarian(), map: mapOf(), dieFaces: [8, 4] });
+    await runBatch(batch("t", tamTurn()), h.deps);
+    await runBatch(batch("n", NEXT), h.deps);
+    expect(ragingNow(h)).toBe(true);
+  });
+
+  // "... or taken damage since then": a blow on the Barbarian keeps it, and the temporary hit points that soak the blow are still damage taken.
+  // The keep is for one turn's end only: three turns later with nothing since, it goes out. Bug caught: damage ignored, temp hit points ignored, or the keep never reset.
+  it.each([
+    { name: "hit points", over: {}, delta: -3 },
+    { name: "temporary hit points alone", over: { temp_hp: 5 }, delta: -3 },
+  ])("fails if a 2014 Rage does not survive $name damage taken, once", async ({ over, delta }) => {
+    const h = harness(fightWith([RAGE_2014], over), { sources: SOURCES, players: barbarian(), map: mapOf(), dieFaces: [] });
+    await runBatch(batch("hurt", hurt(delta), NEXT), h.deps);
+    expect(ragingNow(h)).toBe(true);
+    await runBatch(batch("round", NEXT, NEXT), h.deps);
+    expect(ragingNow(h)).toBe(false);
+  });
+
+  // A Raging the DM typed onto a player by hand carries no source: the table's, not judged (a human-played Barbarian's attacks are rolled at the table).
+  it("fails if a Raging the server did not start is ended by the rules", async () => {
+    const h = harness(fightWith([{ name: "Raging" }]), { sources: SOURCES, players: barbarian(), map: mapOf(), dieFaces: [] });
+    await runBatch(batch("b", NEXT), h.deps);
+    expect(ragingNow(h)).toBe(true);
+  });
+
+  // "... if you are knocked unconscious" (2014): Tam at 20 takes 20 and is at 0. A lesser blow leaves the Rage (and the damage keeps it). Bug caught: a Barbarian raging on while down.
+  it.each([
+    { name: "knocked to 0 hit points", delta: -20, raging: false },
+    { name: "hurt but standing", delta: -5, raging: true },
+  ])("a 2014 Barbarian $name is raging: $raging", async ({ delta, raging }) => {
+    const h = harness(fightWith([RAGE_2014]), { sources: SOURCES, players: barbarian(), map: mapOf(), dieFaces: [] });
+    await runBatch(batch("b", hurt(delta)), h.deps);
+    expect(ragingNow(h)).toBe(raging);
+  });
+
+  // PHB 2024 "Rage": it "ends early if you ... have the Incapacitated condition". Stunned incapacitates; Prone does not; a 2014 Rage is not ended by being Stunned (only unconscious).
+  it.each([
+    { name: "a 2024 Rage and a Stunned Barbarian", ruleset: "2024" as const, rage: rage2024(false), condition: "Stunned", raging: false },
+    { name: "a 2024 Rage and a Prone Barbarian", ruleset: "2024" as const, rage: rage2024(false), condition: "Prone", raging: true },
+    { name: "a 2014 Rage and a Stunned Barbarian", ruleset: "2014" as const, rage: RAGE_2014, condition: "Stunned", raging: true },
+  ])("with $name, raging is $raging", async ({ ruleset, rage, condition, raging }) => {
+    const h = harness(fightWith([rage]), { sources: SOURCES, players: barbarian(ruleset), map: mapOf(), ruleset, dieFaces: [] });
+    await runBatch(batch("b", { type: "apply_condition", instanceId: "tam", condition: { name: condition } } as CommandRequest["commands"][number]), h.deps);
+    expect(ragingNow(h)).toBe(raging);
+  });
+
+  // The sheet still shows rage_active after the Rage ended in this fight: the next turn does not start it again. Tam rages from the sheet (no use spent), is knocked to 0 and
+  // brought back up, and with no use left he does not rage again. Bug caught: a rage that ended coming back every turn off the sheet's toggle.
+  it("fails if a Rage that ended in the fight is started again from the sheet's toggle", async () => {
+    const sheets = withResources(barbarian(), pool("rage_uses", 0, 2, "long"));
+    sheets.members = sheets.members.map((m) => ({ ...m, class_choices: { rage_active: true } }));
+    const h = harness(allyFight(), { sources: SOURCES, players: sheets, map: mapOf(), dieFaces: [8, 4, 8, 4] });
+    await runBatch(batch("t1", tamTurn()), h.deps);
+    expect(ragingNow(h)).toBe(true);
+    await runBatch(batch("down", hurt(-30)), h.deps);
+    expect(ragingNow(h)).toBe(false);
+    await runBatch(batch("up", hurt(10)), h.deps);
+    await runBatch(batch("t2", NEXT, NEXT), h.deps);
+    await runBatch(batch("t3", tamTurn()), h.deps);
+    expect(ragingNow(h)).toBe(false);
+  });
+
+  // PHB 2024 "Rage": it lasts until the end of the NEXT turn. Started on his own turn it survives that turn's end (and the attack he made), is armed when his next turn
+  // begins and, with nothing to extend it, ends at that turn's end. Bug caught: the 2014 ten-round condition given to a 2024 Barbarian, or a Rage that ends the turn it began.
+  it("fails if a 2024 Rage does not last until the end of the Barbarian's next turn", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: barbarian("2024"), map: mapOf(), ruleset: "2024", dieFaces: [8, 4] });
+    await runBatch(batch("t", tamTurn()), h.deps);
+    expect(combatantOf(stored(h), "tam").conditions).toMatchObject([{ name: "Raging", ends: { kind: "turn", at: "end", of: "self" } }]);
+    await runBatch(batch("n1", NEXT, NEXT), h.deps);
+    expect(ragingNow(h)).toBe(true);
+    await runBatch(batch("n2", NEXT), h.deps);
+    expect(ragingNow(h)).toBe(false);
+  });
+
+  // 2024: "make an attack roll against an enemy" on the turn the Rage would end carries it another round. Armed Rage, Tam attacks (d20 8 + 5 hits, 4 + 3 + 2), and his turn's end
+  // leaves it. No Bonus Action is spent for it. Bug caught: the attack not extending, or the Bonus Action spent when the attack already did.
+  it("fails if a 2024 Rage is not extended by an attack roll on the turn it would end", async () => {
+    const h = harness(fightWith([rage2024(true)]), { sources: SOURCES, players: barbarian("2024"), map: mapOf(), ruleset: "2024", dieFaces: [8, 4] });
+    await runBatch(batch("t", tamTurn()), h.deps);
+    expect(combatantOf(stored(h), "tam").bonus_used).not.toBe(true);
+    await runBatch(batch("n", NEXT), h.deps);
+    expect(combatantOf(stored(h), "tam").conditions).toMatchObject([{ name: "Raging", ends: { kind: "turn", armed: false } }]);
+  });
+
+  // The attack on the turn the Rage began extends nothing (it already lasts through this turn's end), so the sheet's conditions are not written again for it.
+  // Bug caught: every attack of a raging Barbarian rewriting its conditions to the character.
+  it("fails if an attack by a 2024 Rage that is not armed writes the conditions again", async () => {
+    const h = harness(fightWith([rage2024(false)]), { sources: SOURCES, players: barbarian("2024"), map: mapOf(), ruleset: "2024", dieFaces: [8, 4] });
+    const result = await runBatch(batch("t", tamTurn()), h.deps);
+    expect(result.effects.filter((e) => e.type === "player_persist" && "patch" in e && "conditions" in e.patch)).toEqual([]);
+  });
+
+  // 2024: with no attack to make, "take a Bonus Action to extend your Rage". The ox stands twenty squares away, out of any reach this turn, so the rules-picked turn is a walk,
+  // and the Bonus Action extends the armed Rage. With the Bonus Action already used there is nothing to extend it and the Rage ends at the turn's end; and a Rage that is not
+  // armed (it began this turn) needs no extension, so the Bonus Action is left. Bug caught: no extension, a free one, or an unneeded one.
+  it.each([
+    { name: "a free Bonus Action", conditions: [rage2024(true)], over: {}, raging: true, bonus: true },
+    { name: "the Bonus Action used", conditions: [rage2024(true)], over: { bonus_used: true }, raging: false, bonus: true },
+    { name: "a Rage that is not armed", conditions: [rage2024(false)], over: {}, raging: true, bonus: false },
+  ])("a 2024 Barbarian who only walks, with $name: raging $raging, Bonus Action used $bonus", async ({ conditions, over, raging, bonus }) => {
+    const far = row({
+      combatants_live: [
+        pc("tam", { faction_id: "p", hp: 20, max_hp: 20, initiative: 12, position: { x: 1, y: 1 }, conditions, ...over }),
+        combatant("victim", { monster_id: "m-ox", faction_id: "m", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 21, y: 1 } }),
+      ],
+    });
+    const h = harness(far, { sources: SOURCES, players: barbarian("2024"), map: mapOf(), ruleset: "2024", dieFaces: [] });
+    const result = await runBatch(batch("t", tamTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ turn: { kind: expect.not.stringMatching(/^attack$/) } });
+    await runBatch(batch("n", NEXT), h.deps);
+    expect(ragingNow(h)).toBe(raging);
+    expect(combatantOf(stored(h), "tam").bonus_used === true).toBe(bonus);
+  });
+});
+
+describe("take_turn: a Monk's weapons", () => {
+  // Tam, a 1st-level Monk: Strength 10 (+0), Dexterity 16 (+3), proficiency +2, Martial Arts die d4, holding `gear`. The ox has AC 13.
+  const weapon = (id: string, name: string, subtype: string, dice: string, properties: string[] = []) => ({ id, name, item_type: "weapon", properties, tags: [], subtype, charges: null, weapon_range: null, damage_rolls: [{ dice, type: "bludgeoning" }] }) as unknown as Item;
+  const held = (id: string, slot: "main_hand" | "off_hand" = "main_hand") => ({ id: `inv-${id}`, item_id: id, library_item_id: null, name: id, quantity: 1, carried_by: "pm-tam", slot, location: "equipped" }) as unknown as PartyInventoryItem;
+  const monk = (items: Item[], slots: Array<[string, "main_hand" | "off_hand" | "body"]>, ruleset: "2014" | "2024" = "2014", level = 1) => {
+    const gear = slots.map(([id, slot]) => ({ ...held(id), slot })) as PartyInventoryItem[];
+    const sheets = withClasses(tamSheets({ gear, items }), classRow("Monk", level));
+    sheets.members = sheets.members.map((m) => ({ ...m, str: 10, dex: 16, ruleset }));
+    return sheets;
+  };
+  const QUARTERSTAFF = weapon("staff", "Quarterstaff", "Simple Melee Weapons", "1d6", ["versatile"]);
+  const GREATCLUB = weapon("club", "Greatclub", "Simple Melee Weapons", "1d8", ["two-handed"]);
+  const SCIMITAR = weapon("scimitar", "Scimitar", "Martial Melee Weapons", "1d6", ["finesse", "light"]);
+  const SHORTSWORD = weapon("shortsword", "Shortsword", "Martial Melee Weapons", "1d6", ["finesse", "light"]);
+  const LONGSWORD_M = weapon("sword", "Longsword", "Martial Melee Weapons", "1d8", ["versatile"]);
+  const CHAIN_MAIL = { id: "mail", name: "Chain Mail", item_type: "armor", properties: [], tags: [], subtype: "Heavy Armor", armor_class: "16" } as unknown as Item;
+  const SHIELD = { id: "shield", name: "Shield", item_type: "shield", properties: [], tags: [], subtype: null, armor_class: "2" } as unknown as Item;
+
+  // PHB 2014 "Monk: Martial Arts": a monk weapon (a simple melee weapon without two-handed or heavy; a quarterstaff) is struck with Dexterity (+3, proficiency +2: d20 8 -> 13 hits AC 13), the
+  // Martial Arts die stands in only when it is greater (the staff's d6 stays: 4 + 3 = 7), and the Attack action with it is followed by an unarmed strike as a Bonus Action
+  // (d20 9 + 5 = 14, the d4 of 2 + 3 = 5): 40 - 7 - 5 = 28. Bug caught: a Monk who swings a staff with Strength 10, or gets no bonus strike after it.
+  it("fails if a Monk's quarterstaff is not struck with Dexterity and followed by a Martial Arts strike", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: monk([QUARTERSTAFF], [["staff", "main_hand"]]), map: mapOf(), dieFaces: [8, 4, 9, 2] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    // The staff is what struck (not the fists): Dexterity +3 and proficiency +2 on the attack, the staff's d6 and not the d4 on the damage, then the d4 of the bonus strike.
+    expect(h.posted.map((p) => [p.result.label, p.result.modifier])).toEqual([["staff attack vs victim", 5], ["staff damage vs victim (bludgeoning)", 3], ["Unarmed Strike attack vs victim", 5], ["Unarmed Strike damage vs victim (bludgeoning)", 3]]);
+    expect(h.dieSides).toEqual([20, 6, 20, 4]);
+    expect(hpOf(stored(h), "victim")).toBe(28);
+    expect(combatantOf(stored(h), "tam").bonus_used).toBe(true);
+  });
+
+  // What is a monk weapon, by edition. A strike with d20 10: a monk weapon hits AC 13 on Dexterity (+5) and is followed by a bonus strike (d20 10 + 5 hits; a 4 on the greater die + 3 each time),
+  // a weapon that is not one takes Strength (+2: 12 misses) or, for a finesse weapon, still Dexterity, and gets no bonus strike.
+  // Greatclub (two-handed, 1d8): 2014 no, 2024 yes (Simple melee). Scimitar (Martial, Light): 2014 no, 2024 yes. Shortsword: both (2014 names it; 2024 Martial and Light). Longsword: neither.
+  // Monk weapon: 4 + 3 and 4 + 3 = 14 (40 -> 26). Not one: a greatclub misses (40); a finesse scimitar hits once for 4 + 3 = 7 (33); a longsword misses (40).
+  it.each([
+    { name: "a greatclub under 2014", ruleset: "2014" as const, item: GREATCLUB, hp: 40 },
+    { name: "a greatclub under 2024", ruleset: "2024" as const, item: GREATCLUB, hp: 26 },
+    { name: "a scimitar under 2014", ruleset: "2014" as const, item: SCIMITAR, hp: 33 },
+    { name: "a scimitar under 2024", ruleset: "2024" as const, item: SCIMITAR, hp: 26 },
+    { name: "a shortsword under 2014", ruleset: "2014" as const, item: SHORTSWORD, hp: 26 },
+    { name: "a shortsword under 2024", ruleset: "2024" as const, item: SHORTSWORD, hp: 26 },
+    { name: "a longsword under 2024", ruleset: "2024" as const, item: LONGSWORD_M, hp: 40 },
+  ])("strikes with $name as a Monk by the edition's list of monk weapons", async ({ ruleset, item, hp }) => {
+    const h = harness(allyFight(), { sources: SOURCES, players: monk([item], [[item.id, "main_hand"]], ruleset), map: mapOf(), ruleset, dieFaces: [10, 4, 10, 4] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(hp);
+  });
+
+  // PHB 2014 "Martial Arts": the benefits are for a Monk "unarmed or wielding only monk weapons, and not wearing armor or wielding a shield". In chain mail, behind a shield, or with a longsword
+  // in the other hand, Tam strikes with Strength (+2: d20 10 -> 12 misses AC 13), and bare hands are the same. Bug caught: Martial Arts that works in armor, with a shield or beside a sword.
+  it.each([
+    { name: "chain mail", items: [QUARTERSTAFF, CHAIN_MAIL], slots: [["staff", "main_hand"], ["mail", "body"]] as Array<[string, "main_hand" | "off_hand" | "body"]> },
+    { name: "a shield", items: [QUARTERSTAFF, SHIELD], slots: [["staff", "main_hand"], ["shield", "off_hand"]] as Array<[string, "main_hand" | "off_hand" | "body"]> },
+    { name: "a longsword in the other hand", items: [QUARTERSTAFF, LONGSWORD_M], slots: [["staff", "main_hand"], ["sword", "off_hand"]] as Array<[string, "main_hand" | "off_hand" | "body"]> },
+    { name: "chain mail and bare hands", items: [CHAIN_MAIL], slots: [["mail", "body"]] as Array<[string, "main_hand" | "off_hand" | "body"]> },
+  ])("fails if a Monk with $name strikes with Martial Arts", async ({ items, slots }) => {
+    const h = harness(allyFight(), { sources: SOURCES, players: monk(items, slots), map: mapOf(), dieFaces: [10, 4, 10, 4] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(40);
+    expect(combatantOf(stored(h), "tam").bonus_used).not.toBe(true);
+  });
+});
+
+describe("take_turn: an ally's Attack action with a mixed set of weapons", () => {
+  const HANDAXE = {
+    id: "axe", name: "Handaxe", item_type: "weapon", properties: ["light", "thrown"], tags: [], subtype: null, charges: null, weapon_range: "20/60",
+    damage_rolls: [{ dice: "1d6", type: "slashing" }], rarity: "mundane", image_url: null, description: "A plain handaxe.",
+  } as unknown as Item;
+  const handaxes = (quantity: number) => ({ id: "inv-axe", item_id: "axe", library_item_id: null, name: "Handaxe", quantity, carried_by: "pm-tam", slot: "off_hand", location: "equipped", quality: "standard" }) as unknown as PartyInventoryItem;
+  const thrower = (levels: number, gear: PartyInventoryItem[], className = "Fighter") => withClasses(tamSheets({ gear, items: [DAGGER, HANDAXE] }), classRow(className, levels));
+  // Tam has used all his movement, so the ox 25 feet away is out of any melee reach and what he can do is throw, from beyond the 20 feet of normal range: each throw rolls two d20s
+  // (disadvantage at long range) and takes the lower. Sword and bare hands cannot reach, so the throws are the whole turn.
+  const standing = () => {
+    const fight = archerFight();
+    fight.combatants_live[0] = { ...fight.combatants_live[0], movement_used: 30 };
+    return fight;
+  };
+
+  // PHB 2014 "Extra Attack": two attacks with the Attack action, each with a weapon the character holds. A Ranger of 5th level (Extra Attack, no Action Surge) holds one dagger and one handaxe to throw: neither can be thrown
+  // twice, so the set is the handaxe and then the dagger (+5 to hit; the handaxe's d20s 15 and 15 meet AC 13, 1d6 of 3 + 3 = 6; the dagger's 15 and 15, 1d4 of 2 + 3 = 5: 40 - 11 = 29).
+  // Both leave the hand and lie on the ground. Bug caught: one throw for a Fighter who has two attacks and two things to throw.
+  it("fails if a Ranger with two attacks and a dagger and a handaxe does not throw both", async () => {
+    const h = harness(standing(), { sources: SOURCES, players: thrower(5, [daggers(1), handaxes(1)], "Ranger"), map: mapOf(), dieFaces: [15, 15, 3, 15, 15, 2] });
+    const result = await runBatch(batch("b", tamTurn()), h.deps);
+    expect(result.effectFailures).toEqual([]);
+    expect(result.effects[0]).toMatchObject({ turn: { optionId: "attack:actions:Extra Attack (Handaxe (thrown) + Dagger (thrown)):victim" } });
+    expect(hpOf(stored(h), "victim")).toBe(29);
+    expect(h.gearWrites).toEqual([[{ kind: "remove", inventoryId: "inv-axe" }], [{ kind: "remove", inventoryId: "inv-dagger" }]]);
+    expect(h.drops.map((d) => d.drop.name)).toEqual(["Handaxe", "Dagger"]);
+  });
+
+  // The cases it must NOT apply. Two handaxes make every swing with one weapon (the single-weapon set, no mixed entry, the dagger left alone); a single dagger has nothing to make a second
+  // swing with (one throw: d20s 15 and 15, 1d4 of 2 + 3 = 5: 40 -> 35); a 1st-level Fighter has one attack, so one throw. Bug caught: a mixed set where one weapon makes every swing, or
+  // where nothing is left for the second.
+  it.each([
+    { name: "two handaxes and a dagger", fighter: 5, className: "Ranger", gear: () => [daggers(1), handaxes(2)], id: "attack:actions:Extra Attack (Handaxe (thrown)):victim", dice: [15, 15, 3, 15, 15, 3], hp: 28 },
+    { name: "a single dagger", fighter: 5, className: "Ranger", gear: () => [daggers(1)], id: "attack:actions:Dagger (thrown):victim", dice: [15, 15, 2], hp: 35 },
+    { name: "a 1st-level Fighter and two throwing weapons", fighter: 1, className: "Fighter", gear: () => [daggers(1), handaxes(1)], id: "attack:actions:Handaxe (thrown):victim", dice: [15, 15, 3], hp: 34 },
+  ])("makes the turn $id with $name", async ({ fighter, className, gear, id, dice, hp }) => {
+    const h = harness(standing(), { sources: SOURCES, players: thrower(fighter, gear(), className), map: mapOf(), dieFaces: [...dice] });
+    const result = await runBatch(batch("b", tamTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ turn: { optionId: id } });
+    expect(hpOf(stored(h), "victim")).toBe(hp);
+  });
+
+  // A surge that adds no swing is not spent: a 5th-level Fighter (two attacks, four with the surge) who has only the two pieces to throw makes the plain Extra Attack set. Bug caught:
+  // the Fighter's Action Surge burnt on a mixed set no longer than the Attack action it replaces.
+  it("fails if Action Surge is spent on a mixed set no longer than the Attack action", async () => {
+    const h = harness(standing(), { sources: SOURCES, players: thrower(5, [daggers(1), handaxes(1)]), map: mapOf(), dieFaces: [15, 15, 3, 15, 15, 2] });
+    const result = await runBatch(batch("b", tamTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ turn: { optionId: "attack:actions:Extra Attack (Handaxe (thrown) + Dagger (thrown)):victim" } });
+    expect(h.resourceWrites).toEqual([]);
+  });
+
+  // PHB 2014 "Fighter: Action Surge" doubles the Attack action: a 2nd-level Fighter (one attack) with a dagger and a handaxe throws both on the surge (the same two swings) and the use is written.
+  // Bug caught: Action Surge that cannot fill two swings from two weapons, or is not charged.
+  it("fails if Action Surge does not carry a mixed set of two weapons", async () => {
+    const h = harness(standing(), { sources: SOURCES, players: thrower(2, [daggers(1), handaxes(1)]), map: mapOf(), dieFaces: [15, 15, 3, 15, 15, 2] });
+    const result = await runBatch(batch("b", tamTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ turn: { optionId: "attack:actions:Action Surge (Handaxe (thrown) + Dagger (thrown)):victim" } });
+    expect(hpOf(stored(h), "victim")).toBe(29);
+    expect(writtenResources(h)).toEqual({ action_surge: { current: 0, max: 1, rest: "short" } });
+  });
+});
+
+describe("take_turn: an ally's Action Surge carries a cast", () => {
+  // Tam is a 5th-level Wizard (Fire Bolt, Fireball; two 3rd-level slots) and a Fighter of `fighter` levels, 25 feet from the ox (AC 13, 40 hit points).
+  const eldritch = (fighter: number, over: { slots?: SpellSlotEntry[]; ruleset?: "2014" | "2024"; resources?: Parameters<typeof withResources>[1] } = {}) => {
+    const sheets = wizardTamSheets({ slots: over.slots });
+    sheets.casting = { ...sheets.casting, classes: [...sheets.casting.classes, { ...classRow("Fighter", fighter), id: "cls-fig", is_primary: false, sort_order: 1 }] };
+    sheets.members = sheets.members.map((m) => ({ ...m, ruleset: over.ruleset ?? "2014" }));
+    return over.resources === undefined ? sheets : withResources(sheets, over.resources);
+  };
+  // The ox fails each Dexterity save (d20 2 against DC 14) and takes 8 dice of 1, 8 damage a Fireball.
+  const BALLS = [2, 1, 1, 1, 1, 1, 1, 1, 1];
+
+  // PHB 2014 "Fighter: Action Surge": one additional action, and nothing in it bars a spell; Fireball twice spends both 3rd-level slots and one use of the surge.
+  // 40 - 8 - 8 = 24. Bug caught: a Fighter with a spell and a surge that only ever surges into weapon swings, or a surge that is not charged.
+  it("fails if a Fighter-Wizard with Action Surge and two slots does not cast twice and spend the use", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: eldritch(2), map: mapOf(), spells: [fireBolt(), fireball()], dieFaces: [...BALLS, ...BALLS] });
+    const result = await runBatch(batch("b", tamTurn()), h.deps);
+    expect(result.effectFailures).toEqual([]);
+    expect(result.effects[0]).toMatchObject({ turn: { kind: "spell", optionId: "surge:spell:Fireball:3:victim+spell:Fireball:3:victim" } });
+    expect(hpOf(stored(h), "victim")).toBe(24);
+    expect(h.slotWrites.at(-1)).toEqual({ memberId: "pm-tam", slots: [{ level: 3, max: 2, used: 2 }] });
+    expect(writtenResources(h)).toEqual({ action_surge: { current: 0, max: 1, rest: "short" } });
+    expect(combatantOf(stored(h), "tam").action_used).toBe(true);
+  });
+
+  // With one slot left the extra action is the cantrip: Fireball takes the last slot (8), then Fire Bolt (d20 10 + 6 = 16 meets AC 13, 2d10 of 6 and 4 = 10): 40 - 8 - 10 = 22.
+  // The slot list is written once at 2 of 2, never 3. Bug caught: a second cast of a slot that is not there (the batch would refuse), or the cantrip left out.
+  it("fails if the extra action is not the cantrip when the slots are spent", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: eldritch(2, { slots: [{ level: 3, max: 2, used: 1 }] }), map: mapOf(), spells: [fireBolt(), fireball()], dieFaces: [...BALLS, 10, 6, 4] });
+    const result = await runBatch(batch("b", tamTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ turn: { optionId: "surge:spell:Fireball:3:victim+spell:Fire Bolt:0:victim" } });
+    expect(hpOf(stored(h), "victim")).toBe(22);
+    expect(h.slotWrites.at(-1)).toEqual({ memberId: "pm-tam", slots: [{ level: 3, max: 2, used: 2 }] });
+  });
+
+  // The cases it must NOT apply: the 2024 Action Surge is "one additional action, except the Magic action"; no use left; a 1st-level Fighter has no surge. Each casts one Fireball (8: 40 -> 32).
+  it.each([
+    { name: "a 2024 Fighter", sheets: () => eldritch(2, { ruleset: "2024" }) },
+    { name: "a Fighter with no use left", sheets: () => eldritch(2, { resources: pool("action_surge", 0, 1) }) },
+    { name: "a 1st-level Fighter", sheets: () => eldritch(1) },
+  ])("fails if $name takes a second action for a spell", async ({ sheets }) => {
+    const h = harness(archerFight(), { sources: SOURCES, players: sheets(), map: mapOf(), spells: [fireBolt(), fireball()], ruleset: sheets().members[0].ruleset, dieFaces: [...BALLS] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(32);
+    expect(h.resourceWrites).toEqual([]);
+  });
+
+  // A turn the caller named is exactly that turn: naming the Fireball casts it once and the surge is not spent. Bug caught: a surge added to a turn the caller chose.
+  it("fails if a named cast gets an extra action the caller did not ask for", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: eldritch(2), map: mapOf(), spells: [fireBolt(), fireball()], dieFaces: [...BALLS] });
+    await runBatch(batch("b", tamTurn({ optionId: BALL })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(32);
+    expect(h.resourceWrites).toEqual([]);
+  });
+});
+
 describe("take_turn: an ally Monk's Martial Arts and Flurry of Blows", () => {
   const monkSheets = (level: number, resources: Parameters<typeof withResources>[1] = {}) => {
     const sheets = withResources(withClasses(tamSheets({ bare: true }), classRow("Monk", level)), resources);
@@ -3963,16 +4289,26 @@ describe("take_turn: an ally Monk's Martial Arts and Flurry of Blows", () => {
     expect(h.resourceWrites).toEqual([]);
   });
 
-  // The Bonus Action follows an unarmed Attack action: a Monk whose turn swings a longsword gets none, and a Fighter's fists get none.
-  // Bug caught: a bonus strike for any ally with bare hands, or after any weapon.
-  it("fails if a Fighter's Unarmed Strike or a Monk's longsword is followed by a bonus strike", async () => {
+  // PHB 2014 "Martial Arts": the bonus strike follows the Attack action made with an unarmed strike or a monk weapon. A Fighter's fists get none (no Martial Arts), and a 1st-level Monk's
+  // longsword is not a monk weapon, so it gets none either (7: 40 -> 33). Bug caught: a bonus strike for any ally with bare hands, or after any weapon.
+  it("fails if a Fighter's Unarmed Strike or a Monk's longsword is followed by a Martial Arts strike", async () => {
     const fists = harness(allyFight(), { sources: SOURCES, players: withClasses(tamSheets({ bare: true }), classRow("Fighter", 1)), map: mapOf(), dieFaces: [8] });
     await runBatch(batch("b", tamTurn()), fists.deps);
     expect(hpOf(stored(fists), "victim")).toBe(36);
-    const sword = harness(allyFight(), { sources: SOURCES, players: withClasses(tamSheets(), classRow("Monk", 2)), map: mapOf(), dieFaces: [8, 4] });
+    const sword = harness(allyFight(), { sources: SOURCES, players: withClasses(tamSheets(), classRow("Monk", 1)), map: mapOf(), dieFaces: [8, 4] });
     await runBatch(batch("b", tamTurn()), sword.deps);
     expect(hpOf(stored(sword), "victim")).toBe(33);
     expect(sword.resourceWrites).toEqual([]);
+  });
+
+  // PHB 2014 "Flurry of Blows": "immediately after you take the Attack action", with any attack: a 2nd-level Monk who swings a longsword (d20 8 + 5 hits AC 13, 1d8 of 4 + 3 = 7) spends a Ki point on two
+  // unarmed strikes. A longsword is no monk weapon, so Martial Arts does not apply to them: +5 (Strength) and the flat 1 + 3 = 4 each (9 and 10 hit): 40 - 7 - 4 - 4 = 25, Ki 1 of 2.
+  // Bug caught: a Flurry asked to follow an Unarmed Strike only, or Martial Arts dice on a Monk who holds a sword.
+  it("fails if a Monk's Flurry of Blows does not follow an Attack action made with a weapon", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: withResources(withClasses(tamSheets(), classRow("Monk", 2)), {}), map: mapOf(), dieFaces: [8, 4, 9, 10] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(25);
+    expect(writtenResources(h)).toEqual({ ki_points: { current: 1, max: 2, rest: "short" } });
   });
 
   // The Flurry follows a strike that landed on someone: with the foe already down after the Attack action (5 hit points, a 5), no Ki is spent.
@@ -4074,6 +4410,84 @@ describe("take_turn: an ally Paladin's Divine Smite", () => {
     const h = harness(allyFight(), { sources: SOURCES, players: { ...wild, casting: sheets.casting, members: wild.members.map((m) => ({ ...m, spell_slots: SLOT_1 })) }, map: mapOf(), dieFaces: [8, 5] });
     await runBatch(batch("b", tamTurn()), h.deps);
     expect(h.slotWrites).toEqual([]);
+  });
+
+  // PHB 2024 "Paladin's Smite": the Paladin "can cast it once without expending a spell slot", regained on a Long Rest: the free cast is a 1st-level Divine Smite (2d8) that spends the sheet's own
+  // use. d20 8 + 5 hits AC 13, 4 + 3 = 7, the smite's 3 + 5 = 8 (40 -> 25). No slot is written (not even one is held), the use is 0 of 1, and the Bonus Action is the cast's.
+  // Bug caught: the free cast taking a slot a Paladin does not have, or being free every time.
+  it("fails if a 2024 Paladin's first smite is not the free cast, a use of the sheet and no slot", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: paladinSheets(2, [], "2024"), map: mapOf(), ruleset: "2024", dieFaces: [8, 4, 3, 5] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(25);
+    expect(h.slotWrites).toEqual([]);
+    expect(writtenResources(h)).toEqual({ paladins_smite: { current: 0, max: 1, rest: "long" } });
+    expect(combatantOf(stored(h), "tam").bonus_used).toBe(true);
+  });
+
+  // With the free cast spent the smite takes the lowest slot as it always did; the 2014 Paladin has no free cast at all (its sheet may hold the use, nothing reads it). Both: 2d8 for a 1st-level slot,
+  // one slot written, no use written.
+  it.each([
+    { name: "a 2024 Paladin with the free cast spent", ruleset: "2024" as const, resources: pool("paladins_smite", 0, 1, "long") },
+    { name: "a 2014 Paladin with the use on its sheet", ruleset: "2014" as const, resources: pool("paladins_smite", 1, 1, "long") },
+  ])("spends a slot for the smite of $name", async ({ ruleset, resources }) => {
+    const h = harness(allyFight(), { sources: SOURCES, players: withResources(paladinSheets(2, SLOT_1, ruleset), resources), map: mapOf(), ruleset, dieFaces: [8, 4, 3, 5] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(25);
+    expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 1, max: 2, used: 1 }] }]);
+    expect(h.resourceWrites).toEqual([]);
+  });
+
+  // PHB 2024 "Divine Smite" is cast as a Bonus Action: with it already used, not even the free cast happens (and the use is kept). 7 on the hit alone: 40 -> 33.
+  it("fails if the 2024 free smite is cast with the Bonus Action spent", async () => {
+    const h = harness(allyFight({ bonus_used: true }), { sources: SOURCES, players: paladinSheets(2, [], "2024"), map: mapOf(), ruleset: "2024", dieFaces: [8, 4] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(33);
+    expect(h.resourceWrites).toEqual([]);
+  });
+
+  // PHB 2014 "Improved Divine Smite" (11th level): every melee weapon hit takes an extra 1d8 radiant damage, no slot. A Paladin of 11th level (two attacks) with no slot left: the first blow is
+  // d20 8 + 5 hits, the longsword's 4 + 3 and the extra die of 2 (9); the second d20 9 hits, 3 + 3 and 1 (7): 40 -> 24. Nothing is written. A Paladin of 10th has no extra die (7 + 6: 40 -> 27).
+  // Bug caught: the extra die left out, or given before 11th level.
+  it.each([
+    { name: "an 11th-level Paladin", level: 11, dice: [8, 4, 2, 9, 3, 1], hp: 24 },
+    { name: "a 10th-level Paladin", level: 10, dice: [8, 4, 9, 3], hp: 27 },
+  ])("takes the extra radiant die of $name on every melee hit", async ({ level, dice, hp }) => {
+    const h = harness(allyFight(), { sources: SOURCES, players: paladinSheets(level, []), map: mapOf(), dieFaces: [...dice] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(hp);
+    expect(h.slotWrites).toEqual([]);
+  });
+
+  // A critical hit doubles the extra die like any other (PHB 2014 "Critical Hits"): d20 20, the longsword's two d8 (1, 1) + 3 = 5, the extra two d8 (1, 1) = 2 (7: 40 -> 33); the second blow misses (d20 2).
+  it("doubles the extra die of Improved Divine Smite on a critical hit", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: paladinSheets(11, []), map: mapOf(), dieFaces: [20, 1, 1, 1, 1, 2] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(33);
+  });
+
+  // The extra die rides a melee WEAPON hit (2014) and, as Radiant Strikes, an Unarmed Strike too (2024). A bare-handed Paladin of 11th level strikes twice for the flat 1 + 3 = 4 each (d20 8 and 9
+  // hit): 2024 adds the die (2 and 1: 40 - 6 - 5 = 29); 2014 does not (40 - 8 = 32). A shot with a bow is no melee blow in either edition.
+  // Bug caught: the extra die on fists in 2014, or left off them in 2024.
+  it.each([
+    { name: "2024", ruleset: "2024" as const, dice: [8, 2, 9, 1], hp: 29 },
+    { name: "2014", ruleset: "2014" as const, dice: [8, 9], hp: 32 },
+  ])("takes $name Unarmed Strikes with the extra die only where the edition has it", async ({ ruleset, dice, hp }) => {
+    const sheets = paladinSheets(11, [], ruleset);
+    sheets.inventory = [];
+    sheets.items = [];
+    const h = harness(allyFight(), { sources: SOURCES, players: sheets, map: mapOf(), ruleset, dieFaces: [...dice] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(hp);
+  });
+
+  it("fails if a bow shot of an 11th-level Paladin takes the extra radiant die", async () => {
+    const sheets = paladinSheets(11, []);
+    // One arrow, so one shot: d20 15 + 2 hits AC 13 and the d6 is 4 (40 -> 36); a rolled extra die would throw, for the dice are only these two.
+    sheets.inventory = [SHORTBOW_HELD, arrows(1)];
+    sheets.items = [SHORTBOW];
+    const h = harness(archerFight(), { sources: SOURCES, players: sheets, map: mapOf(), dieFaces: [15, 4] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(36);
   });
 
   // The slot is for one blow a turn (APP CONVENTION): a 2nd-level Paladin with Extra Attack cannot be built here, so a Paladin 2 / Fighter 5 swings twice and

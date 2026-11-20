@@ -12,7 +12,7 @@ import { boxOf, byPlace, cellsOf, compareExposure, COVER_RANK, emptyMovement, ex
 import type { TurnOption, UsableAttack } from "./types.ts";
 
 /** The farthest an attack reaches: its reach when it is a melee attack, its longest range when it is ranged. */
-function farthestFeet(attack: AttackStructure): number {
+export function farthestFeet(attack: AttackStructure): number {
   const reach = attack.delivery === "ranged" ? 0 : attack.reach === undefined ? DEFAULT_REACH_FEET : attack.reach;
   const range = attack.range === undefined ? 0 : attack.range.long === undefined ? attack.range.normal : attack.range.long;
   return Math.max(reach, range);

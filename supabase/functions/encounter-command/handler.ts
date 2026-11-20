@@ -23,6 +23,7 @@ import type { NpcListRow } from "../../../src/types/npc.types.ts";
 import type { EncounterTurnCommand } from "../../../src/rules/encounterTurn.ts";
 import { isShownDefense } from "../../../src/rules/fight/tactics/shownDefenses.ts";
 import { isShownDeedDelta } from "../../../src/rules/fight/tactics/shownThreat.ts";
+import { endOfTurnRage, settleRages } from "./rageUpkeep.ts";
 import { applyFightCommand, FIGHT_OWN_COMMAND_TYPES, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightDeps } from "../../../src/rules/fight/fightEvents.ts";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
@@ -520,24 +521,41 @@ async function attempt(
     if (map === undefined) map = await deps.loadFightMap(request.encounterId);
     return { fightDeps, sources, players, map, factions: loaded.factions, rollDie: deps.rollDie, spells, spellsListed, posted: rolls, spent, slotsSpent, resourcesSpent, innateSpent, judgeNote: notes.ask };
   };
+  /** The Rages in the fight after a command (`rageUpkeep.ts`): the state they leave it in, their effects added to `effects`. */
+  const settled = (from: FightState, to: FightState, into: FightEffect[]): FightState => {
+    const upkept = settleRages(from, to, fightDeps);
+    into.push(...upkept.effects);
+    return upkept.state;
+  };
   for (const command of request.commands) {
     if (command.type === "sync_party" || LIFECYCLE_TYPES.has(command.type)) continue;
+    // What this command does to a raging ally (PHB 2014 and 2024 "Rage"): judged on the fight as the command found it and as it left it.
+    const found = state;
+    if (command.type === "next_turn") {
+      // The turn that is ending: a 2014 Rage not kept going since the Barbarian's last turn goes out with it.
+      const ending = endOfTurnRage(state, fightDeps);
+      state = ending.state;
+      effects.push(...ending.effects);
+    }
     if (isTakeTurnCommand(command)) {
       const result = await applyTakeTurn(state, command, await resolveEnv());
       state = result.state;
       effects.push(...result.effects);
+      state = settled(found, state, effects);
       continue;
     }
     if (isProvokeCommand(command)) {
       const result = await applyProvoke(state, command, await resolveEnv());
       state = result.state;
       effects.push(...result.effects);
+      state = settled(found, state, effects);
       continue;
     }
     if (isResolvingCommand(command)) {
       const result = await applyResolvingCommand(state, command, await resolveEnv());
       state = result.state;
       effects.push(...result.effects);
+      state = settled(found, state, effects);
       continue;
     }
     if (command.type === "add_combatants") {
@@ -549,6 +567,7 @@ async function attempt(
     const result = applyFightCommand(state, command as FightCommand, fightDeps);
     state = result.state;
     effects.push(...result.effects);
+    state = settled(found, state, effects);
   }
   return { state, effects, rolls, spent, slotsSpent, resourcesSpent, innateSpent };
 }
