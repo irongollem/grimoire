@@ -11,7 +11,7 @@
 import { rangedAttackFacts } from "../../../src/rules/fight/terrain/sight.ts";
 import { NO_OCCLUDERS } from "../../../src/lib/battlemap/occlusion.ts";
 import type { FactionSides } from "../../../src/rules/fight/sides.ts";
-import { ALL_DICE, type RollResult } from "../../../src/lib/dice/dice.ts";
+import { ALL_DICE, parseExpression, parsedToCounts, type RollResult } from "../../../src/lib/dice/dice.ts";
 import { NORMAL_ROLL, rollWithRules, type RolledFaces } from "../../../src/lib/dice/diceRules.ts";
 import { dnd5eDiceRules } from "../../../src/systems/dnd5e/dice/rules.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
@@ -44,6 +44,9 @@ import { castableBy, slotLimitAt } from "../../../src/rules/fight/spells/castLim
 import { pickSpellRecord, type SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
 import { creatureKindOf, kindAllowed, kindLimitOf, kindPhrase } from "../../../src/rules/fight/spells/creatureKind.ts";
 import { spellEntryFor } from "../../../src/rules/fight/spells/spellEntry.ts";
+import { castSlotOf, healEntryFor, isHealingSpell, type HealPlan } from "../../../src/rules/fight/spells/healEntry.ts";
+import { spellcastingModifierOf } from "../../../src/rules/fight/spells/castNow.ts";
+import { takesTurnsInFight } from "../../../src/rules/fight/standing.ts";
 import { limitAvailability } from "../../../src/rules/encounterTurn.ts";
 import { combatantFootprint } from "../../../src/lib/battlemap/tokenFootprint.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
@@ -610,6 +613,33 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     return { entry: { ...entry, structured: { ...entry.structured, attack: { ...attack, hit: [...attack.hit, ...smite.dice.map((dice) => ({ dice, type: "radiant" as const }))] } } }, useKey, slotLevel: smite.slotLevel, needsBonusAction: smite.needsBonusAction };
   };
 
+  /**
+   * Rolls a healing spell once and restores every target (RULE healing-amount, `healEntryFor`): a target the spell does nothing for
+   * (undead or a construct under the 2014 text) is reported as not affected, the others regain what fits under their maximum, and
+   * one at 0 hit points who is alive is brought back up by `adjust_hp` (`healingOutcome`: Unconscious and the death saves end).
+   */
+  const resolveHeal = async (caster: RunCombatant, targets: RunCombatant[], record: SpellRecord, castLevel: number, plan: HealPlan): Promise<void> => {
+    const parsed = parseExpression(plan.dice);
+    if (parsed === null) refuse(`${record.name}'s healing "${plan.dice}" cannot be rolled.`);
+    const dice = (parsed as NonNullable<typeof parsed>);
+    const rolled = await ctx.dice({ counts: parsedToCounts(dice.terms), modifier: dice.modifier + plan.modifier, label: `${record.name} (healing)`, senderName: caster.name });
+    if (rolled === null) {
+      collected.push({ type: "resolved", resolved: { kind: "cast", casterId: caster.instance_id, spell: record.name, castLevel, targetIds: targets.map((t) => t.instance_id), why: "Nobody rolled the healing, so what it restored is the table's to rule." } });
+      return;
+    }
+    // App convention, as for damage: a roll that comes out negative restores nothing.
+    const amount = Math.max(0, rolled.result.total);
+    const results = targets.map((target) => {
+      const kind = creatureKindOf(target, env.sources);
+      if (kind !== null && plan.excludes.includes(kind)) return { targetId: target.instance_id, regained: 0, revived: false, unaffected: true };
+      const before = ctx.live(target).hp;
+      if (amount > 0) ctx.apply({ type: "adjust_hp", instanceId: target.instance_id, delta: amount });
+      const after = ctx.live(target).hp;
+      return { targetId: target.instance_id, regained: Math.max(0, after - before), revived: before <= 0 && after > 0, unaffected: false };
+    });
+    collected.push({ type: "resolved", resolved: { kind: "heal", casterId: caster.instance_id, spell: record.name, castLevel, rolled: amount, targets: results } });
+  };
+
   const castSpell = async (cast: Extract<ResolvingCommand, { type: "cast_spell" }>): Promise<void> => {
     const caster = combatantIn(state, cast.casterId, "caster");
     ableToAct(caster);
@@ -656,10 +686,22 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
       const unknown = targets.find((t) => creatureKindOf(t, env.sources) === null);
       if (unknown !== undefined) kindWhy = `${record.name} works only on ${kindPhrase(kindLimit)}, and the game cannot tell what kind of creature ${unknown.name} is. Its outcome is the table's to rule.`;
     }
-    const entry = spellEntryFor(record, castLevel, {
-      saveDc: listed.saveDc, attackBonus: listed.attackBonus, casterLevel: listed.casterLevel,
-    }, { kindsChecked: kindLimit !== null && kindWhy === null });
-    const rolled = automatable && entry.automatable && kindWhy === null;
+    // A healing spell restores hit points instead of dealing damage (`healEntryFor`): one roll, shared by every target.
+    const healing = isHealingSpell(record);
+    const plan = healing ? healEntryFor(record, castLevel, { modifier: spellcastingModifierOf(block as MonsterStatBlock, listed.ability) }) : null;
+    // PHB 2014 and 2024 "Healing Word": a Bonus Action, so the Bonus Action is what a cast of it uses.
+    const bonusCast = healing && castSlotOf(record) === "bonus_action";
+    if (bonusCast && caster.bonus_used === true) refuse(`${caster.name} has already used its Bonus Action this turn, so it cannot cast ${record.name}.`);
+    // PHB 2014 ch. 9 "Death Saving Throws": healing never brings back the dead.
+    if (healing) {
+      const dead = targets.find((t) => t.hp <= 0 && !takesTurnsInFight(t));
+      if (dead !== undefined) refuse(`${dead.name} is dead, and ${record.name} does not bring back the dead.`);
+    }
+    const entry = healing
+      ? { automatable: false as const, why: plan !== null && !plan.healable ? plan.why : "" }
+      : spellEntryFor(record, castLevel, { saveDc: listed.saveDc, attackBonus: listed.attackBonus, casterLevel: listed.casterLevel }, { kindsChecked: kindLimit !== null && kindWhy === null });
+    const healed = healing && automatable && plan !== null && plan.healable && kindWhy === null;
+    const rolled = healed || (automatable && entry.automatable && kindWhy === null);
     if (rolled && targets.length === 0) refuse(`Name at least one target for ${record.name}.`);
 
     // Everything that can be refused for the cast itself is behind us: from here the cast is spent.
@@ -678,10 +720,14 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     }
     if (record.concentration) step({ type: "start_concentration", instanceId: caster.instance_id, spell: record.name, castLevel });
     if (useKey !== null && limit !== null) step({ type: "use_action", instanceId: caster.instance_id, action: useKey, limit });
-    step({ type: "set_action_used", instanceId: caster.instance_id, used: true });
+    step({ type: bonusCast ? "set_bonus_used" : "set_action_used", instanceId: caster.instance_id, used: true });
     // A spell cast is a spell seen (#1021), whether or not its outcome is rolled here.
     step({ type: "show_deed", instanceId: caster.instance_id, deed: { cast: 1 } });
 
+    if (healed) {
+      await resolveHeal(caster, targets, record, castLevel, plan as HealPlan);
+      return;
+    }
     if (!rolled || !entry.automatable) {
       const why = !automatable
         ? `${record.name}'s rules are not checked in the library, so its outcome is the table's to rule.`

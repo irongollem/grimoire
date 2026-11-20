@@ -5,10 +5,11 @@ import type { RunCombatant } from "../../../../types/encounter.types.ts";
 import { isAllyOf } from "../../allies.ts";
 import { isHostileTo } from "../../sides.ts";
 import type { FightMap } from "../battleMap.ts";
+import { healTargetings, type HealTargeting } from "../healTargeting.ts";
 import { spellTargetings, type SpellTargeting } from "../spellTargeting.ts";
 import { andList } from "./phrases.ts";
 import { emptyMovement, isLiving, isOnBoard } from "./scene.ts";
-import { MAX_SPELL_OPTIONS, type TurnOption, type TurnOptionsInput } from "./types.ts";
+import { MAX_HEAL_OPTIONS, MAX_SPELL_OPTIONS, type TurnOption, type TurnOptionsInput } from "./types.ts";
 
 export type SpellTargetingScene = { map: FightMap };
 
@@ -73,4 +74,49 @@ export function breakFreeOptions(input: TurnOptionsInput, mover: RunCombatant): 
       summary: `Break free of ${c.name}: a ${ability.toUpperCase()} check against DC ${way.dc}, using its Action`,
     }];
   });
+}
+
+/** Rule 13: a heal as an option. It carries no movement: it is cast from where the creature stands. */
+function healOption(mover: RunCombatant, names: ReadonlyMap<string, string>, t: HealTargeting): TurnOption {
+  const { heal } = t;
+  const nameOf = (id: string) => (id === mover.instance_id ? "itself" : (names.get(id) ?? id));
+  const level = heal.castLevel > 0 ? ` (level ${heal.castLevel})` : "";
+  const bonus = heal.plan.slot === "bonus_action" ? " as a Bonus Action" : "";
+  return {
+    id: `heal:${heal.spell}:${heal.castLevel}:${t.targetIds.length === 1 ? t.targetIds[0] : "group"}`,
+    kind: "heal",
+    targetId: t.targetIds[0],
+    ...emptyMovement(),
+    attack: null,
+    heal: {
+      name: heal.spell, castLevel: heal.castLevel, slot: heal.plan.slot, targetIds: t.targetIds, downIds: t.downIds, lowIds: t.lowIds,
+      spends: heal.useKey !== null, expectedEach: heal.plan.average, distanceFeet: t.distanceFeet,
+    },
+    summary: `Cast ${heal.spell}${level}${bonus} to heal ${andList(t.targetIds.map(nameOf))}`,
+  };
+}
+
+/**
+ * Rule 13: the heal options, the neediest first, cut to `MAX_HEAL_OPTIONS`. A creature heals people on its own side (itself
+ * included) who are hurt or down: see `healTargeting.ts`. An Action heal needs the Action free and a Bonus Action heal the Bonus
+ * Action free; the Action one is a turn of its own, the Bonus Action one rides another turn (`tactics/bonusHeal.ts`).
+ */
+export function healOptionsOf(input: TurnOptionsInput, mover: RunCombatant, names: ReadonlyMap<string, string>, scene: SpellTargetingScene | null): TurnOption[] {
+  if (input.heals === undefined || input.heals.length === 0) return [];
+  const heals = input.heals.filter((h) => (h.plan.slot === "action" ? mover.action_used !== true : mover.bonus_used !== true));
+  if (heals.length === 0) return [];
+  const side = input.combatants.filter((c) => c.instance_id !== mover.instance_id && isAllyOf(mover, c, input.factions ?? []) && (scene === null || isOnBoard(c)));
+  const targetings = healTargetings({
+    mover,
+    allies: side,
+    scene: scene === null ? null : { occluders: scene.map.occluders, onBoard: input.combatants.filter(isOnBoard) },
+    heals,
+    kindOf: input.kindOf,
+  });
+  const urgency = (t: HealTargeting) => (t.downIds.length > 0 ? 0 : t.lowIds.length > 0 ? 1 : 2);
+  return targetings
+    .map((t, order) => ({ t, order }))
+    .sort((a, b) => urgency(a.t) - urgency(b.t) || b.t.targetIds.length - a.t.targetIds.length || a.order - b.order)
+    .slice(0, MAX_HEAL_OPTIONS)
+    .map(({ t }) => healOption(mover, names, t));
 }

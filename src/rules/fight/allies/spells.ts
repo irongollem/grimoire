@@ -12,8 +12,8 @@
 // them out for the sheet, and this file only asks them.
 // APP CONVENTION: a slot is tallied per level (`slots/<level>`, as for a monster). The line's slot count is what the sheet holds plus
 // what the fight's tally already counts as used, so a cast that was already written to the sheet is not counted twice and a rest
-// the sheet took meanwhile gives the slots back. Innate spells with a daily limit, Pact Magic's shared level and spells that only heal
-// or have no damage are not offered yet (the monster pipeline casts damage spells only).
+// the sheet took meanwhile gives the slots back. Innate spells with a daily limit and Pact Magic's shared level are not offered yet. A spell that heals (Cure
+// Wounds, Healing Word) is cast by `healableNow` and `cast_spell` like a monster's, adding the modifier of the casting ability the entry names.
 
 import type { SpellSlotEntry } from "../../../types/party.types.ts";
 import type { StatBlockEntry } from "../../../types/statBlock.types.ts";

@@ -51,13 +51,13 @@ const TARGETS_BY_TIER: Record<CleverTier, TargetRule> = { instinct: "nearest", s
 
 /**
  * RULE offers: each tier adds one kind of turn to the one below. Flee is there from the start: even an animal bolts.
- * A spell is offered wherever an attack is: a creature that has spells knows how to cast them (#1021).
+ * A spell is offered wherever an attack is: a creature that has spells knows how to cast them, a healing one included (#1021).
  */
 const OFFERS_BY_TIER: Record<CleverTier, readonly TurnOptionKind[]> = {
-  instinct: ["attack", "spell", "dash", "move", "flee"],
-  simple: ["attack", "spell", "dash", "move", "flee", "dodge"],
-  trained: ["attack", "spell", "dash", "move", "flee", "dodge", "disengage"],
-  tactical: ["attack", "spell", "dash", "move", "flee", "dodge", "disengage", "hide"],
+  instinct: ["attack", "spell", "heal", "dash", "move", "flee"],
+  simple: ["attack", "spell", "heal", "dash", "move", "flee", "dodge"],
+  trained: ["attack", "spell", "heal", "dash", "move", "flee", "dodge", "disengage"],
+  tactical: ["attack", "spell", "heal", "dash", "move", "flee", "dodge", "disengage", "hide"],
 };
 
 /** RULE fast: a walking speed of 40 ft or more makes a skirmisher. */

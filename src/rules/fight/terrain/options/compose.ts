@@ -24,14 +24,15 @@ import { attackOption, bestAttackSquare, listIsOpen, plannedAttacks, unmeasuredA
 import { fleeOption, fleeSourceOf } from "./flee.ts";
 import { approachOption, disengageOption, dodgeOption, hideOption } from "./movement.ts";
 import { boxOf, exitsByCellOf, isLiving, isOnBoard, sizeOf, type Scene } from "./scene.ts";
-import { breakFreeOptions, spellOptionsOf } from "./spellOptions.ts";
+import { breakFreeOptions, healOptionsOf, spellOptionsOf } from "./spellOptions.ts";
 import { MAX_TURN_OPTIONS, type TurnOption, type TurnOptionsInput } from "./types.ts";
 
 /**
  * The options of the creature whose id is `moverId`. Rules, in the order they are listed in the docs:
  * 1 Attack, 2 Dash, 3 Disengage, 4 Dodge, 5 Hide, 6 nothing measurable, 7 who gets nothing, 8 Multiattack, 9 the cap, 10 Flee,
  * 11 Spell (a damage spell cast from where the creature stands; see `spellTargeting.ts` for what it may be cast at),
- * 12 Break free (an ability check to end a condition a spell holds it in; see `breakFreeOptions`).
+ * 12 Break free (an ability check to end a condition a spell holds it in; see `breakFreeOptions`),
+ * 13 Heal (a healing spell cast from where the creature stands at someone of its side who is hurt or down; see `healTargeting.ts`).
  *
  * Rule 7: a creature at 0 hit points, Incapacitated, or surprised on the first round of a 2014 fight (`round` given), gets an empty list. A creature whose Action is spent
  * (`action_used`) gets only what needs no Action: Bonus Action attacks (unless `bonus_used`) and a plain `move`
@@ -57,7 +58,7 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
     // Rule 6: no map, no position or no known speed. One attack per (attack, hostile), nothing measured, plus Dodge.
     hostileTargets.forEach((t, i) => planned.forEach((p) => options.push({ option: unmeasuredAttack(p, t), nearness: i })));
     if (actionFree) fixed.push(dodgeOption(null));
-    return capped(options, fixed, [...spellOptionsOf(input, mover, names, null), ...breakFreeOptions(input, mover)]);
+    return capped(options, fixed, [...spellOptionsOf(input, mover, names, null), ...healOptionsOf(input, mover, names, null), ...breakFreeOptions(input, mover)]);
   }
 
   const map = input.map as FightMap;
@@ -123,12 +124,12 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
       if (move) options.push({ option: move, nearness: nearness(t) });
     }
   }
-  return capped(options, fixed, [...spellOptionsOf(input, mover, names, { map }), ...breakFreeOptions(input, mover)]);
+  return capped(options, fixed, [...spellOptionsOf(input, mover, names, { map }), ...healOptionsOf(input, mover, names, { map }), ...breakFreeOptions(input, mover)]);
 }
 
 /**
  * Rule 9: Dodge, Disengage, Hide and Flee stay; attacks, dashes and moves against the nearest targets are kept first, up to
- * `MAX_TURN_OPTIONS`. The spell options (rule 11) and the break-free options (rule 12) sit between the two and are not counted against that cap.
+ * `MAX_TURN_OPTIONS`. The spell options (rule 11), the heal options (rule 13) and the break-free options (rule 12) sit between the two and are not counted against that cap.
  */
 function capped(options: { option: TurnOption; nearness: number }[], fixed: TurnOption[], spells: readonly TurnOption[]): TurnOption[] {
   const room = Math.max(0, MAX_TURN_OPTIONS - fixed.length);

@@ -38,7 +38,7 @@ import {
   type PostedRoll,
   type StatBlockSources,
 } from "./handler";
-import { blackTentacles, charmMonster, fear, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithFear, mageWithHold, mageWithTentacles } from "../../../src/rules/fight/spells/spellTestKit";
+import { blackTentacles, charmMonster, clericBlock, cureWounds, fear, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithFear, mageWithHold, mageWithTentacles, healingWord, massHealingWord } from "../../../src/rules/fight/spells/spellTestKit";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice";
 import type { AppliedCondition } from "../../../src/types/condition.types";
 import type { ExploreParty } from "../../../src/types/exploreParty.types";
@@ -3191,6 +3191,250 @@ describe("take_turn: an ally casts the spells their character has ready", () => 
   it("fails if a Wild Shaped ally casts", async () => {
     const h = harness(archerFight(), { sources: SOURCES, players: wizardTamSheets({ wildshape: true, bear: true }), map: mapOf(), spells: [fireBolt(), fireball()], dieFaces: [] });
     await expect(runBatch(batch("b", tamTurn({ optionId: BOLT })), h.deps)).rejects.toMatchObject({ message: "That option is not on offer." });
+  });
+});
+
+// ── healing spells (#1021) ───────────────────────────────────────────────────────────
+describe("healing spells in a fight", () => {
+  const typed = (id: string, monster_type: string) => ({ id, name: id, monster_type, stat_block: monster(id).stat_block }) as unknown as Monster;
+  const spellsLine = (lines: string) => ({
+    name: "Spellcasting", structured: { kind: "other" as const, source: "parsed" as const },
+    description: `The cleric is a 5th-level spellcaster. Its spellcasting ability is Wisdom (spell save DC 13, +5 to hit with spell attacks). The cleric has the following cleric spells prepared:\n\n${lines}`,
+  });
+  const WITH_HEALS = (lines = "* 1st level (4 slots): cure wounds, healing word\n* 3rd level (2 slots): mass healing word"): StatBlockSources => ({
+    monsters: [{ id: "m-cleric", name: "Cleric", stat_block: clericBlock({ special_abilities: [spellsLine(lines)] }) } as unknown as Monster, monster("m-ox"), typed("m-ghoul", "undead")],
+    npcs: [],
+    companions: [],
+  });
+  const CURE_ONLY = WITH_HEALS("* 1st level (4 slots): cure wounds");
+  const DEAD = { successes: 0, failures: 3 };
+  /** The cleric (30 HP, Wisdom +3) at (1,1) with `friends`, on the "m" side; the ox of the "p" side is far off at (8,1). */
+  const fightOf = (friends: RunCombatant[], cleric: Partial<RunCombatant> = {}, foe: Partial<RunCombatant> = {}) =>
+    row({
+      combatants_live: [
+        combatant("cleric", { monster_id: "m-cleric", faction_id: "m", hp: 30, max_hp: 30, initiative: 12, position: { x: 1, y: 1 }, ...cleric }),
+        ...friends,
+        combatant("ox", { monster_id: "m-ox", faction_id: "p", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 8, y: 1 }, ...foe }),
+      ],
+    });
+  /** Pip, a character on the cleric's side, at 0 hit points and Unconscious with two failed and one successful death save. */
+  const pipDown = (over: Partial<RunCombatant> = {}) => pc("pip", { faction_id: "m", hp: 0, max_hp: 20, initiative: 3, position: { x: 2, y: 1 }, death_saves: { successes: 1, failures: 2 }, conditions: [{ name: "Unconscious" }], ...over });
+  const pipHurt = (hp: number) => pc("pip", { faction_id: "m", hp, max_hp: 20, initiative: 3, position: { x: 2, y: 1 } });
+  const clericTurn = (over: Record<string, unknown> = {}) => takeTurn({ instanceId: "cleric", ...over });
+  const castHeal = (over: Record<string, unknown> = {}) => ({ type: "cast_spell", casterId: "cleric", spell: "cure wounds", targetIds: ["pip"], ...over }) as CommandRequest["commands"][number];
+  const by = (r: FightRow, id: string) => r.combatants_live.find((c) => c.instance_id === id)!;
+  const records = (ruleset: "2014" | "2024" = "2014") => [cureWounds({ ruleset }), healingWord({ ruleset }), massHealingWord()];
+
+  // PHB 2014 "Cure Wounds": 1d8 + the spellcasting modifier (Wisdom 16 is +3); ch. 9 "Death Saving Throws": healing above 0 ends the death saves
+  // and the Unconscious state. A 6 on the d8 heals 9 (0 -> 9). The cleric spends one 1st-level slot and its Action; the cleric has no attack,
+  // so only a heal outranks a Dodge. Bug caught: a monster cleric that never casts a heal at a friend lying dying at 0 hit points.
+  it("fails if a cleric does not heal a downed friend of its side back up, ending Unconscious and the death saves", async () => {
+    const h = harness(fightOf([pipDown()]), { sources: CURE_ONLY, map: mapOf(), spells: records(), dieFaces: [6] });
+    const result = await runBatch(batch("b", clericTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { kind: "heal", optionId: "heal:Cure Wounds:1:pip" } });
+    expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "heal", spell: "Cure Wounds", rolled: 9, targets: [{ targetId: "pip", regained: 9, revived: true }] } });
+    expect(by(stored(h), "pip")).toMatchObject({ hp: 9, death_saves: { successes: 0, failures: 0 }, conditions: [] });
+    expect(by(stored(h), "cleric")).toMatchObject({ action_used: true, action_uses: { "slots/1": { used: 1, per_day: 4 } } });
+  });
+
+  // Bug caught: a heal for a friend who is only hurt (above half) cast ahead of everything, when the book's order is down first, then below half.
+  it("fails if a cleric heals a friend with a scratch (above half) instead of taking its turn", async () => {
+    const h = harness(fightOf([pipHurt(15)]), { sources: CURE_ONLY, map: mapOf(), spells: records(), dieFaces: [] });
+    const result = await runBatch(batch("b", clericTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ turn: { kind: expect.not.stringMatching(/^heal$/) } });
+    expect(h.dieCalls).toBe(0);
+    expect(by(stored(h), "cleric").action_uses).toBeUndefined();
+  });
+
+  // Below half (9 of 20) is healed. 1d8 face 2 + 3 = 5 (9 -> 14). Bug caught: the low line never reached, so only the dying are ever healed.
+  it("fails if a friend below half their hit points is not healed", async () => {
+    const h = harness(fightOf([pipHurt(9)]), { sources: CURE_ONLY, map: mapOf(), spells: records(), dieFaces: [2] });
+    await runBatch(batch("b", clericTurn()), h.deps);
+    expect(hpOf(stored(h), "pip")).toBe(14);
+  });
+
+  // Bug caught: a heal cast, and a slot spent, when nobody on the side is hurt.
+  it("fails if a heal is cast when nobody on the cleric's side is hurt", async () => {
+    const h = harness(fightOf([pipHurt(20)]), { sources: CURE_ONLY, map: mapOf(), spells: records(), dieFaces: [] });
+    const result = await runBatch(batch("b", clericTurn()), h.deps);
+    expect(result.effects.some((e) => e.type === "resolved")).toBe(false);
+    expect(by(stored(h), "cleric").action_uses).toBeUndefined();
+  });
+
+  // Bug caught: a heal aimed at a foe: the ox of the other side is at 3 of 40 and in no danger from the cleric's Cure Wounds.
+  it("fails if a heal is cast at a foe", async () => {
+    const h = harness(fightOf([], {}, { hp: 3, position: { x: 2, y: 1 } }), { sources: CURE_ONLY, map: mapOf(), spells: records(), dieFaces: [] });
+    await runBatch(batch("b", clericTurn()), h.deps);
+    expect(hpOf(stored(h), "ox")).toBe(3);
+    expect(h.dieCalls).toBe(0);
+  });
+
+  // PHB 2014 "Healing Word": a Bonus Action, 1d4 + modifier. A 3 on the d4 heals 6. With a friend down the turn is chosen without a leveled
+  // cast, so the cleric casts Healing Word as its Bonus Action and then walks toward the ox; Cure Wounds (an Action, 1st level) is not also cast
+  // (PHB 2014 ch. 10: no second spell beside a Bonus Action spell). Bug caught: Healing Word cast as an Action, or beside another leveled spell.
+  it("fails if Healing Word is not cast as a Bonus Action beside a turn that casts no leveled spell", async () => {
+    const h = harness(fightOf([pipDown()]), { sources: WITH_HEALS(), map: mapOf(), spells: records(), dieFaces: [3] });
+    const result = await runBatch(batch("b", clericTurn()), h.deps);
+    expect(by(stored(h), "pip")).toMatchObject({ hp: 6, conditions: [] });
+    const cleric = by(stored(h), "cleric");
+    expect(cleric.bonus_used).toBe(true);
+    expect(cleric.action_uses).toEqual({ "slots/1": { used: 1, per_day: 4 } });
+    expect(result.effects.filter((e) => e.type === "resolved")).toHaveLength(1);
+    expect(result.effects[0]).toMatchObject({ turn: { kind: expect.not.stringMatching(/^heal$/) } });
+  });
+
+  // PHB 2014 "Cure Wounds"/"Healing Word": "no effect on undead or constructs". The ghoul (undead) is at 5 of 20 and is not healed; the slot and the
+  // Action are spent all the same (the spell was cast). Pip, a living friend, is the positive control: the same cast heals them. Bug caught:
+  // a cleric healing the undead of its own side under the 2014 text.
+  it("fails if a 2014 Cure Wounds heals an undead creature", async () => {
+    const ghoul = combatant("ghoul", { monster_id: "m-ghoul", faction_id: "m", hp: 5, max_hp: 20, initiative: 2, position: { x: 2, y: 2 } });
+    const h = harness(fightOf([ghoul, pipHurt(5)]), { sources: CURE_ONLY, map: mapOf(), spells: records(), dieFaces: [4, 4] });
+    const result = await runBatch(batch("b", castHeal({ targetIds: ["ghoul", "pip"] })), h.deps);
+    expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "heal", targets: [{ targetId: "ghoul", regained: 0, unaffected: true }, { targetId: "pip", regained: 7, unaffected: false }] } });
+    expect(hpOf(stored(h), "ghoul")).toBe(5);
+    expect(hpOf(stored(h), "pip")).toBe(12);
+    expect(by(stored(h), "cleric").action_uses).toEqual({ "slots/1": { used: 1, per_day: 4 } });
+  });
+
+  // PHB 2024 "Cure Wounds" has no sentence excluding undead: the same cast heals the ghoul (2d8 faces 4 + 5 + 3 = 12: 5 -> 17).
+  it("fails if a 2024 Cure Wounds is refused to an undead creature", async () => {
+    const ghoul = combatant("ghoul", { monster_id: "m-ghoul", faction_id: "m", hp: 5, max_hp: 20, initiative: 2, position: { x: 2, y: 2 } });
+    const h = harness(fightOf([ghoul]), { sources: CURE_ONLY, map: mapOf(), ruleset: "2024", spells: records("2024"), dieFaces: [4, 5] });
+    await runBatch(batch("b", castHeal({ targetIds: ["ghoul"] })), h.deps);
+    expect(hpOf(stored(h), "ghoul")).toBe(17);
+  });
+
+  // The amount by the book, per edition and slot (each cast on a friend at 1 hit point of 20, so nothing is capped):
+  // PHB 2014 Cure Wounds 1d8 + 3 (die 5: 8); PHB 2014 at a 3rd-level slot, +1d8 per level above 1st = 3d8 + 3 (dice 2, 3, 4: 12);
+  // PHB 2024 Cure Wounds 2d8 + 3 (dice 5, 6: 14). The slots spent are the level cast at. Bug caught: the dice of the wrong edition, or an upcast that does not grow.
+  it.each([
+    { ruleset: "2014" as const, castLevel: undefined, faces: [5], healed: 8, slot: "slots/1", per: 4 },
+    { ruleset: "2014" as const, castLevel: 3, faces: [2, 3, 4], healed: 12, slot: "slots/3", per: 2 },
+    { ruleset: "2024" as const, castLevel: undefined, faces: [5, 6], healed: 14, slot: "slots/1", per: 4 },
+  ])("restores $healed hit points by the $ruleset rules (cast level $castLevel)", async ({ ruleset, castLevel, faces, healed, slot, per }) => {
+    const h = harness(fightOf([pipHurt(1)]), { sources: WITH_HEALS(), map: mapOf(), ruleset, spells: records(ruleset), dieFaces: [...faces] });
+    await runBatch(batch("b", castHeal(castLevel === undefined ? {} : { castLevel })), h.deps);
+    expect(hpOf(stored(h), "pip")).toBe(1 + healed);
+    expect(by(stored(h), "cleric").action_uses).toEqual({ [slot]: { used: 1, per_day: per } });
+  });
+
+  // Healing stops at the maximum: 18 of 20 and a roll of 9 leaves 20, and says 2 were regained. Bug caught: hit points above the maximum.
+  it("fails if healing takes a creature above its hit point maximum, or reports what was rolled as what was regained", async () => {
+    const h = harness(fightOf([pipHurt(18)]), { sources: CURE_ONLY, map: mapOf(), spells: records(), dieFaces: [6] });
+    const result = await runBatch(batch("b", castHeal()), h.deps);
+    expect(hpOf(stored(h), "pip")).toBe(20);
+    expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { rolled: 9, targets: [{ regained: 2 }] } });
+  });
+
+  // PHB 2014 ch. 9 "Death Saving Throws": a character with three failures is dead and healing does not bring them back; a monster at 0 is dead too.
+  // Nothing is rolled or spent. Bug caught: Cure Wounds raising the dead.
+  it.each([
+    { name: "a character with three failed death saves", dead: pipDown({ death_saves: DEAD }) },
+    { name: "a monster at 0 hit points", dead: combatant("pip", { faction_id: "m", hp: 0, max_hp: 20, monster_id: "m-ox", position: { x: 2, y: 1 } }) },
+  ])("refuses to heal $name", async ({ dead }) => {
+    const h = harness(fightOf([dead]), { sources: CURE_ONLY, map: mapOf(), spells: records(), dieFaces: [] });
+    await expect(runBatch(batch("b", castHeal()), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/dead/) });
+    expect(h.dieCalls).toBe(0);
+    expect(h.saves).toBe(0);
+  });
+
+  // A Bonus Action spell takes the Bonus Action and leaves the Action; a second one in the same turn is refused. Bug caught: Healing Word marking the Action used.
+  it("fails if Healing Word uses the Action instead of the Bonus Action, or can be cast with the Bonus Action spent", async () => {
+    const h = harness(fightOf([pipHurt(5)]), { sources: WITH_HEALS(), map: mapOf(), spells: records(), dieFaces: [1] });
+    await runBatch(batch("b", castHeal({ spell: "healing word" })), h.deps);
+    expect(by(stored(h), "cleric")).toMatchObject({ bonus_used: true });
+    expect(by(stored(h), "cleric").action_used).not.toBe(true);
+    const spent = harness(fightOf([pipHurt(5)], { bonus_used: true }), { sources: WITH_HEALS(), map: mapOf(), spells: records(), dieFaces: [] });
+    await expect(runBatch(batch("b", castHeal({ spell: "healing word" })), spent.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/Bonus Action/) });
+  });
+
+  // A library row nobody has reviewed is not rolled (nothing proves its dice): the cast is spent and left to the table, as for a damage spell.
+  it("fails if an unreviewed healing record is rolled", async () => {
+    const h = harness(fightOf([pipHurt(5)]), { sources: CURE_ONLY, map: mapOf(), spells: [cureWounds({ mechanics_reviewed: false })], dieFaces: [] });
+    const result = await runBatch(batch("b", castHeal()), h.deps);
+    expect(hpOf(stored(h), "pip")).toBe(5);
+    expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "cast" } });
+  });
+
+  // PHB 2014 ch. 10 "Bonus Action" spells: with Pip only below half (not down) and a leveled damage spell the best turn, the turn stands and Healing Word is
+  // not cast beside it (a leveled spell and a Bonus Action spell may not be cast in one turn). Pip stays at 9. Bug caught: a Bonus Action heal cast beside a leveled spell.
+  it("fails if Healing Word rides a turn that casts a leveled spell when nobody is down", async () => {
+    const bolt = fireBolt({ name: "Guiding Bolt", level: 1, range: "120 feet" });
+    const lines = "* 1st level (4 slots): guiding bolt, healing word";
+    const h = harness(fightOf([pipHurt(9)], {}, { position: { x: 6, y: 1 } }), { sources: WITH_HEALS(lines), map: mapOf(), spells: [bolt, ...records()], dieFaces: [15, 5, 5, 5] });
+    const result = await runBatch(batch("b", clericTurn({ optionId: undefined })), h.deps);
+    expect(result.effects[0]).toMatchObject({ turn: { kind: "spell" } });
+    expect(hpOf(stored(h), "pip")).toBe(9);
+    expect(by(stored(h), "cleric").bonus_used).not.toBe(true);
+  });
+
+  // A turn the caller names is exactly that turn: Healing Word does not ride it. Bug caught: the heal added to a turn someone chose by hand.
+  it("fails if Healing Word is added to a turn the caller named", async () => {
+    const h = harness(fightOf([pipDown()]), { sources: WITH_HEALS(), map: mapOf(), spells: records(), dieFaces: [] });
+    await runBatch(batch("b", clericTurn({ optionId: "dodge" })), h.deps);
+    expect(hpOf(stored(h), "pip")).toBe(0);
+    expect(by(stored(h), "cleric").bonus_used).not.toBe(true);
+  });
+
+  // Heal (the 6th-level spell) stores no dice: its cast is spent and left to the table, like any spell the rules cannot roll.
+  it("fails if a healing spell with no structured healing is rolled from its text, or casts for free", async () => {
+    const heal = cureWounds({ name: "Cure Wounds", effects: [], healing_dice: null });
+    const h = harness(fightOf([pipHurt(5)]), { sources: CURE_ONLY, map: mapOf(), spells: [heal], dieFaces: [] });
+    const result = await runBatch(batch("b", castHeal()), h.deps);
+    expect(hpOf(stored(h), "pip")).toBe(5);
+    expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "cast", spell: "Cure Wounds" } });
+    expect(by(stored(h), "cleric").action_uses).toEqual({ "slots/1": { used: 1, per_day: 4 } });
+  });
+});
+
+/** Tam as a level 5 Cleric: Wisdom 16 (+3), proficiency +3, one prepared 1st-level spell, Healing Word, and two 1st-level slots. */
+function clericTamSheets(over: { slots?: SpellSlotEntry[] } = {}): PlayerSheets {
+  const base = tamSheets({ bare: true });
+  const cleric = { id: "cls-clr", party_member_id: "pm-tam", class_name: "Cleric", class_definition_id: "def-clr", class_definition_kind: "system", subclass_name: null, subclass_definition_id: null, subclass_variant: null, levels: 5, is_primary: true, hit_dice_used: 0, sort_order: 0, capabilities: [] } as unknown as CharacterClass;
+  const grant = (name: string, level: number): AllySpellRow => ({ party_member_id: "pm-tam", name, level, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-clr", casting_ability: null, uses_per_day: null });
+  return {
+    ...base,
+    members: [{ ...base.members[0], wis: 16, level: 5, proficiency_bonus: 3, spell_slots: over.slots ?? [{ level: 1, max: 2, used: 0 }] }],
+    casting: {
+      spells: [grant("Healing Word", 1)],
+      classes: [cleric],
+      definitions: { system: [{ id: "def-clr", caster_type: "prepared", prepared_ability: "wis" }], custom: [], subclasses: [] },
+    },
+  };
+}
+
+describe("take_turn: an ally heals the character who is down", () => {
+  // The played character, Pip, lies at 0 hit points; Tam the cleric (AI-played) is far from the ox. PHB 2014 "Healing Word": a Bonus Action, 1d4 + Wisdom
+  // (+3): a 3 heals 6, Pip is up and no longer Unconscious. One of Tam's two 1st-level slots is written to the sheet; Tam's Bonus Action is spent.
+  // Bug caught: an ally cleric that runs past a friend at 0 hit points, or a heal that spends no slot.
+  it("fails if an ally cleric does not cast Healing Word at the played character at 0 hit points, spending a slot", async () => {
+    const fight = row({
+      combatants_live: [
+        pc("tam", { faction_id: "p", hp: 20, max_hp: 20, initiative: 12, position: { x: 1, y: 1 } }),
+        pc("pip", { faction_id: "p", hp: 0, max_hp: 20, initiative: 3, position: { x: 4, y: 1 }, death_saves: { successes: 0, failures: 1 }, conditions: [{ name: "Unconscious" }] }),
+        combatant("victim", { monster_id: "m-ox", faction_id: "m", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 12, y: 1 } }),
+      ],
+    });
+    const h = harness(fight, { sources: SOURCES, players: clericTamSheets(), map: mapOf(), spells: [healingWord()], dieFaces: [3] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(combatantOf(stored(h), "pip")).toMatchObject({ hp: 6, death_saves: { successes: 0, failures: 0 }, conditions: [] });
+    expect(combatantOf(stored(h), "tam").bonus_used).toBe(true);
+    expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 1, max: 2, used: 1 }] }]);
+  });
+
+  // Bug caught: the heal cast on credit once every 1st-level slot is spent.
+  it("fails if an ally cleric with no 1st-level slot left casts Healing Word", async () => {
+    const fight = row({
+      combatants_live: [
+        pc("tam", { faction_id: "p", hp: 20, max_hp: 20, initiative: 12, position: { x: 1, y: 1 } }),
+        pc("pip", { faction_id: "p", hp: 0, max_hp: 20, initiative: 3, position: { x: 4, y: 1 }, conditions: [{ name: "Unconscious" }] }),
+        combatant("victim", { monster_id: "m-ox", faction_id: "m", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 12, y: 1 } }),
+      ],
+    });
+    const h = harness(fight, { sources: SOURCES, players: clericTamSheets({ slots: [{ level: 1, max: 2, used: 2 }] }), map: mapOf(), spells: [healingWord()], dieFaces: [] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(combatantOf(stored(h), "pip").hp).toBe(0);
+    expect(h.slotWrites).toEqual([]);
   });
 });
 

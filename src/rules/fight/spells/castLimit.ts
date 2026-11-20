@@ -36,6 +36,8 @@ export interface Castable {
   saveDc: number | null;
   attackBonus: number | null;
   casterLevel: number | null;
+  /** The spellcasting ability the entry names ("WIS"), whose modifier a healing spell adds; null when it names none. */
+  ability: "INT" | "WIS" | "CHA" | null;
   group: ProseSpellGroup;
   useKey: string | null;
   limit: ActionLimit | null;
@@ -51,7 +53,7 @@ export function castableBy(statBlock: MonsterStatBlock, spellName: string): Cast
       if (!group.spells.some((s) => s.key === wanted)) continue;
       const { useKey, limit } = castLimitOf(group, spellName);
       const level = group.frequency.kind === "slots" ? group.frequency.level : group.frequency.kind === "cantrips" ? 0 : null;
-      return { saveDc: prose.saveDc, attackBonus: prose.attackBonus, casterLevel: prose.casterLevel, group, useKey, limit, level };
+      return { saveDc: prose.saveDc, attackBonus: prose.attackBonus, casterLevel: prose.casterLevel, ability: prose.ability, group, useKey, limit, level };
     }
   }
   return null;

@@ -20,6 +20,10 @@ export function describeResolvedAction(resolved: ResolvedAction, nameOf: (instan
     }
     case "cast":
       return `${nameOf(resolved.casterId)} casts ${resolved.spell}. ${resolved.why}`;
+    case "heal": {
+      const who = resolved.targets.map((t) => (t.unaffected ? `${nameOf(t.targetId)} is not affected` : `${nameOf(t.targetId)} regains ${t.regained} hit points${t.revived ? " and is back on their feet" : ""}`)).join("; ");
+      return `${nameOf(resolved.casterId)} casts ${resolved.spell} (${resolved.rolled} rolled): ${who}.`;
+    }
     case "concentration":
       return `${nameOf(resolved.instanceId)} ${resolved.maintained ? "keeps" : "loses"} concentration (${resolved.total} against DC ${resolved.dc}).`;
     case "condition_save":

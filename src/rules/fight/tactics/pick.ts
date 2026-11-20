@@ -13,6 +13,7 @@ import { fleeSourceOf } from "../terrain/options/flee.ts";
 import { wayOffPhrase } from "../terrain/options/phrases.ts";
 import { type TurnOption, type TurnOptionSpell } from "../terrain/options/types.ts";
 import type { MoraleRule, TacticalProfile } from "./profile.ts";
+import { chooseActionHeal, isHealOption } from "./healChoice.ts";
 import { seenAs, seenDamagePerTurn } from "./shownThreat.ts";
 import { usableWayOut, type WayOut } from "./wayOut.ts";
 
@@ -393,7 +394,9 @@ function runAway(options: readonly TurnOption[], mover: RunCombatant, cause: str
  * rule picks with that target's best option; with no attack on offer it closes on a target, else it Dodges, else
  * takes the first option.
  */
-export function pickTurn(options: readonly TurnOption[], profile: TacticalProfile, ctx: PickContext): TurnPick | null {
+export function pickTurn(offered: readonly TurnOption[], profile: TacticalProfile, ctx: PickContext): TurnPick | null {
+  // A Bonus Action heal is no turn of its own: it rides the turn chosen here (`bonusHeal`, `healChoice.ts`).
+  const options = offered.filter((o) => !(isHealOption(o) && o.heal.slot === "bonus_action"));
   if (options.length === 0) return null;
   const mover = ctx.combatants.find((c) => c.instance_id === ctx.moverId);
   const broken = mover !== undefined && isBroken(profile, mover);
@@ -443,6 +446,10 @@ export function pickTurn(options: readonly TurnOption[], profile: TacticalProfil
     }
   }
 
+  // RULE heal-down, heal-low (`healChoice.ts`): getting an ally up, or one below half back on their feet, comes before an attack or a damage spell.
+  const heal = chooseActionHeal(options, ctx.combatants);
+  if (heal !== null) return { optionId: heal.option.id, reason: heal.reason };
+
   const attacks = options.filter((o) => o.kind === "attack");
   const attackChoice = attacks.length === 0 ? null : chooseTarget(groupByTarget(attacks, ctx, (o) => (o.attack === null ? null : o.attack.distanceFeet)), profile, ctx);
   const best = attackChoice === null ? null : { option: bestAttack(attackChoice.group.options, profile), target: attackChoice.group.target };
@@ -456,7 +463,7 @@ export function pickTurn(options: readonly TurnOption[], profile: TacticalProfil
   }
   if (attackChoice !== null && best !== null) return { optionId: best.option.id, reason: describeAttack(best.option, best.target, attackChoice.why) };
   // A cast that was ruled out is no turn to fall back on: what is left is judged without it, unless nothing else is on offer.
-  const left = options.filter((o) => o.kind !== "spell");
+  const left = options.filter((o) => o.kind !== "spell" && o.kind !== "heal");
   const turns = left.length > 0 ? left : options;
   if (turns.length === 1) return { optionId: turns[0].id, reason: `Takes the only turn on offer: ${turns[0].summary}.` };
 

@@ -154,6 +154,12 @@ export type ResolvedAction =
    * a `save` or an `attack` named for the spell.
    */
   | { kind: "cast"; casterId: string; spell: string; castLevel: number; targetIds: string[]; why: string }
+  /**
+   * A healing spell the rules rolled (#1021): one roll (the spell's dice plus the caster's spellcasting modifier) shared by every
+   * target, each regaining what fits under its maximum. `unaffected` is a target the spell does nothing for (undead or a construct
+   * under the 2014 text); `revived` is one brought up from 0 hit points.
+   */
+  | { kind: "heal"; casterId: string; spell: string; castLevel: number; rolled: number; targets: { targetId: string; regained: number; revived: boolean; unaffected: boolean }[] }
   | { kind: "concentration"; instanceId: string; dc: number; natural: number; total: number; maintained: boolean }
   | { kind: "condition_save"; instanceId: string; name: string; dc: number; total: number | null; success: boolean }
   /** A creature spent its Action on an ability check to get free of a condition a spell holds it in (Black Tentacles). */

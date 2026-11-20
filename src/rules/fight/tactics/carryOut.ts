@@ -29,7 +29,7 @@ export type TurnStep =
   /** One resolved attack: a Multiattack is several of these, in printed order. */
   | { type: "swing"; list: StatBlockListKey; action: string; targetId: string }
   /** One spell cast (#1021): `cast_spell` spends the slot or use and marks the Action itself, so no `spend` or `use` step goes with it. */
-  | { type: "cast"; spell: string; castLevel: number; targetIds: string[] }
+  | { type: "cast"; spell: string; castLevel: number; targetIds: string[]; /** A healing spell: its targets may be down at 0 hit points, which a damage spell's may not. */ heal?: true }
   /** An ability check to end a condition a spell holds the mover in (#1021): `break_free` takes the Action itself, so no `use` step goes with it. */
   | { type: "break_free"; name: string; ability: string }
   /** One use of a limited or recharge ability, as the runner records it. */
@@ -62,6 +62,7 @@ function slotOf(option: TurnOption): "action" | "bonus" | null {
       return option.escape === undefined ? "action" : option.escape.slot;
     // `cast_spell` marks the Action itself (and spends the slot), so a cast needs no `use` step here.
     case "spell":
+    case "heal":
     case "break_free":
     case "move":
     case "surrender":
@@ -108,6 +109,9 @@ export function stepsFor(option: TurnOption, attacks: readonly UsableAttack[]): 
   // A cast is one command: it spends the slot or use and takes the Action itself.
   if (option.kind === "spell" && option.spell !== undefined && option.spell !== null) {
     steps.push({ type: "cast", spell: option.spell.name, castLevel: option.spell.castLevel, targetIds: option.spell.targetIds });
+  }
+  if (option.kind === "heal" && option.heal !== undefined && option.heal !== null) {
+    steps.push({ type: "cast", spell: option.heal.name, castLevel: option.heal.castLevel, targetIds: option.heal.targetIds, heal: true });
   }
   if (option.kind === "break_free" && option.breakFree !== undefined) steps.push({ type: "break_free", name: option.breakFree.name, ability: option.breakFree.ability });
   const slot = slotOf(option);

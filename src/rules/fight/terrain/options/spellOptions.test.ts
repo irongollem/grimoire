@@ -1,8 +1,8 @@
 /** Rules 11 and 12: spell options and breaking free. */
 import { describe, expect, it } from "vitest";
 import type { RunCombatant } from "../../../../types/encounter.types.ts";
-import { castableNow } from "../../spells/castNow.ts";
-import { fireball, mageBlock } from "../../spells/spellTestKit.ts";
+import { castableNow, healableNow } from "../../spells/castNow.ts";
+import { clericBlock, cureWounds, fireball, healingWord, mageBlock } from "../../spells/spellTestKit.ts";
 import { creature, ogre, fresco, run, find } from "./turnOptionsTestKit.ts";
 
 // SRD 5.1 Black Tentacles: "A creature restrained by the tentacles can use its action to make a Strength or Dexterity check
@@ -68,3 +68,63 @@ describe("allies in a spell's area", () => {
   });
 });
 
+
+// Rule 13: heal options (#1021). Ogre "m" is the caster; Fresco and Chicory are "p"; with the factions below "m" and "p" are foes and "n" is neither.
+describe("rule 13: heal (#1021)", () => {
+  const factions = [
+    { id: "m", hostile_to: ["p"] },
+    { id: "p", hostile_to: ["m"] },
+    { id: "n", hostile_to: [] },
+  ];
+  const caster = (over: Partial<RunCombatant> = {}) => ogre(0, 0, over);
+  const heals = (over: Partial<RunCombatant> = {}) => healableNow(clericBlock(), caster(over), [cureWounds(), healingWord()], "2014");
+  const friend = (id: string, x: number, over: Partial<RunCombatant> = {}) => creature(id, id, "m", x, 0, { hp: 4, ...over });
+  /** The caster (with `over`) and `others`. */
+  const healOptions = (others: RunCombatant[], over: Partial<RunCombatant> = {}) =>
+    run({ combatants: [caster(over), ...others], attacks: [], heals: heals(over), factions }).filter((o) => o.kind === "heal");
+
+  // Bug caught: a heal aimed at the caster's foe (Fresco is hurt too) or at a Neutral bystander, so the cleric heals the enemy.
+  it("fails if a foe or a Neutral is offered a heal", () => {
+    const wounded = [creature("foe", "Foe", "p", 1, 0, { hp: 3 }), creature("bystander", "Bystander", "n", 1, 1, { hp: 3 })];
+    expect(healOptions(wounded)).toEqual([]);
+  });
+
+  // Healing Word on a friend 30 feet off, Cure Wounds only on one within touch: three options for two spells at two friends where they reach.
+  it("offers each heal at a hurt friend it reaches, with who is down and what it costs", () => {
+    const options = healOptions([friend("near", 1), friend("far", 6)]);
+    expect(options.map((o) => o.id)).toEqual(["heal:Cure Wounds:1:near", "heal:Healing Word:1:near", "heal:Healing Word:1:far"]);
+    expect(options[1].heal).toMatchObject({ name: "Healing Word", castLevel: 1, slot: "bonus_action", targetIds: ["near"], spends: true });
+  });
+
+  // Cure Wounds reaches only the near scratch and Healing Word reaches the far one who is down: the list puts the one who is down first, across spells
+  // (the cut to the best six is made on this order). Bug caught: options in the order the spells are listed, so a scratch comes before a dying friend.
+  it("fails if a heal at someone who is down is not listed before a heal at a scratch of another spell", () => {
+    const down = creature("down", "Down", "m", 6, 0, { type: "player", party_member_id: "pm-down", hp: 0 });
+    const options = healOptions([friend("near", 1, { hp: 15 }), down]);
+    expect(options.map((o) => o.id)).toEqual(["heal:Healing Word:1:down", "heal:Cure Wounds:1:near", "heal:Healing Word:1:near"]);
+  });
+
+  // Bug caught: a heal offered when everyone is on their feet and unhurt.
+  it("fails if a heal is offered when no one on its side is hurt", () => {
+    expect(healOptions([friend("well", 1, { hp: 20 })])).toEqual([]);
+  });
+
+  // Bug caught: a spent Action still offering Cure Wounds, so a creature heals twice in a turn; and the Bonus Action spent still offering Healing Word.
+  it("fails if an Action heal is offered with the Action spent, or a Bonus Action one with the Bonus Action spent", () => {
+    const friends = [friend("near", 1)];
+    expect(healOptions(friends, { action_used: true }).map((o) => o.heal?.name)).toEqual(["Healing Word"]);
+    expect(healOptions(friends, { bonus_used: true }).map((o) => o.heal?.name)).toEqual(["Cure Wounds"]);
+  });
+
+  // Bug caught: a creature down at 0 hit points (alive) skipped, which is the one a heal is for.
+  it("fails if a friend at 0 hit points who is alive is not offered the heal first", () => {
+    const down = creature("down", "Down", "m", 1, 0, { type: "player", party_member_id: "pm-down", hp: 0 });
+    const options = healOptions([friend("scratch", 2, { hp: 15 }), down]);
+    expect(options[0].heal).toMatchObject({ targetIds: ["down"], downIds: ["down"] });
+  });
+
+  // The caster itself, hurt, with nobody else: a creature may heal itself.
+  it("fails if a hurt caster alone is offered no heal for itself", () => {
+    expect(healOptions([], { hp: 3 }).map((o) => o.heal?.targetIds)).toEqual([["ogre"], ["ogre"]]);
+  });
+});

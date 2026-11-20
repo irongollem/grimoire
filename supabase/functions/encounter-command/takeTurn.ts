@@ -32,6 +32,8 @@ import type { FightEffect, FightState } from "../../../src/rules/fight/fightStat
 import { saveBonusFromBlock } from "../../../src/rules/fight/resolution/saves.ts";
 import { playerSaveBonus } from "../../../src/rules/fight/playerSheet.ts";
 import { listedSpellNames } from "../../../src/rules/fight/spells/castNow.ts";
+import { takesTurnsInFight } from "../../../src/rules/fight/standing.ts";
+import { chooseBonusHeal, isLeveledCast, withoutLeveledCasts } from "../../../src/rules/fight/tactics/healChoice.ts";
 import { stepsFor, type TurnStep } from "../../../src/rules/fight/tactics/carryOut.ts";
 import { DODGING, disengagedCondition, dodgingCondition } from "../../../src/rules/fight/stances.ts";
 import { gateOptions, pickTurn } from "../../../src/rules/fight/tactics/pick.ts";
@@ -201,6 +203,8 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
     attacks, combatants: state.combatants, moverId: mover.instance_id, armorClassOf, ruleset: state.ruleset, spells, saveBonusOf,
   });
 
+  // The Bonus Action heal this turn may carry (only when the rules pick the turn: one the caller named is exactly that turn, below).
+  const bonusHeal = chooseBonusHeal(gated, state.combatants, mover);
   let chosen: { optionId: string; reason: string };
   let picked: "rules" | "rules_with_note" | "caller";
   let ruledOutByNote: { optionId: string; summary: string }[] | undefined;
@@ -219,7 +223,9 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
         if (pool.length < gated.length) ruledOutByNote = gated.filter((o) => !pool.includes(o)).map((o) => ({ optionId: o.id, summary: o.summary }));
       }
     }
-    const pick = pickTurn(pool, profile, { combatants: state.combatants, moverId: mover.instance_id, armorClassOf });
+    // A Bonus Action heal rides the turn (`healChoice.ts`): with someone down, the turn is chosen without a leveled cast, since only a cantrip may go with a Bonus Action spell.
+    const choosable = bonusHeal !== null && bonusHeal.someoneDown ? withoutLeveledCasts(pool) : pool;
+    const pick = pickTurn(choosable, profile, { combatants: state.combatants, moverId: mover.instance_id, armorClassOf });
     if (pick === null) return refuse(`${mover.name} has no turn to take.`);
     chosen = ruledOutByNote === undefined ? pick : { ...pick, reason: noteReason(gated.filter((o) => !pool.includes(o)), pick.reason) };
     picked = ruledOutByNote === undefined ? "rules" : "rules_with_note";
@@ -235,7 +241,12 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
   // A party member the AI plays may spend its Bonus Action on a class feature: a modifier on the turn the picker chose, not a turn of its own.
   // Only when the rules picked: a turn the caller named is exactly that turn.
   let bonusReason: string | null = null;
-  if (ally && picked !== "caller") {
+  // RULE heal-bonus-action: the heal goes first, from where the creature stands, and not beside another leveled cast.
+  const healFirst = bonusHeal !== null && picked !== "caller" && !(isLeveledCast(option) && !bonusHeal.someoneDown);
+  if (bonusHeal !== null && healFirst) {
+    bonusReason = bonusHeal.reason;
+    steps = [...stepsFor(bonusHeal.option, attacks), ...steps];
+  } else if (ally && picked !== "caller") {
     const bonus = allyBonusAction(mover, option, env);
     if (bonus !== null) {
       bonusReason = bonus.reason;
@@ -298,7 +309,8 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
       }
       case "cast": {
         // Like a Multiattack, a cast is not redirected: a target that has already dropped is left out, and with none left there is no cast.
-        const targetIds = step.targetIds.filter((id) => next.combatants.some((c) => c.instance_id === id && c.hp > 0));
+        // A healing spell's target may be down at 0 hit points and alive (`healNeedOf`); a damage spell's must be standing.
+        const targetIds = step.targetIds.filter((id) => next.combatants.some((c) => c.instance_id === id && (c.hp > 0 || (step.heal === true && takesTurnsInFight(c)))));
         if (targetIds.length === 0) break;
         const done = await applyResolvingCommand(
           next, { type: "cast_spell", casterId: mover.instance_id, spell: step.spell, castLevel: step.castLevel, targetIds }, env,

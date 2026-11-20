@@ -9,10 +9,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
 
 const LIBRARY_COLUMNS =
-  "id, name, level, range, ruleset, source, concentration, attack_type, save_attribute, save_effect, damage_rolls, healing_dice, aoe_shape, aoe_size, higher_level_damage, mechanics_reviewed, effects, condition_effect";
+  "id, name, level, range, ruleset, source, concentration, attack_type, save_attribute, save_effect, damage_rolls, healing_dice, aoe_shape, aoe_size, higher_level_damage, mechanics_reviewed, effects, condition_effect, casting_time, casting_time_custom";
 /** A campaign's own spell has no reviewed flag and no structured effects: its flat columns are all there is, and they are the DM's word (and its `condition_effect`, which the DM fills). */
 const CUSTOM_COLUMNS =
-  "id, name, level, range, ruleset, source, concentration, attack_type, save_attribute, save_effect, damage_rolls, healing_dice, aoe_shape, aoe_size, higher_level_damage, condition_effect";
+  "id, name, level, range, ruleset, source, concentration, attack_type, save_attribute, save_effect, damage_rolls, healing_dice, aoe_shape, aoe_size, higher_level_damage, condition_effect, casting_time, casting_time_custom";
 
 /** `ilike` reads % and _ as wildcards and \ as its escape: a name is matched literally, in any letter case. */
 export function literalPattern(name: string): string {
