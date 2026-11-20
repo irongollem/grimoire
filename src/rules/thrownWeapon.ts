@@ -1,4 +1,4 @@
-import type { Item } from "@/types/item.types";
+import type { Item } from "../types/item.types.ts";
 
 /**
  * Names treated as thrown weapons when the inventory row has no vault item to

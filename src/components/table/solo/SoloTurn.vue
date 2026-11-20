@@ -88,7 +88,7 @@ import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { attackSummary } from "@/lib/table/solo/fight/attackLabel";
 import { usePcAttackRows } from "@/composables/encounters/usePcAttackRows";
-import type { PcAttackRow } from "@/composables/encounters/usePcAttackRows";
+import type { PcAttackRow } from "@/types/pcAttack.types";
 import type { TurnBudget } from "@/lib/table/solo/fight/turnBudget";
 import type { PartyMember } from "@/types/party.types";
 

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import type { PcAttackRow } from "@/composables/encounters/usePcAttackRows";
+import type { PcAttackRow } from "@/types/pcAttack.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import { useSoloAttack } from "./useSoloAttack";
 

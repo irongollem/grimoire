@@ -106,12 +106,8 @@
 import { hasCondition, withoutCondition } from "@/rules/conditions";
 import { ref } from "vue";
 import type { PartyMember } from "@/types/party.types";
-import {
-  usePcAttackRows,
-  type PcAttackPickerFields,
-  type PcRangedAttackRow,
-  type PcThrownAttackRow,
-} from "@/composables/encounters/usePcAttackRows";
+import { usePcAttackRows } from "@/composables/encounters/usePcAttackRows";
+import type { PcAttackPickerFields, PcRangedAttackRow, PcThrownAttackRow } from "@/types/pcAttack.types";
 import { useAmmoConsumption } from "@/composables/encounters/useAmmoConsumption";
 import { useThrownWeapon } from "@/composables/encounters/useThrownWeapon";
 import { useUpdatePartyMember } from "@/composables/party/useParty";

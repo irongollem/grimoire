@@ -1,5 +1,5 @@
-import type { WeaponAmmoTag } from "@/rules/ammunition";
-import type { AttackShape } from "@/rules/features/resolve";
+import type { WeaponAmmoTag } from "../rules/ammunition.ts";
+import type { AttackShape } from "../rules/features/resolve.ts";
 
 /** What the damage-rider picker needs from any weapon row. */
 export interface PcAttackPickerFields {

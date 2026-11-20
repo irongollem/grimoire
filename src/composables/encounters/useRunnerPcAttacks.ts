@@ -1,21 +1,11 @@
 import { toRef, type Ref } from "vue";
 import { computed } from "vue";
 import { useCharacterFeatures } from "@/composables/features/useCharacterFeatures";
+import { proficiencyBonusOf } from "@/rules/proficiencyBonus";
 import type { PartyMember } from "@/types/party.types";
 
 export function abilityModOf(score: number): number {
   return Math.floor((score - 10) / 2);
-}
-
-/** The member's proficiency bonus: the stored one, else the level's (PHB "Proficiency Bonus" table). */
-export function proficiencyBonusOf(member: Pick<PartyMember, "proficiency_bonus" | "level">): number {
-  if (member.proficiency_bonus) return member.proficiency_bonus;
-  const l = member.level;
-  if (l >= 17) return 6;
-  if (l >= 13) return 5;
-  if (l >= 9) return 4;
-  if (l >= 5) return 3;
-  return 2;
 }
 
 /**
