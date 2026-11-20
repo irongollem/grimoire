@@ -220,6 +220,21 @@ export interface StructuredSpellEffect {
   instances?: SpellEffectInstances | null;
   /** The caster picks the damage type at cast (Chromatic Orb, Spirit Guardians); `damageType` is null then. */
   damageTypeChoices?: string[] | null;
+  /**
+   * What a healing effect ends in the creature it restores (Heal: "Blinded", "Deafened", and "Poisoned" in 2024). A name that is an
+   * app condition is removed; any other (Heal 2014's "diseases") is left to the table, and the fight's line says so. Healing only.
+   */
+  ends?: string[] | null;
+  /**
+   * The creature kinds a healing effect does nothing for, lower case ("undead", "construct": the 2014 texts of Cure Wounds, Healing Word,
+   * Heal and the mass spells). Absent: the fight reads it from the edition (`healExcludedKinds`); an empty list says nobody is excluded.
+   */
+  unaffected?: string[] | null;
+  /**
+   * A pool of hit points the caster divides as they choose among any number of creatures (Mass Heal: 700) instead of rolling `dice`.
+   * Healing only; the fight shares it out down first, then the lowest, each to full or to the pool's end.
+   */
+  pool?: number | null;
 }
 
 export interface SpellEffectInstances {

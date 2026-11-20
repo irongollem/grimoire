@@ -38,8 +38,9 @@ import {
   type PostedRoll,
   type StatBlockSources,
 } from "./handler";
-import { blackTentacles, charmMonster, clericBlock, cureWounds, fear, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithFear, mageWithHold, mageWithTentacles, healingWord, massHealingWord } from "../../../src/rules/fight/spells/spellTestKit";
+import { blackTentacles, charmMonster, clericBlock, cureWounds, fear, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithFear, mageWithHold, mageWithTentacles, healingWord, massHealingWord, heal, massHeal } from "../../../src/rules/fight/spells/spellTestKit";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice";
+import { ownRecord } from "../_shared/fightSpells";
 import type { AppliedCondition } from "../../../src/types/condition.types";
 import type { ExploreParty } from "../../../src/types/exploreParty.types";
 
@@ -3384,6 +3385,74 @@ describe("healing spells in a fight", () => {
     await runBatch(batch("b", clericTurn({ optionId: "dodge" })), h.deps);
     expect(hpOf(stored(h), "pip")).toBe(0);
     expect(by(stored(h), "cleric").bonus_used).not.toBe(true);
+  });
+
+  const HEAL_LINES = "* 6th level (1 slot): heal\n* 7th level (1 slot): plane shift";
+  const bigPip = (over: Partial<RunCombatant> = {}) => pc("pip", { faction_id: "m", hp: 1, max_hp: 300, initiative: 3, position: { x: 2, y: 1 }, ...over });
+
+  // PHB 2014 "Heal": 70 hit points (+10 per slot level above 6th), and it ends blindness and deafness (and diseases). Pip is Blinded, Deafened and Poisoned:
+  // Heal 2014 takes the first two off and leaves Poisoned; "diseases" is no condition of the app, so the line says it is the table's. Nothing is rolled.
+  // Bug caught: Heal cast and spent with nothing restored, a condition it ends left on, or the one it does not end taken off.
+  it("fails if Heal (2014) does not restore 70, end Blinded and Deafened and keep Poisoned, and leave diseases to the table", async () => {
+    const conditions = [{ name: "Blinded" }, { name: "Deafened" }, { name: "Poisoned" }];
+    const h = harness(fightOf([bigPip({ conditions })]), { sources: WITH_HEALS(HEAL_LINES), map: mapOf(), spells: [heal()], dieFaces: [] });
+    const result = await runBatch(batch("b", castHeal({ spell: "heal" })), h.deps);
+    expect(hpOf(stored(h), "pip")).toBe(71);
+    expect(by(stored(h), "pip").conditions.map((c) => c.name)).toEqual(["Poisoned"]);
+    expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "heal", rolled: 70, leftToTable: ["diseases"], targets: [{ targetId: "pip", regained: 70, ended: ["Blinded", "Deafened"] }] } });
+    expect(by(stored(h), "cleric").action_uses).toEqual({ "slots/6": { used: 1, per_day: 1 } });
+  });
+
+  // PHB 2024 "Heal" also ends Poisoned; cast with a 7th-level slot it is 80 (70 + 10 for the level above 6th).
+  it("fails if Heal (2024) does not also end Poisoned, or an upcast Heal does not restore 80", async () => {
+    const conditions = [{ name: "Blinded" }, { name: "Poisoned" }];
+    const h = harness(fightOf([bigPip({ conditions })]), { sources: WITH_HEALS(HEAL_LINES), map: mapOf(), ruleset: "2024", spells: [heal({ ruleset: "2024" })], dieFaces: [] });
+    const result = await runBatch(batch("b", castHeal({ spell: "heal", castLevel: 7 })), h.deps);
+    expect(hpOf(stored(h), "pip")).toBe(81);
+    expect(by(stored(h), "pip").conditions).toEqual([]);
+    expect((result.effects.find((e) => e.type === "resolved") as { resolved: { leftToTable?: string[] } }).resolved.leftToTable).toBeUndefined();
+  });
+
+  // The typed list wins over the edition: a 2014 record that carries `unaffected: []` heals the ghoul, and a 2024 record that names "undead" does not.
+  // The 2014 record with no field at all keeps the old inference (the test above for Cure Wounds). Bug caught: the edition read before the field.
+  it("fails if a typed unaffected list is not honoured over the edition", async () => {
+    const ghoul = () => combatant("ghoul", { monster_id: "m-ghoul", faction_id: "m", hp: 5, max_hp: 20, initiative: 2, position: { x: 2, y: 2 } });
+    const typed = (ruleset: "2014" | "2024", unaffected: string[]) => cureWounds({ ruleset, effects: [{ ...cureWounds().effects![0], unaffected }] });
+    const open = harness(fightOf([ghoul()]), { sources: CURE_ONLY, map: mapOf(), spells: [typed("2014", [])], dieFaces: [4] });
+    await runBatch(batch("b", castHeal({ targetIds: ["ghoul"] })), open.deps);
+    expect(hpOf(stored(open), "ghoul")).toBe(12);
+    const shut = harness(fightOf([ghoul()]), { sources: CURE_ONLY, map: mapOf(), ruleset: "2024", spells: [typed("2024", ["undead"])], dieFaces: [4, 4] });
+    await runBatch(batch("b", castHeal({ targetIds: ["ghoul"] })), shut.deps);
+    expect(hpOf(stored(shut), "ghoul")).toBe(5);
+  });
+
+  // PHB "Mass Heal": 700 hit points divided as the caster chooses. The rule here: the downed first, each to full or to the pool's end, then the lowest.
+  // Pip 0/20, Brug 5/100, Gar 40/400, Hob 100/400, targets named in the wrong order; the ghoul (undead, 2014) takes none of it. 20 + 95 + 360 = 475, so Hob
+  // gets the last 225 (to 325 of 400) and is not filled. Bug caught: the pool given to each, hit points above the maximum, the ghoul healed, or the lowest not first.
+  it("fails if Mass Heal does not share its 700 hit points down first, then the lowest, never overhealing", async () => {
+    const friend = (id: string, hp: number, max_hp: number, x: number) => combatant(id, { monster_id: "m-ox", faction_id: "m", hp, max_hp, initiative: 2, position: { x, y: 2 } });
+    const ghoul = combatant("ghoul", { monster_id: "m-ghoul", faction_id: "m", hp: 5, max_hp: 20, initiative: 2, position: { x: 6, y: 2 } });
+    const friends = [friend("hob", 100, 400, 2), friend("gar", 40, 400, 3), friend("brug", 5, 100, 4), pipDown(), ghoul];
+    const h = harness(fightOf(friends), { sources: WITH_HEALS("* 9th level (1 slot): mass heal"), map: mapOf(), spells: [massHeal()], dieFaces: [] });
+    const result = await runBatch(batch("b", castHeal({ spell: "mass heal", targetIds: ["hob", "gar", "brug", "pip", "ghoul"] })), h.deps);
+    expect([hpOf(stored(h), "pip"), hpOf(stored(h), "brug"), hpOf(stored(h), "gar"), hpOf(stored(h), "hob"), hpOf(stored(h), "ghoul")]).toEqual([20, 100, 400, 325, 5]);
+    expect(h.dieCalls).toBe(0);
+    expect(by(stored(h), "pip").conditions).toEqual([]);
+    expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "heal", pool: true, rolled: 700, targets: expect.arrayContaining([{ targetId: "ghoul", regained: 0, revived: false, unaffected: true }, { targetId: "hob", regained: 225, revived: false, unaffected: false }]) } });
+  });
+
+  // A campaign's own Cure Wounds has only flat columns (2d6, +1d6 per level). It heals by them, and adds no spellcasting modifier (no column says it does):
+  // faces 3 and 4 heal 7, not 10. A flat row with no healing dice is still cast and left to the table. Bug caught: a DM's own heal that never heals.
+  it("fails if a campaign's own spell with flat healing columns does not heal, or adds a modifier its data does not name", async () => {
+    const mine = ownRecord({ ...cureWounds({ own: true, effects: [], healing_dice: "2d6" }), higher_level_healing: "1d6" } as Parameters<typeof ownRecord>[0]);
+    const h = harness(fightOf([pipHurt(5)]), { sources: CURE_ONLY, map: mapOf(), spells: [mine], dieFaces: [3, 4] });
+    await runBatch(batch("b", castHeal()), h.deps);
+    expect(hpOf(stored(h), "pip")).toBe(12);
+    const none = ownRecord({ ...cureWounds({ own: true, effects: [], healing_dice: null }), higher_level_healing: null } as Parameters<typeof ownRecord>[0]);
+    const left = harness(fightOf([pipHurt(5)]), { sources: CURE_ONLY, map: mapOf(), spells: [none], dieFaces: [] });
+    const result = await runBatch(batch("b", castHeal()), left.deps);
+    expect(hpOf(stored(left), "pip")).toBe(5);
+    expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "cast" } });
   });
 
   // Heal (the 6th-level spell) stores no dice: its cast is spent and left to the table, like any spell the rules cannot roll.

@@ -11,14 +11,23 @@
 // 1st; "Healing Word": 1d4 + modifier, +1d4 per level; PHB 2024 "Cure Wounds": 2d8 + modifier, +2d8 per level; "Healing
 // Word": 2d4 + modifier, +2d4 per level). The record holds the edition's own dice; `effectsForCast` scales them per slot
 // level, the rule the sheet shares.
-// RULE healing-undead-constructs (PHB 2014 "Cure Wounds", "Healing Word", "Mass Healing Word", "Prayer of Healing":
-// "This spell has no effect on undead or constructs"; the 2024 Player's Handbook text of the same spells has no such
-// sentence). APP CONVENTION: the record does not carry the sentence, so it is read from the edition: a shared 2014 record
-// excludes undead and constructs, a 2024 one excludes nobody, and a campaign's own spell is taken at its word (none).
+// RULE healing-undead-constructs (PHB 2014 "Cure Wounds", "Healing Word", "Mass Healing Word", "Prayer of Healing", "Heal",
+// "Mass Heal": "This spell has no effect on undead or constructs"; the 2024 Player's Handbook text of the same spells has no
+// such sentence). The record says it: the healing effect's `unaffected` list (kinds, lower case; an empty list excludes nobody).
+// APP CONVENTION, only for a record that has no such field (an older row, a campaign's own spell): the edition decides, a shared
+// 2014 record excludes undead and constructs, a 2024 one excludes nobody, a campaign's own spell is taken at its word (none).
+// RULE healing-ends (PHB 2014 "Heal": "Heal also ends blindness, deafness, and any diseases"; PHB 2024 "Heal": ends the Blinded,
+// Deafened and Poisoned conditions): the effect's `ends` names them. An app condition is removed; a name the app has no condition
+// for ("diseases") is left to the table and the line says so.
+// RULE healing-pool (PHB 2014 and 2024 "Mass Heal": "A flood of healing energy flows from you into injured creatures around you.
+// You restore up to 700 hit points, divided as you choose among any number of creatures that you can see within range"): the
+// effect's `pool`. APP CONVENTION for the sharing (the book leaves the division to the caster): the downed first, then the lowest
+// share of their hit points, each to full or to what is left of the pool.
 // RULE casting-time (PHB 2014 and 2024 "Healing Word": a Bonus Action; "Cure Wounds": an Action): only a spell cast as an
 // Action or a Bonus Action is a heal a fight offers; "1 minute" or "10 minutes" (Prayer of Healing) is not.
 
 import { parseExpression } from "../../../lib/dice/dice.ts";
+import type { StructuredSpellEffect } from "../../../types/spell.types.ts";
 import { effectsForCast } from "../../spellEffects.ts";
 import type { SpellRecord } from "./spellChoice.ts";
 
@@ -35,6 +44,10 @@ export interface HealPlan {
   slot: CastSlot;
   /** Creature kinds the spell does nothing for (lower case). */
   excludes: readonly string[];
+  /** What the spell ends in each creature it restores (condition names, and words like "diseases" the app has no condition for). */
+  ends: readonly string[];
+  /** Hit points the caster divides among the creatures instead of dice (Mass Heal), null for a spell that rolls. `dice` is "" then. */
+  pool: number | null;
   /** The mean restored to one creature, for weighing. */
   average: number;
 }
@@ -59,9 +72,30 @@ export function castSlotOf(record: SpellRecord): CastSlot | null {
   return null;
 }
 
-/** The creature kinds the spell does nothing for (see RULE healing-undead-constructs above). */
+/** The creature kinds the spell does nothing for (see RULE healing-undead-constructs above): the effect's own list, else the edition's. */
 export function healExcludedKinds(record: SpellRecord): readonly string[] {
+  const typed = (record.effects ?? []).find((e) => e.kind === "healing")?.unaffected;
+  if (typed !== undefined && typed !== null) return typed.map((k) => k.trim().toLowerCase());
+  // The fallback for a record without the field: the edition's text.
   return record.ruleset === "2014" && record.own !== true ? ["undead", "construct"] : [];
+}
+
+/**
+ * A campaign's own spell has no structured effects, only the flat columns (`healing_dice`, `higher_level_healing`): its healing
+ * effect is built from them here, once, where the records are read (`fightSpells.ts`). One creature, at the spell's own level and
+ * scaling by slot level when the row has a per-level dice. The spellcasting modifier is NOT added: no column of the row says the
+ * spell adds it, and the app does not guess it from the text, so a DM's "1d8" heals 1d8. A row with no healing dice, one that also
+ * has damage rolls, or one that already has structured effects is returned as it is (not automatable, as before).
+ */
+export function withFlatHealing(record: SpellRecord, higherLevelHealing: string | null): SpellRecord {
+  const dice = (record.healing_dice ?? "").trim();
+  if (dice === "" || (record.effects ?? []).length > 0 || (record.damage_rolls ?? []).length > 0) return record;
+  const higher = (higherLevelHealing ?? "").trim();
+  const effect: StructuredSpellEffect = {
+    id: "base", phase: "impact", outcome: "automatic", target: { type: "creature", count: 1 }, kind: "healing", dice,
+    multiplier: 1, damageType: null, condition: null, description: null, scaling: higher === "" ? null : { mode: "slot", dice: higher }, modifier: null,
+  };
+  return { ...record, effects: [effect] };
 }
 
 /**
@@ -81,6 +115,13 @@ export function healEntryFor(record: SpellRecord, castLevel: number, caster: { m
   }
   if (effect.target.type !== "creature") return no(`${record.name} heals an area rather than chosen creatures, which the rules do not aim yet.`);
   const [cast] = effectsForCast([effect], record.level, castLevel, 1);
+  const count = effect.target.count === null ? 1 : Math.max(1, effect.target.count);
+  const ends = (effect.ends ?? []).map((n) => n.trim()).filter((n) => n !== "");
+  if (typeof effect.pool === "number" && effect.pool > 0) {
+    // A pool the caster divides (Mass Heal): nothing is rolled, any number of creatures may share it.
+    const targetCount = effect.target.count === null ? Number.MAX_SAFE_INTEGER : count;
+    return { healable: true, dice: "", modifier: 0, targetCount, slot, excludes: healExcludedKinds(record), ends, pool: effect.pool, average: effect.pool };
+  }
   if (cast.dice === null) return no(`${record.name} has no healing dice in its data.`);
   const dice = cast.dice.replace(/\s+/g, "");
   const parsed = parseExpression(dice);
@@ -93,6 +134,5 @@ export function healEntryFor(record: SpellRecord, castLevel: number, caster: { m
     modifier = cast.modifier;
   }
   const mean = parsed.terms.reduce((sum, t) => sum + (t.count * (t.sides + 1)) / 2, 0) + parsed.modifier + modifier;
-  const count = effect.target.count === null ? 1 : Math.max(1, effect.target.count);
-  return { healable: true, dice, modifier, targetCount: count, slot, excludes: healExcludedKinds(record), average: Math.max(0, mean) };
+  return { healable: true, dice, modifier, targetCount: count, slot, excludes: healExcludedKinds(record), ends, pool: null, average: Math.max(0, mean) };
 }

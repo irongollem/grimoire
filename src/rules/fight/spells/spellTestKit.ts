@@ -195,6 +195,31 @@ export function massHealingWord(over: Partial<SpellRecord> = {}): SpellRecord {
   });
 }
 
+/**
+ * "Heal" as the library stores it: 70 hit points (a flat "70" in `dice`, no modifier), +10 per slot level above 6th, a 6th-level Action
+ * at 60 feet. 2014 ends Blinded and Deafened and "diseases" (which the app has no condition for); 2024 ends Blinded, Deafened and Poisoned.
+ */
+export function heal(over: Partial<SpellRecord> = {}): SpellRecord {
+  const ruleset = over.ruleset ?? "2014";
+  const ends = ruleset === "2024" ? ["Blinded", "Deafened", "Poisoned"] : ["Blinded", "Deafened", "diseases"];
+  return healer({
+    id: `heal_${ruleset}`, name: "Heal", level: 6, range: "60 ft.", ruleset, healing_dice: null,
+    effects: [healEffect("70", { modifier: null, scaling: { mode: "slot", dice: "10" }, ends, unaffected: [] })],
+    ...over,
+  });
+}
+
+/** "Mass Heal": a pool of 700 hit points shared among any number of creatures in range, a 9th-level Action, 60 feet. */
+export function massHeal(over: Partial<SpellRecord> = {}): SpellRecord {
+  const ruleset = over.ruleset ?? "2014";
+  const ends = ruleset === "2024" ? ["Blinded", "Deafened", "Poisoned"] : ["Blinded", "Deafened", "diseases"];
+  return healer({
+    id: `mass_heal_${ruleset}`, name: "Mass Heal", level: 9, range: "60 ft.", ruleset, healing_dice: null,
+    effects: [healEffect("", { dice: null, pool: 700, modifier: null, scaling: null, target: { type: "creature", count: null }, ends, unaffected: ruleset === "2014" ? ["undead", "construct"] : [] })],
+    ...over,
+  });
+}
+
 /** An acolyte-like cleric: Wisdom 16 (+3), spell save DC 13, 4 first-level slots for cure wounds and healing word, 2 third-level slots for mass healing word, a sacred flame cantrip. */
 export function clericBlock(over: Partial<MonsterStatBlock> = {}): MonsterStatBlock {
   return mageBlock({

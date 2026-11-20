@@ -96,8 +96,10 @@ export interface TurnOptionHeal {
   lowIds: string[];
   /** A cast that spends a slot or a use (a cantrip and an at-will spell do not). */
   spends: boolean;
-  /** The mean hit points one creature regains. */
+  /** The mean hit points one creature regains. For a pool spell (Mass Heal) the whole pool: it is shared out, never given to each. */
   expectedEach: number;
+  /** Hit points shared among `targetIds` (Mass Heal), null or absent for a spell that rolls once for every target. */
+  pool?: number | null;
   /** Feet from the caster to the nearest target; null when nothing was measured or the target is the caster. */
   distanceFeet: number | null;
 }

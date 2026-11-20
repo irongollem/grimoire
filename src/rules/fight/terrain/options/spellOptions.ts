@@ -90,7 +90,7 @@ function healOption(mover: RunCombatant, names: ReadonlyMap<string, string>, t: 
     attack: null,
     heal: {
       name: heal.spell, castLevel: heal.castLevel, slot: heal.plan.slot, targetIds: t.targetIds, downIds: t.downIds, lowIds: t.lowIds,
-      spends: heal.useKey !== null, expectedEach: heal.plan.average, distanceFeet: t.distanceFeet,
+      spends: heal.useKey !== null, expectedEach: heal.plan.average, pool: heal.plan.pool, distanceFeet: t.distanceFeet,
     },
     summary: `Cast ${heal.spell}${level}${bonus} to heal ${andList(t.targetIds.map(nameOf))}`,
   };

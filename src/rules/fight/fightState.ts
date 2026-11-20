@@ -159,7 +159,15 @@ export type ResolvedAction =
    * target, each regaining what fits under its maximum. `unaffected` is a target the spell does nothing for (undead or a construct
    * under the 2014 text); `revived` is one brought up from 0 hit points.
    */
-  | { kind: "heal"; casterId: string; spell: string; castLevel: number; rolled: number; targets: { targetId: string; regained: number; revived: boolean; unaffected: boolean }[] }
+  | {
+    kind: "heal"; casterId: string; spell: string; castLevel: number; rolled: number;
+    /** `ended`: the conditions the spell took off that creature (Heal). */
+    targets: { targetId: string; regained: number; revived: boolean; unaffected: boolean; ended?: string[] }[];
+    /** A pool the caster shared out (Mass Heal): `rolled` is the pool, not a roll. */
+    pool?: true;
+    /** What the spell ends that the app has no condition for ("diseases"): the table's to rule. */
+    leftToTable?: string[];
+  }
   | { kind: "concentration"; instanceId: string; dc: number; natural: number; total: number; maintained: boolean }
   | { kind: "condition_save"; instanceId: string; name: string; dc: number; total: number | null; success: boolean }
   /** A creature spent its Action on an ability check to get free of a condition a spell holds it in (Black Tentacles). */

@@ -43,6 +43,15 @@ describe("chooseActionHeal", () => {
     expect(chooseActionHeal([low, down], [CLERIC, PIP_DOWN, BRUG_LOW])?.option).toBe(down);
   });
 
+  // A pool spell (Mass Heal) restores what the pool holds, shared among its targets, not its size to each. A pool of 10 over two friends
+  // each missing 14 restores 10; a Cure Wounds of 7 on each restores 14 and is the better use. Bug caught: the pool counted for every target (20).
+  it("fails if a pool is weighed as if every target regained all of it", () => {
+    const tess = who("tess", { hp: 6 });
+    const pool = heal({ name: "Mass Heal", castLevel: 9, targetIds: ["brug", "tess"], lowIds: ["brug", "tess"], expectedEach: 10, pool: 10 });
+    const each = heal({ name: "Mass Cure Wounds", castLevel: 5, targetIds: ["brug", "tess"], lowIds: ["brug", "tess"], expectedEach: 7 });
+    expect(chooseActionHeal([pool, each], [CLERIC, BRUG_LOW, tess])?.option).toBe(each);
+  });
+
   it("fails if a heal at a scratch is chosen", () => {
     expect(chooseActionHeal([heal({ targetIds: ["sam"] })], [CLERIC, SCRATCH])).toBeNull();
   });

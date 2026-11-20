@@ -30,12 +30,18 @@ function castsALeveledSpell(o: TurnOption): boolean {
   return false;
 }
 
-/** What a heal is worth to compare: hit points it restores, over those it reaches, each capped by what it is missing. */
+/**
+ * What a heal is worth to compare: hit points it restores, over those it reaches, each capped by what it is missing. A pool spell
+ * (Mass Heal) restores what the targets miss, to the pool's end.
+ */
 function restored(o: HealOption, byId: ReadonlyMap<string, RunCombatant>): number {
-  return o.heal.targetIds.reduce((sum, id) => {
+  const pool = o.heal.pool;
+  const missing = (id: string): number => {
     const t = byId.get(id);
-    return sum + (t === undefined ? 0 : Math.min(o.heal.expectedEach, Math.max(0, t.max_hp - Math.max(0, t.hp))));
-  }, 0);
+    return t === undefined ? 0 : Math.max(0, t.max_hp - Math.max(0, t.hp));
+  };
+  if (typeof pool === "number") return Math.min(pool, o.heal.targetIds.reduce((sum, id) => sum + missing(id), 0));
+  return o.heal.targetIds.reduce((sum, id) => sum + Math.min(o.heal.expectedEach, missing(id)), 0);
 }
 
 function qualifying(options: readonly TurnOption[], slot: HealOption["heal"]["slot"]): HealOption[] {

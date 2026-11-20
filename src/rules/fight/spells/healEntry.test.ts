@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { castSlotOf, healEntryFor, healExcludedKinds, isHealingSpell } from "./healEntry";
-import { cureWounds, fireball, healingWord, massHealingWord } from "./spellTestKit";
+import { castSlotOf, healEntryFor, healExcludedKinds, isHealingSpell, withFlatHealing } from "./healEntry";
+import { cureWounds, fireball, heal, healingWord, massHeal, massHealingWord } from "./spellTestKit";
 
 const WIS_PLUS_3 = { modifier: 3 };
 
@@ -109,5 +109,63 @@ describe("castSlotOf and isHealingSpell", () => {
   it("tells a healing record from a damage one", () => {
     expect(isHealingSpell(cureWounds())).toBe(true);
     expect(isHealingSpell(fireball())).toBe(false);
+  });
+});
+
+describe("a typed list of kinds the spell does nothing for", () => {
+  // Bug caught: the typed field ignored and the edition still deciding. A 2024 record that carries the list excludes the kinds it names;
+  // a 2014 record that carries an empty list excludes nobody.
+  it("fails if the effect's own unaffected list is not read before the edition", () => {
+    const typed = (unaffected: string[], over: Parameters<typeof cureWounds>[0] = {}) => cureWounds({ ...over, effects: [{ ...cureWounds().effects![0], unaffected }] });
+    expect(healExcludedKinds(typed(["Undead"], { ruleset: "2024" }))).toEqual(["undead"]);
+    expect(healExcludedKinds(typed([], { ruleset: "2014" }))).toEqual([]);
+    expect(healEntryFor(typed(["construct"]), 1, WIS_PLUS_3)).toMatchObject({ excludes: ["construct"] });
+  });
+});
+
+describe("Heal", () => {
+  // PHB 2014 "Heal": 70 hit points, +10 per slot level above 6th; ends blindness and deafness (and diseases). Bug caught: Heal rolled as no healing at all,
+  // or the upcast not growing by ten.
+  it("fails if Heal is not 70 hit points, 80 at a 7th-level slot, and does not name what it ends", () => {
+    expect(healEntryFor(heal(), 6, { modifier: null })).toMatchObject({ healable: true, dice: "70", modifier: 0, average: 70, pool: null, ends: ["Blinded", "Deafened", "diseases"] });
+    expect(healEntryFor(heal(), 7, { modifier: null })).toMatchObject({ dice: expect.stringMatching(/^\+?80$/), average: 80 });
+    expect(healEntryFor(heal({ ruleset: "2024" }), 6, { modifier: null })).toMatchObject({ ends: ["Blinded", "Deafened", "Poisoned"] });
+  });
+
+  // Bug caught: the ends list dropped on the way to the plan, so Heal restores and leaves the blind blind.
+  it("fails if a record with no ends list names something it ends", () => {
+    expect(healEntryFor(cureWounds(), 1, WIS_PLUS_3)).toMatchObject({ ends: [] });
+  });
+});
+
+describe("Mass Heal's pool", () => {
+  // PHB "Mass Heal": up to 700 hit points among any number of creatures. Bug caught: the pool refused for having no dice, or limited to one creature.
+  it("fails if a pool spell is refused for want of dice or aimed at one creature", () => {
+    const plan = healEntryFor(massHeal(), 9, { modifier: null });
+    expect(plan).toMatchObject({ healable: true, pool: 700, dice: "", modifier: 0, average: 700 });
+    expect((plan as { targetCount: number }).targetCount).toBeGreaterThan(100);
+  });
+});
+
+describe("withFlatHealing: a campaign's own healing spell", () => {
+  const own = (over: Parameters<typeof cureWounds>[0] = {}) => cureWounds({ own: true, effects: [], healing_dice: "2d6", casting_time: "Action", ...over });
+
+  // Bug caught: a DM's own heal "cast and spent, left to the table" because only structured effects were read. 2d6, +1d6 a level, and no
+  // modifier because no column says the spell adds one.
+  it("fails if the flat columns do not become one healing effect, scaled by slot level, with no modifier", () => {
+    const record = withFlatHealing(own(), "1d6");
+    expect(isHealingSpell(record)).toBe(true);
+    expect(healEntryFor(record, 1, { modifier: 3 })).toMatchObject({ healable: true, dice: "2d6", modifier: 0, targetCount: 1 });
+    expect(healEntryFor(record, 3, { modifier: 3 })).toMatchObject({ dice: "4d6" });
+    expect(healEntryFor(withFlatHealing(own(), null), 3, { modifier: 3 })).toMatchObject({ dice: "2d6" });
+  });
+
+  // Bug caught: a row with no healing, a damage spell with a stray healing column, or a record that is structured already, rewritten.
+  it("fails if a row with neither healing dice, a damage spell, or a structured record is turned into a heal", () => {
+    expect(isHealingSpell(withFlatHealing(own({ healing_dice: null }), "1d6"))).toBe(false);
+    expect(isHealingSpell(withFlatHealing(own({ healing_dice: "  " }), null))).toBe(false);
+    expect(isHealingSpell(withFlatHealing(own({ damage_rolls: [{ dice: "1d6", type: "fire" }] }), null))).toBe(false);
+    const structured = cureWounds({ own: true });
+    expect(withFlatHealing(structured, "9d9")).toBe(structured);
   });
 });

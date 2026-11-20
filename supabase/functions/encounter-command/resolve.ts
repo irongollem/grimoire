@@ -31,7 +31,7 @@ import { RAGE_RESISTANCES, RAGING, divineSmiteFor, rageDamageFor } from "../../.
 import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "../../../src/rules/fight/targeting.ts";
 import { applyFightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightDeps, FightResult } from "../../../src/rules/fight/fightEvents.ts";
-import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
+import type { FightEffect, FightState, ResolvedAction } from "../../../src/rules/fight/fightState.ts";
 import { ActionRefused, type DiceAsk, type DiceSource, type ResolutionContext } from "../../../src/rules/fight/resolution/context.ts";
 import { resolveAttackOn } from "../../../src/rules/fight/resolution/attack.ts";
 import { breakFreeModifier, resolveBreakFreeOn } from "../../../src/rules/fight/resolution/breakFree.ts";
@@ -43,6 +43,7 @@ import { castableBy, slotLimitAt } from "../../../src/rules/fight/spells/castLim
 import { pickSpellRecord, type SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
 import { creatureKindOf, kindAllowed, kindLimitOf, kindPhrase } from "../../../src/rules/fight/spells/creatureKind.ts";
 import { spellEntryFor } from "../../../src/rules/fight/spells/spellEntry.ts";
+import { CONDITIONS } from "../../../src/rules/conditions.ts";
 import { castSlotOf, healEntryFor, isHealingSpell, type HealPlan } from "../../../src/rules/fight/spells/healEntry.ts";
 import { spellcastingModifierOf } from "../../../src/rules/fight/spells/castNow.ts";
 import { takesTurnsInFight } from "../../../src/rules/fight/standing.ts";
@@ -613,30 +614,61 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
   };
 
   /**
-   * Rolls a healing spell once and restores every target (RULE healing-amount, `healEntryFor`): a target the spell does nothing for
-   * (undead or a construct under the 2014 text) is reported as not affected, the others regain what fits under their maximum, and
-   * one at 0 hit points who is alive is brought back up by `adjust_hp` (`healingOutcome`: Unconscious and the death saves end).
+   * Restores hit points for a healing spell (RULE healing-amount, `healEntryFor`): the dice are rolled once and every target regains
+   * that; a pool spell (Mass Heal, RULE healing-pool) rolls nothing and shares its hit points out, the downed first, then the lowest
+   * share of their hit points, each to full or to what is left. A target the spell does nothing for (`excludes`) is reported as not
+   * affected, the others regain what fits under their maximum, and one at 0 hit points who is alive is brought back up by `adjust_hp`
+   * (`healingOutcome`: Unconscious and the death saves end). The conditions the spell ends (RULE healing-ends) leave each affected
+   * creature; a name the app has no condition for is left to the table and said so in the result's `leftToTable`.
    */
+  type HealResult = Extract<ResolvedAction, { kind: "heal" }>["targets"][number];
   const resolveHeal = async (caster: RunCombatant, targets: RunCombatant[], record: SpellRecord, castLevel: number, plan: HealPlan): Promise<void> => {
-    const parsed = parseExpression(plan.dice);
-    if (parsed === null) refuse(`${record.name}'s healing "${plan.dice}" cannot be rolled.`);
-    const dice = (parsed as NonNullable<typeof parsed>);
-    const rolled = await ctx.dice({ counts: parsedToCounts(dice.terms), modifier: dice.modifier + plan.modifier, label: `${record.name} (healing)`, senderName: caster.name });
-    if (rolled === null) {
-      collected.push({ type: "resolved", resolved: { kind: "cast", casterId: caster.instance_id, spell: record.name, castLevel, targetIds: targets.map((t) => t.instance_id), why: "Nobody rolled the healing, so what it restored is the table's to rule." } });
-      return;
+    let amount = plan.pool ?? 0;
+    if (plan.pool === null) {
+      const parsed = parseExpression(plan.dice);
+      if (parsed === null) refuse(`${record.name}'s healing "${plan.dice}" cannot be rolled.`);
+      const dice = (parsed as NonNullable<typeof parsed>);
+      const rolled = await ctx.dice({ counts: parsedToCounts(dice.terms), modifier: dice.modifier + plan.modifier, label: `${record.name} (healing)`, senderName: caster.name });
+      if (rolled === null) {
+        collected.push({ type: "resolved", resolved: { kind: "cast", casterId: caster.instance_id, spell: record.name, castLevel, targetIds: targets.map((t) => t.instance_id), why: "Nobody rolled the healing, so what it restored is the table's to rule." } });
+        return;
+      }
+      // App convention, as for damage: a roll that comes out negative restores nothing.
+      amount = Math.max(0, rolled.result.total);
     }
-    // App convention, as for damage: a roll that comes out negative restores nothing.
-    const amount = Math.max(0, rolled.result.total);
-    const results = targets.map((target) => {
+    const affected = (target: RunCombatant): boolean => {
       const kind = creatureKindOf(target, env.sources);
-      if (kind !== null && plan.excludes.includes(kind)) return { targetId: target.instance_id, regained: 0, revived: false, unaffected: true };
+      return !(kind !== null && plan.excludes.includes(kind));
+    };
+    // The pool goes to the downed first, then the lowest share of hit points (the order the targets are offered in); a dice heal does not care.
+    const share = (c: RunCombatant): number => ctx.live(c).hp / Math.max(1, ctx.live(c).max_hp);
+    const order = plan.pool === null ? targets : [...targets].sort((x, y) => share(x) - share(y));
+    let left = amount;
+    const known = new Set<string>(CONDITIONS.map((n) => n.toLowerCase()));
+    const leftToTable = plan.ends.filter((name) => !known.has(name.toLowerCase()));
+    const byId = new Map<string, HealResult>(order.map((target): readonly [string, HealResult] => {
+      if (!affected(target)) return [target.instance_id, { targetId: target.instance_id, regained: 0, revived: false, unaffected: true }] as const;
       const before = ctx.live(target).hp;
-      if (amount > 0) ctx.apply({ type: "adjust_hp", instanceId: target.instance_id, delta: amount });
+      const missing = Math.max(0, ctx.live(target).max_hp - Math.max(0, before));
+      const give = plan.pool === null ? amount : Math.min(missing, left);
+      left -= plan.pool === null ? 0 : give;
+      if (give > 0) ctx.apply({ type: "adjust_hp", instanceId: target.instance_id, delta: give });
+      const ended: string[] = [];
+      for (const name of plan.ends) {
+        const held = ctx.live(target).conditions.find((x) => x.name.toLowerCase() === name.toLowerCase());
+        if (held === undefined) continue;
+        ctx.apply({ type: "remove_condition", instanceId: target.instance_id, name: held.name });
+        ended.push(held.name);
+      }
       const after = ctx.live(target).hp;
-      return { targetId: target.instance_id, regained: Math.max(0, after - before), revived: before <= 0 && after > 0, unaffected: false };
+      return [target.instance_id, { targetId: target.instance_id, regained: Math.max(0, after - before), revived: before <= 0 && after > 0, unaffected: false, ...(ended.length > 0 ? { ended } : {}) }] as const;
+    }));
+    // Reported in the order the targets were named.
+    const results = targets.map((t) => byId.get(t.instance_id) as HealResult);
+    collected.push({
+      type: "resolved",
+      resolved: { kind: "heal", casterId: caster.instance_id, spell: record.name, castLevel, rolled: amount, targets: results, ...(plan.pool !== null ? { pool: true as const } : {}), ...(leftToTable.length > 0 ? { leftToTable } : {}) },
     });
-    collected.push({ type: "resolved", resolved: { kind: "heal", casterId: caster.instance_id, spell: record.name, castLevel, rolled: amount, targets: results } });
   };
 
   const castSpell = async (cast: Extract<ResolvingCommand, { type: "cast_spell" }>): Promise<void> => {
