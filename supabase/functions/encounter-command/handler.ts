@@ -30,6 +30,7 @@ import { ingestPartyRows, partyMemberIdsOf } from "../_shared/fightPartyIngest.t
 import { endOfFightPatches } from "../../../src/rules/fight/fightEnd.ts";
 import { fightXp, type FightXpAward } from "../../../src/rules/fight/fightXp.ts";
 import { startedFromRound, type FightEffect, type FightState } from "../../../src/rules/fight/fightState.ts";
+import type { GearWrite, ThrownDrop } from "../../../src/rules/fight/pcAttacks/gear.ts";
 import type { PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
@@ -324,6 +325,10 @@ export interface BatchDeps {
   loadFightMap(encounterId: string): Promise<FightMap | null>;
   /** Posts a roll to the campaign log, stamped when `serverRolled`. */
   postRoll(roll: PostedRoll): Promise<void>;
+  /** Puts a weapon an ally threw on the ground, as the campaign chat's thrown-weapon drop anyone can pick up (`speaker` is the thrower's name). */
+  dropThrown(drop: ThrownDrop, memberId: string, speaker: string): Promise<void>;
+  /** Writes what an ally's attacks used up to the campaign's inventory (ammunition, the thrown weapon's stack). Every write is absolute, so a retry lands once. */
+  writeGear(writes: GearWrite[]): Promise<void>;
   /** One die of any size, from the server's secure source: what a resolving command rolls with. */
   rollDie(sides: number): number;
   /**
@@ -427,7 +432,7 @@ async function attempt(
   row: FightRow,
   deps: BatchDeps,
   notes: NoteJudgments,
-): Promise<{ state: FightState; effects: FightEffect[]; rolls: PostedRoll[] }> {
+): Promise<{ state: FightState; effects: FightEffect[]; rolls: PostedRoll[]; spent: ResolveEnv["spent"] }> {
   const fightDeps: FightDeps = {
     monsters: loaded.monsters,
     npcs: loaded.npcs,
@@ -449,6 +454,7 @@ async function attempt(
   }
 
   const rolls: PostedRoll[] = [];
+  const spent: ResolveEnv["spent"] = [];
   // The stat blocks and the player sheets are read once per attempt, and only when the batch has an action to resolve.
   let sources: StatBlockSources | null = null;
   let players: PlayerSheets | null = null;
@@ -503,7 +509,7 @@ async function attempt(
     }
     // `undefined` is "not asked yet" (a null map is an answer: this fight has none).
     if (map === undefined) map = await deps.loadFightMap(request.encounterId);
-    return { fightDeps, sources, players, map, factions: loaded.factions, rollDie: deps.rollDie, spells, spellsListed, posted: rolls, judgeNote: notes.ask };
+    return { fightDeps, sources, players, map, factions: loaded.factions, rollDie: deps.rollDie, spells, spellsListed, posted: rolls, spent, judgeNote: notes.ask };
   };
   for (const command of request.commands) {
     if (command.type === "sync_party" || LIFECYCLE_TYPES.has(command.type)) continue;
@@ -535,7 +541,7 @@ async function attempt(
     state = result.state;
     effects.push(...result.effects);
   }
-  return { state, effects, rolls };
+  return { state, effects, rolls, spent };
 }
 
 /** Whether a write would leave the fight exactly as the row has it (the batch id aside). */
@@ -817,7 +823,7 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
       throw new FightCommandError(409, "This fight has ended.");
     }
 
-    const { state, effects, rolls } = await attempt(request, loaded, row, deps, notes);
+    const { state, effects, rolls, spent } = await attempt(request, loaded, row, deps, notes);
     const write = writeOf(state, row.applied_command_ids, request.batchId);
     // Most syncs find the sheets as the fight already has them (the ring was this fight's own write to a sheet
     // coming back). Saving anyway would raise the version and ring every screen for nothing, on every hit.
@@ -828,6 +834,13 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
     const effectFailures = await perform(effects, deps);
     // The rolls are the log's record of what the fight now holds, so they are posted only for the attempt that was saved.
     effectFailures.push(...(await performAll(rolls.map((roll) => ({ name: "roll", run: () => deps.postRoll(roll) })))));
+    // What the allies' attacks used up, after the save like the rolls. The weapon is put on the ground before the stack is
+    // written, and a drop that failed leaves the stack alone (a weapon is not lost for a post that never happened), as the browser does it.
+    for (const { spend, speaker } of spent) {
+      const dropFailures = spend.drop === null ? [] : await performAll([{ name: "thrown_drop", run: () => deps.dropThrown(spend.drop as ThrownDrop, spend.memberId, speaker) }]);
+      effectFailures.push(...dropFailures);
+      if (dropFailures.length === 0) effectFailures.push(...(await performAll([{ name: "ally_gear", run: () => deps.writeGear(spend.writes) }])));
+    }
     // Billed after the save, like the rolls, and only for calls that answered: a refused or failed one cost nothing we know of.
     effectFailures.push(...(await performAll(notes.answered.map((answer) => ({ name: "note_judgment", run: () => deps.recordNoteJudgment(answer.inputTokens) })))));
     return resultOf(true, saved.version, row, write, effects, effectFailures);

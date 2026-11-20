@@ -42,6 +42,7 @@ import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { coverBetween, type Box, type Cover } from "../../../src/rules/fight/terrain/sight.ts";
 import { isOnBoard } from "../../../src/rules/fight/terrain/options/scene.ts";
+import type { AllySpend } from "../../../src/rules/fight/pcAttacks/gear.ts";
 import { FightCommandError } from "./commandError.ts";
 import type { BreakFreeSkill } from "../../../src/types/statBlock.types.ts";
 
@@ -408,6 +409,8 @@ export interface ResolveEnv {
   map: FightMap | null;
   /** Receives every roll the command makes, in order, for the caller to post once the fight is saved. */
   posted: PostedRoll[];
+  /** What the allies' attacks used up (ammunition, a thrown weapon), in order, for the caller to write once the fight is saved (#1021). */
+  spent: Array<{ spend: AllySpend; speaker: string }>;
   /**
    * Asks whether each turn goes against a creature's note (#1203), once per distinct `key`; null when asking is not
    * allowed or did not work. Left out where no note is ever consulted.

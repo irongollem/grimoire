@@ -7,6 +7,7 @@ import type { PartyInventoryItem } from "../../types/inventory.types.ts";
 import type { Item } from "../../types/item.types.ts";
 import type { AbilityScores } from "../../types/multiclass.types.ts";
 import type { WildshapeState } from "../../types/encounter.types.ts";
+import type { MonsterStatBlock } from "../../types/monster.types.ts";
 import type { PartyMember } from "../../types/party.types.ts";
 import type { SaveAbility } from "../../types/statBlock.types.ts";
 import { parseArmorClass } from "./targeting.ts";
@@ -25,10 +26,17 @@ export type PlayerSheetRow = Pick<
   | "speed" | "level" | "custom_attacks"
 > & { wildshape_state: WildshapeState | null };
 
-/** The scores of a Wild Shape form's stat block, by the monster id the form names. */
+/**
+ * A Wild Shape form's stat block as the server reads it: always the three scores that replace the character's own (a
+ * save needs no more), and the rest of the block (speed, attacks, traits) as the row holds it, which an ally the AI plays
+ * fights with (`allyStatBlock`, #1021).
+ */
+export type FormStatBlock = Pick<AbilityScores, "str" | "dex" | "con"> & Partial<Omit<MonsterStatBlock, "str" | "dex" | "con">>;
+
+/** A Wild Shape form's stat block, by the monster id the form names. */
 export interface BeastScores {
   id: string;
-  stat_block: Pick<AbilityScores, "str" | "dex" | "con"> | null;
+  stat_block: FormStatBlock | null;
 }
 
 /** Everything the server read about a fight's player characters. */

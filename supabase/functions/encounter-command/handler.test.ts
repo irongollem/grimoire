@@ -9,6 +9,7 @@ import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest";
 import type { Monster } from "../../../src/types/monster.types";
 import { emptyDefenses, type StatBlockEntry } from "../../../src/types/statBlock.types";
 import type { PlayerSheets } from "../../../src/rules/fight/playerSheet";
+import type { GearWrite, ThrownDrop } from "../../../src/rules/fight/pcAttacks/gear";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap";
 import { occluders } from "../../../src/lib/battlemap/occlusion";
 import type { Item } from "../../../src/types/item.types";
@@ -74,6 +75,9 @@ interface Harness {
   broadcasts: string[];
   /** The rolls posted to the campaign log, in order, with the stamp each carries. */
   posted: PostedRoll[];
+  /** The weapons allies threw onto the ground, and the inventory writes their attacks led to, in the order they were made. */
+  drops: Array<{ drop: ThrownDrop; memberId: string; speaker: string }>;
+  gearWrites: GearWrite[][];
   /** How many times the server threw a die. */
   dieCalls: number;
   /** The party member ids of each `loadPlayerSheets` call. */
@@ -108,6 +112,8 @@ function harness(
     sources?: StatBlockSources;
     /** What the server reads of the fight's player characters. */
     players?: PlayerSheets;
+    /** A drop of a thrown weapon that fails (the chat could not be written to). */
+    dropFails?: boolean;
     /** The faces the server's die shows, one per throw in order; a throw past the end fails the test. */
     dieFaces?: number[];
     /** The fight's battle map; absent or null is a fight with no map the rules can use. */
@@ -135,6 +141,8 @@ function harness(
     persisted: [],
     broadcasts: [],
     posted: [],
+    drops: [],
+    gearWrites: [],
     dieCalls: 0,
     playerLoads: [],
     mapLoads: 0,
@@ -240,6 +248,15 @@ function harness(
     async postRoll(roll) {
       h.log.push("roll");
       h.posted.push(structuredClone(roll));
+    },
+    async dropThrown(drop, memberId, speaker) {
+      if (options.dropFails) throw new Error("chat is down");
+      h.log.push("drop");
+      h.drops.push({ drop: structuredClone(drop), memberId, speaker });
+    },
+    async writeGear(writes) {
+      h.log.push("gear");
+      h.gearWrites.push(structuredClone(writes));
     },
     rollDie() {
       h.dieCalls += 1;
@@ -2791,17 +2808,34 @@ const LONGSWORD = {
 } as unknown as Item;
 const heldSword = { id: "inv-sword", item_id: "sword", library_item_id: null, name: "Longsword", quantity: 1, carried_by: "pm-tam", slot: "main_hand" } as unknown as PartyInventoryItem;
 
+const BEAR_CLAWS: StatBlockEntry = {
+  name: "Claws", description: "",
+  structured: { kind: "attack", source: "manual", attack: { delivery: "melee", bonus: 6, hit: [{ dice: "1d8+4", type: "slashing" }] } },
+};
+const SHORTBOW = {
+  id: "bow", name: "Shortbow", item_type: "weapon", properties: ["ammunition", "two-handed"], tags: [], subtype: "Shortbow", charges: null, weapon_range: "80/320",
+  damage_rolls: [{ dice: "1d6", type: "piercing" }],
+} as unknown as Item;
+const DAGGER = {
+  id: "dagger", name: "Dagger", item_type: "weapon", properties: ["finesse", "light", "thrown"], tags: [], subtype: null, charges: null, weapon_range: "20/60",
+  damage_rolls: [{ dice: "1d4", type: "piercing" }], rarity: "mundane", image_url: null, description: "A plain dagger.",
+} as unknown as Item;
+const SHORTBOW_HELD = { id: "inv-bow", item_id: "bow", library_item_id: null, name: "Shortbow", quantity: 1, carried_by: "pm-tam", slot: "main_hand", location: "equipped" } as unknown as PartyInventoryItem;
+const arrows = (quantity: number) => ({ id: "inv-arrows", item_id: null, library_item_id: null, name: "Arrows", quantity, carried_by: "pm-tam", slot: null, location: "belt", is_container: false, current_charges: null }) as unknown as PartyInventoryItem;
+const ARROWS_ON_BELT = arrows(20);
+const daggers = (quantity: number) => ({ id: "inv-dagger", item_id: "dagger", library_item_id: null, name: "Dagger", quantity, carried_by: "pm-tam", slot: "main_hand", location: "equipped", quality: "standard" }) as unknown as PartyInventoryItem;
+
 /** Tam: Strength 16 (+3), Dexterity 10, proficiency +2, nothing worn, 30 ft. of speed; with a longsword in hand unless `bare`. */
-function tamSheets(over: { bare?: boolean; wildshape?: boolean } = {}): PlayerSheets {
+function tamSheets(over: { bare?: boolean; wildshape?: boolean; bear?: boolean; gear?: PartyInventoryItem[]; items?: Item[] } = {}): PlayerSheets {
   return {
     members: [{
       id: "pm-tam", ruleset: "2014", class: "Fighter", subclass: null, ac_formula: null, class_choices: {},
       str: 16, dex: 10, con: 12, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: [], speed: 30, level: 1, custom_attacks: [],
-      wildshape_state: over.wildshape ? ({ monster_id: "m-ox" } as unknown as PlayerSheets["members"][number]["wildshape_state"]) : null,
+      wildshape_state: over.wildshape ? { monster_id: "m-bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_dex: 10 } : null,
     }],
-    inventory: over.bare ? [] : [heldSword],
-    items: over.bare ? [] : [LONGSWORD],
-    beasts: [],
+    inventory: over.gear ?? (over.bare ? [] : [heldSword]),
+    items: over.items ?? (over.bare ? [] : [LONGSWORD]),
+    beasts: over.bear ? [{ id: "m-bear", stat_block: { str: 19, dex: 10, con: 16, speed: "40 ft.", actions: [BEAR_CLAWS] } }] : [],
   };
 }
 
@@ -2859,11 +2893,36 @@ describe("take_turn plays an ally", () => {
     expect(hpOf(stored(h), "victim")).toBe(33);
   });
 
-  // A Wild Shaped character's form is not read from a sheet yet, so the server cannot play it. Bug caught: the form's player
-  // played as if in their own body, swinging a sword the beast cannot hold.
-  it("fails if a Wild Shaped ally is played from its own sheet", async () => {
+  // Bug caught: a Wild Shaped character whose form's block was not read played as if in their own body, swinging a sword the
+  // beast cannot hold. With nothing known of the form the server plays nobody.
+  it("fails if a Wild Shaped ally whose form was not read is played from its own sheet", async () => {
     const h = harness(allyFight(), { sources: SOURCES, players: tamSheets({ wildshape: true }), map: mapOf(), dieFaces: [] });
     await expect(runBatch(batch("b", tamTurn()), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/no stat block/) });
+  });
+
+  // PHB 2014 "Wild Shape": the beast's game statistics replace the character's, so it attacks with the beast's own actions. The bear's
+  // Claws are +6 for 1d8+4: d20 8 + 6 = 14 meets AC 13, and a 5 on the d8 deals 9 (40 -> 31). Bug caught: a form refused, or played
+  // with the character's own sheet (Tam's Strength 16 and longsword would give +5 and 1d8+3).
+  it("fails if a Wild Shaped ally does not attack with the form's own actions", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: tamSheets({ wildshape: true, bear: true }), map: mapOf(), dieFaces: [8, 5] });
+    const result = await runBatch(batch("b", tamTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ turn: { optionId: "attack:actions:Claws:victim", kind: "attack" } });
+    expect(h.posted.map((p) => p.result.total)).toEqual([14, 9]);
+    expect(hpOf(stored(h), "victim")).toBe(31);
+  });
+
+  // Bug caught: the character's own weapons left on offer in the form, so a bear could be told to swing a longsword.
+  it("fails if a Wild Shaped ally is offered the weapons of its own body", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: tamSheets({ wildshape: true, bear: true }), map: mapOf(), dieFaces: [] });
+    await expect(runBatch(batch("b", tamTurn({ optionId: "attack:actions:Longsword:victim" })), h.deps)).rejects.toMatchObject({ message: "That option is not on offer." });
+  });
+
+  // Bug caught: a form's attack spending the character's ammunition or throwing their dagger (a beast's attacks use nothing up).
+  it("writes nothing to the inventory for a Wild Shaped ally's attack", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: tamSheets({ wildshape: true, bear: true, gear: [SHORTBOW_HELD, ARROWS_ON_BELT] }), map: mapOf(), dieFaces: [8, 5] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(h.gearWrites).toEqual([]);
+    expect(h.drops).toEqual([]);
   });
 
   // SRD 5.1 "Death Saving Throws": 10 or more is a success, below 10 a failure, a natural 1 counts as two failures, a natural 20 puts
@@ -2917,5 +2976,113 @@ describe("take_turn plays an ally", () => {
     const h = harness(duel({ wolf: { hp: 0 } }), { sources: SOURCES, map: mapOf(), dieFaces: [15] });
     await expect(runBatch(batch("b", takeTurn()), h.deps)).rejects.toMatchObject({ status: 400, message: "wolf is at 0 hit points and cannot take a turn." });
     expect(h.dieCalls).toBe(0);
+  });
+});
+
+// ── what an ally's ranged attacks use up (#1021) ────────────────────────────────────
+
+/** Tam at (1,1) and the victim 25 feet off at (6,1): far enough that a ranged attack has no foe beside the archer and is in normal range. */
+function archerFight() {
+  return row({
+    combatants_live: [
+      pc("tam", { faction_id: "p", hp: 20, max_hp: 20, initiative: 12, position: { x: 1, y: 1 } }),
+      combatant("victim", { monster_id: "m-ox", faction_id: "m", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 6, y: 1 } }),
+    ],
+  });
+}
+const SHOOT = "attack:actions:Shortbow:victim";
+const THROW = "attack:actions:Dagger (thrown):victim";
+
+describe("take_turn: an ally's ammunition and thrown weapons", () => {
+  // PHB 2014 "Ammunition": each shot uses up a piece of ammunition. Twenty arrows on the belt, one shot: nineteen, written after the
+  // fight is saved. Dexterity 10 gives +0, proficiency +2: d20 15 + 2 = 17 hits AC 13. Bug caught: a shot that costs nothing.
+  it("fails if a shot does not use up one arrow, written after the save", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: tamSheets({ gear: [SHORTBOW_HELD, ARROWS_ON_BELT], items: [SHORTBOW] }), map: mapOf(), dieFaces: [15, 4] });
+    const result = await runBatch(batch("b", tamTurn({ optionId: SHOOT })), h.deps);
+    expect(result.effectFailures).toEqual([]);
+    expect(hpOf(stored(h), "victim")).toBe(36);
+    expect(h.gearWrites).toEqual([[{ kind: "quantity", inventoryId: "inv-arrows", quantity: 19 }]]);
+    expect(h.log.indexOf("save")).toBeLessThan(h.log.indexOf("gear"));
+  });
+
+  // Bug caught: a miss costing nothing (the arrow flies either way).
+  it("uses up the arrow on a miss too", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: tamSheets({ gear: [SHORTBOW_HELD, ARROWS_ON_BELT], items: [SHORTBOW] }), map: mapOf(), dieFaces: [3] });
+    await runBatch(batch("b", tamTurn({ optionId: SHOOT })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(40);
+    expect(h.gearWrites).toEqual([[{ kind: "quantity", inventoryId: "inv-arrows", quantity: 19 }]]);
+  });
+
+  // Bug caught: the last arrow leaving a row of nothing in the pack instead of taking the row away (the browser removes it).
+  it("removes the stack when its last arrow is shot", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: tamSheets({ gear: [SHORTBOW_HELD, arrows(1)], items: [SHORTBOW] }), map: mapOf(), dieFaces: [3] });
+    await runBatch(batch("b", tamTurn({ optionId: SHOOT })), h.deps);
+    expect(h.gearWrites).toEqual([[{ kind: "remove", inventoryId: "inv-arrows" }]]);
+  });
+
+  // Bug caught: an archer with an empty quiver still offered the shot (and so shooting arrows it does not have).
+  it("fails if an ally with no arrows is offered the shot", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: tamSheets({ gear: [SHORTBOW_HELD], items: [SHORTBOW] }), map: mapOf(), dieFaces: [] });
+    await expect(runBatch(batch("b", tamTurn({ optionId: SHOOT })), h.deps)).rejects.toMatchObject({ message: "That option is not on offer." });
+    expect(h.gearWrites).toEqual([]);
+  });
+
+  // Bug caught: a melee swing spending ammunition (only an attack with an ammunition weapon uses it up).
+  it("writes nothing for a melee attack by an ally who carries a bow", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: tamSheets({ gear: [SHORTBOW_HELD, ARROWS_ON_BELT], items: [SHORTBOW] }), map: mapOf(), dieFaces: [8] });
+    await runBatch(batch("b", tamTurn({ optionId: "attack:actions:Unarmed Strike:victim" })), h.deps);
+    expect(h.gearWrites).toEqual([]);
+  });
+
+  // PHB 2014 "Thrown": the weapon leaves the hand. Two daggers: one stack row of two becomes one, and one lies on the ground, posted as the
+  // thrower's chat drop. Bug caught: a throw that leaves the dagger in hand, or one that never reaches the ground.
+  it("fails if a thrown dagger does not leave the stack and lie on the ground", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: tamSheets({ gear: [daggers(2)], items: [DAGGER] }), map: mapOf(), dieFaces: [15, 2] });
+    const result = await runBatch(batch("b", tamTurn({ optionId: THROW })), h.deps);
+    expect(result.effectFailures).toEqual([]);
+    expect(h.drops).toEqual([{ drop: expect.objectContaining({ name: "Dagger", itemRef: "dagger", rarity: "mundane" }), memberId: "pm-tam", speaker: "tam" }]);
+    expect(h.gearWrites).toEqual([[{ kind: "quantity", inventoryId: "inv-dagger", quantity: 1 }]]);
+    expect(h.log.indexOf("drop")).toBeLessThan(h.log.indexOf("gear"));
+  });
+
+  // Bug caught: the last dagger thrown leaving an empty row the next turn would offer a stab with.
+  it("removes the row when the last dagger is thrown", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: tamSheets({ gear: [daggers(1)], items: [DAGGER] }), map: mapOf(), dieFaces: [3] });
+    await runBatch(batch("b", tamTurn({ optionId: THROW })), h.deps);
+    expect(h.gearWrites).toEqual([[{ kind: "remove", inventoryId: "inv-dagger" }]]);
+  });
+
+  // Bug caught: a weapon lost from the character's hands for a drop that never reached the chat (the browser posts first, spends after).
+  it("keeps the dagger in the stack when the drop could not be posted", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: tamSheets({ gear: [daggers(2)], items: [DAGGER] }), map: mapOf(), dieFaces: [3], dropFails: true });
+    const result = await runBatch(batch("b", tamTurn({ optionId: THROW })), h.deps);
+    expect(result.effectFailures).toEqual([expect.stringMatching(/^thrown_drop: chat is down/)]);
+    expect(h.gearWrites).toEqual([]);
+  });
+
+  // Bug caught: a stab with the dagger throwing it (only the thrown attack leaves the hand).
+  it("fails if stabbing with a dagger puts it on the ground", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: tamSheets({ gear: [daggers(1)], items: [DAGGER] }), map: mapOf(), dieFaces: [3] });
+    await runBatch(batch("b", tamTurn({ optionId: "attack:actions:Dagger:victim" })), h.deps);
+    expect(h.drops).toEqual([]);
+    expect(h.gearWrites).toEqual([]);
+  });
+
+  // Bug caught: two shots of one request each writing "one fewer than the stack began with" (the second must find what the first left):
+  // two arrows, two shots, so the stack goes to one and then away, not to one twice.
+  it("fails if two shots in one request are each counted from the full stack", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: tamSheets({ gear: [SHORTBOW_HELD, arrows(2)], items: [SHORTBOW] }), map: mapOf(), dieFaces: [3, 3] });
+    await runBatch(batch("b", tamTurn({ optionId: SHOOT }), { type: "set_action_used", instanceId: "tam", used: false }, tamTurn({ optionId: SHOOT })), h.deps);
+    expect(h.gearWrites).toEqual([[{ kind: "quantity", inventoryId: "inv-arrows", quantity: 1 }], [{ kind: "remove", inventoryId: "inv-arrows" }]]);
+  });
+
+  // The fight saved after another writer got in is run again; only the attempt that was saved writes. Bug caught: the arrow spent
+  // once for the attempt that was thrown away and once for the one that stood.
+  it("writes an arrow's cost once when the first attempt was not the one saved", async () => {
+    const h = harness(archerFight(), { sources: SOURCES, players: tamSheets({ gear: [SHORTBOW_HELD, ARROWS_ON_BELT], items: [SHORTBOW] }), map: mapOf(), dieFaces: [3, 3] });
+    h.rival.run = rivalEdit(h, () => {});
+    await runBatch(batch("b", tamTurn({ optionId: SHOOT })), h.deps);
+    expect(h.saves).toBe(2);
+    expect(h.gearWrites).toHaveLength(1);
   });
 });

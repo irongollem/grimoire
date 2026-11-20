@@ -26,6 +26,7 @@ const PENDING_ENTRIES = [
   join(SRC, "rules/fight/pcAttacks/rows.ts"),
   join(SRC, "rules/fight/pcAttacks/entry.ts"),
   join(SRC, "rules/fight/allies/statBlock.ts"),
+  join(SRC, "rules/fight/pcAttacks/gear.ts"),
   join(SRC, "rules/fight/allies/profile.ts"),
   join(SRC, "rules/fight/terrain/reach.ts"),
   join(SRC, "rules/fight/terrain/sight.ts"),

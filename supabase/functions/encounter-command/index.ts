@@ -20,6 +20,7 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { underNoteCap } from "../_shared/tacticsJudge.ts";
 import { judge, JEV_MODEL, judgingKey } from "../_shared/typesafe.ts";
 import { rollMessageRow, secureDie } from "../_shared/serverRoll.ts";
+import { itemRefColumns } from "../../../src/lib/itemRef.ts";
 import { isUuid } from "../../../src/lib/library/contentIdentity.ts";
 import { DEFAULT_RULESET } from "../../../src/types/ruleset.types.ts";
 import type { EncounterEvent } from "../../../src/types/encounter.types.ts";
@@ -227,6 +228,35 @@ serve(withCors(async (req: Request) => {
         const row = rollMessageRow(result, { campaignId, userId, senderName: speaker, recipientUserId: null }, serverRolled);
         const { error } = await admin.from("campaign_messages").insert(row);
         if (error) throw new Error(`campaign_messages: ${error.message}`);
+      },
+      async dropThrown(drop, memberId, speaker) {
+        // The campaign chat's thrown-weapon drop, as the browser posts one (`useThrownWeapon`): a recoverable item anyone grabs, never a Need or Greed roll.
+        const { error } = await admin.from("campaign_messages").insert({
+          campaign_id: campaignId,
+          user_id: userId,
+          recipient_user_id: null,
+          sender_name: speaker,
+          message: `dropped ${drop.name}`,
+          type: "item_drop",
+          metadata: {
+            ...itemRefColumns(drop.itemRef),
+            item_name: drop.name, item_rarity: drop.rarity, quantity: 1, is_container: false, quality: drop.quality, thrown: true,
+            quantity_remaining: 1, claims: [], image_url: drop.imageUrl, description: drop.description,
+            claimed_by_user_id: null, claimed_by_name: null, claimed_party_member_id: null,
+            for_party_member_id: memberId,
+          },
+        });
+        if (error) throw new Error(`campaign_messages: ${error.message}`);
+      },
+      async writeGear(writes) {
+        // Scoped to this campaign: a row id of another campaign's is never touched.
+        for (const write of writes) {
+          const rows = admin.from("party_inventory");
+          const { error } = write.kind === "remove"
+            ? await rows.delete().eq("id", write.inventoryId).eq("campaign_id", campaignId)
+            : await rows.update(write.kind === "quantity" ? { quantity: write.quantity } : { current_charges: write.charges }).eq("id", write.inventoryId).eq("campaign_id", campaignId);
+          if (error) throw new Error(`party_inventory: ${error.message}`);
+        }
       },
       async judgeNote(noteQuestions, alreadyThisBatch) {
         // The same rule as campaign search's rerank: AI on for the campaign and a platform key, else the rules pick alone.
