@@ -1,0 +1,127 @@
+// The one way an edge function holds and settles credits (#1234).
+//
+// Every paid generation used to wire `reserveCredits` -> model -> `releaseCredits` -> `recordGeneration` by hand, and
+// the 20 Nov 2026 audit found the copies leaking in three ways:
+//
+//   1. A throw between the reserve and the `try` that releases (a `JSON.parse` of the model's reply, an awaited
+//      quality read, a prompt builder) left the hold in place until the two-hour stale-hold sweep, so the user's
+//      balance read short for two hours.
+//   2. A throw after the release (a ledger write, a provenance mark) landed in a catch that released again and
+//      answered 502 for a result that had been made and paid for.
+//   3. `recordGeneration(..., isByok=false, cost=0)` writes nothing, so platform-paid side calls vanished from the
+//      cost reports.
+//
+// So the hold is a scope. `withCreditHold` reserves, runs the work, and releases exactly once in `finally`, whatever
+// the work did. Ledger lines are queued on the hold and written after the release, never in the work's own error
+// path; a ledger write that fails is reported and logged, and never turns an answer into an error. If the work throws,
+// its queued charges are written as free lines instead: the platform's spend stays visible, and the user, who got an
+// error, is not charged. Nothing outside this file calls `reserveCredits`, `releaseCredits` or `recordGeneration`
+// (`noDirectCreditCalls.test.ts`).
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  type CreditLogFields,
+  recordFreeGeneration,
+  recordGeneration,
+  releaseCredits,
+  reservationFailureResponse,
+  reserveCredits,
+} from "../credits.ts";
+
+export interface ChargeLine {
+  /** Whole credits to charge; 0 for a BYOK call or a free one. */
+  cost: number;
+  /** The caller paid the provider with their own key: a delta-0 row marked BYOK. */
+  isByok: boolean;
+  log?: CreditLogFields;
+}
+
+export interface CreditHold {
+  /** What is held, in credits; 0 when nothing is (BYOK, or a free request). */
+  readonly held: number;
+  /**
+   * Queue a ledger line for work that succeeded. Several lines may come from one hold (a trap's text and its picture
+   * are two rows). A non-BYOK line with cost 0 is written as a free line, since a zero spend writes nothing.
+   */
+  charge(reason: string, line: ChargeLine): void;
+  /** Queue a platform-paid line that costs the user nothing (an embedding, a judgement), so the spend stays visible. */
+  free(reason: string, log?: CreditLogFields): void;
+  /**
+   * Pass the hold to a background job that settles it itself (an image job, the music job): the ids it must release.
+   * After this the scope releases nothing and takes no more lines.
+   */
+  handOff(): string[];
+}
+
+export interface CreditHoldOptions {
+  /** Whose credits are held; the caller, except where the campaign's owner pays (a character's reply). */
+  payerId: string;
+  /** The ledger reason the hold is taken under. */
+  reason: string;
+  /** Whole credits to hold; 0 holds nothing and still runs the work. */
+  cost: number;
+  /** Where a ledger write that failed after the answer was made is sent (Sentry, from `serveUser`). */
+  report?: (err: unknown) => void;
+}
+
+type Line = { kind: "charge"; reason: string; line: ChargeLine } | { kind: "free"; reason: string; log?: CreditLogFields };
+
+async function write(admin: SupabaseClient, payerId: string, entry: Line, workFailed: boolean): Promise<void> {
+  if (entry.kind === "free") return recordFreeGeneration(admin, payerId, entry.reason, entry.log);
+  const { reason, line } = entry;
+  if (line.isByok) return recordGeneration(admin, payerId, reason, true, 0, line.log);
+  if (workFailed || line.cost <= 0) return recordFreeGeneration(admin, payerId, reason, line.log);
+  return recordGeneration(admin, payerId, reason, false, line.cost, line.log);
+}
+
+export async function withCreditHold(
+  admin: SupabaseClient,
+  { payerId, reason, cost, report }: CreditHoldOptions,
+  work: (hold: CreditHold) => Promise<Response>,
+): Promise<Response> {
+  const reservation = await reserveCredits(admin, payerId, cost, reason);
+  if (!reservation.ok) return reservationFailureResponse(reservation);
+
+  const lines: Line[] = [];
+  let handedOff = false;
+  let settled = false;
+  const open = (what: string) => {
+    if (settled || handedOff) throw new Error(`credit hold "${reason}": ${what} after the hold was settled`);
+  };
+
+  const hold: CreditHold = {
+    held: Math.max(0, cost),
+    charge(lineReason, line) {
+      open("charge");
+      lines.push({ kind: "charge", reason: lineReason, line });
+    },
+    free(lineReason, log) {
+      open("free");
+      lines.push({ kind: "free", reason: lineReason, log });
+    },
+    handOff() {
+      open("handOff");
+      handedOff = true;
+      return reservation.ids;
+    },
+  };
+
+  let workFailed = false;
+  try {
+    return await work(hold);
+  } catch (e) {
+    workFailed = true;
+    throw e;
+  } finally {
+    settled = true;
+    if (!handedOff) await releaseCredits(admin, reservation.ids);
+    for (const entry of lines) {
+      try {
+        await write(admin, payerId, entry, workFailed);
+      } catch (e) {
+        console.error(`ledger write failed (${entry.reason}):`, e);
+        report?.(e);
+      }
+    }
+  }
+}

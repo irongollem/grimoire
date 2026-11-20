@@ -144,9 +144,19 @@ export function reservationRefusal(
  * `withCors` wrapper, not here.
  */
 export function reservationFailureResponse(
-  r: { suspended?: boolean; child_account?: boolean; velocity?: boolean; balance?: number },
+  r: { suspended?: boolean; child_account?: boolean; velocity?: boolean; unmetered?: boolean; balance?: number },
 ): Response {
   const headers = { "Content-Type": "application/json" };
+  // The hold could not be taken at all. Before #1234 this fell through to 402 with balance 0.
+  if (r.unmetered) {
+    return new Response(
+      JSON.stringify({
+        error: "metering_unavailable",
+        message: "Credits can't be checked right now, so nothing was generated or charged. Please try again in a moment.",
+      }),
+      { status: 503, headers },
+    );
+  }
   // A refusal that names no other reason is a shortfall here, so insufficient is the default.
   const { status, error } = reservationRefusal({ ...r, insufficient: true });
   if (status === 429) {
@@ -175,6 +185,11 @@ export interface Reservation {
   child_account?: boolean;
   /** New-account velocity cap hit — paid generation refused. */
   velocity?: boolean;
+  /**
+   * The reservation could not be made at all (the RPC failed). Not a shortfall: answered 503
+   * `metering_unavailable`, never 402, so a metering outage does not tell users they are out of credits (#1234).
+   */
+  unmetered?: boolean;
   balance?: number;
 }
 
@@ -200,7 +215,7 @@ export async function reserveCredits(
   });
   if (error) {
     console.error(`Failed to reserve credits (${reason}):`, error);
-    return { ok: false, ids: [] };
+    return { ok: false, ids: [], unmetered: true };
   }
   const res = data as {
     ok: boolean; ids?: string[]; insufficient?: boolean; suspended?: boolean;

@@ -33,6 +33,10 @@ describe("edgeErrorMessage", () => {
     ).toBe("y".repeat(200));
   });
 
+  it("#1234 shows a refusal's sentence, not its code, when it carries both", async () => {
+    expect(await edgeErrorMessage(withBody({ error: "campaign_not_found", message: "Campaign not found." }))).toBe("Campaign not found.");
+  });
+
   it("shows a short plain-text reason as it is", async () => {
     expect(
       await edgeErrorMessage({ message: "Edge Function returned a non-2xx status code", context: new Response("Campaign not found") }),

@@ -46,6 +46,8 @@ export async function edgeErrorMessage(
     case "Internal server error":
       return "We couldn't open the payment page. Please try again in a moment, or email info@dungeongrimoire.com if it keeps happening.";
     default:
-      return body?.error ?? body?.message ?? fnError.message ?? "The request failed. Please try again.";
+      // `message` is the sentence for a person and `error` a code (#1234: every refusal is `{ error, message? }`),
+      // so the sentence wins when both are there; an older body with only `error` still shows it.
+      return body?.message ?? body?.error ?? fnError.message ?? "The request failed. Please try again.";
   }
 }
