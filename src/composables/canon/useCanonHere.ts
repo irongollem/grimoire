@@ -52,6 +52,14 @@ export async function fetchCanonHere(kind: ClueKind, id: string): Promise<CanonH
   return parseCanonHere(data);
 }
 
+/** The read behind `useCanonHere`, shared with the route prefetch so both use one key and one fetcher. */
+export function canonHereQuery(kind: ClueKind, id: string) {
+  return {
+    queryKey: [CANON_KEY, "here", kind, id] as const,
+    queryFn: () => fetchCanonHere(kind, id),
+  };
+}
+
 /**
  * What the canon placed at one place, person or beat, in one read (#1226): the clues lying there and the passages that
  * come out there and are not yet told. Under the `canon` root, so the doorbell's canon rings refresh it.
@@ -59,7 +67,7 @@ export async function fetchCanonHere(kind: ClueKind, id: string): Promise<CanonH
 export function useCanonHere(kind: MaybeRefOrGetter<ClueKind>, id: MaybeRefOrGetter<string>) {
   const campaign = useCampaignStore();
   return useQuery({
-    queryKey: computed(() => [CANON_KEY, "here", toValue(kind), toValue(id)] as const),
+    queryKey: computed(() => canonHereQuery(toValue(kind), toValue(id)).queryKey),
     queryFn: ({ queryKey: [, , k, i] }) => fetchCanonHere(k, i),
     enabled: () => !!campaign.activeCampaignId,
   });
