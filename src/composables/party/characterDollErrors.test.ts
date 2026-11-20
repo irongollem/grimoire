@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DOLL_FALLBACK_ERROR, dollErrorMessage } from "./characterDollErrors";
+import { DOLL_FALLBACK_ERROR, dollErrorMessage, readDollFailure } from "./characterDollErrors";
 
 describe("dollErrorMessage", () => {
   const CODES = [
@@ -13,7 +13,7 @@ describe("dollErrorMessage", () => {
   ];
 
   it("gives every known code its own sentence, never the generic fallback", () => {
-    const sentences = CODES.map(dollErrorMessage);
+    const sentences = CODES.map((c) => dollErrorMessage(c));
     expect(sentences).not.toContain(DOLL_FALLBACK_ERROR);
     expect(new Set(sentences).size).toBe(CODES.length);
   });
@@ -35,5 +35,23 @@ describe("dollErrorMessage", () => {
   it("falls back for anything it does not know", () => {
     expect(dollErrorMessage("Edge Function returned a non-2xx status code")).toBe(DOLL_FALLBACK_ERROR);
     expect(dollErrorMessage("")).toBe(DOLL_FALLBACK_ERROR);
+  });
+});
+
+describe("readDollFailure", () => {
+  const failure = (body: unknown) => ({ message: "non-2xx", context: new Response(JSON.stringify(body), { status: 403 }) });
+
+  it("reads the code from the body, because the shared refusals put a sentence in `message` that edgeErrorMessage shows", async () => {
+    const { code, sentence } = await readDollFailure(failure({ error: "ai_disabled", message: "AI is turned off for this campaign." }));
+    expect(sentence).toBe("AI is turned off for this campaign.");
+    expect(code).toBe("ai_disabled");
+    // The sentence alone is not a code the doll knows; the code is what gives the player its own wording.
+    expect(dollErrorMessage(sentence)).toBe(DOLL_FALLBACK_ERROR);
+    expect(dollErrorMessage(sentence, code)).toBe("Your DM has turned AI off for this table.");
+  });
+
+  it("has no code when the response had no JSON body", async () => {
+    const { code } = await readDollFailure({ message: "network down", context: new Response("<html>") });
+    expect(code).toBeNull();
   });
 });

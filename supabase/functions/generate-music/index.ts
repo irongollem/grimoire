@@ -4,9 +4,12 @@ import { decryptValue } from "../_shared/vault.ts";
 import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
-import { fetchCreditCost, releaseCredits, reserveCredits, reservationFailureResponse, wholeCredits } from "../_shared/credits.ts";
+import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { withCors } from "../_shared/cors.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { settleHandedOff, withCreditHold } from "../_shared/pipeline/creditHold.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText, resolveTextProvider, NO_TEXT_PROVIDER_MESSAGE, type ResolvedTextProvider } from "../_shared/textGen.ts";
 import {
@@ -38,7 +41,6 @@ import {
   type LyriaImage,
 } from "../_shared/lyria.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
 /**
  * Music generation, now two AI steps in one durable job (25 Sep 2026): a text
@@ -219,8 +221,9 @@ async function runMusicGeneration(jobId: string, request: MusicRuntimeRequest): 
     if (request.prompt) {
       structuredPrompt = request.prompt.trim();
     } else {
-      const { data: promptRow } = await admin
+      const { data: promptRow, error: promptError } = await admin
         .from("ai_system_prompts").select("content").eq("generator_type", "music_structure").maybeSingle();
+      if (promptError) throw promptError;
       const structureSystem = promptRow?.content ?? MUSIC_STRUCTURE_SYSTEM;
       const structureMessage = buildStructureMessage({
         title: request.name,
@@ -322,119 +325,141 @@ async function runMusicGeneration(jobId: string, request: MusicRuntimeRequest): 
   }
 }
 
-function queueMusicWorker(jobId: string, request: MusicRuntimeRequest): void {
-  // @ts-ignore EdgeRuntime is a Deno Deploy global, not in Deno's type defs.
-  EdgeRuntime.waitUntil(runMusicGeneration(jobId, request));
+function queueMusicWorker(jobId: string, request: MusicRuntimeRequest, report: (err: unknown) => void): void {
+  const run = runMusicGeneration(jobId, request);
+  try {
+    // @ts-ignore EdgeRuntime is a Deno Deploy global, not in Deno's type defs.
+    EdgeRuntime.waitUntil(run);
+  } catch (e) {
+    // The worker is already running; only the keep-alive failed.
+    console.error("generate-music: waitUntil failed", e);
+    report(e);
+  }
 }
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
+interface ParsedMusicRequest {
+  campaignId: string;
+  soundName: string;
+  category: SoundCategory;
+  requestId: string;
+  imageUrls: string[];
+  description: string;
+  lengthSeconds: MusicLengthSeconds;
+  vocals: MusicVocals;
+  lyrics: string | null;
+  mentions: MusicMention[];
+  prompt: string | null;
+}
 
-  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
+/** The validated request, or null when the body breaks any rule (a 400 for the caller to give). */
+function parseMusicRequest(body: Record<string, unknown>): ParsedMusicRequest | null {
+  const campaignId = body.campaign_id;
+  const soundName = typeof body.sound_name === "string" ? body.sound_name.trim() : "";
+  const category = body.category;
+  const requestId = typeof body.request_id === "string" ? body.request_id : "";
+  const description = typeof body.description === "string" ? body.description.trim() : "";
+  const lengthSeconds = body.length_seconds;
+  const vocals = body.vocals;
+  const rawLyrics = body.lyrics;
+  const lyrics = typeof rawLyrics === "string" && rawLyrics.trim() ? rawLyrics.trim() : null;
+  const rawPrompt = body.prompt;
+  let prompt: string | null;
+  if (rawPrompt === undefined || rawPrompt === null) {
+    prompt = null;
+  } else if (typeof rawPrompt === "string" && rawPrompt.trim()) {
+    prompt = rawPrompt.trim();
+  } else {
+    return null;
+  }
+  const rawMentions = body.mentions;
+  let mentions: MusicMention[];
+  if (rawMentions === undefined) {
+    mentions = [];
+  } else if (Array.isArray(rawMentions) && rawMentions.every(isValidMention)) {
+    mentions = rawMentions as MusicMention[];
+  } else {
+    return null;
+  }
+  const rawImageUrls = body.image_urls;
+  let imageUrls: string[];
+  if (rawImageUrls === undefined) {
+    imageUrls = [];
+  } else if (Array.isArray(rawImageUrls) && rawImageUrls.every((url: unknown) => typeof url === "string")) {
+    imageUrls = [...new Set(rawImageUrls as string[])];
+  } else {
+    return null;
+  }
+  if (
+    typeof campaignId !== "string" || !campaignId || !soundName || !requestId || requestId.length > 128 ||
+    typeof category !== "string" || !["ambient", "music", "effects"].includes(category) ||
+    !description || description.length > MAX_DESCRIPTION_CHARS ||
+    !MUSIC_LENGTHS.includes(lengthSeconds as MusicLengthSeconds) || !MUSIC_VOCALS.includes(vocals as MusicVocals) ||
+    (lyrics !== null && lyrics.length > MAX_LYRICS_CHARS) ||
+    (prompt !== null && prompt.length > MUSIC_PROMPT_MAX_CHARS) ||
+    mentions.length > MAX_MENTIONS ||
+    !mentions.every((m) =>
+      m.label.length > 0 && m.label.length <= MAX_MENTION_LABEL_CHARS &&
+      (m.description === null || m.description.length <= MAX_MENTION_DESCRIPTION_CHARS)
+    ) ||
+    imageUrls.length > LYRIA_MAX_IMAGES || !imageUrls.every((url) => isSafeStorageUrl(url))
+  ) return null;
+  return {
+    campaignId, soundName, category: category as SoundCategory, requestId, imageUrls, description,
+    lengthSeconds: lengthSeconds as MusicLengthSeconds, vocals: vocals as MusicVocals, lyrics, mentions, prompt,
+  };
+}
+
+interface MusicCampaign extends BaseCampaign {
+  text_provider: string | null;
+}
+
+serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
-  let campaignId: string, soundName: string;
-  let category: SoundCategory, requestId: string, imageUrls: string[];
-  let description: string, lengthSeconds: MusicLengthSeconds, vocals: MusicVocals;
-  let lyrics: string | null, mentions: MusicMention[], prompt: string | null;
-  try {
-    const body = await req.json();
-    campaignId = body.campaign_id;
-    soundName = typeof body.sound_name === "string" ? body.sound_name.trim() : "";
-    category = body.category;
-    requestId = typeof body.request_id === "string" ? body.request_id : "";
-    description = typeof body.description === "string" ? body.description.trim() : "";
-    lengthSeconds = body.length_seconds;
-    vocals = body.vocals;
-    const rawLyrics = body.lyrics;
-    lyrics = typeof rawLyrics === "string" && rawLyrics.trim() ? rawLyrics.trim() : null;
-    const rawPrompt = body.prompt;
-    if (rawPrompt === undefined || rawPrompt === null) {
-      prompt = null;
-    } else if (typeof rawPrompt === "string" && rawPrompt.trim()) {
-      prompt = rawPrompt.trim();
-    } else {
-      throw new Error("invalid");
-    }
-    const rawMentions = body.mentions;
-    if (rawMentions === undefined) {
-      mentions = [];
-    } else if (Array.isArray(rawMentions) && rawMentions.every(isValidMention)) {
-      mentions = rawMentions as MusicMention[];
-    } else {
-      throw new Error("invalid");
-    }
-    const rawImageUrls = body.image_urls;
-    if (rawImageUrls === undefined) {
-      imageUrls = [];
-    } else if (Array.isArray(rawImageUrls) && rawImageUrls.every((url: unknown) => typeof url === "string")) {
-      imageUrls = [...new Set(rawImageUrls as string[])];
-    } else {
-      throw new Error("invalid");
-    }
-    if (
-      !campaignId || !soundName || !requestId || requestId.length > 128 ||
-      !["ambient", "music", "effects"].includes(category) ||
-      !description || description.length > MAX_DESCRIPTION_CHARS ||
-      !MUSIC_LENGTHS.includes(lengthSeconds) || !MUSIC_VOCALS.includes(vocals) ||
-      (lyrics !== null && lyrics.length > MAX_LYRICS_CHARS) ||
-      (prompt !== null && prompt.length > MUSIC_PROMPT_MAX_CHARS) ||
-      mentions.length > MAX_MENTIONS ||
-      !mentions.every((m) =>
-        m.label.length > 0 && m.label.length <= MAX_MENTION_LABEL_CHARS &&
-        (m.description === null || m.description.length <= MAX_MENTION_DESCRIPTION_CHARS)
-      ) ||
-      imageUrls.length > LYRIA_MAX_IMAGES || !imageUrls.every((url) => isSafeStorageUrl(url))
-    ) throw new Error("invalid");
-  } catch {
-    return new Response(
+  const body = await readJsonBody(req);
+  const parsed = body ? parseMusicRequest(body) : null;
+  if (!parsed) {
+    return jsonError(
+      400, "invalid_body",
       "Invalid body — need request_id, campaign_id, sound_name, category, description (non-empty, " +
         `max ${MAX_DESCRIPTION_CHARS} chars), length_seconds (60|120|180), vocals (instrumental|choir|vocals), ` +
         `lyrics (optional, max ${MAX_LYRICS_CHARS} chars), prompt (optional, a complete Lyria prompt sent as ` +
         `written, max ${MUSIC_PROMPT_MAX_CHARS} chars), mentions (optional, max ${MAX_MENTIONS}, label max ` +
         `${MAX_MENTION_LABEL_CHARS} chars, description max ${MAX_MENTION_DESCRIPTION_CHARS} chars or null) and ` +
-        "image_urls (max 10, our storage/CDN only)",
-      { status: 400 },
+        "image_urls (max 10, our storage/CDN only).",
     );
   }
+  const { campaignId, soundName, category, requestId, imageUrls, description, lengthSeconds, vocals, lyrics, mentions, prompt } = parsed;
 
-  const { data: campaign } = await admin.from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider")
-    .eq("id", campaignId).maybeSingle();
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
   // DMs only: no player surface calls this, and it spends the campaign's
   // credits or the owner's own provider key (see _shared/campaignAccess.ts).
-  if (!(await isCampaignDm(admin, campaign, user.id))) {
-    return new Response("Forbidden", { status: 403 });
-  }
+  const load = await loadAiCampaign<MusicCampaign>(admin, campaignId, user.id, { columns: ["text_provider"] });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
   const existing = await findGenerationJob(admin, user.id, "music", requestId);
   if (existing) {
-    if (existing.campaign_id !== campaignId) return new Response("request_id belongs to another campaign", { status: 409 });
+    if (existing.campaign_id !== campaignId) {
+      return jsonError(409, "request_id_conflict", "That request id belongs to another campaign.");
+    }
     if (existing.status === "settling") {
       // No key required: only writes the idempotent sound row and settles the durable job.
       // @ts-ignore EdgeRuntime is a Deno Deploy global, not in Deno's type defs.
       EdgeRuntime.waitUntil(finalizeMusicJob(existing).catch((error) => console.error("Could not resume music finalization:", error)));
     }
-    if (existing.status !== "queued") {
-      return new Response(JSON.stringify({ job_id: existing.id }), { headers: { "Content-Type": "application/json" } });
-    }
+    if (existing.status !== "queued") return json({ job_id: existing.id });
   }
 
   const [[campaignGemini, campaignOpenai, campaignAnthropic], platformKeys, geminiProviderRow, providerConfigs] = await Promise.all([
     loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.gemini, k.openai, k.anthropic] as const),
     fetchPlatformKeys(admin, ["gemini", "openai", "anthropic"]),
     admin.from("provider_config").select("audio_enabled, audio_multiplier, audio_model").eq("provider", "gemini").maybeSingle()
-      .then((r) => r.data as { audio_enabled: boolean; audio_multiplier: number | null; audio_model: string | null } | null),
+      .then((r) => {
+        if (r.error) throw r.error;
+        return r.data as { audio_enabled: boolean; audio_multiplier: number | null; audio_model: string | null } | null;
+      }),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
 
@@ -447,14 +472,14 @@ serve(withCors(async (req: Request) => {
     if (existing) {
       await failGenerationJob(admin, existing.id, "Platform music generation was disabled before this queued request could start.");
     }
-    return new Response(JSON.stringify({ error: "Music generation is not enabled on this platform. Contact your admin." }), { status: 403, headers: { "Content-Type": "application/json" } });
+    return jsonError(403, "music_disabled", "Music generation is not enabled on this platform. Contact your admin.");
   }
   const geminiKey = isByok ? campaignGemini : platformKeys.gemini ?? null;
   if (!geminiKey) {
     if (existing) {
       await failGenerationJob(admin, existing.id, "The API key for this queued music generation is no longer available.");
     }
-    return new Response(JSON.stringify({ error: "No Gemini API key configured. Add one in Campaign Settings → AI, or ask your admin to configure a platform key." }), { status: 422, headers: { "Content-Type": "application/json" } });
+    return jsonError(422, "no_music_key", "No Gemini API key configured. Add one in Campaign Settings → AI, or ask your admin to configure a platform key.");
   }
 
   // ── Text (structuring) key — no billing lane of its own; resolved fresh on
@@ -472,33 +497,31 @@ serve(withCors(async (req: Request) => {
     if (existing) {
       await failGenerationJob(admin, existing.id, "No text provider is available to prepare this queued music prompt.");
     }
-    return new Response(
-      JSON.stringify({ error: NO_TEXT_PROVIDER_MESSAGE }),
-      { status: 422, headers: { "Content-Type": "application/json" } },
-    );
+    return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
   }
   // fast_text_model when the admin has set one — this is a short structuring
   // task, not a long-form generation, same reasoning as the quest designer's
   // per-turn calls (quest-designer-turn/index.ts).
   const textModel = text.config?.fast_text_model ?? text.config?.text_model ?? null;
 
-  // The model is an admin setting (provider_config.audio_model), not something
-  // the client chooses. A queued retry executes exactly the original durable
-  // snapshot — including its model — never a re-read one, so a later admin
-  // change cannot alter a request already queued.
-  let durableRequest: MusicJobRequest;
+  // A queued retry runs under the hold its job already owns: nothing is reserved here.
   if (existing) {
-    durableRequest = requestFromJob(existing);
-  } else {
-    const configuredModel = geminiProviderRow?.audio_model?.trim();
-    if (!configuredModel) {
-      return new Response(JSON.stringify({ error: "No music model is configured. Ask your admin to set one under Admin → AI Providers." }), { status: 503, headers: { "Content-Type": "application/json" } });
-    }
-    durableRequest = {
-      campaignId, userId: user.id, description, lengthSeconds, vocals, lyrics, mentions, prompt,
-      model: configuredModel, name: soundName, category, imageUrls,
-    };
+    queueMusicWorker(existing.id, { ...requestFromJob(existing), apiKey: geminiKey, text, textModel }, report);
+    return json({ job_id: existing.id });
   }
+
+  // The model is an admin setting (provider_config.audio_model), not something
+  // the client chooses.
+  const configuredModel = geminiProviderRow?.audio_model?.trim();
+  if (!configuredModel) {
+    return jsonError(503, "no_music_model", "No music model is configured. Ask your admin to set one under Admin → AI Providers.");
+  }
+  const durableRequest: MusicJobRequest = {
+    campaignId, userId: user.id, description, lengthSeconds, vocals, lyrics, mentions, prompt,
+    model: configuredModel, name: soundName, category, imageUrls,
+  };
+
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
   const generationType = "music_track";
   // Flat per-song credit price, unchanged by this move — the structuring
@@ -507,15 +530,16 @@ serve(withCors(async (req: Request) => {
   const audioCost = wholeCredits(
     (isByok ? 0 : await fetchCreditCost(admin, generationType)) * (geminiProviderRow?.audio_multiplier ?? 1),
   );
-  let job = existing;
-  if (!job) {
-    if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
-      return new Response(JSON.stringify({ error: "rate_limited" }), { status: 429, headers: { "Content-Type": "application/json" } });
-    }
-    const reservation = await reserveCredits(admin, user.id, audioCost, generationType);
-    if (!reservation.ok) return reservationFailureResponse(reservation);
+
+  return withCreditHold(admin, { payerId: user.id, reason: generationType, cost: audioCost, report }, async (hold) => {
+    // The job row records the hold's ids and SQL settles them (finalize_music_generation_job,
+    // fail_ai_generation_job), so the hold is handed off before the row is written. If no job comes of it, the ids are
+    // released here through the same settle path.
+    const reservationIds = hold.handOff();
+    const releaseUnused = () => settleHandedOff(admin, { payerId: user.id, ids: reservationIds, report }, async () => undefined);
+    let created: Awaited<ReturnType<typeof createGenerationJob>>;
     try {
-      const created = await createGenerationJob(admin, {
+      created = await createGenerationJob(admin, {
         user_id: user.id,
         campaign_id: campaignId,
         kind: "music",
@@ -532,7 +556,7 @@ serve(withCors(async (req: Request) => {
           image_urls: durableRequest.imageUrls,
         },
         billing: {
-          reservation_ids: reservation.ids,
+          reservation_ids: reservationIds,
           generation_type: generationType,
           cost: audioCost,
           is_byok: isByok,
@@ -541,20 +565,14 @@ serve(withCors(async (req: Request) => {
         idempotency_key: requestId,
         stale_after: new Date(Date.now() + 15 * 60 * 1_000).toISOString(),
       });
-      job = created.job;
-      if (!created.created) await releaseCredits(admin, reservation.ids);
     } catch (error) {
-      await releaseCredits(admin, reservation.ids);
       console.error("Could not queue music generation:", error);
-      return new Response(JSON.stringify({ error: "Could not queue music generation" }), { status: 500, headers: { "Content-Type": "application/json" } });
+      await releaseUnused();
+      return jsonError(500, "queue_failed", "Could not queue music generation. Please try again.");
     }
-  }
-
-  queueMusicWorker(job.id, {
-    ...durableRequest,
-    apiKey: geminiKey,
-    text,
-    textModel,
+    // A concurrent request with the same id created the job first and owns its own hold; this one's is released.
+    if (!created.created) await releaseUnused();
+    queueMusicWorker(created.job.id, { ...durableRequest, apiKey: geminiKey, text, textModel }, report);
+    return json({ job_id: created.job.id });
   });
-  return new Response(JSON.stringify({ job_id: job.id }), { headers: { "Content-Type": "application/json" } });
 }));

@@ -1,6 +1,5 @@
 import { computed, ref, type ComputedRef } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
-import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { DOLL_SHEET_SIZE } from "@edge-shared/paperDoll/prompts.ts";
 import { supabase } from "@/lib/supabase";
@@ -11,7 +10,7 @@ import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { DOLL_ASK_ERROR, dollErrorMessage } from "@/composables/party/characterDollErrors";
+import { DOLL_ASK_ERROR, dollErrorMessage, readDollFailure } from "@/composables/party/characterDollErrors";
 
 /**
  * What drawing a doll costs: the `character_doll` price for its 1536x1024 sheets on OpenAI, the
@@ -53,11 +52,16 @@ export function useCharacterDoll() {
     isGenerating.value = true;
     error.value = null;
     startAiQuotes("image");
+    let code: string | null = null;
     try {
       const { data, error: fnError } = await supabase.functions.invoke("generate-character-doll", {
         body: { party_member_id: memberId },
       });
-      if (fnError) throw new Error(await edgeErrorMessage(fnError));
+      if (fnError) {
+        const failure = await readDollFailure(fnError);
+        code = failure.code;
+        throw new Error(failure.sentence);
+      }
       const res = data as { job_id?: string; error?: string } | null;
       if (res?.error) throw new Error(res.error);
       if (!res?.job_id) throw new Error("The doll generator returned no job.");
@@ -69,7 +73,7 @@ export function useCharacterDoll() {
       return true;
     } catch (e) {
       const raw = e instanceof Error ? e.message : String(e);
-      error.value = dollErrorMessage(raw);
+      error.value = dollErrorMessage(raw, code);
       reportHandledError(e, "useCharacterDoll.make", { memberId });
       return false;
     } finally {
