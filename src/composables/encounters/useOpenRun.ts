@@ -13,8 +13,9 @@ import { encounterTrapRefs } from "@/lib/dungeon-features/library";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { useToast } from "@/composables/useToast";
-import { buildRunCombatants, legendaryActionCaps } from "@/lib/encounters/buildRunCombatants";
-import { bystandersOf, lateBystanders } from "@/lib/encounters/bystandersOf";
+import { buildRunCombatants, legendaryActionCaps } from "@/rules/fight/roster/buildRoster";
+import { bystandersOf, lateBystanders } from "@/rules/fight/roster/bystanders";
+import { foughtEncounter } from "@/rules/fight/roster/foughtEncounter";
 import { confirmedFromAnswer, sendAlone } from "@/lib/encounters/fightWire";
 import { DRAIN_TIMEOUT_MS } from "@/stores/encounterRunPump";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
@@ -40,23 +41,6 @@ export async function sendLeftBehind(
   const owner = store.linkedEncounterId();
   if (owner === null || owner === opening) return;
   if (!(await store.drainSends(timeoutMs))) onFailed();
-}
-
-/**
- * The encounter as it is fought. A fight from the AI table is fought by the played character and the party members
- * the AI plays beside them (#1021, allies: those whose player let the AI act for them, `aiPlays`). Every other
- * party member the encounter lists stays out: a solo player is never handed another player's sheet to play. With no
- * solo member the encounter is returned untouched, so the DM's own fight keeps its party. The played member is
- * fielded first, even when the encounter did not list them.
- */
-export function foughtEncounter<E extends { party_member_ids: string[] }>(
-  encounter: E,
-  onlyMemberId: string | null,
-  aiPlays: (memberId: string) => boolean = () => false,
-): E {
-  if (onlyMemberId === null) return encounter;
-  const allies = encounter.party_member_ids.filter((id) => id !== onlyMemberId && aiPlays(id));
-  return { ...encounter, party_member_ids: [onlyMemberId, ...allies] };
 }
 
 /**

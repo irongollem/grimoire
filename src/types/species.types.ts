@@ -1,5 +1,5 @@
-import type { VersionedContentMetadata } from "@/types/content.types";
-import type { AiProvenance } from "@/ai/provenance";
+import type { VersionedContentMetadata } from "./content.types.ts";
+import type { AiProvenance } from "../ai/provenance.ts";
 
 export type SpeciesSize = "tiny" | "small" | "medium" | "large";
 

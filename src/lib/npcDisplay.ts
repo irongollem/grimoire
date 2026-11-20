@@ -1,4 +1,4 @@
-import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
+import type { Npc, NpcRelationship, NpcStatus } from "../types/npc.types.ts";
 
 // Per-field reveal toggles surfaced to the DM. Status + relationship are
 // intentionally absent — both have an "unknown" value, so they're always

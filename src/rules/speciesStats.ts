@@ -1,5 +1,5 @@
-import type { SpeciesSize, SpeciesSpeed, SpeciesSubrace, SpeciesTrait } from "@/types/species.types";
-import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
+import type { SpeciesSize, SpeciesSpeed, SpeciesSubrace, SpeciesTrait } from "../types/species.types.ts";
+import { tiptapToPlainText } from "../lib/tiptap/tiptapText.ts";
 
 /**
  * What a character of a species (and, optionally, one of its subraces) is:

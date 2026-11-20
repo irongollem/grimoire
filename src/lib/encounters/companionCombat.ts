@@ -1,4 +1,4 @@
-import type { Companion } from "@/types/companion.types";
+import type { Companion } from "../../types/companion.types.ts";
 
 /**
  * Whether a companion can ever be fielded in an encounter. A pet has a stat

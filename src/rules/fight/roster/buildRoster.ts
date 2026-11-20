@@ -1,16 +1,16 @@
-import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
-import { findSubrace } from "@/rules/speciesStats";
-import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
-import { combatStats } from "@/rules/encounterCombatLogic";
-import { takesPartInCombat } from "@/lib/encounters/companionCombat";
-import type { Encounter, RunCombatant } from "@/types/encounter.types";
-import type { Monster, MonsterSize } from "@/types/monster.types";
-import type { Species } from "@/types/species.types";
-import type { Npc } from "@/types/npc.types";
-import type { PartyMember } from "@/types/party.types";
-import type { Companion } from "@/types/companion.types";
-import { characterInitiativeExtra } from "@/rules/initiative";
-import type { JackOfAllTrades } from "@/rules/skillCheck";
+import { sizeToFootprint } from "../../../lib/battlemap/tokenFootprint.ts";
+import { findSubrace } from "../../speciesStats.ts";
+import { resolveTokenArt } from "../../../lib/battlemap/tokenArt.ts";
+import { combatStats } from "../../encounterCombatLogic.ts";
+import { takesPartInCombat } from "../../../lib/encounters/companionCombat.ts";
+import type { Encounter, RunCombatant } from "../../../types/encounter.types.ts";
+import type { Monster, MonsterSize } from "../../../types/monster.types.ts";
+import type { Species } from "../../../types/species.types.ts";
+import type { Npc } from "../../../types/npc.types.ts";
+import type { PartyMember } from "../../../types/party.types.ts";
+import type { Companion } from "../../../types/companion.types.ts";
+import { characterInitiativeExtra } from "../../initiative.ts";
+import type { JackOfAllTrades } from "../../skillCheck.ts";
 
 /**
  * An encounter definition + the DM's rosters → the combatant list the runner
