@@ -6,7 +6,7 @@
 
 import { HAZARD_TOOL, HAZARD_TOOL_NAME, HAZARDS_PER_TURN, keptHazardText, madeHazardText, noSuchHazardText, parseHazard, type HazardRules } from "../_shared/agent/hazard.ts";
 import { KEEP_TALKING_TOOL, KEEP_TALKING_TOOL_NAME } from "../_shared/agent/floor.ts";
-import { offeredHandout, parseShow, SHOW_TOOL, SHOW_TOOL_NAME, SHOWN_PER_TURN, shownText, type HandoutOffer, type PictureOf, type Shown } from "../_shared/agent/show.ts";
+import { offeredHandout, parseShow, SHOW_TOOL, SHOW_TOOL_NAME, SHOWN_PER_TURN, shownText, type HandoutOffer, type PictureOf, type PlaceCard, type PlaceShare, type Shown } from "../_shared/agent/show.ts";
 import {
   BUY_TOOL, COINS_TOOL, COINS_TOOL_NAME, HAND_OVER_TOOL, HAND_OVER_TOOL_NAME, HANDS_PER_TURN, HANDS_TOOL_NAMES, handsText, parseBuy, parseCoins,
   chestPick, parseHandOver, parseTake, purseAfterGaining, TAKE_TOOL, TAKE_TOOL_NAME, worth, type Coins, type HandsChange, type Possessions,
@@ -18,6 +18,8 @@ import type { FightState } from "../_shared/agent/fight.ts";
 import { alreadyRecorded, existsText, INTRODUCE_TOOL, INTRODUCE_TOOL_NAME, INTRODUCTIONS_PER_TURN, introducedText, parseIntroduction, type Introduction } from "../_shared/agent/introduce.ts";
 import { GO_TO_TOOL, makeSceneTool } from "../_shared/agent/scene.ts";
 import { parsePassDays, PASS_DAYS_TOOL, PASS_DAYS_TOOL_NAME, passedText } from "../_shared/agent/days.ts";
+import { planRuling, RULE_INVENTION_TOOL, RULE_INVENTION_TOOL_NAME, type InventionRuling, type PendingInvention } from "../_shared/agent/invention.ts";
+import { FIRE_CONSEQUENCE_TOOL, FIRE_CONSEQUENCE_TOOL_NAME, parseFireInput, planFire } from "../_shared/agent/consequence.ts";
 import { ROLL_TABLE_TOOL, ROLL_TABLE_TOOL_NAME, rollAnswer } from "../_shared/agent/roadTables.ts";
 import { parseTravel, rollableTables, TRAVEL_TOOL, TRAVEL_TOOL_NAME, travelAnswer, type TravelMap } from "../_shared/agent/travel.ts";
 import type { Remembered } from "../_shared/agent/characterTurn.ts";
@@ -136,6 +138,10 @@ export interface TurnToolsInput {
   show: {
     handouts: readonly HandoutOffer[];
     picture(what: PictureOf, id: string): Promise<{ title: string; url: string } | null>;
+    /** A place of the campaign, as it may be handed over; null when it is not this campaign's. */
+    place(id: string): Promise<PlaceCard | null>;
+    /** A place was handed over: shared for real once the turn is kept. */
+    onPlace(place: PlaceShare): void;
     /** A handout was handed over: given for real once the turn is kept. */
     onHandout(handout: HandoutOffer): void;
   } | null;
@@ -146,6 +152,13 @@ export interface TurnToolsInput {
   travel: { map(): Promise<TravelMap>; /** A whole number from 1 to `max`: the die behind the screen. */ roll(max: number): number } | null;
   /** Whole days passed in the story (`days.ts`): the page moves the campaign's date once the turn is kept. Null in a fight. */
   onDaysPassed: ((days: number) => void) | null;
+  /** Offered only with the quests read and no fight on the board: a held payoff is the story's to fire, not a round's. */
+  fireHeld?: boolean;
+  /**
+   * The played character's inventions waiting on a ruling and where a ruling goes (#1103). Null in a fight, with
+   * nobody played or nothing waiting, and then the tool is not offered.
+   */
+  rulings?: { pending: readonly PendingInvention[]; onRule(ruling: InventionRuling): void } | null;
 }
 
 export interface TurnTools {
@@ -157,6 +170,8 @@ export interface TurnTools {
   spoke: Set<string>;
   /** Where the party is now, after any move this turn; null when it has no place. */
   place(): string | null;
+  /** The place the Narrator last moved the party to with `go_to` this turn; null when it made no move. */
+  movedTo(): string | null;
 }
 
 /** The campaign's own roll tool: the Dungeon Master's dice. */
@@ -174,12 +189,14 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   const { deps, campaignId, session } = input;
 
   let place = session.scene_location_id;
+  let movedTo: string | null = null;
   const go = makeSceneTool({
     campaignId,
     sessionId: session.id,
     setScene: deps.setScene,
     onMove: (moved, companions) => {
       place = moved.id;
+      movedTo = moved.id;
       // Whoever came along is placed with the party when the turn is kept, like anyone who spoke to it.
       for (const id of companions) spoke.add(id);
       input.onMove(moved);
@@ -483,6 +500,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   // A handout or a picture put in front of the player (`show.ts`). A handout is handed over once.
   let shownCount = 0;
   const handedOut = new Set<string>();
+  const placesShown = new Set<string>();
   const show = async (toolInput: Record<string, unknown>): Promise<{ content: string; isError: boolean; shown?: Shown }> => {
     const refused = (content: string) => ({ content, isError: true });
     if (input.show === null) return refused("Nothing can be shown this turn.");
@@ -497,6 +515,16 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       handedOut.add(handout.id);
       input.show.onHandout(handout);
       shown = { kind: "handout", id: handout.id, title: handout.title };
+    } else if (parsed.value.what === "place") {
+      const { id } = parsed.value;
+      const card = await input.show.place(id);
+      if (card === null) return refused("This campaign has no such place. Use a place id as search or get returned it.");
+      if (placesShown.has(id)) return refused("That place was already handed over this turn.");
+      placesShown.add(id);
+      // The map goes with the place only when the story hands it over, and only when there is one to hand over.
+      const withMap = parsed.value.withMap === true && card.hasMapPicture;
+      input.show.onPlace({ id, withMap });
+      shown = { kind: "place", id, title: card.title, url: card.url, hasMap: card.hasMapPicture && (card.mapShared || withMap), hasNook: card.hasNook };
     } else {
       const picture = await input.show.picture(parsed.value.what, parsed.value.id);
       if (picture === null) return refused("The campaign has no picture of that. Describe it in words instead.");
@@ -527,6 +555,30 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     return rollAnswer(table, input.travel.roll);
   };
 
+  // A payoff the DM held back, fired when the story reaches its moment. Checked against what the turn started with
+  // and queued with the quest moves, so it is performed once, and only if the turn is kept.
+  const fireConsequence = (toolInput: Record<string, unknown>) => {
+    if (input.quests === null || input.fireHeld !== true) return { content: "Nothing is fired now, not in the middle of a fight.", isError: true };
+    const parsed = parseFireInput(toolInput);
+    if (!parsed.ok) return { content: parsed.error, isError: true };
+    const planned = planFire(input.quests.state, input.quests.queued, parsed.value.eventId);
+    if (!planned.ok) return { content: planned.error, isError: true };
+    input.quests.queued.push(planned.move);
+    return { content: planned.says, isError: false };
+  };
+
+  // The Dungeon Master's ruling on an invention, queued and made only if the turn is kept. Checked against the
+  // inventions the turn was shown, and once for each: a second ruling would fight the first.
+  const ruled: InventionRuling[] = [];
+  const ruleInvention = (toolInput: Record<string, unknown>) => {
+    if (!input.rulings) return { content: "No invention is ruled on now, not in the middle of a fight.", isError: true };
+    const planned = planRuling(input.rulings.pending, ruled, toolInput);
+    if (!planned.ok) return { content: planned.error, isError: true };
+    ruled.push(planned.ruling);
+    input.rulings.onRule(planned.ruling);
+    return { content: planned.says, isError: false };
+  };
+
   // Once a turn, with the total: two calls would move the date twice for what the story told once.
   let daysPassed = false;
   const passDays = (toolInput: Record<string, unknown>) => {
@@ -555,10 +607,11 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, BRING_OUT_TOOL, CANON_LOOKUP_TOOL, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.onHazard === undefined ? [] : [HAZARD_TOOL]), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, BRING_OUT_TOOL, CANON_LOOKUP_TOOL, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.onHazard === undefined ? [] : [HAZARD_TOOL]), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), ...(input.quests !== null && input.fireHeld === true ? [FIRE_CONSEQUENCE_TOOL] : []), ...(input.rulings ? [RULE_INVENTION_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
+    movedTo: () => movedTo,
     callTool: (name, toolInput) => {
       if (name === GO_TO_TOOL.name) return moved(go.call(toolInput), place);
       if (name === RECORD_TOOL_NAME) return record.call(toolInput);
@@ -571,6 +624,8 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (input.show && name === SHOW_TOOL_NAME) return show(toolInput);
       if (input.travel && name === TRAVEL_TOOL_NAME) return travel(toolInput);
       if (input.travel && name === ROLL_TABLE_TOOL_NAME) return rollTable(toolInput);
+      if (name === FIRE_CONSEQUENCE_TOOL_NAME) return Promise.resolve(fireConsequence(toolInput));
+      if (name === RULE_INVENTION_TOOL_NAME) return Promise.resolve(ruleInvention(toolInput));
       if (input.onDaysPassed && name === PASS_DAYS_TOOL_NAME) return Promise.resolve(passDays(toolInput));
       if (name === KEEP_TALKING_TOOL_NAME) {
         floorKept = true;

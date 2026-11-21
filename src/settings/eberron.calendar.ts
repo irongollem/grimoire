@@ -1,4 +1,4 @@
-import type { SettingCalendarDef } from "./types";
+import type { SettingCalendarDef } from "./types.ts";
 
 export const EBERRON_CALENDAR: SettingCalendarDef = {
   name: "Eberron (Galifar Calendar)",

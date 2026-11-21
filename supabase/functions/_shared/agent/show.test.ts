@@ -23,6 +23,18 @@ describe("parseShow", () => {
   });
 });
 
+describe("parseShow with a map", () => {
+  // Bug caught: with_map accepted beside a person or handout (a map the Narrator thinks it gave), or lost for a place.
+  it("takes with_map only for a place", () => {
+    expect(parseShow({ place_id: ID, with_map: true })).toEqual({ ok: true, value: { what: "place", id: ID, withMap: true } });
+    expect(parseShow({ place_id: ID })).toEqual({ ok: true, value: { what: "place", id: ID } });
+    expect(parseShow({ place_id: ID, with_map: false })).toEqual({ ok: true, value: { what: "place", id: ID } });
+    expect(parseShow({ person_id: ID, with_map: true }).ok).toBe(false);
+    expect(parseShow({ handout_id: ID, with_map: true }).ok).toBe(false);
+    expect(parseShow({ place_id: ID, with_map: "yes" }).ok).toBe(false);
+  });
+});
+
 describe("offeredHandout", () => {
   const offers = Array.from({ length: MAX_HANDOUTS_SHOWN + 2 }, (_, i) => ({ id: `h${i}`, title: `Letter ${i}` }));
   // Bug caught: a handout the narrator was never shown (one it guessed, or one beyond the list) handed over.
@@ -67,6 +79,20 @@ describe("what is kept of a shown thing", () => {
     expect(asShown({ kind: "handout", id: "nope", title: "A letter" })).toBeNull();
     expect(asShown({ kind: "handout", id: ID, title: " " })).toBeNull();
     expect(asShown("nonsense")).toBeNull();
+  });
+
+  // Bug caught: a place read back with its map or nook flags lost, or with an unsafe picture address.
+  it("reads back a whole place card, with or without a picture", () => {
+    expect(asShown({ kind: "place", id: ID, title: "The Salt Hall", url: null, hasMap: true, hasNook: false })).toEqual({ kind: "place", id: ID, title: "The Salt Hall", url: null, hasMap: true, hasNook: false });
+    expect(asShown({ kind: "place", id: ID, title: "The Salt Hall", url: "https://a.example/s.webp", hasMap: false, hasNook: true })).toMatchObject({ url: "https://a.example/s.webp", hasNook: true });
+    expect(asShown({ kind: "place", id: ID, title: "The Salt Hall", url: "javascript:alert(1)", hasMap: false, hasNook: false })).toBeNull();
+    expect(asShown({ kind: "place", id: "nope", title: "The Salt Hall", url: null, hasMap: false, hasNook: false })).toBeNull();
+  });
+
+  // Bug caught: the narrator describing a map it was only told about.
+  it("tells the narrator whether the map went with the place", () => {
+    expect(shownText({ kind: "place", id: ID, title: "The Salt Hall", url: null, hasMap: true, hasNook: false })).toContain("holds its map");
+    expect(shownText({ kind: "place", id: ID, title: "The Salt Hall", url: null, hasMap: false, hasNook: false })).not.toContain("map,");
   });
 
   // Bug caught: the narrator retelling a handout the player is meant to read for themselves.

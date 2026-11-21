@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(21);
 
 -- #642 part two (20260809214703): the admin actions that used to be direct
 -- table writes from the browser are now SECURITY DEFINER RPCs that log what they
@@ -55,6 +55,11 @@ select throws_ok(
 select throws_ok(
   $$ select public.admin_grant_credits('6a000000-0000-4000-8000-000000000002', 500, 'free money') $$,
   'Not authorized', 'a non-admin cannot grant themselves credits');
+
+-- #1021 row 18: reopening an AI table the screen closed is an admin's alone; otherwise an account could clear its own strikes.
+select throws_ok(
+  $$ select public.admin_reopen_table('6a000000-0000-4000-8000-000000000002', 'I promise') $$,
+  'Not authorized', 'a non-admin cannot reopen their own closed table');
 
 -- ── The direct write paths the RPCs replace are closed ───────────────────────
 -- Both of these succeeded before 20260809214703 — for the admin via the dropped
@@ -161,6 +166,20 @@ select is(
      and details ->> 'reason' = 'goodwill'),
   1,
   'the grant is logged with its amount and stated reason');
+
+-- #1021 row 18: a reopening always says why, and is the audit row the turn's strike count starts after.
+select throws_ok(
+  $$ select public.admin_reopen_table('6a000000-0000-4000-8000-000000000002', '   ') $$,
+  '22023', null, 'a reopening without a reason is refused');
+
+select public.admin_reopen_table('6a000000-0000-4000-8000-000000000002', 'appealed: a misread joke');
+select is(
+  (select count(*)::integer from public.admin_audit_log
+   where action = 'table_reopen'
+     and target_user_id = '6a000000-0000-4000-8000-000000000002'
+     and details ->> 'reason' = 'appealed: a misread joke'),
+  1,
+  'the reopening is logged with its reason');
 
 reset role;
 

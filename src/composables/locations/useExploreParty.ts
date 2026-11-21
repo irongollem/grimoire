@@ -6,11 +6,10 @@ import {
   exploreTokens,
   memberSize,
   seatInFormation,
-  seedPartyAtEntrance,
   seedPartyAtCentre,
-  seedPartyPositions,
   type ExploreFrame,
 } from "@/lib/locations/explore";
+import { seedPartyAtEntrance, seedPartyPositions } from "@/lib/locations/exploreSeating";
 import { positionsOnSite, type ExploreCell } from "@/rules/explore/explorePositions";
 import { useCampaignStore } from "@/stores/campaign";
 import type { RunCombatant } from "@/types/encounter.types";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planReveals } from "./reveals";
+import { planPlaceShare, planReveals } from "./reveals";
 
 const ROSIE = "rosie";
 const OTHER = "fresco";
@@ -40,5 +40,27 @@ describe("planReveals", () => {
 
   it("reveals no place when the party has none", () => {
     expect(planReveals({ memberId: ROSIE, place: null, characters: [] })).toEqual({ place: null, characters: [] });
+  });
+});
+
+describe("planPlaceShare", () => {
+  const place = (over: Partial<{ visibleTo: string[]; descriptionShared: boolean; mapShared: boolean }> = {}) => ({ id: "hall", visibleTo: [] as string[], descriptionShared: false, mapShared: false, ...over });
+
+  // Bug caught: handing a place over also handing the map over, whatever the story said.
+  it("shares the place without its map unless the story gave the map", () => {
+    expect(planPlaceShare({ memberId: ROSIE, place: place(), withMap: false })).toEqual({ id: "hall", patch: { player_visible_to: [ROSIE], is_description_shared: true } });
+    expect(planPlaceShare({ memberId: ROSIE, place: place(), withMap: true })?.patch.is_map_shared).toBe(true);
+  });
+
+  // Bug caught: a map the DM already shares written again, or a place already known costing a write.
+  it("writes only what is new", () => {
+    const known = place({ visibleTo: [ROSIE, OTHER], descriptionShared: true, mapShared: true });
+    expect(planPlaceShare({ memberId: ROSIE, place: known, withMap: true })).toBeNull();
+    expect(planPlaceShare({ memberId: ROSIE, place: place({ visibleTo: [ROSIE], descriptionShared: true }), withMap: true })).toEqual({ id: "hall", patch: { is_map_shared: true } });
+  });
+
+  // Bug caught: another player's hold on the place dropped by handing it to this character.
+  it("keeps whoever already holds the place", () => {
+    expect(planPlaceShare({ memberId: ROSIE, place: place({ visibleTo: [OTHER] }), withMap: false })?.patch.player_visible_to).toEqual([OTHER, ROSIE]);
   });
 });

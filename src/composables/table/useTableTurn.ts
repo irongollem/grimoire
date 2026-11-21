@@ -82,8 +82,6 @@ export interface TableTurnOptions {
   fightTurn?: () => FightTurn | null;
   /** The Dungeon Master's ruling changes the fight on the board: the page carries it out. */
   onFightChange?: (change: FightChange) => void;
-  /** Whole days passed in the story this turn: the campaign's date moves on by them. */
-  onDays?: (days: number) => void;
   /** A turn was kept. `floor` is "characters" when they were still talking among themselves and nothing waits on the player. */
   onDone?: (floor: "characters" | "player") => void;
 }
@@ -203,7 +201,6 @@ export function useTableTurn(options: TableTurnOptions) {
           if (event.type === "pressure") options.onPressure?.(event.pressure);
           if (event.type === "fight") options.onFight?.(event.fight);
           if (event.type === "fight_change") options.onFightChange?.(event.change);
-          if (event.type === "days") options.onDays?.(event.days);
           if (event.type === "ask_roll") setAsked(event.roll);
           live.value = applyTableEvent(live.value, event, start);
         }

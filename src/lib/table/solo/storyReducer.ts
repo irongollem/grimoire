@@ -86,6 +86,8 @@ export function applyTableEvent(items: StoryItem[], event: TableEvent, turnStart
     }
     case "hands":
       return withMargin(items, event.text);
+    case "screened":
+      return withMargin(items, "Some of the campaign's text was left out of this turn: it did not pass the table's screen.");
     case "hit_points": {
       const { heals, why, by, hp, maxHp } = event.change;
       const moved = by === 0 ? "no hit points" : `${heals ? "+" : "−"}${by} hit points`;

@@ -132,6 +132,18 @@ async function carryOutKeptTurn(
   if (here !== null && turnTools.spoke.size > 0) {
     await safely(() => deps.placeCharacters(campaign.id, here, [...turnTools.spoke]));
   }
+  // The party arrived somewhere: the rest of what the DM's own exploring screen does when the party enters a room,
+  // done here because a table with no DM browser has nobody else to do it. In this order (the arrival trigger first,
+  // so the room is explored before its squares are revealed and the party stands in it); each its own `safely`, so one
+  // that cannot be written costs that write, never the turn or the writes after it. The prepared encounter at the new
+  // place needs no write: the Narrator already sees it (`viewAt` in `makeTurnTools`).
+  const arrivedAt = turnTools.movedTo();
+  if (arrivedAt !== null) {
+    const party = [...(character ? [character.id] : []), ...ctx.companions.map((c) => c.id)];
+    await safely(() => deps.moveParty.setPlace(campaign.id, arrivedAt));
+    await safely(() => deps.moveParty.revealRoom(campaign.id, arrivedAt));
+    await safely(() => deps.moveParty.seatParty(campaign.id, arrivedAt, party));
+  }
   // What play reveals: the played character has now seen this place and met whoever spoke in front of them.
   // Only for a played character, and only with the kept turn. A failure costs a reveal, never the turn.
   if (session.party_member_id !== null && (here !== null || turnTools.spoke.size > 0)) {
@@ -152,11 +164,25 @@ async function carryOutKeptTurn(
       })
     );
   }
+  // The days the story told have passed, on the server, so a table with no browser open still moves time. Before the
+  // quest moves: a payoff fired this turn is fired as of the new date. A date that cannot be moved costs the days,
+  // never the turn, and the payoff is then fired as of the date the turn began with. The campaign row rings the
+  // doorbell, so every open screen reads the new date by itself.
+  let today = campaign.date ?? null;
+  if (fx.daysPassed > 0) {
+    try {
+      const moved = await deps.advanceDate(campaign.id, fx.daysPassed);
+      today = moved.date;
+      if (moved.text !== null) await safely(() => deps.announce(campaign.id, `📅 The date is now ${moved.text}`));
+    } catch (error) {
+      console.error("agent-turn: moving the campaign's date failed:", error);
+    }
+  }
   // Only now: a turn that was not kept leaves the quests untouched, and the player's retry makes the moves again.
   if (questState !== null) {
     await applyKeptQuestMoves({
       deps,
-      ctx: { campaignId: campaign.id, agentSessionId: session.id },
+      ctx: { campaignId: campaign.id, agentSessionId: session.id, today },
       state: questState,
       queued: fx.queued,
     });
@@ -164,6 +190,9 @@ async function carryOutKeptTurn(
     const shown = pressureShown(questState, fx.queued);
     if (shown !== null || questState.pressure !== null) emit({ type: "pressure", pressure: shown });
   }
+  // Rulings on the played character's inventions, as the caller who holds the DM membership. Each its own `safely`: one
+  // the database refuses (already decided from the Workshop meanwhile) costs that ruling, never the turn.
+  for (const ruling of fx.rulings) await safely(() => deps.decideInvention(ruling));
   await settleFight(scope, fx, session, ctx, here);
   // (The fight's own line on the record is filed in `settleFight`, where the conversation lets go of it.)
   // What changed hands, in the order it was told. One that cannot be made (the giver's pockets changed, the
@@ -204,14 +233,19 @@ async function carryOutKeptTurn(
       }
     }
   }
+  // Places handed over in the story are shared the same way (the played character is shown them; the map only when
+  // the story gave the map). One that cannot be written costs that place, never the turn.
+  if (character) {
+    for (const place of fx.sharedPlaces) {
+      await safely(() => deps.sharePlace({ campaignId: campaign.id, memberId: character.id, placeId: place.id, withMap: place.withMap }));
+    }
+  }
   await mendCharacter(scope, fx.hitPointChange, character);
-  // The days the story told have passed: the page moves the campaign's date (its calendar lives with the app).
   // A clue that came out in play is found and a passage told, now that the turn is kept: a turn that was not kept
   // leaves the canon as it was. One that cannot be written costs that mark, never the turn.
   for (const brought of fx.broughtOut) {
     await safely(() => deps.canon.bringOut({ campaignId: campaign.id, campaignSessionId: session.campaign_session_id }, brought));
   }
-  if (fx.daysPassed > 0) emit({ type: "days", days: fx.daysPassed });
   // The people the narrator made up get their records. One that cannot be written (a plan's limit on
   // characters, a name taken meanwhile) costs that record, never the turn: the facts about them are kept.
   for (const intro of fx.introduced) {

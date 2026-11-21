@@ -6,10 +6,11 @@ import type { BroughtOut } from "../_shared/agent/canon.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
 import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
 import type { HazardRules } from "../_shared/agent/hazard.ts";
-import type { HandoutOffer } from "../_shared/agent/show.ts";
+import type { HandoutOffer, PlaceShare } from "../_shared/agent/show.ts";
 import type { HandsChange } from "../_shared/agent/hands.ts";
 import type { Introduction } from "../_shared/agent/introduce.ts";
 import type { FightPlan } from "../_shared/agent/fight.ts";
+import type { InventionRuling } from "../_shared/agent/invention.ts";
 import type { PendingRoll } from "../_shared/agent/playerRoll.ts";
 import type { QuestMove } from "../_shared/agent/quests.ts";
 import type { FiledFact } from "./turnTools.ts";
@@ -38,6 +39,8 @@ export interface TurnEffects {
   asked: PendingRoll | null;
   /** Handouts handed over in the story this turn; given for real once the turn is kept. */
   handedOut: HandoutOffer[];
+  /** Places handed over in the story this turn; shared with the played character once the turn is kept. */
+  sharedPlaces: PlaceShare[];
   lastExchange: { ended: "to_player" | "open"; cutShort: boolean } | null;
   narratorKeeps: boolean;
   // What changes hands this turn; moved only once the turn is kept.
@@ -55,6 +58,8 @@ export interface TurnEffects {
   fightPlan: FightPlan | null;
   // Clues found and passages told in play this turn (#1226); marked only once the turn is kept.
   broughtOut: BroughtOut[];
+  // Rulings on the played character's inventions this turn (#1103); made only once the turn is kept, because an approval has no undo.
+  rulings: InventionRuling[];
 }
 
 export function newEffects(): TurnEffects {
@@ -64,6 +69,7 @@ export function newEffects(): TurnEffects {
     queued: [],
     asked: null,
     handedOut: [],
+    sharedPlaces: [],
     lastExchange: null,
     narratorKeeps: false,
     handed: [],
@@ -74,6 +80,7 @@ export function newEffects(): TurnEffects {
     daysPassed: 0,
     fightPlan: null,
     broughtOut: [],
+    rulings: [],
   };
 }
 

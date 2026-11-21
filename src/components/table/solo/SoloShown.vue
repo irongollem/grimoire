@@ -9,6 +9,17 @@
     <AppButton :to="`/play/handouts/${shown.id}`" variant="outline" size="md" label="Read it" />
   </div>
 
+  <!-- A place handed over: it is among the player's places now, with its map and its nook when the story gave them. -->
+  <div v-else-if="shown.kind === 'place'" class="my-3 flex items-center gap-3 border border-border bg-card px-4 py-3" data-testid="solo-shown-place">
+    <img v-if="shown.url" :src="shown.url" :alt="shown.title" loading="lazy" class="size-14 shrink-0 border border-border bg-card object-cover p-0.5" />
+    <component :is="IconMap" v-else class="size-6 shrink-0 text-muted-foreground" aria-hidden="true" />
+    <div class="flex min-w-0 flex-1 flex-col">
+      <span class="text-caption uppercase tracking-wide text-muted-foreground">A place{{ placeHints }}</span>
+      <span class="truncate text-label-lg font-semibold text-foreground">{{ shown.title }}</span>
+    </div>
+    <AppButton :to="{ path: '/play/atlas', query: { open: shown.id } }" variant="outline" size="md" label="Open in your places" />
+  </div>
+
   <!-- A picture held up: the campaign's own art of who or what the party is looking at. -->
   <figure v-else class="my-3 flex flex-col items-start gap-1.5" data-testid="solo-shown-picture">
     <button
@@ -26,17 +37,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ImageLightbox from "@/components/common/overlays/ImageLightbox.vue";
-import { IconScrollText } from "@/lib/icons";
+import { IconMap, IconScrollText } from "@/lib/icons";
 import type { Shown } from "@edge-shared/agent/show.ts";
 
 /**
  * Something the Dungeon Master put in front of the player (#1021): a handout handed over, or a picture shown. The
  * picture's button is a bare frame around the image, with no control chrome of its own.
  */
-defineProps<{ shown: Shown }>();
+const props = defineProps<{ shown: Shown }>();
+
+/** "with a map", "with a nook" after the eyebrow: what the place brings along, said small. */
+const placeHints = computed(() => {
+  if (props.shown.kind !== "place") return "";
+  const hints = [...(props.shown.hasMap ? ["map"] : []), ...(props.shown.hasNook ? ["nook"] : [])];
+  return hints.length === 0 ? "" : ` with a ${hints.join(" and a ")}`;
+});
 
 const thumb = ref<HTMLElement | null>(null);
 const opened = ref(false);

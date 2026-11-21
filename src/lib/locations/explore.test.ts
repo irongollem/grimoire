@@ -7,12 +7,9 @@ import type { CellKey } from "@/types/dungeonMap.types";
 import {
   afterFightRoute,
   cellsCentre,
-  entranceBattleCells,
   exploreToken,
   exploreTokens,
   memberSize,
-  partyTokenId,
-  roomBattleCells,
   roomBeingEntered,
   roomCellIndex,
   roomsUnder,
@@ -20,9 +17,8 @@ import {
   seatFromExploring,
   seatInFormation,
   seedPartyAtCentre,
-  seedPartyAtEntrance,
-  seedPartyPositions,
 } from "./explore";
+import { entranceBattleCells, partyTokenId, roomBattleCells, seedPartyAtEntrance, seedPartyPositions } from "./exploreSeating";
 import { positionsOnSite } from "@/rules/explore/explorePositions";
 
 // A calibration whose map-cell origin is (10, 20): region cells are offset from the battle map's image cells by it.

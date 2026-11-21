@@ -176,15 +176,8 @@ import { useBeatsStagedAt } from "@/composables/quests/useBeatsStagedAt";
 import { useLootPlacements, useQuestBeat } from "@/composables/quests/useQuestFlow";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { IconChevronLeft, IconEncounter, IconMonitor } from "@/lib/icons";
-import {
-  entranceBattleCells,
-  roomBattleCells,
-  roomBeingEntered,
-  roomCellIndex,
-  seedPartyPositions,
-  type ExploreFrame,
-  type RoomExploreState,
-} from "@/lib/locations/explore";
+import { roomBeingEntered, roomCellIndex, type ExploreFrame, type RoomExploreState } from "@/lib/locations/explore";
+import { entranceBattleCells, roomBattleCells, seedPartyPositions } from "@/lib/locations/exploreSeating";
 import type { ExploreCell } from "@/rules/explore/explorePositions";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { placeRoute } from "@/lib/locations/placeRoute";

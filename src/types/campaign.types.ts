@@ -40,6 +40,8 @@ export interface Campaign {
   map_memory: "remembered" | "strict";
   /** "shared": the party sees through each other's eyes; "own": each player sees only their own character. */
   player_sight: "shared" | "own";
+  /** How hard the AI table's narrator tells violence and horror. The sexual-content rules have no setting. */
+  table_violence: "gentle" | "standard" | "grim";
   /** When false, hide the VTT token layer from players entirely. The DM
    *  still sees their own view normally. Useful for in-person sessions
    *  where the VTT is used for map + fog only. */
@@ -107,6 +109,7 @@ export type CampaignInsert = Omit<
   | "immersive_rolls"
   | "map_memory"
   | "player_sight"
+  | "table_violence"
   | "optional_rules"
   | "game_system"
   | "allows_mixed_rulesets"
@@ -138,6 +141,7 @@ export type CampaignInsert = Omit<
   immersive_rolls?: boolean;
   map_memory?: Campaign["map_memory"];
   player_sight?: Campaign["player_sight"];
+  table_violence?: Campaign["table_violence"];
   optional_rules?: CampaignOptionalRules;
   game_system?: GameSystemKey;
   allows_mixed_rulesets?: boolean;

@@ -39,6 +39,7 @@ insert into definer_registry (name, kind, reason) values
   ('admin_fulfil_dsr_request', 'refuses', null),
   ('admin_grant_credits', 'refuses', null),
   ('admin_log_dsr_request', 'refuses', null),
+  ('admin_reopen_table', 'refuses', null),
   ('admin_set_user_plan', 'refuses', null),
   ('admin_set_user_suspended', 'refuses', null),
   ('apply_de_level', 'refuses', null),

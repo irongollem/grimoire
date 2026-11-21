@@ -1,4 +1,4 @@
-import type { CalendarAdapter, CalendarMonth } from "@/types/calendar.types";
+import type { CalendarAdapter, CalendarMonth } from "../types/calendar.types.ts";
 
 const MONTHS: CalendarMonth[] = [
   { num: 1, name: "January", alias: "New Year", days: 31 },

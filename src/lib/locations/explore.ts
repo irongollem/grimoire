@@ -10,6 +10,7 @@ import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { PartyMember } from "@/types/party.types";
 import { exploreRoute } from "@/lib/locations/placeRoute";
 import { regionCellToBattleCell, seedTokenPositions } from "@/lib/battlemap/roomBridge";
+import { partyTokenId } from "@/lib/locations/exploreSeating";
 import { footprintCells } from "@/lib/battlemap/partySight";
 import { sizeToFootprint, type SizedToken } from "@/lib/battlemap/tokenFootprint";
 import type { MonsterSize } from "@/types/monster.types";
@@ -19,11 +20,6 @@ import { effectiveSize, type SpeciesStatsSource } from "@/rules/speciesStats";
 
 /** A room's standing in the Rooms list: lit, the one the party is stepping into, or still shaded. */
 export type RoomExploreState = "explored" | "entering" | "hidden";
-
-/** The instance id a character's token carries in a fight (`p-<member id>`), so exploring and fighting agree on who is who. */
-export function partyTokenId(memberId: string): string {
-  return `p-${memberId}`;
-}
 
 type TokenMember = Pick<PartyMember, "id" | "name" | "current_hp" | "max_hp" | "portrait_url" | "portrait_focal_point">;
 
@@ -96,47 +92,6 @@ export function roomsUnder(
   return rooms;
 }
 
-/** A room's cells in battle-cell space, by room id. */
-export function roomBattleCells(regions: readonly LocationMapRegion[], calibration: GridCalibration): Map<string, CellKey[]> {
-  const byRoom = new Map<string, CellKey[]>();
-  for (const region of regions) {
-    if (region.region_role !== "space" || !region.space_location_id) continue;
-    const cells = region.cells.map((c) => regionCellToBattleCell(c, calibration));
-    byRoom.set(region.space_location_id, [...(byRoom.get(region.space_location_id) ?? []), ...cells]);
-  }
-  return byRoom;
-}
-
-/** The squares of the site's Entrance zones in battle cells, de-duplicated: where the party walks in (#1125). A zone
- *  marked as a way out only (`party_arrives: false`) is left out: creatures leave by it, nobody arrives. Empty when
- *  the site has none. */
-export function entranceBattleCells(regions: readonly LocationMapRegion[], calibration: GridCalibration): CellKey[] {
-  const cells = new Set<CellKey>();
-  for (const region of regions) {
-    if (region.region_role !== "zone" || region.zone_kind !== "entrance") continue;
-    if (region.zone_payload.party_arrives === false) continue;
-    for (const cell of region.cells) cells.add(regionCellToBattleCell(cell, calibration));
-  }
-  return [...cells];
-}
-
-/**
- * First entry to a site that has an Entrance zone: the party walks in there, packed row by row and sized by footprint
- * like a fight seats them. A character the zone has no room for is left out, so the caller can seat them elsewhere.
- */
-export function seedPartyAtEntrance(
-  members: readonly TokenMember[],
-  entranceCells: readonly CellKey[],
-  sizeOf: (memberId: string) => MonsterSize | null = () => null,
-): Record<string, ExploreCell> {
-  const tokens = members.map((m) => exploreToken(m, null, sizeOf(m.id)));
-  const positions: Record<string, ExploreCell> = {};
-  for (const c of seedTokenPositions(tokens, [...entranceCells])) {
-    if (c.party_member_id !== undefined && c.position) positions[c.party_member_id] = c.position;
-  }
-  return positions;
-}
-
 /** The room a token's middle stands in, or null in a corridor, outside, or on an untraced stretch. */
 export function roomUnder(position: ExploreCell, footprint: number, index: ReadonlyMap<CellKey, string>): string | null {
   const mid = footprint / 2;
@@ -155,27 +110,6 @@ export function roomBeingEntered(
   if (!lead) return null;
   const under = roomUnder(lead.position, lead.footprint, index);
   return under !== null && under !== currentRoomId ? under : null;
-}
-
-/**
- * First entry to a site: the party stands in the room it is in, else the first room, packed row by row like a fight
- * seats them. A character the room has no space for is left out (the caller's tray picks them up).
- */
-export function seedPartyPositions(
-  members: readonly TokenMember[],
-  roomCells: ReadonlyMap<string, CellKey[]>,
-  roomOrder: readonly string[],
-  partyRoomId: string | null,
-): Record<string, ExploreCell> {
-  const entrance = partyRoomId !== null && roomCells.has(partyRoomId) ? partyRoomId : roomOrder.find((id) => roomCells.has(id));
-  const cells = entrance === undefined ? undefined : roomCells.get(entrance);
-  if (cells === undefined) return {};
-  const seated = seedTokenPositions(members.map((m) => exploreToken(m, null)), cells);
-  const positions: Record<string, ExploreCell> = {};
-  for (const c of seated) {
-    if (c.party_member_id !== undefined && c.position) positions[c.party_member_id] = c.position;
-  }
-  return positions;
 }
 
 /** The picture's size in image cells: how many squares across and down the calibrated frame holds. */

@@ -9,7 +9,11 @@
 import type { AgentProvider } from "../_shared/agent/providerIo";
 import type { Companion } from "../_shared/agent/companions";
 import type { HazardRules, KeptHazard } from "../_shared/agent/hazard";
-import { STRIKES_BEFORE_CLOSED } from "../_shared/agent/conduct.ts";
+import type { SiteState } from "../_shared/agent/site.ts";
+import { NO_SITE } from "../_shared/agent/site.ts";
+import type { SceneMemory } from "../_shared/agent/memories.ts";
+import type { InventionRuling, PendingInvention } from "../_shared/agent/invention.ts";
+import { STRIKES_BEFORE_CLOSED, violenceLine } from "../_shared/agent/conduct.ts";
 import type { HandsChange } from "../_shared/agent/hands.ts";
 import { describe, expect, it, vi } from "vitest";
 import { beginTurn, handleAgentTurn } from "./handler";
@@ -29,7 +33,8 @@ import type { RecordedFact } from "../_shared/agent/record";
 import type { PendingRoll } from "../_shared/agent/playerRoll";
 import type { Prologue } from "../_shared/agent/prologue";
 import type { FightPlan, FightsInView } from "../_shared/agent/fight";
-import { NO_QUESTS, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests";
+import type { DatePoint } from "../_shared/npcAge";
+import { NO_QUESTS, type QuestMove, type QuestPayoff, type QuestsInPlay } from "../_shared/agent/quests";
 import { AgentProviderError, type AgentBlock, type CallModel, type ModelRequest, type ModelStep } from "../_shared/agent/types";
 import { blocksOf, type StoredTurn, type TurnRow } from "../_shared/agent/transcript";
 import type { CreditLogFields } from "../_shared/credits";
@@ -39,9 +44,11 @@ import { NO_CHECK_MATERIAL, type CanonCheckMaterial } from "../_shared/agent/can
 
 const PICTURED = "00000000-0000-4000-8000-0000000000f1";
 const HANDOUT = "00000000-0000-4000-8000-0000000000f2";
+const SHOWN_PLACE = "00000000-0000-4000-8000-0000000000f3";
 const DM = "00000000-0000-4000-8000-0000000000d1";
 const OTHER = "00000000-0000-4000-8000-0000000000e2";
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
+const START_DATE: DatePoint = { year: 1492, month: 3, day: 14 };
 const OTHER_CAMPAIGN = "00000000-0000-4000-8000-0000000000c2";
 const SESSION = "00000000-0000-4000-8000-0000000000a1";
 const PLAY_SESSION = "00000000-0000-4000-8000-0000000000a7";
@@ -104,6 +111,8 @@ interface Harness {
   memories: Array<{ characterId: string; kind: string; body: string }>;
   memorySessions: Array<string | null>;
   placed: Array<{ campaignId: string; locationId: string; characterIds: string[] }>;
+  /** The party's arrival writes in the order they were made (row 9): the place, the revealed room, the seated party. */
+  arrivals: Array<{ write: "place" | "reveal" | "seat"; campaignId: string; placeId: string; memberIds?: string[] }>;
   summaries: Array<{ expectedThroughSeq: number; throughSeq: number; summary: string; credits: number }>;
   /** The running total of credits accrued per conversation, as the database keeps it. */
   totals: Map<string, number>;
@@ -120,6 +129,7 @@ interface Harness {
     /** The campaign's handouts the played character does not hold yet. */
     handouts: { id: string; title: string }[];
     handoutFails: boolean;
+    placeFails: boolean;
     /** How many of the account's messages the screen refused lately. */
     strikes: number;
     /** What the output screen refuses: a turn whose own words hold this text is withheld. */
@@ -186,8 +196,22 @@ interface Harness {
     discardThrows: boolean;
     quests: QuestsInPlay;
     questsThrow: boolean;
+    /** What the party's place has had marked on it, what its characters remember, and whether either read fails. */
+    site: SiteState;
+    siteThrows: boolean;
+    sceneMemories: SceneMemory[];
+    sceneMemoriesThrow: boolean;
+    /** The played character's inventions waiting on a ruling, whether that read fails, and whether a ruling is refused. */
+    inventions: PendingInvention[];
+    inventionsThrow: boolean;
+    decideFails: boolean;
     /** Moves that fail to apply, by their position in the order applied. */
     failMoveAt: Set<number>;
+    /** The party's arrival writes that fail (row 9). */
+    failArrival: Set<"place" | "reveal" | "seat">;
+    /** The date move (`advance_campaign_date`) and the chat line after it fail. */
+    advanceFails: boolean;
+    announceFails: boolean;
     /** The canon (#1226): the world block, the last sitting, what lies here, the lookup, what an invention is held against. */
     canonWorld: string;
     canonPrevious: string;
@@ -200,7 +224,13 @@ interface Harness {
   /** What the canon store was asked, and every clue or passage it was told to mark. */
   canonAsked: { previously: Array<string | null>; here: Array<{ locationId: string | null; present: string[] }>; lookups: string[]; brought: BroughtOut[] };
   /** Every quest move the handler applied, in order, and the campaign and conversation it applied it for. */
-  applied: Array<{ ctx: { campaignId: string; agentSessionId: string }; move: QuestMove }>;
+  applied: Array<{ ctx: { campaignId: string; agentSessionId: string; today?: DatePoint | null }; move: QuestMove }>;
+  /** Every date move asked of the database, and every chat line posted about one. */
+  dateMoves: Array<{ campaignId: string; days: number }>;
+  /** Every invention read (campaign and character) and every ruling asked of the database. */
+  inventionReads: Array<{ campaignId: string; memberId: string }>;
+  rulingsMade: InventionRuling[];
+  announced: string[];
   questLoads: Array<{ campaignId: string; pressureClockId: string | null }>;
   fightLoads: Array<{ campaignId: string; locationId: string | null; fightEncounterId: string | null }>;
   introduced: Array<{ ctx: { campaignId: string; memberId: string | null; locationId: string | null }; intro: { replaces: string | null; name: string; about: string; known: boolean; here: boolean } }>;
@@ -212,6 +242,7 @@ interface Harness {
   laidLoot: { encounterId: string; placeId: string | null; held: string }[];
   /** Handouts given for real, once their turn was kept. */
   handoutsGiven: { handoutId: string; memberId: string }[];
+  placesShared: { placeId: string; memberId: string; withMap: boolean }[];
   /** Every text the output screen was given. */
   screenedOutput: string[];
   /** For each screened text, whether it was held to a child's bar. */
@@ -255,6 +286,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     memories: [],
     memorySessions: [],
     placed: [],
+    arrivals: [],
     summaries: [],
     totals: new Map<string, number>(),
     ledger: [],
@@ -262,7 +294,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     reserved: [],
     script,
     state: {
-      campaign: { id: CAMPAIGN, user_id: DM, name: "Cup Town", game_system: "dnd5e-2024", ai_enabled: true },
+      campaign: { id: CAMPAIGN, user_id: DM, name: "Cup Town", game_system: "dnd5e-2024", ai_enabled: true, table_violence: "standard", date: START_DATE },
       isDm: true,
       provider: { provider: "openai", model: "m1", isByok, callModel },
       price: { inputPerMillion: 0, outputPerMillion: 10, cachedInputPerMillion: null },
@@ -271,6 +303,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       strikes: 0,
       handouts: [],
       handoutFails: false,
+      placeFails: false,
       forbidden: null,
       children: [],
       rateOk: true,
@@ -317,7 +350,17 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       discardThrows: false,
       quests: NO_QUESTS,
       questsThrow: false,
+      site: NO_SITE,
+      siteThrows: false,
+      sceneMemories: [],
+      sceneMemoriesThrow: false,
+      inventions: [],
+      inventionsThrow: false,
+      decideFails: false,
       failMoveAt: new Set<number>(),
+      failArrival: new Set<"place" | "reveal" | "seat">(),
+      advanceFails: false,
+      announceFails: false,
       canonWorld: "",
       canonPrevious: "",
       canonHere: NO_CANON_HERE,
@@ -328,6 +371,10 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     },
     canonAsked: { previously: [], here: [], lookups: [], brought: [] },
     applied: [],
+    dateMoves: [],
+    inventionReads: [],
+    rulingsMade: [],
+    announced: [],
     questLoads: [],
     pendingRolls: [],
     reveals: [],
@@ -342,6 +389,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     screenedOutput: [],
     screenedAsChild: [],
     handoutsGiven: [],
+    placesShared: [],
     facts: [],
     recordLoads: [],
     discards: [],
@@ -401,6 +449,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       h.screenedAsChild.push(childTookPart);
       return h.state.forbidden !== null && text.includes(h.state.forbidden);
     },
+    // Nothing of the campaign's own text is refused unless a test says so (`campaignTextScreen.test.ts` holds the rules).
+    campaignText: { lookup: async () => new Map(), moderate: async () => ({ flagged: false, categories: [] }), remember: async () => {} },
     anyChild: async (_campaign, ids) => ids.some((id) => h.state.children.includes(id)),
     // `withCreditHold` and `settleHandedOff` own releasing once, writing the lines after the release, and charging
     // nothing for work that threw (`creditHold.test.ts`); these fakes only record what the handler asked of them.
@@ -484,6 +534,11 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     loadTravelMap: async () => ({ places: [], roads: [], tables: [], roadTables: [], food: null }),
     rollDie: () => 1,
     loadPicture: async (_campaignId, what, id) => (id === PICTURED ? { title: `The ${what}`, url: "https://assets.example/p.webp" } : null),
+    loadPlace: async (_campaignId, id) => (id === SHOWN_PLACE ? { title: "The Salt Hall", url: null, hasMapPicture: true, mapShared: false, hasNook: true } : null),
+    sharePlace: async ({ placeId, memberId, withMap }) => {
+      if (h.state.placeFails) throw new Error("share failed");
+      h.placesShared.push({ placeId, memberId, withMap });
+    },
     giveHandout: async (_campaignId, handoutId, memberId) => {
       if (h.state.handoutFails) throw new Error("share failed");
       h.handoutsGiven.push({ handoutId, memberId });
@@ -554,6 +609,20 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     },
     findCharacters: async (_campaignId, name) =>
       "apprentice honeycomb".includes(name.toLowerCase()) ? [{ id: HONEYCOMB, shownName: "Apprentice Honeycomb" }] : [],
+    moveParty: {
+      setPlace: async (campaignId, placeId) => {
+        h.arrivals.push({ write: "place", campaignId, placeId });
+        if (h.state.failArrival.has("place")) throw new Error("db down");
+      },
+      revealRoom: async (campaignId, placeId) => {
+        h.arrivals.push({ write: "reveal", campaignId, placeId });
+        if (h.state.failArrival.has("reveal")) throw new Error("db down");
+      },
+      seatParty: async (campaignId, placeId, memberIds) => {
+        h.arrivals.push({ write: "seat", campaignId, placeId, memberIds });
+        if (h.state.failArrival.has("seat")) throw new Error("db down");
+      },
+    },
     placeCharacters: async (campaignId, locationId, characterIds) => {
       log.push("place");
       h.placed.push({ campaignId, locationId, characterIds });
@@ -563,11 +632,39 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       if (h.state.questsThrow) throw new Error("db down");
       return h.state.quests;
     },
+    loadSiteState: async () => {
+      if (h.state.siteThrows) throw new Error("db down");
+      return h.state.site;
+    },
+    loadSceneMemories: async () => {
+      if (h.state.sceneMemoriesThrow) throw new Error("db down");
+      return h.state.sceneMemories;
+    },
+    loadPendingInventions: async (campaignId, memberId) => {
+      h.inventionReads.push({ campaignId, memberId });
+      if (h.state.inventionsThrow) throw new Error("db down");
+      return h.state.inventions;
+    },
+    decideInvention: async (ruling) => {
+      h.rulingsMade.push(ruling);
+      if (h.state.decideFails) throw new Error("rpc failed");
+    },
     applyQuestMove: async (ctx, move) => {
       const at = h.applied.length;
       log.push("quest-move");
       h.applied.push({ ctx, move });
       if (h.state.failMoveAt.has(at)) throw new Error("rpc failed");
+    },
+    // A month of 30 days in the fake: the new date is the rule's own sum, never read back from the code under test.
+    advanceDate: async (campaignId, days) => {
+      h.dateMoves.push({ campaignId, days });
+      if (h.state.advanceFails) throw new Error("rpc failed");
+      const date = { ...START_DATE, day: START_DATE.day + days };
+      return { date, text: `day ${date.day} of month ${date.month}, ${date.year}` };
+    },
+    announce: async (_campaignId, text) => {
+      if (h.state.announceFails) throw new Error("insert failed");
+      h.announced.push(text);
     },
     judgeNarration: null,
     judgeCanon: null,
@@ -1602,6 +1699,16 @@ describe("where the party is", () => {
   const goTo = (input: Record<string, unknown>): ModelStep =>
     step(10, { blocks: [{ type: "tool_call", id: "g1", name: "go_to", input }], stop: "tool_calls" });
 
+  // Bug caught: the violence setting read from the campaign row but never handed to the narrator's instructions.
+  it("gives the narrator the violence wording of the campaign's setting", async () => {
+    const h = harness();
+    existingSession(h, { scene_location_id: CELLAR });
+    h.state.campaign = { ...h.state.campaign!, table_violence: "grim" };
+    await play(h, { body: GO });
+    expect(h.requests[0].system).toContain(violenceLine("grim"));
+    expect(h.requests[0].system).not.toContain(violenceLine("standard"));
+  });
+
   it("keeps the scene out of the instructions and puts it ahead of the player's words, or a moved party costs the whole prompt cache", async () => {
     const h = harness();
     existingSession(h, { scene_location_id: CELLAR, summary: "SUMMARY-MARK the party fled." });
@@ -2178,6 +2285,8 @@ describe("quests and time", () => {
       routes: [{ edgeId: EDGE, label: null, toBeatId: "00000000-0000-4000-8000-000000000a08", toBeatTitle: "The bell room", kind: "choice", open: true }],
       objectives: [{ id: OBJECTIVE, description: "Find the bell", status: "pending" }],
       clocks: [{ id: OTHER_CLOCK, label: "Tide", filled: 0, segments: 6 }],
+      held: [],
+      delayed: [],
     }],
     pressure: withPressure ? { clockId: PRESSURE_CLOCK, label: "FLOOD-MARK", filled, segments: 4 } : null,
   });
@@ -2273,7 +2382,7 @@ describe("quests and time", () => {
       { kind: "objective", objectiveId: OBJECTIVE, status: "complete", reason: "found it" },
       { kind: "route", questId: QUEST, threadId: THREAD, edgeId: EDGE },
     ]);
-    expect(h.applied[0].ctx).toEqual({ campaignId: CAMPAIGN, agentSessionId: SESSION });
+    expect(h.applied[0].ctx).toEqual({ campaignId: CAMPAIGN, agentSessionId: SESSION, today: START_DATE });
     expect(h.log.indexOf("quest-move")).toBeGreaterThan(h.log.lastIndexOf("save"));
     expect(h.log.lastIndexOf("done")).toBeGreaterThan(h.log.lastIndexOf("quest-move"));
   });
@@ -2431,6 +2540,34 @@ describe("quests and time", () => {
     expect(h.applied).toEqual([]);
   });
 
+  // Bug caught: the date, the site and the memories were read but never put in the state, so the Narrator still
+  // described an emptied crypt as full and did not know what day it was.
+  it("puts the date, what is marked on the place and what the characters remember in the state, not the instructions", async () => {
+    const h = harness();
+    existingSession(h, { scene_location_id: CELLAR });
+    h.state.campaign = { id: CAMPAIGN, user_id: DM, name: "Cup Town", game_system: "dnd5e-2024", ai_enabled: true, table_violence: "standard", today: "7 Marpenoth, 1492 DR" };
+    h.state.site = { places: [{ name: "Cellar", facts: ["cleared"] }], doors: [] };
+    h.state.sceneMemories = [{ npcId: "n1", name: "Maren", body: "The party paid the ferry toll.", createdAt: "2026-11-01T10:00:00Z" }];
+    await play(h, { body: BODY });
+    const sent = opening(h.requests[0]);
+    expect(sent).toContain("Today is 7 Marpenoth, 1492 DR.");
+    expect(sent).toContain("the Cellar is cleared");
+    expect(sent).toContain("Maren remembers: The party paid the ferry toll.");
+    for (const mark of ["Marpenoth", "is cleared", "remembers"]) expect(h.requests[0].system).not.toContain(mark);
+  });
+
+  // Bug caught: a failed site or memory read took the turn down with it instead of costing that section for a turn.
+  it("runs the turn without the site and memory sections when either cannot be read", async () => {
+    const h = harness();
+    existingSession(h, { scene_location_id: CELLAR });
+    h.state.siteThrows = true;
+    h.state.sceneMemoriesThrow = true;
+    await play(h, { body: BODY });
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(opening(h.requests[0])).not.toContain("## Site state");
+    expect(opening(h.requests[0])).not.toContain("## What they remember");
+  });
+
   it("refuses an id that was not in the section even when the model writes a plausible one", async () => {
     const h = harness([callTools(["quest_route", { quest_id: QUEST, thread_id: THREAD, edge_id: "00000000-0000-4000-8000-000000000bad" }]), step(10)]);
     existingSession(h);
@@ -2489,6 +2626,62 @@ describe("a recorded character is played as themselves, where the party is", () 
     lost.state.conflict = true;
     await play(lost, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "Hello.", mode: "say" } });
     expect(lost.placed).toEqual([]);
+  });
+});
+
+describe("the party's arrival is written on the server (row 9)", () => {
+  const go = (): ModelStep => step(100, { blocks: [{ type: "tool_call", id: "g1", name: "go_to", input: { location_id: CELLAR } }], stop: "tool_calls" });
+  const FOLIO = "00000000-0000-4000-8000-0000000000d1";
+  const companion: Companion = { id: FOLIO, name: "Folio", pronouns: null, species: null, className: null, subclass: null, level: null, hitPoints: null, about: null, aiSpeaks: false };
+  const kept = async (h: Harness, over: { scene_location_id?: string } = {}) => {
+    existingSession(h, { party_member_id: WREN, ...over });
+    h.state.characters.set(WREN, { id: WREN, name: "Wren", pronouns: null, species: null, className: null, subclass: null, level: null, hitPoints: null });
+    h.state.companions = [companion];
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "We go down.", mode: "do" } });
+  };
+
+  // Bug caught: the party's place, its map's memory or its squares left to a DM browser that is not open.
+  it("moves the party's place, reveals the room and seats the played character and the companions, in that order", async () => {
+    const h = harness([go(), step(200)]);
+    await kept(h);
+    expect(h.arrivals).toEqual([
+      { write: "place", campaignId: CAMPAIGN, placeId: CELLAR },
+      { write: "reveal", campaignId: CAMPAIGN, placeId: CELLAR },
+      { write: "seat", campaignId: CAMPAIGN, placeId: CELLAR, memberIds: [WREN, FOLIO] },
+    ]);
+  });
+
+  // Bug caught: a retry of a refused turn moves the party in the database although the turn never happened.
+  it("writes nothing when the turn was not kept", async () => {
+    const h = harness([go(), step(200)]);
+    h.state.conflict = true;
+    await kept(h);
+    expect(h.arrivals).toEqual([]);
+  });
+
+  // Bug caught: every kept turn rewrites the campaign's place and the party's squares.
+  it("writes nothing when the narrator made no move", async () => {
+    const h = harness([step(200)]);
+    await kept(h);
+    expect(h.arrivals).toEqual([]);
+  });
+
+  // The party is already in the cellar (the sitting's scene) and the narrator does not move it. Bug caught: the arrival keyed on the
+  // scene the turn ends in rather than a move made this turn, so every kept turn in a place rewrites its place, fog and squares.
+  it("writes nothing when the party stays where the sitting already had it", async () => {
+    const h = harness([step(200)]);
+    await kept(h, { scene_location_id: CELLAR });
+    expect(h.arrivals).toEqual([]);
+  });
+
+  // Bug caught: one failed write skipping the writes after it, or failing the turn.
+  it.each(["place", "reveal", "seat"] as const)("costs only the %s write when it cannot be made", async (failing) => {
+    const h = harness([go(), step(200)]);
+    h.state.failArrival.add(failing);
+    await kept(h);
+    expect(h.arrivals.map((a) => a.write)).toEqual(["place", "reveal", "seat"]);
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(h.events.some((e) => e.type === "error")).toBe(false);
   });
 });
 
@@ -3411,6 +3604,140 @@ describe("where a campaign begins", () => {
   });
 });
 
+describe("time and held payoffs, performed by the server once the turn is kept", () => {
+  const BODY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "We wait out the storm.", mode: "do" };
+  const QUEST = "00000000-0000-4000-8000-000000000b01";
+  const THREAD = "00000000-0000-4000-8000-000000000b02";
+  const HELD = "00000000-0000-4000-8000-000000000b03";
+  const DELAYED = "00000000-0000-4000-8000-000000000b04";
+  const payoff = (eventId: string, over: Partial<QuestPayoff> = {}): QuestPayoff => ({
+    eventId, action: "send_broadcast", subject: null, place: null, text: "The bell tolls.", step: null, to: null, atBeat: null, due: null, ...over,
+  });
+  const quests = (): QuestsInPlay => ({
+    threads: [{
+      questId: QUEST, questTitle: "The drowned bell", threadId: THREAD, threadLabel: null, beat: null, routes: [], objectives: [], clocks: [],
+      held: [payoff(HELD)],
+      delayed: [payoff(DELAYED, { due: "day 20" })],
+    }],
+    pressure: null,
+  });
+  const call = (id: string, name: string, input: Record<string, unknown>): ModelStep =>
+    step(10, { blocks: [{ type: "tool_call", id, name, input }], stop: "tool_calls" });
+  const table = (script: Script): Harness => {
+    const h = harness(script);
+    existingSession(h);
+    h.state.quests = quests();
+    return h;
+  };
+  const fire = (id: string): ModelStep => call("f1", "fire_consequence", { event_id: id });
+  const resultsSeen = (h: Harness, request: number) =>
+    h.requests[request].messages.flatMap((m) => m.blocks).filter((b) => b.type === "tool_result");
+  const fired = (h: Harness) => h.applied.filter((a) => a.move.kind === "fire");
+
+  // Bug caught: days told in a kept turn were only announced to a browser, so a table with no browser open never moved time.
+  it("moves the date by the days the story passed and says so in the chat with the new date", async () => {
+    const h = table([call("d1", "pass_days", { days: 3 }), step(10)]);
+    await play(h, { body: BODY });
+    expect(h.dateMoves).toEqual([{ campaignId: CAMPAIGN, days: 3 }]);
+    expect(h.announced).toEqual(["📅 The date is now day 17 of month 3, 1492"]);
+    expect(h.events.map((e) => e.type)).not.toContain("days");
+  });
+
+  // Bug caught: a date written for a turn that was never kept, and then written again when the player sent it again.
+  it("moves no date and posts no line for a turn that was not kept", async () => {
+    const h = table([call("d1", "pass_days", { days: 3 }), step(10)]);
+    h.state.conflict = true;
+    await play(h, { body: BODY });
+    expect(h.dateMoves).toEqual([]);
+    expect(h.announced).toEqual([]);
+  });
+
+  // Bug caught: one failed database call (the caller may not move time) throwing away a paid turn.
+  it("keeps the turn and its other moves when the date cannot be moved, and says nothing about a date that did not move", async () => {
+    const h = table([call("d1", "pass_days", { days: 3 }), step(10)]);
+    h.state.advanceFails = true;
+    await play(h, { body: BODY });
+    expect(h.appends).toHaveLength(1);
+    expect(h.announced).toEqual([]);
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
+  // Bug caught: a chat line that cannot be written undoing or hiding a date that has already moved.
+  it("keeps the turn when only the chat line fails", async () => {
+    const h = table([call("d1", "pass_days", { days: 2 }), step(10)]);
+    h.state.announceFails = true;
+    await play(h, { body: BODY });
+    expect(h.dateMoves).toEqual([{ campaignId: CAMPAIGN, days: 2 }]);
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
+  // Bug caught: a held payoff fired as of a date that was already over, when the same reply let days pass first.
+  it("fires a held payoff as of the turn's start date, with the campaign and the event as the caller's RPC wants them", async () => {
+    const h = table([fire(HELD), step(10)]);
+    await play(h, { body: BODY });
+    expect(fired(h).map((a) => a.move)).toEqual([{ kind: "fire", eventId: HELD }]);
+    expect(fired(h)[0].ctx.today).toEqual(START_DATE);
+    expect(resultsSeen(h, 1)[0]).toMatchObject({ content: expect.stringContaining("held payoff happens") });
+  });
+
+  it("fires as of the new date when the same turn passed days first, whatever order the model called them in", async () => {
+    const h = table([step(10, {
+      blocks: [
+        { type: "tool_call", id: "f1", name: "fire_consequence", input: { event_id: HELD } },
+        { type: "tool_call", id: "d1", name: "pass_days", input: { days: 5 } },
+      ],
+      stop: "tool_calls",
+    }), step(10)]);
+    await play(h, { body: BODY });
+    expect(fired(h)[0].ctx.today).toEqual({ ...START_DATE, day: START_DATE.day + 5 });
+  });
+
+  it("fires on the date the turn began with when the days could not be moved", async () => {
+    const h = table([call("d1", "pass_days", { days: 5 }), fire(HELD), step(10)]);
+    h.state.advanceFails = true;
+    await play(h, { body: BODY });
+    expect(fired(h)[0].ctx.today).toEqual(START_DATE);
+  });
+
+  // Bug caught: a delayed payoff (it fires itself on its day) or an id the model made up being performed on request.
+  it("refuses a delayed payoff and an unknown id with the list of what can be fired, and performs nothing", async () => {
+    const h = table([call("a", "fire_consequence", { event_id: DELAYED }), call("b", "fire_consequence", { event_id: "00000000-0000-4000-8000-000000000bff" }), step(10)]);
+    await play(h, { body: BODY });
+    expect(fired(h)).toEqual([]);
+    const answers = resultsSeen(h, 2);
+    expect(answers.map((r) => r.isError)).toEqual([true, true]);
+    expect(answers[0]).toMatchObject({ content: expect.stringContaining("not held back") });
+    expect(answers[0]).toMatchObject({ content: expect.stringContaining(HELD) });
+  });
+
+  // Bug caught: a second fire of the same payoff in one turn performed it twice.
+  it("refuses a second fire of the same payoff in one turn", async () => {
+    const h = table([fire(HELD), call("f2", "fire_consequence", { event_id: HELD }), step(10)]);
+    await play(h, { body: BODY });
+    expect(fired(h)).toHaveLength(1);
+    expect(resultsSeen(h, 2).map((r) => r.isError)).toEqual([false, true]);
+  });
+
+  it("fires nothing for a turn that was not kept", async () => {
+    const h = table([fire(HELD), step(10)]);
+    h.state.conflict = true;
+    await play(h, { body: BODY });
+    expect(fired(h)).toEqual([]);
+  });
+
+  // Bug caught: a payoff fired in the middle of a round, when the board owns the story.
+  it("does not offer fire_consequence in a fight, and the loop refuses it if called anyway", async () => {
+    const h = harness([fire(HELD), step(10)]);
+    existingSession(h, { fight_encounter_id: FIGHT });
+    h.state.quests = quests();
+    h.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "Rosie confronts Sift", phase: "running", round: 1, fighters: [] } };
+    await play(h, { body: BODY });
+    expect(h.requests[0].tools.map((t) => t.name)).not.toContain("fire_consequence");
+    expect(resultsSeen(h, 1)[0]).toMatchObject({ isError: true });
+    expect(fired(h)).toEqual([]);
+  });
+});
+
 describe("the story turns into a fight", () => {
   const wren = (): PlayerCharacter => ({
     id: WREN, name: "Wren Ashfield", pronouns: null, species: null, className: "Ranger", subclass: null, level: 3, hitPoints: null,
@@ -3472,19 +3799,6 @@ describe("the story turns into a fight", () => {
   });
 
   // Bug caught: the narrator offered a journey in the middle of a round, and the party walking out of its own fight.
-  // Bug caught: days told in a turn that was never kept moving the campaign's date all the same; or days the
-  // narrator passed never reaching the page.
-  it("tells the page the days that passed, once the turn is kept", async () => {
-    const h = played([step(10, { blocks: [{ type: "tool_call", id: "d1", name: "pass_days", input: { days: 3 } }], stop: "tool_calls" }), step(10)]);
-    await play(h, { body: BODY });
-    expect(h.events.filter((e) => e.type === "days")).toEqual([{ type: "days", days: 3 }]);
-
-    const lost = played([step(10, { blocks: [{ type: "tool_call", id: "d1", name: "pass_days", input: { days: 3 } }], stop: "tool_calls" }), step(10)]);
-    lost.state.conflict = true;
-    await play(lost, { body: BODY });
-    expect(lost.events.filter((e) => e.type === "days")).toEqual([]);
-  });
-
   it("offers travel outside a fight and not while one is being fought", async () => {
     const quietTable = played([step(10)]);
     await play(quietTable, { body: BODY });
@@ -3495,6 +3809,7 @@ describe("the story turns into a fight", () => {
     await play(fighting, { body: BODY });
     expect(fighting.requests[0].tools.map((t) => t.name)).not.toContain("travel");
     expect(fighting.requests[0].tools.map((t) => t.name)).not.toContain("pass_days");
+    expect(fighting.requests[0].tools.map((t) => t.name)).not.toContain("fire_consequence");
   });
 
   // Bug caught live (17 Nov 2026): "i take the chair behind me and throw it at the dogs" was answered "Resolve the
@@ -3783,6 +4098,40 @@ describe("putting something in front of the player", () => {
     expect(last(h).type).toBe("done");
   });
 
+  // Bug caught: a place "handed over" on the page but never shared (the player's places stay without it); shared
+  // before the turn is kept, so a dropped turn still hands it over; the map shared without the story giving it.
+  it("shares a place for real once the turn is kept, and its map only when the story gave the map", async () => {
+    const plain = played([showStep({ place_id: SHOWN_PLACE }), step(10)]);
+    await play(plain, { body: SAY });
+    expect(plain.placesShared).toEqual([{ placeId: SHOWN_PLACE, memberId: WREN, withMap: false }]);
+    expect(shownEvents(plain)).toEqual([{ type: "shown", shown: { kind: "place", id: SHOWN_PLACE, title: "The Salt Hall", url: null, hasMap: false, hasNook: true } }]);
+
+    const mapped = played([showStep({ place_id: SHOWN_PLACE, with_map: true }), step(10)]);
+    await play(mapped, { body: SAY });
+    expect(mapped.placesShared).toEqual([{ placeId: SHOWN_PLACE, memberId: WREN, withMap: true }]);
+
+    const dropped = played([showStep({ place_id: SHOWN_PLACE, with_map: true }), step(10)]);
+    dropped.state.conflict = true;
+    await play(dropped, { body: SAY });
+    expect(dropped.placesShared).toEqual([]);
+  });
+
+  // Bug caught: a failed place share costing the whole turn.
+  it("keeps the turn when the place could not be shared", async () => {
+    const h = played([showStep({ place_id: SHOWN_PLACE }), step(10)]);
+    h.state.placeFails = true;
+    await play(h, { body: SAY });
+    expect(last(h).type).toBe("done");
+  });
+
+  // Bug caught: a place shared with nobody to share it with (no played character has no hands to take a map).
+  it("shares no place when nobody is played", async () => {
+    const h = harness([showStep({ place_id: SHOWN_PLACE }), step(10)]);
+    existingSession(h);
+    await play(h, { body: SAY });
+    expect(h.placesShared).toEqual([]);
+  });
+
   // Bug caught: a shown picture lost on reload because it was never kept with the turn.
   it("keeps a shown picture on the stored turn", async () => {
     const h = played([showStep({ person_id: PICTURED }), step(10)]);
@@ -3852,6 +4201,43 @@ describe("the canon at the table (#1226)", () => {
     expect(h.requests[0].system).toContain("PREVIOUSLY-MARK");
     expect(opening(h.requests[0])).not.toContain("WORLD-BLOCK");
     expect(opening(h.requests[0])).not.toContain("PREVIOUSLY-MARK");
+  });
+
+  // Bug caught: campaign text a player wrote reached the narrator unscreened, or the screen's refusal left the
+  // text in place, or the player was never told something had been left out.
+  it("swaps a refused world block for the withheld line, keeps the rest and tells the page once", async () => {
+    const h = played();
+    h.state.canonWorld = "WORLD-BLOCK refused text.";
+    h.state.canonPrevious = "PREVIOUSLY-MARK fine text.";
+    h.deps.campaignText.moderate = async (text) => ({ flagged: text.includes("WORLD-BLOCK"), categories: [] });
+    await play(h, { body: BODY });
+    expect(h.requests[0].system).not.toContain("WORLD-BLOCK");
+    expect(h.requests[0].system).toContain("(Part of the campaign's own text was left out here: it did not pass the table's screen.)");
+    expect(h.requests[0].system).toContain("PREVIOUSLY-MARK");
+    expect(h.events.filter((e) => e.type === "screened")).toHaveLength(1);
+  });
+
+  // Bug caught: a clean turn telling the page that text was left out.
+  it("tells the page nothing when every section passes", async () => {
+    const h = played();
+    h.state.canonWorld = "WORLD-BLOCK fine.";
+    await play(h, { body: BODY });
+    expect(h.events.filter((e) => e.type === "screened")).toEqual([]);
+  });
+
+  // Bug caught: an outage of the campaign text screen costing the player the turn, or leaving the text out.
+  it("keeps the turn and the text when the screen throws", async () => {
+    const h = played();
+    h.state.canonWorld = "WORLD-BLOCK fine.";
+    h.deps.campaignText.lookup = async () => {
+      throw new Error("cache down");
+    };
+    h.deps.campaignText.moderate = async () => {
+      throw new Error("moderation down");
+    };
+    await play(h, { body: BODY });
+    expect(last(h).type).toBe("done");
+    expect(h.requests[0].system).toContain("WORLD-BLOCK");
   });
 
   it("asks for the last sitting before the one now running, never the running one's own entry", async () => {
@@ -3960,5 +4346,134 @@ describe("the canon at the table (#1226)", () => {
     const h = played();
     await play(h, { body: BODY });
     expect(h.requests[0].tools.map((t) => t.name)).toEqual(expect.arrayContaining(["canon_lookup", "bring_out"]));
+  });
+});
+
+describe("the Narrator rules on the played character's inventions (#1021 row 14)", () => {
+  const INV = "00000000-0000-4000-8000-0000000000d1";
+  const INV2 = "00000000-0000-4000-8000-0000000000d2";
+  const BODY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I show the lantern to the guildmaster.", mode: "do" };
+  const wren = (): PlayerCharacter => ({
+    id: WREN, name: "Wren Ashfield", pronouns: null, species: null, className: "Ranger", subclass: null, level: 3, hitPoints: null,
+  });
+  const lantern = (over: Partial<PendingInvention> = {}): PendingInvention => ({
+    id: INV, createdAt: "2026-11-18T10:00:00Z", discipline: "tinkering", name: "Glowmoss Lantern", rarity: "uncommon", itemType: "wondrous_item",
+    value: "100 gp", rules: "Sheds dim light in 30 feet.", mechanics: ["3 charges, dawn"], warnings: ["The rules text mentions advantage but none is declared."], newMaterials: [],
+    ...over,
+  });
+  const call = (id: string, input: Record<string, unknown>): ModelStep =>
+    step(10, { blocks: [{ type: "tool_call", id, name: "rule_invention", input }], stop: "tool_calls" });
+  const table = (script: Script, over: Partial<SessionRow> = {}): Harness => {
+    const h = harness(script);
+    h.state.characters.set(WREN, wren());
+    existingSession(h, { party_member_id: WREN, scene_location_id: CELLAR, ...over });
+    h.state.inventions = [lantern()];
+    return h;
+  };
+  const answers = (h: Harness, request: number) => h.requests[request].messages.flatMap((m) => m.blocks).filter((b) => b.type === "tool_result");
+
+  // Bug caught: the invention was read for nobody, or for the wrong campaign or character, so the Narrator ruled on a stranger's.
+  it("reads the inventions of the played character in this campaign and shows them in the state with their id and warnings", async () => {
+    const h = table([step(10)]);
+    await play(h, { body: BODY });
+    expect(h.inventionReads).toEqual([{ campaignId: CAMPAIGN, memberId: WREN }]);
+    const sent = opening(h.requests[0]);
+    expect(sent).toContain("## Inventions waiting on your ruling");
+    expect(sent).toContain(INV);
+    expect(sent).toContain("Warning: The rules text mentions advantage");
+    expect(h.requests[0].system).not.toContain(INV);
+    expect(h.requests[0].tools.map((t) => t.name)).toContain("rule_invention");
+  });
+
+  // Bug caught: an empty section header, and a tool that has nothing to rule on, offered anyway.
+  it("shows nothing and offers no tool with nothing waiting, and reads nothing with nobody played", async () => {
+    const none = table([step(10)]);
+    none.state.inventions = [];
+    await play(none, { body: BODY });
+    expect(opening(none.requests[0])).not.toContain("Inventions waiting");
+    expect(none.requests[0].tools.map((t) => t.name)).not.toContain("rule_invention");
+    const nobody = harness([step(10)]);
+    existingSession(nobody, { scene_location_id: CELLAR });
+    nobody.state.inventions = [lantern()];
+    await play(nobody, { body: BODY });
+    expect(nobody.inventionReads).toEqual([]);
+    expect(opening(nobody.requests[0])).not.toContain("Inventions waiting");
+  });
+
+  // Bug caught: a failed read took the turn down instead of costing the ruling.
+  it("runs the turn without the section when the read fails", async () => {
+    const h = table([step(10)]);
+    h.state.inventionsThrow = true;
+    await play(h, { body: BODY });
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(opening(h.requests[0])).not.toContain("Inventions waiting");
+    expect(h.requests[0].tools.map((t) => t.name)).not.toContain("rule_invention");
+  });
+
+  // Bug caught: the ruling never reached the database, or reached it with another invention, decision or a note on an approval.
+  it("approves through decide_crafting_invention only once the turn is kept, with the id and no note", async () => {
+    const h = table([call("r1", { invention_id: INV, decision: "approve" }), step(10)]);
+    await play(h, { body: BODY });
+    expect(h.rulingsMade).toEqual([{ inventionId: INV, decision: "approve", note: null, name: "Glowmoss Lantern" }]);
+    expect(answers(h, 1)[0]).toMatchObject({ isError: false, content: "When the turn is kept, Glowmoss Lantern is approved." });
+  });
+
+  it("returns with the note, trimmed, and says so", async () => {
+    const h = table([call("r1", { invention_id: INV, decision: "return", note: "  The moss glows, but it cannot also grant advantage.  " }), step(10)]);
+    await play(h, { body: BODY });
+    expect(h.rulingsMade).toEqual([{ inventionId: INV, decision: "return", note: "The moss glows, but it cannot also grant advantage.", name: "Glowmoss Lantern" }]);
+    expect(answers(h, 1)[0]).toMatchObject({ content: "When the turn is kept, Glowmoss Lantern is returned with your note." });
+  });
+
+  // Bug caught: an approval made for a turn the player never kept, and made again when they sent it again.
+  it("rules on nothing for a turn that was not kept", async () => {
+    const h = table([call("r1", { invention_id: INV, decision: "approve" }), step(10)]);
+    h.state.conflict = true;
+    await play(h, { body: BODY });
+    expect(h.rulingsMade).toEqual([]);
+  });
+
+  // Bug caught: a database that refuses the ruling (already decided from the Workshop) throwing away a paid turn.
+  it("keeps the turn when the ruling cannot be made", async () => {
+    const h = table([call("r1", { invention_id: INV, decision: "approve" }), step(10)]);
+    h.state.decideFails = true;
+    await play(h, { body: BODY });
+    expect(h.appends).toHaveLength(1);
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
+  // Bug caught: an id the model made up, or one of another character's, ruled on because only its shape was checked.
+  it("refuses an id that was not shown and rules on nothing", async () => {
+    const h = table([call("r1", { invention_id: INV2, decision: "approve" }), step(10)]);
+    await play(h, { body: BODY });
+    expect(answers(h, 1)[0]).toMatchObject({ isError: true, content: expect.stringContaining(INV) });
+    expect(h.rulingsMade).toEqual([]);
+  });
+
+  // Bug caught: a send-back with no note, leaving the player to guess what to change.
+  it("refuses a return without a note and a note over a thousand characters", async () => {
+    const h = table([call("r1", { invention_id: INV, decision: "return" }), call("r2", { invention_id: INV, decision: "return", note: "x".repeat(1001) }), step(10)]);
+    await play(h, { body: BODY });
+    expect(answers(h, 2).map((r) => r.isError)).toEqual([true, true]);
+    expect(h.rulingsMade).toEqual([]);
+  });
+
+  // Bug caught: two rulings on one invention in a turn, the second silently undoing the first.
+  it("refuses a second ruling on the same invention in a turn", async () => {
+    const h = table([call("r1", { invention_id: INV, decision: "approve" }), call("r2", { invention_id: INV, decision: "return", note: "No." }), step(10)]);
+    await play(h, { body: BODY });
+    expect(answers(h, 2).map((r) => r.isError)).toEqual([false, true]);
+    expect(h.rulingsMade.map((r) => r.decision)).toEqual(["approve"]);
+  });
+
+  // Bug caught: a ruling in the middle of a round, when the board owns the story.
+  it("neither shows nor offers the ruling in a fight, and refuses it if called anyway", async () => {
+    const h = table([call("r1", { invention_id: INV, decision: "approve" }), step(10)], { fight_encounter_id: FIGHT });
+    h.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "Rosie confronts Sift", phase: "running", round: 1, fighters: [] } };
+    await play(h, { body: BODY });
+    expect(opening(h.requests[0])).not.toContain("Inventions waiting");
+    expect(h.requests[0].tools.map((t) => t.name)).not.toContain("rule_invention");
+    expect(answers(h, 1)[0]).toMatchObject({ isError: true });
+    expect(h.rulingsMade).toEqual([]);
   });
 });

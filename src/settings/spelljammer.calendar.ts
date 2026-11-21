@@ -1,4 +1,4 @@
-import type { SettingCalendarDef } from "./types";
+import type { SettingCalendarDef } from "./types.ts";
 
 export const SPELLJAMMER_CALENDAR: SettingCalendarDef = {
   name: "Spelljammer (Bral Standard Year)",

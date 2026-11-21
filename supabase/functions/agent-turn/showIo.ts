@@ -2,7 +2,7 @@
 // over of a handout. Everything here runs as the caller (the campaign's Dungeon Master), so the database decides
 // what they may read and share; nothing is read with the service role.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MAX_HANDOUTS_SHOWN, pictureUrl, type HandoutOffer, type PictureOf } from "../_shared/agent/show.ts";
+import { MAX_HANDOUTS_SHOWN, pictureUrl, type HandoutOffer, type PictureOf, type PlaceCard } from "../_shared/agent/show.ts";
 import { UUID_RE } from "../_shared/agent/parse.ts";
 
 
@@ -55,11 +55,6 @@ export async function loadPicture(client: SupabaseClient, campaignId: string, wh
     const disguised = typeof data.disguise_name === "string" && data.disguise_name.trim() !== "" && data.is_revealed !== true;
     return disguised ? picture(data.disguise_name, data.disguise_portrait_url) : picture(data.name, data.portrait_url);
   }
-  if (what === "place") {
-    const { data, error } = await client.from("locations").select("name, image_url").eq("id", id).eq("campaign_id", campaignId).maybeSingle();
-    if (error) throw error;
-    return data ? picture(data.name, data.image_url) : null;
-  }
   const own = UUID_RE.test(id);
   if (what === "item") {
     const { data, error } = own
@@ -73,4 +68,25 @@ export async function loadPicture(client: SupabaseClient, campaignId: string, wh
     : await client.from("library_monsters").select("name, image_url").eq("id", id).maybeSingle();
   if (error) throw error;
   return data ? picture(data.name, data.image_url) : null;
+}
+
+const filled = (raw: unknown): boolean => typeof raw === "string" && raw.trim() !== "";
+
+/** A place of the campaign as the Narrator may hand it over, or null when it is not this campaign's. */
+export async function loadPlace(client: SupabaseClient, campaignId: string, id: string): Promise<PlaceCard | null> {
+  const { data, error } = await client
+    .from("locations")
+    .select("name, image_url, map_url, map_layer_url, is_map_shared, book_nook_id")
+    .eq("id", id)
+    .eq("campaign_id", campaignId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data || !filled(data.name)) return null;
+  return {
+    title: (data.name as string).trim(),
+    url: pictureUrl(data.image_url),
+    hasMapPicture: filled(data.map_url) || filled(data.map_layer_url),
+    mapShared: data.is_map_shared === true,
+    hasNook: typeof data.book_nook_id === "string",
+  };
 }

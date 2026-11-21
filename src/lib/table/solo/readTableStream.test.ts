@@ -64,6 +64,13 @@ describe("readTableStream", () => {
     expect(events).toEqual([{ type: "text", delta: "still here" }]);
   });
 
+  // Bug caught: a place handed over mid-stream dropped (the page reads only handouts and pictures), or its flags lost.
+  it("reads a place that was handed over", async () => {
+    const shown = { kind: "place", id: "11111111-2222-4333-8444-555555555555", title: "The Salt Hall", url: null, hasMap: true, hasNook: true };
+    const events = await collect(responseOf([`data: ${JSON.stringify({ type: "shown", shown })}\n\n`]));
+    expect(events).toEqual([{ type: "shown", shown }]);
+  });
+
   // Bug caught: a half event at the end of a broken stream guessed at and shown as if it were whole.
   it("drops an event the stream ended in the middle of", async () => {
     const events = await collect(responseOf([text("kept"), 'data: {"type":"text","delta":"hal']));
@@ -156,5 +163,13 @@ describe("hit points changed outside a fight", () => {
     expect(parseTableEvent({ type: "hit_points", change: { ...change, change: "harm" } })).toMatchObject({ change: { heals: false } });
     expect(parseTableEvent({ type: "hit_points", change: { ...change, hp: undefined } })).toBeNull();
     expect(parseTableEvent({ type: "hit_points", change: { ...change, change: "bless" } })).toBeNull();
+  });
+});
+
+describe("the screened event", () => {
+  // Bug caught: the page dropped the server's "part of the campaign's text was left out" notice as an unknown event,
+  // so the player never learned why the story ignored something the campaign says.
+  it("reads the notice the server sends when campaign text was withheld", () => {
+    expect(parseTableEvent({ type: "screened" })).toEqual({ type: "screened" });
   });
 });

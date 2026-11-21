@@ -51,6 +51,14 @@ describe("applyTableEvent", () => {
     expect(shown.map((i) => i.kind)).toEqual(["dmRoll", "narration"]);
   });
 
+  // Bug caught: a place handed over mid-reply lost between the stream and the story.
+  it("draws a handed-over place where it happened", () => {
+    const place = { kind: "place" as const, id: "p1", title: "The Salt Hall", url: null, hasMap: false, hasNook: true };
+    const items = play([{ type: "text", delta: "She slides it over." }, { type: "shown", shown: place }]);
+    expect(items.map((i) => i.kind)).toEqual(["narration", "shown"]);
+    expect(items[1]).toMatchObject({ shown: place });
+  });
+
   // Bug caught: four searches in a row filling the page with four identical lines.
   it("folds a run of the same quiet line into one with a count", () => {
     const items = play([
@@ -152,6 +160,14 @@ describe("something changed hands", () => {
   it("writes the server's line in the margin", () => {
     const story = play([{ type: "hands", text: "Honeycomb gives Rosie: Workshop Keys" }]);
     expect(story.at(-1)).toMatchObject({ kind: "margin", text: "Honeycomb gives Rosie: Workshop Keys" });
+  });
+});
+
+describe("campaign text left out", () => {
+  // Bug caught: withheld campaign text with no word of it, so the narrator silently skipped something the player wrote.
+  it("writes one margin note naming the screen", () => {
+    const story = play([{ type: "screened" }]);
+    expect(story.at(-1)).toMatchObject({ kind: "margin", text: "Some of the campaign's text was left out of this turn: it did not pass the table's screen." });
   });
 });
 

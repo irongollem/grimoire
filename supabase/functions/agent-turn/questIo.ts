@@ -3,17 +3,21 @@
 // Everything here goes through the CALLER's client, because the quest functions check that `auth.uid()` is the
 // campaign's DM and a service role has no such user. The one exception is the conversation's own row, which only the
 // server writes, so that update takes the admin client. The rules (what may be named, what is shown, when a clock
-// ticks) are in `_shared/agent/quests.ts`; this file stays thin on purpose, it has no test harness.
+// ticks) are in `_shared/agent/quests.ts`; `loadQuests` is tested in `questIo.test.ts`.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  MAX_PAYOFFS,
   MAX_THREADS,
   type ObjectiveStatus,
   type QuestMove,
+  type QuestPayoff,
   type QuestRoute,
   type QuestsInPlay,
   type QuestThread,
 } from "../_shared/agent/quests.ts";
+import type { DatePoint } from "../_shared/npcAge.ts";
+import { shownNpcName } from "../_shared/npcProfile.ts";
 import { setPressureClock, type NextPressure } from "../_shared/agent/pressureClock.ts";
 
 type Row = Record<string, unknown>;
@@ -66,10 +70,64 @@ function routesOf(context: unknown): QuestRoute[] {
   });
 }
 
+/** The payoffs a quest context holds back, as raw rows (event ids, verb, targets, payload); names are resolved later. */
+function heldRows(context: unknown): Row[] {
+  if (typeof context !== "object" || context === null) throw new Error("no runtime context");
+  const held = (context as Row).held;
+  return Array.isArray(held) ? held.map((h) => h as Row) : [];
+}
+
+function payloadOf(row: Row): Row {
+  const p = row.action_payload;
+  return typeof p === "object" && p !== null && !Array.isArray(p) ? (p as Row) : {};
+}
+
+/** The id columns of an event row that name a character or a place, for one name lookup over every payoff. */
+const TARGET_NPC = "target_npc_id";
+const TARGET_LOCATION = "target_location_id";
+
+function targetIds(rows: readonly Row[], column: string): string[] {
+  return [...new Set(rows.flatMap((r) => (typeof r[column] === "string" ? [r[column] as string] : [])))];
+}
+
+interface PayoffNames {
+  objectives: Map<string, string>;
+  clocks: Map<string, string>;
+  quests: Map<string, string>;
+  npcs: Map<string, string>;
+  locations: Map<string, string>;
+}
+
+/** An event row as the narrator is told of it. A name that could not be found is null, so the words stay general. */
+function payoffOf(row: Row, names: PayoffNames, dueText: string | null, atBeat: string | null): QuestPayoff {
+  const payload = payloadOf(row);
+  const id = (column: string): string | null => (typeof row[column] === "string" ? (row[column] as string) : null);
+  const named = (map: Map<string, string>, column: string): string | null => {
+    const key = id(column);
+    return key === null ? null : (map.get(key) ?? null);
+  };
+  const payloadText = ["text", "message", "title"].map((k) => payload[k]).find((v): v is string => typeof v === "string");
+  return {
+    eventId: text(row, "event_id"),
+    action: text(row, "action"),
+    subject:
+      named(names.objectives, "target_objective_id") ?? named(names.clocks, "target_clock_id") ?? named(names.npcs, TARGET_NPC) ??
+      named(names.quests, "target_quest_id"),
+    place: named(names.locations, TARGET_LOCATION),
+    text: payloadText === undefined ? null : payloadText,
+    step: typeof payload.step === "number" ? payload.step : null,
+    to: typeof payload.to === "string" ? payload.to : null,
+    atBeat,
+    due: dueText,
+  };
+}
+
 export async function loadQuests(
   client: SupabaseClient,
   campaignId: string,
   pressureClockId: string | null,
+  /** Words a calendar day the way the campaign's calendar does. */
+  dateText: (year: number, month: number, day: number) => string,
 ): Promise<QuestsInPlay> {
   const live = await client.rpc("get_campaign_live_quests", { p_campaign_id: campaignId });
   if (live.error) throw live.error;
@@ -84,7 +142,7 @@ export async function loadQuests(
         p_thread_id: text(r, "thread_id"),
       });
       if (res.error) throw res.error;
-      return routesOf(res.data);
+      return { routes: routesOf(res.data), held: heldRows(res.data) };
     }),
   );
 
@@ -126,6 +184,63 @@ export async function loadQuests(
     }
   }
 
+  // Payoffs logged but not performed. The runtime context lists the held ones (the same for every thread of a quest,
+  // so the first read stands for the quest); the delayed ones that have not come due are read from the log, because
+  // the context does not carry them.
+  const heldRaw = new Map<string, Row[]>();
+  liveRows.slice(0, contexts.length).forEach((r, i) => {
+    if (!heldRaw.has(text(r, "quest_id"))) heldRaw.set(text(r, "quest_id"), contexts[i].held);
+  });
+  let delayedRaw: Row[] = [];
+  if (questIds.length > 0) {
+    const res = await client.from("quest_consequence_events")
+      .select("id, quest_id, action, action_payload, target_objective_id, target_npc_id, target_quest_id, target_clock_id, target_location_id, target_faction_id, due_on_year, due_on_month, due_on_day, seq")
+      .eq("campaign_id", campaignId).in("quest_id", questIds)
+      .is("performed_at", null).is("undone_at", null).is("held_at", null).gt("after_days", 0)
+      .order("seq", { ascending: true }).limit(MAX_PAYOFFS * questIds.length + 1);
+    if (res.error) throw res.error;
+    // The log names its row `id`; the runtime context names the same thing `event_id`.
+    delayedRaw = rows(res.data).map((r) => ({ ...r, event_id: r.id }));
+  }
+  const allRaw = [...[...heldRaw.values()].flat(), ...delayedRaw];
+  const npcIds = targetIds(allRaw, TARGET_NPC);
+  const placeIds = targetIds(allRaw, TARGET_LOCATION);
+  const [npcRes, placeRes] = await Promise.all([
+    npcIds.length === 0
+      ? Promise.resolve({ data: [] as unknown, error: null })
+      : client.from("npcs").select("id, name, disguise_name, is_revealed").eq("campaign_id", campaignId).in("id", npcIds),
+    placeIds.length === 0
+      ? Promise.resolve({ data: [] as unknown, error: null })
+      : client.from("locations").select("id, name").eq("campaign_id", campaignId).in("id", placeIds),
+  ]);
+  if (npcRes.error) throw npcRes.error;
+  if (placeRes.error) throw placeRes.error;
+  const names: PayoffNames = {
+    objectives: new Map([...objectives.values()].flat().map((o) => [o.id, o.description] as const)),
+    clocks: new Map([...clocks.values()].flat().map((c) => [c.id, c.label] as const)),
+    quests: new Map(liveRows.map((r) => [text(r, "quest_id"), text(r, "quest_title")] as const)),
+    // A disguised character is named by the disguise: the narrator is not told the true name until the reveal.
+    npcs: new Map(rows(npcRes.data).map((n) => [text(n, "id"), shownNpcName({ name: text(n, "name"), disguise_name: textOrNull(n, "disguise_name"), is_revealed: n.is_revealed === true })] as const)),
+    locations: new Map(rows(placeRes.data).map((l) => [text(l, "id"), text(l, "name")] as const)),
+  };
+  const heldByQuest = new Map([...heldRaw].map(([q, list]) => [q, list.map((h) => payoffOf(h, names, null, textOrNull(h, "beat_title")))] as const));
+  const delayedByQuest = new Map<string, QuestPayoff[]>();
+  for (const d of delayedRaw) {
+    const day = [d.due_on_year, d.due_on_month, d.due_on_day];
+    let due: string | null = null;
+    if (day.every((n) => Number.isInteger(n))) {
+      // A calendar that will not word the day costs the due date of that line, never the quests.
+      try {
+        due = dateText(day[0] as number, day[1] as number, day[2] as number);
+      } catch (error) {
+        console.error("agent-turn: wording a due day failed:", error);
+      }
+    }
+    const list = delayedByQuest.get(text(d, "quest_id")) ?? [];
+    list.push(payoffOf(d, names, due, null));
+    delayedByQuest.set(text(d, "quest_id"), list);
+  }
+
   const threads: QuestThread[] = liveRows.map((r, i) => {
     const beatId = textOrNull(r, "beat_id");
     const beatTitle = textOrNull(r, "beat_title");
@@ -136,9 +251,11 @@ export async function loadQuests(
       threadLabel: textOrNull(r, "thread_label"),
       beat: beatId !== null && beatTitle !== null ? { id: beatId, title: beatTitle } : null,
       // A thread past the shown limit is never named, so its routes were not read.
-      routes: i < contexts.length ? contexts[i] : [],
+      routes: i < contexts.length ? contexts[i].routes : [],
       objectives: objectives.get(text(r, "quest_id")) ?? [],
       clocks: clocks.get(text(r, "quest_id")) ?? [],
+      held: heldByQuest.get(text(r, "quest_id")) ?? [],
+      delayed: delayedByQuest.get(text(r, "quest_id")) ?? [],
     };
   });
   return { threads, pressure };
@@ -151,7 +268,7 @@ export async function loadQuests(
 export async function applyQuestMove(
   client: SupabaseClient,
   admin: SupabaseClient,
-  ctx: { campaignId: string; agentSessionId: string },
+  ctx: { campaignId: string; agentSessionId: string; today?: DatePoint | null },
   move: QuestMove,
 ): Promise<void> {
   switch (move.kind) {
@@ -191,6 +308,20 @@ export async function applyQuestMove(
         p_clock_id: move.clockId,
         p_step: move.step,
         p_reason: move.reason,
+      });
+      if (error) throw error;
+      return;
+    }
+    case "fire": {
+      // A held payoff has no due day: it is performed as of today, which the caller supplies (the same arguments the
+      // DM's page sends, `fireHeldConsequence`). A campaign with no date cannot place it, so nothing is fired.
+      const today = ctx.today;
+      if (today === undefined || today === null) throw new Error("no campaign date to fire a held payoff on");
+      const { error } = await client.rpc("perform_quest_consequence", {
+        p_event_id: move.eventId,
+        p_year: today.year,
+        p_month: today.month,
+        p_day: today.day,
       });
       if (error) throw error;
       return;

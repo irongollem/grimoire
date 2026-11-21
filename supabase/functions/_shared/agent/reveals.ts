@@ -58,3 +58,21 @@ export function planReveals(input: { memberId: string; place: PlaceShown | null;
   }
   return { place: placeWrite, characters };
 }
+
+/**
+ * What the Narrator's `show` writes to a place it hands over: the played character is shown it (as `planReveals`
+ * does for the room the party stands in), and its map is shared only when the story handed the map over. Only ever
+ * more: a map the DM already shares stays shared, and without `withMap` the map is left as the DM set it.
+ * Null when the place already is all of that.
+ */
+export function planPlaceShare(input: { memberId: string; place: PlaceShown & { mapShared: boolean }; withMap: boolean }): { id: string; patch: { player_visible_to?: string[]; is_description_shared?: true; is_map_shared?: true } } | null {
+  const { place, memberId } = input;
+  const reveal = planReveals({ memberId, place, characters: [] }).place;
+  const patch: { player_visible_to?: string[]; is_description_shared?: true; is_map_shared?: true } = {};
+  if (reveal !== null) {
+    patch.player_visible_to = reveal.visibleTo;
+    patch.is_description_shared = true;
+  }
+  if (input.withMap && !place.mapShared) patch.is_map_shared = true;
+  return Object.keys(patch).length === 0 ? null : { id: place.id, patch };
+}

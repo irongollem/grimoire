@@ -4,10 +4,13 @@
 // from here; `handler.ts` exports only the two entry points.
 
 import type { CanonStore } from "./canonIo.ts";
+import type { SiteState } from "../_shared/agent/site.ts";
+import type { InventionRuling, PendingInvention } from "../_shared/agent/invention.ts";
+import type { SceneMemory } from "../_shared/agent/memories.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import type { AgentProvider } from "../_shared/agent/providerIo.ts";
 import type { Floor } from "../_shared/agent/floor.ts";
-import type { HandoutOffer, PictureOf, Shown } from "../_shared/agent/show.ts";
+import type { HandoutOffer, PictureOf, PlaceCard, Shown } from "../_shared/agent/show.ts";
 import type { TravelMap } from "../_shared/agent/travel.ts";
 import type { LootHeld } from "../_shared/agent/encounterLoot.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
@@ -23,14 +26,17 @@ import type { Remembered } from "../_shared/agent/characterTurn.ts";
 import type { SpeechToolsDeps } from "../_shared/agent/speak.ts";
 import type { SceneView } from "../_shared/agent/scene.ts";
 import type { RecordedFact, RecordKind } from "../_shared/agent/record.ts";
+import type { DatePoint } from "../_shared/npcAge.ts";
 import type { QuestMove, QuestsInPlay } from "../_shared/agent/quests.ts";
 import type { Prologue } from "../_shared/agent/prologue.ts";
 import type { FightPlan, FightsInView } from "../_shared/agent/fight.ts";
 import type { PendingRoll, RollAsk, Rolled } from "../_shared/agent/playerRoll.ts";
 import type { NarrationJudge } from "./narration.ts";
+import type { TableViolence } from "../_shared/agent/conduct.ts";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
 import type { AgentLine, AgentTool, AgentUsage, CallTool, DmRoll } from "../_shared/agent/types.ts";
 import type { JobLedger } from "../_shared/pipeline/creditHold.ts";
+import type { TextScreenIo } from "./campaignTextScreen.ts";
 
 // Limits of one turn. The player waits on a turn, and a model that loops on tools can spend a lot without saying
 // anything, so each limit has its own reason.
@@ -69,6 +75,8 @@ export type AgentEvent =
   | { type: "pressure"; pressure: { filled: number; segments: number } | null }
   /** A fight has started (the page offers the way to the fight screen), or (null) its aftermath has been told. */
   | { type: "fight"; fight: { encounterId: string; name: string } | null; /** With null: it was never fought (nobody in it could be), not finished. */ calledOff?: true }
+  /** Part of the campaign's own text did not pass the table's screen and was left out of this turn. Says nothing of what. */
+  | { type: "screened" }
   /** A roll the Dungeon Master made in the open. A hidden roll sends nothing. */
   | { type: "dm_roll"; roll: DmRoll }
   /** A handout handed over or a picture shown, in its place in the story. */
@@ -81,8 +89,6 @@ export type AgentEvent =
   | { type: "fight_change"; change: FightChange }
   /** Someone the narrator made up now has a record the player's character knows of. A hidden one is never sent. */
   | { type: "introduced"; person: { id: string; name: string } }
-  /** Whole days passed in the story this turn: the page moves the campaign's date on by them. */
-  | { type: "days"; days: number }
   /** Words that are not a character's line and can be voiced: the narrator's, whole, or the player's own said line. */
   | { type: "voice"; role: "narrator" | "player"; text: string; voice: string }
   /** Something changed hands: a line for the story's margin. The pack and the purse follow by themselves. */
@@ -100,6 +106,12 @@ export interface CampaignRow {
   name: string;
   game_system: string | null;
   ai_enabled: boolean | null;
+  /** How hard the narrator tells violence and horror (the DM's setting); the sexual-content rules have no setting. */
+  table_violence: TableViolence;
+  /** The campaign's date as its calendar names it; null when no date is set. Per-turn state, never standing text. */
+  today?: string | null;
+  /** The same date as numbers, for what a kept turn performs on today's date; null when no date is set. */
+  date?: DatePoint | null;
 }
 
 export interface SessionRow {
@@ -181,6 +193,8 @@ export interface AgentTurnDeps {
   strikes(userId: string): Promise<number>;
   /** True when what a turn wrote must not be kept, shown again, put on record or spoken. Fails open like `isFlagged`. */
   isFlaggedOutput(text: string, childTookPart: boolean): Promise<boolean>;
+  /** The screen of the campaign's own text (`campaignTextScreen.ts`): its cache, its classifier and the cache's write. */
+  campaignText: TextScreenIo;
   /** Whether any of these characters of the campaign is a child by their record (`readsAsChild`). */
   anyChild(campaignId: string, characterIds: string[]): Promise<boolean>;
   /**
@@ -256,6 +270,10 @@ export interface AgentTurnDeps {
   loadHandouts(campaignId: string, memberId: string): Promise<HandoutOffer[]>;
   /** The campaign's own picture of a record, with the name it is shown under; null when there is none. */
   loadPicture(campaignId: string, what: PictureOf, id: string): Promise<{ title: string; url: string } | null>;
+  /** A place of the campaign as the Narrator may hand it over; null when it is not this campaign's. */
+  loadPlace(campaignId: string, id: string): Promise<PlaceCard | null>;
+  /** Hands a place to the played character for real, with its map only when asked. Throws when it could not. */
+  sharePlace(input: { campaignId: string; memberId: string; placeId: string; withMap: boolean }): Promise<void>;
   /** Hands a handout to the played character for real, beside whoever already holds it. Throws when it could not. */
   giveHandout(campaignId: string, handoutId: string, memberId: string): Promise<void>;
   /** The campaign's places and the roads between them, as the caller may read them: what a journey is measured on. */
@@ -307,15 +325,41 @@ export interface AgentTurnDeps {
    * their record said, and the next sitting must find them in the place it reads.
    */
   placeCharacters(campaignId: string, locationId: string, characterIds: string[]): Promise<void>;
+  /**
+   * The party's arrival in a place the Narrator moved it to, in three writes the caller makes one by one, each as the
+   * caller (`partyMoveIo.ts`): the campaign's place (the arrival trigger marks the room explored), the room's squares
+   * revealed on its map, and the party seated in the room on that map. Each throws when it could not be written.
+   */
+  moveParty: {
+    setPlace(campaignId: string, placeId: string): Promise<void>;
+    revealRoom(campaignId: string, placeId: string): Promise<void>;
+    seatParty(campaignId: string, placeId: string, memberIds: string[]): Promise<void>;
+  };
   /** Takes facts filed in a turn that was not kept off the record again. */
   discardFacts(campaignId: string, ids: string[]): Promise<void>;
   /** The quests running in the campaign, what the narrator may mark, and where the pressure clock stands. */
   loadQuests(campaignId: string, pressureClockId: string | null): Promise<QuestsInPlay>;
+  /** What has become true of the party's place and its rooms (explored, cleared, looted, doors found or unlocked). Throws on a failed read. */
+  loadSiteState(campaignId: string, locationId: string): Promise<SiteState>;
+  /** The newest memories of the characters who are here, as the Narrator is shown them. Throws on a failed read. */
+  loadSceneMemories(campaignId: string, characterIds: string[]): Promise<SceneMemory[]>;
+  /** The played character's inventions waiting on a ruling in this campaign, oldest first (#1103). Throws on a failed read. */
+  loadPendingInventions(campaignId: string, memberId: string): Promise<PendingInvention[]>;
+  /** Rules on one invention through `decide_crafting_invention`, as the caller (the owner holds the DM membership). Called only after the turn was saved; throws on any failure. */
+  decideInvention(ruling: InventionRuling): Promise<void>;
   /**
    * Applies one quest move through the same database functions the quest screen calls. Called only after the turn
    * was saved, in the order the moves were made; throws on any failure.
    */
-  applyQuestMove(ctx: { campaignId: string; agentSessionId: string }, move: QuestMove): Promise<void>;
+  applyQuestMove(ctx: { campaignId: string; agentSessionId: string; today?: DatePoint | null }, move: QuestMove): Promise<void>;
+  /**
+   * Moves the campaign's date on by whole days (`advance_campaign_date`, as the caller: the campaign's own policy
+   * decides who may). Returns the new date and its words by the campaign's calendar (null when the calendar will not
+   * word it). Called only after the turn was saved; throws on any failure.
+   */
+  advanceDate(campaignId: string, days: number): Promise<{ date: DatePoint; text: string | null }>;
+  /** Writes a system line into the campaign's chat, as the Calendar page does when the date moves. Throws on failure. */
+  announce(campaignId: string, text: string): Promise<void>;
   /**
    * Judges, with TypeSafe's Jev, whether narration told the player anything the characters' lines did not
    * (`narration.ts`). Null when no judging key is available: then every word the narrator writes is shown.

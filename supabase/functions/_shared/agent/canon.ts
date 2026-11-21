@@ -71,7 +71,8 @@ export function latestChronicle(sessions: readonly SittingRow[], notes: readonly
   const when = (s: SittingRow): number => Date.parse(s.started_at ?? s.played_on ?? s.created_at);
   const ordered = [...sessions].sort((a, b) => when(b) - when(a) || (b.number ?? -1) - (a.number ?? -1));
   for (const session of ordered) {
-    const mine = notes.filter((n) => n.session_id === session.id).sort(()=>0);
+    // Newest first by when the note was written; rows arrive in whatever order the database answers.
+    const mine = notes.filter((n) => n.session_id === session.id).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
     if (mine.length > 0) return mine[0];
   }
   return null;

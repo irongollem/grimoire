@@ -1,4 +1,4 @@
-import type { SettingCalendarDef } from "./types";
+import type { SettingCalendarDef } from "./types.ts";
 
 export const FAERUN_CALENDAR: SettingCalendarDef = {
   name: "Faerûn (Calendar of Harptos)",

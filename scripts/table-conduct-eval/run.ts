@@ -65,6 +65,12 @@ async function placeId(name: string): Promise<string> {
   return data[0].id as string;
 }
 
+/** The campaign's violence setting for the case about to be played; the table reads it at the start of every turn. */
+async function setViolence(level: "gentle" | "standard" | "grim"): Promise<void> {
+  const { error } = await admin.from("campaigns").update({ table_violence: level }).eq("id", campaignId).eq("user_id", userId);
+  if (error) throw error;
+}
+
 interface Played {
   outcome: ConductOutcome;
   answer: string;
@@ -73,6 +79,7 @@ interface Played {
 
 async function play(test: ConductCase): Promise<Played> {
   const startedAt = new Date().toISOString();
+  await setViolence(test.violence ?? "standard");
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: stack.ANON_KEY, Authorization: `Bearer ${token}` },
@@ -158,6 +165,7 @@ try {
     await forgetWhatTheCasesLeft();
   }
 } finally {
+  await setViolence("standard");
   // The sittings this run opened, and nothing else of the fixture's.
   if (sittings.length > 0) {
     const { error } = await admin.from("agent_sessions").delete().in("id", sittings).eq("user_id", userId);

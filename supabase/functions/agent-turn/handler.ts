@@ -73,7 +73,7 @@ export async function beginTurn(input: {
       try {
         const { session, prologue } = await openSitting(scope);
         const ctx = await readTurnContext(scope, session);
-        const { character, stored, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere } = ctx;
+        const { character, stored, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere, inventions } = ctx;
         const fightRunning = fights !== null && fights.fight !== null && fights.fight.phase === "running";
         const turnTools = makeTurnTools({
           deps,
@@ -87,6 +87,10 @@ export async function beginTurn(input: {
           onMove: (place) => emit({ type: "scene", scene: place }),
           filed: fx.filed,
           quests: questState === null ? null : { state: questState, queued: fx.queued },
+          // A held payoff is fired by the story, not in a round of a fight.
+          fireHeld: !fightRunning,
+          // A ruling is the story's too: offered only with a character whose invention is waiting, and none is read in a fight (`turnContext.ts`).
+          rulings: character === null || inventions.length === 0 ? null : { pending: inventions, onRule: (ruling) => { fx.rulings.push(ruling); } },
           playerName: character ? character.name : undefined,
           playedId: character ? character.id : undefined,
           partyIds: companions.map((c) => c.id),
@@ -107,9 +111,9 @@ export async function beginTurn(input: {
           onSaid: (lines) => { gate?.said(lines); },
           // Something to put in front of the player: only someone played has hands to take a handout.
           show: character
-            ? { handouts, picture: (what, id) => deps.loadPicture(campaign.id, what, id), onHandout: (handout) => { fx.handedOut.push(handout); } }
+            ? { handouts, picture: (what, id) => deps.loadPicture(campaign.id, what, id), place: (id) => deps.loadPlace(campaign.id, id), onPlace: (place) => { fx.sharedPlaces.push(place); }, onHandout: (handout) => { fx.handedOut.push(handout); } }
             : null,
-          // Days that pass in the story move the campaign's date, on the page, once the turn is kept. Not in a fight.
+          // Days that pass in the story move the campaign's date, on the server, once the turn is kept. Not in a fight.
           onDaysPassed: fightRunning ? null : (days) => { fx.daysPassed = days; },
           // How far somewhere is, by the campaign's roads. Not in a fight: nobody sets out on a journey mid-round.
           travel: fightRunning ? null : { map: () => deps.loadTravelMap(campaign.id, campaign.game_system), roll: deps.rollDie },

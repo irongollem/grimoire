@@ -8,7 +8,8 @@ import { skySection } from "../_shared/agent/sky.ts";
 import { possessionsSection, type Coins, type Possessions } from "../_shared/agent/hands.ts";
 import { historyFrom, systemWithSummary, type StoredTurn } from "../_shared/agent/transcript.ts";
 import { coinsText, coinValuesOf } from "./handsIo.ts";
-import { characterOf, fightsOf, questsOf, recordOf, safely, sceneOf, stateFor, systemFor } from "./turnSupport.ts";
+import { characterOf, fightsOf, inventionsOf, memoriesOf, questsOf, recordOf, safely, sceneOf, siteOf, stateFor, systemFor } from "./turnSupport.ts";
+import { assembleScreened } from "./campaignTextScreen.ts";
 import type { TurnScope } from "./turnScope.ts";
 import type { SessionRow } from "./turnTypes.ts";
 import { NO_CANON_HERE, type CanonHere } from "../_shared/agent/canon.ts";
@@ -30,6 +31,9 @@ export async function readTurnContext(scope: TurnScope, session: SessionRow) {
   // party moves, and the summary, which only grows, stays last.
   const questState = await questsOf(deps, campaign.id, session.pressure_clock_id);
   const record = await recordOf(deps, campaign.id, scene);
+  // Where the party stands, and who remembers what: both are state that moves in play, so both go with the scene.
+  const site = await siteOf(deps, campaign.id, session.scene_location_id);
+  const memories = await memoriesOf(deps, campaign.id, scene);
   // Fights: what is prepared here and the one this conversation is waiting on. Unreadable means no fight
   // tool this turn, since the ids it would be asked to name could not be checked.
   const pursuitId = session.pursuit_encounter_id === undefined ? null : session.pursuit_encounter_id;
@@ -52,6 +56,10 @@ export async function readTurnContext(scope: TurnScope, session: SessionRow) {
       console.error("agent-turn: checking the waiting fight failed:", error);
     }
   }
+  // What the player's character has invented and is waiting on a ruling for. Not in a fight on the board: nobody
+  // rules on a workbench in the middle of a round, and the tool is not offered there.
+  const fightRunning = fights !== null && fights.fight !== null && fights.fight.phase === "running";
+  const inventions = fightRunning || character === null ? [] : await inventionsOf(deps, campaign.id, character.id);
   // The world's peoples are common knowledge for the narrator and every character. Unreadable costs that
   // knowledge for a turn, never the turn.
   let peoples: string[] = [];
@@ -81,7 +89,6 @@ export async function readTurnContext(scope: TurnScope, session: SessionRow) {
   } catch (error) {
     console.error("agent-turn: reading what the canon holds here failed:", error);
   }
-  const system = systemWithSummary(systemFor({ campaign, character, peoples, world, previously }), session.summary);
   const fightTurn = body.fightTurn === undefined ? null : body.fightTurn;
   // A fight fought out with no foe standing leaves its loot where it was fought, before what is within reach
   // is read: the narrator telling what comes of the fight can then say what lies there.
@@ -117,6 +124,33 @@ export async function readTurnContext(scope: TurnScope, session: SessionRow) {
   } catch (error) {
     console.error("agent-turn: reading the rest of the party failed:", error);
   }
-  const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts), companions: companionsSection(companions), sky: body.sky === undefined ? "" : skySection(body.sky), canon: canonHere });
-  return { character, stored, lastSeqLoaded, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere };
+  const possessions = hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText);
+  const handoutsText = handoutsSection(handouts);
+  const companionsText = companionsSection(companions);
+  const sky = body.sky === undefined ? "" : skySection(body.sky);
+  // The campaign's own text is screened before the narrator reads it (#1021 row 18), instructions and state in one
+  // pass so a section is judged once and the page is told once. A child at the table tightens the bar, as it does
+  // for what the narrator writes. The summary is the narrator's own and is added after, unscreened.
+  let child = false;
+  const ids = [...(character ? [character.id] : []), ...companions.map((c) => c.id)];
+  if (ids.length > 0) {
+    try {
+      child = await deps.anyChild(campaign.id, ids);
+    } catch (error) {
+      console.error("agent-turn: checking for a child at the table failed:", error);
+    }
+  }
+  const { result, anyWithheld } = await assembleScreened({
+    campaignId: campaign.id,
+    child,
+    io: deps.campaignText,
+    assemble: (through) => ({
+      system: systemFor({ campaign, character, peoples, world, previously, through }),
+      state: stateFor({ scene, quests: questState, record, fights, fightTurn, possessions, handouts: handoutsText, companions: companionsText, sky, canon: canonHere, today: campaign.today, site, memories, inventions, through }),
+    }),
+  });
+  if (anyWithheld) emit({ type: "screened" });
+  const system = systemWithSummary(result.system, session.summary);
+  const state = result.state;
+  return { character, stored, lastSeqLoaded, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere, inventions };
 }

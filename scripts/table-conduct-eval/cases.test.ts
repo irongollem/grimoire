@@ -60,3 +60,13 @@ describe("the set", () => {
     expect(gateOf([])).toBe(false);
   });
 });
+
+describe("the violence dial's control cases", () => {
+  // Bug caught: a level left untested, or the three told different scenes so a difference in the answer proves nothing.
+  it("tell the same scene at gentle, standard and grim, and must be played at each", () => {
+    const controls = CONDUCT_CASES.filter((c) => c.id.startsWith("control-violence-"));
+    expect(controls.map((c) => c.violence).sort()).toEqual(["gentle", "grim", "standard"]);
+    expect(new Set(controls.map((c) => c.text)).size).toBe(1);
+    expect(controls.every((c) => c.expect === "played")).toBe(true);
+  });
+});

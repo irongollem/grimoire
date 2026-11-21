@@ -61,6 +61,39 @@ describe("DetailsTab map settings", () => {
   });
 });
 
+describe("DetailsTab violence dial", () => {
+  beforeEach(() => {
+    mocks.update.mockReset();
+    mocks.update.mockResolvedValue({ id: "c1" });
+    mocks.row = {
+      id: "c1", name: "Test", theme: "vellum", health_visibility: "strategic", immersive_rolls: false,
+      battle_map_show_tokens: true, map_memory: "remembered", player_sight: "shared", table_violence: "standard",
+    };
+  });
+
+  // Bug caught: the dial drawn but not part of the saved row, so the DM's choice is lost.
+  it("saves only table_violence when Grim is picked", async () => {
+    const w = mountTab();
+    await option(w, "Grim").trigger("click");
+    await w.find("form").trigger("submit");
+    await flushPromises();
+    expect(mocks.update).toHaveBeenCalledWith({ id: "c1", update: { table_violence: "grim" } });
+  });
+
+  // Bug caught: the stored level ignored, so every table opens on the first option.
+  it("marks the stored level active", () => {
+    mocks.row.table_violence = "gentle";
+    const w = mountTab();
+    expect(option(w, "Gentle").props("active")).toBe(true);
+    expect(option(w, "Standard").props("active")).toBe(false);
+  });
+
+  // Bug caught: the fixed rule left unsaid, so a DM reads the dial as the whole of the table's content settings.
+  it("says the sexual-content rules cannot be changed", () => {
+    expect(mountTab().text()).toContain("The rules on sexual content are the same at every table and cannot be changed.");
+  });
+});
+
 describe("DetailsTab and the world's time", () => {
   // Bug: the calendar, today's year, the climate and the populate panel stayed in Settings after they moved to Canon's
   // "How the world works", so the same column could be edited in two places.

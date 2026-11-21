@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHARACTER_CONDUCT, readsAsChild, shownText, speakerIdsOf, STRIKES_BEFORE_CLOSED, TABLE_CONDUCT, tableClosed } from "./conduct.ts";
+import { CHARACTER_CONDUCT, FIXED_TABLE_CONDUCT, readsAsChild, shownText, speakerIdsOf, STRIKES_BEFORE_CLOSED, TABLE_CONDUCT, tableClosed, tableConduct, tableViolenceOf, violenceLine, type TableViolence } from "./conduct.ts";
 import { soloTableSystem } from "./soloTablePrompt.ts";
 import { speakerSystem } from "./characterTurn.ts";
 import type { AgentMessage } from "./types.ts";
@@ -95,5 +95,57 @@ describe("tableClosed", () => {
   it("closes at the set number of refused messages, not before", () => {
     expect(tableClosed(STRIKES_BEFORE_CLOSED - 1)).toBe(false);
     expect(tableClosed(STRIKES_BEFORE_CLOSED)).toBe(true);
+  });
+});
+
+describe("the violence dial", () => {
+  const LEVELS: TableViolence[] = ["gentle", "standard", "grim"];
+  const system = (violence?: TableViolence) => soloTableSystem({ id: "c1", name: "Sugarwell", rulesetLabel: "D&D 5e (2024)", violence });
+
+  // Bug caught: the standard wording drifting when the line became a setting, changing every existing table's narrator.
+  it("keeps the standard wording exactly as the table always had it", () => {
+    expect(violenceLine("standard")).toBe(
+      "- Violence, danger, cruelty and horror are told the way a D&D table tells them: plainly, without relish and without\n  gore for its own sake.",
+    );
+    expect(TABLE_CONDUCT).toBe(tableConduct("standard"));
+  });
+
+  // Bug caught: two levels sharing a wording, so the setting changes nothing the narrator reads.
+  it("words each level differently, gentle toward less lingering and grim toward weight", () => {
+    const lines = LEVELS.map(violenceLine);
+    expect(new Set(lines).size).toBe(3);
+    expect(violenceLine("gentle")).toMatch(/without lingering on wounds, blood or cruelty/);
+    expect(violenceLine("grim")).toMatch(/grim and unflinching/);
+    expect(violenceLine("grim")).toMatch(/never gore for its own sake/);
+  });
+
+  // Bug caught: a level that loosens the sexual-content rules (the dial reaching what must never move).
+  it.each(LEVELS)("tells the sexual-content and child rules word for word at %s", (level) => {
+    expect(tableConduct(level)).toContain(FIXED_TABLE_CONDUCT);
+    expect(FIXED_TABLE_CONDUCT).toContain("This table tells nothing sexual.");
+    expect(FIXED_TABLE_CONDUCT).toContain("Never anything sexual or romantic involving a child");
+    // The only text that differs between two levels is the violence line.
+    const rest = tableConduct(level).replace(violenceLine(level), "");
+    expect(rest).toBe(tableConduct("standard").replace(violenceLine("standard"), ""));
+  });
+
+  // Bug caught: the setting never reaching the system text, so a DM's choice is stored and ignored.
+  it.each(LEVELS)("puts the %s wording, and only that wording, into the narrator's system text", (level) => {
+    const text = system(level);
+    expect(text).toContain(violenceLine(level));
+    for (const other of LEVELS.filter((l) => l !== level)) expect(text).not.toContain(violenceLine(other));
+  });
+
+  // Bug caught: a caller that gives no level getting something other than the default table.
+  it("reads no level as the standard one", () => {
+    expect(system()).toBe(system("standard"));
+  });
+
+  // Bug caught: an unexpected stored value reaching the prompt as undefined text.
+  it("reads only the two named levels, and anything else as standard", () => {
+    expect(tableViolenceOf("gentle")).toBe("gentle");
+    expect(tableViolenceOf("grim")).toBe("grim");
+    expect(tableViolenceOf("savage")).toBe("standard");
+    expect(tableViolenceOf(null)).toBe("standard");
   });
 });

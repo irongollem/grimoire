@@ -4,8 +4,9 @@
 // run before the stream opens so a refusal is a real status code; the turn itself runs inside the stream.
 import type { AgentProvider } from "../_shared/agent/providerIo.ts";
 import { loadTurnsInReach } from "../_shared/agent/turnsInReach.ts";
-import { giveHandout, loadHandouts, loadPicture } from "./showIo.ts";
-import { CHILD_TURN_THRESHOLDS, readsAsChild, STRIKE_WINDOW_DAYS } from "../_shared/agent/conduct.ts";
+import { countStrikes } from "./strikesIo.ts";
+import { giveHandout, loadHandouts, loadPicture, loadPlace } from "./showIo.ts";
+import { CHILD_TURN_THRESHOLDS, readsAsChild, tableViolenceOf } from "../_shared/agent/conduct.ts";
 import { belongingsText, MAX_BELONGINGS, type Belonging } from "../_shared/agent/belongings.ts";
 import { MAX_PEOPLES } from "../_shared/agent/peoples.ts";
 import { lineKey } from "../_shared/agent/lineKey.ts";
@@ -21,6 +22,7 @@ import { serveUser } from "../_shared/pipeline/serveUser.ts";
 import { jsonError, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { settleHandedOff, withCreditHold, type JobLedger } from "../_shared/pipeline/creditHold.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
+import { makeTextScreenIo } from "./campaignTextScreen.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { callTool, listTools } from "../_shared/mcp/tools.ts";
 import type { ToolContext } from "../_shared/mcp/tools.ts";
@@ -30,13 +32,18 @@ import { hazardFromRow, type KeptHazard } from "../_shared/agent/hazard.ts";
 import { agentToolsFrom, bindTools, SOLO_TABLE_TOOLS, TABLE_REFUSED_TYPES } from "../_shared/agent/mcpTools.ts";
 import { buildNpcProfile, NPC_PROFILE_COLUMNS, shownNpcName, type NpcProfileRow } from "../_shared/npcProfile.ts";
 import { campaignToday } from "../_shared/npcAge.ts";
+import { dateTextFor, todayText } from "../_shared/agent/today.ts";
+import { loadSceneMemories } from "./memoryIo.ts";
+import { loadSiteState } from "./siteIo.ts";
+import { decideInvention, loadPendingInventions } from "./inventionIo.ts";
 import { BESIDE_MAX, PLACES_MAX, CHARACTERS_MAX, type SceneView } from "../_shared/agent/scene.ts";
 import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { loadPartyMember } from "../_shared/agent/characterIo.ts";
 import { secureDie } from "../_shared/serverRoll.ts";
 import type { RecordedFact } from "../_shared/agent/record.ts";
-import { revealToCharacter } from "./revealIo.ts";
+import { revealToCharacter, sharePlace } from "./revealIo.ts";
+import { revealRoom, seatParty, setPartyPlace } from "./partyMoveIo.ts";
 import { makeHandsStore } from "./handsIo.ts";
 import { finishFight, layFightLoot, loadFights, setFight, setPursuit, startFight, statlessFighters } from "./fightIo.ts";
 import type { Prologue } from "../_shared/agent/prologue.ts";
@@ -60,6 +67,16 @@ const COMPANION_MEMORIES = 12;
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+/** The campaign's date for the turn's state. A calendar that will not word it costs the date for a turn, never the turn. */
+function dateOrNull(row: Record<string, unknown>): string | null {
+  try {
+    return todayText(row);
+  } catch (error) {
+    console.error("agent-turn: wording the campaign's date failed:", error);
+    return null;
+  }
+}
 
 /** A refusal before the stream opened. A code (`sitting_ended`, `rate_limited`...) is the page's to branch on; a sentence is for a person. */
 function refusalResponse(refusal: Refusal): Response {
@@ -142,7 +159,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     async loadCampaign(campaignId): Promise<CampaignRow | null> {
       const { data, error } = await admin
         .from("campaigns")
-        .select("id, user_id, name, ai_enabled, game_system, text_provider, current_year, current_month, current_day")
+        .select("id, user_id, name, ai_enabled, table_violence, game_system, text_provider, current_year, current_month, current_day, calendar_id, custom_calendar")
         .eq("id", campaignId)
         .maybeSingle();
       if (error) throw error;
@@ -154,7 +171,10 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
         user_id: data.user_id,
         name: data.name,
         game_system: data.game_system,
+        table_violence: tableViolenceOf(data.table_violence),
         ai_enabled: await tableAiEnabled(admin, data),
+        today: dateOrNull(data),
+        date: campaignToday(data),
       };
     },
 
@@ -281,18 +301,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
 
     // What the screen refused of this account's own messages, lately. Only what they sent counts: a turn of the
     // Dungeon Master's that was withheld is not the player's strike.
-    async strikes(userId) {
-      const since = new Date(Date.now() - STRIKE_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
-      const { count, error } = await admin
-        .from("prompt_screenings")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("generation_type", "agent_turn")
-        .eq("blocked", true)
-        .gte("created_at", since);
-      if (error) throw error;
-      return count ?? 0;
-    },
+    strikes: (userId) => countStrikes(admin, userId, Date.now()),
 
     async isFlaggedOutput(text, childTookPart) {
       try {
@@ -310,6 +319,8 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
         throw error;
       }
     },
+
+    campaignText: makeTextScreenIo(admin, { apiKey: () => moderationKey, userId: user.id }),
 
     async anyChild(campaignId, characterIds) {
       const { data, error } = await admin.from("npcs").select("age").eq("campaign_id", campaignId).in("id", characterIds);
@@ -604,6 +615,13 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
 
     revealToCharacter: (input) => revealToCharacter(supabase, input),
 
+    // As the caller, never the service role: the DM's JWT is what makes the arrival trigger mark the room explored.
+    moveParty: {
+      setPlace: (campaignId, placeId) => setPartyPlace(supabase, campaignId, placeId),
+      revealRoom: (campaignId, placeId) => revealRoom(supabase, campaignId, placeId),
+      seatParty: (campaignId, placeId, memberIds) => seatParty(supabase, campaignId, placeId, memberIds),
+    },
+
     // Fights: the campaign's own encounters, read and written as the caller; the conversation's row as the server.
     loadFights: (campaignId, locationId, fightEncounterId, pursuitEncounterId) => loadFights(supabase, campaignId, locationId, fightEncounterId, pursuitEncounterId),
     finishFight: (campaignId, encounterId) => finishFight(admin, campaignId, encounterId),
@@ -611,6 +629,8 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     // As the caller: what they may read and share is the database's to decide.
     loadHandouts: (campaignId, memberId) => loadHandouts(supabase, campaignId, memberId),
     loadPicture: (campaignId, what, id) => loadPicture(supabase, campaignId, what, id),
+    loadPlace: (campaignId, id) => loadPlace(supabase, campaignId, id),
+    sharePlace: (input) => sharePlace(supabase, input),
     giveHandout: (campaignId, handoutId, memberId) => giveHandout(supabase, campaignId, handoutId, memberId),
     // Through the caller's client: the DM's own RLS decides which places and roads there are to travel by.
     // Behind the screen, so its fairness is the server's: a uniform whole number from 1 to max.
@@ -757,8 +777,38 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     },
 
     // Quests: read and written as the caller (the quest functions check the DM); the conversation's own row as the server.
-    loadQuests: (campaignId, pressureClockId) => loadQuests(supabase, campaignId, pressureClockId),
+    loadQuests: (campaignId, pressureClockId) => loadQuests(supabase, campaignId, pressureClockId, dateTextFor(rawCampaign)),
     applyQuestMove: (ctx, move) => applyQuestMove(supabase, admin, ctx, move),
+    // Time moves as the caller (the campaign's own update policy decides who may); the chat line is the server's.
+    async advanceDate(campaignId, days) {
+      const { data, error } = await supabase.rpc("advance_campaign_date", { p_campaign_id: campaignId, p_days: days });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : null;
+      const date = campaignToday({ current_year: row?.year, current_month: row?.month, current_day: row?.day });
+      if (date === null) throw new Error("advance_campaign_date returned no date");
+      // A calendar that will not word the day costs the chat line, never the date that has moved.
+      let text: string | null = null;
+      try {
+        text = dateTextFor(rawCampaign)(date.year, date.month, date.day);
+      } catch (wording) {
+        console.error("agent-turn: wording the new date failed:", wording);
+      }
+      return { date, text };
+    },
+    async announce(campaignId, text) {
+      const { error } = await admin.from("campaign_messages").insert({
+        campaign_id: campaignId, user_id: user.id, recipient_user_id: null, sender_name: null, message: text, type: "system", metadata: null,
+      });
+      if (error) throw error;
+    },
+    // The site state is read through the service role like the scene (its view has no campaign column, so siteIo.ts
+    // scopes it by the campaign's own places); the memories as the caller, like the record: they are the DM's rows.
+    loadSiteState: (campaignId, locationId) => loadSiteState(admin, campaignId, locationId),
+    loadSceneMemories: (campaignId, characterIds) => loadSceneMemories(supabase, campaignId, characterIds),
+    // Inventions as the caller: the owner of an AI table is the campaign's DM (`campaigns_create_dm_membership`), which is
+    // what `decide_crafting_invention` checks, and a service role has no `auth.uid()` for it to check.
+    loadPendingInventions: (campaignId, memberId) => loadPendingInventions(supabase, campaignId, memberId),
+    decideInvention: (ruling) => decideInvention(supabase, ruling),
 
     // The canon (#1226 story 9): read as the caller (DM-only tables); the nearest-entries function and the world
     // block as the server, for the one campaign the handler has already checked.

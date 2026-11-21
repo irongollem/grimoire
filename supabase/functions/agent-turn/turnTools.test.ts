@@ -35,6 +35,7 @@ const session: SessionRow = {
 
 const HANDOUT = "00000000-0000-4000-8000-0000000000f2";
 const PICTURED = "00000000-0000-4000-8000-0000000000f1";
+const SHOWN_PLACE = "00000000-0000-4000-8000-0000000000f3";
 
 type HandsFixture = Omit<NonNullable<TurnToolsInput["hands"]>, "memberId" | "onChange">;
 
@@ -42,6 +43,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
   const brought: BroughtOut[] = [];
   const handed: HandsChange[] = [];
   const handedOut: string[] = [];
+  const placesShared: Array<{ id: string; withMap: boolean }> = [];
   const asked: PendingRoll[] = [];
   const fights: FightPlan[] = [];
   const calls: string[] = [];
@@ -107,12 +109,14 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
       ? {
         handouts: [{ id: HANDOUT, title: "The Guild's letter" }],
         picture: async (_what, id) => (id === PICTURED ? { title: "Honeycomb", url: "https://assets.example/h.webp" } : null),
+        place: async (id) => (id === SHOWN_PLACE ? { title: "The Salt Hall", url: "https://assets.example/s.webp", hasMapPicture: true, mapShared: false, hasNook: false } : null),
+        onPlace: (place) => { placesShared.push(place); },
         onHandout: (handout) => { handedOut.push(handout.id); },
       }
       : null,
     fight: played ? { view: { prepared: [{ id: FIGHT, name: "The cellar rats", creatures: "" }], fight: null }, viewAt: async () => ({ prepared: [{ id: ATTIC_FIGHT, name: "The attic bats", creatures: "" }], fight: null }), onStart: (plan) => { fights.push(plan); }, statless: async () => [] } : null,
   });
-  return { turn, calls, filed, moves, asked, fights, handed, handedOut, mapReads, passed, brought };
+  return { turn, calls, filed, moves, asked, fights, handed, handedOut, placesShared, mapReads, passed, brought };
 }
 
 describe("makeTurnTools", () => {
@@ -155,6 +159,16 @@ describe("makeTurnTools", () => {
     expect((await turn.callTool("pass_days", { days: 3 })).isError).toBe(false);
     expect((await turn.callTool("pass_days", { days: 3 })).isError).toBe(true);
     expect(passed).toEqual([3]);
+  });
+
+  // Bug caught: a held payoff fired where the tool is not offered (a fight on the board), answered as a quest tool.
+  it("refuses fire_consequence when it is not offered, queuing nothing", async () => {
+    const queued: QuestMove[] = [];
+    const { turn } = build({ state: NO_QUESTS, queued });
+    const answer = await turn.callTool("fire_consequence", { event_id: "00000000-0000-4000-8000-000000000e01" });
+    expect(answer).toMatchObject({ isError: true, content: expect.stringContaining("fight") });
+    expect(queued).toEqual([]);
+    expect(turn.tools.map((t) => t.name)).not.toContain("fire_consequence");
   });
 
   it("runs record itself and never hands it to the campaign's tools, which would answer 'unknown tool'", async () => {
@@ -280,9 +294,31 @@ describe("makeTurnTools", () => {
     it("shows the campaign's own picture of a record, and says so when there is none", async () => {
       const { turn } = build(null, true);
       expect(await turn.callTool("show", { person_id: PICTURED })).toMatchObject({ isError: false, shown: { kind: "picture", of: "person", title: "Honeycomb", url: "https://assets.example/h.webp" } });
-      const none = await turn.callTool("show", { place_id: HANDOUT });
+      const none = await turn.callTool("show", { creature_id: HANDOUT });
       expect(none.isError).toBe(true);
       expect(none.content).toContain("Describe it in words");
+    });
+
+    // Bug caught: the map handed over by every mention of a place (the DM's own sharing of the map overridden); a
+    // place that is not this campaign's shared; the same place shared twice in a reply.
+    it("shares a place once, with its map only when asked, and nothing that is not the campaign's", async () => {
+      const { turn, placesShared } = build(null, true);
+      const given = await turn.callTool("show", { place_id: SHOWN_PLACE, with_map: true });
+      expect(given).toMatchObject({ isError: false, shown: { kind: "place", id: SHOWN_PLACE, title: "The Salt Hall", hasMap: true, hasNook: false } });
+      expect((await turn.callTool("show", { place_id: SHOWN_PLACE })).isError).toBe(true);
+      expect((await turn.callTool("show", { place_id: HANDOUT })).isError).toBe(true);
+      expect(placesShared).toEqual([{ id: SHOWN_PLACE, withMap: true }]);
+      const plain = build(null, true);
+      expect(await plain.turn.callTool("show", { place_id: SHOWN_PLACE })).toMatchObject({ shown: { hasMap: false } });
+      expect(plain.placesShared).toEqual([{ id: SHOWN_PLACE, withMap: false }]);
+    });
+
+    // Bug caught: with_map on a person or a handout quietly ignored, so the Narrator believes it handed a map over.
+    it("refuses with_map with anything but a place", async () => {
+      const { turn, handedOut } = build(null, true);
+      expect((await turn.callTool("show", { person_id: PICTURED, with_map: true })).isError).toBe(true);
+      expect((await turn.callTool("show", { handout_id: HANDOUT, with_map: true })).isError).toBe(true);
+      expect(handedOut).toEqual([]);
     });
 
     // Bug caught: a reply that is a page of pictures.
