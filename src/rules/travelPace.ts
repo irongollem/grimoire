@@ -92,8 +92,16 @@ export interface TravelTime {
 export function travelTime(distance: number, unit: DistanceUnit, paceId: TravelPaceId): TravelTime {
   const pace = getTravelPace(paceId);
   const miles = Math.max(0, toMiles(distance, unit));
+  return timeOfTravelHours((miles / pace.milesPerDay) * TRAVEL_HOURS_PER_DAY);
+}
+
+/**
+ * A number of travel hours (eight to a travel day) as the app writes a time: part hours round up, float residue is
+ * dropped. Ways of travelling, terrain and the like are worked into those hours by `rules/travelSpeed.ts`.
+ */
+export function timeOfTravelHours(rawHours: number): TravelTime {
   // Rounded to a thousandth so 8.0000000001 hours does not tip into a new hour.
-  const totalHours = Math.round((miles / pace.milesPerDay) * TRAVEL_HOURS_PER_DAY * 1000) / 1000;
+  const totalHours = Math.round(rawHours * 1000) / 1000;
   const wholeHours = Math.ceil(totalHours);
   const days = Math.floor(wholeHours / TRAVEL_HOURS_PER_DAY);
   const hours = wholeHours - days * TRAVEL_HOURS_PER_DAY;

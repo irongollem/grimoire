@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   viewer: null as string | null,
   tiesLoading: false,
   peopleLoading: false,
+  playerRoads: [] as { id: string; from_location_id: string; to_location_id: string; distance: number; unit: string; name: string; going: string }[],
   roads: [] as { id: string; from_location_id: string; to_location_id: string; distance: number; unit: string; name: string; going: string }[],
 }));
 
@@ -20,7 +21,11 @@ vi.mock("@/composables/world/useWorldTies", () => ({
   useWorldPeople: () => ({ people: ref([]), isLoading: computed(() => state.peopleLoading) }),
 }));
 vi.mock("@/composables/locations/useLocationRoads", () => ({ useLocationRoads: () => ({ data: computed(() => state.roads) }) }));
+vi.mock("@/composables/locations/usePlayerLocationRoads", () => ({
+  usePlayerLocationRoads: () => ({ data: computed(() => state.playerRoads) }),
+}));
 vi.mock("@/composables/locations/useLocations", () => ({
+  useSharedLocations: () => ({ data: ref([{ id: "a", name: "Brightwater", image_url: null }, { id: "b", name: "Saltmarsh", image_url: null }]) }),
   useAllLocations: () => ({ data: ref([{ id: "a", name: "Brightwater", image_url: null }, { id: "b", name: "Saltmarsh", image_url: null }]) }),
 }));
 vi.mock("@/composables/party/useParty", () => ({
@@ -45,6 +50,14 @@ describe("WorldWebView", () => {
     state.tiesLoading = false;
     state.peopleLoading = false;
     state.roads = [];
+    state.playerRoads = [];
+  });
+
+  // Bug caught: the player's web ignoring the roads they know, so two known towns stand apart on it.
+  it("the player's web draws the roads they know as ties between their places", () => {
+    state.playerRoads = [{ id: "r1", from_location_id: "a", to_location_id: "b", distance: 12, unit: "mi", name: "", going: "track" }];
+    const w = mount(PlayerWorldWebView, { global });
+    expect(w.getComponent(Screen).props("ties")).toEqual([expect.objectContaining({ source: "road", from_id: "a", to_id: "b", told: "12 mi by track" })]);
   });
 
   // Bug caught: the roads read and never handed to the web, so two towns a road joins stand apart on it.

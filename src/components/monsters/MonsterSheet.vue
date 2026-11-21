@@ -7,6 +7,7 @@
       <SheetFactLine class="pr-10" :portrait="monster.image_url" :portrait-alt="monster.name">
         <TagChip v-for="tag in monster.tags" :key="tag">{{ tag }}</TagChip>
         <span v-if="monster.habitat" class="text-muted-foreground italic">Habitat: {{ monster.habitat }}</span>
+        <span v-if="onTheRoad" class="text-muted-foreground italic" data-testid="monster-on-the-road">On the road: {{ onTheRoad }}</span>
         <RouterLink
           v-if="lairLocation"
           :to="placeRoute(lairLocation.id)"
@@ -47,6 +48,10 @@
         <TagChips :tags="monster.tags" />
         <p v-if="monster.habitat" class="text-caption text-muted-foreground italic">
           Habitat: {{ monster.habitat }}
+        </p>
+        <!-- What a mount or a draught animal is good for on the road (#1222): the bestiary's marking. -->
+        <p v-if="onTheRoad" class="text-caption text-muted-foreground italic" data-testid="monster-on-the-road">
+          On the road: {{ onTheRoad }}
         </p>
         <RouterLink
           v-if="lairLocation"
@@ -142,6 +147,7 @@
 </template>
 
 <script setup lang="ts">
+import { creatureOnTheRoad } from "@/rules/travelSpeed";
 import TagChip from "@/components/common/TagChip.vue";
 import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
@@ -167,6 +173,8 @@ import type { Monster, MonsterStatBlock } from "@/types/monster.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ monster: Monster }>();
+/** The bestiary's word on a mount or a draught animal (#1222): "Can be ridden, pulls a load, at home on snow". */
+const onTheRoad = computed(() => creatureOnTheRoad(props.monster));
 
 const { lowArt } = useLowArt();
 const { labelFor } = useSourceTitles();

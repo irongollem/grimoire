@@ -1,4 +1,4 @@
-import { toMiles } from "../../rules/travelPace.ts";
+import { toMiles, TRAVEL_HOURS_PER_DAY } from "../../rules/travelPace.ts";
 import { otherEnd, type Going, type Road } from "./roads.ts";
 
 /**
@@ -15,6 +15,8 @@ export interface Leg {
   miles: number;
   name: string;
   going: Going;
+  /** Copied from the road: the terrain key, which with the way of travelling decides the leg's time. */
+  terrain: string;
 }
 
 export interface Way {
@@ -61,7 +63,7 @@ export function shortestWay(fromId: string, toId: string, roads: readonly Road[]
       const legs = reached.legs + 1;
       const known = best.get(next);
       if (known === undefined || miles < known.miles || (miles === known.miles && legs < known.legs)) {
-        best.set(next, { miles, legs, via: { roadId: road.id, from: here, to: next, miles: toMiles(road.distance, road.unit), name: road.name, going: road.going } });
+        best.set(next, { miles, legs, via: { roadId: road.id, from: here, to: next, miles: toMiles(road.distance, road.unit), name: road.name, going: road.going, terrain: road.terrain } });
       }
     }
   }
@@ -117,6 +119,26 @@ export function stopsOf(way: Way, milesPerDay: number): Stop[] {
   // A thousandth of a mile of slack, so a journey of exactly two days' march has one night, not two.
   for (let night = 1; night * milesPerDay < way.miles - 0.001; night += 1) {
     marks.push({ at: night * milesPerDay, order: 1, stop: { kind: "night", night } });
+  }
+  return marks.sort((a, b) => a.at - b.at || a.order - b.order).map((mark) => mark.stop);
+}
+
+/**
+ * The stops of a way when its legs do not all take the same time per mile (terrain, a sled, a ship): a night
+ * falls at every full travel day of elapsed hours, `hoursOfLeg` saying how many hours each leg takes. A place
+ * comes before the night that falls at the same moment. Same stops as `stopsOf` where every mile takes the same.
+ */
+export function stopsOfTimed(way: Way, hoursOfLeg: (leg: Leg) => number): Stop[] {
+  if (way.legs.length === 0) return [];
+  const marks: { at: number; order: number; stop: Stop }[] = [];
+  let elapsed = 0;
+  way.legs.forEach((leg, index) => {
+    elapsed += hoursOfLeg(leg);
+    if (index < way.legs.length - 1) marks.push({ at: elapsed, order: 0, stop: { kind: "place", placeId: leg.to } });
+  });
+  // A thousandth of an hour of slack, so a journey of exactly two travel days has one night, not two.
+  for (let night = 1; night * TRAVEL_HOURS_PER_DAY < elapsed - 0.001; night += 1) {
+    marks.push({ at: night * TRAVEL_HOURS_PER_DAY, order: 1, stop: { kind: "night", night } });
   }
   return marks.sort((a, b) => a.at - b.at || a.order - b.order).map((mark) => mark.stop);
 }

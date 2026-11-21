@@ -92,6 +92,17 @@
       <p v-else class="text-caption text-muted-foreground italic">No one here yet.</p>
     </div>
 
+    <!-- Roads from here (#1222): only those whose far end the player can name. -->
+    <div v-if="roadsHere.length" class="border-t border-border pt-3" data-place-roads>
+      <p class="text-label text-muted-foreground mb-2">Roads from here</p>
+      <ul class="flex flex-col gap-1">
+        <li v-for="r in roadsHere" :key="r.road.id" class="text-caption text-foreground">
+          <span class="font-semibold">{{ r.name }}</span>
+          <span class="text-muted-foreground"> · {{ roadText(r.road) }}</span>
+        </li>
+      </ul>
+    </div>
+
     <PlayerConnectionsList kind="location" :id="loc.id" />
 
     <PlayerNotesWidget
@@ -115,6 +126,9 @@ import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
 import PlayerConnectionsList from "@/components/player/people/PlayerConnectionsList.vue";
 import LocationMap from "@/components/locations/map/LocationMap.vue";
 import PlayerSiteMap from "@/components/player/PlayerSiteMap.vue";
+import { useSharedLocations } from "@/composables/locations/useLocations";
+import { usePlayerLocationRoads } from "@/composables/locations/usePlayerLocationRoads";
+import { roadsFrom, roadText } from "@/lib/travel/roads";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { isSiteType } from "@/lib/locations/tiers";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
@@ -146,6 +160,16 @@ defineEmits<{
 const { data: noticeBoards } = usePlayerNoticeBoards();
 const { isNew: isNoticeBoardNew } = useReadItems("notice_board");
 const boardsHere = computed(() => (noticeBoards.value ?? []).filter((b) => b.location_ids.includes(loc.id)));
+const { data: roads } = usePlayerLocationRoads();
+const { data: knownPlaces } = useSharedLocations();
+const roadsHere = computed(() => {
+  if (!roads.value || !knownPlaces.value) return [];
+  const names = new Map(knownPlaces.value.map((p) => [p.id, p.name]));
+  return roadsFrom(loc.id, roads.value).flatMap(({ road, otherId }) => {
+    const name = names.get(otherId);
+    return name === undefined ? [] : [{ road, name }];
+  });
+});
 const isStoreType = computed(() => STORE_LOCATION_TYPES.has(loc.location_type));
 const mapStack = computed(() => buildMapStack(loc));
 const playerPins = computed(() =>

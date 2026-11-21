@@ -8,8 +8,8 @@ const mocks = vi.hoisted(() => ({ tell: vi.fn(), takeBack: vi.fn(), update: vi.f
 const clues = ref<CanonClue[]>([]);
 const entries = ref<CanonEntry[]>([]);
 
-vi.mock("@/composables/canon/useCanonPassages", async (orig) => {
-  const real = await orig<typeof import("@/composables/canon/useCanonPassages")>();
+vi.mock("@/composables/canon/useCanonPassageEdits", async (orig) => {
+  const real = await orig<typeof import("@/composables/canon/useCanonPassageEdits")>();
   return { ...real, updateCanonPassage: vi.fn(), useTellPassage: () => ({ tell: mocks.tell, takeBack: mocks.takeBack }), useUpdateCanonPassage: () => ({ mutate: mocks.update }) };
 });
 vi.mock("@/composables/canon/useCanonClues", () => ({ useCanonClues: () => ({ data: clues }) }));

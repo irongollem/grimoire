@@ -127,6 +127,7 @@ function partyMember(over: Partial<PartyMember> = {}): PartyMember {
     weapon_masteries: [],
     spell_slots: [],
     current_location_id: null,
+    days_without_food: 0,
     carry_capacity_override: null,
     class_resources: {},
     class_choices: {},

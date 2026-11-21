@@ -112,6 +112,7 @@ insert into definer_registry (name, kind, reason) values
   ('get_player_visible_quests', 'refuses', null),
   ('get_player_visible_site_state', 'refuses', null),
   ('get_player_world_ties', 'refuses', null),
+  ('get_player_roads', 'refuses', null),
   ('get_player_canon', 'refuses', null),
   ('get_player_lore_passages', 'refuses', null),
   ('open_backstory', 'refuses', null),

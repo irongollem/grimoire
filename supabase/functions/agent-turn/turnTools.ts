@@ -542,7 +542,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     const parsed = parseTravel(toolInput);
     if (!parsed.ok) return { content: parsed.error, isError: true };
     travelMap ??= input.travel.map();
-    return travelAnswer(place, parsed.value.toPlaceId, parsed.value.paceId, await travelMap);
+    return travelAnswer(place, parsed.value.toPlaceId, parsed.value.paceId, await travelMap, parsed.value.wayKey);
   };
 
   // A roll on one of the campaign's placed tables, behind the screen: nothing of it goes to the page.

@@ -206,9 +206,22 @@ registerOptionalRule({
   description:
     "Most tables do not count meals. With this rule on, a journey says how much food it takes: **one ration for each traveller for each day on the road**.\n\n" +
     "Going without follows your edition. **2014** (PHB, Food and Water): a character can go 3 + their Constitution modifier days without food (at least 1), then takes one level of exhaustion at the end of each further day; a normal day of eating resets the count. **2024** (PHB, Malnutrition): eating nothing for five days gives one Exhaustion level at the end of the fifth day and one more each day after; eating less than half a day's food calls for a DC 10 Constitution save at the day's end.\n\n" +
-    "Nothing is taken from anyone's pack by itself: the number is there for the table to act on.",
+    "When the party **Sets out** from a place's journey line, each traveller eats a ration a day from their own pack, then from the party's stash, and anyone who goes without counts the days and gains Exhaustion by the book. At a slow pace the DM may have travellers **forage**: a Wisdom (Survival) check a day against the terrain's DC (10, 15 or 20), finding 1d6 + Wisdom modifier pounds of food on a success. Undo puts every ration back.",
   dmOnly: false,
   defaultEnabled: false,
+});
+
+// ── Off the Road ──────────────────────────────────────────────────────────────
+registerOptionalRule({
+  key: "off_road",
+  name: "Off the Road",
+  summary: "With no road between two places, the straight line on a map is not the way anyone walks.",
+  description:
+    "Where no road joins two places, the app measures the straight line between them on the map. Nobody walks a straight line across hills, rivers and woods, so with this rule on the **distance is multiplied** by the number below.\n\n" +
+    "The ground that line crosses is the campaign's **Land with no road**, set in Campaign Settings, Travel (difficult going unless you change it). Off: the straight line as measured.",
+  dmOnly: true,
+  defaultEnabled: true,
+  config: [{ key: "factor", label: "Distance travelled for each mile on the map", type: "number", default: 1.5, min: 1, max: 3 }],
 });
 
 // ── Encumbrance ───────────────────────────────────────────────────────────────

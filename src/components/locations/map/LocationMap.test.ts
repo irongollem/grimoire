@@ -202,3 +202,17 @@ describe("LocationMap on a site's floor plan", () => {
     expect(wrapper.findComponent({ name: "SiteMapLayerBar" }).exists()).toBe(false);
   });
 });
+
+describe("LocationMap roads (#1222)", () => {
+  const line = { roadId: "r", from: { x: 0.1, y: 0.1 }, to: { x: 0.6, y: 0.6 }, label: "40 mi by the coast road", labelAt: 0.5 };
+
+  it("draws the roads it is given, each labelled", () => {
+    const wrapper = mountMap({ roadLines: [line] });
+    expect(wrapper.find("[data-testid='map-roads']").exists()).toBe(true);
+    expect(wrapper.text()).toContain("40 mi by the coast road");
+  });
+
+  it("draws no road layer when it has none", () => {
+    expect(mountMap().find("[data-testid='map-roads']").exists()).toBe(false);
+  });
+});

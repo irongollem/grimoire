@@ -116,6 +116,9 @@ export interface Monster extends VersionedContentMetadata {
   size: MonsterSize;
   alignment: string;
   habitat: string | null;
+  /** Library rows only: what the creature is good for on the road (`library_monsters.travel`, #1222); read with
+   *  `beastTravelOf`. A campaign's own monsters have none. */
+  travel?: unknown;
   lair_location_id?: string | null; // user monsters only — SRD rows are shared content with no location FK
   source: string | null;       // Open5e document slug when imported, or free text
   source_title?: string | null; // Open5e document full title

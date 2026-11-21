@@ -53,7 +53,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { useSetClueFound, type ClueKind } from "@/composables/canon/useCanonClues";
 import { useCanonHere } from "@/composables/canon/useCanonHere";
-import { useTellPassage } from "@/composables/canon/useCanonPassages";
+import { useTellPassage } from "@/composables/canon/useCanonPassageEdits";
 
 const { kind, id } = defineProps<{ kind: ClueKind; id: string }>();
 

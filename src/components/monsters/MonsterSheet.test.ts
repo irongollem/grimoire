@@ -54,6 +54,17 @@ function monster(overrides: Partial<Monster>): Monster {
 
 const stubs = { RouterLink: { props: ["to"], template: "<a :href=\"to\"><slot /></a>" }, FocalImage: true, StatBlockPanel: true, TraitList: true, SpellcastingList: true, RichTextViewer: { props: ["content"], template: "<p class='rt'>{{ content }}</p>" } };
 
+describe("MonsterSheet on the road", () => {
+  // #1222: the bestiary marks its mounts and draught animals. Bug caught: the marking read but never shown, so a DM
+  // cannot tell from the sheet that an axe beak is at home on snow; or a line on a creature nobody rides.
+  it("shows what a marked creature is good for on the road, and nothing for an unmarked one", () => {
+    const marked = mount(MonsterSheet, { props: { monster: monster({ is_shared: true, travel: { ridden: true, pulls: true, at_home: ["snow"] } }) }, global: { stubs } });
+    expect(marked.get("[data-testid=monster-on-the-road]").text()).toBe("On the road: Can be ridden, pulls a load, at home on snow");
+    const plain = mount(MonsterSheet, { props: { monster: monster({ is_shared: true }) }, global: { stubs } });
+    expect(plain.find("[data-testid=monster-on-the-road]").exists()).toBe(false);
+  });
+});
+
 describe("MonsterSheet description", () => {
   it("shows a library creature's lore from its own read, not from the row", () => {
     const wrapper = mount(MonsterSheet, { props: { monster: monster({ is_shared: true }) }, global: { stubs } });

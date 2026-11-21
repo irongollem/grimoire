@@ -636,20 +636,27 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     // Behind the screen, so its fairness is the server's: a uniform whole number from 1 to max.
     rollDie: (max) => secureDie(Math.max(1, Math.trunc(max))),
     async loadTravelMap(campaignId, gameSystem) {
-      const [places, roads, placed, rations] = await Promise.all([
+      const [places, roads, placed, rations, terrains, ways, companions] = await Promise.all([
         supabase.from("locations").select("id, name, parent_id").eq("campaign_id", campaignId),
-        supabase.from("location_roads").select("id, from_location_id, to_location_id, distance, unit, name, going, roll_table_id, roll_table:roll_tables(id, name, dice, entries)").eq("campaign_id", campaignId),
+        supabase.from("location_roads").select("id, from_location_id, to_location_id, distance, unit, name, going, terrain, roll_table_id, roll_table:roll_tables(id, name, dice, entries)").eq("campaign_id", campaignId),
         // The roll tables placed on this campaign's places. A placement has no campaign of its own: its place has.
         supabase.from("location_placements").select("location_id, roll_table:roll_tables!inner(id, name, dice, entries), place:locations!inner(campaign_id)")
           .not("roll_table_id", "is", null).eq("place.campaign_id", campaignId),
         // Whether this campaign counts food (the optional rule "Rations on the Road"; off unless switched on).
         supabase.from("campaign_rules").select("enabled").eq("campaign_id", campaignId).eq("rule_key", "rations").maybeSingle(),
+        // The campaign's own terrains and ways of travelling, and its companions' speeds for a way one pulls.
+        supabase.from("travel_terrains").select("key, name, factor, sink").eq("campaign_id", campaignId),
+        supabase.from("travel_ways").select("key, name, kind, speed_feet, mph, companion_id, at_home, sink, through_the_night").eq("campaign_id", campaignId),
+        supabase.from("companions").select("id, speed, speed_line:stat_block->>speed").eq("campaign_id", campaignId),
       ]);
       if (rations.error) throw rations.error;
       if (placed.error) throw placed.error;
       if (places.error) throw places.error;
       if (roads.error) throw roads.error;
-      return travelMapFrom({ places: places.data ?? [], roads: roads.data ?? [], placed: placed.data ?? [], rations: rations.data, gameSystem });
+      if (terrains.error) throw terrains.error;
+      if (ways.error) throw ways.error;
+      if (companions.error) throw companions.error;
+      return travelMapFrom({ places: places.data ?? [], roads: roads.data ?? [], placed: placed.data ?? [], rations: rations.data, gameSystem, terrains: terrains.data ?? [], ways: ways.data ?? [], companions: companions.data ?? [] });
     },
     layFightLoot: (campaignId, encounterId, placeId, held) => layFightLoot(admin, campaignId, encounterId, placeId, held),
     startFight: (ctx, plan) => startFight(supabase, admin, ctx, plan),

@@ -8,6 +8,7 @@
 //
 // Pure: the die is handed in.
 
+import { tablesForPlaces } from "../../../../src/lib/travel/wayTables.ts";
 import type { AgentTool } from "./types.ts";
 
 export const ROLL_TABLE_TOOL_NAME = "roll_table";
@@ -81,29 +82,8 @@ export function tablesAlong(
   nameOf: (id: string) => string,
   tables: readonly PlacedTable[],
 ): TableOnTheWay[] {
-  const byPlace = new Map<string, PlacedTable[]>();
-  for (const table of tables) {
-    const list = byPlace.get(table.placeId);
-    if (list === undefined) byPlace.set(table.placeId, [table]);
-    else list.push(table);
-  }
-  const out: TableOnTheWay[] = [];
-  const listed = new Set<string>();
-  for (const placeId of placeIds) {
-    const seen = new Set<string>();
-    for (let at: string | null = placeId; at !== null && !seen.has(at); at = parentOf(at)) {
-      seen.add(at);
-      const here = byPlace.get(at);
-      if (here === undefined) continue;
-      for (const table of here) {
-        if (listed.has(table.id)) continue;
-        listed.add(table.id);
-        out.push({ table, forPlace: nameOf(placeId) });
-      }
-      break;
-    }
-  }
-  return out;
+  // The rule itself is the app's, shared with the DM's journey line (`src/lib/travel/wayTables.ts`).
+  return tablesForPlaces(placeIds, parentOf, tables).map(({ table, placeId }) => ({ table, forPlace: nameOf(placeId) }));
 }
 
 /** The line of travel's answer that lists the tables; nothing when the campaign keeps none for this road. */

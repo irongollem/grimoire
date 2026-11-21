@@ -9,8 +9,8 @@ const answer = { clues: [] as CanonHereClue[], passages: [] as CanonHerePassage[
 vi.mock("@/lib/supabase", () => ({ supabase: { rpc: mocks.rpc, from: mocks.from } }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
 vi.mock("@/composables/canon/useCanonClues", async (orig) => ({ ...(await orig<typeof import("@/composables/canon/useCanonClues")>()), useSetClueFound: () => mocks.setFound }));
-vi.mock("@/composables/canon/useCanonPassages", async (orig) => ({
-  ...(await orig<typeof import("@/composables/canon/useCanonPassages")>()),
+vi.mock("@/composables/canon/useCanonPassageEdits", async (orig) => ({
+  ...(await orig<typeof import("@/composables/canon/useCanonPassageEdits")>()),
   useTellPassage: () => ({ tell: mocks.tell, takeBack: vi.fn() }),
 }));
 

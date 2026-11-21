@@ -65,6 +65,8 @@
               :image-natural-height="frameRef?.imageNaturalHeight ?? 0"
               @select-room="onSelectPreparedRoom"
             />
+            <!-- The roads the map knows (#1222), under the route and the pins. -->
+            <MapRoadsLayer :lines="roadLines" :scale="frameRef?.scale ?? 1" />
             <!-- The Measure tool's route (#932): under the pins, so a pin a
                  waypoint snapped to stays the thing on top. -->
             <MapMeasureLayer :points="routePoints" :scale="frameRef?.scale ?? 1" />
@@ -202,6 +204,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import LocationPlacements from "@/components/locations/place/LocationPlacements.vue";
 import MapFrame from "@/components/locations/map/MapFrame.vue";
 import MapMeasureLayer from "@/components/locations/map/MapMeasureLayer.vue";
+import MapRoadsLayer from "@/components/locations/map/MapRoadsLayer.vue";
+import type { MapRoadLine } from "@/lib/travel/mapRoads";
 import MapPinsLayer from "@/components/locations/map/MapPinsLayer.vue";
 import MapRegionsLayer from "@/components/locations/map/MapRegionsLayer.vue";
 import SiteMapLayerBar from "@/components/locations/site/SiteMapLayerBar.vue";
@@ -242,6 +246,7 @@ const {
   fogGlimpsed = [],
   measuring = false,
   routePoints = [],
+  roadLines = [],
 } = defineProps<{
   /** The site's map stack — Picture, Drawing, and/or a blank grid (#884).
    *  Callers build it with `buildMapStack()` and gate mounting this
@@ -306,6 +311,8 @@ const {
    *  `routePoints`. */
   measuring?: boolean;
   routePoints?: readonly RoutePoint[];
+  /** The roads this map knows, as straight lines between pins (#1222). */
+  roadLines?: readonly MapRoadLine[];
 }>();
 
 const emit = defineEmits<{

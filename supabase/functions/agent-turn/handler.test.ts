@@ -531,7 +531,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       h.fightSets.push({ sessionId, campaignId, encounterId });
     },
     loadHandouts: async () => h.state.handouts,
-    loadTravelMap: async () => ({ places: [], roads: [], tables: [], roadTables: [], food: null }),
+    loadTravelMap: async () => ({ places: [], roads: [], tables: [], roadTables: [], food: null, terrains: [], ways: [], companionSpeed: () => null }),
     rollDie: () => 1,
     loadPicture: async (_campaignId, what, id) => (id === PICTURED ? { title: `The ${what}`, url: "https://assets.example/p.webp" } : null),
     loadPlace: async (_campaignId, id) => (id === SHOWN_PLACE ? { title: "The Salt Hall", url: null, hasMapPicture: true, mapShared: false, hasNook: true } : null),

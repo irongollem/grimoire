@@ -12,7 +12,8 @@
 import { placesPassed, roadPlaceOf, shortestWay, type Way } from "../../../../src/lib/travel/way.ts";
 import type { Road } from "../../../../src/lib/travel/roads.ts";
 import { rationsNeeded } from "../../../../src/rules/rations.ts";
-import { DEFAULT_TRAVEL_PACE, formatTravelTime, fromMiles, getTravelPace, TRAVEL_PACES, travelTime, type TravelPaceId } from "../../../../src/rules/travelPace.ts";
+import { DEFAULT_TRAVEL_PACE, formatTravelTime, fromMiles, getTravelPace, timeOfTravelHours, TRAVEL_PACES, type TravelPaceId } from "../../../../src/rules/travelPace.ts";
+import { type CompanionSpeed, baseMph, legTravelHours, ON_FOOT_KEY, WAY_PRESETS, type Terrain, type TravelContext, type WayOfTravel } from "../../../../src/rules/travelSpeed.ts";
 import { tablesAlong, tablesLine, type PlacedTable, type TableOnTheWay } from "./roadTables.ts";
 import type { AgentTool } from "./types.ts";
 import { UUID_RE } from "./parse.ts";
@@ -41,6 +42,7 @@ export const TRAVEL_TOOL: AgentTool = {
     required: ["to_place_id"],
     properties: {
       to_place_id: { type: "string", description: "The id of the place the party is going to." },
+      way: { type: "string", description: "How the party travels, a way's key, when the story has said (a sled, a ship, a mount). Leave it out for on foot; the answer lists the ways there are." },
       pace: { type: "string", enum: TRAVEL_PACES.map((p) => p.id), description: "How the party travels. Normal unless the story says they hurry or go carefully." },
     },
   },
@@ -62,6 +64,27 @@ function tablesOfTheWay(way: Way, map: TravelMap, parentOf: (id: string) => stri
   });
 }
 
+/** One line per ground other than a road or open country: how much of the way it is, and that it slows travel. */
+function groundsOf(legs: readonly { miles: number; terrain: string }[], terrains: readonly Terrain[], unit: "mi" | "km"): string[] {
+  const miles = new Map<string, number>();
+  for (const leg of legs) {
+    if (leg.terrain === "road" || leg.terrain === "open") continue;
+    miles.set(leg.terrain, (miles.get(leg.terrain) ?? 0) + leg.miles);
+  }
+  return [...miles].map(([key, sum]) => {
+    const terrain = terrains.find((t) => t.key === key);
+    // "Difficult going (marsh, mountains)" reads as "difficult going" in a sentence.
+    const name = terrain === undefined ? key : terrain.name.replace(/\s*\(.*\)\s*$/, "").toLowerCase();
+    return `${Math.round(fromMiles(sum, unit) * 10) / 10} ${unit} of ${name}${terrain !== undefined && terrain.factor < 1 ? ", which slows travel" : ""}.`;
+  });
+}
+
+/** The ways the party could travel (those with a speed), so the narrator can ask again with one. */
+function waysLine(map: TravelMap): string {
+  const ways = map.ways.filter((w) => baseMph(w, map.companionSpeed) !== null);
+  return `Ways the party could travel: ${ways.map((w) => (w.key === ON_FOOT_KEY ? w.name : `${w.name} (way: ${w.key})`)).join(", ")}. Ask again with way if the story says how they travel.`;
+}
+
 /** What a campaign that counts food is told about a journey: the need, and the book's price for going without. */
 function foodLine(days: number, ruleset: "2014" | "2024"): string {
   const need = rationsNeeded(days, 1);
@@ -71,14 +94,17 @@ function foodLine(days: number, ruleset: "2014" | "2024"): string {
   return `This campaign counts food: the journey takes ${need} ${need === 1 ? "ration" : "rations"} for each traveller. Look at what the character carries, take what they eat from their pack as the days pass, and if the food runs short say so and let them decide; ${without}.`;
 }
 
-export type ParsedTravel = { ok: true; value: { toPlaceId: string; paceId: TravelPaceId } } | { ok: false; error: string };
+export type ParsedTravel = { ok: true; value: { toPlaceId: string; paceId: TravelPaceId; wayKey: string | null } } | { ok: false; error: string };
 
 export function parseTravel(input: Record<string, unknown>): ParsedTravel {
   const to = input.to_place_id;
   if (typeof to !== "string" || !UUID_RE.test(to)) return { ok: false, error: "to_place_id must be the id of a place of this campaign." };
   const pace = input.pace;
   if (pace !== undefined && !TRAVEL_PACES.some((p) => p.id === pace)) return { ok: false, error: `pace must be one of ${TRAVEL_PACES.map((p) => p.id).join(", ")}.` };
-  return { ok: true, value: { toPlaceId: to, paceId: pace === undefined ? DEFAULT_TRAVEL_PACE : (pace as TravelPaceId) } };
+  // A way is checked against the campaign's own (`travelAnswer`): there is no fixed list to check it against here.
+  const way = input.way;
+  if (way !== undefined && (typeof way !== "string" || way === "")) return { ok: false, error: "way must be the key of a way of travelling, as the travel answer lists them." };
+  return { ok: true, value: { toPlaceId: to, paceId: pace === undefined ? DEFAULT_TRAVEL_PACE : (pace as TravelPaceId), wayKey: way === undefined ? null : way } };
 }
 
 /** A place as the journey needs it: its name and what it lies inside. */
@@ -99,6 +125,12 @@ export interface TravelMap {
    */
   food: "2014" | "2024" | null;
   /** The tables roads name as their own (`location_roads.roll_table_id`), by road. */
+  /** The terrains a road may go over: the presets with the campaign's own laid over them. */
+  terrains: readonly Terrain[];
+  /** The ways the party may travel: the presets with the campaign's own laid over them. */
+  ways: readonly WayOfTravel[];
+  /** A companion's speed in feet for a way it carries or pulls (its fly speed for a flying way); null when unknown. */
+  companionSpeed: CompanionSpeed;
   roadTables: readonly { roadId: string; table: Omit<PlacedTable, "placeId"> }[];
 }
 
@@ -111,7 +143,9 @@ export function rollableTables(map: TravelMap): PlacedTable[] {
  * What the narrator is told about the way from where the party is to a place. Always an answer it can tell from:
  * when the roads do not say, it is told so and to keep the journey vague rather than make up a number.
  */
-export function travelAnswer(fromId: string | null, toId: string, paceId: TravelPaceId, map: TravelMap): { content: string; isError: boolean } {
+export function travelAnswer(fromId: string | null, toId: string, paceId: TravelPaceId, map: TravelMap, wayKey: string | null = null): { content: string; isError: boolean } {
+  const chosen = wayKey === null ? undefined : map.ways.find((w) => w.key === wayKey);
+  if (wayKey !== null && chosen === undefined) return { content: `No way of travelling has the key ${wayKey}. The ways are: ${map.ways.map((w) => w.key).join(", ")}.`, isError: true };
   const byId = new Map(map.places.map((p) => [p.id, p]));
   const to = byId.get(toId);
   if (to === undefined) return { content: "No place of this campaign has that id. Find the place with search first.", isError: true };
@@ -130,19 +164,29 @@ export function travelAnswer(fromId: string | null, toId: string, paceId: Travel
   const roadById = new Map(map.roads.map((road) => [road.id, road]));
   const unit = way.legs.every((leg) => roadById.get(leg.roadId)?.unit === "km") ? "km" : "mi";
   const distance = Math.round(fromMiles(way.miles, unit) * 10) / 10;
-  const time = travelTime(distance, unit, paceId);
+  // Time is worked leg by leg: the ground and the way of travelling decide each (`rules/travelSpeed.ts`). A leg the
+  // way cannot travel (no speed) is walked.
+  const foot = map.ways.find((w) => w.key === ON_FOOT_KEY);
+  const walked: TravelContext = { paceId, way: foot ?? WAY_PRESETS[0], terrains: map.terrains, companionSpeed: map.companionSpeed };
+  const by: TravelContext = { ...walked, way: chosen ?? walked.way };
+  const hours = way.legs.reduce((sum, leg) => sum + (legTravelHours(leg, by) ?? legTravelHours(leg, walked) ?? 0), 0);
+  const time = timeOfTravelHours(hours);
+  const grounds = groundsOf(way.legs, map.terrains, unit);
   const pace = getTravelPace(paceId);
   const passed = placesPassed(way).map(nameOf);
   // A night is spent on the road after each full day of travel that is not the last stretch into the destination.
   const nights = Math.max(0, time.calendarDays - 1);
   const lines = [
     `By road from ${nameOf(start)} to ${nameOf(end)}: ${distance} ${unit}, ${formatTravelTime(time)} of travel at a ${pace.label.toLowerCase()} pace (${time.calendarDays} ${time.calendarDays === 1 ? "day" : "days"} on the calendar).`,
+    ...(chosen !== undefined && chosen.key !== ON_FOOT_KEY ? [`They travel by ${chosen.name.toLowerCase()}.`] : []),
+    ...grounds,
     passed.length === 0 ? "The road passes no other place of the campaign." : `The road passes ${passed.join(", then ")}.`,
     nights === 0 ? "They arrive the same day: no night on the road." : `${nights} ${nights === 1 ? "night" : "nights"} on the road.`,
     // The tables for this journey: each road's own first (the road is where the party is between two places),
     // then those that hold for where it starts, what it passes and where it ends. A table is listed once.
     ...[tablesLine(tablesOfTheWay(way, map, parentOf, nameOf))].filter((line): line is string => line !== null),
     ...(map.food === null ? [] : [foodLine(time.calendarDays, map.food)]),
+    waysLine(map),
     `When they arrive, call pass_days with ${time.calendarDays} and go_to with ${toId}.`,
   ];
   return { content: lines.join("\n"), isError: false };

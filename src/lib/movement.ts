@@ -56,3 +56,10 @@ export function walkingSpeed(input: string | null | undefined): number | null {
   const walk = parseSpeed(input).find((speed) => speed.mode === "walk" && speed.value !== "");
   return walk ? Number(walk.value) : null;
 }
+
+/** The flying distance in feet from a 5e speed string ("30 ft., fly 80 ft."), or null when it names none. Hover is
+ *  a fly speed that can stay aloft, so it counts. For a flying mount's travel speed (#1222). */
+export function flyingSpeed(input: string | null | undefined): number | null {
+  const fly = parseSpeed(input).find((speed) => (speed.mode === "fly" || speed.mode === "hover") && speed.value !== "");
+  return fly ? Number(fly.value) : null;
+}

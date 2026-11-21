@@ -52,6 +52,7 @@ function fakeDeps(overrides: Partial<ImportSweepDeps> = {}): ImportSweepDeps {
     updateQuestParent: vi.fn(async () => {}),
     insertKinLinks: vi.fn(async () => {}),
     insertWorldLinks: vi.fn(async () => {}),
+    insertRoads: vi.fn(async () => {}),
     fetchPartyLookup: vi.fn(async (): Promise<readonly NameLookupRow[]> => []),
     insertCanonRows: vi.fn(async () => {}),
     persistImportedCounts: vi.fn(async () => {}),
@@ -251,6 +252,31 @@ describe("runImportSweep", () => {
       expect.objectContaining({ type: "operates_in", from_faction_id: "factions-1", to_location_id: "locations-2" }),
       expect.objectContaining({ type: "controls", from_faction_id: "factions-1", to_location_id: "locations-1" }),
     ]);
+  });
+
+  it("writes the roads a place states to another imported place, once when both entries state it, and reports an unknown town", async () => {
+    const deps = fakeDeps();
+    const report = await runImportSweep(
+      IMPORT_ROW,
+      input({
+        entitiesByKind: {
+          locations: [
+            usable("l1", { name: "Phandalin", roads: [
+              { to_name: "Brightwater", distance: 40, unit: "mi", name: "coast road", going: "road", terrain: "road" },
+              { to_name: "Neverwinter", distance: 90, unit: "mi", going: "road", terrain: "road" },
+            ] }),
+            usable("l2", { name: "Brightwater", roads: [{ to_name: "Phandalin", distance: 40, unit: "mi", name: "coast road", going: "road", terrain: "road" }] }),
+          ],
+        },
+        decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([["locations", new Map([["l1", CREATE], ["l2", CREATE]])]]),
+      }),
+      deps,
+    );
+
+    expect(rowsOf(deps.insertRoads)).toEqual([
+      expect.objectContaining({ campaign_id: CAMPAIGN_ID, from_location_id: "locations-1", to_location_id: "locations-2", distance: 40, name: "coast road" }),
+    ]);
+    expect(report.unresolvedLinks).toEqual(['Location "Phandalin" → road to "Neverwinter"']);
   });
 
   it("gives a faction the DM linked to the places the page puts it in, as additive links", async () => {

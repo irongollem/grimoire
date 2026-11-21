@@ -34,6 +34,8 @@ export const CANON_KEY = "canon";
 export const STORY_RECORD_KEY = "storyRecord";
 /** The roads between a campaign's places (`useLocationRoads`). */
 export const LOCATION_ROADS_KEY = "location-roads";
+/** A campaign's own terrains and ways of travelling (`useTravel`, #1222 decision 9). */
+export const TRAVEL_KEY = "travel";
 export const PLAYER_KIN_KEY = "player-kin";
 /** The Open Book (#1085): the owner's settings, its releases and the per-entry choices. */
 export const OPEN_BOOK_KEY = "open-book";
@@ -329,6 +331,8 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["story_fact_links", [STORY_RECORD_KEY]],
   // Roads between places (#1222). The World Web draws a road as a line, read from the same rows.
   ["location_roads", [LOCATION_ROADS_KEY, CONNECTIONS_KEY]],
+  ["travel_terrains", [TRAVEL_KEY]],
+  ["travel_ways", [TRAVEL_KEY]],
   // Open Book (#1085). Owner-only tables; a release also changes the book row (its live release).
   ["open_books", [OPEN_BOOK_KEY]],
   ["open_book_releases", [OPEN_BOOK_RELEASES_KEY, OPEN_BOOK_KEY]],

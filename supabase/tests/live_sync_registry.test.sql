@@ -97,7 +97,7 @@ insert into live_sync_doorbell (name) values
   ('level_milestones'),
   ('level_milestone_steps'),
   -- Roads between places (#1222).
-  ('location_roads'),
+  ('location_roads'), ('travel_terrains'), ('travel_ways'),
   -- Open Book (#1085): the owner's settings, releases and choices, read by the owner only.
   ('open_books'), ('open_book_releases'), ('open_book_entries'),
   -- What the party has seen of a map (#1133).

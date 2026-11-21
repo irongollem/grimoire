@@ -8,6 +8,7 @@ import type { SessionRow } from "./turnTypes";
 import type { CallModel } from "../_shared/agent/types";
 import { NO_CANON_HERE, type BroughtOut } from "../_shared/agent/canon";
 import { NO_CHECK_MATERIAL } from "../_shared/agent/canonCheck";
+import { campaignTerrains, campaignWays } from "../../../src/rules/travelSpeed.ts";
 
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
 const PLACE = "00000000-0000-4000-8000-0000000000a5";
@@ -98,8 +99,11 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
         mapReads.count += 1;
         return {
           places: [{ id: PLACE, name: "Cellar", parentId: null }, { id: FAR, name: "Farholt", parentId: null }],
-          roads: [{ id: "r1", from_location_id: PLACE, to_location_id: FAR, distance: 48, unit: "mi" as const, name: "", going: "road" as const, roll_table_id: "t2" }],
+          roads: [{ id: "r1", from_location_id: PLACE, to_location_id: FAR, distance: 48, unit: "mi" as const, name: "", going: "road" as const, terrain: "road", roll_table_id: "t2" }],
           food: null,
+          terrains: campaignTerrains([]),
+          ways: campaignWays([]),
+          companionSpeed: () => null,
           roadTables: [{ roadId: "r1", table: { id: "t2", name: "The long road", dice: "1d4", entries: [{ min: 1, max: 4, label: "Pilgrims", notes: null, encounterId: null }] } }],
           tables: [{ id: "t1", name: "Farholt road", dice: "1d4", placeId: FAR, entries: [{ min: 1, max: 2, label: "A lame horse", notes: null, encounterId: null }, { min: 3, max: 4, label: "Wolves", notes: null, encounterId: null }] }],
         };

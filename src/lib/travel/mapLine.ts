@@ -1,8 +1,9 @@
 import { summarizeRoute } from "@/lib/locations/mapRoute";
 import type { ImageSize } from "@/lib/locations/mapScale";
-import type { TravelPaceId } from "@/rules/travelPace";
+import { timeOfTravelHours, toMiles } from "@/rules/travelPace";
+import type { TravelContext } from "@/rules/travelSpeed";
 import type { MapPin, MapScale } from "@/types/location.types";
-import type { Journey } from "./journey";
+import { groundsOf, travelHoursOf, type Journey } from "./journey";
 
 /**
  * The straight line on a map, for two places no road joins (#1222, story 2).
@@ -53,28 +54,49 @@ function pinOf(branch: readonly string[], pins: readonly MapPin[]): MapPin | nul
 }
 
 /**
- * The journey in a straight line across the shared map at a pace, or null when it cannot be measured: the map has
- * no scale, its picture's size is not known yet, either end has no pin on it, or both ends are under one pin.
+ * The journey across the shared map at a pace, or null when it cannot be measured: the map has no scale, its
+ * picture's size is not known yet, either end has no pin on it, or both ends are under one pin.
+ *
+ * With no road, the way goes over the campaign's open land (`campaigns.open_land_terrain`), and the "Off the
+ * Road" rule lengthens the straight line by its `winding` factor, since nobody walks it. A flyer takes the
+ * straight line as it is: no winding and no ground (decision 10).
  */
 export function journeyByMap(input: {
   shared: SharedMap;
   pins: readonly MapPin[];
   scale: MapScale | null;
   size: ImageSize | null;
-  paceId: TravelPaceId;
+  travel: TravelContext;
+  /** The open land's terrain key, and the straight line's lengthening (1 with "Off the Road" off). */
+  openLand: { terrain: string; winding: number };
 }): Journey | null {
   if (input.scale === null || input.size === null) return null;
   const from = pinOf(input.shared.fromBranch, input.pins);
   const to = pinOf(input.shared.toBranch, input.pins);
   if (from === null || to === null || from.child_location_id === to.child_location_id) return null;
-  const summary = summarizeRoute(
+  const measured = summarizeRoute(
     [
       { x: from.x, y: from.y, pin: { id: from.child_location_id, name: from.child_name } },
       { x: to.x, y: to.y, pin: { id: to.child_location_id, name: to.child_name } },
     ],
     input.scale,
     input.size,
-    input.paceId,
+    input.travel.paceId,
   );
-  return summary === null ? null : { summary, passing: [], roadIds: [], stops: [] };
+  if (measured === null) return null;
+  const flies = input.travel.way.kind === "air";
+  const winding = flies ? 1 : Math.max(1, input.openLand.winding);
+  const distance = measured.distance * winding;
+  const leg = { miles: toMiles(distance, measured.unit), terrain: input.openLand.terrain, going: "track" as const };
+  const time = timeOfTravelHours(travelHoursOf(leg, input.travel));
+  return {
+    summary: { ...measured, distance, time },
+    passing: [],
+    placeIds: [from.child_location_id, to.child_location_id],
+    roadIds: [],
+    stops: [],
+    grounds: flies ? [] : groundsOf([leg], measured.unit).map((g) => ({ ...g, distance })),
+    waterLegs: false,
+    offRoad: winding > 1,
+  };
 }

@@ -8,7 +8,7 @@
         <li v-for="entry in fromHere" :key="entry.road.id" class="flex items-center gap-2 px-3 py-2" data-testid="location-road">
           <div class="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
             <AppButton :to="placeRoute(entry.otherId)" variant="link" size="inline" :label="nameOf(entry.otherId)" />
-            <span class="text-body text-muted-foreground">{{ roadText(entry.road) }}</span>
+            <span class="text-body text-muted-foreground">{{ roadText(entry.road, terrainName) }}</span>
             <span v-if="tableName(entry.road.roll_table_id)" class="text-caption text-muted-foreground" data-testid="location-road-table">
               Encounters: {{ tableName(entry.road.roll_table_id) }}
             </span>
@@ -39,10 +39,22 @@
           </label>
           <label class="col-span-2 text-caption text-muted-foreground sm:col-span-1">Its name <AppInput v-model="name" placeholder="the coast road (optional)" /></label>
         </div>
+        <!-- Two places pinned on one scaled map: its measure is offered as a distance to start from, never filled in
+             unasked, because a road winds and the book's figure is the truer one. -->
+        <p v-if="measured" class="flex flex-wrap items-center gap-x-2 text-caption text-muted-foreground" data-testid="location-road-measured">
+          On the map of {{ measured.mapName }} it is {{ formatDistance(measured.distance, measured.unit) }} in a straight line.
+          <AppButton variant="link" size="inline" label="Use it" @click="useMeasured" />
+        </p>
         <label class="text-caption text-muted-foreground">
           The going
           <AppSelect v-model="going" block aria-label="The going">
             <option v-for="g in GOINGS" :key="g.value" :value="g.value">{{ g.label }}</option>
+          </AppSelect>
+        </label>
+        <label class="text-caption text-muted-foreground">
+          The ground
+          <AppSelect v-model="terrain" block aria-label="The ground">
+            <option v-for="t in terrains" :key="t.key" :value="t.key">{{ t.name }}</option>
           </AppSelect>
         </label>
         <!-- Only when the campaign keeps roll tables: an empty picker would be a dead control. -->
@@ -70,15 +82,21 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
-import { useAllLocations } from "@/composables/locations/useLocations";
+import { useAllLocations, useLocation } from "@/composables/locations/useLocations";
+import { useMapPictureSize } from "@/composables/locations/useMapPictureSize";
 import { useRollTables } from "@/composables/dungeon-features/useRollTables";
 import { useAddLocationRoad, useDeleteLocationRoad, useLocationRoads } from "@/composables/locations/useLocationRoads";
+import { useTravel } from "@/composables/locations/useTravel";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { IconAdd, IconDelete } from "@/lib/icons";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { isInteriorType } from "@/lib/locations/tiers";
+import { formatDistance } from "@/lib/locations/mapScale";
+import { journeyByMap, sharedMapOf } from "@/lib/travel/mapLine";
 import { roadsFrom, roadText, type DistanceUnit, type Going } from "@/lib/travel/roads";
+import { DEFAULT_ROAD_TERRAIN, WAY_PRESETS } from "@/rules/travelSpeed";
+import { DEFAULT_TRAVEL_PACE } from "@/rules/travelPace";
 
 /**
  * "Roads from here" on a place's entry (#1222): the places this one is joined to by a road and how far each is,
@@ -101,6 +119,10 @@ const nameOf = (id: string): string => names.value.get(id) ?? "A place that is g
 const places = computed(() => (locations.value ?? []).filter((l) => l.id !== locationId && !isInteriorType(l.location_type)).map((l) => ({ id: l.id, name: l.name })));
 
 // A road's own encounter table (Dungeon Craft): what may be met on it, wherever between its two ends.
+// The ground a road goes over, in the campaign's own words.
+const { terrains, companionSpeed } = useTravel();
+const terrainName = (key: string): string | null => terrains.value.find((t) => t.key === key)?.name ?? null;
+
 const { data: rollTables } = useRollTables();
 const tables = computed(() => (rollTables.value ?? []).map((t) => ({ id: t.id, name: t.name })));
 const tableName = (id: string | null): string | null => (id === null ? null : (tables.value.find((t) => t.id === id)?.name ?? null));
@@ -118,6 +140,7 @@ const distance = ref<number | null>(null);
 const unit = ref<DistanceUnit>("mi");
 const name = ref("");
 const going = ref<Going>("road");
+const terrain = ref(DEFAULT_ROAD_TERRAIN);
 const rollTableId = ref("");
 const error = ref<string | null>(null);
 const canAdd = computed(() => otherId.value !== "" && typeof distance.value === "number" && distance.value > 0);
@@ -128,15 +151,36 @@ function cancel(): void {
   distance.value = null;
   name.value = "";
   going.value = "road";
+  terrain.value = DEFAULT_ROAD_TERRAIN;
   rollTableId.value = "";
   error.value = null;
+}
+
+// ── The map's measure, offered (#1222, story 10) ─────────────────────────────
+// The two places' shared map (the nearest place both lie inside) is read only once the far end is chosen.
+const parentOf = (id: string): string | null => (locations.value ?? []).find((l) => l.id === id)?.parent_id ?? null;
+const shared = computed(() => (otherId.value === "" || !locations.value ? null : sharedMapOf(locationId, otherId.value, parentOf)));
+const { data: mapPlace } = useLocation(() => (shared.value ? shared.value.mapId : null));
+const pictureSize = useMapPictureSize(() => (mapPlace.value ? (mapPlace.value.map_url ?? mapPlace.value.map_layer_url) : null));
+const measured = computed(() => {
+  const place = mapPlace.value;
+  if (!shared.value || !place || place.id !== shared.value.mapId) return null;
+  // The straight line as measured: the "Off the Road" winding is for a journey with no road, not for a road.
+  const line = journeyByMap({ shared: shared.value, pins: place.map_pins, scale: place.map_scale, size: pictureSize.value, travel: { paceId: DEFAULT_TRAVEL_PACE, way: WAY_PRESETS[0], terrains: terrains.value, companionSpeed }, openLand: { terrain: DEFAULT_ROAD_TERRAIN, winding: 1 } });
+  if (line === null) return null;
+  return { mapName: place.name, distance: Math.round(line.summary.distance * 10) / 10, unit: line.summary.unit };
+});
+function useMeasured(): void {
+  if (!measured.value) return;
+  distance.value = measured.value.distance;
+  unit.value = measured.value.unit;
 }
 
 async function addRoad(): Promise<void> {
   if (!canAdd.value || typeof distance.value !== "number") return;
   error.value = null;
   try {
-    await add.mutateAsync({ fromLocationId: locationId, toLocationId: otherId.value, distance: distance.value, unit: unit.value, name: name.value, going: going.value, rollTableId: rollTableId.value === "" ? null : rollTableId.value });
+    await add.mutateAsync({ fromLocationId: locationId, toLocationId: otherId.value, distance: distance.value, unit: unit.value, name: name.value, going: going.value, terrain: terrain.value, rollTableId: rollTableId.value === "" ? null : rollTableId.value });
     cancel();
   } catch (e) {
     error.value = toast.fromError(e, "Couldn't add the road.");
