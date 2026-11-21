@@ -42,10 +42,12 @@ describe("surgeCasts: the options an Action Surge carries a cast with", () => {
     expect(surgeCasts([cast("Fireball", 3, 28)], only(second))).toEqual([]);
   });
 
-  // Bug caught: a first cast that catches a friend, or one of unknown damage, carrying a surge.
+  // Bug caught: a first cast that catches a friend, one of unknown damage, or one that walks first (a moved spell option: the second
+  // action's options are worked out from the square the creature stood on, so a walk would leave them wrong).
   it.each([
     { name: "catches a friend", first: cast("Fireball", 3, 28, { friendsCaught: ["pip"] }) },
     { name: "has unknown damage", first: cast("Mystery", 3, null) },
+    { name: "walks first", first: { ...cast("Fireball", 3, 28), feet: 20 } },
   ])("makes no composite when the first cast $name", ({ first }) => {
     expect(surgeCasts([first], only(swing("Longsword", 9, { feet: 0 })))).toEqual([]);
   });

@@ -7,7 +7,7 @@
 // for a creature that fled off the map, its leaving.
 //
 // Dodge and Disengage are modelled: the creature takes the Dodging or Disengaged condition (`stance` steps, applied
-// before any move) and the shared rules read it. Not modelled: Hide (the Action is used and nothing more).
+// before any move) and the shared rules read it. Hide and Search are modelled too: a `hide` step rolls the creature's Stealth after its walk, a `search` step rolls its Perception (`hiding.ts` says who is found).
 // Carrying out a turn does not resolve the opportunity attacks a path provokes either: the server resolves them
 // before it applies a move (`supabase/functions/encounter-command/opportunity.ts`, from `opportunityAttacks` in
 // `terrain/sight.ts`). A creature that uses a way out (Etherealness, Invisible Passage) does not
@@ -47,7 +47,11 @@ export type TurnStep =
   /** A flee that ends on a way off the map (#1203): the creature is taken out of the fight, after everything else it did. */
   | { type: "leave" }
   /** An escape that only hides: the creature turns Invisible (the app applies the SRD condition; what it does for the creature is the DM's to rule). */
-  | { type: "condition"; name: "Invisible" };
+  | { type: "condition"; name: "Invisible" }
+  /** Hide (#1021 row 13): after the walk, the server rolls the mover's Stealth and puts Hidden on it when the roll is enough. */
+  | { type: "hide" }
+  /** Search: the server rolls the mover's Perception once and takes Hidden off every hostile it finds. */
+  | { type: "search" };
 
 /** What each kind of turn costs: the Action, the Bonus Action (an attack from that list), or nothing. */
 function slotOf(option: TurnOption): "action" | "bonus" | null {
@@ -59,6 +63,7 @@ function slotOf(option: TurnOption): "action" | "bonus" | null {
     case "disengage":
     case "dodge":
     case "hide":
+    case "search":
       return "action";
     case "escape":
       return option.escape === undefined ? "action" : option.escape.slot;
@@ -91,6 +96,9 @@ export function stepsFor(option: TurnOption, attacks: readonly UsableAttack[]): 
   if (option.destination !== null && option.path !== null && option.path.length > 1 && option.feet !== null) {
     steps.push({ type: "move", to: option.destination, feet: option.feet });
   }
+  // Hiding is done where the creature ends its walk; searching is done where it stands.
+  if (option.kind === "hide") steps.push({ type: "hide" });
+  if (option.kind === "search") steps.push({ type: "search" });
   const attack = option.attack;
   if (option.kind === "attack" && attack !== null && option.targetId !== null) {
     const targetId = option.targetId;

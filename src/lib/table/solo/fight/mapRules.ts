@@ -1,5 +1,6 @@
 import type { FactionDef, RunCombatant } from "@/types/encounter.types";
 import { areHostile } from "@/rules/fight/sides";
+import { hiddenFromTheParty } from "@/lib/battlemap/partySight";
 
 /**
  * The rules of the played character's map at the AI table (#1021, Solo Table canvas, frames 12 and 13). They are
@@ -8,7 +9,7 @@ import { areHostile } from "@/rules/fight/sides";
 
 export type MoveVerdict = { ok: true } | { ok: false; reason: string };
 
-type Targetable = Pick<RunCombatant, "instance_id" | "faction_id" | "hp" | "reveal_state">;
+type Targetable = Pick<RunCombatant, "instance_id" | "faction_id" | "hp" | "reveal_state"> & Partial<Pick<RunCombatant, "type" | "conditions">>;
 
 /** Whether the played character can point at this creature: seen, standing, and a foe of theirs. */
 export function isFoeOf(
@@ -20,6 +21,8 @@ export function isFoeOf(
   if (other.hp <= 0) return false;
   // Hidden and unseen creatures are not on the player's map as themselves, so they cannot be picked.
   if (other.reveal_state !== undefined && other.reveal_state !== "revealed") return false;
+  // A foe that took the Hide action has no known place: it cannot be picked until it is found.
+  if (hiddenFromTheParty(other)) return false;
   return areHostile(factions, played.faction_id, other.faction_id);
 }
 

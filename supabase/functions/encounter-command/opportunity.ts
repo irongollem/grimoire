@@ -20,7 +20,7 @@ import { cannotReactWhileSurprised } from "../../../src/rules/initiative.ts";
 import { applyFightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
 import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
-import { isDisengaged, isIncapacitated } from "../../../src/rules/fight/stances.ts";
+import { isDisengaged, isHidden, isIncapacitated } from "../../../src/rules/fight/stances.ts";
 import { withNumbers } from "../../../src/rules/fight/tactics/numbers.ts";
 import { isHostileTo } from "../../../src/rules/fight/sides.ts";
 import {
@@ -37,7 +37,8 @@ import type { StatBlockListKey } from "../../../src/rules/statBlock/parseAction.
 import { statBlockOf } from "../_shared/fightStatBlocks.ts";
 import { meleeReachFeet } from "../_shared/turnOptionsFor.ts";
 import { FightCommandError } from "./commandError.ts";
-import { applyResolvingCommand, knownArmorClass, type ResolveEnv } from "./resolve.ts";
+import { playerPlayedByRules } from "../../../src/rules/fight/spells/reactionCast.ts";
+import { applyResolvingCommand, knownArmorClass, whoPlaysIn, type ResolveEnv } from "./resolve.ts";
 
 export type ProvokeCommand = { type: "provoke"; moverId: string; path: Array<{ x: number; y: number }> };
 
@@ -65,6 +66,8 @@ export function validateProvokeCommand(command: Record<string, unknown>): void {
 
 /** The opportunity attacks a path provokes, worked out from the fight as it stands now (never from a plan made earlier). */
 export function provokedBy(state: FightState, mover: RunCombatant, path: readonly { x: number; y: number }[], env: ResolveEnv): ProvokedAttack[] {
+  // RULE hidden-unaimable (PHB 2014 ch. 9 "Opportunity Attacks": "a hostile creature that you can see"): nobody sees a Hidden mover leave.
+  if (isHidden(mover.conditions)) return [];
   const enemies = state.combatants
     .filter((c) => c.instance_id !== mover.instance_id && isOnBoard(c) && c.hp > 0 && isHostileTo(mover, c, env.factions))
     .map((c) => ({
@@ -144,7 +147,7 @@ export interface StrikeOptions {
   /**
    * `take_turn`, when the caller says who the person plays (#1021): only that character's Reaction is the player's own.
    * Any other party member the server has a stat block for strikes like a monster would (`take_turn` gives the played one no
-   * block, so their Reaction stays theirs). Left out, every player is reported.
+   * block, so their Reaction stays theirs). Left out, only the stand-ins strike (`env.standIns`); every other player is reported.
    */
   playedMemberId?: string;
 }
@@ -168,7 +171,7 @@ export async function strikeOnLeaving(
     if (moverNow().hp <= 0) break;
     const attacker = next.combatants.find((c) => c.instance_id === provoked.enemyId);
     if (attacker === undefined || attacker.hp <= 0) continue;
-    const isAlly = attacker.type === "player" && options.playedMemberId !== undefined && statBlockOf(attacker, env.sources) !== null;
+    const isAlly = attacker.type === "player" && playerPlayedByRules(attacker.party_member_id, whoPlaysIn({ playedMemberId: options.playedMemberId, standIns: env.standIns })) && statBlockOf(attacker, env.sources) !== null;
     if (attacker.type === "player" && !isAlly) {
       if (options.reportPlayers) effects.push({ type: "provoked_player", moverId, playerId: attacker.instance_id, step: provoked.step });
       continue;

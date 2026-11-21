@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import type { WildshapeState } from "@/types/encounter.types";
-import { NO_CASTING, playerArmorClass, playerSaveBonus, type PlayerSheetRow, type PlayerSheets } from "./playerSheet";
+import { NO_CASTING, playerArmorClass, playerSaveBonus, playerSkillBonus, type PlayerSheetRow, type PlayerSheets } from "./playerSheet";
 
 function item(over: Partial<Item>): Item {
   return { id: "i1", user_id: "u1", name: "Item", item_type: "armor", rarity: "mundane", armor_class: null, tags: [], description: "", ...over } as Item;
@@ -117,5 +117,22 @@ describe("playerSaveBonus", () => {
 
   it("fails if a character whose row was not read is given a bonus anyway", () => {
     expect(playerSaveBonus(sheets(), "pm-nobody", "dex")).toBeNull();
+  });
+});
+
+describe("playerSkillBonus", () => {
+  // PHB 2014 ch. 7 "Proficiency Bonus": a proficient skill adds the bonus, expertise doubles it. Dex 14 is +2, proficiency +2: Stealth +4;
+  // with expertise +6; unproficient +2. Bug: the server rolls a rogue's Stealth with Dex alone, so a trained hider is found as often as anyone.
+  it("adds proficiency or expertise to the ability modifier, and nothing for a skill the character lacks", () => {
+    const sheet = (level: "proficient" | "expertise" | "none") => sheets({ members: [row({ skill_proficiencies: { stealth: level } as PlayerSheetRow["skill_proficiencies"] })] });
+    expect(playerSkillBonus(sheet("proficient"), "pm-nessa", "stealth")).toBe(4);
+    expect(playerSkillBonus(sheet("expertise"), "pm-nessa", "stealth")).toBe(6);
+    expect(playerSkillBonus(sheet("none"), "pm-nessa", "stealth")).toBe(2);
+    expect(playerSkillBonus(sheets(), "pm-nessa", "stealth")).toBe(2);
+  });
+
+  // Wis 10 is +0 and Perception is untrained; a row the server did not read has no bonus to give.
+  it("is null for a character whose row was not read", () => {
+    expect(playerSkillBonus(sheets(), "pm-nobody", "perception")).toBeNull();
   });
 });

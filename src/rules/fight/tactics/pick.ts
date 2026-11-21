@@ -16,6 +16,7 @@ import { type TurnOption, type TurnOptionSpell } from "../terrain/options/types.
 import type { MoraleRule, TacticalProfile } from "./profile.ts";
 import { chooseActionBoon, isBoonOption } from "./boonChoice.ts";
 import { chooseActionHeal, isHealOption } from "./healChoice.ts";
+import { chooseSearch } from "./searchChoice.ts";
 import { seenAs, seenDamagePerTurn } from "./shownThreat.ts";
 import { usableWayOut, type WayOut } from "./wayOut.ts";
 
@@ -287,7 +288,13 @@ function hitPointsLeft(option: SpellOption, ctx: PickContext): number {
  * spell counts at its value (`valueOf`), so a clever creature does not Hold a foe at 2 hit points either.
  */
 function castCandidates(spells: readonly SpellOption[], attacks: readonly TurnOption[], profile: TacticalProfile, ctx: PickContext): SpellOption[] {
-  const safe = spells.filter((o) => o.spell.friendsCaught.length === 0);
+  let safe = spells.filter((o) => o.spell.friendsCaught.length === 0);
+  // RULE provokes (as `bestAttack`): a trained or tactical creature skips a cast that walks into an opportunity attack (a moved spell
+  // option) when another cast does not.
+  if (profile.tier === "trained" || profile.tier === "tactical") {
+    const clean = safe.filter((o) => o.provokes.length === 0);
+    if (clean.length > 0) safe = clean;
+  }
   const counted = countsWorth(profile, attacks, safe);
   const free = [...attacks.map(expectedOf), ...safe.filter((o) => !o.spell.spends).map((o) => valueOf(o, counted))].reduce<number>((best, e) => Math.max(best, rankOf(e)), Number.NEGATIVE_INFINITY);
   return safe.filter((o) => !(o.spell.spends && free >= hitPointsLeft(o, ctx)));
@@ -478,6 +485,9 @@ export function pickTurn(offered: readonly TurnOption[], profile: TacticalProfil
     }
   }
   if (attackChoice !== null && best !== null) return { optionId: best.option.id, reason: describeAttack(best.option, best.target, attackChoice.why) };
+  // RULE search-when-nothing-to-strike (`searchChoice.ts`): with nothing to attack or cast at, a hidden foe is looked for before the creature closes in or dodges.
+  const searched = chooseSearch(options);
+  if (searched !== null) return searched;
   // A cast that was ruled out is no turn to fall back on: what is left is judged without it, unless nothing else is on offer.
   const left = options.filter((o) => o.kind !== "spell" && o.kind !== "heal" && o.kind !== "boon");
   const turns = left.length > 0 ? left : options;

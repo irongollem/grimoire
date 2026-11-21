@@ -1,6 +1,7 @@
 import type { FactionDef, RunCombatant } from "@/types/encounter.types";
 import { healthWord } from "@/lib/encounters/healthWord";
 import { areHostile } from "@/rules/fight/sides";
+import { hiddenFromPlayers } from "@/rules/fight/stances";
 
 export type SeenHealth =
   | { kind: "numbers"; hp: number; maxHp: number }
@@ -29,6 +30,8 @@ export function asThePlayerSees(
   const seen: SeenCombatant[] = [];
   for (const c of combatants) {
     if (c.reveal_state === "hidden") continue;
+    // A foe that took the Hide action is left out until it is found (#1021 row 13).
+    if (hiddenFromPlayers(c)) continue;
     const isYou = c.instance_id === playedInstanceId;
     const side: SeenCombatant["side"] = isYou
       ? "you"

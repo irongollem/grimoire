@@ -10,7 +10,7 @@ const factions = [
 ];
 
 function c(id: string, faction: string, hp: number, maxHp: number, extra: Partial<RunCombatant> = {}): RunCombatant {
-  return { instance_id: id, name: id, faction_id: faction, hp, max_hp: maxHp, type: "monster", ...extra } as RunCombatant;
+  return { instance_id: id, name: id, faction_id: faction, hp, max_hp: maxHp, type: "monster", conditions: [], ...extra } as RunCombatant;
 }
 
 const me = c("me", "players", 12, 30, { type: "player" });
@@ -81,5 +81,15 @@ describe("asThePlayerSees", () => {
     const out = asThePlayerSees([me, c("x", "players", 9, 20, { type: "player" })], "me", factions);
     expect(out[1].ally).toBeUndefined();
     expect(out[1].health.kind).toBe("word");
+  });
+});
+
+describe("asThePlayerSees and the Hide action", () => {
+  // Bug caught: a foe that took the Hide action still listed (and its health word shown) on the player's screen.
+  it("leaves out a monster holding Hidden, keeps a hiding party member and a monster that is not hiding", () => {
+    const hiding = c("lurker", "enemy", 5, 10, { conditions: [{ name: "Hidden", stealth: 17 }] });
+    const buddy = c("buddy", "players", 5, 10, { type: "player", party_member_id: "pm", conditions: [{ name: "Hidden", stealth: 12 }] });
+    const plain = c("orc", "enemy", 5, 10, { conditions: [{ name: "Poisoned" }] });
+    expect(asThePlayerSees([me, hiding, buddy, plain], "me", factions).map((s) => s.instanceId)).toEqual(["me", "buddy", "orc"]);
   });
 });

@@ -72,17 +72,17 @@ describe("rule cover and rule targets follow the tier", () => {
 describe("rule offers: what each tier is offered", () => {
   const kinds = (int: number) => [...profile({ int }).offers].sort();
   it("instinct (3) gets attack, spell, dash, move and flee, and nothing that takes thought", () => {
-    expect(kinds(3)).toEqual(["attack", "boon", "dash", "flee", "heal", "move", "spell"]);
+    expect(kinds(3)).toEqual(["attack", "boon", "dash", "flee", "heal", "move", "search", "spell"]);
   });
   it("simple (4) adds dodge", () => {
-    expect(kinds(4)).toEqual(["attack", "boon", "dash", "dodge", "flee", "heal", "move", "spell"]);
+    expect(kinds(4)).toEqual(["attack", "boon", "dash", "dodge", "flee", "heal", "move", "search", "spell"]);
   });
   it("trained (8) adds disengage but not hide", () => {
-    expect(kinds(8)).toEqual(["attack", "boon", "dash", "disengage", "dodge", "flee", "heal", "move", "spell"]);
+    expect(kinds(8)).toEqual(["attack", "boon", "dash", "disengage", "dodge", "flee", "heal", "move", "search", "spell"]);
     expect(kinds(7)).not.toContain("disengage");
   });
   it("tactical (12) adds hide", () => {
-    expect(kinds(12)).toEqual(["attack", "boon", "dash", "disengage", "dodge", "flee", "heal", "hide", "move", "spell"]);
+    expect(kinds(12)).toEqual(["attack", "boon", "dash", "disengage", "dodge", "flee", "heal", "hide", "move", "search", "spell"]);
     expect(kinds(11)).not.toContain("hide");
   });
   it("offers a lurker of simple tier hide, but not a lurker of instinct tier", () => {

@@ -8,7 +8,7 @@ import type { Item } from "../../types/item.types.ts";
 import type { AbilityScores } from "../../types/multiclass.types.ts";
 import type { WildshapeState } from "../../types/encounter.types.ts";
 import type { MonsterStatBlock } from "../../types/monster.types.ts";
-import type { PartyMember } from "../../types/party.types.ts";
+import type { PartyMember, SkillProficiencies } from "../../types/party.types.ts";
 import type { CharacterClass } from "../../types/multiclass.types.ts";
 import type { SpellcastingClassDefinitions } from "../spellcastingByClass.ts";
 import type { SaveAbility } from "../../types/statBlock.types.ts";
@@ -16,6 +16,7 @@ import { parseArmorClass } from "./targeting.ts";
 import { calculateAc, savingThrowItemBonus, wornGearByMember } from "../armorClass.ts";
 import { effectiveAbilityScores, savingThrowEntries } from "../characterChecks.ts";
 import { abilityMod } from "../abilityScore.ts";
+import { skillCheckBonus } from "../skillCheck.ts";
 
 /** The `party_members` columns this module reads, and no others. */
 export type PlayerSheetRow = Pick<
@@ -35,6 +36,8 @@ export type PlayerSheetRow = Pick<
    * with (#1021). Absent reads as no entry stored, which the sheet itself reads as every pool full.
    */
   class_resources?: PartyMember["class_resources"];
+  /** The skills the character is proficient in: what a Stealth or Perception check adds (`playerSkillBonus`). Absent reads as none. */
+  skill_proficiencies?: PartyMember["skill_proficiencies"];
 };
 
 /**
@@ -142,4 +145,19 @@ export function playerAbilityModifier(sheets: PlayerSheets, memberId: string, ab
   const form = member.wildshape_state;
   const beast = form ? (sheets.beasts.find((b) => b.id === form.monster_id)?.stat_block ?? null) : null;
   return abilityMod(effectiveAbilityScores(member, { active: form !== null, statBlock: beast })[ability]);
+}
+
+/**
+ * The bonus on this player's skill check (Stealth to hide, Perception to search or notice): the ability modifier from the scores in
+ * effect (a Wild Shape form's STR, DEX and CON replace theirs) plus their proficiency or expertise. Jack of All Trades is not
+ * added (the sheet this reads does not say whether the character has it). Null when the character's row was not read.
+ */
+export function playerSkillBonus(sheets: PlayerSheets, memberId: string, skill: keyof SkillProficiencies): number | null {
+  const member = memberRow(sheets, memberId);
+  if (!member) return null;
+  const form = member.wildshape_state;
+  const beast = form ? (sheets.beasts.find((b) => b.id === form.monster_id)?.stat_block ?? null) : null;
+  const scores = effectiveAbilityScores(member, { active: form !== null, statBlock: beast });
+  const source = { ...scores, proficiency_bonus: member.proficiency_bonus, skill_proficiencies: member.skill_proficiencies };
+  return skillCheckBonus(source, skill, "none", scores);
 }

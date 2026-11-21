@@ -62,3 +62,27 @@ describe("describeResolvedAction: break free", () => {
     expect(describeResolvedAction(heal({ spell: "Power Word Heal", castLevel: 9, rolled: 0, full: true, targets: [{ targetId: "fresco", regained: 33, revived: false, unaffected: false }] }), nameOf)).toBe("Ogre casts Power Word Heal (all hit points): Fresco regains 33 hit points.");
   });
 });
+
+describe("describeResolvedAction: a counter", () => {
+  const nameOf = (id: string) => ({ mage: "Mage", cleric: "Cleric" })[id] ?? id;
+  const countered = (over: Partial<Extract<ResolvedAction, { kind: "countered" }>>): ResolvedAction => ({
+    kind: "countered", casterId: "cleric", spell: "Hold Person", castLevel: 2, counterId: "mage", counterSpell: "Counterspell", stopped: true, ...over,
+  });
+
+  // Bug caught: a failed counter worded as a success, or the check's numbers left out (a DM could not tell why the spell went on).
+  it("says who countered what, and the numbers of a check that failed", () => {
+    expect(describeResolvedAction(countered({}), nameOf)).toBe("Mage counters Cleric's Hold Person.");
+    expect(describeResolvedAction(countered({ spell: "Fireball", castLevel: 5, check: { total: 12, dc: 15 }, stopped: false }), nameOf))
+      .toBe("Mage tries to counter Cleric's Fireball (check 12 against DC 15) and fails.");
+    expect(describeResolvedAction(countered({ spell: "Fireball", castLevel: 5, check: { total: 17, dc: 15 } }), nameOf))
+      .toBe("Mage counters Cleric's Fireball (check 17 against DC 15).");
+  });
+
+  // Bug caught: the 2024 save read as the counterer's roll, or its outcome inverted.
+  it("says whose Constitution save it was and how it went", () => {
+    expect(describeResolvedAction(countered({ spell: "Fireball", save: { total: 9, dc: 14 } }), nameOf))
+      .toBe("Mage counters Cleric's Fireball: Cleric fails a Constitution save (9 against DC 14).");
+    expect(describeResolvedAction(countered({ spell: "Fireball", save: { total: 16, dc: 14 }, stopped: false }), nameOf))
+      .toBe("Mage tries to counter Cleric's Fireball, but Cleric makes a Constitution save (16 against DC 14).");
+  });
+});

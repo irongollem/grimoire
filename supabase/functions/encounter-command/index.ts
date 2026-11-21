@@ -21,6 +21,7 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { underNoteCap } from "../_shared/tacticsJudge.ts";
 import { judge, JEV_MODEL, judgingKey } from "../_shared/typesafe.ts";
 import { rollMessageRow, secureDie } from "../_shared/serverRoll.ts";
+import { loadStandInIds } from "../_shared/standIns.ts";
 import { itemRefColumns } from "../../../src/lib/itemRef.ts";
 import { isUuid } from "../../../src/lib/library/contentIdentity.ts";
 import { DEFAULT_RULESET } from "../../../src/types/ruleset.types.ts";
@@ -103,6 +104,9 @@ serve(withCors(async (req: Request) => {
     // No row means the rule's own default, which is off for both.
     const ruleOn = (key: string) => (rules as { rule_key: string; enabled: boolean }[]).some((r) => r.rule_key === key && r.enabled);
 
+    // Read once per request however many attempts and commands ask (#1021 row 26).
+    let standInRead: Promise<ReadonlySet<string>> | null = null;
+    const standInsOnce = () => (standInRead ??= loadStandInIds(admin, campaignId));
     const deps: BatchDeps = {
       async loadFight(encounterId) {
         const { data, error } = await admin
@@ -220,6 +224,7 @@ serve(withCors(async (req: Request) => {
       loadSpells: (name) => loadSpellsNamed(admin, campaignId, campaign.user_id, name),
       loadSpellsListed: (names) => loadSpellsListed(admin, campaignId, campaign.user_id, names),
       loadPlayerSheets: (memberIds) => loadPlayerSheets(admin, campaignId, memberIds),
+      loadStandIns: standInsOnce,
       async loadFightMap(encounterId) {
         // Read in this campaign's own scope (`loadFightMapInput` filters on it); null is "no map the rules can use".
         const input = await loadFightMapInput(admin, campaignId, encounterId);

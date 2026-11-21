@@ -235,6 +235,24 @@ export function shield(over: Partial<SpellRecord> = {}): SpellRecord {
   });
 }
 
+/**
+ * "Counterspell" (PHB 2014 and 2024): a 3rd-level Reaction within 60 feet of a creature casting a spell. The data carries it as a text effect
+ * with `counters`; the edition's own rule (an ability check against 10 + the spell's level, or the caster's Constitution save) is the fight's.
+ */
+export function counterspell(over: Partial<SpellRecord> = {}): SpellRecord {
+  const ruleset = over.ruleset ?? "2014";
+  return healer({
+    id: `counterspell_${ruleset}`, name: "Counterspell", level: 3, range: "60 ft.", ruleset, concentration: false,
+    casting_time: "Reaction",
+    effects: [{
+      id: "base", phase: "cast", outcome: "automatic", target: { type: "creature", count: 1 }, kind: "text", dice: null,
+      multiplier: 1, damageType: null, condition: null, description: "You attempt to interrupt a creature in the process of casting a spell.", scaling: null, modifier: null,
+      counters: { rangeFeet: 60 },
+    }],
+    ...over,
+  });
+}
+
 /** "Shield of Faith" (PHB 2014 and 2024): one creature within 60 feet gains +2 AC; a Bonus Action, Concentration up to 10 minutes. */
 export function shieldOfFaith(over: Partial<SpellRecord> = {}): SpellRecord {
   const ruleset = over.ruleset ?? "2014";

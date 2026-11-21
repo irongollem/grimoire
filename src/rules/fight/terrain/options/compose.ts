@@ -17,23 +17,26 @@ import type { RunCombatant } from "../../../../types/encounter.types.ts";
 import { isIncapacitated } from "../../../conditions.ts";
 import { cannotReactWhileSurprised, losesFirstTurnToSurprise } from "../../../initiative.ts";
 import { isHostileTo } from "../../sides.ts";
+import { SEARCH_RANGE_FEET, aimableHostiles, searchable } from "../../hiding.ts";
+import { isHidden } from "../../stances.ts";
 import { reachTerrainOf, type FightMap } from "../battleMap.ts";
 import { reachable, type ReachResult } from "../reach.ts";
 import { distanceFeet } from "../sight.ts";
 import { attackOption, bestAttackSquare, listIsOpen, plannedAttacks, unmeasuredAttack } from "./attacks.ts";
 import { fleeOption, fleeSourceOf } from "./flee.ts";
 import { approachOption, disengageOption, dodgeOption, hideOption } from "./movement.ts";
-import { boxOf, exitsByCellOf, isLiving, isOnBoard, sizeOf, type Scene } from "./scene.ts";
+import { boxOf, emptyMovement, exitsByCellOf, isLiving, isOnBoard, sizeOf, type Scene } from "./scene.ts";
 import { boonOptionsOf, breakFreeOptions, healOptionsOf, spellOptionsOf } from "./spellOptions.ts";
 import { MAX_TURN_OPTIONS, type TurnOption, type TurnOptionsInput } from "./types.ts";
 
 /**
  * The options of the creature whose id is `moverId`. Rules, in the order they are listed in the docs:
  * 1 Attack, 2 Dash, 3 Disengage, 4 Dodge, 5 Hide, 6 nothing measurable, 7 who gets nothing, 8 Multiattack, 9 the cap, 10 Flee,
- * 11 Spell (a damage spell cast from where the creature stands; see `spellTargeting.ts` for what it may be cast at),
+ * 11 Spell (a damage spell cast from where the creature stands, or from one square it walks to when it has none there: `movedSpells.ts`; see `spellTargeting.ts` for what it may be cast at),
  * 12 Break free (an ability check to end a condition a spell holds it in; see `breakFreeOptions`),
  * 13 Heal (a healing spell cast from where the creature stands at someone of its side who is hurt or down; see `healTargeting.ts`).
  * 14 Boon (a boon spell, Bless or Shield of Faith, cast from where the creature stands at those of its side it reaches; see `boonTargeting.ts`).
+ * 15 Search (the Search action, only while a hostile holds Hidden within `SEARCH_RANGE_FEET`; see `hiding.ts`). A hostile that holds Hidden is never a target of rules 1, 2, 7, 8, 11 or the Move option, and a Hidden mover provokes nothing: nobody sees it leave.
  *
  * Rule 7: a creature at 0 hit points, Incapacitated, or surprised on the first round of a 2014 fight (`round` given), gets an empty list. A creature whose Action is spent
  * (`action_used`) gets only what needs no Action: Bonus Action attacks (unless `bonus_used`) and a plain `move`
@@ -50,6 +53,15 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
   const names = new Map(input.combatants.map((c) => [c.instance_id, c.name]));
   const planned = plannedAttacks(input.attacks.filter((a) => listIsOpen(mover, a.list)));
   const hostileTargets = input.combatants.filter((c) => c.instance_id !== mover.instance_id && isLiving(c) && isHostileTo(mover, c, input.factions ?? []));
+  // Rule 15: one Search option while a hostile is hidden within reach of a search. It is an Action, so a spent Action leaves none.
+  const searchOption = (): TurnOption | null => {
+    const found = searchable(mover, hostileTargets);
+    if (found.length === 0) return null;
+    return {
+      id: "search", kind: "search", targetId: null, ...emptyMovement(), attack: null,
+      summary: `Search: look for ${found.length === 1 ? found[0].name : `the ${found.length} hidden creatures`} within ${SEARCH_RANGE_FEET} ft, a Wisdom (Perception) check`,
+    };
+  };
 
   const measurable = input.map !== null && input.budgetFeet !== null && isOnBoard(mover);
   const options: { option: TurnOption; nearness: number }[] = [];
@@ -57,8 +69,12 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
 
   if (!measurable) {
     // Rule 6: no map, no position or no known speed. One attack per (attack, hostile), nothing measured, plus Dodge.
-    hostileTargets.forEach((t, i) => planned.forEach((p) => options.push({ option: unmeasuredAttack(p, t), nearness: i })));
-    if (actionFree) fixed.push(dodgeOption(null));
+    aimableHostiles(hostileTargets).forEach((t, i) => planned.forEach((p) => options.push({ option: unmeasuredAttack(p, t), nearness: i })));
+    if (actionFree) {
+      fixed.push(dodgeOption(null));
+      const looking = searchOption();
+      if (looking) fixed.push(looking);
+    }
     return capped(options, fixed, [...spellOptionsOf(input, mover, names, null), ...healOptionsOf(input, mover, names, null), ...boonOptionsOf(input, mover, names, null), ...breakFreeOptions(input, mover)]);
   }
 
@@ -81,7 +97,8 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
     reach: search(budget),
     others: onBoard,
     hostiles,
-    enemies: hostiles.map((h) => ({ id: h.instance_id, box: boxOf(h), reachFeet: input.reachOf(h), reactionUsed: h.reactionUsed === true, cannotReact: cannotReactWhileSurprised(h, input.ruleset), incapacitated: isIncapacitated(h.conditions) })),
+    // A Hidden mover is seen by no one, so no one gets an opportunity attack as it leaves (PHB 2014 ch. 9: "a hostile creature that you can see").
+    enemies: isHidden(mover.conditions) ? [] : hostiles.map((h) => ({ id: h.instance_id, box: boxOf(h), reachFeet: input.reachOf(h), reactionUsed: h.reactionUsed === true, cannotReact: cannotReactWhileSurprised(h, input.ruleset), incapacitated: isIncapacitated(h.conditions) })),
     ruleset: input.ruleset,
     exposureMemo: new Map(),
     exitsByCell: exitsByCellOf(map.exits),
@@ -92,7 +109,8 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
 
   // Rule 1: an attack per (usable attack, living hostile) that some reachable square allows.
   const reached = new Set<string>();
-  for (const t of hostiles) {
+  const aimable = aimableHostiles(hostiles);
+  for (const t of aimable) {
     for (const p of planned) {
       const square = bestAttackSquare(scene, p, t);
       if (square === null) continue;
@@ -104,7 +122,7 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
   if (actionFree) {
     // Rule 2: a Dash toward each hostile no attack can reach this turn, searched with twice the budget (PHB 2014 ch. 9 "Dash").
     const dashReach = search(budget * 2);
-    for (const t of hostiles) {
+    for (const t of aimable) {
       if (reached.has(t.instance_id)) continue;
       const dash = approachOption("dash", scene, names, t, dashReach);
       if (dash) options.push({ option: dash, nearness: nearness(t) });
@@ -114,22 +132,24 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
     if (disengage) fixed.push(disengage);
     const hide = hideOption(scene, names);
     if (hide) fixed.push(hide);
+    const looking = searchOption();
+    if (looking) fixed.push(looking);
     const flee = fleeOption(scene, names, dashReach, () => (farWalk ??= search(Number.POSITIVE_INFINITY)), fleeSourceOf(mover, input.combatants));
     if (flee) fixed.push(flee);
     fixed.push(dodgeOption(scene));
   } else {
     // Rule 7: the Action is spent, so only a plain move toward each hostile no attack reaches is left.
-    for (const t of hostiles) {
+    for (const t of aimable) {
       if (reached.has(t.instance_id)) continue;
       const move = approachOption("move", scene, names, t, scene.reach);
       if (move) options.push({ option: move, nearness: nearness(t) });
     }
   }
-  return capped(options, fixed, [...spellOptionsOf(input, mover, names, { map }), ...healOptionsOf(input, mover, names, { map }), ...boonOptionsOf(input, mover, names, { map }), ...breakFreeOptions(input, mover)]);
+  return capped(options, fixed, [...spellOptionsOf(input, mover, names, { map }, actionFree ? scene : undefined), ...healOptionsOf(input, mover, names, { map }), ...boonOptionsOf(input, mover, names, { map }), ...breakFreeOptions(input, mover)]);
 }
 
 /**
- * Rule 9: Dodge, Disengage, Hide and Flee stay; attacks, dashes and moves against the nearest targets are kept first, up to
+ * Rule 9: Dodge, Disengage, Hide, Search and Flee stay; attacks, dashes and moves against the nearest targets are kept first, up to
  * `MAX_TURN_OPTIONS`. The spell options (rule 11), the heal options (rule 13), the boon options (rule 14) and the break-free options (rule 12) sit between the two and are not counted against that cap.
  */
 function capped(options: { option: TurnOption; nearness: number }[], fixed: TurnOption[], spells: readonly TurnOption[]): TurnOption[] {

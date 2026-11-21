@@ -12,6 +12,10 @@
       <!-- The name rides the token: a native title tooltip stayed where the token had been after a drag.
            A silhouetted token has none, or hovering it would hand a player the name the canvas hides. -->
       <span v-if="!tok.silhouette" class="token-name">{{ tok.combatant.name }}</span>
+      <!-- The DM's map keeps a creature that took the Hide action in place and marks it; the players' map leaves it out. -->
+      <span v-if="tok.hiddenMark !== null" class="token-hidden-mark" :title="tok.hiddenMark" :aria-label="tok.hiddenMark" role="img">
+        <IconHide class="token-hidden-icon" aria-hidden="true" />
+      </span>
       <canvas
         :ref="(el) => registerCanvas(tok.combatant.instance_id, el as HTMLCanvasElement | null)"
         :width="canvasPx(tok.footprint)"
@@ -24,6 +28,8 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
+import { IconHide } from "@/lib/icons";
+import { HIDDEN, hiddenFromPlayers } from "@/rules/fight/stances";
 import { drawToken, type TokenEntity, type TokenFigure } from "@/lib/tokenRenderer";
 import { dollFigureKey } from "@/lib/paperDoll/dollTokenFigure";
 import { combatantFootprint } from "@/lib/battlemap/tokenFootprint";
@@ -119,6 +125,8 @@ const dragOverridePx = ref<{ instanceId: string; x: number; y: number } | null>(
 
 interface RenderedToken {
   combatant: RunCombatant;
+  /** The tooltip of the DM's "hidden" mark ("Hidden (Stealth 17)"), or null when the token is not hiding. */
+  hiddenMark: string | null;
   footprint: number;
   pxX: number;
   pxY: number;
@@ -223,6 +231,12 @@ function isDraggable(instanceId: string): boolean {
 const partyFactions = computed(() => new Set(combatants.filter((c) => c.type === "player").map((c) => c.faction_id)));
 const formPortraitOf = useFormPortraits(() => combatants.map((c) => c.wildshape));
 
+function hiddenMarkOf(c: RunCombatant): string | null {
+  const held = c.conditions.find((cond) => cond.name === HIDDEN);
+  if (held === undefined) return null;
+  return typeof held.stealth === "number" ? `Hidden (Stealth ${held.stealth})` : "Hidden";
+}
+
 const renderedTokens = computed<RenderedToken[]>(() => {
   if (cellPx <= 0) return [];
   let originIndex = 0;
@@ -230,6 +244,8 @@ const renderedTokens = computed<RenderedToken[]>(() => {
   const result: RenderedToken[] = [];
   for (const c of combatants) {
     if (hideHidden && (c.reveal_state ?? "revealed") === "hidden") continue;
+    // A creature that took the Hide action is not on a player's map until it is found (#1021 row 13).
+    if (hideHidden && hiddenFromPlayers(c)) continue;
     const footprint = getFootprint(c);
     let cellX: number;
     let cellY: number;
@@ -252,6 +268,7 @@ const renderedTokens = computed<RenderedToken[]>(() => {
     );
     result.push({
       combatant: c,
+      hiddenMark: hideHidden ? null : hiddenMarkOf(c),
       footprint,
       pxX: dragMatch?.x ?? anchor.x,
       pxY: dragMatch?.y ?? anchor.y,
@@ -487,6 +504,29 @@ function tokenStyle(tok: RenderedToken): Record<string, string> {
 .token:hover .token-name,
 .token-selected .token-name {
   opacity: 1;
+}
+
+/* A small eye-with-a-slash chip on the token's top corner, in the same card colours as the name label. */
+.token-hidden-mark {
+  position: absolute;
+  top: -0.125rem;
+  right: -0.125rem;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 9999px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-card), transparent 8%);
+  color: var(--color-foreground);
+  pointer-events: none;
+}
+
+.token-hidden-icon {
+  width: 0.75rem;
+  height: 0.75rem;
 }
 
 .token-draggable:active {

@@ -84,6 +84,8 @@ export function linesOfCreatureTurn(input: CreatureTurnInput): BoardLine[] {
   if (feetMoved > 0) lines.push({ kind: "margin", text: `${name} moves ${feetMoved} feet` });
   // A blow struck by someone else during this turn is an opportunity attack on the creature as it walks away.
   lines.push(...linesOfAttacks(outcomes, { nameOf, playedInstanceId, playedHp, turnOf: turn.instanceId }));
+  // A Hide or a Search the server ruled on says what it did ("The kobold hides", "... finds Tam"), so the player reads it.
+  if (turn.outcome !== undefined) lines.push({ kind: "margin", text: turn.outcome });
   if (turn.leftTheMap === true) lines.push({ kind: "margin", text: `${name} flees the fight` });
   if (lines.length === 0) lines.push({ kind: "margin", text: `${name} holds its ground` });
   return lines;

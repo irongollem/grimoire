@@ -64,6 +64,11 @@ export interface AppliedCondition {
    * the spell, so a second cast replaces the first (one record per name), which is the book's "Combining Magical Effects".
    */
   grants?: ConditionGrants;
+  /**
+   * Hidden only: the Stealth total the creature hid with (#1021 row 13). It is the DC for a search to find it (SRD 5.2
+   * "Hide [Action]"); in 2014 a search must beat it. Absent on a Hidden put on by hand.
+   */
+  stealth?: number;
 }
 
 /**

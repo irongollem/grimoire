@@ -106,3 +106,27 @@ describe("tableTokens", () => {
     expect(tableTokens([tok("big", "monster", { x: 2, y: 2 }, { footprint: 2 })], sight)).toHaveLength(1);
   });
 });
+
+describe("hiding creatures on a player screen", () => {
+  const sight = new Set(["3,3"]);
+  const at = { x: 3, y: 3 };
+  const hidden = [{ name: "Hidden", stealth: 15 }];
+  // Bug caught: a creature that took the Hide action drawn on the player's map because its square is lit.
+  it("partyVisibleCombatants leaves out a seen monster holding Hidden, keeps a hiding party member and a plain monster", () => {
+    const list = [
+      { instance_id: "lurker", type: "monster", conditions: hidden, position: at },
+      { instance_id: "pc", type: "player", conditions: hidden, position: at },
+      { instance_id: "orc", type: "monster", conditions: [], position: at },
+    ];
+    expect(partyVisibleCombatants(list, sight, null).map((c) => c.instance_id)).toEqual(["pc", "orc"]);
+  });
+
+  it("tableTokens leaves out a seen monster holding Hidden, keeps a hiding hero and a plain monster", () => {
+    const list = [
+      { instance_id: "lurker", type: "monster", conditions: hidden, position: at },
+      { instance_id: "pc", type: "player", conditions: hidden, position: at },
+      { instance_id: "orc", type: "monster", conditions: [], position: at },
+    ];
+    expect(tableTokens(list, sight).map((c) => c.instance_id)).toEqual(["pc", "orc"]);
+  });
+});

@@ -26,11 +26,11 @@ export const MAX_TURN_OPTIONS = 12;
 export const MAX_SPELL_OPTIONS = 12;
 
 /**
- * `flee` (rule 10) is a Dash away. `surrender` and `escape` are never produced here: the tactics gate (`gateOptions`,
+ * `search` (rule 15) is the Search action against a hostile that is Hidden. `flee` (rule 10) is a Dash away. `surrender` and `escape` are never produced here: the tactics gate (`gateOptions`,
  * #1203) puts surrender in place of the whole list when a creature that yields has broken, and puts escape (a way out
  * such as Etherealness) first when a broken creature has one.
  */
-export type TurnOptionKind = "attack" | "spell" | "heal" | "boon" | "break_free" | "dash" | "move" | "disengage" | "dodge" | "hide" | "flee" | "surrender" | "escape";
+export type TurnOptionKind = "attack" | "spell" | "heal" | "boon" | "break_free" | "dash" | "move" | "disengage" | "dodge" | "hide" | "search" | "flee" | "surrender" | "escape";
 
 /** What an attack option does, with the facts of the square it is made from. Null facts mean there is no map to measure on. */
 export interface TurnOptionAttack {

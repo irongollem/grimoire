@@ -45,6 +45,7 @@
 
     <div class="mc-identity">
       <span class="combatant-name">{{ combatant.name }}</span>
+      <RunnerStandInTag :combatant="combatant" />
       <p v-if="showDetail" class="mc-detail" data-testid="row-detail">
         <RunnerRollStatus :combatant="combatant" />
         <span v-if="detailText">{{ detailText }}</span>
@@ -77,6 +78,7 @@ import { computed, ref, watch } from "vue";
 import { IconHide, IconReveal } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import RunnerStandInTag from "@/components/encounters/RunnerStandInTag.vue";
 import RunnerInitiativeField from "@/components/encounters/RunnerInitiativeField.vue";
 import RunnerRollStatus from "@/components/encounters/RunnerRollStatus.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";

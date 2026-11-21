@@ -31,7 +31,9 @@ function valueOf(o: TurnOption): number | null {
 }
 
 /** A cast that catches none of the mover's own side and whose damage is known: the only cast a surge is spent on. */
-const isSafeCast = (o: TurnOption): boolean => o.kind === "spell" && o.spell !== undefined && o.spell !== null && o.spell.friendsCaught.length === 0 && o.spell.expectedDamage !== null && o.spell.surge === undefined;
+// A cast from where the creature stands: the extra action's options are worked out from that square, and the creature never walks
+// between the two actions, so a cast that walks first (a moved spell option) is never one of them.
+const isSafeCast = (o: TurnOption): boolean => o.kind === "spell" && o.spell !== undefined && o.spell !== null && o.spell.friendsCaught.length === 0 && o.spell.expectedDamage !== null && o.spell.surge === undefined && (o.feet === null || o.feet === 0);
 
 /**
  * Whether `o` can be the extra action after a cast: another safe cast, or an Attack action (not the Action Surge entry itself: one surge is one extra

@@ -59,7 +59,21 @@ describe("stepsFor", () => {
   it("fails if a creature that stays where it is (a path of one cell, or none) is told to move", () => {
     const stay = stepsFor(option("dodge", { destination: { x: 1, y: 1 }, path: [{ x: 1, y: 1 }], feet: 0 }), []);
     expect(stay).toEqual([{ type: "stance", name: "Dodging" }, { type: "use", slot: "action" }]);
-    expect(stepsFor(option("hide"), [])).toEqual([{ type: "use", slot: "action" }]);
+    expect(stepsFor(option("dash"), [])).toEqual([{ type: "use", slot: "action" }]);
+  });
+
+  // PHB 2014 ch. 7 "Hiding": the check is made where the creature ends up, so the walk comes first and the hide step after it, then the Action.
+  // Bug: the Stealth roll is made before the creature has walked behind its cover (or no roll is made at all, as before #1021 row 13).
+  it("fails if Hide does not walk first, then roll Stealth, then use the Action", () => {
+    const steps = stepsFor(option("hide", { destination: { x: 2, y: 0 }, feet: 10, path: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }] }), []);
+    expect(steps).toEqual([{ type: "move", to: { x: 2, y: 0 }, feet: 10 }, { type: "hide" }, { type: "use", slot: "action" }]);
+    expect(stepsFor(option("hide"), [])).toEqual([{ type: "hide" }, { type: "use", slot: "action" }]);
+  });
+
+  // SRD 5.2 "Search [Action]": the Action is spent searching. Bug: a Search that spends the Action and rolls nothing, or a turn that is not a search that rolls.
+  it("fails if Search does not roll, or another turn does", () => {
+    expect(stepsFor(option("search"), [])).toEqual([{ type: "search" }, { type: "use", slot: "action" }]);
+    expect(stepsFor(option("dodge"), []).some((s) => s.type === "search" || s.type === "hide")).toBe(false);
   });
 
   // PHB 2014 "Dodge" / "Disengage": each is an Action that puts its stance on the creature. The bug is an Action spent with no stance.
@@ -154,5 +168,32 @@ describe("stepsFor: break free (#1021)", () => {
   it("fails if a boon is not a plain cast step with no heal flag and no use step", () => {
     const steps = stepsFor(option("boon", { targetId: "pip", boon: { name: "Bless", castLevel: 1, slot: "action", targetIds: ["pip", "brug"], spends: true, distanceFeet: 5, targetCount: 3, concentration: true } }), []);
     expect(steps).toEqual([{ type: "cast", spell: "Bless", castLevel: 1, targetIds: ["pip", "brug"] }]);
+  });
+});
+
+describe("stepsFor: a cast from a square it walks to (#1021, moving for a better cast)", () => {
+  const walkedCast = () =>
+    option("spell", {
+      id: "spell:Fire Bolt:0:fresco:walk", targetId: "fresco", destination: { x: 4, y: 0 }, feet: 20,
+      path: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 3, y: 0 }, { x: 4, y: 0 }],
+      spell: { name: "Fire Bolt", castLevel: 0, kind: "attack", targetIds: ["fresco"], friendsCaught: [], spends: false, distanceFeet: 30, hitChance: null, expectedDamage: null },
+    });
+
+  // The cast is made from where the creature ends, so the walk is first, and `cast_spell` marks the Action itself (no `use` step).
+  // Bug caught: the cast comes before the walk (cast from the old square, out of range), or the walk is dropped, so the creature casts from where it stands.
+  it("is the move, then the cast, with no use step", () => {
+    expect(stepsFor(walkedCast(), [])).toEqual([
+      { type: "move", to: { x: 4, y: 0 }, feet: 20 },
+      { type: "cast", spell: "Fire Bolt", castLevel: 0, targetIds: ["fresco"] },
+    ]);
+  });
+
+  // A Bonus Action heal rides the turn and is put in front of the chosen turn's steps (`takeTurn.ts`: `[...stepsFor(heal), ...steps]`), so it is cast from where the
+  // creature stands, before the walk. Bug caught: the heal's steps carry a move of their own, or the walk lands before the heal, so the heal is cast from the new square.
+  it("keeps a riding Bonus Action heal in front of the walk", () => {
+    const heal = option("heal", { targetId: "pip", heal: { name: "Healing Word", castLevel: 1, slot: "bonus_action", targetIds: ["pip"], downIds: [], lowIds: ["pip"], spends: true, expectedEach: 5, distanceFeet: 5 } });
+    const steps = [...stepsFor(heal, []), ...stepsFor(walkedCast(), [])];
+    expect(steps.map((s) => s.type)).toEqual(["cast", "move", "cast"]);
+    expect(steps[0]).toMatchObject({ type: "cast", spell: "Healing Word", heal: true });
   });
 });

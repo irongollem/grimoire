@@ -20,6 +20,7 @@
           :arming="attack.state.value.step === 'aiming'"
           @moved="onMoved"
           @target="onTarget"
+          @sight="(cells) => (sightNow = cells)"
         />
         <!-- "The initiative card lies over the map so it cannot be missed, and it is the same card as any other roll
              of yours." (frame 12) -->
@@ -94,6 +95,11 @@
       <SoloRollAsk :ask="hideAsk" :bonus="hideCheck ? hideCheck.bonus : null" :forced-disadvantage="hideCheck ? hideCheck.forcedDisadvantage : false" :busy="resolving" @roll="onHide" />
       <AppButton variant="ghost" size="sm" label="Not now" class="self-end" @click="hideAsk = null" />
     </div>
+    <!-- Search is the same kind of ask: a Wisdom (Perception) check, with a way back out before it is made. -->
+    <div v-else-if="searchAsk && attack.state.value.step === 'idle'" class="mx-auto flex w-full max-w-176 flex-col gap-1" data-testid="solo-search-ask">
+      <SoloRollAsk :ask="searchAsk" :bonus="searchCheck ? searchCheck.bonus : null" :forced-disadvantage="searchCheck ? searchCheck.forcedDisadvantage : false" :busy="resolving" @roll="onSearch" />
+      <AppButton variant="ghost" size="sm" label="Not now" class="self-end" @click="searchAsk = null" />
+    </div>
     <SoloRollAsk
       v-else-if="attack.state.value.step === 'to_hit'"
       :ask="{ label: `${attack.state.value.row.name}: to hit`, kind: 'check', ability: 'str', skill: null }"
@@ -133,10 +139,10 @@ import { usePcAttackRows } from "@/composables/encounters/usePcAttackRows";
 import type { PcAttackRow } from "@/types/pcAttack.types";
 import { useHotkeys } from "@/composables/useHotkeys";
 import KeyCap from "@/components/common/controls/KeyCap.vue";
-import { actOutcome, type ActKind } from "@/lib/table/solo/fight/acts";
+import { actOutcome, hideAction, searchOutcome, type ActKind } from "@/lib/table/solo/fight/acts";
+import type { FogCellKey } from "@/lib/battlemap/fogMask";
+import { statBlockPassive } from "@/rules/skillCheck";
 import { useTableCheck } from "@/composables/table/useTableCheck";
-import { hideOutcome } from "@/rules/hide";
-import { hiddenCondition } from "@/rules/fight/stances";
 import { useSoloAttack } from "@/composables/table/useSoloAttack";
 import { useSoloFightHost, type SoloFightEnd } from "@/composables/table/useSoloFightHost";
 import { useToast } from "@/composables/useToast";
@@ -146,6 +152,8 @@ import { useTableFoes } from "@/composables/table/useTableFoes";
 import type { FightChange, FightTurn } from "@/lib/table/solo/fight/fightChange";
 import { attackEntryOf, damageDicePlan } from "@/rules/fight/pcAttacks/entry";
 import type { RollAnswer, RollAsk } from "@/lib/table/solo/soloTypes";
+import { HIDDEN } from "@/rules/fight/stances";
+import type { RunCombatant } from "@/types/encounter.types";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { PartyMember } from "@/types/party.types";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
@@ -412,20 +420,54 @@ useHotkeys(() => (provoked.value && attack.state.value.step === "idle" ? [{ comb
 // Hiding: the roll is asked first and the Action is spent when it is made, so backing out costs nothing.
 const hideAsk = ref<RollAsk | null>(null);
 const hideCheck = useTableCheck(() => member, hideAsk);
+// Searching asks a Wisdom (Perception) check the same way and spends the Action when it is made.
+const searchAsk = ref<RollAsk | null>(null);
+const searchCheck = useTableCheck(() => member, searchAsk);
 watch(() => host.yourTurn.value, (yours) => {
-  if (!yours) hideAsk.value = null;
+  if (!yours) {
+    hideAsk.value = null;
+    searchAsk.value = null;
+  }
 });
+
+// The squares the character sees now (the map reports them): a 2014 Hide is weighed against the foes standing in them.
+const sightNow = ref<ReadonlySet<FogCellKey>>(new Set());
+/** A foe's passive Perception from its stat block; null for a creature with no block here (an NPC, a stranger). */
+function passiveOf(c: RunCombatant): number | null {
+  const monster = c.monster_id === undefined ? undefined : store.availableMonsters.find((m) => m.id === c.monster_id);
+  return monster === undefined ? null : statBlockPassive(monster.stat_block, "perception");
+}
 
 function onHide(answer: RollAnswer): void {
   const me = played.value;
   if (!me || me.action_used === true) return;
   // Advantage keeps the higher die and disadvantage the lower (SRD 5.1 "Advantage and Disadvantage").
   const kept = answer.mode === "disadvantage" ? Math.min(...answer.faces) : Math.max(...answer.faces);
-  const outcome = hideOutcome(kept + answer.bonus, ruleset.value);
+  const { outcome, condition } = hideAction({
+    total: kept + answer.bonus,
+    ruleset: ruleset.value,
+    hider: me,
+    combatants: store.combatants,
+    factions: store.factions,
+    sight: sightNow.value,
+    passiveOf,
+  });
   hideAsk.value = null;
   store.setActionUsed(me.instance_id, true);
-  if (outcome.hidden) store.applyCondition(me.instance_id, hiddenCondition());
+  // The condition carries the Stealth total, so a later search and the DM's map can read it.
+  if (condition !== null) store.applyCondition(me.instance_id, condition);
   emit("lines", [{ kind: "margin", text: `${me.name} takes the Hide action. ${outcome.message}` }], false);
+}
+
+function onSearch(answer: RollAnswer): void {
+  const me = played.value;
+  if (!me || me.action_used === true) return;
+  const kept = answer.mode === "disadvantage" ? Math.min(...answer.faces) : Math.max(...answer.faces);
+  const { found, line } = searchOutcome({ total: kept + answer.bonus, name: me.name, searcher: me, combatants: store.combatants, ruleset: ruleset.value });
+  searchAsk.value = null;
+  store.setActionUsed(me.instance_id, true);
+  for (const c of found) store.removeCondition(c.instance_id, HIDDEN);
+  emit("lines", [{ kind: "margin", text: `${me.name} takes the Search action. ${line}` }], false);
 }
 
 /** The four actions the rules name. They spend the Action; what each does besides is `actOutcome`'s. */
@@ -434,6 +476,10 @@ function onAct(kind: ActKind): void {
   if (!me || me.action_used === true) return;
   if (kind === "hide") {
     hideAsk.value = { label: "Hide: Dexterity (Stealth)", kind: "check", ability: "dex", skill: "stealth" };
+    return;
+  }
+  if (kind === "search") {
+    searchAsk.value = { label: "Search: Wisdom (Perception)", kind: "check", ability: "wis", skill: "perception" };
     return;
   }
   store.setActionUsed(me.instance_id, true);

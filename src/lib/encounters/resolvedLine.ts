@@ -34,6 +34,15 @@ export function describeResolvedAction(resolved: ResolvedAction, nameOf: (instan
     }
     case "boon":
       return `${nameOf(resolved.casterId)} casts ${resolved.spell} on ${listNames(resolved.targetIds.map(nameOf))}.`;
+    case "countered": {
+      const head = `${nameOf(resolved.counterId)} ${resolved.stopped ? "counters" : "tries to counter"} ${nameOf(resolved.casterId)}'s ${resolved.spell}`;
+      if (resolved.check !== undefined) return `${head} (check ${resolved.check.total} against DC ${resolved.check.dc})${resolved.stopped ? "" : " and fails"}.`;
+      if (resolved.save !== undefined) {
+        const saved = `${nameOf(resolved.casterId)} ${resolved.stopped ? "fails" : "makes"} a Constitution save (${resolved.save.total} against DC ${resolved.save.dc})`;
+        return resolved.stopped ? `${head}: ${saved}.` : `${head}, but ${saved}.`;
+      }
+      return `${head}${resolved.stopped ? "" : " and fails"}.`;
+    }
     case "concentration":
       return `${nameOf(resolved.instanceId)} ${resolved.maintained ? "keeps" : "loses"} concentration (${resolved.total} against DC ${resolved.dc}).`;
     case "condition_save":

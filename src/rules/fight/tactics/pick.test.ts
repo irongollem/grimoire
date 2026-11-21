@@ -255,6 +255,20 @@ describe("pickTurn: rule attack", () => {
     expect(pickTurn(o, prof({ int: 7 }), ctxOf([OGRE, FRESCO]))?.optionId).toBe("attack:actions:Greatclub:fresco");
   });
 
+  // RULE provokes, for casts as for attacks: a moved spell option that walks through a threatened square provokes. A trained caster
+  // takes the cast that provokes nothing (Fire Bolt, 7) over a stronger one that walks into a reach (Fireball, 23); a simple one does not
+  // mind. Bug caught: a cast weighed by its damage alone, so a clever mage walks into an opportunity attack to cast.
+  it("fails if a trained caster walks into an opportunity attack to cast when a cast from where it stands is on offer", () => {
+    const spellOf = (name: string, expected: number, provokes: number): TurnOption => ({
+      id: `spell:${name}:3:fresco`, kind: "spell", targetId: "fresco", destination: provokes > 0 ? { x: 2, y: 0 } : null, path: null, feet: provokes > 0 ? 20 : null,
+      attack: null, distanceFeet: null, provokes: Array.from({ length: provokes }, (_, i) => ({ enemyId: `e${i}`, step: 0 })), exposure: [], summary: name,
+      spell: { name, castLevel: 3, kind: "save", targetIds: ["fresco"], friendsCaught: [], spends: true, distanceFeet: 30, hitChance: 0.6, expectedDamage: expected },
+    });
+    const o = [spellOf("Fire Bolt", 7, 0), spellOf("Fireball", 23, 1)];
+    expect(pickTurn(o, prof({ int: 8 }), ctxOf([OGRE, FRESCO]))?.optionId).toBe("spell:Fire Bolt:3:fresco");
+    expect(pickTurn(o, prof({ int: 7 }), ctxOf([OGRE, FRESCO]))?.optionId).toBe("spell:Fireball:3:fresco");
+  });
+
   it("a trained creature still takes the best of the provoking options when all of them provoke", () => {
     const o = [atk({ target: "fresco", action: "Slam", expected: 5, provokes: 1 }), atk({ target: "fresco", action: "Greatclub", expected: 9, provokes: 1 })];
     expect(pickTurn(o, prof({ int: 8 }), ctxOf([OGRE, FRESCO]))?.optionId).toBe("attack:actions:Greatclub:fresco");
@@ -581,5 +595,26 @@ describe("pickTurn: a boon is cast early", () => {
   // Past its round a boon is no fallback either: with an attack on offer the creature attacks, and the boon is not "the first turn on offer". Bug caught: the filter of cast kinds missing "boon".
   it("fails if a boon that was ruled out is taken as the turn that is left", () => {
     expect(pickAt(5, [blessOf(), other("hide")])?.optionId).toBe("hide");
+  });
+});
+
+describe("RULE search-when-nothing-to-strike", () => {
+  // With a hidden foe and no attack on offer (an attack is never offered against a hidden creature), the creature searches rather than
+  // dashing at a foe far off or dodging. Bug: it dodges (or dashes) while a foe it cannot find picks it off.
+  it("searches when the only foe is hidden, and dodges only when nothing is hidden", () => {
+    const hiddenOnly = [other("dash", "chicory", 40), other("dodge"), other("search")];
+    expect(pickTurn(hiddenOnly, prof(), BASIC)).toMatchObject({ optionId: "search" });
+    expect(pickTurn(hiddenOnly.filter((o) => o.kind !== "search"), prof(), BASIC)).toMatchObject({ optionId: "dash:chicory" });
+  });
+
+  // An attack on a foe it can find comes first: the search is for when there is nothing to strike.
+  it("attacks a foe it can find before searching for one it cannot", () => {
+    const pick = pickTurn([atk({ target: "fresco", expected: 8 }), other("search"), other("dodge")], prof(), BASIC);
+    expect(pick).toMatchObject({ optionId: "attack:actions:Greatclub:fresco" });
+  });
+
+  // Every tier searches, even an animal: the option is offered wherever it is composed.
+  it("is kept by the gate at every tier", () => {
+    for (const int of [3, 4, 8, 12]) expect(gateOptions([other("search")], prof({ int }), OGRE).map((o) => o.kind)).toEqual(["search"]);
   });
 });

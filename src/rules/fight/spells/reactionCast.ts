@@ -11,15 +11,34 @@ import type { MonsterStatBlock } from "../../../types/monster.types.ts";
 import { limitAvailability, type ActionLimit } from "../../encounterTurn.ts";
 import { castableBy, slotLimitAt } from "./castLimit.ts";
 
+/** Who is a person at this table and who the rules play (#1021 rows 15 and 26). */
+export interface WhoPlays {
+  /** The party member the person at the AI table plays; undefined in a DM's own fight. */
+  playedMemberId: string | undefined;
+  /** The campaign's party members whose player consented and whose DM switched the AI on (`ai_speaks` and `ai_stands_in`). */
+  standIns: ReadonlySet<string>;
+}
+
+/**
+ * APP CONVENTION: whether a player character is one the rules play. At the AI table (a `playedMemberId` named) every member but the
+ * played one is, as the person there is the only human. In a DM's own fight (none named) exactly the stand-ins are: a player whose
+ * account did not consent, or whose DM did not switch the AI on, chooses for themselves. One rule for the turn, the opportunity attack
+ * and the Reaction, so they can never disagree about who is a person. A character with no sheet is checked where the sheet is read.
+ */
+export function playerPlayedByRules(memberId: string | undefined, who: WhoPlays): boolean {
+  if (memberId === undefined) return false;
+  if (who.playedMemberId !== undefined) return memberId !== who.playedMemberId;
+  return who.standIns.has(memberId);
+}
+
 /**
  * APP CONVENTION: whether the creature's Reaction is a choice the rules make. A monster, an NPC or a companion with a stat block always
- * is. A party member is only when the request names the member the person plays (`playedMemberId`) and it is someone else (an AI-played
- * ally); with no one named (a DM's own fight) every player is a person and chooses for themselves. A bystander never reacts.
+ * is. A party member is only when `playerPlayedByRules` says so. A bystander never reacts.
  */
-export function reactsByRules(c: Pick<RunCombatant, "type" | "party_member_id" | "bystander">, playedMemberId: string | undefined): boolean {
+export function reactsByRules(c: Pick<RunCombatant, "type" | "party_member_id" | "bystander">, who: WhoPlays): boolean {
   if (c.bystander === true) return false;
   if (c.type !== "player") return true;
-  return playedMemberId !== undefined && c.party_member_id !== undefined && c.party_member_id !== playedMemberId;
+  return playerPlayedByRules(c.party_member_id, who);
 }
 
 /**

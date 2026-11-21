@@ -83,6 +83,8 @@ export interface TurnTaken {
   deathSave?: { d20: number; label: string; status: "dying" | "stable" | "dead" | "up" };
   /** With `escapedWith`: "leaves" means the creature was removed from the fight, "unseen" that it is now Invisible and still on the map. */
   escapeEffect?: "leaves" | "unseen";
+  /** Only for a Hide or a Search (#1021 row 13): what the roll did, in a sentence ("Gloom hides.", "Gloom tries to hide but Fresco notices it.", "Gloom searches and finds Fresco."). */
+  outcome?: string;
   /**
    * Only when true: the creature moved and the map has nothing drawn on it that the rules can read (no wall, no door,
    * no solid rock, no difficult ground), so it crossed it as open ground. A picture of a room full of tables is, to
@@ -174,6 +176,12 @@ export type ResolvedAction =
   }
   /** A boon spell the rules gave (#1021): each target now holds a condition named for the spell, carrying its grants. */
   | { kind: "boon"; casterId: string; spell: string; castLevel: number; targetIds: string[] }
+  /**
+   * A Reaction spell (Counterspell) answered a cast (#1021): `counterId` cast `counterSpell` at `casterId`'s `spell` cast at `castLevel`.
+   * 2014 rolls a spellcasting `check` when the slot is lower than the spell; 2024 makes the caster roll a Constitution `save`. `stopped`
+   * is whether the spell failed; a spell that was not stopped goes on and has its own record after this one.
+   */
+  | { kind: "countered"; casterId: string; spell: string; castLevel: number; counterId: string; counterSpell: string; check?: { total: number; dc: number }; save?: { total: number; dc: number }; stopped: boolean }
   | { kind: "concentration"; instanceId: string; dc: number; natural: number; total: number; maintained: boolean }
   | { kind: "condition_save"; instanceId: string; name: string; dc: number; total: number | null; success: boolean }
   /** A creature spent its Action on an ability check to get free of a condition a spell holds it in (Black Tentacles). */

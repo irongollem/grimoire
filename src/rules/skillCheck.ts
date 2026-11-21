@@ -139,7 +139,18 @@ export function statBlockPassive(
   block: Pick<MonsterStatBlock, "skills" | keyof AbilityScores>,
   skillKey: keyof SkillProficiencies,
 ): number {
+  return 10 + statBlockSkillBonus(block, skillKey);
+}
+
+/**
+ * The bonus a creature with a stat block adds to a skill check (the d20 is rolled by the caller): the bonus the block lists for
+ * the skill, else the ability modifier, since a stat block lists only the skills it adds proficiency to. 0 for a key no skill has.
+ */
+export function statBlockSkillBonus(
+  block: Pick<MonsterStatBlock, "skills" | keyof AbilityScores>,
+  skillKey: keyof SkillProficiencies,
+): number {
   const skill = SKILLS.find((s) => s.key === skillKey);
-  if (!skill) return 10;
-  return 10 + (listedSkillBonus(block, skillKey) ?? abilityMod(block[skill.ability]));
+  if (!skill) return 0;
+  return listedSkillBonus(block, skillKey) ?? abilityMod(block[skill.ability]);
 }

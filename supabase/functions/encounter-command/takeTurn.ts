@@ -7,8 +7,9 @@
 // this. Nothing here advances the turn.
 //
 // Opportunity attacks: before a move, the enemies the server can play strike (`opportunity.ts`) and a player who may strike is reported as `provoked_player`.
-// Not in this command: Hide (the Action is
-// used and nothing more is recorded; Dodge and Disengage do put their condition on the creature), picking by a model, ending the turn, legendary and lair actions.
+// Hide and Search are played (#1021 row 13): a creature that hides rolls its Stealth after its walk and takes Hidden when the roll is enough (`hide.ts`),
+// and one that searches rolls its Perception and takes Hidden off the hostiles it finds. Dodge and Disengage put their condition on the creature.
+// Not in this command: picking by a model, ending the turn, legendary and lair actions.
 // A creature that lists spells is offered its damage spells (#1021): a cone or a line is not offered, a cast is carried out by
 // `cast_spell` (which spends the slot or use and the Action), and nothing but damage is cast. A party member the AI plays (an ally, #1021) is seen
 // through a stat block made from their own sheet (`allyStatBlock`: their weapons and bare hands, or the form they are Wild Shaped into; a ranged attack
@@ -33,7 +34,7 @@ import { allyInnateSpend, allySlotSpend, settleInnateSpend, settleSlotSpend, slo
 import { castableBy } from "../../../src/rules/fight/spells/castLimit.ts";
 import { applyFightCommand, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
-import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
+import type { FightEffect, FightState, TurnTaken } from "../../../src/rules/fight/fightState.ts";
 import { saveBonusFromBlock } from "../../../src/rules/fight/resolution/saves.ts";
 import { playerSaveBonus } from "../../../src/rules/fight/playerSheet.ts";
 import { listedSpellNames } from "../../../src/rules/fight/spells/castNow.ts";
@@ -42,7 +43,15 @@ import { boonRidesTurn, chooseBonusBoon } from "../../../src/rules/fight/tactics
 import { chooseBonusHeal, isLeveledCast, withoutLeveledCasts } from "../../../src/rules/fight/tactics/healChoice.ts";
 import { surgeCasts as surgeCastsOf } from "../../../src/rules/fight/tactics/surgeCast.ts";
 import { stepsFor, type TurnStep } from "../../../src/rules/fight/tactics/carryOut.ts";
-import { DODGING, disengagedCondition, dodgingCondition } from "../../../src/rules/fight/stances.ts";
+import { DODGING, HIDDEN, disengagedCondition, dodgingCondition, hiddenCondition, isHidden } from "../../../src/rules/fight/stances.ts";
+import { searchFinds } from "../../../src/rules/hide.ts";
+import { hideResult, searchable, watchersOf } from "../../../src/rules/fight/hiding.ts";
+import { isHostileTo } from "../../../src/rules/fight/sides.ts";
+import { isOnBoard } from "../../../src/rules/fight/terrain/options/scene.ts";
+import { playerSkillBonus } from "../../../src/rules/fight/playerSheet.ts";
+import { statBlockSkillBonus } from "../../../src/rules/skillCheck.ts";
+import type { AppliedCondition } from "../../../src/types/condition.types.ts";
+import type { SkillProficiencies } from "../../../src/types/party.types.ts";
 import { gateOptions, pickTurn } from "../../../src/rules/fight/tactics/pick.ts";
 import { withNumbers } from "../../../src/rules/fight/tactics/numbers.ts";
 import { tacticalProfile } from "../../../src/rules/fight/tactics/profile.ts";
@@ -56,7 +65,8 @@ import { noteRequest, optionsAllowedByNote } from "../_shared/tacticsJudge.ts";
 import { assembleTurnOptions } from "../_shared/turnOptionsFor.ts";
 import { FightCommandError } from "./commandError.ts";
 import { strikeOnLeaving } from "./opportunity.ts";
-import { applyResolvingCommand, knownArmorClass, type ResolveEnv } from "./resolve.ts";
+import { playerPlayedByRules } from "../../../src/rules/fight/spells/reactionCast.ts";
+import { applyResolvingCommand, knownArmorClass, whoPlaysIn, type ResolveEnv } from "./resolve.ts";
 
 /** `optionId` left out: the server picks by the rules. Named: it must be one of the options on offer right now. */
 export type TakeTurnCommand = {
@@ -100,6 +110,30 @@ function creatureTypeOf(c: RunCombatant, env: ResolveEnv) {
   if (!c.monster_id) return null;
   const row = env.sources.monsters.find((m) => m.id === c.monster_id);
   return row === undefined ? null : row.monster_type;
+}
+
+/**
+ * A creature's bonus on a skill check: a character's from their sheet, anyone else's from its stat block (the listed skill, else the ability
+ * modifier). Null when neither can be read.
+ */
+function skillBonusOf(c: RunCombatant, skill: keyof SkillProficiencies, env: ResolveEnv): number | null {
+  if (c.type === "player" && c.party_member_id !== undefined) {
+    const sheet = playerSkillBonus(env.players, c.party_member_id, skill);
+    if (sheet !== null) return sheet;
+  }
+  const block = statBlockOf(c, env.sources);
+  return block === null ? null : statBlockSkillBonus(block, skill);
+}
+
+/** PHB 2014 ch. 7 "Passive Perception": 10 plus the Perception bonus. A creature the server cannot read watches with 10, the score of a creature with no bonus. */
+const passivePerceptionOf = (c: RunCombatant, env: ResolveEnv): number => 10 + (skillBonusOf(c, "perception", env) ?? 0);
+
+/** Rolls a d20 plus a bonus as the server's own roll, posted to the campaign log like any other; returns the total. */
+function rollSkill(label: string, bonus: number, speaker: string, env: ResolveEnv): number {
+  const roll = rollWithRules(dnd5eDiceRules, { 20: 1 }, bonus, NORMAL_ROLL, env.rollDie);
+  roll.label = dnd5eDiceRules.tagLabel(label, NORMAL_ROLL, { 20: 1 });
+  env.posted.push({ result: roll, speaker, serverRolled: true });
+  return roll.total;
 }
 
 /** A turn goes against the note when the model puts its probability at or above this (the threshold `optionsAllowedByNote` rules out at). */
@@ -175,6 +209,11 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
   const mover = state.combatants.find((c) => c.instance_id === command.instanceId) as RunCombatant;
   if (mover.bystander === true) return refuse(`${mover.name} is no fighter the rules can play: their turn is their own.`);
   const ally = mover.type === "player" && mover.party_member_id !== undefined;
+  // APP CONVENTION (#1021 row 26): in a DM's own fight the AI plays only a character whose player let it and whose DM switched it
+  // on. The server decides from `env.standIns`, never from the request, so a DM's `take_turn` cannot play a person who did not consent.
+  if (ally && command.playedMemberId === undefined && !playerPlayedByRules(mover.party_member_id, whoPlaysIn(callEnv))) {
+    return refuse(`${mover.name}'s player has not let the AI play them.`);
+  }
   if (mover.hp <= 0) return ally ? takeDeathSave(state, mover, command, callEnv) : refuse(`${mover.name} is at 0 hit points and cannot take a turn.`);
   // A party member is played through the block their sheet makes; the block rides on the env so every step below (reach,
   // the swing, an opportunity attack) reads the same one. Anyone else's block is read as it always was.
@@ -183,10 +222,11 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
   const allies: Record<string, MonsterStatBlock> = { ...callEnv.sources.allies };
   const allyIds = new Set<string>();
   if (ally) allyIds.add(mover.party_member_id as string);
-  if (command.playedMemberId !== undefined) {
-    for (const c of state.combatants) {
-      if (c.type === "player" && c.party_member_id !== undefined && c.party_member_id !== command.playedMemberId) allyIds.add(c.party_member_id);
-    }
+  // The same rule as the opportunity attack and the Reaction (`playerPlayedByRules`): at the AI table everyone but the played one,
+  // in a DM's fight the stand-ins.
+  const who = whoPlaysIn({ playedMemberId: command.playedMemberId, standIns: callEnv.standIns });
+  for (const c of state.combatants) {
+    if (c.type === "player" && playerPlayedByRules(c.party_member_id, who)) allyIds.add(c.party_member_id as string);
   }
   for (const id of allyIds) {
     // The slot counts of its spells are worked out against the casts this fight already tallies for the member.
@@ -310,9 +350,8 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
   const escape = option.kind === "escape" ? option.escape : undefined;
   // A move over a map the rules can read nothing on (a picture with no walls, rock or difficult ground drawn): say so.
   const bare = env.map !== null && option.feet !== null && option.feet > 0 && env.map.occluders.segments.length === 0 && env.map.solid.size === 0 && env.map.difficult.size === 0;
-  const effects: FightEffect[] = [
-    { type: "turn_taken", turn: { instanceId: mover.instance_id, optionId: option.id, kind: option.kind, summary: option.summary, reason: bonusReason === null ? chosen.reason : `${chosen.reason} ${bonusReason}`, picked, ...(speaksInAFight(block, creatureTypeOf(mover, env)) ? { speaks: true as const } : {}), ...(ruledOutByNote === undefined ? {} : { ruledOutByNote }), ...(leaves && escape === undefined ? { leftTheMap: true as const } : {}), ...(escape === undefined ? {} : { escapedWith: escape.name, escapeEffect: escape.effect }), ...(bare ? { bareMap: true as const } : {}) } },
-  ];
+  const turnTaken: TurnTaken = { instanceId: mover.instance_id, optionId: option.id, kind: option.kind, summary: option.summary, reason: bonusReason === null ? chosen.reason : `${chosen.reason} ${bonusReason}`, picked, ...(speaksInAFight(block, creatureTypeOf(mover, env)) ? { speaks: true as const } : {}), ...(ruledOutByNote === undefined ? {} : { ruledOutByNote }), ...(leaves && escape === undefined ? { leftTheMap: true as const } : {}), ...(escape === undefined ? {} : { escapedWith: escape.name, escapeEffect: escape.effect }), ...(bare ? { bareMap: true as const } : {}) };
+  const effects: FightEffect[] = [{ type: "turn_taken", turn: turnTaken }];
   effects.push(...sheetEffects);
   let next = state;
   const apply = (cmd: FightCommand) => {
@@ -373,7 +412,10 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
         // A slot an ally cast with is the sheet's: its whole list as it now stands, written once the fight is saved (#1021).
         // The spell is paid where the block lists it: a slot line spends a slot (a Warlock's spell the Pact Magic pool first), a "N/day" line
         // spends one of that grant's uses, and at will or a cantrip spends nothing (an at-will innate spell of level 2 takes no 2nd-level slot).
-        if (ally) {
+        // RULE counterspell (PHB 2024: "If that spell was cast with a spell slot, the slot isn't expended"): a cast the caster's failed Constitution save
+        // stopped leaves the sheet as it was; the fight's own tally was kept the same way (`resolve.ts`).
+        const slotKept = done.effects.some((e) => e.type === "resolved" && e.resolved.kind === "countered" && e.resolved.casterId === mover.instance_id && e.resolved.save !== undefined && e.resolved.stopped);
+        if (ally && !slotKept) {
           const memberId = mover.party_member_id as string;
           const how = castableBy(block, step.spell)?.group.frequency.kind;
           if (how === "slots") {
@@ -449,6 +491,37 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
       case "condition":
         apply({ type: "apply_condition", instanceId: mover.instance_id, condition: { name: step.name } });
         break;
+      case "hide": {
+        // RULE hide (PHB 2014 ch. 7 "Hiding", SRD 5.2 "Hide"): a Dexterity (Stealth) check, made where the creature ended its walk. Armour that
+        // gives disadvantage on Stealth is not modelled, so the die is rolled straight.
+        const hider = next.combatants.find((c) => c.instance_id === mover.instance_id) as RunCombatant;
+        const total = rollSkill("Stealth", skillBonusOf(hider, "stealth", env) ?? 0, mover.name, env);
+        const foes = next.combatants.filter((c) => c.instance_id !== mover.instance_id && c.hp > 0 && isHostileTo(mover, c, env.factions));
+        const watchers = watchersOf(hider, foes, next.combatants.filter(isOnBoard), env.map);
+        const result = hideResult(mover.name, total, state.ruleset, watchers.map((w) => ({ name: w.name, passive: passivePerceptionOf(w, env) })));
+        if (result.hidden) {
+          // A creature already Hidden takes the new total in place of the old one.
+          if (isHidden(hider.conditions)) apply({ type: "remove_condition", instanceId: mover.instance_id, name: HIDDEN });
+          apply({ type: "apply_condition", instanceId: mover.instance_id, condition: hiddenCondition(total) });
+        }
+        turnTaken.outcome = result.outcome;
+        break;
+      }
+      case "search": {
+        // RULE search (SRD 5.2 "Search [Action]": a Wisdom (Perception) check; PHB 2014 ch. 7): one roll against every creature it could find.
+        const searcher = next.combatants.find((c) => c.instance_id === mover.instance_id) as RunCombatant;
+        const foes = next.combatants.filter((c) => c.instance_id !== mover.instance_id && c.hp > 0 && isHostileTo(mover, c, env.factions));
+        const reached = searchable(searcher, foes);
+        if (reached.length === 0) {
+          turnTaken.outcome = `${mover.name} searches and finds no one.`;
+          break;
+        }
+        const total = rollSkill("Perception", skillBonusOf(searcher, "perception", env) ?? 0, mover.name, env);
+        const found = reached.filter((t) => searchFinds(total, t.conditions.find((c) => c.name === HIDDEN) as AppliedCondition, state.ruleset));
+        for (const t of found) apply({ type: "remove_condition", instanceId: t.instance_id, name: HIDDEN });
+        turnTaken.outcome = found.length === 0 ? `${mover.name} searches (Perception ${total}) and finds no one.` : `${mover.name} searches (Perception ${total}) and finds ${found.map((t) => t.name).join(" and ")}.`;
+        break;
+      }
       case "leave":
         // Gone from this fight: not slain, so no defeat and no loot (the creature just is not there any more).
         apply({ type: "remove_combatant", instanceId: mover.instance_id });

@@ -243,6 +243,11 @@ export interface StructuredSpellEffect {
    * puts it on each target as a condition named after the spell (`AppliedCondition.grants`). Null or absent: not a boon.
    */
   grants?: SpellGrants | null;
+  /**
+   * The spell is a Reaction that stops another creature's spell as it is cast (Counterspell): a fight asks it when a hostile creature
+   * within `rangeFeet` casts a leveled spell, never by the spell's name or prose. Carried on a `text` effect. Null or absent: not one.
+   */
+  counters?: { rangeFeet: number } | null;
 }
 
 export interface SpellGrants {

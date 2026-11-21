@@ -50,7 +50,7 @@ export async function loadPlayerSheets(admin: SupabaseClient, campaignId: string
   // item is read only when it is this campaign's or its Dungeon Masters' own, so a forged id names nothing of another account's.
   const { data: members, error: memberError } = await admin
     .from("party_members")
-    .select("id, ruleset, class, subclass, ac_formula, class_choices, str, dex, con, int, wis, cha, proficiency_bonus, saving_throw_proficiencies, wildshape_state, speed, level, custom_attacks, spell_slots, class_resources")
+    .select("id, ruleset, class, subclass, ac_formula, class_choices, str, dex, con, int, wis, cha, proficiency_bonus, saving_throw_proficiencies, wildshape_state, speed, level, custom_attacks, spell_slots, class_resources, skill_proficiencies")
     .eq("campaign_id", campaignId)
     .in("id", memberIds);
   if (memberError) throw new Error(`party_members: ${memberError.message}`);

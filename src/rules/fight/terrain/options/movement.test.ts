@@ -1,6 +1,7 @@
 /** Rules 2 to 5: Dash, Disengage, Dodge and Hide. */
 import { describe, expect, it } from "vitest";
 import type { RunCombatant } from "../../../../types/encounter.types.ts";
+import { hiddenCondition } from "../../stances.ts";
 import { mapOf, ogre, fresco, chicory, run, find } from "./turnOptionsTestKit.ts";
 
 describe("rule 2: dash", () => {
@@ -100,5 +101,52 @@ describe("rule 5: hide", () => {
   it("is not offered when a second enemy still sees every square that hides it from the first", () => {
     // Chicory (-3,6) stands in the open on the west side of the wall.
     expect(find(run({ combatants: [ogre(), fresco(4, 0), chicory(-3, 6)], map: WALL }), "hide")).toBeUndefined();
+  });
+});
+
+describe("rule 15: a hostile that holds Hidden (#1021 row 13)", () => {
+  const hiding = (stealth = 15) => ({ conditions: [hiddenCondition(stealth)] });
+
+  // PHB 2014 ch. 9 "Unseen Attackers and Targets": the Ogre does not know where Fresco is. Bug: an attack, a dash or a move is offered
+  // against the hidden player as if it stood in plain view (Chicory beside her stays a target).
+  it("offers no attack, dash or move against a hidden hostile, and still does against the one in view", () => {
+    const options = run({ combatants: [ogre(), fresco(1, 0, hiding()), chicory(1, 1)] });
+    expect(find(options, "attack:actions:Greatclub:fresco")).toBeUndefined();
+    expect(find(options, "attack:actions:Greatclub:chicory")).toBeDefined();
+    const far = run({ combatants: [ogre(), fresco(20, 0, hiding())] });
+    expect(far.filter((o) => o.targetId === "fresco")).toEqual([]);
+    const spent = run({ combatants: [ogre(0, 0, { action_used: true }), fresco(20, 0, hiding())] });
+    expect(spent.filter((o) => o.targetId === "fresco")).toEqual([]);
+  });
+
+  it("offers no attack against a hidden hostile where nothing can be measured either", () => {
+    expect(run({ combatants: [ogre(), fresco(1, 0, hiding())], map: null }).some((o) => o.kind === "attack")).toBe(false);
+  });
+
+  // SRD 5.2 "Search [Action]". Fresco at x = 12 is 55 ft off (11 squares of gap): within 60. Bug: no way to find her is offered.
+  it("offers Search while a hostile within 60 ft is hidden, naming her, and costs the Action", () => {
+    const search = find(run({ combatants: [ogre(), fresco(12, 0, hiding())] }), "search");
+    expect(search).toMatchObject({ kind: "search", targetId: null });
+    expect(search?.summary).toBe("Search: look for Fresco within 60 ft, a Wisdom (Perception) check");
+    expect(find(run({ combatants: [ogre(0, 0, { action_used: true }), fresco(12, 0, hiding())] }), "search")).toBeUndefined();
+  });
+
+  // 14 squares off is 13 squares of gap, 65 ft: out of a search's reach. Bug: Search offered for a creature it cannot reach, which then finds no one.
+  it("does not offer Search with nothing hidden, or only a hidden hostile beyond 60 ft", () => {
+    expect(find(run({ combatants: [ogre(), fresco(2, 0)] }), "search")).toBeUndefined();
+    expect(find(run({ combatants: [ogre(), fresco(14, 0, hiding())] }), "search")).toBeUndefined();
+  });
+
+  it("offers Search where nothing can be measured", () => {
+    expect(find(run({ combatants: [ogre(), fresco(2, 0, hiding())], map: null }), "search")).toBeDefined();
+  });
+
+  // PHB 2014 ch. 9 "Opportunity Attacks": the enemy must be able to see the one who leaves. Dash east from beside Chicory provokes her
+  // (rule 2's test); the same dash by a Hidden Ogre provokes no one. Bug: a hidden creature is struck for leaving.
+  it("provokes nothing from a Hidden mover leaving an enemy's reach", () => {
+    const seen = find(run({ combatants: [ogre(), fresco(12, 0), chicory(1, 0)] }), "dash:fresco");
+    expect(seen?.provokes).toHaveLength(1);
+    const unseen = find(run({ combatants: [ogre(0, 0, hiding()), fresco(12, 0), chicory(1, 0)] }), "dash:fresco");
+    expect(unseen?.provokes).toEqual([]);
   });
 });
