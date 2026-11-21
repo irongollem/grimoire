@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
+import { edgeRefusal } from "@edge-shared/edgeError.ts";
 import { waitForImageJob } from "@/ai/useImageJob";
 import { waitForRow } from "@/ai/waitForRow";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
@@ -70,12 +70,12 @@ export async function waitForStylize(miniId: string, jobId: string): Promise<Min
   return mini as Mini;
 }
 
-// forge-mini returns its structured reasons on non-2xx responses, which
-// supabase.functions.invoke surfaces via `error` (data is null) — so this maps
-// the code AFTER edgeErrorMessage extracts it from the response body. Unknown
-// strings (incl. edgeErrorMessage's own friendly sentences) pass through.
-function friendlyError(error: string): string {
-  switch (error) {
+// forge-mini answers a refusal as `{ error: code, message: sentence }` on a non-2xx response, which
+// supabase.functions.invoke surfaces via `error` (data is null). `edgeErrorMessage` shows the sentence, so the code
+// this switches on is read from the body itself (one read: a body can be consumed once). Codes the client words
+// itself win over the server's sentence; anything else shows the server's own.
+function friendlyError(code: string | null, sentence: string): string {
+  switch (code) {
     case "no_portrait":
       return "This entity has no portrait yet. Add one before forging a mini.";
     case "invalid_state":
@@ -85,8 +85,14 @@ function friendlyError(error: string): string {
     case "feature_disabled":
       return "The Simulacrum ritual isn't open yet.";
     default:
-      return error;
+      return sentence;
   }
+}
+
+/** What a failed forge-mini call says, in words for the player. */
+export async function miniForgeError(fnError: { message?: string; context?: Response }): Promise<string> {
+  const { code, sentence } = await edgeRefusal(fnError);
+  return friendlyError(code, sentence);
 }
 
 /** Thin client for the forge-mini edge function (stylize/sculpt/resculpt/cancel/delete). */
@@ -119,7 +125,7 @@ export function useMiniForge() {
       const { data, error } = await supabase.functions.invoke("forge-mini", {
         body: { action: "stylize", ...input },
       });
-      if (error) throw new Error(friendlyError(await edgeErrorMessage(error)));
+      if (error) throw new Error(await miniForgeError(error));
       const res = data as StylizeResponse;
 
       const mini = await waitForStylize(res.mini_id, res.job_id);
@@ -147,7 +153,7 @@ export function useMiniForge() {
       const { data, error } = await supabase.functions.invoke("forge-mini", {
         body: { action, mini_id: miniId },
       });
-      if (error) throw new Error(friendlyError(await edgeErrorMessage(error)));
+      if (error) throw new Error(await miniForgeError(error));
       invalidateMini(miniId);
       return data as ActionResponse;
     } finally {
@@ -172,7 +178,7 @@ export function useMiniForge() {
       const { error } = await supabase.functions.invoke("forge-mini", {
         body: { action: "cancel", mini_id: miniId },
       });
-      if (error) throw new Error(friendlyError(await edgeErrorMessage(error)));
+      if (error) throw new Error(await miniForgeError(error));
       invalidateMini(miniId);
     } finally {
       isCancelling.value = false;
@@ -193,7 +199,7 @@ export function useMiniForge() {
       const { data, error } = await supabase.functions.invoke("forge-mini", {
         body: { action: "set_base", mini_id: miniId, base_id: baseId, scale_mm: scaleMm },
       });
-      if (error) throw new Error(friendlyError(await edgeErrorMessage(error)));
+      if (error) throw new Error(await miniForgeError(error));
       const res = data as SetBaseResponse;
 
       const { data: mini, error: fetchError } = await supabase

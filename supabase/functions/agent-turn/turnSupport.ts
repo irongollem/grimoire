@@ -15,7 +15,7 @@ import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTableProm
 import { NO_QUESTS, pressureIsSpent, pressureTick, questsSection, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
 import type { CallModel } from "../_shared/agent/types.ts";
 import type { CreditLogFields } from "../_shared/credits.ts";
-import type { AgentTurnDeps, CampaignRow, SessionRow } from "./turnTypes.ts";
+import type { AgentTurnDeps, CampaignRow, SessionRow, TurnLedger } from "./turnTypes.ts";
 
 // The session's credits hold six decimals; accruing at the same precision keeps what is sent equal to what is stored.
 export function round6(n: number): number {
@@ -174,6 +174,7 @@ export async function applyKeptQuestMoves(input: {
  */
 export async function foldIntoSummary(input: {
   deps: AgentTurnDeps;
+  ledger: TurnLedger;
   session: SessionRow;
   storedNow: StoredTurn[];
   callModel: CallModel;
@@ -197,7 +198,7 @@ export async function foldIntoSummary(input: {
       input_tokens: usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens,
       output_tokens: usage.outputTokens,
     };
-    const logWithoutCharge = () => (isByok ? deps.recordGeneration(true, 0, logFields) : deps.recordFreeGeneration(logFields));
+    const logWithoutCharge = async () => input.ledger.charge("agent_turn", { cost: 0, isByok, log: logFields });
 
     // Nothing to store and nothing to bill, but the provider was paid for the call, so the tokens are logged.
     if (summary === null) {
@@ -228,8 +229,7 @@ export async function foldIntoSummary(input: {
       await safely(logWithoutCharge);
       return;
     }
-    if (saved.due > 0 || isByok) await safely(() => deps.recordGeneration(isByok, saved.due, logFields));
-    else await safely(() => deps.recordFreeGeneration(logFields));
+    await safely(async () => input.ledger.charge("agent_turn", { cost: saved.due, isByok, log: logFields }));
   } catch (error) {
     console.error("agent-turn: the summary failed:", error);
   }

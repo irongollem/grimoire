@@ -82,7 +82,7 @@
 import { computed } from "vue";
 import WorldNodeShape from "@/components/world/WorldNodeShape.vue";
 import { FAMILY_TOKEN, nodeSizeFor } from "@/lib/worldWeb/palette";
-import { npcRelationshipCanvasColor } from "@/lib/npcDisplay";
+import { npcRelationshipCanvasColor } from "@/lib/worldWeb/relationshipCanvasColor";
 import { layoutRings, type FocusGraph, type Placed } from "@/lib/worldWeb/focus";
 import { parseNodeKey, type WebKind } from "@/lib/worldWeb/kinds";
 import type { WebEntity } from "@/lib/worldWeb/model";

@@ -5,14 +5,7 @@ import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { rulesetContextKey } from "../_shared/gameSystem.ts";
-import {
-  fetchCreditCost,
-  wholeCredits,
-  recordGeneration,
-  releaseCredits,
-  reserveCredits,
-  reservationFailureResponse,
-} from "../_shared/credits.ts";
+import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
   AI_PROMPT_LIMIT,
@@ -21,12 +14,14 @@ import {
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { premiseEntryText, worldBlockText } from "../_shared/worldBlock.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import {
   clueShape,
@@ -63,6 +58,11 @@ const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
+
+interface CanonCampaign extends BaseCampaign {
+  text_provider: string | null;
+  game_system: string | null;
+}
 
 type Mode = "premise" | "truths" | "clues" | "questions" | "forces" | "lore";
 
@@ -157,76 +157,53 @@ function spotLines(spots: SpotCandidate[], beatQuest: Map<string, string>): stri
   }).join("\n");
 }
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate, including BYOK (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
-  let campaign_id: string, mode: Mode, prompt: string;
-  let secretId = "", loreTitle = "", loreKind: LoreKind | null = null, loreText = "";
-  try {
-    const body = await req.json();
-    campaign_id = body.campaign_id;
-    if (typeof campaign_id !== "string" || !campaign_id) throw new Error("invalid");
-    if (!isMode(body.mode)) throw new Error("invalid");
-    mode = body.mode;
-    prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
-    if (typeof body.secret_id === "string") secretId = body.secret_id;
-    if (typeof body.title === "string") loreTitle = body.title.trim();
-    if (isLoreKind(body.lore_kind)) loreKind = body.lore_kind;
-    if (typeof body.text === "string") loreText = body.text.trim();
-  } catch {
-    return new Response(`Invalid body: need { campaign_id, mode: ${Object.keys(MODES).join(" | ")} }`, { status: 400 });
+  const body = await readJsonBody(req);
+  const invalidBody = (why: string) => jsonError(400, "invalid_body", why);
+  if (!body || typeof body.campaign_id !== "string" || !body.campaign_id || !isMode(body.mode)) {
+    return invalidBody(`Need { campaign_id, mode: ${Object.keys(MODES).join(" | ")} }.`);
   }
-  if (mode === "clues" && secretId === "") return new Response("Invalid body: a secret_id is required", { status: 400 });
-  if (mode === "lore" && loreTitle === "") return new Response("Invalid body: a title is required", { status: 400 });
+  const campaign_id = body.campaign_id;
+  const mode = body.mode;
+  const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+  const secretId = typeof body.secret_id === "string" ? body.secret_id : "";
+  const loreTitle = typeof body.title === "string" ? body.title.trim() : "";
+  const loreKind: LoreKind | null = isLoreKind(body.lore_kind) ? body.lore_kind : null;
+  const loreText = typeof body.text === "string" ? body.text.trim() : "";
+  if (mode === "clues" && secretId === "") return invalidBody("A secret_id is required.");
+  if (mode === "lore" && loreTitle === "") return invalidBody("A title is required.");
   for (const field of [loreTitle, loreText]) {
-    if (field !== "" && field.length > MAX_TEXT_CHARS) return new Response("Invalid body: text too long", { status: 400 });
+    if (field !== "" && field.length > MAX_TEXT_CHARS) return invalidBody("Text too long.");
   }
   // The pitch is the whole input of "Draft from a pitch"; the truths helper takes an optional steer.
-  if (mode === "premise" && prompt === "") {
-    return new Response("Invalid body: a pitch is required", { status: 400 });
-  }
+  if (mode === "premise" && prompt === "") return invalidBody("A pitch is required.");
   if (prompt) {
     const promptCheck = validatePromptInput(prompt, AI_PROMPT_LIMIT);
     if (!promptCheck.ok) return promptCheck.errorResponse;
   }
 
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, game_system")
-    .eq("id", campaign_id)
-    .maybeSingle();
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
-
   // DMs only: the helper reads every truth, including secrets, with the service role, and a player must not
   // be able to ask the model to echo them.
-  if (!(await isCampaignDm(admin, campaign, user.id))) {
-    return new Response("Forbidden", { status: 403 });
-  }
+  const load = await loadAiCampaign<CanonCampaign>(admin, campaign_id, user.id, {
+    columns: ["text_provider", "game_system"],
+  });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
   const { promptRow: PROMPT_ROW, ledger: LEDGER_REASON } = MODES[mode];
   const rulesetKey = rulesetContextKey(campaign.game_system);
-  const { data: promptRows } = await admin
+  const { data: promptRows, error: promptError } = await admin
     .from("ai_system_prompts").select("generator_type, content")
     .in("generator_type", [PROMPT_ROW, ...(rulesetKey ? [rulesetKey] : [])]);
+  if (promptError) throw promptError;
   const promptRow = promptRows?.find((r) => r.generator_type === PROMPT_ROW);
   const rulesetContext = promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
-  if (!promptRow) return new Response("Prompt not configured", { status: 500 });
+  if (!promptRow) return jsonError(500, "prompt_not_configured", "This generator is not set up yet.");
 
   // The owner's BYOK keys live in campaign_api_keys (#1228), Pro-only, checked by the loader at use time.
   const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
@@ -241,219 +218,184 @@ serve(withCors(async (req: Request) => {
     platformKeys,
     providerConfigs,
   });
-  if (!text) {
-    return new Response(
-      JSON.stringify({ error: NO_TEXT_PROVIDER_MESSAGE }),
-      { status: 422, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
 
   const baseCost = text.isByok ? 0 : await fetchCreditCost(admin, LEDGER_REASON);
   const cost = wholeCredits(applyMultiplier(baseCost, text.textMultiplier));
 
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
-    return new Response(
-      JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
-  const reservation = await reserveCredits(admin, user.id, cost, LEDGER_REASON);
-  if (!reservation.ok) return reservationFailureResponse(reservation);
+  return withCreditHold(admin, { payerId: user.id, reason: LEDGER_REASON, cost, report }, async (hold) => {
+    // The prompt below is built from reads that can fail; that is the one failure this function answers itself (502),
+    // as it always has. The hold is released whatever happens.
+    try {
+      const world = await loadWorldBlock(admin, campaign.id);
+      const steer = prompt ? `${wrapUserInput(prompt)}\n\n` : "";
+      const base = (shape: string) => promptRow.content + shape + (rulesetContext ? `\n\n${rulesetContext}` : "") +
+        worldBlockText(world) + INJECTION_GUARD_SUFFIX;
 
-  // Everything below can throw; a thrown error must not strand the hold.
-  try {
-    const world = await loadWorldBlock(admin, campaign.id);
-    const steer = prompt ? `${wrapUserInput(prompt)}\n\n` : "";
-    const base = (shape: string) => promptRow.content + shape + (rulesetContext ? `\n\n${rulesetContext}` : "") +
-      worldBlockText(world) + INJECTION_GUARD_SUFFIX;
+      let system: string;
+      let user_: string;
+      let sanitize: (parsed: unknown) => { suggestions: unknown[]; setAside: unknown[] };
 
-    let system: string;
-    let user_: string;
-    let sanitize: (parsed: unknown) => { suggestions: unknown[]; setAside: unknown[] };
-
-    if (mode === "premise") {
-      const rows = await readRows<{ premise_kind: string | null; title: string; body: string | null }>(
-        admin.from("canon_entries").select("premise_kind, title, body").eq("campaign_id", campaign.id).eq("part", "premise"),
-      );
-      const existing = rows.map((r) => ({ kind: r.premise_kind, text: premiseEntryText(r.premise_kind, r.title, r.body) }))
-        .filter((r) => r.text !== "");
-      system = base(premiseShape());
-      user_ = `${steer}The DM's pitch is above. Entries the campaign already has (do not repeat them):\n` +
-        (existing.length > 0 ? existing.map((e) => `- ${e.kind}: ${e.text}`).join("\n") : "(none yet)");
-      sanitize = (parsed) => sanitizePremise(parsed, existing);
-    } else if (mode === "clues") {
-      const [secrets, clues, found] = await Promise.all([
-        readRows<{ title: string; body: string | null }>(
-          admin.from("canon_entries").select("title, body").eq("campaign_id", campaign.id).eq("part", "secret").eq("id", secretId),
-        ),
-        readRows<{ title: string; location_id: string | null; npc_id: string | null; quest_beat_id: string | null; passage_id: string | null }>(
-          admin.from("canon_clues").select("title, location_id, npc_id, quest_beat_id, passage_id")
-            .eq("campaign_id", campaign.id).eq("secret_id", secretId),
-        ),
-        loadSpots(admin, campaign.id),
-      ]);
-      const secret = secrets[0];
-      if (!secret) {
-        await releaseCredits(admin, reservation.ids);
-        return new Response("Secret not found", { status: 404 });
+      if (mode === "premise") {
+        const rows = await readRows<{ premise_kind: string | null; title: string; body: string | null }>(
+          admin.from("canon_entries").select("premise_kind, title, body").eq("campaign_id", campaign.id).eq("part", "premise"),
+        );
+        const existing = rows.map((r) => ({ kind: r.premise_kind, text: premiseEntryText(r.premise_kind, r.title, r.body) }))
+          .filter((r) => r.text !== "");
+        system = base(premiseShape());
+        user_ = `${steer}The DM's pitch is above. Entries the campaign already has (do not repeat them):\n` +
+          (existing.length > 0 ? existing.map((e) => `- ${e.kind}: ${e.text}`).join("\n") : "(none yet)");
+        sanitize = (parsed) => sanitizePremise(parsed, existing);
+      } else if (mode === "clues") {
+        const [secrets, clues, found] = await Promise.all([
+          readRows<{ title: string; body: string | null }>(
+            admin.from("canon_entries").select("title, body").eq("campaign_id", campaign.id).eq("part", "secret").eq("id", secretId),
+          ),
+          readRows<{ title: string; location_id: string | null; npc_id: string | null; quest_beat_id: string | null; passage_id: string | null }>(
+            admin.from("canon_clues").select("title, location_id, npc_id, quest_beat_id, passage_id")
+              .eq("campaign_id", campaign.id).eq("secret_id", secretId),
+          ),
+          loadSpots(admin, campaign.id),
+        ]);
+        const secret = secrets[0];
+        if (!secret) return jsonError(404, "secret_not_found", "Secret not found.");
+        const used = new Set<string>();
+        for (const c of clues) {
+          if (c.location_id) used.add(`location|${c.location_id}`);
+          if (c.npc_id) used.add(`npc|${c.npc_id}`);
+          if (c.quest_beat_id) used.add(`quest_beat|${c.quest_beat_id}`);
+        }
+        const free = found.spots.filter((s) => !used.has(`${s.kind}|${s.id}`));
+        const where = (c: (typeof clues)[number]) => {
+          const hit = found.spots.find((s) =>
+            (s.kind === "location" && s.id === c.location_id) || (s.kind === "npc" && s.id === c.npc_id) ||
+            (s.kind === "quest_beat" && s.id === c.quest_beat_id));
+          return hit ? `${hit.kind} ${hit.name}` : c.passage_id ? "a lore passage" : "somewhere";
+        };
+        const statement = [secret.title.trim(), toPlainText(secret.body).trim()].filter((t) => t !== "").join("\n");
+        system = base(clueShape());
+        user_ = `${steer}The secret the clues point to (a clue hints at it and never states it):\n${wrapUserInput(statement)}\n\n` +
+          `Clues already placed to this secret (do not repeat them):\n${bullets(clues.map((c) => `${c.title.trim()} (at ${where(c)})`))}\n\n` +
+          "Places, people and quest beats a clue may lie at. Every 'at' must be copied exactly from one of these lines:\n" +
+          `---BEGIN SPOTS---\n${spotLines(free, found.beatQuest)}\n---END SPOTS---`;
+        sanitize = (parsed) => sanitizeClues(parsed, free, used);
+      } else if (mode === "questions") {
+        const [truths, secrets, questions] = await Promise.all([
+          readRows<{ title: string; knowledge: string | null }>(
+            admin.from("canon_entries").select("title, knowledge").eq("campaign_id", campaign.id).eq("part", "truth"),
+          ),
+          canonTitles(admin, campaign.id, "secret"),
+          canonTitles(admin, campaign.id, "question"),
+        ]);
+        const asked = listOfTitles(questions);
+        system = base(questionShape());
+        user_ = `${steer}Truths the campaign holds (a question they answer is not open):\n${bullets(listOfTitles(truths))}\n\n` +
+          `Secrets the campaign holds (a question they answer is not open):\n${bullets(listOfTitles(secrets))}\n\n` +
+          `Questions the campaign already keeps open (do not repeat them):\n${bullets(asked)}`;
+        sanitize = (parsed) => sanitizeQuestions(parsed, asked);
+      } else if (mode === "forces") {
+        const [forces, factions, npcs, quests] = await Promise.all([
+          canonTitles(admin, campaign.id, "force"),
+          readRows<{ id: string; name: string }>(
+            admin.from("factions").select("id, name").eq("campaign_id", campaign.id).order("updated_at", { ascending: false }).limit(MAX_FACTIONS),
+          ),
+          readRows<{ id: string; name: string }>(
+            admin.from("npcs").select("id, name").eq("campaign_id", campaign.id).order("updated_at", { ascending: false }).limit(MAX_NPCS),
+          ),
+          readRows<{ id: string; title: string }>(
+            admin.from("quests").select("id, title").eq("campaign_id", campaign.id).order("updated_at", { ascending: false }).limit(MAX_QUESTS),
+          ),
+        ]);
+        const whos: ForceWho[] = [
+          ...factions.map((r) => ({ kind: "faction" as const, id: r.id, name: r.name })),
+          ...npcs.map((r) => ({ kind: "npc" as const, id: r.id, name: r.name })),
+        ];
+        const questRefs: ForceQuestRef[] = quests.map((r) => ({ id: r.id, title: r.title }));
+        const existing = listOfTitles(forces);
+        system = base(forceShape());
+        user_ = `${steer}Forces the campaign already has (do not repeat them):\n${bullets(existing)}\n\n` +
+          "Factions and people a force may be. Prefer one of these, copied exactly:\n---BEGIN WHO---\n" +
+          (whos.length > 0 ? whos.map((w) => `${w.kind}|${w.name}`).join("\n") : "(nobody yet)") + "\n---END WHO---\n\n" +
+          "Quests where the party may meet a force. Every quest must be copied exactly from one of these lines:\n---BEGIN QUESTS---\n" +
+          (questRefs.length > 0 ? questRefs.map((q) => q.title).join("\n") : "(no quests yet: name none)") + "\n---END QUESTS---";
+        sanitize = (parsed) => sanitizeForces(parsed, whos, questRefs, existing);
+      } else if (mode === "lore") {
+        const [lore, questions, found] = await Promise.all([
+          canonTitles(admin, campaign.id, "lore"),
+          canonTitles(admin, campaign.id, "question"),
+          loadSpots(admin, campaign.id),
+        ]);
+        const existing = listOfTitles(lore);
+        system = base(loreShape());
+        user_ = `${steer}The title of the lore entry: ${wrapUserInput(loreTitle)}\n` +
+          `Its kind: ${loreKind ?? "(the DM did not say: choose one)"}\n` +
+          (loreText !== "" ? `The text the DM already wrote (split and deepen it):\n${wrapUserInput(loreText)}\n` : "") +
+          `\nLore the campaign already has (do not repeat it):\n${bullets(existing)}\n\n` +
+          `Questions the campaign keeps open on purpose (never answer one):\n${bullets(listOfTitles(questions))}\n\n` +
+          "Places, people and quest beats a later passage may come out at. Every 'at' must be copied exactly from one of these lines:\n" +
+          `---BEGIN SPOTS---\n${spotLines(found.spots, found.beatQuest)}\n---END SPOTS---`;
+        sanitize = (parsed) => sanitizeLore(parsed, found.spots, existing, { title: loreTitle, kind: loreKind });
+      } else {
+        const [rows, candidates] = await Promise.all([
+          readRows<{ title: string; knowledge: string | null }>(
+            admin.from("canon_entries").select("title, knowledge").eq("campaign_id", campaign.id).eq("part", "truth"),
+          ),
+          loadKnowers(admin, campaign.id),
+        ]);
+        const titles = rows.map((r) => r.title.trim()).filter((t) => t !== "");
+        system = base(truthShape());
+        user_ = `${steer}Truths the campaign already has (do not repeat them):\n` +
+          (rows.length > 0 ? rows.filter((r) => r.title.trim() !== "").map((r) => `- (${r.knowledge}) ${r.title.trim()}`).join("\n") : "(none yet)") +
+          "\n\nPeople and factions that may know a truth. Every known_to name must be copied exactly from one of these lines:\n" +
+          "---BEGIN PEOPLE---\n" +
+          (candidates.length > 0 ? candidates.map((c) => `${c.kind}|${c.name}`).join("\n") : "(nobody yet: propose no 'some' truths)") +
+          "\n---END PEOPLE---";
+        sanitize = (parsed) => sanitizeTruths(parsed, candidates, titles);
       }
-      const used = new Set<string>();
-      for (const c of clues) {
-        if (c.location_id) used.add(`location|${c.location_id}`);
-        if (c.npc_id) used.add(`npc|${c.npc_id}`);
-        if (c.quest_beat_id) used.add(`quest_beat|${c.quest_beat_id}`);
+      let textResult: TextResult;
+      try {
+        textResult = await callText({ text, model: text.config?.text_model, system, user: user_, maxTokens: mode === "lore" ? 4000 : 2500 });
+      } catch (e) {
+        console.error("Canon suggestion text generation failed:", e);
+        return jsonError(502, "generation_failed", e instanceof Error ? e.message : "Text generation failed");
       }
-      const free = found.spots.filter((s) => !used.has(`${s.kind}|${s.id}`));
-      const where = (c: (typeof clues)[number]) => {
-        const hit = found.spots.find((s) =>
-          (s.kind === "location" && s.id === c.location_id) || (s.kind === "npc" && s.id === c.npc_id) ||
-          (s.kind === "quest_beat" && s.id === c.quest_beat_id));
-        return hit ? `${hit.kind} ${hit.name}` : c.passage_id ? "a lore passage" : "somewhere";
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(textResult.content);
+      } catch {
+        return jsonError(502, "generation_failed", "The AI returned malformed suggestions. Nothing was charged; please try again.");
+      }
+
+      const { suggestions, setAside } = sanitize(parsed);
+      if (suggestions.length === 0 && setAside.length === 0) {
+        return jsonError(502, "generation_failed", "No usable suggestions. Nothing was charged; please try again.");
+      }
+
+      // Nothing the DM can accept is not a generation they pay for: show why, charge nothing (no `hold.charge`).
+      if (suggestions.length === 0) return json({ suggestions, setAside, ai_provenance: null });
+      hold.charge(LEDGER_REASON, {
+        cost,
+        isByok: text.isByok,
+        log: {
+          model: textResult.usage.model, provider: textResult.usage.provider,
+          input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+        },
+      });
+
+      const ai_provenance: AiProvenance = {
+        generatorType: LEDGER_REASON,
+        provider: textResult.usage.provider,
+        model: textResult.usage.model,
+        generatedAt: new Date().toISOString(),
+        edited: false,
       };
-      const statement = [secret.title.trim(), toPlainText(secret.body).trim()].filter((t) => t !== "").join("\n");
-      system = base(clueShape());
-      user_ = `${steer}The secret the clues point to (a clue hints at it and never states it):\n${wrapUserInput(statement)}\n\n` +
-        `Clues already placed to this secret (do not repeat them):\n${bullets(clues.map((c) => `${c.title.trim()} (at ${where(c)})`))}\n\n` +
-        "Places, people and quest beats a clue may lie at. Every 'at' must be copied exactly from one of these lines:\n" +
-        `---BEGIN SPOTS---\n${spotLines(free, found.beatQuest)}\n---END SPOTS---`;
-      sanitize = (parsed) => sanitizeClues(parsed, free, used);
-    } else if (mode === "questions") {
-      const [truths, secrets, questions] = await Promise.all([
-        readRows<{ title: string; knowledge: string | null }>(
-          admin.from("canon_entries").select("title, knowledge").eq("campaign_id", campaign.id).eq("part", "truth"),
-        ),
-        canonTitles(admin, campaign.id, "secret"),
-        canonTitles(admin, campaign.id, "question"),
-      ]);
-      const asked = listOfTitles(questions);
-      system = base(questionShape());
-      user_ = `${steer}Truths the campaign holds (a question they answer is not open):\n${bullets(listOfTitles(truths))}\n\n` +
-        `Secrets the campaign holds (a question they answer is not open):\n${bullets(listOfTitles(secrets))}\n\n` +
-        `Questions the campaign already keeps open (do not repeat them):\n${bullets(asked)}`;
-      sanitize = (parsed) => sanitizeQuestions(parsed, asked);
-    } else if (mode === "forces") {
-      const [forces, factions, npcs, quests] = await Promise.all([
-        canonTitles(admin, campaign.id, "force"),
-        readRows<{ id: string; name: string }>(
-          admin.from("factions").select("id, name").eq("campaign_id", campaign.id).order("updated_at", { ascending: false }).limit(MAX_FACTIONS),
-        ),
-        readRows<{ id: string; name: string }>(
-          admin.from("npcs").select("id, name").eq("campaign_id", campaign.id).order("updated_at", { ascending: false }).limit(MAX_NPCS),
-        ),
-        readRows<{ id: string; title: string }>(
-          admin.from("quests").select("id, title").eq("campaign_id", campaign.id).order("updated_at", { ascending: false }).limit(MAX_QUESTS),
-        ),
-      ]);
-      const whos: ForceWho[] = [
-        ...factions.map((r) => ({ kind: "faction" as const, id: r.id, name: r.name })),
-        ...npcs.map((r) => ({ kind: "npc" as const, id: r.id, name: r.name })),
-      ];
-      const questRefs: ForceQuestRef[] = quests.map((r) => ({ id: r.id, title: r.title }));
-      const existing = listOfTitles(forces);
-      system = base(forceShape());
-      user_ = `${steer}Forces the campaign already has (do not repeat them):\n${bullets(existing)}\n\n` +
-        "Factions and people a force may be. Prefer one of these, copied exactly:\n---BEGIN WHO---\n" +
-        (whos.length > 0 ? whos.map((w) => `${w.kind}|${w.name}`).join("\n") : "(nobody yet)") + "\n---END WHO---\n\n" +
-        "Quests where the party may meet a force. Every quest must be copied exactly from one of these lines:\n---BEGIN QUESTS---\n" +
-        (questRefs.length > 0 ? questRefs.map((q) => q.title).join("\n") : "(no quests yet: name none)") + "\n---END QUESTS---";
-      sanitize = (parsed) => sanitizeForces(parsed, whos, questRefs, existing);
-    } else if (mode === "lore") {
-      const [lore, questions, found] = await Promise.all([
-        canonTitles(admin, campaign.id, "lore"),
-        canonTitles(admin, campaign.id, "question"),
-        loadSpots(admin, campaign.id),
-      ]);
-      const existing = listOfTitles(lore);
-      system = base(loreShape());
-      user_ = `${steer}The title of the lore entry: ${wrapUserInput(loreTitle)}\n` +
-        `Its kind: ${loreKind ?? "(the DM did not say: choose one)"}\n` +
-        (loreText !== "" ? `The text the DM already wrote (split and deepen it):\n${wrapUserInput(loreText)}\n` : "") +
-        `\nLore the campaign already has (do not repeat it):\n${bullets(existing)}\n\n` +
-        `Questions the campaign keeps open on purpose (never answer one):\n${bullets(listOfTitles(questions))}\n\n` +
-        "Places, people and quest beats a later passage may come out at. Every 'at' must be copied exactly from one of these lines:\n" +
-        `---BEGIN SPOTS---\n${spotLines(found.spots, found.beatQuest)}\n---END SPOTS---`;
-      sanitize = (parsed) => sanitizeLore(parsed, found.spots, existing, { title: loreTitle, kind: loreKind });
-    } else {
-      const [rows, candidates] = await Promise.all([
-        readRows<{ title: string; knowledge: string | null }>(
-          admin.from("canon_entries").select("title, knowledge").eq("campaign_id", campaign.id).eq("part", "truth"),
-        ),
-        loadKnowers(admin, campaign.id),
-      ]);
-      const titles = rows.map((r) => r.title.trim()).filter((t) => t !== "");
-      system = base(truthShape());
-      user_ = `${steer}Truths the campaign already has (do not repeat them):\n` +
-        (rows.length > 0 ? rows.filter((r) => r.title.trim() !== "").map((r) => `- (${r.knowledge}) ${r.title.trim()}`).join("\n") : "(none yet)") +
-        "\n\nPeople and factions that may know a truth. Every known_to name must be copied exactly from one of these lines:\n" +
-        "---BEGIN PEOPLE---\n" +
-        (candidates.length > 0 ? candidates.map((c) => `${c.kind}|${c.name}`).join("\n") : "(nobody yet: propose no 'some' truths)") +
-        "\n---END PEOPLE---";
-      sanitize = (parsed) => sanitizeTruths(parsed, candidates, titles);
-    }
-
-    let textResult: TextResult;
-    try {
-      textResult = await callText({ text, model: text.config?.text_model, system, user: user_, maxTokens: mode === "lore" ? 4000 : 2500 });
+      return json({ suggestions, setAside, ai_provenance });
     } catch (e) {
-      await releaseCredits(admin, reservation.ids);
-      console.error("Canon suggestion text generation failed:", e);
-      return new Response(
-        JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
-        { status: 502, headers: { "Content-Type": "application/json" } },
-      );
+      console.error("Canon suggestion failed:", e);
+      return jsonError(502, "generation_failed", "Could not build suggestions. Nothing was charged; please try again.");
     }
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(textResult.content);
-    } catch {
-      await releaseCredits(admin, reservation.ids);
-      return new Response(
-        JSON.stringify({ error: "AI returned malformed suggestions, please try again." }),
-        { status: 502, headers: { "Content-Type": "application/json" } },
-      );
-    }
-
-    const { suggestions, setAside } = sanitize(parsed);
-    if (suggestions.length === 0 && setAside.length === 0) {
-      await releaseCredits(admin, reservation.ids);
-      return new Response(
-        JSON.stringify({ error: "No usable suggestions. Try again." }),
-        { status: 502, headers: { "Content-Type": "application/json" } },
-      );
-    }
-
-    await releaseCredits(admin, reservation.ids);
-    // Nothing the DM can accept is not a generation they pay for: show why, charge nothing.
-    if (suggestions.length === 0) {
-      return new Response(
-        JSON.stringify({ suggestions, setAside, ai_provenance: null }),
-        { headers: { "Content-Type": "application/json" } },
-      );
-    }
-    await recordGeneration(admin, user.id, LEDGER_REASON, text.isByok, cost, {
-      model: textResult.usage.model, provider: textResult.usage.provider,
-      input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
-    });
-
-    const ai_provenance: AiProvenance = {
-      generatorType: LEDGER_REASON,
-      provider: textResult.usage.provider,
-      model: textResult.usage.model,
-      generatedAt: new Date().toISOString(),
-      edited: false,
-    };
-    return new Response(
-      JSON.stringify({ suggestions, setAside, ai_provenance }),
-      { headers: { "Content-Type": "application/json" } },
-    );
-  } catch (e) {
-    await releaseCredits(admin, reservation.ids);
-    console.error("Canon suggestion failed:", e);
-    return new Response(
-      JSON.stringify({ error: "Could not build suggestions, please try again." }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  });
 }));

@@ -161,12 +161,14 @@ async function ask(body: Parameters<PrepTransport>[0]): Promise<Record<string, u
     const response = await (transport ?? sendToCampaignPrep)(body);
     const answer = (await response.json().catch(() => null)) as Record<string, unknown> | null;
     if (!response.ok) {
+      // `error` is a code and `message` the server's sentence for a person (#1234): the sentence is what is shown.
       const code = answer && typeof answer.error === "string" ? answer.error : null;
+      const sentence = answer && typeof answer.message === "string" ? answer.message : null;
       problem.value =
         response.status === 402 || code === "insufficient_credits"
           ? "You are out of credits, so the campaign could not be read. Nothing was charged."
-          : code !== null && response.status !== 500
-            ? code
+          : sentence !== null && response.status !== 500
+            ? sentence
             : "The campaign could not be prepped right now. Nothing was charged.";
       return null;
     }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readingHash, readingKey } from "../_shared/noteReading";
-import { READING_MESSAGES, readNote, type NoteReadingDeps, type ReadingNote } from "./handler";
+import { jsonError } from "../_shared/pipeline/respond";
+import { READING_MESSAGES, readNote, type NoteReadingDeps, type ReadingHold, type ReadingNote } from "./handler";
 
 const NOTE = "00000000-0000-4000-8000-0000000000a1";
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
@@ -16,37 +17,44 @@ function harness(over: Partial<{ text: string | null; note: ReadingNote | null }
     /** What a player may read of the note: the secret passages are already gone from it. */
     text: over.text === undefined ? doc("The party reached Sugarwell.", "They went at dusk.") : over.text,
     readers: new Set([DM, PLAYER]),
-    aiEnabled: true as boolean | null,
+    campaignRefusal: null as Response | null,
+    withinRate: true,
     inworld: true,
     flagged: false,
-    canPay: true,
+    refuseHold: null as Response | null,
+    holds: [] as number[],
     synthThrows: false,
-    store: new Map<string, Uint8Array>(),
+    store: new Map<string, Uint8Array<ArrayBuffer>>(),
     spoken: [] as Array<{ service: string; voiceId: string; text: string }>,
     charged: [] as number[],
-    released: [] as string[][],
     caller: DM,
     campaignThere: true,
     sweeps: 0,
     deps: undefined as unknown as NoteReadingDeps,
   };
   h.deps = {
-    voiceOn: () => h.on,
+    voiceOn: async () => h.on,
     loadNote: async () => (h.note === null ? null : { ...h.note }),
-    loadCampaign: async () => ({ id: CAMPAIGN, user_id: DM, ai_enabled: h.aiEnabled }),
-    isDm: async (_c, userId) => userId === DM,
+    // DM-only and AI-on are `loadAiCampaign`'s rules (its own test); here a non-DM is refused and a refusal passes through.
+    loadCampaign: async (_id, userId) => {
+      if (h.campaignRefusal) return { ok: false, response: h.campaignRefusal };
+      return userId === DM ? { ok: true, campaign: { id: CAMPAIGN, user_id: DM, ai_enabled: true } } : { ok: false, response: jsonError(403, "forbidden", READING_MESSAGES.notDm) };
+    },
+    withinRate: async () => h.withinRate,
     mayRead: async () => h.readers.has(h.caller),
     playerText: async () => h.text,
     hasService: (service) => service === "elevenlabs" || h.inworld,
     // 10 USD a million characters; a credit worth 0.0066 USD at a margin of 2.
     loadRate: async () => ({ usdPerMillionChars: 10, calibration: { usdPerCredit: 0.0066, margin: 2 } }),
     isFlagged: async () => h.flagged,
-    reserve: async () => (h.canPay ? { ok: true, ids: ["r1"] } : { ok: false, status: 402, error: "insufficient_credits" }),
-    release: async (ids) => {
-      h.released.push(ids);
-    },
-    charge: async (_userId, credits) => {
-      h.charged.push(credits);
+    modelOf: () => "model-1",
+    // The release-once and charge-after-release rules are `withCreditHold`'s (its own test); this records the hold
+    // and the charge, and answers a refused hold the way the real one does.
+    withHold: async (_userId, credits, work) => {
+      h.holds.push(credits);
+      if (h.refuseHold) return h.refuseHold;
+      const hold: ReadingHold = { charge: (_reason, line) => void h.charged.push(line.cost), free: () => {} };
+      return work(hold);
     },
     synthesize: async (voice, text) => {
       if (h.synthThrows) throw new Error("speech down");
@@ -55,7 +63,7 @@ function harness(over: Partial<{ text: string | null; note: ReadingNote | null }
     },
     loadAudio: async (key) => h.store.get(key) ?? null,
     keepAudio: async (key, audio) => {
-      h.store.set(key, audio);
+      h.store.set(key, new Uint8Array(audio)); // a copy, as the round trip through the bucket gives back
     },
     campaignExists: async () => h.campaignThere,
     // As the real one: everything in the store that the note does not refer to now goes.
@@ -77,9 +85,27 @@ function harness(over: Partial<{ text: string | null; note: ReadingNote | null }
   return h;
 }
 
-const ask = (h: ReturnType<typeof harness>, action: string, who: string = DM, extra: Record<string, unknown> = {}) => {
+/** What the function answers, as the tests read it: the JSON shapes in handler.ts, or the audio of a `listen`. */
+interface Answer {
+  status: number;
+  audio?: boolean;
+  error?: string;
+  message?: string;
+  chars?: number;
+  credits?: number;
+  has?: boolean;
+  made?: boolean;
+  removed?: number;
+}
+
+const answered = async (response: Response): Promise<Answer> =>
+  response.headers.get("Content-Type") === "audio/mpeg"
+    ? { status: response.status, audio: true }
+    : { status: response.status, ...((await response.json()) as Omit<Answer, "status">) };
+
+const ask = async (h: ReturnType<typeof harness>, action: string, who: string = DM, extra: Record<string, unknown> = {}) => {
   h.caller = who;
-  return readNote({ userId: who, body: { action, noteId: NOTE, ...extra }, deps: h.deps });
+  return answered(await readNote({ userId: who, body: { action, noteId: NOTE, ...extra }, deps: h.deps }));
 };
 
 describe("making a reading", () => {
@@ -88,14 +114,13 @@ describe("making a reading", () => {
   it("speaks the note in the Narrator's voice, keeps it, says so on the note and charges once", async () => {
     const h = harness();
     const made = await ask(h, "make", DM, { voice: "female", telling: "plain" });
-    expect(made).toMatchObject({ ok: true, kind: "made" });
+    expect(made).toMatchObject({ status: 200, made: true });
     expect(h.spoken).toHaveLength(1);
     expect(h.spoken[0].service).toBe("inworld");
     expect(h.spoken[0].text).toBe("The party reached Sugarwell.\nThey went at dusk.");
     expect(h.note?.reading_voice).toBe("female");
     expect(h.store.size).toBe(1);
     expect(h.charged).toHaveLength(1);
-    expect(h.released).toEqual([["r1"]]);
   });
 
   // The players hear a reading: a Dungeon Master's secret passage must never be in it. Bug caught: the reading made
@@ -105,7 +130,7 @@ describe("making a reading", () => {
     await ask(h, "make", DM, { telling: "plain" });
     expect(h.spoken.map((s) => s.text).join(" ")).toBe("The mayor smiled.");
     const unchecked = harness({ text: null });
-    expect(await ask(unchecked, "make")).toEqual({ ok: false, status: 422, error: READING_MESSAGES.unchecked });
+    expect(await ask(unchecked, "make")).toMatchObject({ status: 422, error: "note_unchecked" });
     expect(unchecked.spoken).toEqual([]);
   });
 
@@ -113,21 +138,21 @@ describe("making a reading", () => {
   // player's say), or a stranger learning that a note exists from the kind of refusal they get.
   it("is the Dungeon Master's alone: a player is refused, and a stranger is told the note is not there", async () => {
     const h = harness();
-    expect(await ask(h, "make", PLAYER)).toEqual({ ok: false, status: 403, error: READING_MESSAGES.notDm });
-    expect(await ask(h, "make", STRANGER)).toEqual({ ok: false, status: 404, error: READING_MESSAGES.notFound });
-    expect(await ask(h, "estimate", PLAYER)).toMatchObject({ ok: false, status: 403 });
+    expect(await ask(h, "make", PLAYER)).toMatchObject({ status: 403, error: "forbidden" });
+    expect(await ask(h, "make", STRANGER)).toMatchObject({ status: 404, error: "note_not_found" });
+    expect(await ask(h, "estimate", PLAYER)).toMatchObject({ status: 403 });
     expect(h.spoken).toEqual([]);
     expect(h.charged).toEqual([]);
   });
 
-  // Bug caught: a reading that failed halfway still charged, or its reservation never given back.
-  it("charges nothing and gives the reservation back when the speech fails", async () => {
+  // Bug caught: a reading that failed halfway still charged, or left on the note as made.
+  it("charges nothing and keeps nothing when the speech fails", async () => {
     const h = harness();
     h.synthThrows = true;
     await expect(ask(h, "make")).rejects.toThrow("speech down");
     expect(h.charged).toEqual([]);
-    expect(h.released).toEqual([["r1"]]);
     expect(h.note?.reading_hash).toBeNull();
+    expect(h.store.size).toBe(0);
   });
 
   // Bug caught: the same text made and paid for twice (a second click, or a retry after the note could not be
@@ -136,28 +161,42 @@ describe("making a reading", () => {
     const h = harness();
     await ask(h, "make");
     const again = await ask(h, "make");
-    expect(again).toMatchObject({ ok: true, kind: "made", credits: 0 });
+    expect(again).toMatchObject({ status: 200, made: true, credits: 0 });
     expect(h.spoken).toHaveLength(1);
     expect(h.charged).toHaveLength(1);
     const broke = harness();
-    broke.canPay = false;
-    expect(await ask(broke, "make")).toEqual({ ok: false, status: 402, error: "insufficient_credits" });
+    broke.refuseHold = jsonError(402, "insufficient_credits");
+    expect(await ask(broke, "make")).toMatchObject({ status: 402, error: "insufficient_credits" });
     const flagged = harness();
     flagged.flagged = true;
-    expect(await ask(flagged, "make")).toEqual({ ok: false, status: 422, error: READING_MESSAGES.flagged });
+    expect(await ask(flagged, "make")).toMatchObject({ status: 422, error: "note_flagged" });
     expect([...broke.spoken, ...flagged.spoken]).toEqual([]);
   });
 
   // Bug caught: an empty note "read" for a credit, a note of a whole book started and cut off, or a campaign
   // with AI switched off still sending its notes to a speech service.
   it("refuses an empty note, one too long to read in one go, and a campaign with AI off", async () => {
-    expect(await ask(harness({ text: doc("") }), "make")).toMatchObject({ ok: false, status: 422, error: READING_MESSAGES.empty });
-    expect(await ask(harness({ text: doc("word ".repeat(4000)) }), "make")).toMatchObject({ ok: false, status: 422, error: READING_MESSAGES.tooLong });
+    expect(await ask(harness({ text: doc("") }), "make")).toMatchObject({ status: 422, error: "note_empty" });
+    expect(await ask(harness({ text: doc("word ".repeat(4000)) }), "make")).toMatchObject({ status: 422, error: "note_too_long" });
     const off = harness();
-    off.aiEnabled = false;
-    expect(await ask(off, "make")).toEqual({ ok: false, status: 403, error: READING_MESSAGES.aiOff });
-    off.aiEnabled = null; // undecided is off too, as the page has it
-    expect(await ask(off, "make")).toEqual({ ok: false, status: 403, error: READING_MESSAGES.aiOff });
+    off.campaignRefusal = jsonError(403, "ai_disabled", "AI is turned off for this campaign.");
+    expect(await ask(off, "make")).toMatchObject({ status: 403, error: "ai_disabled" });
+    expect(off.spoken).toEqual([]);
+  });
+
+  // Bug caught: making or asking for a reading unthrottled (the audit, #1234): a loop of estimates or makes reached the
+  // moderation call and the speech service as often as the caller liked. Listening stays free.
+  it("is rate limited for asking and making, before anything is sent anywhere, but not for listening", async () => {
+    const h = harness();
+    h.withinRate = false;
+    expect(await ask(h, "make")).toMatchObject({ status: 429, error: "rate_limited" });
+    expect(await ask(h, "estimate")).toMatchObject({ status: 429 });
+    expect(h.spoken).toEqual([]);
+    expect(h.holds).toEqual([]);
+    h.withinRate = true;
+    await ask(h, "make");
+    h.withinRate = false;
+    expect(await ask(h, "listen", PLAYER)).toMatchObject({ status: 200, audio: true });
   });
 
   // Bug caught: a long note sent as one piece past the service's limit; the pieces joined out of order.
@@ -189,13 +228,12 @@ describe("how it is told", () => {
     const plain = harness();
     const a = await ask(felt, "estimate");
     const b = await ask(plain, "estimate", DM, { telling: "plain" });
-    if (!a.ok || a.kind !== "estimate" || !b.ok || b.kind !== "estimate") throw new Error("no estimate");
     expect(a.chars).toBe(47);
     expect(b.chars).toBe(47);
     // The harness prices both services alike, so the difference is the cues alone; a long note shows it.
     const long = (telling: string) => ask(harness({ text: doc(...Array.from({ length: 30 }, () => "word ".repeat(100))) }), "estimate", DM, { telling });
     const [x, y] = await Promise.all([long("storyteller"), long("plain")]);
-    if (!x.ok || x.kind !== "estimate" || !y.ok || y.kind !== "estimate") throw new Error("no estimate");
+    if (typeof x.credits !== "number" || typeof y.credits !== "number") throw new Error("an estimate answered no credits");
     expect(x.credits).toBeGreaterThan(y.credits);
   });
 
@@ -227,7 +265,7 @@ describe("the cost, asked first", () => {
   // Bug caught: a short note quoted as free (and then charged nothing), or the estimate making and charging.
   it("says what a reading would cost, at least one credit, and makes nothing", async () => {
     const h = harness();
-    expect(await ask(h, "estimate")).toEqual({ ok: true, kind: "estimate", chars: 47, credits: 1, has: false });
+    expect(await ask(h, "estimate")).toEqual({ status: 200, chars: 47, credits: 1, has: false });
     expect(h.spoken).toEqual([]);
     expect(h.charged).toEqual([]);
   });
@@ -249,9 +287,18 @@ describe("listening", () => {
     const h = harness();
     await ask(h, "make");
     const heard = await ask(h, "listen", PLAYER);
-    expect(heard).toMatchObject({ ok: true, kind: "audio" });
-    expect(await ask(h, "listen", STRANGER)).toEqual({ ok: false, status: 404, error: READING_MESSAGES.notFound });
+    expect(heard).toMatchObject({ status: 200, audio: true });
+    expect(await ask(h, "listen", STRANGER)).toMatchObject({ status: 404, error: "note_not_found" });
     expect(h.charged).toHaveLength(1);
+  });
+
+  // Bug caught: the voices' check moved above the listen branch, so a player pressing play waits on (and fails with)
+  // a read of the speech keys that listening never needs, or hears nothing once the admin clears the key.
+  it("plays a kept recording without asking whether voices are on", async () => {
+    const h = harness();
+    await ask(h, "make");
+    h.deps.voiceOn = () => Promise.reject(new Error("the speech keys were read"));
+    expect(await ask(h, "listen", PLAYER)).toMatchObject({ status: 200, audio: true });
   });
 
   // Bug caught: the recording read from wherever the row says, so a forged value on a note serves another note's
@@ -263,18 +310,18 @@ describe("listening", () => {
     expect([...h.store.keys()]).toEqual([readingKey({ campaignId: CAMPAIGN, noteId: NOTE, hash: real })]);
     h.store.set("some/other/campaign/secret.mp3", new Uint8Array([9]));
     if (h.note) h.note = { ...h.note, reading_hash: "../../some/other/campaign/secret" };
-    expect(await ask(h, "listen")).toEqual({ ok: false, status: 404, error: READING_MESSAGES.noReading });
+    expect(await ask(h, "listen")).toMatchObject({ status: 404, error: "no_reading" });
   });
 
   it("says a note that was never read aloud has no reading", async () => {
-    expect(await ask(harness(), "listen", PLAYER)).toEqual({ ok: false, status: 404, error: READING_MESSAGES.noReading });
+    expect(await ask(harness(), "listen", PLAYER)).toMatchObject({ status: 404, error: "no_reading" });
   });
 });
 
 describe("tidying up", () => {
   const sweepAs = (h: ReturnType<typeof harness>, who: string) => {
     h.caller = who;
-    return readNote({ userId: who, body: { action: "sweep", campaignId: CAMPAIGN }, deps: h.deps });
+    return readNote({ userId: who, body: { action: "sweep", campaignId: CAMPAIGN }, deps: h.deps }).then(answered);
   };
 
   // Bug caught: a deleted note's recording left in the store for good; or a sweep taking away the recording a
@@ -282,10 +329,10 @@ describe("tidying up", () => {
   it("removes the recording of a note that is gone and keeps the one a note refers to", async () => {
     const h = harness();
     await ask(h, "make");
-    expect(await sweepAs(h, DM)).toEqual({ ok: true, kind: "swept", removed: 0 });
+    expect(await sweepAs(h, DM)).toEqual({ status: 200, removed: 0 });
     expect(h.store.size).toBe(1);
     h.note = null;
-    expect(await sweepAs(h, DM)).toEqual({ ok: true, kind: "swept", removed: 1 });
+    expect(await sweepAs(h, DM)).toEqual({ status: 200, removed: 1 });
     expect(h.store.size).toBe(0);
   });
 
@@ -293,9 +340,9 @@ describe("tidying up", () => {
   // recordings unreachable for good because nobody is its DM any more.
   it("is the DM's for a campaign that exists, and anyone's once the campaign is gone", async () => {
     const h = harness();
-    expect(await sweepAs(h, PLAYER)).toEqual({ ok: false, status: 404, error: READING_MESSAGES.notFound });
+    expect(await sweepAs(h, PLAYER)).toMatchObject({ status: 403 });
     expect(h.sweeps).toBe(0);
     h.campaignThere = false;
-    expect(await sweepAs(h, STRANGER)).toMatchObject({ ok: true, kind: "swept" });
+    expect(await sweepAs(h, STRANGER)).toMatchObject({ status: 200 });
   });
 });

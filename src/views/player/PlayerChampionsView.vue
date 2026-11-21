@@ -257,7 +257,7 @@ import FocalImage from '@/components/common/media/FocalImage.vue';
 import { useLowArt } from "@/composables/useLowArt";
 import type { PartyMember } from '@/types/party.types';
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { activeMembers } from "@/composables/party/useActiveParty";
+import { activeMembers } from "@/lib/party/activeMembers";
 import { useCampaignMemorials } from "@/composables/memorials/useMemorials";
 
 const auth = useAuthStore();

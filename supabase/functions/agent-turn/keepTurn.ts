@@ -29,7 +29,7 @@ export interface RanTurn {
 }
 
 export async function keepTurn(scope: TurnScope, fx: TurnEffects, session: SessionRow, ctx: TurnContext, ran: RanTurn): Promise<void> {
-  const { userId, deps, body, provider, price, calibration, emit } = scope;
+  const { userId, deps, ledger, body, provider, price, calibration, emit } = scope;
   const { result } = ran;
   const { lastSeqLoaded } = ctx;
 
@@ -57,10 +57,9 @@ export async function keepTurn(scope: TurnScope, fx: TurnEffects, session: Sessi
     input_tokens: billed.reduce((n, s) => n + s.inputTokens + s.cacheReadTokens + s.cacheWriteTokens, 0),
     output_tokens: billed.reduce((n, s) => n + s.outputTokens, 0),
   };
-  // Tokens were spent whether or not they are billed, so they are always logged. A cost of 0 writes no row
-  // through recordGeneration, which is why a free turn goes through recordFreeGeneration.
-  const logWithoutCharge = () =>
-    provider.isByok ? deps.recordGeneration(true, 0, logFields) : deps.recordFreeGeneration(logFields);
+  // Tokens were spent whether or not they are billed, so they are always logged: a cost of 0 is a free line (or an
+  // own-key zero row), which the hold writes after the release.
+  const logWithoutCharge = async () => ledger.charge("agent_turn", { cost: 0, isByok: provider.isByok, log: logFields });
 
   const rows = rowsFor({
     sessionId: session.id,
@@ -110,11 +109,7 @@ export async function keepTurn(scope: TurnScope, fx: TurnEffects, session: Sessi
 
   fx.kept = true;
   const { due } = saved;
-  if (due > 0 || provider.isByok) {
-    await safely(() => deps.recordGeneration(provider.isByok, due, logFields));
-  } else {
-    await safely(() => deps.recordFreeGeneration(logFields));
-  }
+  await safely(async () => ledger.charge("agent_turn", { cost: due, isByok: provider.isByok, log: logFields }));
   await carryOutKeptTurn(scope, fx, session, ctx, ran, { due, tokens, rows });
 }
 
@@ -127,7 +122,7 @@ async function carryOutKeptTurn(
   ran: RanTurn,
   kept: { due: number; tokens: number; rows: TurnRow[] },
 ): Promise<void> {
-  const { userId, deps, campaign, provider, price, calibration, callModel, pendingRoll, emit } = scope;
+  const { userId, deps, ledger, campaign, provider, price, calibration, callModel, pendingRoll, emit } = scope;
   const { result, turnTools } = ran;
   const { character, questState, fights, hands, stored } = ctx;
   const { due, tokens, rows } = kept;
@@ -272,7 +267,7 @@ async function carryOutKeptTurn(
       ...stored,
       ...rows.map((r) => ({ seq: r.seq, role: r.role, blocks: r.blocks })),
     ];
-    await foldIntoSummary({ deps, session, storedNow, callModel, isByok: provider.isByok, price, calibration });
+    await foldIntoSummary({ deps, ledger, session, storedNow, callModel, isByok: provider.isByok, price, calibration });
   }
 }
 

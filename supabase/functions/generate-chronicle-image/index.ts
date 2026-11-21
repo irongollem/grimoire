@@ -3,14 +3,17 @@ import { createClient } from "@supabase/supabase-js";
 import { decryptValue } from "../_shared/vault.ts";
 import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
-import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
+import { fetchCreditCost, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { createImageJob, completeImageJob, failImageJob, type ImageJobKind } from "../_shared/imageJob.ts";
 import { buildEntityImagePrompt, imageBoostFor } from "../_shared/image-prompt.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
 import { generateImage, resolveImageProvider, type ImageProviderKey } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
-import { withCors } from "../_shared/cors.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { settleHandedOff, withCreditHold } from "../_shared/pipeline/creditHold.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { uploadWithRetry, publicUrlFor } from "../_shared/storage-upload.ts";
@@ -18,13 +21,20 @@ import { markGeneratedImage } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { registerImageProvenance } from "../_shared/provenance/register.ts";
 import { hasLikenessAcknowledgement } from "../_shared/provenance/likeness-gate.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldImageSetting } from "../_shared/worldBlock.ts";
 
 // Keep browser-supplied composition inputs bounded before req.json()/atob hold
 // both the encoded and decoded copies in the Edge isolate.
 const MAX_SOURCE_IMAGE_B64_CHARS = 12_000_000;
+
+// The picture sizes the app asks for. The size is the client's to name and prices the hold (`sizeMultiplier`), so an
+// arbitrary "WxH" string would price an image the provider may still render at its own size.
+const ALLOWED_SIZES: readonly string[] = ["1024x1024", "1024x1536", "1536x1024", "512x512"];
+
+interface ChronicleCampaign extends BaseCampaign {
+  image_provider: string | null;
+}
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -147,108 +157,116 @@ async function runGeneration(args: {
   reservationIds: string[];
   purpose: ImagePurpose;
   source_image_b64: string | null;
+  report: (err: unknown) => void;
 }) {
-  const { jobId, userId, provider, model, apiKey, moderationKey, prompt, size, quality, portrait_urls, isByok, cost, reservationIds, purpose, source_image_b64 } = args;
+  const { jobId, userId, provider, model, apiKey, moderationKey, prompt, size, quality, portrait_urls, isByok, cost, reservationIds, purpose, source_image_b64, report } = args;
 
+  // Once the picture is stored it is charged, and nothing after that may call the job failed (the hand-wired worker
+  // marked a delivered image failed when completeImageJob or the release threw, #1234).
+  const stored: { url: string | null } = { url: null };
   try {
-    // Fetch reference portrait blobs in parallel (openai + gemini compose them).
-    const portraitBlobs: Blob[] = [];
-    // SSRF guard: only ever fetch our own Supabase Storage public URLs. Unsafe
-    // URLs are skipped (mirrors the existing "skip non-ok fetches" behavior).
-    const safeUrls = portrait_urls.filter((url) => {
-      if (isSafeStorageUrl(url)) return true;
-      console.warn("Rejected unsafe portrait_url — skipping");
-      return false;
-    });
-    if (safeUrls.length > 0) {
-      const results = await Promise.allSettled(
-        safeUrls.map((url) => fetch(url).then((r) => r.ok ? r.blob() : null)),
-      );
-      for (const r of results) {
-        if (r.status === "fulfilled" && r.value) portraitBlobs.push(r.value);
+    await settleHandedOff(admin, { payerId: userId, ids: reservationIds, report }, async (ledger) => {
+      // Fetch reference portrait blobs in parallel (openai + gemini compose them).
+      const portraitBlobs: Blob[] = [];
+      // SSRF guard: only ever fetch our own Supabase Storage public URLs. Unsafe
+      // URLs are skipped (mirrors the existing "skip non-ok fetches" behavior).
+      const safeUrls = portrait_urls.filter((url) => {
+        if (isSafeStorageUrl(url)) return true;
+        console.warn("Rejected unsafe portrait_url — skipping");
+        return false;
+      });
+      if (safeUrls.length > 0) {
+        const results = await Promise.allSettled(
+          safeUrls.map((url) => fetch(url).then((r) => r.ok ? r.blob() : null)),
+        );
+        for (const r of results) {
+          if (r.status === "fulfilled" && r.value) portraitBlobs.push(r.value);
+        }
       }
-    }
-    if (source_image_b64) {
-      const bytes = Uint8Array.from(atob(source_image_b64), (c) => c.charCodeAt(0));
-      portraitBlobs.push(new Blob([bytes], { type: "image/png" }));
-    }
+      if (source_image_b64) {
+        const bytes = Uint8Array.from(atob(source_image_b64), (c) => c.charCodeAt(0));
+        portraitBlobs.push(new Blob([bytes], { type: "image/png" }));
+      }
 
-    const { b64, contentType, usage } = await generateImage({
-      provider, model, apiKey, prompt, size, quality, boostStyle: PURPOSE_CONFIG[purpose].boostStyle && imageBoostFor(purpose),
-      screening: { apiKey: moderationKey, admin, userId, generationType: purpose },
-      sourceImages: portraitBlobs.length > 0 ? portraitBlobs : undefined,
+      const { b64, contentType, usage } = await generateImage({
+        provider, model, apiKey, prompt, size, quality, boostStyle: PURPOSE_CONFIG[purpose].boostStyle && imageBoostFor(purpose),
+        screening: { apiKey: moderationKey, admin, userId, generationType: purpose },
+        sourceImages: portraitBlobs.length > 0 ? portraitBlobs : undefined,
+      });
+
+      // provider/model here mirror what the ledger logs: usage.provider is the actual responding provider, model is
+      // the resolved model this call was made with.
+      stored.url = await uploadResult(b64, contentType, userId, purpose, usage.provider, model);
+      ledger.charge(PURPOSE_CONFIG[purpose].creditType, {
+        cost, isByok,
+        log: {
+          model,
+          quality,
+          size,
+          provider: usage.provider,
+          image_count: 1,
+          input_tokens: usage.input_tokens,
+          input_image_tokens: usage.input_image_tokens || undefined,
+          output_tokens: usage.output_tokens || undefined,
+        },
+      });
     });
-
-    // provider/model here mirror what recordGeneration logs below: usage.provider
-    // is the actual responding provider, model is the resolved model this
-    // call was made with.
-    const imageUrl = await uploadResult(b64, contentType, userId, purpose, usage.provider, model);
-    await completeImageJob(admin, jobId, imageUrl);
-
-    // Release the hold and record the real spend (one cost row, with analytics).
-    await releaseCredits(admin, reservationIds);
-    await recordGeneration(admin, userId, PURPOSE_CONFIG[purpose].creditType, isByok, cost, {
-      model,
-      quality,
-      size,
-      provider: usage.provider,
-      image_count: 1,
-      input_tokens: usage.input_tokens,
-      input_image_tokens: usage.input_image_tokens || undefined,
-      output_tokens: usage.output_tokens || undefined,
-    }).catch(console.error);
   } catch (e) {
-    await releaseCredits(admin, reservationIds);
-    console.error("Chronicle image generation failed:", e);
-    await failImageJob(admin, jobId, e instanceof Error ? e.message : "Image generation failed");
+    if (stored.url === null) {
+      console.error("Chronicle image generation failed:", e);
+      try {
+        await failImageJob(admin, jobId, e instanceof Error ? e.message : "Image generation failed");
+      } catch (failErr) {
+        console.error("generate-chronicle-image: could not mark the job failed", failErr);
+        report(failErr);
+      }
+      return;
+    }
+    console.error("generate-chronicle-image: settling after a stored image failed", e);
+    report(e);
+  }
+  if (stored.url !== null) await finishJob(stored.url);
+
+  // Job bookkeeping sits outside the settlement: a stored, charged image is never "failed".
+  async function finishJob(url: string) {
+    try {
+      await completeImageJob(admin, jobId, url);
+    } catch (e) {
+      console.error("generate-chronicle-image: completeImageJob failed after the image was stored", e);
+      report(e);
+    }
   }
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(withCors(async (req: Request) => {
-  const text = (msg: string, status: number) => new Response(msg, { status });
-
-  if (req.method !== "POST") return text("Method not allowed", 405);
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return text("Unauthorized", 401);
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return text("Unauthorized", 401);
-
+serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate — including BYOK, which skips
   // the credit gate for both (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
-  let campaign_id: string, subject: string, portrait_urls: string[],
-      text_descriptions: string[], size: string,
-      purpose: ImagePurpose, source_image_b64: string | null, note_id: string | null;
-
-  try {
-    const body = await req.json();
-    campaign_id       = body.campaign_id;
-    // `scene_text` remains accepted for existing Chronicler callers.
-    subject           = body.subject ?? body.scene_text;
-    portrait_urls     = Array.isArray(body.portrait_urls) ? body.portrait_urls : [];
-    text_descriptions = Array.isArray(body.text_descriptions) ? body.text_descriptions : [];
-    size              = body.size ?? "1024x1024";
-    purpose           = (body.purpose as ImagePurpose | undefined)
-      ?? ((body.kind as string | undefined) === "group_portrait" ? "group_portrait" : "chronicler");
-    source_image_b64  = typeof body.source_image_b64 === "string" ? body.source_image_b64 : null;
-    note_id           = typeof body.note_id === "string" && body.note_id ? body.note_id : null;
-    if (!campaign_id || !subject || !(purpose in PURPOSE_CONFIG)) throw new Error("invalid");
-  } catch {
-    return text("Invalid body — need { campaign_id, purpose, subject }", 400);
+  const body = await readJsonBody(req);
+  const invalid = () => jsonError(400, "invalid_body", "Send { campaign_id, purpose, subject } to draw a picture.");
+  if (!body) return invalid();
+  // `scene_text` remains accepted for existing Chronicler callers.
+  const subject = body.subject ?? body.scene_text;
+  const rawPurpose = body.purpose ?? (body.kind === "group_portrait" ? "group_portrait" : "chronicler");
+  const campaign_id = body.campaign_id;
+  if (typeof campaign_id !== "string" || !campaign_id || typeof subject !== "string" || !subject) return invalid();
+  if (typeof rawPurpose !== "string" || !Object.hasOwn(PURPOSE_CONFIG, rawPurpose)) return invalid();
+  const purpose = rawPurpose as ImagePurpose;
+  const size = body.size ?? "1024x1024";
+  if (typeof size !== "string" || !ALLOWED_SIZES.includes(size)) {
+    return jsonError(400, "invalid_size", "That picture size is not available.");
   }
+  const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+  const portrait_urls = strings(body.portrait_urls);
+  const text_descriptions = strings(body.text_descriptions);
+  const source_image_b64 = typeof body.source_image_b64 === "string" ? body.source_image_b64 : null;
+  const note_id = typeof body.note_id === "string" && body.note_id ? body.note_id : null;
   if (source_image_b64 && source_image_b64.length > MAX_SOURCE_IMAGE_B64_CHARS) {
-    return text("Source image too large", 413);
+    return jsonError(413, "source_image_too_large", "That source image is too large.");
   }
 
   // EU AI Act Art 50(1) likeness backstop — gated on the REQUEST SHAPE (any
@@ -260,25 +278,14 @@ serve(withCors(async (req: Request) => {
   // Client pre-flights the identical check via useLikenessGate — this rarely
   // actually fires. See context/compliance/provenance-architecture.md §3.
   if (portrait_urls.length > 0 && !(await hasLikenessAcknowledgement(admin, user.id))) {
-    return new Response(
-      JSON.stringify({ error: "likeness_acknowledgement_required" }),
-      { status: 403, headers: { "Content-Type": "application/json" } },
-    );
+    return jsonError(403, "likeness_acknowledgement_required", "Confirm the likeness notice first, then try again.");
   }
-
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled, image_provider")
-    .eq("id", campaign_id)
-    .maybeSingle();
-  if (!campaign) return text("Campaign not found", 404);
-  if (campaign.ai_enabled !== true) return text("AI is disabled for this campaign", 403);
 
   // DMs only: no player surface calls this, and it spends the campaign's
   // credits or the owner's own provider key (see _shared/campaignAccess.ts).
-  if (!(await isCampaignDm(admin, campaign, user.id))) {
-    return text("Forbidden", 403);
-  }
+  const load = await loadAiCampaign<ChronicleCampaign>(admin, campaign_id, user.id, { columns: ["image_provider"] });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
   const [[campaignOpenai, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
     loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.gemini] as const),
@@ -294,36 +301,27 @@ serve(withCors(async (req: Request) => {
     // the entity purposes this function also renders follow the image model.
     surface: PURPOSE_CONFIG[purpose].creditType === "chronicle_image" ? "chronicle" : undefined,
   });
-  if (!img) return text("No image API key configured", 422);
+  if (!img) return jsonError(422, "no_image_provider", "No image API key is configured.");
   const isByok = img.isByok;
   const model = img.model;
 
-  // Pre-flight credit check (deduction happens after generation, in the bg task).
+  // Throttle abusive burst volume before any paid provider work (issue #466).
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
+
+  // Everything that can throw is read before the hold is taken.
   // Cost scales with output area (landscape/portrait = 1.5×) and the provider's multiplier.
   const config = PURPOSE_CONFIG[purpose];
   const imageCost = isByok
     ? 0
     : wholeCredits(await fetchCreditCost(admin, config.creditType) * sizeMultiplier(size) * img.imageMultiplier);
-  // Atomic affordability gate: hold the balance now; the background task releases
-  // it and records the real spend (or releases on failure).
-  // Throttle abusive burst volume before any paid provider work (issue #466).
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
-    return new Response(
-      JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  const quality = await resolveImageQuality(admin, config.creditType, img);
 
   const setting = worldImageSetting(await loadWorldBlock(admin, campaign.id));
 
-  const reservation = await reserveCredits(admin, user.id, imageCost, config.creditType);
-  if (!reservation.ok) {
-    return reservationFailureResponse(reservation);
-  }
-
-  const { data: imageBaseRow } = await admin
+  const { data: imageBaseRow, error: imageBaseError } = await admin
     .from("ai_system_prompts").select("content")
     .eq("generator_type", "image_base").maybeSingle();
+  if (imageBaseError) throw imageBaseError;
   const imageBasePrompt = imageBaseRow?.content ?? "";
   const prompt = buildPurposePrompt(purpose, subject, text_descriptions, setting, imageBasePrompt);
 
@@ -337,13 +335,14 @@ serve(withCors(async (req: Request) => {
   // editor opened — shouldn't block a generation the gallery still wants).
   let noteTarget: { target_table: string; target_id: string; target_column: string } | null = null;
   if (note_id && purpose === "chronicler") {
-    const { data: note } = await admin
+    const { data: note, error: noteError } = await admin
       .from("notes")
       .select("id")
       .eq("id", note_id)
       .eq("user_id", user.id)
       .eq("campaign_id", campaign_id)
       .maybeSingle();
+    if (noteError) throw noteError;
     if (note) {
       noteTarget = { target_table: "notes", target_id: note_id, target_column: "content" };
     } else {
@@ -351,31 +350,42 @@ serve(withCors(async (req: Request) => {
     }
   }
 
-  const quality = await resolveImageQuality(admin, config.creditType, img);
+  // Atomic affordability gate: hold the balance now; the background job settles it
+  // (charges the real spend, or releases on failure).
+  return withCreditHold(admin, { payerId: user.id, reason: config.creditType, cost: imageCost, report }, async (hold) => {
+    // Insert pending job — client polls/subscribes by id
+    let jobId: string;
+    try {
+      jobId = await createImageJob(admin, {
+        user_id: user.id,
+        campaign_id,
+        kind: config.kind,
+        prompt: subject.slice(0, 500),
+        size,
+        model,
+        provider: img.provider,
+        ...noteTarget,
+      });
+    } catch (e) {
+      console.error("generate-chronicle-image: createImageJob failed", e);
+      return jsonError(500, "job_create_failed", "The picture could not be started. Please try again.");
+    }
 
-  // Insert pending job — client polls/subscribes by id
-  const jobId = await createImageJob(admin, {
-    user_id: user.id,
-    campaign_id,
-    kind: config.kind,
-    prompt: subject.slice(0, 500),
-    size,
-    model,
-    provider: img.provider,
-    ...noteTarget,
+    // Background-task pattern: return job_id immediately, OpenAI call continues
+    // past response. Deno Deploy's EdgeRuntime keeps the isolate alive for waitUntil.
+    const run = runGeneration({
+      jobId, userId: user.id, provider: img.provider, model, apiKey: img.apiKey, moderationKey: img.moderationKey,
+      prompt, size, quality, portrait_urls, isByok, cost: imageCost,
+      reservationIds: hold.handOff(), purpose, source_image_b64, report,
+    });
+    try {
+      // @ts-ignore — EdgeRuntime is a Deno Deploy global, not in Deno's type defs.
+      EdgeRuntime.waitUntil(run);
+    } catch (e) {
+      // The worker is already running; only the keep-alive failed.
+      console.error("generate-chronicle-image: waitUntil failed", e);
+      report(e);
+    }
+    return json({ job_id: jobId });
   });
-
-  // Background-task pattern: return job_id immediately, OpenAI call continues
-  // past response. Deno Deploy's EdgeRuntime keeps the isolate alive for waitUntil.
-  // @ts-ignore — EdgeRuntime is a Deno Deploy global, not in Deno's type defs.
-  EdgeRuntime.waitUntil(runGeneration({
-    jobId, userId: user.id, provider: img.provider, model, apiKey: img.apiKey, moderationKey: img.moderationKey,
-    prompt, size, quality, portrait_urls, isByok, cost: imageCost,
-    reservationIds: reservation.ids, purpose, source_image_b64,
-  }));
-
-  return new Response(
-    JSON.stringify({ job_id: jobId }),
-    { headers: { "Content-Type": "application/json" } },
-  );
 }));

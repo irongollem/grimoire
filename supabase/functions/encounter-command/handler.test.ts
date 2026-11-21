@@ -38,7 +38,7 @@ import {
   type PostedRoll,
   type StatBlockSources,
 } from "./handler";
-import { blackTentacles, charmMonster, clericBlock, cureWounds, fear, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithFear, mageWithHold, mageWithTentacles, healingWord, massHealingWord, heal, massHeal, powerWordHeal, bless, shieldOfFaith } from "../../../src/rules/fight/spells/spellTestKit";
+import { blackTentacles, charmMonster, clericBlock, cureWounds, fear, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithFear, mageWithHold, mageWithTentacles, healingWord, massHealingWord, heal, massHeal, powerWordHeal, bless, shieldOfFaith, shield } from "../../../src/rules/fight/spells/spellTestKit";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice";
 import { ownRecord } from "../_shared/fightSpells";
 import type { AppliedCondition } from "../../../src/types/condition.types";
@@ -109,6 +109,8 @@ interface Harness {
   noteCosts: Array<{ inputTokens: number; savesBefore: number }>;
   /** Every fight XP award the server asked the database for. */
   xpAwards: FightXpAward[];
+  /** The `playedMemberId` of each roster the server built (null for the DM's own fight): only a fresh open builds one. */
+  rosterAsks: Array<string | null>;
 }
 
 function harness(
@@ -145,6 +147,10 @@ function harness(
     sessions?: string[];
     /** The campaign uses the Experience Points rule. */
     xpLevelling?: boolean;
+    /** The roster `buildRoster` answers with; the standard one when absent. */
+    roster?: { combatants: RunCombatant[]; legendaryCaps?: Record<string, number> };
+    /** The party members `buildRoster` accepts as the played one; any when absent. */
+    activeMembers?: string[];
   } = {},
 ): Harness {
   const h: Harness = {
@@ -175,6 +181,7 @@ function harness(
     noteAsks: [],
     noteCosts: [],
     xpAwards: [],
+    rosterAsks: [],
     deps: undefined as unknown as BatchDeps,
   };
   h.deps = {
@@ -196,6 +203,15 @@ function harness(
     },
     async loadPartyRows() {
       return structuredClone(options.party ?? []);
+    },
+    async buildRoster(playedMemberId) {
+      // The loader's own refusal of a character who is not an active member of the campaign's party.
+      if (playedMemberId !== null && options.activeMembers !== undefined && !options.activeMembers.includes(playedMemberId)) {
+        throw new FightCommandError(400, "open: playedMemberId is not an active member of this campaign's party.");
+      }
+      h.rosterAsks.push(playedMemberId);
+      const built = options.roster ?? { combatants: roster() };
+      return structuredClone({ combatants: built.combatants, legendaryCaps: built.legendaryCaps ?? {} });
     },
     async isCampaignSession(sessionId) {
       return (options.sessions ?? ["sess-1"]).includes(sessionId);
@@ -586,7 +602,7 @@ const roster = () => [pc("nessa", { hp: 20, max_hp: 20, initiative: null as unkn
 describe("fight lifecycle", () => {
   it("fails if open on an encounter with no row does not create the fight unstarted and hidden from players", async () => {
     const h = harness(null);
-    const result = await runBatch(batch("o1", { type: "open", combatants: roster() }), h.deps);
+    const result = await runBatch(batch("o1", { type: "open" }), h.deps);
     // A new fight is round 0, turn 0, saved but not shown to players, with this batch remembered.
     expect(stored(h)).toMatchObject({ current_round: 0, active_combatant_index: 0, is_running: false, ended_at: null, applied_command_ids: ["o1"] });
     expect(stored(h).combatants_live.map((c) => c.instance_id)).toEqual(["nessa", "goblin"]);
@@ -594,21 +610,60 @@ describe("fight lifecycle", () => {
   });
 
   it("fails if open primes no legendary pool when caps are given", async () => {
-    const h = harness(null);
-    await runBatch(batch("o1", { type: "open", combatants: roster(), legendaryCaps: { goblin: 3 } }), h.deps);
+    const h = harness(null, { roster: { combatants: roster(), legendaryCaps: { goblin: 3 } } });
+    await runBatch(batch("o1", { type: "open" }), h.deps);
     expect(stored(h).combatants_live.find((c) => c.instance_id === "goblin")).toMatchObject({ legendary_action_cap: 3, legendary_actions_remaining: 3 });
   });
 
   it("fails if a second open resets a fight that is under way (a reload must not wipe the damage)", async () => {
     const h = harness(null);
-    await runBatch(batch("o1", { type: "open", combatants: roster() }), h.deps);
+    await runBatch(batch("o1", { type: "open" }), h.deps);
     await runBatch(batch("d1", { type: "adjust_hp", instanceId: "goblin", delta: -3 }), h.deps);
     const before = structuredClone(stored(h));
-    const again = await runBatch(batch("o2", { type: "open", combatants: roster() }), h.deps);
+    const again = await runBatch(batch("o2", { type: "open" }), h.deps);
     // The goblin took 3 of its 7 and still has 4; nothing was written, so the version and the id list stand.
     expect(hpOf(again.state, "goblin")).toBe(4);
     expect(again.applied).toBe(false);
     expect(stored(h)).toEqual(before);
+  });
+
+  // Bug: a resume (a reload, a second device) building the roster again: a database read per reload, and a roster nobody asked for.
+  it("fails if opening a fight that is under way builds a roster", async () => {
+    const h = harness(opened({ combatants_live: [pc("nessa")] }));
+    const result = await runBatch(batch("o2", { type: "open", playedMemberId: "nessa" }), h.deps);
+    expect(result.applied).toBe(false);
+    expect(h.rosterAsks).toEqual([]);
+  });
+
+  // Bug: the played member dropped on the way, so the AI table's fight is fielded as the DM's own (everyone's sheet, no bystanders).
+  it("fails if a fresh open does not ask for the roster of the played member", async () => {
+    const h = harness(null, { activeMembers: ["nessa"] });
+    await runBatch(batch("o1", { type: "open", playedMemberId: "nessa" }), h.deps);
+    expect(h.rosterAsks).toEqual(["nessa"]);
+    const dm = harness(null);
+    await runBatch(batch("o4", { type: "open" }), dm.deps);
+    expect(dm.rosterAsks).toEqual([null]);
+  });
+
+  // Bug: an open for a character who is not in this party creating a fight anyway.
+  it("fails if an open naming a character outside the party writes a fight", async () => {
+    const h = harness(null, { activeMembers: ["nessa"] });
+    await expect(runBatch(batch("o1", { type: "open", playedMemberId: "stranger" }), h.deps)).rejects.toMatchObject({ status: 400 });
+    expect(h.store.row).toBeNull();
+    expect(h.saves).toBe(0);
+  });
+
+  // Bug: the 60-combatant ceiling lost when the roster stopped coming from the caller: a built roster of any size was saved.
+  it("fails if a built roster of 61 combatants, or of none, is saved", async () => {
+    const many = Array.from({ length: 61 }, (_, i) => combatant(`g${i}`, { hp: 1, max_hp: 1 }));
+    for (const combatants of [many, []]) {
+      const h = harness(null, { roster: { combatants } });
+      await expect(runBatch(batch("o1", { type: "open" }), h.deps)).rejects.toMatchObject({ status: 400 });
+      expect(h.store.row).toBeNull();
+    }
+    const sixty = harness(null, { roster: { combatants: many.slice(0, 60) } });
+    await runBatch(batch("o1", { type: "open" }), sixty.deps);
+    expect(stored(sixty).combatants_live).toHaveLength(60);
   });
 
   it("fails if open on an ended fight carries anything of the old one over", async () => {
@@ -617,7 +672,7 @@ describe("fight lifecycle", () => {
       applied_command_ids: ["old-1"], combatants_live: [combatant("ogre", { hp: 0, max_hp: 59 })],
     });
     const h = harness(old);
-    const result = await runBatch(batch("o9", { type: "open", combatants: roster() }), h.deps);
+    const result = await runBatch(batch("o9", { type: "open" }), h.deps);
     // Round 0, turn 0, no fired events, no lair rounds, only this batch's id, the new roster, not ended, not shown.
     expect(stored(h)).toMatchObject({
       current_round: 0, active_combatant_index: 0, events_fired: [], lair_fired_rounds: [], applied_command_ids: ["o9"], ended_at: null, is_running: false,
@@ -729,8 +784,8 @@ describe("fight lifecycle", () => {
     });
 
     it("fails if fighting an encounter again keeps the last fight's award mark, so the new fight would give nothing", async () => {
-      const h = harness(row({ ended_at: "2026-11-14T10:00:00.000Z" }), { xpLevelling: true });
-      await runBatch(batch("o1", { type: "open", combatants: [pc("nessa")] }), h.deps);
+      const h = harness(row({ ended_at: "2026-11-14T10:00:00.000Z" }), { xpLevelling: true, roster: { combatants: [pc("nessa")] } });
+      await runBatch(batch("o1", { type: "open" }), h.deps);
       expect(h.saved.at(-1)).toMatchObject({ xp_awarded_at: null, ended_at: null });
     });
   });
@@ -828,17 +883,17 @@ describe("fight lifecycle", () => {
     expect(result.ended_at).not.toBeNull();
   });
 
-  it("refuses a lifecycle command mixed with another, and open with no or too many combatants", () => {
+  it("refuses a lifecycle command mixed with another, and an open naming a malformed played member", () => {
     const send = (commands: unknown[]) => () => validateRequest({ encounterId: "e", batchId: "b", commands });
-    const one = { instance_id: "a", type: "monster", name: "A", hp: 1, max_hp: 1, conditions: [], curses: [], death_saves: { successes: 0, failures: 0 } };
     expect(send([{ type: "abandon" }, { type: "next_turn" }])).toThrow(FightCommandError);
     expect(send([{ type: "next_turn" }, { type: "end_combat" }])).toThrow(FightCommandError);
     expect(send([{ type: "go_live", sessionId: null }, { type: "go_live", sessionId: null }])).toThrow(FightCommandError);
     expect(send([{ type: "go_live" }])).toThrow(FightCommandError);
-    expect(send([{ type: "open", combatants: [] }])).toThrow(FightCommandError);
-    const many = (n: number) => Array.from({ length: n }, (_, i) => ({ ...one, instance_id: `a${i}` }));
-    expect(send([{ type: "open", combatants: many(61) }])).toThrow(FightCommandError);
-    expect(send([{ type: "open", combatants: many(60) }])).not.toThrow();
+    expect(send([{ type: "open", playedMemberId: "" }])).toThrow(FightCommandError);
+    expect(send([{ type: "open", playedMemberId: 7 }])).toThrow(FightCommandError);
+    expect(send([{ type: "open", playedMemberId: "x".repeat(101) }])).toThrow(FightCommandError);
+    expect(send([{ type: "open", playedMemberId: "x".repeat(100) }])).not.toThrow();
+    expect(send([{ type: "open" }])).not.toThrow();
     expect(send([{ type: "end_combat", siteId: 4 }])).toThrow(FightCommandError);
   });
 });
@@ -2661,7 +2716,6 @@ describe("a batch that must be refused before anything is saved", () => {
   // Bug: two combatants with one instance id: every command acts on the first match, and the second can never be reached or removed.
   it("fails if two combatants of one request share an instance id", () => {
     expect(send([{ type: "add_combatants", combatants: [good, { ...good, name: "B" }] }])).toThrow(FightCommandError);
-    expect(send([{ type: "open", combatants: [good, good] }])).toThrow(FightCommandError);
   });
 
   // Each case is a value the reducer would write into the fight as it is: NaN hit points, a condition that has no name, feet that subtract.
@@ -4807,5 +4861,200 @@ describe("take_turn: Pact Magic slots", () => {
     const h = await cast(multiclass("cls-wiz", [{ ...SPELLCASTING_3, used: 2 }, PACT_3]));
     expect(h.slotWrites.at(-1)?.slots).toEqual([{ ...SPELLCASTING_3, used: 2 }, { ...PACT_3, used: 1 }]);
     expect(hpOf(stored(h), "victim")).toBe(32);
+  });
+});
+
+// ── Shield: a Reaction a creature the rules play casts when it is hit (#1021) ─────────────────────────────
+
+describe("a Reaction: Shield", () => {
+  // PHB 2014 and 2024 "Shield": a Reaction taken when hit by an attack; +5 AC until the start of the caster's next turn, the triggering attack included.
+  // The wolf's Bite is +4 for 1d6+2 and the mage (AC 12, "1st level (4 slots): magic missile, shield") stands beside it. A natural d20 of 11 totals 15.
+  const SHIELD_SOURCES: StatBlockSources = {
+    monsters: [{ id: "m-mage", name: "Mage", stat_block: mageBlock() } as unknown as Monster, monster("m-wolf")],
+    npcs: [],
+    companions: [],
+  };
+  const duelWithMage = (mage: Partial<RunCombatant> = {}) =>
+    row({
+      combatants_live: [
+        combatant("wolf", { monster_id: "m-wolf", faction_id: "m", hp: 11, max_hp: 11, initiative: 12, position: { x: 1, y: 1 } }),
+        combatant("mage", { monster_id: "m-mage", faction_id: "p", hp: 40, max_hp: 40, initiative: 8, position: { x: 2, y: 1 }, ...mage }),
+      ],
+    });
+  const bites = (over: Record<string, unknown> = {}) => attack({ targetId: "mage", ...over });
+  const withShield = (fight: FightRow, dieFaces: number[], over: { spells?: SpellRecord[]; ruleset?: "2014" | "2024" } = {}) =>
+    harness(fight, { sources: SHIELD_SOURCES, map: mapOf(), spells: over.spells ?? [shield()], ruleset: over.ruleset, dieFaces });
+  const shielded = (r: FightRow) => combatantOf(r, "mage").conditions.find((c) => c.name === "Shield");
+  const attackLine = (result: { effects: Array<{ type: string }> }) => (result.effects.find((e) => e.type === "resolved") as unknown as { resolved: Record<string, unknown> }).resolved;
+
+  // Total 15 meets AC 12 (a hit) and falls short of 12 + 5 = 17: Shield turns it into a miss. Nothing else is rolled (no damage die), 40 hit points stay.
+  // The Reaction and one 1st-level slot are spent, the condition carries +5 and ends at the start of the mage's own next turn, the summary names the reaction and quotes AC 17.
+  // Bugs caught: the hit stands after the cast (the roll not decided again), the cast spends no Reaction or slot, the condition lasts rounds instead of until the next turn.
+  it("fails if a hit of 15 on a mage with Shield does not become a miss at AC 17, spending the Reaction and a 1st-level slot", async () => {
+    const h = withShield(duelWithMage(), [11]);
+    const result = await runBatch(batch("s1", bites()), h.deps);
+    const after = stored(h);
+    expect(hpOf(after, "mage")).toBe(40);
+    expect(h.dieCalls).toBe(1);
+    expect(combatantOf(after, "mage").reactionUsed).toBe(true);
+    expect(combatantOf(after, "mage").action_uses).toEqual({ "slots/1": { used: 1, per_day: 4 } });
+    expect(combatantOf(after, "mage").action_used).not.toBe(true);
+    expect(shielded(after)).toMatchObject({ name: "Shield", grants: { ac: 5 }, source: { id: "mage", spell: "Shield" }, ends: { kind: "turn", at: "start", of: "self" } });
+    expect(attackLine(result)).toMatchObject({ kind: "attack", natural: 11, total: 15, targetAc: 17, hit: false, damageTotal: 0, reaction: { by: "mage", spell: "Shield" } });
+    expect(combatantOf(after, "mage").shown_deeds).toMatchObject({ cast: 1 });
+  });
+
+  // Total 18 meets 17 even with Shield: the slot would be wasted, so nothing is cast. d20 14 + 4 = 18 hits; 1d6+2 with a 3 deals 5 (40 -> 35).
+  // Bug caught: Shield cast on every hit (the comparison against the bare AC, or `<=`).
+  it("fails if Shield is cast on a hit of 18, which it would not turn", async () => {
+    const h = withShield(duelWithMage(), [14, 3]);
+    await runBatch(batch("s2", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(35);
+    expect(combatantOf(stored(h), "mage").reactionUsed).not.toBe(true);
+    expect(combatantOf(stored(h), "mage").action_uses).toBeUndefined();
+    expect(shielded(stored(h))).toBeUndefined();
+  });
+
+  // PHB 2014 ch. 9 "Rolling 20": a natural 20 hits whatever the AC. d20 20 (total 24) is a critical hit: 2d6+2 with 3 and 3 deals 8 (40 -> 32). Shield could not turn it.
+  // Bug caught: Shield cast on a natural 20 (a slot and the Reaction gone for nothing).
+  it("fails if Shield is cast against a natural 20", async () => {
+    const h = withShield(duelWithMage(), [20, 3, 3]);
+    await runBatch(batch("s3", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(32);
+    expect(combatantOf(stored(h), "mage").reactionUsed).not.toBe(true);
+    expect(shielded(stored(h))).toBeUndefined();
+  });
+
+  // PHB 2014 ch. 9 "Reactions": one Reaction per round. A mage that already used it takes the 15: 40 - 5 = 35 (a 3 on the d6, plus 2). Bug caught: a second Reaction in a round.
+  it("fails if Shield is cast with the Reaction already used", async () => {
+    const h = withShield(duelWithMage({ reactionUsed: true }), [11, 3]);
+    await runBatch(batch("s4", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(35);
+    expect(shielded(stored(h))).toBeUndefined();
+  });
+
+  // RULE spell-slots (PHB 2014 ch. 10): a spell is cast with a slot of its level or higher. With the four 1st-level slots spent, Shield is cast at the next level the mage
+  // has a slot for, the 3rd (it lists 3rd level, 3 slots): that tally rises to 1 of 3 and the 1st stays at 4 of 4. Bug caught: no upcast (a cast refused for want of a 1st-level slot).
+  it("fails if Shield is not cast from the next slot up when the 1st-level slots are spent", async () => {
+    const h = withShield(duelWithMage({ action_uses: { "slots/1": { used: 4, per_day: 4 } } }), [11]);
+    await runBatch(batch("s5", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(40);
+    expect(combatantOf(stored(h), "mage").action_uses).toEqual({ "slots/1": { used: 4, per_day: 4 }, "slots/3": { used: 1, per_day: 3 } });
+  });
+
+  // With every slot the mage lists spent (4 of 4, 3 of 3, 3 of 3) nothing can cast it: the 15 hits, 5 damage (40 -> 35). Bug caught: a Shield cast with no slot left.
+  it("fails if Shield is cast with no slot left", async () => {
+    const spent = { "slots/1": { used: 4, per_day: 4 }, "slots/3": { used: 3, per_day: 3 }, "slots/4": { used: 3, per_day: 3 } };
+    const h = withShield(duelWithMage({ action_uses: spent }), [11, 3]);
+    await runBatch(batch("s6", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(35);
+    expect(shielded(stored(h))).toBeUndefined();
+  });
+
+  // A Shield already up counts in the AC the roll was made against (12 + 5 = 17). A 17 hits it; casting again would add nothing and spend a slot. 40 - 5 = 35.
+  // Bug caught: Shield cast on top of Shield.
+  it("fails if Shield is cast on a creature that already has it", async () => {
+    const up = { name: "Shield", grants: { ac: 5 }, source: { id: "mage", spell: "Shield" }, ends: { kind: "turn" as const, at: "start" as const, of: "self" as const } };
+    const h = withShield(duelWithMage({ conditions: [up] }), [13, 3]);
+    await runBatch(batch("s7", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(35);
+    expect(combatantOf(stored(h), "mage").action_uses).toBeUndefined();
+    expect(combatantOf(stored(h), "mage").reactionUsed).not.toBe(true);
+  });
+
+  // PHB 2014 ch. 9 "Reactions" and "Conditions: Incapacitated": an Incapacitated creature cannot take Reactions. The 15 hits: 35. Bug caught: a Reaction taken while Incapacitated.
+  it("fails if an Incapacitated mage casts Shield", async () => {
+    const h = withShield(duelWithMage({ conditions: [{ name: "Incapacitated" }] }), [11, 3]);
+    await runBatch(batch("s8", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(35);
+    expect(shielded(stored(h))).toBeUndefined();
+  });
+
+  // A creature at 0 hit points is dead or dying and takes no Reaction. The 15 hits it; Shield is not cast. Bug caught: a Reaction (and a slot) spent by a creature that is down.
+  it("fails if a mage at 0 hit points casts Shield", async () => {
+    const h = withShield(duelWithMage({ hp: 0 }), [11, 3]);
+    await runBatch(batch("s8b", bites()), h.deps);
+    expect(shielded(stored(h))).toBeUndefined();
+    expect(combatantOf(stored(h), "mage").action_uses).toBeUndefined();
+  });
+
+  // PHB 2014 ch. 9 "Surprise": a surprised creature cannot take a Reaction until its first turn ends (2014 only). The 15 hits: 35. Bug caught: a surprised mage reacting.
+  it("fails if a surprised mage casts Shield under the 2014 rules", async () => {
+    const h = withShield(duelWithMage({ surprised: true }), [11, 3]);
+    await runBatch(batch("s9", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(35);
+  });
+
+  // A spell record the library has not reviewed is not read for mechanics (`automatable`): the 15 hits, 35. Bug caught: an unreviewed record rolled as if checked.
+  it("fails if an unreviewed Shield record is cast", async () => {
+    const h = withShield(duelWithMage(), [11, 3], { spells: [shield({ mechanics_reviewed: false })] });
+    await runBatch(batch("s10", bites()), h.deps);
+    expect(hpOf(stored(h), "mage")).toBe(35);
+    expect(shielded(stored(h))).toBeUndefined();
+  });
+
+  // A creature whose block does not list Shield never casts it, whatever the library holds: the ox's bite of 15 (a 11 and +4) hits the wolf (AC 12), 1d6+2 with a 3 deals 5 (11 -> 6).
+  // Bug caught: Shield cast by a creature that does not list it.
+  it("fails if a creature that does not list Shield casts it", async () => {
+    const fight = row({
+      combatants_live: [
+        combatant("ox", { monster_id: "m-ox", faction_id: "p", hp: 40, max_hp: 40, initiative: 12, position: { x: 2, y: 1 } }),
+        combatant("wolf", { monster_id: "m-wolf", faction_id: "m", hp: 11, max_hp: 11, initiative: 8, position: { x: 1, y: 1 } }),
+      ],
+    });
+    const sources: StatBlockSources = { monsters: [monster("m-ox"), monster("m-wolf")], npcs: [], companions: [] };
+    const h = harness(fight, { sources, map: mapOf(), spells: [shield()], dieFaces: [11, 3] });
+    await runBatch(batch("s11", attack({ attackerId: "ox", targetId: "wolf" })), h.deps);
+    expect(hpOf(stored(h), "wolf")).toBe(6);
+    expect(combatantOf(stored(h), "wolf").reactionUsed).not.toBe(true);
+  });
+
+  // The Shield lapses "until the start of your next turn": the wolf (initiative 12) bites, the mage (8) is next. Bug caught: a condition with the wrong end (the end of its turn, never).
+  it("fails if the Shield does not end at the start of the mage's next turn", async () => {
+    const h = withShield(duelWithMage(), [11]);
+    await runBatch(batch("s12", bites()), h.deps);
+    expect(shielded(stored(h))).toBeDefined();
+    await runBatch(batch("s13", { type: "next_turn" }), h.deps);
+    expect(combatantOf(stored(h), "mage").conditions.some((c) => c.name === "Shield")).toBe(false);
+    // The Reaction is the mage's again at the start of its own turn (PHB 2014 ch. 9 "Reactions").
+    expect(combatantOf(stored(h), "mage").reactionUsed).toBe(false);
+  });
+
+  // A player in a DM's own fight (no `playedMemberId`) and the character the person plays choose for themselves: the server has no stat block for them and casts nothing.
+  // Nessa (AC 18) is hit by 19 (a 15 and +4): 1d6+2 with a 5 deals 7 (20 -> 13). Bug caught: a player's Reaction taken for them.
+  it("fails if the server casts Shield for a player the person plays", async () => {
+    const fight = row({
+      combatants_live: [
+        combatant("wolf", { monster_id: "m-wolf", faction_id: "m", hp: 11, max_hp: 11, initiative: 12, position: { x: 1, y: 1 } }),
+        pc("nessa", { faction_id: "p", hp: 20, max_hp: 20, initiative: 8, position: { x: 0, y: 1 } }),
+      ],
+    });
+    const h = harness(fight, { sources: SOURCES, players: NESSA_IN_PLATE, map: mapOf(), spells: [shield()], dieFaces: [15, 5] });
+    await runBatch(batch("s14", attack({ targetId: "nessa" })), h.deps);
+    expect(hpOf(stored(h), "nessa")).toBe(13);
+    const played = harness(fight, { sources: SOURCES, players: NESSA_IN_PLATE, map: mapOf(), spells: [shield()], dieFaces: [15, 5] });
+    await runBatch(batch("s15", takeTurn({ playedMemberId: "pm-nessa", optionId: "attack:actions:Bite:nessa" })), played.deps);
+    expect(hpOf(stored(played), "nessa")).toBe(13);
+    expect(combatantOf(stored(played), "nessa").reactionUsed).not.toBe(true);
+  });
+
+  // An AI-played ally: Tam, a 5th-level Wizard (Dex 10, no armour: AC 10) with Shield prepared and two 1st-level slots, while the person plays someone else (`pm-pip`).
+  // The wolf's d20 8 + 4 = 12 hits AC 10 and falls short of 15: Shield turns it, a miss. One slot is written to the sheet (1 of 2) once the fight is saved, and the Reaction is spent.
+  // Bug caught: an ally struck with no Reaction taken, or a cast whose slot is never written to the sheet.
+  it("fails if an ally the AI plays does not cast Shield against a hit it turns, writing the slot to the sheet", async () => {
+    const sheets = wizardTamSheets({ slots: [{ level: 1, max: 2, used: 0 }], spells: [{ id: "Shield-row", party_member_id: "pm-tam", name: "Shield", level: 1, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-wiz", casting_ability: null, uses_per_day: null, uses_remaining: null }] });
+    const fight = row({
+      combatants_live: [
+        combatant("wolf", { monster_id: "m-wolf", faction_id: "m", hp: 11, max_hp: 11, initiative: 12, position: { x: 1, y: 1 } }),
+        pc("tam", { faction_id: "p", hp: 20, max_hp: 20, initiative: 8, position: { x: 2, y: 1 } }),
+      ],
+    });
+    const h = harness(fight, { sources: SOURCES, players: sheets, map: mapOf(), spells: [shield()], dieFaces: [8] });
+    const result = await runBatch(batch("s16", takeTurn({ playedMemberId: "pm-pip", optionId: "attack:actions:Bite:tam" })), h.deps);
+    expect(hpOf(stored(h), "tam")).toBe(20);
+    expect(combatantOf(stored(h), "tam").reactionUsed).toBe(true);
+    expect(combatantOf(stored(h), "tam").conditions.find((c) => c.name === "Shield")).toMatchObject({ grants: { ac: 5 } });
+    expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 1, max: 2, used: 1 }] }]);
+    expect(result.effectFailures).toEqual([]);
   });
 });

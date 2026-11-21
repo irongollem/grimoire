@@ -1,5 +1,5 @@
 import type { AiProvenance } from "@/ai/provenance";
-import { computed, type MaybeRefOrGetter, toValue } from "vue";
+import { computed } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { getCurrentUser, supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -81,12 +81,6 @@ export function useCanonClues(enabled?: () => boolean) {
 export function cluesAt(clues: readonly CanonClue[], kind: ClueKind, id: string): CanonClue[] {
   const column = CLUE_COLUMN[kind];
   return clues.filter((c) => c[column] === id);
-}
-
-export function useCluesAt(kind: MaybeRefOrGetter<ClueKind>, id: MaybeRefOrGetter<string>) {
-  const query = useCanonClues();
-  const here = computed(() => cluesAt(query.data.value ?? [], toValue(kind), toValue(id)));
-  return { clues: here, isLoading: query.isLoading };
 }
 
 export function useCreateCanonClue() {

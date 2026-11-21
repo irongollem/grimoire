@@ -3,49 +3,27 @@
 // a turn of the table uses (`_shared/agent/providerIo.ts`).
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { tableAiEnabled } from "../_shared/featureAccess.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
-import { recordFreeGeneration, recordGeneration, releaseCredits, reserveCredits, reservationRefusal } from "../_shared/credits.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { jsonError, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 import { loadAgentCalibration, loadModelPrice, resolveAgentProvider } from "../_shared/agent/providerIo.ts";
 import { loadSittingFacts } from "../_shared/agent/sittingFacts.ts";
 import { loadTurnsInReach } from "../_shared/agent/turnsInReach.ts";
-import { tellSitting, type RecapDeps } from "./handler.ts";
+import { tellSitting, type RecapCampaign, type RecapDeps } from "./handler.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-}
-
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-  const supabase = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report }) => {
   // The same account gate every generator stands behind (a suspended or child account makes nothing).
   // Fail closed, as a turn of the table does: a model is not called on an account a lookup could not clear.
   const gate = await generationRefusal(admin, user.id, { failClosed: true });
   if (gate) return gate;
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return json(400, { error: "Invalid JSON body." });
-  }
-
-  // The campaign row, kept from `loadCampaign` for the provider lookup.
-  let rawCampaign: Record<string, unknown> | null = null;
+  const body = await readJsonBody(req);
+  if (body === null) return jsonError(400, "invalid_body", "The request is not valid.");
 
   const deps: RecapDeps = {
     async loadNote(noteId) {
@@ -61,19 +39,9 @@ serve(withCors(async (req: Request) => {
       };
     },
 
-    async loadCampaign(campaignId) {
-      const { data, error } = await admin
-        .from("campaigns")
-        .select("id, user_id, ai_enabled, text_provider")
-        .eq("id", campaignId)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) return null;
-      rawCampaign = data;
-      return { id: data.id as string, user_id: data.user_id as string, ai_enabled: await tableAiEnabled(admin, data) };
-    },
-
-    isDm: (campaign, userId) => isCampaignDm(admin, campaign, userId),
+    // The DM only, and a caller who is not is told the note does not exist: a 403 would say it does.
+    loadCampaign: (campaignId, userId) =>
+      loadAiCampaign<RecapCampaign>(admin, campaignId, userId, { columns: ["text_provider"], aiSwitch: "table", hideFromOutsiders: true }),
 
     async loadSitting(noteId, userId) {
       const { data, error } = await admin
@@ -101,21 +69,14 @@ serve(withCors(async (req: Request) => {
     },
 
     async resolveProvider(campaign) {
-      if (!rawCampaign) return null;
-      const resolved = await resolveAgentProvider(admin, { id: campaign.id, ownerId: campaign.user_id, textProvider: rawCampaign.text_provider as string | null });
+      const resolved = await resolveAgentProvider(admin, { id: campaign.id, ownerId: campaign.user_id, textProvider: campaign.text_provider });
       return resolved === null ? null : resolved.provider;
     },
 
     loadPrice: (model) => loadModelPrice(admin, model),
     loadCalibration: () => loadAgentCalibration(admin),
 
-    async reserve(userId, credits) {
-      const reservation = await reserveCredits(admin, userId, credits, "agent_recap");
-      if (reservation.ok) return { ok: true, ids: reservation.ids };
-      return { ok: false, ...reservationRefusal(reservation, "The telling cannot be metered right now.") };
-    },
-
-    release: (ids) => releaseCredits(admin, ids),
+    withHold: (credits, work) => withCreditHold(admin, { payerId: user.id, reason: "agent_recap", cost: credits, report }, work),
 
     // As the service role: the note is the DM's (the handler has checked), and the telling is the table's own text.
     async writeNote(noteId, content) {
@@ -123,16 +84,7 @@ serve(withCors(async (req: Request) => {
       if (error) throw error;
     },
 
-    charge: (userId, isByok, credits, log) => recordGeneration(admin, userId, "agent_recap", isByok, credits, log),
-    logUncharged: (userId, isByok, log) => (isByok ? recordGeneration(admin, userId, "agent_recap", true, 0, log) : recordFreeGeneration(admin, userId, "agent_recap", log)),
   };
 
-  try {
-    const outcome = await tellSitting({ userId: user.id, body, deps });
-    if (!outcome.ok) return json(outcome.status, { error: outcome.error });
-    return json(200, { told: true, credits: outcome.credits });
-  } catch (error) {
-    console.error("agent-recap failed:", error);
-    return json(500, { error: "The sitting could not be told right now. Nothing was charged." });
-  }
+  return tellSitting({ userId: user.id, body, deps });
 }));

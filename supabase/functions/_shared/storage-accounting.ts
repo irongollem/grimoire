@@ -107,7 +107,7 @@ export async function recordStoredObject(
   await reserveStoredObjects(admin, owner, bucket, [{ path, size }], false);
 }
 
-export async function releaseStoredObjects(admin: RpcClient, bucket: string, paths: string[]): Promise<void> {
+export async function releaseStoredObjects(admin: RpcClient, bucket: string, paths: readonly string[]): Promise<void> {
   if (paths.length === 0) return;
   try {
     const { error } = await admin.rpc("release_storage", { p_bucket: bucket, p_paths: paths });

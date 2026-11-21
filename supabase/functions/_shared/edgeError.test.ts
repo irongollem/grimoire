@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { edgeErrorMessage } from "./edgeError.ts";
+import { edgeErrorMessage, edgeRefusal } from "./edgeError.ts";
 
 const withBody = (body: unknown) => ({
   message: "Edge Function returned a non-2xx status code",
@@ -33,6 +33,10 @@ describe("edgeErrorMessage", () => {
     ).toBe("y".repeat(200));
   });
 
+  it("#1234 shows a refusal's sentence, not its code, when it carries both", async () => {
+    expect(await edgeErrorMessage(withBody({ error: "campaign_not_found", message: "Campaign not found." }))).toBe("Campaign not found.");
+  });
+
   it("shows a short plain-text reason as it is", async () => {
     expect(
       await edgeErrorMessage({ message: "Edge Function returned a non-2xx status code", context: new Response("Campaign not found") }),
@@ -43,5 +47,18 @@ describe("edgeErrorMessage", () => {
     expect(
       await edgeErrorMessage({ message: "Failed to fetch", context: new Response("<html>") }),
     ).toBe("Failed to fetch");
+  });
+});
+
+describe("edgeRefusal", () => {
+  it("#1234 gives the code and the sentence from one read of the body", async () => {
+    expect(await edgeRefusal(withBody({ error: "ai_disabled", message: "AI is turned off for this campaign." }))).toEqual({
+      code: "ai_disabled",
+      sentence: "AI is turned off for this campaign.",
+    });
+  });
+
+  it("has no code for a body that is not JSON", async () => {
+    expect(await edgeRefusal({ message: "network down", context: new Response("<html>") })).toEqual({ code: null, sentence: "network down" });
   });
 });

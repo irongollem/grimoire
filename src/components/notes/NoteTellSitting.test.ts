@@ -30,4 +30,14 @@ describe("NoteTellSitting", () => {
     expect(refused).toHaveBeenCalledWith("n1");
     expect(w.get('[data-testid="note-tell-problem"]').text()).toContain("out of credits");
   });
+
+  // Bug caught: the server's refusal shown as its code ("note_edited") now that `error` is a code and the sentence
+  // is `message` (#1234).
+  it("shows the server's sentence for a refusal, not its code", async () => {
+    const refused = vi.fn(async () => new Response(JSON.stringify({ error: "note_edited", message: "This note has been rewritten by hand." }), { status: 409 }));
+    const { w } = mountTell(mark(), refused);
+    await w.get('[data-testid="note-tell-go"]').trigger("click");
+    await flushPromises();
+    expect(w.get('[data-testid="note-tell-problem"]').text()).toBe("This note has been rewritten by hand.");
+  });
 });

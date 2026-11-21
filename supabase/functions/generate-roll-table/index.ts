@@ -5,15 +5,7 @@ import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { rulesetContextKey } from "../_shared/gameSystem.ts";
-import {
-  fetchCreditCost,
-  wholeCredits,
-  recordGeneration,
-  releaseCredits,
-  reserveCredits,
-  reservationFailureResponse,
-  recordFreeGeneration,
-} from "../_shared/credits.ts";
+import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
   AI_PROMPT_LIMIT_SHORT,
@@ -21,7 +13,6 @@ import {
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import {
@@ -37,9 +28,12 @@ import {
 import { repairGeneratedNames } from "../_shared/nameRepairWire.ts";
 import { ENTITY_KINDS, entityRepairGroups, namesIn, repairedList } from "../_shared/nameRepair.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText } from "../_shared/worldBlock.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 
 /**
  * Retrieval-grounded AI roll-table generator (#600).
@@ -126,44 +120,28 @@ const SCHEMA_EXTENSION_INSTRUCTION =
   "places, or groups you invent for an entry. Omit an array (or leave it empty) if no entry " +
   "references anything of that type.";
 
+interface RollTableCampaign extends BaseCampaign {
+  text_provider: string | null;
+  game_system: string | null;
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate — including BYOK, which skips
   // the credit gate for both (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
-  let campaign_id: string, prompt: string, die: string;
+  const body = await readJsonBody(req);
+  const campaign_id = typeof body?.campaign_id === "string" && body.campaign_id ? body.campaign_id : undefined;
+  const prompt = typeof body?.prompt === "string" && body.prompt ? body.prompt : undefined;
+  const die = typeof body?.die === "string" && body.die ? body.die : undefined;
+  if (!campaign_id || !prompt || !die) return jsonError(400, "invalid_body", "Need { campaign_id, prompt, die }.");
 
-  try {
-    const body = await req.json();
-    campaign_id = body.campaign_id;
-    prompt      = body.prompt;
-    die         = body.die;
-    if (!campaign_id || !prompt || !die) throw new Error("invalid");
-  } catch {
-    return new Response("Invalid body — need { campaign_id, prompt, die }", { status: 400 });
-  }
-
-  if (!(die in DIE_MAX)) {
-    return new Response(
-      `Invalid die — must be one of ${Object.keys(DIE_MAX).join(", ")}`,
-      { status: 400 },
-    );
+  // Object.hasOwn, not `in`: a die of "constructor" must not pass.
+  if (!Object.hasOwn(DIE_MAX, die)) {
+    return jsonError(400, "invalid_die", `Invalid die: must be one of ${Object.keys(DIE_MAX).join(", ")}.`);
   }
   const dieMax = DIE_MAX[die];
 
@@ -174,31 +152,26 @@ serve(withCors(async (req: Request) => {
   const promptCheck = validatePromptInput(prompt, AI_PROMPT_LIMIT_SHORT);
   if (!promptCheck.ok) return promptCheck.errorResponse;
 
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, game_system")
-    .eq("id", campaign_id)
-    .maybeSingle();
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
-
   // DMs only: this reads DM-only campaign content with the service role (see
   // _shared/campaignAccess.ts for why a player member must not get through).
-  if (!(await isCampaignDm(admin, campaign, user.id))) {
-    return new Response("Forbidden", { status: 403 });
-  }
+  const load = await loadAiCampaign<RollTableCampaign>(admin, campaign_id, user.id, {
+    columns: ["text_provider", "game_system"],
+  });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
   // Ruleset-aware generation (#564): the context row follows the campaign's 5e system; Generic has none.
   const rulesetKey = rulesetContextKey(campaign.game_system);
 
-  const { data: promptRows } = await admin
+  const { data: promptRows, error: promptError } = await admin
     .from("ai_system_prompts").select("generator_type, content")
     .in("generator_type", ["roll_table", ...(rulesetKey ? [rulesetKey] : [])]);
+  if (promptError) throw promptError;
   const promptRow = promptRows?.find((r) => r.generator_type === "roll_table");
   // Missing row (older DBs that predate #564) is a silent skip, not an error.
   const rulesetContext =
     promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
-  if (!promptRow) return new Response("Prompt not configured", { status: 500 });
+  if (!promptRow) return jsonError(500, "prompt_not_configured", "This generator is not set up yet.");
 
   const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
     loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
@@ -220,12 +193,7 @@ serve(withCors(async (req: Request) => {
     platformKeys,
     providerConfigs,
   });
-  if (!text) {
-    return new Response(
-      JSON.stringify({ error: NO_TEXT_PROVIDER_MESSAGE }),
-      { status: 422, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const baseCost = text.isByok ? 0 : await fetchCreditCost(admin, "roll_table_generation");
@@ -243,171 +211,155 @@ serve(withCors(async (req: Request) => {
   // endpoint and run up unbounded platform spend that no throttle and no
   // balance check ever sees. See generate-encounter/generate-quest for the
   // same reasoning.
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
-    return new Response(
-      JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
-  const reservation = await reserveCredits(admin, user.id, cost, "roll_table_generation");
-  if (!reservation.ok) return reservationFailureResponse(reservation);
+  return withCreditHold(admin, { payerId: user.id, reason: "roll_table_generation", cost, report }, async (hold) => {
+    // ── Semantic retrieval (#600) ────────────────────────────────────────────
+    // An ENHANCEMENT, not a requirement: retrieval must never be able to take
+    // roll-table generation down. A missing vendor, a mid-flip config, a
+    // provider outage or an RPC error all cost grounding, not the feature —
+    // the whole block is one try/catch whose failure path leaves the
+    // candidates empty and the prompt falls back to exactly what the
+    // client-side BYOK path already sends (see useRollTableGeneration.ts): the
+    // "roll_table" system prompt + ruleset context + campaign setting, no
+    // entity block.
+    let candidates: { npcs: CandidateEntity[]; locations: CandidateEntity[]; factions: CandidateEntity[] } =
+      { npcs: [], locations: [], factions: [] };
+    let retrievalOk = false;
 
-  // ── Semantic retrieval (#600) ──────────────────────────────────────────────
-  // An ENHANCEMENT, not a requirement: retrieval must never be able to take
-  // roll-table generation down. A missing vendor, a mid-flip config, a
-  // provider outage or an RPC error all cost grounding, not the feature —
-  // the whole block is one try/catch whose failure path leaves the
-  // candidates empty and the prompt falls back to exactly what the
-  // client-side BYOK path already sends (see useRollTableGeneration.ts): the
-  // "roll_table" system prompt + ruleset context + campaign setting, no
-  // entity block.
-  let candidates: { npcs: CandidateEntity[]; locations: CandidateEntity[]; factions: CandidateEntity[] } =
-    { npcs: [], locations: [], factions: [] };
-  let retrievalOk = false;
+    try {
+      const embedProvider = await resolveEmbeddingProvider(admin, {
+        openai: platformKeys.openai ?? null,
+        gemini: platformKeys.gemini ?? null,
+      });
+      const { vectors, usage: embedUsage } = await embedProvider.embed([prompt]);
 
-  try {
-    const embedProvider = await resolveEmbeddingProvider(admin, {
-      openai: platformKeys.openai ?? null,
-      gemini: platformKeys.gemini ?? null,
-    });
-    const { vectors, usage: embedUsage } = await embedProvider.embed([prompt]);
+      // Queued HERE, not after the RPCs below — real provider spend was
+      // incurred the moment embed() returned, and everything after this point
+      // can throw into the catch. A free line is written whatever the work
+      // does, so a transient DB error cannot turn real money into invisible
+      // spend. Platform-paid, charged to nobody.
+      hold.free("entity_embedding", {
+        model:        embedProvider.model,
+        provider:     embedUsage.provider,
+        input_tokens: embedUsage.input_tokens,
+      });
 
-    // Recorded HERE, not after the RPCs below — real provider spend was
-    // incurred the moment embed() returned, and everything after this point
-    // can throw into the catch. Recording later would mean a transient DB
-    // error silently converts real money into invisible spend. Platform-paid,
-    // charged to nobody: is_byok stays false because we, not the user, paid
-    // for it — see recordFreeGeneration's doc comment.
-    await recordFreeGeneration(admin, user.id, "entity_embedding", {
-      model:        embedProvider.model,
-      provider:     embedUsage.provider,
-      input_tokens: embedUsage.input_tokens,
-    });
+      candidates = await retrieveCampaignEntities(admin, {
+        queryVector:    toVectorLiteral(vectors[0]),
+        campaignId:     campaign_id,
+        // The OWNER, not the caller — matching generate-encounter's bestiary
+        // and generate-quest's entity scoping. A campaign member generating a
+        // roll table sees the DM's NPCs, factions and locations, not their own
+        // (players don't have any).
+        ownerId:        campaign.user_id,
+        embeddingModel: embedProvider.model,
+      });
 
-    candidates = await retrieveCampaignEntities(admin, {
-      queryVector:    toVectorLiteral(vectors[0]),
-      campaignId:     campaign_id,
-      // The OWNER, not the caller — matching generate-encounter's bestiary
-      // and generate-quest's entity scoping. A campaign member generating a
-      // roll table sees the DM's NPCs, factions and locations, not their own
-      // (players don't have any).
-      ownerId:        campaign.user_id,
-      embeddingModel: embedProvider.model,
-    });
-
-    const totalCandidates = candidates.npcs.length + candidates.locations.length + candidates.factions.length;
-    if (totalCandidates === 0) {
-      // Not necessarily an error — a brand-new campaign legitimately has no
-      // NPCs/locations/factions yet — but it means there is nothing to
-      // ground the table in, so it is worth a look if it happens for a
-      // long-running campaign that plainly has entities.
-      console.warn(`Roll table retrieval found zero campaign entities for campaign ${campaign_id} — building the prompt without the entity block.`);
-    } else {
-      retrievalOk = true;
+      const totalCandidates = candidates.npcs.length + candidates.locations.length + candidates.factions.length;
+      if (totalCandidates === 0) {
+        // Not necessarily an error — a brand-new campaign legitimately has no
+        // NPCs/locations/factions yet — but it means there is nothing to
+        // ground the table in, so it is worth a look if it happens for a
+        // long-running campaign that plainly has entities.
+        console.warn(`Roll table retrieval found zero campaign entities for campaign ${campaign_id} — building the prompt without the entity block.`);
+      } else {
+        retrievalOk = true;
+      }
+    } catch (e) {
+      // Diagnosable, but never fatal.
+      const why = e instanceof EmbeddingProviderConfigError
+        ? `embedding provider not usable (${e.message})`
+        : e instanceof Error ? e.message : "unknown error";
+      console.warn(`Roll table retrieval unavailable for campaign ${campaign_id}, falling back to the client-equivalent prompt: ${why}`);
+      candidates = { npcs: [], locations: [], factions: [] };
     }
-  } catch (e) {
-    // Diagnosable, but never fatal.
-    const why = e instanceof EmbeddingProviderConfigError
-      ? `embedding provider not usable (${e.message})`
-      : e instanceof Error ? e.message : "unknown error";
-    console.warn(`Roll table retrieval unavailable for campaign ${campaign_id}, falling back to the client-equivalent prompt: ${why}`);
-    candidates = { npcs: [], locations: [], factions: [] };
-  }
 
-  // formatEntityBlock() only formats — whether to call it at all is decided
-  // here, so a zero-candidate retrieval produces no prompt text at all
-  // rather than an empty ---BEGIN/END--- shell.
-  const entityBlock = retrievalOk ? formatEntityBlock(candidates, "writing table entries") : "";
+    // formatEntityBlock() only formats — whether to call it at all is decided
+    // here, so a zero-candidate retrieval produces no prompt text at all
+    // rather than an empty ---BEGIN/END--- shell.
+    const entityBlock = retrievalOk ? formatEntityBlock(candidates, "writing table entries") : "";
 
-  // Constraint text is the client's exact current wording (useRollTableGeneration.ts)
-  // — kept identical so a table generated server-side reads the same as one
-  // generated via the local BYOK path.
-  const userContent =
-    `${wrapUserInput(prompt)}\n\nConstraints:\n` +
-    `Die: ${die}\n` +
-    `Entries must cover the full range 1–${dieMax} with no gaps and no overlaps.` +
-    entityBlock;
+    // Constraint text is the client's exact current wording (useRollTableGeneration.ts)
+    // — kept identical so a table generated server-side reads the same as one
+    // generated via the local BYOK path.
+    const userContent =
+      `${wrapUserInput(prompt)}\n\nConstraints:\n` +
+      `Die: ${die}\n` +
+      `Entries must cover the full range 1–${dieMax} with no gaps and no overlaps.` +
+      entityBlock;
 
-  const textModel = text.config?.text_model;
+    let textResult: TextResult;
+    try {
+      textResult = await callText({
+        text,
+        model: text.config?.text_model,
+        system: systemContent,
+        user: userContent,
+        // A 1d100 table can run up to 100 entries, each with a label and
+        // optional notes, plus the npcs/locations/factions arrays this
+        // function adds to the schema — several times the payload of
+        // generate-encounter's single object, hence the larger budget than
+        // its 1200 (matches generate-quest's 3000).
+        maxTokens: 3000,
+      });
+    } catch (e) {
+      console.error("Roll table text generation failed:", e);
+      return jsonError(502, "generation_failed", e instanceof Error ? e.message : "Text generation failed");
+    }
 
-  let textResult: TextResult;
-  try {
-    textResult = await callText({
-      text,
-      model: textModel,
-      system: systemContent,
-      user: userContent,
-      // A 1d100 table can run up to 100 entries, each with a label and
-      // optional notes, plus the npcs/locations/factions arrays this
-      // function adds to the schema — several times the payload of
-      // generate-encounter's single object, hence the larger budget than
-      // its 1200 (matches generate-quest's 3000).
-      maxTokens: 3000,
+    const malformed = () =>
+      jsonError(502, "generation_failed", "The roll table came back unreadable. Nothing was charged; please try again.");
+    let rollTableData: RollTableGenerationResult;
+    try {
+      rollTableData = JSON.parse(textResult.content) as RollTableGenerationResult;
+    } catch {
+      return malformed();
+    }
+    // Range/coverage validation (gaps, overlaps, out-of-bounds) deliberately
+    // stays CLIENT-side — validateEntryRanges runs there for both this server
+    // path and the local BYOK path. This guard only checks that the model
+    // returned a non-empty entries array at all.
+    if (!rollTableData || !Array.isArray(rollTableData.entries) || rollTableData.entries.length === 0) return malformed();
+
+    // Charged the moment the paid call has produced a usable result (delta 0 on BYOK).
+    hold.charge("roll_table_generation", {
+      cost,
+      isByok: text.isByok,
+      log: {
+        model: textResult.usage.model, provider: textResult.usage.provider,
+        input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+      },
     });
-  } catch (e) {
-    await releaseCredits(admin, reservation.ids);
-    console.error("Roll table text generation failed:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
 
-  let rollTableData: RollTableGenerationResult;
-  try {
-    rollTableData = JSON.parse(textResult.content) as RollTableGenerationResult;
-  } catch {
-    await releaseCredits(admin, reservation.ids);
-    return new Response(
-      JSON.stringify({ error: "AI returned malformed roll table data — please try again." }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
-  // Range/coverage validation (gaps, overlaps, out-of-bounds) deliberately
-  // stays CLIENT-side — validateEntryRanges runs there for both this server
-  // path and the local BYOK path. This guard only checks that the model
-  // returned a non-empty entries array at all.
-  if (!Array.isArray(rollTableData.entries) || rollTableData.entries.length === 0) {
-    await releaseCredits(admin, reservation.ids);
-    return new Response(
-      JSON.stringify({ error: "AI returned malformed roll table data — please try again." }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
+    // A near miss in the table's npcs, locations or factions is put to a judgment model against exactly the
+    // entities the prompt offered (per kind) and rewritten to the offered name when it is confident, so the
+    // client's exact-name resolver finds the record (#1061). Free to the user; off until a typesafe key exists.
+    // A polish step: if it fails the table goes out unrepaired rather than a paid result turning into a 500.
+    try {
+      const tableRepairs = await repairGeneratedNames(admin, user.id, entityRepairGroups(
+        candidates,
+        { npcs: namesIn(rollTableData.npcs), locations: namesIn(rollTableData.locations), factions: namesIn(rollTableData.factions) },
+        "A random table for a D&D campaign.",
+      ));
+      const fixedTable: RollTableGenerationResult = { ...rollTableData };
+      ENTITY_KINDS.forEach((kind, i) => {
+        const list = repairedList(tableRepairs[i], rollTableData[kind]);
+        if (list !== undefined) fixedTable[kind] = list as string[];
+      });
+      rollTableData = fixedTable;
+    } catch (e) {
+      console.warn("Roll table name repair failed; returning the table unrepaired:", e);
+    }
 
-  // Release the hold; record the real spend (delta 0 on BYOK).
-  await releaseCredits(admin, reservation.ids);
-  await recordGeneration(admin, user.id, "roll_table_generation", text.isByok, cost, {
-    model: textResult.usage.model, provider: textResult.usage.provider,
-    input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+    const ai_provenance: AiProvenance = {
+      generatorType: "roll_table_generation",
+      provider: textResult.usage.provider,
+      model: textResult.usage.model,
+      generatedAt: new Date().toISOString(),
+      edited: false,
+    };
+
+    return json({ ...rollTableData, ai_provenance });
   });
-
-  // A near miss in the table's npcs, locations or factions is put to a judgment model against exactly the
-  // entities the prompt offered (per kind) and rewritten to the offered name when it is confident, so the
-  // client's exact-name resolver finds the record (#1061). Free to the user; off until a typesafe key exists.
-  const tableRepairs = await repairGeneratedNames(admin, user.id, entityRepairGroups(
-    candidates,
-    { npcs: namesIn(rollTableData.npcs), locations: namesIn(rollTableData.locations), factions: namesIn(rollTableData.factions) },
-    "A random table for a D&D campaign.",
-  ));
-  const fixedTable: RollTableGenerationResult = { ...rollTableData };
-  ENTITY_KINDS.forEach((kind, i) => {
-    const list = repairedList(tableRepairs[i], rollTableData[kind]);
-    if (list !== undefined) fixedTable[kind] = list as string[];
-  });
-  rollTableData = fixedTable;
-
-  const ai_provenance: AiProvenance = {
-    generatorType: "roll_table_generation",
-    provider: textResult.usage.provider,
-    model: textResult.usage.model,
-    generatedAt: new Date().toISOString(),
-    edited: false,
-  };
-
-  return new Response(
-    JSON.stringify({ ...rollTableData, ai_provenance }),
-    { headers: { "Content-Type": "application/json" } },
-  );
 }));

@@ -1,6 +1,7 @@
 import { computed, toValue, type ComputedRef, type MaybeRefOrGetter } from "vue";
 import { useQuery } from "@tanstack/vue-query";
-import { fetchLibraryMonsterArtEntries, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
+import { fetchLibraryMonsterArtEntries } from "@/composables/library/useLibraryMonsterArt";
+import { withLibraryArtAll } from "@/lib/library/monsterArtLayers";
 import { fetchPlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
 import { loadLibraryMonstersByIds, useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { normaliseIds } from "@/composables/useRowsByIds";

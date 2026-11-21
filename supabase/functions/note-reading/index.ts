@@ -1,51 +1,39 @@
 // note-reading (#1021 row 19): a note read aloud in the Narrator's voice. The rules are `handler.ts`'s; this file
 // wires the database, the speech service and the voices' store. It answers only where voices are switched on for
-// the stack (ELEVENLABS_API_KEY and TABLE_VOICE_TRIAL=on), except for listening, which needs only the recording.
+// the stack (an ElevenLabs key in Admin > Providers, `voicesOn`), except for listening, which needs only the recording.
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { tableAiEnabled } from "../_shared/featureAccess.ts";
-import { withCors } from "../_shared/cors.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
-import { recordGeneration, releaseCredits, reserveCredits, reservationRefusal } from "../_shared/credits.ts";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { jsonError, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { isNarratorVoice } from "../_shared/narratorVoice.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { sweepNoteReadings, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
-import { hasSpeechService, loadSpeechRate, speechEnvFrom, speechModelOf, synthesizeSpeech, voicesOn, VoicesSpent } from "../_shared/speech.ts";
-import { readNote, type NoteReadingDeps } from "./handler.ts";
+import { loadSpeechEnv } from "../_shared/speechKeys.ts";
+import { type SpeechEnv, hasSpeechService, loadSpeechRate, speechModelOf, synthesizeSpeech, voicesOn, VoicesSpent } from "../_shared/speech.ts";
+import { readNote, READING_MESSAGES, type NoteReadingDeps } from "./handler.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-const speech = speechEnvFrom((key) => Deno.env.get(key));
 // The same private store the table's clips are kept in: nothing serves it but a function that has checked the caller.
 const voiceStore = voiceStoreFrom((key) => Deno.env.get(key));
 
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-}
+serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
+  const body = await readJsonBody(req);
+  if (body === null) return jsonError(400, "invalid_body", "The request is not valid.");
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-  const supabase = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return json(400, { error: "Invalid JSON body." });
-  }
+  // The admin's keys, read for this request and only once something is to be spoken: listening to a recording
+  // needs none. The handler asks `voiceOn` before anything else that speaks, so the sync `hasService` below only
+  // ever runs after they are loaded; before that it answers false.
+  let speech: SpeechEnv | undefined;
+  const loadSpeech = async (): Promise<SpeechEnv> => (speech ??= await loadSpeechEnv(admin));
 
   const deps: NoteReadingDeps = {
-    voiceOn: () => voicesOn(speech) && voiceStore !== null,
+    voiceOn: async () => voicesOn(await loadSpeech()) && voiceStore !== null,
 
     async loadNote(noteId) {
       const { data, error } = await admin.from("notes").select("id, campaign_id, reading_hash, reading_voice").eq("id", noteId).maybeSingle();
@@ -59,13 +47,14 @@ serve(withCors(async (req: Request) => {
       };
     },
 
-    async loadCampaign(campaignId) {
-      const { data, error } = await admin.from("campaigns").select("id, user_id, ai_enabled").eq("id", campaignId).maybeSingle();
-      if (error) throw error;
-      return data ? { id: data.id as string, user_id: data.user_id as string, ai_enabled: await tableAiEnabled(admin, data) } : null;
-    },
+    // The DM only (owner or co-DM). Making a reading needs AI on; tidying up does not, and a caller without access
+    // is told the campaign is not there.
+    loadCampaign: (campaignId, userId, purpose) =>
+      loadAiCampaign(admin, campaignId, userId, purpose === "make"
+        ? { aiSwitch: "table", forbiddenMessage: READING_MESSAGES.notDm }
+        : { aiSwitch: false, hideFromOutsiders: true }),
 
-    isDm: (campaign, userId) => isCampaignDm(admin, campaign, userId),
+    withinRate: (userId) => checkRateLimit(admin, userId, "note_reading"),
 
     // As the caller, through the two ways a note is read: the table's own policy (its owner, the campaign's DM)
     // and the players' reading of shared notes. Either finding the note is enough.
@@ -84,8 +73,8 @@ serve(withCors(async (req: Request) => {
       return typeof data === "string" ? data : null;
     },
 
-    hasService: (service) => hasSpeechService(speech, service),
-    loadRate: (service) => loadSpeechRate(admin, speech, service),
+    hasService: (service) => speech !== undefined && hasSpeechService(speech, service),
+    loadRate: async (service) => loadSpeechRate(admin, await loadSpeech(), service),
 
     // The same screen the table's own lines go through, logged under this surface.
     async isFlagged(text) {
@@ -99,19 +88,15 @@ serve(withCors(async (req: Request) => {
       }
     },
 
-    async reserve(userId, credits) {
-      const reservation = await reserveCredits(admin, userId, credits, "note_reading");
-      if (reservation.ok) return { ok: true, ids: reservation.ids };
-      return { ok: false, ...reservationRefusal(reservation, "Reading aloud cannot be metered right now.") };
+    // Named only once a reading was made, and making one asked `voiceOn` first, which loaded the keys.
+    modelOf: (service) => {
+      if (speech === undefined) throw new Error("note-reading: a model was named before the speech keys were read");
+      return speechModelOf(speech, service);
     },
 
-    release: (ids) => releaseCredits(admin, ids),
+    withHold: (userId, credits, work) => withCreditHold(admin, { payerId: userId, reason: "note_reading", cost: credits, report }, work),
 
-    async charge(userId, credits, log) {
-      await recordGeneration(admin, userId, "note_reading", false, credits, { provider: log.service, model: speechModelOf(speech, log.service) });
-    },
-
-    synthesize: (voice, text) => synthesizeSpeech(speech, voice, text),
+    synthesize: async (voice, text) => synthesizeSpeech(await loadSpeech(), voice, text),
 
     async loadAudio(key) {
       return voiceStore === null ? null : await getObject(voiceStore, key);
@@ -144,14 +129,10 @@ serve(withCors(async (req: Request) => {
   };
 
   try {
-    const outcome = await readNote({ userId: user.id, body, deps });
-    if (!outcome.ok) return json(outcome.status, { error: outcome.error });
-    if (outcome.kind === "audio") return new Response(outcome.audio, { status: 200, headers: { "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=3600" } });
-    if (outcome.kind === "swept") return json(200, { removed: outcome.removed });
-    return json(200, outcome.kind === "estimate" ? { chars: outcome.chars, credits: outcome.credits, has: outcome.has } : { made: true, chars: outcome.chars, credits: outcome.credits });
+    return await readNote({ userId: user.id, body, deps });
   } catch (error) {
-    if (error instanceof VoicesSpent) return json(503, { error: "voices_spent" });
-    console.error("note-reading failed:", error);
-    return json(500, { error: "The note could not be read aloud right now." });
+    // The hold is already released and nothing charged: the throw passed through `withCreditHold`.
+    if (error instanceof VoicesSpent) return jsonError(503, "voices_spent", "The voices have used up their allowance for now.");
+    throw error;
   }
 }));

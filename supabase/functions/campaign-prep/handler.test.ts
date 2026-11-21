@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { AgentUsage, CallModel } from "../_shared/agent/types";
 import { FEATURE_TYPES, rollTableEntries, type Proposal } from "../_shared/campaignPrep";
 import { DUNGEON_FEATURE_TYPES } from "../../../src/types/dungeonFeature.types";
-import { PREP_MESSAGES, prepCampaign, type PrepDeps } from "./handler";
+import { jsonError } from "../_shared/pipeline/respond";
+import { PREP_MESSAGES, prepCampaign, type PrepDeps, type PrepHold } from "./handler";
 
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
 const DM = "dm";
@@ -14,15 +15,13 @@ const KEY = { kind: "item", name: "Brass Winding Key", why: "The Locked Workshop
 
 function harness() {
   const h = {
-    aiEnabled: true as boolean | null,
     answer: [QUICKSAND, FERRY, KEY] as unknown[] | null,
     existing: { hazard: new Set<string>(), place: new Set<string>(["sugarwell"]), item: new Set<string>(), roll_table: new Set<string>(), feature: new Set<string>(), milestone: new Set<string>() },
-    canPay: true,
+    holds: [] as number[],
     makeThrowsFor: null as string | null,
     calls: 0,
     made: [] as Proposal[],
-    charged: [] as number[],
-    released: [] as string[][],
+    charged: [] as Array<{ cost: number; isByok: boolean }>,
     deps: undefined as unknown as PrepDeps,
   };
   const callModel: CallModel = async () => {
@@ -31,19 +30,22 @@ function harness() {
     return { blocks: [{ type: "text", text: h.answer === null ? "I would rather not." : `The marsh needs a hazard.\n${JSON.stringify({ proposals: h.answer })}` }], stop: "end", usage };
   };
   h.deps = {
-    loadCampaign: async () => ({ id: CAMPAIGN, user_id: DM, name: "Sugarwell", ai_enabled: h.aiEnabled }),
-    isDm: async (_c, userId) => userId === DM,
+    // The DM-only, AI-on rule is `loadAiCampaign`'s (its own test); here only that a refusal is passed through.
+    loadCampaign: async (_id, userId) =>
+      userId === DM ? { ok: true, campaign: { id: CAMPAIGN, user_id: DM, name: "Sugarwell", ai_enabled: true, text_provider: null } } : { ok: false, response: jsonError(404, "campaign_not_found") },
     loadDigest: async () => ({ campaign: "Sugarwell", quests: [], places: [], hazards: [], items: [], tables: [], features: [], levelling: { mode: "milestone", partyLevel: null, milestones: [] } }),
     loadExisting: async () => h.existing,
     resolveProvider: async () => ({ provider: "openai", model: "m1", isByok: false, callModel }),
     loadPrice: async () => ({ inputPerMillion: 1, outputPerMillion: 4, cachedInputPerMillion: null }),
     loadCalibration: async () => ({ usdPerCredit: 0.0066, margin: 2 }),
-    reserve: async () => (h.canPay ? { ok: true, ids: ["r1"] } : { ok: false, status: 402, error: "insufficient_credits" }),
-    release: async (ids) => {
-      h.released.push(ids);
-    },
-    charge: async (_u, _b, credits) => {
-      h.charged.push(credits);
+    // The release-once and charge-after-release rules are `withCreditHold`'s (its own test); this records what was asked.
+    withHold: async (credits, work) => {
+      h.holds.push(credits);
+      const hold: PrepHold = {
+        charge: (_reason, line) => void h.charged.push({ cost: line.cost, isByok: line.isByok }),
+        free: () => {},
+      };
+      return work(hold);
     },
     make: async (_ctx, proposal) => {
       if (h.makeThrowsFor === proposal.name) throw new Error("Your plan's limit on places is reached.");
@@ -53,7 +55,11 @@ function harness() {
   return h;
 }
 
-const ask = (h: ReturnType<typeof harness>, body: Record<string, unknown>, userId: string = DM) => prepCampaign({ userId, body: { campaignId: CAMPAIGN, ...body }, deps: h.deps });
+type Answer = { status: number; error?: string; proposals?: Array<Record<string, unknown>>; credits?: number; made?: string[]; skipped?: Array<{ name: string; reason: string }> };
+const ask = async (h: ReturnType<typeof harness>, body: Record<string, unknown>, userId: string = DM): Promise<Answer> => {
+  const response = await prepCampaign({ userId, body: { campaignId: CAMPAIGN, ...body }, deps: h.deps });
+  return { status: response.status, ...((await response.json()) as object) };
+};
 
 describe("proposing", () => {
   // The maintainer's rule for bulk making: the DM sees the whole list first. Bug caught: proposing already making
@@ -61,11 +67,11 @@ describe("proposing", () => {
   it("answers the list, charges the one call, and makes nothing", async () => {
     const h = harness();
     const out = await ask(h, { action: "propose" });
-    expect(out).toMatchObject({ ok: true, kind: "proposed", credits: 2 });
-    if (out.ok && out.kind === "proposed") expect(out.proposals.map((p) => p.name)).toEqual(["Quicksand", "The Old Ferry", "Brass Winding Key"]);
+    expect(out).toMatchObject({ status: 200, credits: 2 });
+    expect(out.proposals?.map((p) => p.name)).toEqual(["Quicksand", "The Old Ferry", "Brass Winding Key"]);
     expect(h.made).toEqual([]);
-    expect(h.charged).toEqual([2]);
-    expect(h.released).toEqual([["r1"]]);
+    expect(h.holds).toEqual([4]);
+    expect(h.charged).toEqual([{ cost: 2, isByok: false }]);
   });
 
   // "Nothing that matches something already there is proposed twice." Bug caught: a second Quicksand beside the
@@ -75,8 +81,7 @@ describe("proposing", () => {
     h.existing = { ...h.existing, hazard: new Set(["quicksand"]) };
     h.answer = [QUICKSAND, KEY, { ...KEY, why: "Again." }];
     const out = await ask(h, { action: "propose" });
-    if (!out.ok || out.kind !== "proposed") throw new Error("not proposed");
-    expect(out.proposals.map((p) => p.name)).toEqual(["Brass Winding Key"]);
+    expect(out.proposals?.map((p) => p.name)).toEqual(["Brass Winding Key"]);
   });
 
   // Bug caught: a proposal the tables cannot hold (a place of no kind, a hazard with a DC nobody can roll) shown
@@ -85,25 +90,19 @@ describe("proposing", () => {
     const h = harness();
     h.answer = [{ ...FERRY, place_type: "floating castle" }, { ...QUICKSAND, dc: 80 }, { ...KEY, rarity: "priceless" }, KEY];
     const out = await ask(h, { action: "propose" });
-    if (!out.ok || out.kind !== "proposed") throw new Error("not proposed");
-    expect(out.proposals.map((p) => p.name)).toEqual(["Brass Winding Key"]);
+    expect(out.proposals?.map((p) => p.name)).toEqual(["Brass Winding Key"]);
   });
 
   // "We charge every successful AI call." Bug caught: a reply with no list charged, or anyone but the DM spending.
   it("charges nothing when the model gives no list, and is the Dungeon Master's alone", async () => {
     const silent = harness();
     silent.answer = null;
-    expect(await ask(silent, { action: "propose" })).toEqual({ ok: false, status: 502, error: PREP_MESSAGES.noAnswer });
-    expect(silent.charged).toEqual([]);
-    expect(silent.released).toEqual([["r1"]]);
+    expect(await ask(silent, { action: "propose" })).toMatchObject({ status: 502, error: "generation_failed", message: PREP_MESSAGES.noAnswer });
+    expect(silent.charged).toEqual([{ cost: 0, isByok: false }]);
     const stranger = harness();
-    expect(await ask(stranger, { action: "propose" }, "player")).toEqual({ ok: false, status: 404, error: PREP_MESSAGES.notFound });
-    const off = harness();
-    off.aiEnabled = false;
-    expect(await ask(off, { action: "propose" })).toEqual({ ok: false, status: 403, error: PREP_MESSAGES.aiOff });
-    off.aiEnabled = null; // undecided is off too, as the page has it
-    expect(await ask(off, { action: "propose" })).toEqual({ ok: false, status: 403, error: PREP_MESSAGES.aiOff });
-    expect(stranger.calls + off.calls).toBe(0);
+    expect((await ask(stranger, { action: "propose" }, "player")).status).toBe(404);
+    expect(stranger.calls).toBe(0);
+    expect(stranger.holds).toEqual([]);
   });
 });
 
@@ -119,8 +118,7 @@ describe("a roll table for a road or a region", () => {
     const h = harness();
     h.answer = [ROAD, { ...ROAD, name: "Too many", dice: "1d4", entries: Array.from({ length: 6 }, (_, i) => ({ label: `Entry ${i}` })) }, { ...ROAD, name: "Odd die", dice: "1d7" }];
     const out = await ask(h, { action: "propose" });
-    if (!out.ok || out.kind !== "proposed") throw new Error("not proposed");
-    expect(out.proposals.map((p) => p.name)).toEqual(["On the Mill Road"]);
+    expect(out.proposals?.map((p) => p.name)).toEqual(["On the Mill Road"]);
   });
 
   // 6 faces over 4 entries: two entries take two faces each, first, and two take one. Bug caught: faces left with
@@ -143,7 +141,6 @@ describe("a dungeon feature", () => {
     const h = harness();
     h.answer = [DOOR, { ...DOOR, name: "Odd", feature_type: "Trapdoor to the Moon" }, { ...DOOR, name: "Unfindable", find_dc: 60 }];
     const out = await ask(h, { action: "propose" });
-    if (!out.ok || out.kind !== "proposed") throw new Error("not proposed");
     expect(out.proposals).toEqual([DOOR]);
   });
 });
@@ -153,7 +150,7 @@ describe("creating what was kept", () => {
   it("makes exactly the proposals sent back, with no model call and no charge", async () => {
     const h = harness();
     const out = await ask(h, { action: "create", proposals: [QUICKSAND, KEY] });
-    expect(out).toEqual({ ok: true, kind: "created", made: ["Quicksand", "Brass Winding Key"], skipped: [] });
+    expect(out).toEqual({ status: 200, made: ["Quicksand", "Brass Winding Key"], skipped: [] });
     expect(h.made.map((p) => p.kind)).toEqual(["hazard", "item"]);
     expect(h.calls).toBe(0);
     expect(h.charged).toEqual([]);
@@ -165,7 +162,6 @@ describe("creating what was kept", () => {
     const h = harness();
     h.existing = { ...h.existing, item: new Set(["brass winding key"]) };
     const out = await ask(h, { action: "create", proposals: [{ ...QUICKSAND, dc: 99 }, KEY, { kind: "npc", name: "A Spy", why: "x", description: "y" }, FERRY] });
-    if (!out.ok || out.kind !== "created") throw new Error("not created");
     expect(out.made).toEqual(["The Old Ferry"]);
     expect(out.skipped).toEqual([{ name: "3 of the list", reason: "Already in the campaign by now, or not something that can be made." }]);
   });
@@ -175,6 +171,6 @@ describe("creating what was kept", () => {
     const h = harness();
     h.makeThrowsFor = "The Old Ferry";
     const out = await ask(h, { action: "create", proposals: [FERRY, KEY] });
-    expect(out).toEqual({ ok: true, kind: "created", made: ["Brass Winding Key"], skipped: [{ name: "The Old Ferry", reason: "Your plan's limit on places is reached." }] });
+    expect(out).toEqual({ status: 200, made: ["Brass Winding Key"], skipped: [{ name: "The Old Ferry", reason: "Your plan's limit on places is reached." }] });
   });
 });

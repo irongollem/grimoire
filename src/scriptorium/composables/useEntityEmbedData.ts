@@ -39,11 +39,8 @@ import { useQueries, useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { formatEntityEmbedBodyHtml } from "@/scriptorium/lib/scriptoriumImport";
-import {
-  fetchLibraryMonsterArtEntries,
-  withLibraryArt,
-  LIBRARY_MONSTER_ART_STALE_TIME,
-} from "@/composables/library/useLibraryMonsterArt";
+import { fetchLibraryMonsterArtEntries, LIBRARY_MONSTER_ART_STALE_TIME } from "@/composables/library/useLibraryMonsterArt";
+import { withLibraryArt } from "@/lib/library/monsterArtLayers";
 import { entityRefKey, type EntityRef, type EntityEmbedLookup } from "@/scriptorium/lib/entityEmbeds";
 import type { EntityEmbedType } from "@/lib/tiptap/nodeViewTypes";
 import type { Npc } from "@/types/npc.types";

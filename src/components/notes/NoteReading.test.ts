@@ -77,6 +77,15 @@ describe("NoteReading", () => {
     expect(w.find('[data-testid="note-reading-quote"]').exists()).toBe(true);
   });
 
+  // Bug caught: a 422 shown as its code ("note_too_long") now that `error` is a code and the sentence is `message` (#1234).
+  it("shows the server's sentence for a refused note, not its code", async () => {
+    const transport = vi.fn<ReadingTransport>(async (request) => (request.action === "estimate" ? json(422, { error: "note_too_long", message: "This note is too long to read aloud in one go." }) : json(200, {})));
+    const w = mountReading(plain, true, transport);
+    await w.get('[data-testid="note-reading-ask"]').trigger("click");
+    await flushPromises();
+    expect(w.get('[data-testid="note-reading-problem"]').text()).toBe("This note is too long to read aloud in one go.");
+  });
+
   // Bug caught: a note rewritten after it was read aloud still presented as its reading, with nothing to say the
   // recording is of the earlier text.
   it("says the recording is of an earlier version when the note changed since", () => {

@@ -57,6 +57,14 @@ describe("CampaignPrepDialog", () => {
     expect(find("prep-problem")!.textContent).toContain("out of credits");
   });
 
+  // Bug caught: the server's refusal shown as its code now that `error` is a code and the sentence is `message` (#1234).
+  it("shows the server's sentence for a refusal, not its code", async () => {
+    mountPrep(vi.fn<PrepTransport>(async () => json(503, { error: "no_provider", message: "No AI provider is set up for this campaign." })));
+    find("prep-read")!.click();
+    await flushPromises();
+    expect(find("prep-problem")!.textContent).toContain("No AI provider is set up for this campaign.");
+  });
+
   // Bug caught: what could not be made (a plan's limit) dropped without a word, so the DM believes it exists.
   it("names what was not made and why", async () => {
     const transport = vi.fn<PrepTransport>(async (body) => (body.action === "propose" ? json(200, { proposals: [QUICKSAND], credits: 1 }) : json(200, { made: [], skipped: [{ name: "Quicksand", reason: "Your plan's limit is reached." }] })));

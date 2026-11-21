@@ -17,7 +17,7 @@ import { isAnyAiGenerating } from "./aiGeneratorRegistry";
 import type { AiProvenance } from "./provenance";
 import { useCampaignStore } from "@/stores/campaign";
 
-export type { CanonSetAside, ClueSuggestion, ForceSuggestion, LoreSuggestion, PremiseSuggestion, QuestionSuggestion, TruthSuggestion };
+export type { ClueSuggestion, ForceSuggestion, LoreSuggestion, PremiseSuggestion, QuestionSuggestion, TruthSuggestion };
 
 export type CanonSuggestionMode = "premise" | "truths" | "clues" | "questions" | "forces" | "lore";
 

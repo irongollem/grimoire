@@ -3,27 +3,24 @@
 // the provider, price and calibration lookups a turn of the AI table uses (`_shared/agent/providerIo.ts`).
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { tableAiEnabled } from "../_shared/featureAccess.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
-import { recordFreeGeneration, recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { loadAgentCalibration, loadModelPrice, resolveAgentProvider } from "../_shared/agent/providerIo.ts";
 import { STAND_IN_RECENT_LINES, type StandIn } from "../_shared/agent/standIn.ts";
 import { loadPartyMember } from "../_shared/agent/characterIo.ts";
 import type { StoredMention } from "../../../src/lib/chat/chatMentions.ts";
-import { answerChatLine, type ReplyDeps } from "./handler.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { tableAiEnabled } from "../_shared/featureAccess.ts";
+import { loadAiCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
+import { answerChatLine, GENERATION, type ReplyCampaign, type ReplyDeps } from "./handler.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-const GENERATION = "character_reply";
 /** The newest memories a character is given: what it lived through lately, not its whole ledger. */
 const MEMORIES_SHOWN = 12;
-
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-}
 
 /** `metadata.mentions` as it was stored by a browser: anything not shaped like a mention is dropped. */
 function mentionsOf(metadata: unknown): StoredMention[] {
@@ -38,34 +35,18 @@ function mentionsOf(metadata: unknown): StoredMention[] {
   });
 }
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-  const supabase = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report }) => {
   // The one who types pays nothing, so the brake on them is the rate limit every generator shares.
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return json(429, { error: "rate_limited" });
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return json(400, { error: "Invalid JSON body." });
-  }
+  const body = await readJsonBody(req);
+  if (body === null) return jsonError(400, "invalid_body", "The request is not valid.");
 
-  // The campaign row, kept from `loadCampaign` for the provider lookup; resolved once.
-  let rawCampaign: Record<string, unknown> | null = null;
-  let ownerId: string | null = null;
+  // The campaign `loadCampaign` read, kept for the provider lookup; resolved once.
+  let campaignRow: ReplyCampaign | null = null;
   let resolved: Awaited<ReturnType<typeof resolveAgentProvider>> | undefined;
   const provider = async () => {
-    if (resolved === undefined) resolved = rawCampaign && ownerId ? await resolveAgentProvider(admin, { id: rawCampaign.id as string, ownerId, textProvider: rawCampaign.text_provider as string | null }) : null;
+    if (resolved === undefined) resolved = campaignRow ? await resolveAgentProvider(admin, { id: campaignRow.id, ownerId: campaignRow.user_id, textProvider: campaignRow.text_provider }) : null;
     return resolved;
   };
 
@@ -90,18 +71,17 @@ serve(withCors(async (req: Request) => {
       };
     },
 
-    async loadCampaign(campaignId) {
-      const { data, error } = await admin
-        .from("campaigns")
-        .select("id, user_id, ai_enabled, text_provider")
-        .eq("id", campaignId)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) return null;
-      rawCampaign = data;
-      ownerId = data.user_id as string;
-      return { id: data.id as string, user_id: data.user_id as string, ai_enabled: await tableAiEnabled(admin, data) };
+    // Whoever typed the line sits at the campaign; the owner pays, whoever asked. The AI switch is the handler's
+    // (`aiOn`), because AI off is a quiet "nobody answered" rather than a refusal.
+    async loadCampaign(campaignId, userId) {
+      const load = await loadAiCampaign<ReplyCampaign>(admin, campaignId, userId, {
+        columns: ["text_provider"], access: "member", aiSwitch: false, forbiddenMessage: "Only someone at this campaign can ask its characters to answer.",
+      });
+      if (load.ok) campaignRow = load.campaign;
+      return load;
     },
+
+    aiOn: async (campaign) => (await tableAiEnabled(admin, campaign)) === true,
 
     // Only the characters both words are given for are read in full: the rest could not answer anyway.
     async loadParty(campaignId) {
@@ -177,17 +157,12 @@ serve(withCors(async (req: Request) => {
       return (data ?? []).reverse().map((row) => ({ from: (row.sender_name as string | null) ?? "Someone", text: row.message as string }));
     },
 
-    async reserve(owner, credits) {
-      const reservation = await reserveCredits(admin, owner, credits, GENERATION);
-      if (reservation.ok) return { ok: true, ids: reservation.ids };
-      return { ok: false, status: 402, error: "insufficient_credits" };
-    },
-    release: (ids) => releaseCredits(admin, ids),
+    withHold: (ownerId, credits, work) => withCreditHold(admin, { payerId: ownerId, reason: GENERATION, cost: credits, report }, work),
 
     // As the service role, in the name of the character's own player where it has one, so they find what their
     // character said (a whisper too) when they are back; an unclaimed character's lines are the Dungeon Master's.
     // `ai` marks the line as written by AI for every reader (AI Act Art. 50); `reply_to` is what makes asking twice answer once.
-    async postReply({ line, character, text, recipientUserId, provider: by, model }) {
+    async postReply({ line, character, ownerId, text, recipientUserId, provider: by, model }) {
       const { error } = await admin.from("campaign_messages").insert({
         campaign_id: line.campaign_id,
         user_id: character.playerUserId ?? ownerId,
@@ -212,16 +187,7 @@ serve(withCors(async (req: Request) => {
       if (error) throw error;
     },
 
-    charge: (owner, isByok, credits, log) => recordGeneration(admin, owner, GENERATION, isByok, credits, log),
-    logUncharged: (owner, isByok, log) => (isByok ? recordGeneration(admin, owner, GENERATION, true, 0, log) : recordFreeGeneration(admin, owner, GENERATION, log)),
   };
 
-  try {
-    const outcome = await answerChatLine({ userId: user.id, body, deps });
-    if (!outcome.ok) return json(outcome.status, { error: outcome.error });
-    return json(200, { replies: outcome.replies });
-  } catch (error) {
-    console.error("character-reply failed:", error);
-    return json(500, { error: "The character could not answer right now. Nothing was charged." });
-  }
+  return answerChatLine({ userId: user.id, body, deps });
 }));

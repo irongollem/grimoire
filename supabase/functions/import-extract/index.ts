@@ -11,7 +11,7 @@
  *
  * Structure mirrors `generate-trap/index.ts` — auth → account gate → campaign +
  * membership → ai_enabled → prompt fetch → BYOK-vs-platform key resolution →
- * rate limit → credit reservation → provider call → release + record. That
+ * rate limit → credit hold (`withCreditHold`) → provider call → charge. That
  * order is security-ordered (CLAUDE.md), not arbitrary, so it is kept intact
  * here even though the provider call itself looks nothing like a text
  * generator's.
@@ -54,16 +54,12 @@ import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { resolveTextProvider, NO_TEXT_PROVIDER_MESSAGE } from "../_shared/textGen.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import {
-  fetchCreditCost,
-  recordGeneration,
-  releaseCredits,
-  reserveCredits,
-  reservationFailureResponse,
-  wholeCredits,
-} from "../_shared/credits.ts";
+import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { withCors } from "../_shared/cors.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { jsonError, json, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { type CreditHold, withCreditHold } from "../_shared/pipeline/creditHold.ts";
 import { buildInstruction } from "./buildInstruction.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
@@ -358,9 +354,15 @@ async function deleteSourceObjects(paths: string[], userId: string): Promise<voi
   if (!paths.length) return;
   // Guarded on the delete path too, not just the read: an unguarded delete is
   // the more destructive of the two, and this runs on every settled branch.
-  assertOwnedPaths(paths, userId);
-  const { error } = await admin.storage.from(BUCKET).remove(paths);
-  if (error) console.error(`Failed to delete import-documents objects (will expire via sweep):`, error.message);
+  // Never throws: it runs after the row reached `review`, and a throw there
+  // would send a stored, paid result to the failure path.
+  try {
+    assertOwnedPaths(paths, userId);
+    const { error } = await admin.storage.from(BUCKET).remove(paths);
+    if (error) console.error(`Failed to delete import-documents objects (will expire via sweep):`, error.message);
+  } catch (e) {
+    console.error("Failed to delete import-documents objects (will expire via sweep):", e);
+  }
 }
 
 /**
@@ -453,24 +455,29 @@ function startExpirySweep(): void {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+interface ImportRow {
+  id: string;
+  campaign_id: string;
+  source_kind: string;
+  source_paths: string[];
+  source_text: string | null;
+  page_count: number;
+  display_name: string | null;
+  status: string;
+  own_writing: boolean;
+}
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
+interface ImportCampaign extends BaseCampaign {
+  text_provider: string | null;
+}
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-  // Captured once as its own const rather than referencing `user.id` at each
-  // call site: TypeScript's null-narrowing from the check above doesn't
-  // survive into the closures declared further down (`failClaimed`, `settle`),
-  // which independently capture `user` — a fresh const carries its own,
-  // already-non-null type into those closures instead.
+/** A row-status write that says so when it fails: a stored result the row never reached is not a success. */
+async function updateImportRow(rowId: string, userId: string, patch: Record<string, unknown>): Promise<void> {
+  const { error } = await admin.from("document_imports").update(patch).eq("id", rowId).eq("user_id", userId);
+  if (error) throw error;
+}
+
+serve(serveUser(async ({ user, req, report }) => {
   const userId = user.id;
 
   const accountRefusal = await generationRefusal(admin, userId);
@@ -481,25 +488,22 @@ serve(withCors(async (req: Request) => {
   // request still contributes a sweep.
   startExpirySweep();
 
-  let documentImportId: string;
-  try {
-    const body = await req.json();
-    documentImportId = body.id;
-    if (!documentImportId || typeof documentImportId !== "string") throw new Error("invalid");
-  } catch {
-    return new Response("Invalid body — need { id }", { status: 400 });
-  }
+  const body = await readJsonBody(req);
+  const documentImportId = body?.id;
+  if (typeof documentImportId !== "string" || !documentImportId) return jsonError(400, "invalid_body", "Need { id }.");
 
   // Ownership re-derived from auth.uid() via an explicit filter rather than
   // trusted from the request — id alone would let any authenticated caller
   // name someone else's staging row.
-  const { data: importRow } = await admin
+  const { data: importData, error: importError } = await admin
     .from("document_imports")
     .select("id, campaign_id, source_kind, source_paths, source_text, page_count, display_name, status, own_writing")
     .eq("id", documentImportId)
     .eq("user_id", userId)
     .maybeSingle();
-  if (!importRow) return new Response("Import not found", { status: 404 });
+  if (importError) throw importError;
+  if (!importData) return jsonError(404, "import_not_found", "Import not found.");
+  const importRow = importData as ImportRow;
 
   // A wiki export (#932) is read by the DM's own browser and never extracted:
   // nothing in it may reach a model or a credit hold. Pages the DM wants a
@@ -507,10 +511,7 @@ serve(withCors(async (req: Request) => {
   // ceiling and the charge. Refused before the rate limiter, the provider
   // lookup and everything else below.
   if (importRow.source_kind === "archive") {
-    return new Response(JSON.stringify({
-      error: "invalid_source",
-      message: "A wiki export is imported without AI and cannot be extracted.",
-    }), { status: 422, headers: { "Content-Type": "application/json" } });
+    return jsonError(422, "invalid_source", "A wiki export is imported without AI and cannot be extracted.");
   }
 
   // Fast, non-atomic short-circuit for the common case (already extracting,
@@ -518,43 +519,31 @@ serve(withCors(async (req: Request) => {
   // fail on the atomic claim later. The claim below is still what actually
   // guarantees only one paid extraction happens.
   if (importRow.status !== "pending") {
-    return new Response(
-      JSON.stringify({ error: "not_pending", status: importRow.status }),
-      { status: 409, headers: { "Content-Type": "application/json" } },
-    );
+    return jsonError(409, "not_pending", "This import is already being processed.", { status: importRow.status });
   }
-
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider")
-    .eq("id", importRow.campaign_id)
-    .maybeSingle();
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
 
   // DM specifically, not any member — this must not be looser than the RLS that
   // let the row exist. `document_imports_insert` (migration 20260824204224) gates
   // creation on `private.is_campaign_dm`, so accepting a plain member here would
   // mean a DM who was later demoted to player could still spend credits
-  // extracting into a campaign they no longer run. `generate-trap` checks bare
-  // membership because a player generating a trap draft is harmless; an import
-  // writes monsters, NPCs, locations, quests, factions and encounters, which is DM work.
-  if (campaign.user_id !== userId) {
-    const { data: membership } = await admin
-      .from("campaign_members").select("role")
-      .eq("campaign_id", importRow.campaign_id).eq("user_id", userId).eq("role", "dm").maybeSingle();
-    if (!membership) return new Response("Forbidden", { status: 403 });
-  }
+  // extracting into a campaign they no longer run. An import writes monsters,
+  // NPCs, locations, quests, factions and encounters, which is DM work.
+  const load = await loadAiCampaign<ImportCampaign>(admin, importRow.campaign_id, userId, {
+    columns: ["text_provider"],
+  });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
   // BYOK is Pro-only (same gate generate-trap uses), and this owner-Pro check
   // doubles as the page-cap lookup — both key off the campaign owner's plan.
   const ownerIsPro = await isUserPro(admin, campaign.user_id);
   const pageLimit = ownerIsPro ? PRO_PAGE_LIMIT : FREE_PAGE_LIMIT;
 
-  const { data: promptRow } = await admin
+  const { data: promptRow, error: promptError } = await admin
     .from("ai_system_prompts").select("content")
     .eq("generator_type", "document_import").maybeSingle();
-  if (!promptRow) return new Response("Prompt not configured", { status: 500 });
+  if (promptError) throw promptError;
+  if (!promptRow) return jsonError(500, "prompt_not_configured", "This generator is not set up yet.");
 
   // Provider rows go through the shared module, not a direct query:
   // `_shared/provider-config.ts` is the one place they are read and cached.
@@ -569,32 +558,17 @@ serve(withCors(async (req: Request) => {
     platformKeys,
     providerConfigs,
   });
-  if (!text) {
-    return new Response(
-      JSON.stringify({ error: "no_api_key", message: NO_TEXT_PROVIDER_MESSAGE }),
-      { status: 422, headers: { "Content-Type": "application/json" } },
-    );
-  }
-  const textIsByok = text.isByok;
-  const documentModel = text.config?.document_model ?? null;
-  if (!documentModel) {
-    return new Response(
-      JSON.stringify({
-        error: "provider_unsupported",
-        message: "Document import isn't available right now.",
-      }),
-      { status: 422, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
+  // Captured as consts so the narrowing survives into the closures below.
+  const { provider, apiKey, isByok: textIsByok } = text;
+  const configuredModel = text.config?.document_model ?? null;
+  if (!configuredModel) return jsonError(422, "provider_unsupported", "Document import isn't available right now.");
+  const documentModel: string = configuredModel;
 
   // Bound source downloads as well as provider calls. Without this check a
   // caller with an invalid staged document could repeatedly make the function
   // download and parse it without ever reaching the paid-call limiter.
-  if (!(await checkRateLimit(admin, userId, "ai_generation"))) {
-    return new Response(JSON.stringify({ error: "rate_limited" }), {
-      status: 429, headers: { "Content-Type": "application/json" },
-    });
-  }
+  if (!(await checkRateLimit(admin, userId, "ai_generation"))) return rateLimited();
 
   // `source_kind: 'text'` (#829) has nothing to download or count — there is
   // no storage object, and the migration's own shape CHECK (20260906213100)
@@ -609,12 +583,7 @@ serve(withCors(async (req: Request) => {
 
   if (importRow.source_kind === "text") {
     sourceText = typeof importRow.source_text === "string" ? importRow.source_text : undefined;
-    if (!sourceText?.trim()) {
-      return new Response(JSON.stringify({
-        error: "invalid_source",
-        message: "This import has no pasted text to extract.",
-      }), { status: 422, headers: { "Content-Type": "application/json" } });
-    }
+    if (!sourceText?.trim()) return jsonError(422, "invalid_source", "This import has no pasted text to extract.");
     parts = [];
     actualPageCount = importRow.page_count;
   } else {
@@ -624,30 +593,24 @@ serve(withCors(async (req: Request) => {
       source = await downloadSource(importRow.source_kind, importRow.source_paths);
     } catch (e) {
       const message = e instanceof Error ? e.message : "The uploaded document could not be read.";
-      return new Response(JSON.stringify({ error: "invalid_source", message }), {
-        status: e instanceof SourceValidationError ? 422 : 502,
-        headers: { "Content-Type": "application/json" },
-      });
+      return jsonError(e instanceof SourceValidationError ? 422 : 502, "invalid_source", message);
     }
     parts = source.parts;
     actualPageCount = source.pageCount;
     if (actualPageCount !== importRow.page_count) {
-      return new Response(JSON.stringify({
-        error: "page_count_mismatch",
-        message: `The upload contains ${actualPageCount} pages, but the staged import claimed ${importRow.page_count}. Upload it again.`,
-      }), { status: 422, headers: { "Content-Type": "application/json" } });
+      return jsonError(
+        422, "page_count_mismatch",
+        `The upload contains ${actualPageCount} pages, but the staged import claimed ${importRow.page_count}. Upload it again.`,
+      );
     }
   }
 
   if (actualPageCount > pageLimit) {
-    return new Response(
-      JSON.stringify({
-        error: "too_many_pages",
-        message: ownerIsPro
-          ? `This document has ${actualPageCount} pages. The limit is ${pageLimit} pages per import.`
-          : `This document has ${actualPageCount} pages. Free accounts are limited to ${pageLimit} pages per import — upgrade to Pro for up to ${PRO_PAGE_LIMIT}.`,
-      }),
-      { status: 422, headers: { "Content-Type": "application/json" } },
+    return jsonError(
+      422, "too_many_pages",
+      ownerIsPro
+        ? `This document has ${actualPageCount} pages. The limit is ${pageLimit} pages per import.`
+        : `This document has ${actualPageCount} pages. Free accounts are limited to ${pageLimit} pages per import — upgrade to Pro for up to ${PRO_PAGE_LIMIT}.`,
     );
   }
 
@@ -668,45 +631,12 @@ serve(withCors(async (req: Request) => {
     ),
   );
 
-  const reservation = await reserveCredits(admin, userId, cost, "document_import_extraction");
-  if (!reservation.ok) return reservationFailureResponse(reservation);
-
-  // Atomic claim — the concurrency guard described in the file header. Only
-  // one concurrent request can flip pending → extracting; the loser releases
-  // the reservation it already took (it did no work) and reports the row is
-  // already being handled.
-  const { data: claimed } = await admin
-    .from("document_imports")
-    .update({ status: "extracting" })
-    .eq("id", importRow.id).eq("user_id", userId).eq("status", "pending")
-    .select("id").maybeSingle();
-  if (!claimed) {
-    await releaseCredits(admin, reservation.ids);
-    return new Response(
-      JSON.stringify({ error: "not_pending", status: "extracting" }),
-      { status: 409, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
-  // Same closure-narrowing reason as `userId` above — captured fresh so
-  // `failClaimed` (declared below, closing over it) sees a non-null type.
-  const claimedRow = importRow;
-
-  async function failClaimed(message: string): Promise<Response> {
-    await releaseCredits(admin, reservation.ids);
-    await admin.from("document_imports").update({ status: "failed", error: message })
-      .eq("id", claimedRow.id).eq("user_id", userId);
-    // The source is deliberately NOT deleted here. See `deleteSourceObjects`.
-    return new Response(JSON.stringify({ error: message }), {
-      status: 502, headers: { "Content-Type": "application/json" },
-    });
-  }
-
   // `parts: []` for a text import — Anthropic/OpenAI/Gemini's own block
   // builders (documentGen.ts) already append the instruction text as the
   // final content block regardless of how many document/image parts precede
   // it, so an empty `parts` array degrades a document/vision call into a
-  // plain text-only one for free, no changes needed there.
+  // plain text-only one for free, no changes needed there. Built before the
+  // hold: nothing that can throw may sit between the claim and the settle.
   const instruction = buildInstruction({
     sourceKind: importRow.source_kind,
     sourceText: sourceText ?? null,
@@ -714,39 +644,7 @@ serve(withCors(async (req: Request) => {
     ownWriting: importRow.own_writing,
     textGuidance: TEXT_SOURCE_GUIDANCE,
   });
-
-  let outcome: Awaited<ReturnType<typeof callDocument>>;
-  try {
-    outcome = await callDocument({
-      provider: text.provider, apiKey: text.apiKey, model: documentModel,
-      system: promptRow.content + DOCUMENT_INJECTION_GUARD,
-      instruction,
-      parts,
-      schema: EXTRACTION_SCHEMA,
-    });
-  } catch (e) {
-    const message = e instanceof UnsupportedDocumentProviderError
-      ? `${text.provider} does not support document extraction.`
-      : e instanceof Error ? e.message : "Document extraction failed";
-    console.error("Document extraction failed:", e);
-    return await failClaimed(message);
-  }
-
-  // Below this point a provider call actually happened — real spend, whatever
-  // the outcome — so every branch releases the hold and records the spend
-  // against the usage the provider reported, per the settlement rule in the
-  // task spec ("both still release credits and record the spend for work
-  // actually performed"). Token counts can be null (a stream that finished
-  // without a trailing usage frame) — recorded as absent via `?? undefined`,
-  // never coerced to 0, because an unknown count is not a free one.
-  async function settle(usage: DocumentUsage): Promise<void> {
-    await releaseCredits(admin, reservation.ids);
-    await recordGeneration(admin, userId, "document_import_extraction", textIsByok, cost, {
-      model: usage.model, provider: usage.provider,
-      input_tokens: usage.input_tokens ?? undefined,
-      output_tokens: usage.output_tokens ?? undefined,
-    });
-  }
+  const system = promptRow.content + DOCUMENT_INJECTION_GUARD;
 
   function provenanceFor(usage: DocumentUsage): AiProvenance {
     return {
@@ -758,66 +656,114 @@ serve(withCors(async (req: Request) => {
     };
   }
 
-  if (outcome.ok) {
-    const parsed = tryParseJson(outcome.content);
-    if (parsed === undefined) {
-      await settle(outcome.usage);
-      await admin.from("document_imports")
-        .update({ status: "failed", error: "The model's response was not valid JSON." })
-        .eq("id", importRow.id).eq("user_id", userId);
-      // Source kept — see `deleteSourceObjects`. A malformed response is very
-      // often a one-off, and re-running costs the DM nothing but the credits.
-      return new Response(JSON.stringify({ error: "invalid_response" }), {
-        status: 502, headers: { "Content-Type": "application/json" },
-      });
-    }
-    const extracted = sanitizeExtraction(parsed);
-    const ai_provenance = provenanceFor(outcome.usage);
-    await settle(outcome.usage);
-    await admin.from("document_imports")
-      .update({ status: "review", extracted, ai_provenance, error: null })
-      .eq("id", importRow.id).eq("user_id", userId);
-    await deleteSourceObjects(importRow.source_paths, userId);
-    return new Response(JSON.stringify({ status: "review", extracted, ai_provenance }), {
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+  return withCreditHold(admin, { payerId: userId, reason: "document_import_extraction", cost, report }, async (hold) => {
+    // Atomic claim — the concurrency guard described in the file header. Only
+    // one concurrent request can flip pending → extracting; the loser has done
+    // no work, so its hold is released by the scope and it reports the row is
+    // already being handled. A failed claim write throws before the row moved,
+    // so the row stays `pending` and a retry just works.
+    const { data: claimed, error: claimError } = await admin
+      .from("document_imports")
+      .update({ status: "extracting" })
+      .eq("id", importRow.id).eq("user_id", userId).eq("status", "pending")
+      .select("id").maybeSingle();
+    if (claimError) throw claimError;
+    if (!claimed) return jsonError(409, "not_pending", "This import is already being processed.", { status: "extracting" });
 
-  if (outcome.reason === "truncated") {
-    const parsed = tryParseJson(outcome.content);
-    const extracted = sanitizeExtraction(parsed);
-    const hasAny = Object.values(extracted).some((list) => list.length > 0);
-    const error = hasAny
-      ? "The extraction was truncated — some entries near the end of the document may be missing."
-      : "The extraction was truncated before any entries could be recovered. Try a smaller document.";
-    const ai_provenance = provenanceFor(outcome.usage);
-    await settle(outcome.usage);
-    if (!hasAny) {
-      await admin.from("document_imports")
-        .update({ status: "failed", extracted, ai_provenance, error })
-        .eq("id", importRow.id).eq("user_id", userId);
-      return new Response(JSON.stringify({ status: "failed", error }), {
-        status: 502, headers: { "Content-Type": "application/json" },
-      });
+    // From here the row says "extracting": whatever ends this scope, it must
+    // not stay that way. A throw (a sanitiser on a strange reply, a failed
+    // status write) marks the row failed, then rethrows so the hold writes the
+    // charges as free lines: the DM got an error and is not charged for it.
+    try {
+      return await extractClaimed(hold);
+    } catch (e) {
+      console.error("Document extraction failed after the claim:", e);
+      try {
+        await updateImportRow(importRow.id, userId, { status: "failed", error: "The extraction failed. Please try again." });
+      } catch (rowError) {
+        console.error("Could not mark the import failed:", rowError);
+        report(rowError);
+      }
+      throw e;
     }
-    await admin.from("document_imports")
-      .update({ status: "review", extracted, ai_provenance, error })
-      .eq("id", importRow.id).eq("user_id", userId);
-    await deleteSourceObjects(importRow.source_paths, userId);
-    return new Response(JSON.stringify({ status: "review", extracted, ai_provenance, error }), {
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  // reason === "refused"
-  const error = "The AI provider declined to process this document.";
-  await settle(outcome.usage);
-  await admin.from("document_imports").update({ status: "failed", error })
-    .eq("id", importRow.id).eq("user_id", userId);
-  // Source kept — see `deleteSourceObjects`. A refusal is likely to repeat on
-  // the same document, but that is the DM's call to make, not ours to force by
-  // destroying their upload.
-  return new Response(JSON.stringify({ status: "failed", error }), {
-    status: 422, headers: { "Content-Type": "application/json" },
   });
+
+  async function extractClaimed(hold: CreditHold): Promise<Response> {
+    let outcome: Awaited<ReturnType<typeof callDocument>>;
+    try {
+      outcome = await callDocument({
+        provider, apiKey, model: documentModel,
+        system,
+        instruction,
+        parts,
+        schema: EXTRACTION_SCHEMA,
+      });
+    } catch (e) {
+      const message = e instanceof UnsupportedDocumentProviderError
+        ? `${provider} does not support document extraction.`
+        : e instanceof Error ? e.message : "Document extraction failed";
+      console.error("Document extraction failed:", e);
+      // The provider call failed, so nothing is charged. The source is
+      // deliberately NOT deleted here. See `deleteSourceObjects`.
+      await updateImportRow(importRow.id, userId, { status: "failed", error: message });
+      return jsonError(502, "extraction_failed", message);
+    }
+
+    // A provider call actually happened — real spend, whatever the outcome — so
+    // every branch charges against the usage the provider reported. Token
+    // counts can be null (a stream that finished without a trailing usage
+    // frame) — recorded as absent via `?? undefined`, never coerced to 0,
+    // because an unknown count is not a free one. Queued first, before any
+    // step that may throw; a throw turns the line into a free one.
+    const { usage } = outcome;
+    hold.charge("document_import_extraction", {
+      cost,
+      isByok: textIsByok,
+      log: {
+        model: usage.model, provider: usage.provider,
+        input_tokens: usage.input_tokens ?? undefined,
+        output_tokens: usage.output_tokens ?? undefined,
+      },
+    });
+
+    if (outcome.ok) {
+      const parsed = tryParseJson(outcome.content);
+      if (parsed === undefined) {
+        await updateImportRow(importRow.id, userId, { status: "failed", error: "The model's response was not valid JSON." });
+        // Source kept — see `deleteSourceObjects`. A malformed response is very
+        // often a one-off, and re-running costs the DM nothing but the credits.
+        return jsonError(502, "invalid_response", "The model's response was not valid JSON.");
+      }
+      const extracted = sanitizeExtraction(parsed);
+      const ai_provenance = provenanceFor(usage);
+      await updateImportRow(importRow.id, userId, { status: "review", extracted, ai_provenance, error: null });
+      await deleteSourceObjects(importRow.source_paths, userId);
+      return json({ status: "review", extracted, ai_provenance });
+    }
+
+    if (outcome.reason === "truncated") {
+      const parsed = tryParseJson(outcome.content);
+      const extracted = sanitizeExtraction(parsed);
+      const hasAny = Object.values(extracted).some((list) => list.length > 0);
+      const error = hasAny
+        ? "The extraction was truncated — some entries near the end of the document may be missing."
+        : "The extraction was truncated before any entries could be recovered. Try a smaller document.";
+      const ai_provenance = provenanceFor(usage);
+      if (!hasAny) {
+        await updateImportRow(importRow.id, userId, { status: "failed", extracted, ai_provenance, error });
+        return jsonError(502, "extraction_truncated", error, { status: "failed" });
+      }
+      await updateImportRow(importRow.id, userId, { status: "review", extracted, ai_provenance, error });
+      await deleteSourceObjects(importRow.source_paths, userId);
+      return json({ status: "review", extracted, ai_provenance, error });
+    }
+
+    // reason === "refused"
+    const error = "The AI provider declined to process this document.";
+    await updateImportRow(importRow.id, userId, { status: "failed", error });
+    // Source kept — see `deleteSourceObjects`. A refusal is likely to repeat on
+    // the same document, but that is the DM's call to make, not ours to force by
+    // destroying their upload.
+    return jsonError(422, "provider_refused", error, { status: "failed" });
+  }
 }));

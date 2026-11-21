@@ -313,3 +313,52 @@ describe("what an attack shows of its maker (#1021)", () => {
     expect(t.get("wolf").shown_deeds).toMatchObject({ dealt: 0, melee: 1 });
   });
 });
+
+describe("rollToHit: a Reaction after the hit (reactToHit)", () => {
+  type Hook = NonNullable<import("./context").ResolutionContext["reactToHit"]>;
+  const withHook = (t: ReturnType<typeof table>, hook: Hook) => ({ ...t.ctx, reactToHit: hook });
+  const swing = (ctx: ReturnType<typeof withHook>, t: ReturnType<typeof table>) =>
+    resolveAttackOn(ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+
+  // PHB 2014 "Shield": +5 AC, "including against the triggering attack". Wolf +4, d20 12: total 16 meets AC 13 (a hit), so the hook is asked with exactly
+  // that; it answers AC 18, and 16 is short of 18: a miss, no damage rolled, 40 hit points left, the reaction named.
+  // Bugs caught: the roll never decided again after the reaction, the hook told the new AC instead of the one rolled against, the summary silent.
+  it("fails if a hit the reaction turns into a miss still deals damage, or the hook is not given the roll it reacts to", async () => {
+    const s = scripted([[12]]);
+    const t = table([wolf(), victim()], { dice: s.dice });
+    const asked: Array<{ natural: number; total: number; armorClass: number }> = [];
+    const done = await swing(withHook(t, async (_target, roll) => { asked.push(roll); return { spell: "Shield", armorClass: 18 }; }), t);
+    expect(asked).toEqual([{ natural: 12, total: 16, armorClass: 13 }]);
+    expect(done.summary).toMatchObject({ hit: false, targetAc: 18, damageTotal: 0, reaction: { by: "victim", spell: "Shield" } });
+    expect(s.asks).toHaveLength(1);
+    expect(t.hp("victim")).toBe(40);
+  });
+
+  // Bug caught: the hook asked about attacks that missed anyway (a Reaction spent for nothing): d20 8 + 4 = 12 misses AC 13, a natural 1 misses whatever.
+  it("fails if the hook is asked about a miss", async () => {
+    for (const face of [8, 1]) {
+      const t = table([wolf(), victim()], { dice: scripted([[face]]).dice });
+      let calls = 0;
+      await swing(withHook(t, async () => { calls += 1; return null; }), t);
+      expect(calls).toBe(0);
+    }
+  });
+
+  // Bug caught: an answer of no reaction changing the roll (a summary that claims a reaction, or a lost hit). d20 12 + 4 = 16 hits AC 13: 7 damage (40 -> 33).
+  it("fails if declining to react changes the hit", async () => {
+    const t = table([wolf(), victim()], { dice: scripted([[12], [5]]).dice });
+    const done = await swing(withHook(t, async () => null), t);
+    expect(done.summary).toMatchObject({ hit: true, targetAc: 13, damageTotal: 7 });
+    expect(done.summary.reaction).toBeUndefined();
+    expect(t.hp("victim")).toBe(33);
+  });
+
+  // PHB 2014 ch. 9 "Rolling 20": a natural 20 hits whatever the AC. Even with an armour class of 30 the roll stays a critical hit; 2d6+... here 1d6+2 doubled is 2d6+2:
+  // faces 3 + 4 + 2 = 9 (40 -> 31). Bug caught: the reaction's AC applied without the natural-20 rule, turning a critical into a miss.
+  it("fails if a natural 20 is turned into a miss by a higher armour class", async () => {
+    const t = table([wolf(), victim()], { dice: scripted([[20], [3, 4]]).dice });
+    const done = await swing(withHook(t, async () => ({ spell: "Shield", armorClass: 30 })), t);
+    expect(done.summary).toMatchObject({ hit: true, critical: true, damageTotal: 9 });
+    expect(t.hp("victim")).toBe(31);
+  });
+});

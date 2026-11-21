@@ -11,20 +11,15 @@ import { MAX_PEOPLES } from "../_shared/agent/peoples.ts";
 import { lineKey } from "../_shared/agent/lineKey.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { speechEnvFrom, voicesOn } from "../_shared/speech.ts";
+import { SPEECH_KEY_PROVIDERS, speechEnvFrom, voicesOn } from "../_shared/speech.ts";
 import { tableAiEnabled } from "../_shared/featureAccess.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
-import {
-  recordFreeGeneration,
-  recordGeneration,
-  releaseCredits,
-  reservationRefusal,
-  reserveCredits,
-  type CreditLogFields,
-} from "../_shared/credits.ts";
+import { recordFreeGeneration, type CreditLogFields } from "../_shared/credits.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { jsonError, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { settleHandedOff, withCreditHold, type JobLedger } from "../_shared/pipeline/creditHold.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { callTool, listTools } from "../_shared/mcp/tools.ts";
@@ -66,30 +61,18 @@ const COMPANION_MEMORIES = 12;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+/** A refusal before the stream opened. A code (`sitting_ended`, `rate_limited`...) is the page's to branch on; a sentence is for a person. */
+function refusalResponse(refusal: Refusal): Response {
+  return /^[a-z][a-z_]*$/.test(refusal.error)
+    ? jsonError(refusal.status, refusal.error)
+    : jsonError(refusal.status, "refused", refusal.error);
 }
 
 const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id, pressure_clock_id, party_member_id, opened_play_session, left_at, pending_roll, fight_encounter_id, pursuit_encounter_id, updated_at";
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-  const supabase = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return json(400, { error: "Invalid JSON body." });
-  }
+serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
+  const body = await readJsonBody(req);
+  if (body === null) return jsonError(400, "invalid_body", "The request is not valid.");
 
   // The tools run as the caller, through their own RLS client, exactly as the MCP server runs them. The service
   // client is made only when `roll` asks for it (its server_rolled stamp, which RLS can never let a caller write).
@@ -131,6 +114,21 @@ serve(withCors(async (req: Request) => {
       memories: companionMemoriesText(lived.data ?? []),
     };
   }
+
+  // One read of the platform keys a turn may use: the judging model's, for both judges, and the speech services',
+  // for whether lines get a voice key. A failed read answers none (`fetchPlatformKeys`), so the judges and the voices
+  // are simply off for the turn rather than failing it.
+  const turnKeys = fetchPlatformKeys(admin, ["typesafe", ...SPEECH_KEY_PROVIDERS]);
+  // The running turn's ledger, for the free lines its judges and the canon lookup write (platform-paid, never the
+  // player's). Set while the stream's run is settling; outside it (nothing is held then) the line is written directly.
+  let runLedger: JobLedger | null = null;
+  const freeLine = (reason: string, log: CreditLogFields): Promise<void> => {
+    if (runLedger !== null) {
+      runLedger.free(reason, log);
+      return Promise.resolve();
+    }
+    return recordFreeGeneration(admin, user.id, reason, log);
+  };
 
   const deps: AgentTurnDeps = {
     async accountRefusal(userId): Promise<Refusal | null> {
@@ -319,18 +317,17 @@ serve(withCors(async (req: Request) => {
       return (data ?? []).some((row) => readsAsChild(typeof row.age === "string" ? row.age : null));
     },
 
-    async reserve(userId, credits) {
-      const reservation = await reserveCredits(admin, userId, credits, "agent_turn");
-      if (reservation.ok) return { ok: true, ids: reservation.ids };
-      return { ok: false, refusal: reservationRefusal(reservation, "The AI table cannot be metered right now.") };
-    },
-
-    release: (ids) => releaseCredits(admin, ids),
-
-    recordGeneration: (isByok: boolean, cost: number, log: CreditLogFields) =>
-      recordGeneration(admin, user.id, "agent_turn", isByok, cost, log),
-
-    recordFreeGeneration: (log: CreditLogFields) => recordFreeGeneration(admin, user.id, "agent_turn", log),
+    // The hold outlasts the response: taken here, handed off to the stream, settled by its run (`settleHandedOff`).
+    withHold: (userId, credits, work) => withCreditHold(admin, { payerId: userId, reason: "agent_turn", cost: credits, report }, work),
+    settle: (userId, ids, work) =>
+      settleHandedOff(admin, { payerId: userId, ids, report }, async (ledger) => {
+        runLedger = ledger;
+        try {
+          return await work(ledger);
+        } finally {
+          runLedger = null;
+        }
+      }),
 
     async appendTurns(sessionId, afterSeq, rows: TurnRow[], credits) {
       const { data, error } = await admin.rpc("append_agent_turns", {
@@ -789,28 +786,28 @@ serve(withCors(async (req: Request) => {
         }
         const { vectors, usage } = await provider.embed([query]);
         // The embedding is paid for by the platform and counted like the table's other reads.
-        await recordFreeGeneration(admin, user.id, "agent_turn", { model: provider.model, provider: usage.provider, input_tokens: usage.input_tokens });
+        await freeLine("agent_turn", { model: provider.model, provider: usage.provider, input_tokens: usage.input_tokens });
         return { vector: vectors[0], model: provider.model };
       },
     }),
     // The same judge as the narration check, with a tighter wait: a refusal is read inside a tool call.
     judgeCanon: await narrationJudgeFor({
-      getKey: async () => (await fetchPlatformKeys(admin, ["typesafe"])).typesafe,
-      record: (log) => recordFreeGeneration(admin, user.id, "entity_judgment", log),
+      getKey: async () => (await turnKeys).typesafe,
+      record: (log) => freeLine("entity_judgment", log),
       signal: req.signal,
       timeoutMs: CANON_JUDGE_TIMEOUT_MS,
     }),
 
     // Holds back narration that only repeats the characters' lines; null (everything shown) without a judging key.
     judgeNarration: await narrationJudgeFor({
-      getKey: async () => (await fetchPlatformKeys(admin, ["typesafe"])).typesafe,
-      record: (log) => recordFreeGeneration(admin, user.id, "entity_judgment", log),
+      getKey: async () => (await turnKeys).typesafe,
+      record: (log) => freeLine("entity_judgment", log),
       signal: req.signal,
     }),
 
     // The same switch `table-voice` answers to: without it no line is given a key.
     voiceKey:
-      voicesOn(speechEnvFrom((key) => Deno.env.get(key)))
+      voicesOn(speechEnvFrom(await turnKeys, (key) => Deno.env.get(key)))
         ? (sessionId, line) => lineKey(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, sessionId, line)
         : null,
 
@@ -825,24 +822,28 @@ serve(withCors(async (req: Request) => {
   };
 
   const begun = await beginTurn({ userId: user.id, body, deps });
-  if (begun.kind === "refused") return json(begun.refusal.status, { error: begun.refusal.error });
+  if (begun.kind === "refused") return refusalResponse(begun.refusal);
 
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const send = (event: AgentEvent) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
-      };
-      try {
-        await begun.run(send, req.signal);
-      } finally {
+  // A refused hold (no credits, a frozen account) is answered here, as JSON, before any stream opens.
+  return deps.withHold(user.id, begun.reserve, async (hold) => {
+    const reservationIds = hold.handOff();
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const send = (event: AgentEvent) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+        };
         try {
-          controller.close();
-        } catch {
-          // already closed by the client going away
+          await begun.run(send, req.signal, reservationIds);
+        } finally {
+          try {
+            controller.close();
+          } catch {
+            // already closed by the client going away
+          }
         }
-      }
-    },
+      },
+    });
+    return new Response(stream, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
   });
-  return new Response(stream, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
 }));

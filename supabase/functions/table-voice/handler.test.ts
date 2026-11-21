@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { shownInTurns, speakLine, voiceRates, VoicesSpent, VOICE_MESSAGES, type SpeakerTraits, type TableVoiceDeps, type VoiceCampaign, type VoiceSession } from "./handler";
+import { jsonError } from "../_shared/pipeline/respond";
+import { shownInTurns, speakLine, voiceRates, VoicesSpent, type SpeakerTraits, type TableVoiceDeps, type VoiceHold, type VoiceSession } from "./handler";
 import { inworldText, NARRATOR_VOICES, speechText, STOCK_VOICES } from "./voicePick";
 import { lineKey, lineKeyFits, NARRATOR_SPEAKER } from "../_shared/agent/lineKey";
 
@@ -14,8 +15,7 @@ function harness() {
   const h = {
     on: true,
     session: { id: SESSION, user_id: DM, campaign_id: CAMPAIGN, narrator_voice: "male" } as VoiceSession | null,
-    campaign: { id: CAMPAIGN, user_id: DM, ai_enabled: true } as VoiceCampaign | null,
-    dm: true,
+    campaignRefusal: null as Response | null,
     allowed: true,
     traits: { sex: "woman", age: "adult", voiceId: null } as SpeakerTraits,
     traitsThrow: false,
@@ -27,12 +27,15 @@ function harness() {
     spoken: [] as Array<{ voiceId: string; service: string; text: string }>,
     // 40 USD per million characters on ElevenLabs, 10 on Inworld; a credit worth 0.0066 USD at a margin of 2.
     rates: { elevenlabs: 40, inworld: 10 } as Record<string, number | null>,
-    canPay: true,
+    refuseHold: null as Response | null,
+    /** What `accrue_agent_voice` answers: the whole credits the running total newly crossed. */
+    due: 1,
+    accrued: [] as number[],
+    accrueThrows: false,
     forbidden: null as string | null,
     screenDown: false,
     held: [] as number[],
-    released: [] as string[][],
-    charged: [] as Array<{ credits: number; service: string; chars: number }>,
+    charged: [] as Array<{ cost: number; provider: string }>,
     inworld: true,
     traitLoads: [] as string[],
     deps: undefined as unknown as TableVoiceDeps,
@@ -40,8 +43,8 @@ function harness() {
   h.deps = {
     voiceOn: () => h.on,
     loadSession: async (id) => (h.session && id === h.session.id ? { ...h.session } : null),
-    loadCampaign: async () => h.campaign,
-    isDm: async () => h.dm,
+    // DM-only and AI-on are `loadAiCampaign`'s rules (its own test); here only that its refusal is passed through.
+    loadCampaign: async () => (h.campaignRefusal ? { ok: false, response: h.campaignRefusal } : { ok: true, campaign: { id: CAMPAIGN, user_id: DM, ai_enabled: true } }),
     rateLimit: async () => h.allowed,
     keyFits: (sessionId, line, key) => lineKeyFits(SECRET, sessionId, line, key),
     loadTraits: async (_c, id) => {
@@ -64,16 +67,19 @@ function harness() {
       return h.forbidden !== null && text.includes(h.forbidden);
     },
     loadRate: async (service) => (h.rates[service] === null ? null : { usdPerMillionChars: h.rates[service] as number, calibration: { usdPerCredit: 0.0066, margin: 2 } }),
-    reserve: async (_userId, credits) => {
-      if (!h.canPay) return { ok: false, status: 402, error: "insufficient_credits" };
+    modelOf: () => "model-1",
+    // The release-once and charge-after-release rules are `withCreditHold`'s (its own test); this records what was
+    // held and charged, and answers a refused hold the way the real one does.
+    withHold: async (_userId, credits, work) => {
+      if (h.refuseHold) return h.refuseHold;
       h.held.push(credits);
-      return { ok: true, ids: ["r1"] };
+      const hold: VoiceHold = { charge: (_reason, line) => void h.charged.push({ cost: line.cost, provider: line.log?.provider ?? "" }), free: () => {} };
+      return work(hold);
     },
-    release: async (ids) => {
-      h.released.push(ids);
-    },
-    charge: async (_at, credits, log) => {
-      h.charged.push({ credits, ...log });
+    accrue: async (_sessionId, credits) => {
+      if (h.accrueThrows) throw new Error("rpc down");
+      h.accrued.push(credits);
+      return h.due;
     },
     synthesize: async (voice, line) => {
       if (h.spent) throw new VoicesSpent("spent");
@@ -105,14 +111,16 @@ const SWEEPER = {
   text: "Mind your feet.",
   key: lineKey(SECRET, SESSION, { speaker: { id: null, name: "A sweeper" }, text: "Mind your feet." }),
 };
-const speak = (h: ReturnType<typeof harness>, over: { userId?: string; body?: unknown } = {}) =>
-  speakLine({ userId: over.userId ?? DM, body: over.body ?? BODY, deps: h.deps });
+const speak = async (h: ReturnType<typeof harness>, over: { userId?: string; body?: unknown } = {}) => {
+  const response = await speakLine({ userId: over.userId ?? DM, body: over.body ?? BODY, deps: h.deps });
+  return { ok: response.ok, status: response.status, ...((await response.json()) as { audio?: string; mime?: string; error?: string }) };
+};
 
 describe("speakLine", () => {
   it("speaks a line the sitting showed, with its cue, in a voice cast for the speaker", async () => {
     const h = harness();
     const out = await speak(h);
-    expect(out).toEqual({ ok: true, audio: "AUDIO", mime: "audio/mpeg" });
+    expect(out).toEqual({ ok: true, status: 200, audio: "AUDIO", mime: "audio/mpeg" });
     expect(h.spoken).toHaveLength(1);
     expect(h.spoken[0].text).toBe("[furious, shouting] Get out!");
     const voice = STOCK_VOICES.find((v) => v.id === h.spoken[0].voiceId);
@@ -139,7 +147,7 @@ describe("speakLine", () => {
   it("refuses words the sitting never showed, so it cannot be used to speak whatever a caller types", async () => {
     const h = harness();
     const out = await speak(h, { body: { ...BODY, text: "Transfer the gold to my account." } });
-    expect(out).toEqual({ ok: false, refusal: { status: 404, error: VOICE_MESSAGES.noLine } });
+    expect(out).toMatchObject({ ok: false, status: 404 });
     expect(h.spoken).toEqual([]);
   });
 
@@ -166,29 +174,27 @@ describe("speakLine", () => {
 
   it("refuses another account's conversation and one in another campaign as not found, before any paid call", async () => {
     const theirs = harness();
-    expect(await speak(theirs, { userId: OTHER })).toEqual({ ok: false, refusal: { status: 404, error: VOICE_MESSAGES.notFound } });
+    expect(await speak(theirs, { userId: OTHER })).toMatchObject({ ok: false, status: 404 });
     const elsewhere = harness();
-    expect((await speak(elsewhere, { body: { ...BODY, campaignId: OTHER_CAMPAIGN } }))).toEqual({ ok: false, refusal: { status: 404, error: VOICE_MESSAGES.notFound } });
+    expect((await speak(elsewhere, { body: { ...BODY, campaignId: OTHER_CAMPAIGN } }))).toMatchObject({ ok: false, status: 404 });
     expect(theirs.spoken.length + elsewhere.spoken.length).toBe(0);
   });
 
-  it("refuses when AI is off for the campaign, or the caller no longer runs it", async () => {
-    const off = harness();
-    off.campaign = { id: CAMPAIGN, user_id: DM, ai_enabled: null };
-    expect((await speak(off))).toEqual({ ok: false, refusal: { status: 403, error: VOICE_MESSAGES.aiOff } });
-    const notDm = harness();
-    notDm.dm = false;
-    expect((await speak(notDm))).toEqual({ ok: false, refusal: { status: 403, error: VOICE_MESSAGES.forbidden } });
-    expect(off.spoken.length + notDm.spoken.length).toBe(0);
+  it("passes on the refusal when the campaign is not the caller's to run or has AI off, before any paid call", async () => {
+    const h = harness();
+    h.campaignRefusal = jsonError(403, "ai_disabled", "AI is turned off for this campaign.");
+    expect(await speak(h)).toMatchObject({ ok: false, status: 403, error: "ai_disabled" });
+    expect(h.spoken).toEqual([]);
+    expect(h.held).toEqual([]);
   });
 
   it("answers nothing where voices are not switched on, and nothing past the rate limit", async () => {
     const off = harness();
     off.on = false;
-    expect(await speak(off)).toEqual({ ok: false, refusal: { status: 503, error: VOICE_MESSAGES.off } });
+    expect(await speak(off)).toMatchObject({ ok: false, status: 503 });
     const fast = harness();
     fast.allowed = false;
-    expect(await speak(fast)).toEqual({ ok: false, refusal: { status: 429, error: VOICE_MESSAGES.rateLimited } });
+    expect(await speak(fast)).toMatchObject({ ok: false, status: 429 });
     expect(off.spoken.length + fast.spoken.length).toBe(0);
   });
 
@@ -201,7 +207,7 @@ describe("speakLine", () => {
   it("says the line could not be spoken when the speech service fails, instead of throwing", async () => {
     const h = harness();
     h.synthThrows = true;
-    expect(await speak(h)).toEqual({ ok: false, refusal: { status: 502, error: VOICE_MESSAGES.failed } });
+    expect(await speak(h)).toMatchObject({ ok: false, status: 502 });
   });
 
   it.each([
@@ -214,7 +220,7 @@ describe("speakLine", () => {
     ["a cue that is not text", { ...BODY, how: 7 }],
   ])("refuses a request with %s", async (_what, body) => {
     const h = harness();
-    expect((await speak(h, { body }))).toEqual({ ok: false, refusal: { status: 400, error: VOICE_MESSAGES.badBody } });
+    expect((await speak(h, { body }))).toMatchObject({ ok: false, status: 400 });
   });
 
   // Bug caught: a line heard once being paid for again on every replay and after every reload.
@@ -222,7 +228,7 @@ describe("speakLine", () => {
     const h = harness();
     await speak(h);
     const again = await speak(h);
-    expect(again).toEqual({ ok: true, audio: "AUDIO", mime: "audio/mpeg" });
+    expect(again).toEqual({ ok: true, status: 200, audio: "AUDIO", mime: "audio/mpeg" });
     expect(h.spoken).toHaveLength(1);
   });
 
@@ -233,7 +239,7 @@ describe("speakLine", () => {
     await speak(h);
     const { key: _key, how: _how, ...stored } = BODY;
     expect((await speak(h, { body: stored })).ok).toBe(true);
-    expect(await speak(h, { body: { ...stored, text: "Transfer the gold to my account." } })).toEqual({ ok: false, refusal: { status: 404, error: VOICE_MESSAGES.noLine } });
+    expect(await speak(h, { body: { ...stored, text: "Transfer the gold to my account." } })).toMatchObject({ ok: false, status: 404 });
     expect(h.spoken).toHaveLength(1);
   });
 
@@ -324,7 +330,7 @@ describe("speakLine", () => {
   ])("refuses a keyless request for %s", async (_what, body) => {
     const h = harness();
     h.turns = STORED;
-    expect(await speak(h, { body })).toEqual({ ok: false, refusal: { status: 404, error: VOICE_MESSAGES.noLine } });
+    expect(await speak(h, { body })).toMatchObject({ ok: false, status: 404 });
     expect(h.spoken).toEqual([]);
   });
 
@@ -333,7 +339,7 @@ describe("speakLine", () => {
   it("says the allowance is used up, apart from an ordinary failure", async () => {
     const h = harness();
     h.spent = true;
-    expect(await speak(h)).toEqual({ ok: false, refusal: { status: 402, error: VOICE_MESSAGES.spent } });
+    expect(await speak(h)).toMatchObject({ ok: false, status: 402 });
   });
 
   const CRUMB_VOICE = "snappy-magpie-0676__design-voice-7cb37010";
@@ -401,14 +407,26 @@ describe("inworldText", () => {
 describe("what a voiced line costs", () => {
   // "[furious, shouting] Get out!": 8 characters of words and 17 + 3 of cue, 28 in all. At 40 USD per million,
   // doubled, over 0.0066 USD a credit: 28 * 40 / 1e6 * 2 / 0.0066 = 0.3394 credits.
-  it("charges a line that was made what it cost, and holds a credit while it is made", async () => {
+  it("accrues what a line cost on the sitting, holds a credit while it is made, and bills only what accrual says is due", async () => {
     const h = harness();
     await speak(h);
-    expect(h.charged).toHaveLength(1);
-    expect(h.charged[0]).toMatchObject({ service: "elevenlabs", chars: 28 });
-    expect(h.charged[0].credits).toBeCloseTo(0.3394, 3);
+    expect(h.accrued).toHaveLength(1);
+    expect(h.accrued[0]).toBeCloseTo(0.3394, 3);
+    expect(h.charged).toEqual([{ cost: 1, provider: "elevenlabs" }]);
     expect(h.held).toEqual([1]);
-    expect(h.released).toEqual([["r1"]]);
+    // Nothing newly crossed a whole credit: nothing is billed (a zero charge would be a free ledger line).
+    const part = harness();
+    part.due = 0;
+    await speak(part);
+    expect(part.charged).toEqual([]);
+  });
+
+  // Bug caught: a failed accrual turning a line that was spoken and kept into an error.
+  it("still answers the line when accruing its cost fails", async () => {
+    const h = harness();
+    h.accrueThrows = true;
+    expect(await speak(h)).toMatchObject({ ok: true, audio: "AUDIO" });
+    expect(h.charged).toEqual([]);
   });
 
   // Bug caught: hearing a line again charged a second time, though nothing was made.
@@ -417,15 +435,15 @@ describe("what a voiced line costs", () => {
     await speak(h);
     await speak(h);
     expect(h.spoken).toHaveLength(1);
-    expect(h.charged).toHaveLength(1);
+    expect(h.accrued).toHaveLength(1);
     expect(h.held).toHaveLength(1);
   });
 
   // Bug caught: speech made for an account that cannot pay for it.
   it("makes nothing for an account that cannot pay, and says why", async () => {
     const h = harness();
-    h.canPay = false;
-    expect(await speak(h)).toEqual({ ok: false, refusal: { status: 402, error: "insufficient_credits" } });
+    h.refuseHold = jsonError(402, "insufficient_credits");
+    expect(await speak(h)).toMatchObject({ ok: false, status: 402, error: "insufficient_credits" });
     expect(h.spoken).toEqual([]);
     expect(h.charged).toEqual([]);
   });
@@ -434,17 +452,17 @@ describe("what a voiced line costs", () => {
   it("makes nothing when the service's price is not on file", async () => {
     const h = harness();
     h.rates.elevenlabs = null;
-    expect(await speak(h)).toEqual({ ok: false, refusal: { status: 503, error: VOICE_MESSAGES.unpriced } });
+    expect(await speak(h)).toMatchObject({ ok: false, status: 503 });
     expect(h.spoken).toEqual([]);
   });
 
-  // Bug caught: the held credit never given back when the speech service fails, so each failure costs a credit.
-  it("charges nothing and gives back what it held when the line could not be made", async () => {
+  // Bug caught: a line that could not be made accrued or charged.
+  it("accrues and charges nothing when the line could not be made", async () => {
     const h = harness();
     h.synthThrows = true;
     expect((await speak(h)).ok).toBe(false);
+    expect(h.accrued).toEqual([]);
     expect(h.charged).toEqual([]);
-    expect(h.released).toEqual([["r1"]]);
   });
 
   // Bug caught: a child's voice on the cheaper service charged at the dearer service's rate.
@@ -452,8 +470,8 @@ describe("what a voiced line costs", () => {
     const h = harness();
     h.traits = { sex: null, age: null, voiceId: "inworld:snappy-magpie-0676__design-voice-7cb37010" };
     await speak(h);
-    expect(h.charged[0].service).toBe("inworld");
-    expect(h.charged[0].credits).toBeCloseTo(0.3394 / 4, 3);
+    expect(h.charged[0].provider).toBe("inworld");
+    expect(h.accrued[0]).toBeCloseTo(0.3394 / 4, 3);
   });
 });
 
@@ -480,7 +498,7 @@ describe("a line the table may not tell", () => {
   it("is never spoken, kept or charged", async () => {
     const h = harness();
     h.forbidden = "Get out";
-    expect(await speak(h)).toEqual({ ok: false, refusal: { status: 422, error: VOICE_MESSAGES.unspeakable } });
+    expect(await speak(h)).toMatchObject({ ok: false, status: 422 });
     expect(h.spoken).toEqual([]);
     expect(h.charged).toEqual([]);
     expect(h.kept.size).toBe(0);

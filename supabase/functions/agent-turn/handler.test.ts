@@ -402,23 +402,36 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       return h.state.forbidden !== null && text.includes(h.state.forbidden);
     },
     anyChild: async (_campaign, ids) => ids.some((id) => h.state.children.includes(id)),
-    reserve: async (_user, credits) => {
-      h.reserved.push(credits);
-      if (h.state.reservation) return { ok: false, refusal: h.state.reservation };
-      const id = `r${h.reserved.length}`;
-      h.open.add(id);
-      return { ok: true, ids: [id] };
+    // `withCreditHold` and `settleHandedOff` own releasing once, writing the lines after the release, and charging
+    // nothing for work that threw (`creditHold.test.ts`); these fakes only record what the handler asked of them.
+    withHold: async (_user, credits, work) => {
+      if (credits > 0) h.reserved.push(credits);
+      if (credits > 0 && h.state.reservation) {
+        return new Response(JSON.stringify({ error: h.state.reservation.error }), { status: h.state.reservation.status });
+      }
+      const ids = credits > 0 ? [`r${h.reserved.length}`] : [];
+      for (const id of ids) h.open.add(id);
+      return work({ handOff: () => ids });
     },
-    release: async (ids) => {
-      for (const id of ids) h.open.delete(id);
-    },
-    recordGeneration: async (byok, cost, fields) => {
-      log.push("charge");
-      h.ledger.push({ kind: byok ? "byok" : "spend", cost, log: fields });
-    },
-    recordFreeGeneration: async (fields) => {
-      log.push("free");
-      h.ledger.push({ kind: "free", cost: 0, log: fields });
+    settle: async (_user, ids, work) => {
+      const lines: Array<{ byok: boolean; cost: number; free: boolean; log: CreditLogFields }> = [];
+      try {
+        await work({
+          charge: (_reason, line) => void lines.push({ byok: line.isByok, cost: line.cost, free: false, log: line.log ?? { model: "", provider: "", input_tokens: 0, output_tokens: 0 } }),
+          free: (_reason, fields) => void lines.push({ byok: false, cost: 0, free: true, log: fields ?? { model: "", provider: "", input_tokens: 0, output_tokens: 0 } }),
+        });
+      } finally {
+        for (const id of ids) h.open.delete(id);
+        for (const l of lines) {
+          if (l.byok || (!l.free && l.cost > 0)) {
+            log.push("charge");
+            h.ledger.push({ kind: l.byok ? "byok" : "spend", cost: l.cost, log: l.log });
+          } else {
+            log.push("free");
+            h.ledger.push({ kind: "free", cost: 0, log: l.log });
+          }
+        }
+      }
     },
     appendTurns: async (sessionId, afterSeq, rows, credits) => {
       log.push("save");
@@ -858,9 +871,9 @@ describe("the request", () => {
     const h = harness();
     const order: string[] = [];
     const flagged = h.deps.isFlagged;
-    const reserve = h.deps.reserve;
+    const withHold = h.deps.withHold;
     h.deps.isFlagged = async (m) => (order.push("moderate"), flagged(m));
-    h.deps.reserve = async (u, c) => (order.push("reserve"), reserve(u, c));
+    h.deps.withHold = async (u, c, work) => (order.push("reserve"), withHold(u, c, work));
     await play(h);
     expect(order).toEqual(["moderate", "reserve"]);
   });
@@ -918,20 +931,6 @@ describe("credits", () => {
     const h = harness();
     await play(h);
     expect(h.reserved).toEqual([1]);
-    expect(h.open.size).toBe(0);
-  });
-
-  it("releases the reservation after a provider error", async () => {
-    const h = harness([new AgentProviderError("boom", 500, true)]);
-    await play(h);
-    expect(h.reserved).toEqual([1]);
-    expect(h.open.size).toBe(0);
-  });
-
-  it("releases the reservation after a save conflict", async () => {
-    const h = harness();
-    h.state.conflict = true;
-    await play(h);
     expect(h.open.size).toBe(0);
   });
 

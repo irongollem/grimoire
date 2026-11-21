@@ -22,7 +22,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, wholeCredits } from "../_shared/credits.ts";
+import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { gameSystemEdition, NO_RULES_SYSTEM_MESSAGE, rulesetContextKey } from "../_shared/gameSystem.ts";
 import {
@@ -32,20 +32,27 @@ import {
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { vetGeneratedSpell } from "../_shared/spellGeneration.ts";
 import { SPELL_CONDITION_EFFECT_PROMPT } from "../../../src/lib/spells/spellConditionPrompt.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextOutputFormat, type TextResult } from "../_shared/textGen.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText } from "../_shared/worldBlock.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
+
+interface EntityCampaign extends BaseCampaign {
+  text_provider: string | null;
+  game_system: string | null;
+}
 
 /** generator → the `ai_system_prompts` row it reads and the ledger reason it charges. */
 // The prompt key is the generator's own name, because the client's local-key
@@ -105,53 +112,28 @@ function isGenerator(value: unknown): value is Generator {
 const MAX_CONSTRAINTS = 12;
 const MAX_CONSTRAINT_CHARS = 400;
 
-function jsonError(message: string, status: number): Response {
-  return new Response(JSON.stringify({ error: message }), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate — including BYOK, which skips
   // the credit gate for both (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
-  let campaign_id: string, prompt: string, generator: Generator, constraints: string[];
-  try {
-    const body = await req.json();
-    if (typeof body.campaign_id !== "string" || typeof body.prompt !== "string") throw new Error("invalid");
-    if (!isGenerator(body.generator)) throw new Error("invalid");
-    const rawConstraints: unknown = body.constraints ?? [];
-    if (
-      !Array.isArray(rawConstraints) ||
-      rawConstraints.length > MAX_CONSTRAINTS ||
-      !rawConstraints.every((c) => typeof c === "string" && c.length <= MAX_CONSTRAINT_CHARS)
-    ) throw new Error("invalid");
-    campaign_id = body.campaign_id;
-    prompt = body.prompt;
-    generator = body.generator;
-    constraints = rawConstraints as string[];
-  } catch {
-    return jsonError(
-      `Invalid body — need { campaign_id, generator: ${Object.keys(GENERATORS).join("|")}, prompt, constraints? }`,
-      400,
-    );
-  }
+  const body = await readJsonBody(req);
+  const generatorNames = Object.keys(GENERATORS).join("|");
+  const invalidBody = () => jsonError(400, "invalid_body", `Need { campaign_id, generator: ${generatorNames}, prompt, constraints? }.`);
+  if (!body || typeof body.campaign_id !== "string" || typeof body.prompt !== "string") return invalidBody();
+  if (!isGenerator(body.generator)) return invalidBody();
+  const rawConstraints: unknown = body.constraints ?? [];
+  if (
+    !Array.isArray(rawConstraints) ||
+    rawConstraints.length > MAX_CONSTRAINTS ||
+    !rawConstraints.every((c) => typeof c === "string" && c.length <= MAX_CONSTRAINT_CHARS)
+  ) return invalidBody();
+  const campaign_id = body.campaign_id;
+  const prompt = body.prompt;
+  const generator = body.generator;
+  const constraints = rawConstraints as string[];
 
   const spec: GeneratorSpec = GENERATORS[generator];
   const { promptKey, reason } = spec;
@@ -160,37 +142,55 @@ serve(withCors(async (req: Request) => {
   const promptCheck = validatePromptInput(prompt, spec.promptLimit ?? AI_PROMPT_LIMIT);
   if (!promptCheck.ok) return promptCheck.errorResponse;
 
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, game_system")
-    .eq("id", campaign_id)
-    .maybeSingle();
-  if (!campaign) return jsonError("Campaign not found", 404);
-  if (campaign.ai_enabled !== true) return jsonError("AI is disabled for this campaign", 403);
-
   // DMs only: the request runs on the campaign's setting prompt and, for a
   // BYOK campaign, on the owner's own provider key. No player surface calls
   // this (see _shared/campaignAccess.ts).
-  if (!(await isCampaignDm(admin, campaign, user.id))) return jsonError("Forbidden", 403);
+  const load = await loadAiCampaign<EntityCampaign>(admin, campaign_id, user.id, {
+    columns: ["text_provider", "game_system"],
+  });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
-  if (spec.fiveE && !gameSystemEdition(campaign.game_system)) return jsonError(NO_RULES_SYSTEM_MESSAGE, 400);
+  if (spec.fiveE && !gameSystemEdition(campaign.game_system)) return jsonError(400, "no_rules_system", NO_RULES_SYSTEM_MESSAGE);
   // Ruleset-aware generation (#564): the context row follows the campaign's 5e system.
   const rulesetKey = rulesetContextKey(campaign.game_system);
 
-  const { data: promptRows } = await admin
+  const { data: promptRows, error: promptError } = await admin
     .from("ai_system_prompts").select("generator_type, content")
     .in("generator_type", [promptKey, ...(rulesetKey ? [rulesetKey] : [])]);
+  if (promptError) throw promptError;
   const promptRow = promptRows?.find((r) => r.generator_type === promptKey);
   // A missing ruleset row is a silent skip, not an error.
   const rulesetContext =
     promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
-  if (!promptRow) return jsonError(`The ${generator} prompt is not configured`, 500);
+  if (!promptRow) return jsonError(500, "prompt_not_configured", `The ${generator} prompt is not configured.`);
 
   const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
     loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
+  // The platform picks the model: a campaign on credits runs on the provider the
+  // admin enabled, and campaigns.text_provider only counts with the campaign's own key.
+  const text = resolveTextProvider({
+    chosen: campaign.text_provider,
+    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
+    platformKeys,
+    providerConfigs,
+  });
+  if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
+
+  // Throttle abusive burst volume before any paid provider work (issue #466).
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
+
+  const cost = text.isByok
+    ? 0
+    : wholeCredits(
+      applyMultiplier(
+        await fetchCreditCost(admin, reason),
+        text.textMultiplier,
+      ),
+    );
 
   const world = await loadWorldBlock(admin, campaign.id);
   const systemContent = promptRow.content
@@ -203,84 +203,57 @@ serve(withCors(async (req: Request) => {
     ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}`
     : wrappedPrompt;
 
-  // The platform picks the model: a campaign on credits runs on the provider the
-  // admin enabled, and campaigns.text_provider only counts with the campaign's own key.
-  const text = resolveTextProvider({
-    chosen: campaign.text_provider,
-    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
-    platformKeys,
-    providerConfigs,
-  });
-  if (!text) return jsonError(NO_TEXT_PROVIDER_MESSAGE, 422);
+  return withCreditHold(admin, { payerId: user.id, reason, cost, report }, async (hold) => {
+    let textResult: TextResult;
+    try {
+      textResult = await callText({
+        text,
+        model: text.config?.text_model,
+        system: systemContent,
+        user: userContent,
+        outputFormat: format,
+      });
+    } catch (e) {
+      console.error(`${generator} text generation failed:`, e);
+      return jsonError(502, "generation_failed", e instanceof Error ? e.message : "Text generation failed");
+    }
 
-  const cost = text.isByok
-    ? 0
-    : wholeCredits(
-      applyMultiplier(
-        await fetchCreditCost(admin, reason),
-        text.textMultiplier,
-      ),
-    );
+    const unreadable = () =>
+      jsonError(502, "generation_failed", "The model returned an unreadable answer. Nothing was charged; please try again.");
+    let data: unknown;
+    try {
+      data = format === "text" ? { content: textResult.content.trim() } : JSON.parse(textResult.content);
+    } catch {
+      // Nothing usable came back, so nothing is charged.
+      console.error(`${generator} generation returned unparseable JSON`);
+      return unreadable();
+    }
+    const empty = format === "text" && !textResult.content.trim();
+    if (empty || typeof data !== "object" || data === null || Array.isArray(data)) return unreadable();
 
-  // Throttle abusive burst volume before any paid provider work (issue #466).
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
-    return jsonError("rate_limited", 429);
-  }
-
-  const reservation = await reserveCredits(admin, user.id, cost, reason);
-  if (!reservation.ok) return reservationFailureResponse(reservation);
-
-  let textResult: TextResult;
-  try {
-    textResult = await callText({
-      text,
-      model: text.config?.text_model,
-      system: systemContent,
-      user: userContent,
-      outputFormat: format,
+    hold.charge(reason, {
+      cost,
+      isByok: text.isByok,
+      log: {
+        model: textResult.usage.model,
+        provider: textResult.usage.provider,
+        input_tokens: textResult.usage.input_tokens,
+        output_tokens: textResult.usage.output_tokens,
+      },
     });
-  } catch (e) {
-    await releaseCredits(admin, reservation.ids);
-    console.error(`${generator} text generation failed:`, e);
-    return jsonError(e instanceof Error ? e.message : "Text generation failed", 502);
-  }
 
-  let data: unknown;
-  try {
-    data = format === "text" ? { content: textResult.content.trim() } : JSON.parse(textResult.content);
-  } catch {
-    // Nothing usable came back, so nothing is charged.
-    await releaseCredits(admin, reservation.ids);
-    console.error(`${generator} generation returned unparseable JSON`);
-    return jsonError("The model returned an unreadable answer — try again.", 502);
-  }
-  const empty = format === "text" && !textResult.content.trim();
-  if (empty || typeof data !== "object" || data === null || Array.isArray(data)) {
-    await releaseCredits(admin, reservation.ids);
-    return jsonError("The model returned an unreadable answer — try again.", 502);
-  }
+    const ai_provenance: AiProvenance = {
+      generatorType: reason,
+      provider: textResult.usage.provider,
+      model: textResult.usage.model,
+      generatedAt: new Date().toISOString(),
+      edited: false,
+    };
 
-  await releaseCredits(admin, reservation.ids);
-  await recordGeneration(admin, user.id, reason, text.isByok, cost, {
-    model: textResult.usage.model,
-    provider: textResult.usage.provider,
-    input_tokens: textResult.usage.input_tokens,
-    output_tokens: textResult.usage.output_tokens,
+    // A generated spell's condition is vetted against its own text before it reaches the client (#1021). A safety
+    // step: if it throws, the hold writes the charge as a free line and the user is not charged for the error.
+    const answer = generator === "spell" ? vetGeneratedSpell(data as Record<string, unknown>) : data;
+
+    return json({ ...answer, ai_provenance });
   });
-
-  const ai_provenance: AiProvenance = {
-    generatorType: reason,
-    provider: textResult.usage.provider,
-    model: textResult.usage.model,
-    generatedAt: new Date().toISOString(),
-    edited: false,
-  };
-
-  // A generated spell's condition is vetted against its own text before it reaches the client (#1021).
-  const answer = generator === "spell" ? vetGeneratedSpell(data as Record<string, unknown>) : data;
-
-  return new Response(
-    JSON.stringify({ ...answer, ai_provenance }),
-    { headers: { "Content-Type": "application/json" } },
-  );
 }));

@@ -5,14 +5,7 @@ import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { rulesetContextKey } from "../_shared/gameSystem.ts";
-import {
-  fetchCreditCost,
-  wholeCredits,
-  recordGeneration,
-  releaseCredits,
-  reserveCredits,
-  reservationFailureResponse,
-} from "../_shared/credits.ts";
+import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
   AI_PROMPT_LIMIT,
@@ -20,11 +13,9 @@ import {
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import {
   assembleContext,
   buildDraftUserContent,
@@ -48,6 +39,10 @@ import {
 } from "../_shared/scriptoriumDraft.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText } from "../_shared/worldBlock.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 
 /**
  * Scriptorium document drafting (epic #910, story S12).
@@ -71,6 +66,11 @@ const admin = createClient(
 
 const PROMPT_ROW = "scriptorium_draft";
 const REASON = "scriptorium_draft";
+
+interface DraftCampaign extends BaseCampaign {
+  text_provider: string | null;
+  game_system: string | null;
+}
 // Documents are long: a dossier or recap with headings runs well past the
 // ~1k tokens of the other generators.
 const MAX_TOKENS = 4000;
@@ -258,35 +258,16 @@ async function gatherContext(req: DraftRequest): Promise<string> {
   return assembleContext([buildSessionBlock(note, siblings, audience)]);
 }
 
-const jsonError = (status: number, error: string) =>
-  new Response(JSON.stringify({ error }), { status, headers: { "Content-Type": "application/json" } });
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate, BYOK included (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return new Response("Invalid body", { status: 400 });
-  }
+  const body = await readJsonBody(req);
+  if (body === null) return jsonError(400, "invalid_body", "The request body must be a JSON object.");
   const parsed = validateDraftRequest(body);
-  if (!parsed.ok) return new Response(`Invalid body: ${parsed.error}`, { status: 400 });
+  if (!parsed.ok) return jsonError(400, "invalid_body", parsed.error);
   const request = parsed.value;
 
   if (request.prompt) {
@@ -294,25 +275,15 @@ serve(withCors(async (req: Request) => {
     if (!promptCheck.ok) return promptCheck.errorResponse;
   }
 
-  const { data: campaign, error: campaignErr } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, game_system")
-    .eq("id", request.campaignId)
-    .maybeSingle();
-  if (campaignErr) {
-    console.error("Scriptorium draft campaign read failed:", campaignErr.message);
-    return jsonError(500, "Could not read the campaign");
-  }
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
-
   // Owner or a DM-role member ONLY, never any member. The context below is read
   // with the service role and, for a DM-facing draft, includes DM-only NPC,
   // faction and session data; a player calling this directly would otherwise
   // read it. (audience "players" still only limits what the DRAFT contains.)
-  if (!(await isCampaignDm(admin, campaign, user.id))) {
-    return new Response("Forbidden", { status: 403 });
-  }
+  const load = await loadAiCampaign<DraftCampaign>(admin, request.campaignId, user.id, {
+    columns: ["text_provider", "game_system"],
+  });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
   const rulesetKey = rulesetContextKey(campaign.game_system);
 
@@ -321,33 +292,27 @@ serve(withCors(async (req: Request) => {
     .in("generator_type", [PROMPT_ROW, ...(rulesetKey ? [rulesetKey] : [])]);
   if (promptErr) {
     console.error("Scriptorium draft prompt read failed:", promptErr.message);
-    return jsonError(500, "Could not read the prompt configuration");
+    return jsonError(500, "prompt_read_failed", "Could not read the prompt configuration.");
   }
   const promptRow = promptRows?.find((r) => r.generator_type === PROMPT_ROW);
   const rulesetContext =
     promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
-  if (!promptRow) return new Response("Prompt not configured", { status: 500 });
+  if (!promptRow) return jsonError(500, "prompt_not_configured", "This generator is not set up yet.");
 
   const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
     loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
-
-  const world = await loadWorldBlock(admin, campaign.id);
-  const systemContent = promptRow.content +
-    (rulesetContext ? `\n\n${rulesetContext}` : "") +
-    worldBlockText(world) + INJECTION_GUARD_SUFFIX;
-
   // Read the grounding BEFORE spending anything: a missing or unshared subject
   // is a refusal, not a charge.
   let contextBlock: string;
   try {
     contextBlock = await gatherContext(request);
   } catch (e) {
-    if (e instanceof DraftError) return jsonError(e.status, e.message);
+    if (e instanceof DraftError) return jsonError(e.status, e.status === 404 ? "subject_not_found" : "not_shared", e.message);
     console.error("Scriptorium draft context failed:", e);
-    return jsonError(500, "Could not read the campaign data");
+    return jsonError(500, "context_read_failed", "Could not read the campaign data.");
   }
 
   // The platform picks the model: a campaign on credits runs on the provider the
@@ -358,19 +323,19 @@ serve(withCors(async (req: Request) => {
     platformKeys,
     providerConfigs,
   });
-  if (!text) return jsonError(422, NO_TEXT_PROVIDER_MESSAGE);
+  if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
 
   const baseCost = text.isByok ? 0 : await fetchCreditCost(admin, REASON);
   const cost = wholeCredits(
     applyMultiplier(baseCost, text.textMultiplier),
   );
 
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
-    return jsonError(429, "rate_limited");
-  }
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
-  const reservation = await reserveCredits(admin, user.id, cost, REASON);
-  if (!reservation.ok) return reservationFailureResponse(reservation);
+  const world = await loadWorldBlock(admin, campaign.id);
+  const systemContent = promptRow.content +
+    (rulesetContext ? `\n\n${rulesetContext}` : "") +
+    worldBlockText(world) + INJECTION_GUARD_SUFFIX;
 
   const userContent = buildDraftUserContent(
     request.kind,
@@ -381,43 +346,43 @@ serve(withCors(async (req: Request) => {
 
   const textModel = text.config?.text_model;
 
-  let textResult: TextResult;
-  try {
-    textResult = await callText({
-      text,
-      model: textModel,
-      system: systemContent,
-      user: userContent,
-      maxTokens: MAX_TOKENS,
+  return withCreditHold(admin, { payerId: user.id, reason: REASON, cost, report }, async (hold) => {
+    let textResult: TextResult;
+    try {
+      textResult = await callText({
+        text,
+        model: textModel,
+        system: systemContent,
+        user: userContent,
+        maxTokens: MAX_TOKENS,
+      });
+    } catch (e) {
+      console.error("Scriptorium draft text generation failed:", e);
+      return jsonError(502, "generation_failed", e instanceof Error ? e.message : "Text generation failed");
+    }
+
+    const draft = parseDraftOutput(textResult.content);
+    if (!draft) {
+      return jsonError(502, "generation_failed", "The AI returned a malformed document. Nothing was charged; please try again.");
+    }
+
+    hold.charge(REASON, {
+      cost,
+      isByok: text.isByok,
+      log: {
+        model: textResult.usage.model, provider: textResult.usage.provider,
+        input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+      },
     });
-  } catch (e) {
-    await releaseCredits(admin, reservation.ids);
-    console.error("Scriptorium draft text generation failed:", e);
-    return jsonError(502, e instanceof Error ? e.message : "Text generation failed");
-  }
 
-  const draft = parseDraftOutput(textResult.content);
-  if (!draft) {
-    await releaseCredits(admin, reservation.ids);
-    return jsonError(502, "AI returned a malformed document, please try again.");
-  }
+    const ai_provenance: AiProvenance = {
+      generatorType: REASON,
+      provider: textResult.usage.provider,
+      model: textResult.usage.model,
+      generatedAt: new Date().toISOString(),
+      edited: false,
+    };
 
-  await releaseCredits(admin, reservation.ids);
-  await recordGeneration(admin, user.id, REASON, text.isByok, cost, {
-    model: textResult.usage.model, provider: textResult.usage.provider,
-    input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+    return json({ title: draft.title, html: draft.html, ai_provenance });
   });
-
-  const ai_provenance: AiProvenance = {
-    generatorType: REASON,
-    provider: textResult.usage.provider,
-    model: textResult.usage.model,
-    generatedAt: new Date().toISOString(),
-    edited: false,
-  };
-
-  return new Response(
-    JSON.stringify({ title: draft.title, html: draft.html, ai_provenance }),
-    { headers: { "Content-Type": "application/json" } },
-  );
 }));

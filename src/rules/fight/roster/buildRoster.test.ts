@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildRunCombatants, legendaryActionCaps, type RunCombatantSources } from "./buildRunCombatants";
+import { buildRunCombatants, legendaryActionCaps, type RunCombatantSources } from "./buildRoster";
 import type { CombatantDef } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import { initiativeModifier } from "@/rules/initiative";
