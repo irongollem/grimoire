@@ -75,6 +75,8 @@ export type TableEvent =
   | { type: "voice"; role: "narrator" | "player"; text: string; key: string }
   /** Something changed hands (a gift, a purchase, coins, a thing picked up): a line for the margin. The pack and purse update by themselves. */
   | { type: "hands"; text: string }
+  /** Part of the campaign's own text was left out of this turn because it did not pass the table's screen: one margin note. */
+  | { type: "screened" }
   /** Your character's hit points changed outside a fight: what did it, by how much, and where they stand now. */
   | { type: "hit_points"; change: { heals: boolean; why: string; by: number; hp: number; maxHp: number } }
   | { type: "fight"; fight: TableFight | null; /** With null: the fight was let go of without being fought. */ calledOff?: true }

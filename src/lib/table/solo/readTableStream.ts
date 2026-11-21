@@ -101,6 +101,8 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
     }
     case "hands":
       return typeof raw.text === "string" && raw.text.trim() !== "" ? { type: "hands", text: raw.text.trim() } : null;
+    case "screened":
+      return { type: "screened" };
     case "hit_points": {
       const c = raw.change;
       if (!isRecord(c) || (c.change !== "heal" && c.change !== "harm") || typeof c.why !== "string") return null;

@@ -22,6 +22,10 @@ import type { CallModel } from "../_shared/agent/types.ts";
 import type { CreditLogFields } from "../_shared/credits.ts";
 import type { AgentTurnDeps, CampaignRow, SessionRow, TurnLedger } from "./turnTypes.ts";
 
+/** What the screen does to one section of campaign text: keeps it or swaps it for the withheld line. */
+export type SectionFilter = (text: string) => string;
+const KEEP: SectionFilter = (text) => text;
+
 // The session's credits hold six decimals; accruing at the same precision keeps what is sent equal to what is stored.
 export function round6(n: number): number {
   return Math.round(n * 1_000_000) / 1_000_000;
@@ -77,18 +81,22 @@ export function systemFor(input: {
   world?: string;
   /** An excerpt of the last sitting's chronicle entry; empty with no earlier sitting. */
   previously?: string;
+  /** Applied to each section the campaign supplies (never to our own rules text): the table's screen of campaign text (`campaignTextScreen.ts`). */
+  through?: SectionFilter;
 }): string {
   const { campaign } = input;
+  const through = input.through ?? KEEP;
   const parts = [soloTableSystem({ id: campaign.id, name: campaign.name, rulesetLabel: rulesetLabelFor(campaign.game_system), violence: campaign.table_violence })];
   // The canon (#1226): what is always carried, short. The rest is looked up (`canon_lookup`) or shown where the party stands.
-  if (input.world !== undefined && input.world !== "") parts.push(input.world);
+  if (input.world !== undefined && input.world !== "") parts.push(through(input.world));
+  // The guide is our own text about how the canon works, not the campaign's.
   parts.push(CANON_GUIDE);
   // The world's own kinds of folk: a campaign's list changes about as often as its name, so it sits with it.
   const peoples = peoplesSection(input.peoples);
-  if (peoples !== "") parts.push(peoples);
+  if (peoples !== "") parts.push(through(peoples));
   const previously = previouslySection(input.previously ?? "");
-  if (previously !== "") parts.push(previously);
-  if (input.character) parts.push(playerCharacterSection(input.character));
+  if (previously !== "") parts.push(through(previously));
+  if (input.character) parts.push(through(playerCharacterSection(input.character)));
   return parts.join("\n\n");
 }
 
@@ -122,20 +130,26 @@ export function stateFor(input: {
   memories?: readonly SceneMemory[];
   /** The played character's inventions waiting on a ruling; absent when none or nobody is played. */
   inventions?: readonly PendingInvention[];
+  /** Applied to each section built from campaign rows; a section that says only our own "nothing here" line is not passed through it. */
+  through?: SectionFilter;
 }): string {
+  const through = input.through ?? KEEP;
+  // An empty state's section is our own fixed sentence, which is never screened.
+  const rows = (text: string, emptyText: string) => (text === emptyText ? text : through(text));
   // The fights sit with the scene: they are about the place the party stands in. Nothing to say, no section.
   const fights = fightsSection(input.fights ?? NO_FIGHTS, input.fightTurn ? budgetLine(input.fightTurn) : null);
-  const carried = input.possessions === undefined || input.possessions === "" ? [] : [input.possessions];
-  const handouts = input.handouts === undefined || input.handouts === "" ? [] : [input.handouts];
+  const carried = input.possessions === undefined || input.possessions === "" ? [] : [through(input.possessions)];
+  const handouts = input.handouts === undefined || input.handouts === "" ? [] : [through(input.handouts)];
+  // The sky is the page's weather, worded by us: not campaign text.
   const sky = input.sky === undefined || input.sky === "" ? [] : [input.sky];
-  const companions = input.companions === undefined || input.companions === "" ? [] : [input.companions];
+  const companions = input.companions === undefined || input.companions === "" ? [] : [through(input.companions)];
   const canon = canonHereSection(input.canon ?? NO_CANON_HERE);
   const today = todaySection(input.today);
   const site = siteSection(input.site ?? NO_SITE);
   const memories = memoriesSection(input.memories ?? []);
   const inventions = inventionsSection(input.inventions ?? []);
-  const optional = (text: string) => (text === "" ? [] : [text]);
-  return [sceneSection(input.scene), ...optional(today), ...optional(site), ...optional(memories), ...optional(inventions), ...companions, ...sky, ...(fights === "" ? [] : [fights]), ...carried, ...handouts, questsSection(input.quests ?? NO_QUESTS), ...(canon === "" ? [] : [canon]), recordSection(input.record)].join("\n\n");
+  const optional = (text: string) => (text === "" ? [] : [through(text)]);
+  return [rows(sceneSection(input.scene), sceneSection(null)), ...optional(today), ...optional(site), ...optional(memories), ...optional(inventions), ...companions, ...sky, ...(fights === "" ? [] : [through(fights)]), ...carried, ...handouts, rows(questsSection(input.quests ?? NO_QUESTS), questsSection(NO_QUESTS)), ...(canon === "" ? [] : [through(canon)]), rows(recordSection(input.record), recordSection([]))].join("\n\n");
 }
 
 /** What is marked true of the party's place and its rooms. A read that fails is no state: the turn still runs. */

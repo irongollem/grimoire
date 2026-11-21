@@ -36,6 +36,7 @@ import type { TableViolence } from "../_shared/agent/conduct.ts";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
 import type { AgentLine, AgentTool, AgentUsage, CallTool, DmRoll } from "../_shared/agent/types.ts";
 import type { JobLedger } from "../_shared/pipeline/creditHold.ts";
+import type { TextScreenIo } from "./campaignTextScreen.ts";
 
 // Limits of one turn. The player waits on a turn, and a model that loops on tools can spend a lot without saying
 // anything, so each limit has its own reason.
@@ -74,6 +75,8 @@ export type AgentEvent =
   | { type: "pressure"; pressure: { filled: number; segments: number } | null }
   /** A fight has started (the page offers the way to the fight screen), or (null) its aftermath has been told. */
   | { type: "fight"; fight: { encounterId: string; name: string } | null; /** With null: it was never fought (nobody in it could be), not finished. */ calledOff?: true }
+  /** Part of the campaign's own text did not pass the table's screen and was left out of this turn. Says nothing of what. */
+  | { type: "screened" }
   /** A roll the Dungeon Master made in the open. A hidden roll sends nothing. */
   | { type: "dm_roll"; roll: DmRoll }
   /** A handout handed over or a picture shown, in its place in the story. */
@@ -190,6 +193,8 @@ export interface AgentTurnDeps {
   strikes(userId: string): Promise<number>;
   /** True when what a turn wrote must not be kept, shown again, put on record or spoken. Fails open like `isFlagged`. */
   isFlaggedOutput(text: string, childTookPart: boolean): Promise<boolean>;
+  /** The screen of the campaign's own text (`campaignTextScreen.ts`): its cache, its classifier and the cache's write. */
+  campaignText: TextScreenIo;
   /** Whether any of these characters of the campaign is a child by their record (`readsAsChild`). */
   anyChild(campaignId: string, characterIds: string[]): Promise<boolean>;
   /**

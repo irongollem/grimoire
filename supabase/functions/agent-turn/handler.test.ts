@@ -449,6 +449,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       h.screenedAsChild.push(childTookPart);
       return h.state.forbidden !== null && text.includes(h.state.forbidden);
     },
+    // Nothing of the campaign's own text is refused unless a test says so (`campaignTextScreen.test.ts` holds the rules).
+    campaignText: { lookup: async () => new Map(), moderate: async () => ({ flagged: false, categories: [] }), remember: async () => {} },
     anyChild: async (_campaign, ids) => ids.some((id) => h.state.children.includes(id)),
     // `withCreditHold` and `settleHandedOff` own releasing once, writing the lines after the release, and charging
     // nothing for work that threw (`creditHold.test.ts`); these fakes only record what the handler asked of them.
@@ -4199,6 +4201,43 @@ describe("the canon at the table (#1226)", () => {
     expect(h.requests[0].system).toContain("PREVIOUSLY-MARK");
     expect(opening(h.requests[0])).not.toContain("WORLD-BLOCK");
     expect(opening(h.requests[0])).not.toContain("PREVIOUSLY-MARK");
+  });
+
+  // Bug caught: campaign text a player wrote reached the narrator unscreened, or the screen's refusal left the
+  // text in place, or the player was never told something had been left out.
+  it("swaps a refused world block for the withheld line, keeps the rest and tells the page once", async () => {
+    const h = played();
+    h.state.canonWorld = "WORLD-BLOCK refused text.";
+    h.state.canonPrevious = "PREVIOUSLY-MARK fine text.";
+    h.deps.campaignText.moderate = async (text) => ({ flagged: text.includes("WORLD-BLOCK"), categories: [] });
+    await play(h, { body: BODY });
+    expect(h.requests[0].system).not.toContain("WORLD-BLOCK");
+    expect(h.requests[0].system).toContain("(Part of the campaign's own text was left out here: it did not pass the table's screen.)");
+    expect(h.requests[0].system).toContain("PREVIOUSLY-MARK");
+    expect(h.events.filter((e) => e.type === "screened")).toHaveLength(1);
+  });
+
+  // Bug caught: a clean turn telling the page that text was left out.
+  it("tells the page nothing when every section passes", async () => {
+    const h = played();
+    h.state.canonWorld = "WORLD-BLOCK fine.";
+    await play(h, { body: BODY });
+    expect(h.events.filter((e) => e.type === "screened")).toEqual([]);
+  });
+
+  // Bug caught: an outage of the campaign text screen costing the player the turn, or leaving the text out.
+  it("keeps the turn and the text when the screen throws", async () => {
+    const h = played();
+    h.state.canonWorld = "WORLD-BLOCK fine.";
+    h.deps.campaignText.lookup = async () => {
+      throw new Error("cache down");
+    };
+    h.deps.campaignText.moderate = async () => {
+      throw new Error("moderation down");
+    };
+    await play(h, { body: BODY });
+    expect(last(h).type).toBe("done");
+    expect(h.requests[0].system).toContain("WORLD-BLOCK");
   });
 
   it("asks for the last sitting before the one now running, never the running one's own entry", async () => {

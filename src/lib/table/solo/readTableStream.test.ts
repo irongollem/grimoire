@@ -165,3 +165,11 @@ describe("hit points changed outside a fight", () => {
     expect(parseTableEvent({ type: "hit_points", change: { ...change, change: "bless" } })).toBeNull();
   });
 });
+
+describe("the screened event", () => {
+  // Bug caught: the page dropped the server's "part of the campaign's text was left out" notice as an unknown event,
+  // so the player never learned why the story ignored something the campaign says.
+  it("reads the notice the server sends when campaign text was withheld", () => {
+    expect(parseTableEvent({ type: "screened" })).toEqual({ type: "screened" });
+  });
+});

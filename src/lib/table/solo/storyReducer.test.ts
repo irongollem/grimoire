@@ -163,6 +163,14 @@ describe("something changed hands", () => {
   });
 });
 
+describe("campaign text left out", () => {
+  // Bug caught: withheld campaign text with no word of it, so the narrator silently skipped something the player wrote.
+  it("writes one margin note naming the screen", () => {
+    const story = play([{ type: "screened" }]);
+    expect(story.at(-1)).toMatchObject({ kind: "margin", text: "Some of the campaign's text was left out of this turn: it did not pass the table's screen." });
+  });
+});
+
 describe("the end of a fight", () => {
   // Bug caught (seen in play): "The fight is over" written by the board, the aftermath told, then "The fight is
   // over" again underneath.

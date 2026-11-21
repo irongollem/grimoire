@@ -22,6 +22,7 @@ import { serveUser } from "../_shared/pipeline/serveUser.ts";
 import { jsonError, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { settleHandedOff, withCreditHold, type JobLedger } from "../_shared/pipeline/creditHold.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
+import { makeTextScreenIo } from "./campaignTextScreen.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { callTool, listTools } from "../_shared/mcp/tools.ts";
 import type { ToolContext } from "../_shared/mcp/tools.ts";
@@ -318,6 +319,8 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
         throw error;
       }
     },
+
+    campaignText: makeTextScreenIo(admin, { apiKey: () => moderationKey, userId: user.id }),
 
     async anyChild(campaignId, characterIds) {
       const { data, error } = await admin.from("npcs").select("age").eq("campaign_id", campaignId).in("id", characterIds);

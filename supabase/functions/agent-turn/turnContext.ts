@@ -9,6 +9,7 @@ import { possessionsSection, type Coins, type Possessions } from "../_shared/age
 import { historyFrom, systemWithSummary, type StoredTurn } from "../_shared/agent/transcript.ts";
 import { coinsText, coinValuesOf } from "./handsIo.ts";
 import { characterOf, fightsOf, inventionsOf, memoriesOf, questsOf, recordOf, safely, sceneOf, siteOf, stateFor, systemFor } from "./turnSupport.ts";
+import { assembleScreened } from "./campaignTextScreen.ts";
 import type { TurnScope } from "./turnScope.ts";
 import type { SessionRow } from "./turnTypes.ts";
 import { NO_CANON_HERE, type CanonHere } from "../_shared/agent/canon.ts";
@@ -88,7 +89,6 @@ export async function readTurnContext(scope: TurnScope, session: SessionRow) {
   } catch (error) {
     console.error("agent-turn: reading what the canon holds here failed:", error);
   }
-  const system = systemWithSummary(systemFor({ campaign, character, peoples, world, previously }), session.summary);
   const fightTurn = body.fightTurn === undefined ? null : body.fightTurn;
   // A fight fought out with no foe standing leaves its loot where it was fought, before what is within reach
   // is read: the narrator telling what comes of the fight can then say what lies there.
@@ -124,6 +124,33 @@ export async function readTurnContext(scope: TurnScope, session: SessionRow) {
   } catch (error) {
     console.error("agent-turn: reading the rest of the party failed:", error);
   }
-  const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts), companions: companionsSection(companions), sky: body.sky === undefined ? "" : skySection(body.sky), canon: canonHere, today: campaign.today, site, memories, inventions });
+  const possessions = hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText);
+  const handoutsText = handoutsSection(handouts);
+  const companionsText = companionsSection(companions);
+  const sky = body.sky === undefined ? "" : skySection(body.sky);
+  // The campaign's own text is screened before the narrator reads it (#1021 row 18), instructions and state in one
+  // pass so a section is judged once and the page is told once. A child at the table tightens the bar, as it does
+  // for what the narrator writes. The summary is the narrator's own and is added after, unscreened.
+  let child = false;
+  const ids = [...(character ? [character.id] : []), ...companions.map((c) => c.id)];
+  if (ids.length > 0) {
+    try {
+      child = await deps.anyChild(campaign.id, ids);
+    } catch (error) {
+      console.error("agent-turn: checking for a child at the table failed:", error);
+    }
+  }
+  const { result, anyWithheld } = await assembleScreened({
+    campaignId: campaign.id,
+    child,
+    io: deps.campaignText,
+    assemble: (through) => ({
+      system: systemFor({ campaign, character, peoples, world, previously, through }),
+      state: stateFor({ scene, quests: questState, record, fights, fightTurn, possessions, handouts: handoutsText, companions: companionsText, sky, canon: canonHere, today: campaign.today, site, memories, inventions, through }),
+    }),
+  });
+  if (anyWithheld) emit({ type: "screened" });
+  const system = systemWithSummary(result.system, session.summary);
+  const state = result.state;
   return { character, stored, lastSeqLoaded, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere, inventions };
 }
