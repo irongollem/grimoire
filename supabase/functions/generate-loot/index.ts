@@ -5,15 +5,7 @@ import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { gameSystemEdition, NO_RULES_SYSTEM_MESSAGE, rulesetContextKey } from "../_shared/gameSystem.ts";
-import {
-  fetchCreditCost,
-  wholeCredits,
-  recordGeneration,
-  releaseCredits,
-  reserveCredits,
-  reservationFailureResponse,
-  recordFreeGeneration,
-} from "../_shared/credits.ts";
+import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
   AI_PROMPT_LIMIT,
@@ -21,7 +13,6 @@ import {
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import {
@@ -34,9 +25,12 @@ import { repairGeneratedNames } from "../_shared/nameRepairWire.ts";
 import { repaired } from "../_shared/nameRepair.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { currencyPromptBlock, loadCampaignCurrency } from "../_shared/currency.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText } from "../_shared/worldBlock.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 
 /**
  * Retrieval-grounded AI loot-table generator (#602).
@@ -136,43 +130,30 @@ interface LootGenerationResult {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+interface LootCampaign extends BaseCampaign {
+  text_provider: string | null;
+  game_system: string | null;
+}
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate — including BYOK, which skips
   // the credit gate for both (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
-  let campaign_id: string, prompt: string, cr_tier: string, exclude_attunement: boolean;
-
-  try {
-    const body = await req.json();
-    campaign_id       = body.campaign_id;
-    prompt            = body.prompt;
-    cr_tier           = body.cr_tier;
-    exclude_attunement = body.exclude_attunement === true;
-    if (!campaign_id || !prompt || !cr_tier) throw new Error("invalid");
-  } catch {
-    return new Response("Invalid body — need { campaign_id, prompt, cr_tier }", { status: 400 });
+  const body = await readJsonBody(req);
+  const campaign_id = typeof body?.campaign_id === "string" && body.campaign_id ? body.campaign_id : undefined;
+  const prompt = typeof body?.prompt === "string" && body.prompt ? body.prompt : undefined;
+  const cr_tier = typeof body?.cr_tier === "string" && body.cr_tier ? body.cr_tier : undefined;
+  if (!body || !campaign_id || !prompt || !cr_tier) {
+    return jsonError(400, "invalid_body", "Need { campaign_id, prompt, cr_tier }.");
   }
+  const exclude_attunement = body.exclude_attunement === true;
 
-  if (!(cr_tier in RARITIES_BY_TIER)) {
-    return new Response(
-      `Invalid cr_tier — must be one of ${Object.keys(RARITIES_BY_TIER).join(", ")}`,
-      { status: 400 },
-    );
+  // Object.hasOwn, not `in`: a tier of "constructor" must not pass, and would
+  // otherwise reach `.length` of a function below.
+  if (!Object.hasOwn(RARITIES_BY_TIER, cr_tier)) {
+    return jsonError(400, "invalid_cr_tier", `Invalid cr_tier: must be one of ${Object.keys(RARITIES_BY_TIER).join(", ")}.`);
   }
   // Derived server-side from the tier, never taken from the request: the band
   // is the gate, and a client-supplied rarity list would be a gate the caller
@@ -185,35 +166,30 @@ serve(withCors(async (req: Request) => {
   const promptCheck = validatePromptInput(prompt, AI_PROMPT_LIMIT);
   if (!promptCheck.ok) return promptCheck.errorResponse;
 
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, game_system")
-    .eq("id", campaign_id)
-    .maybeSingle();
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
-
   // DMs only: no player surface calls this, and it spends the campaign's
   // credits or the owner's own provider key (see _shared/campaignAccess.ts).
-  if (!(await isCampaignDm(admin, campaign, user.id))) {
-    return new Response("Forbidden", { status: 403 });
-  }
+  const load = await loadAiCampaign<LootCampaign>(admin, campaign_id, user.id, {
+    columns: ["text_provider", "game_system"],
+  });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
   // Ruleset-aware generation (#564): the context row follows the campaign's 5e system.
   // 5e-shaped output with no meaning in a Generic campaign (#934): the client
   // hides the button, this is the server-side backstop. No edition, no fallback.
   const ruleset = gameSystemEdition(campaign.game_system);
-  if (!ruleset) return new Response(NO_RULES_SYSTEM_MESSAGE, { status: 400 });
+  if (!ruleset) return jsonError(400, "no_rules_system", NO_RULES_SYSTEM_MESSAGE);
   const rulesetKey = rulesetContextKey(campaign.game_system);
 
-  const { data: promptRows } = await admin
+  const { data: promptRows, error: promptError } = await admin
     .from("ai_system_prompts").select("generator_type, content")
     .in("generator_type", ["loot", ...(rulesetKey ? [rulesetKey] : [])]);
+  if (promptError) throw promptError;
   const promptRow = promptRows?.find((r) => r.generator_type === "loot");
   // Missing row (older DBs that predate #564) is a silent skip, not an error.
   const rulesetContext =
     promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
-  if (!promptRow) return new Response("Prompt not configured", { status: 500 });
+  if (!promptRow) return jsonError(500, "prompt_not_configured", "This generator is not set up yet.");
 
   const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
     loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
@@ -234,7 +210,7 @@ serve(withCors(async (req: Request) => {
     platformKeys,
     providerConfigs,
   });
-  if (!text) return new Response(NO_TEXT_PROVIDER_MESSAGE, { status: 422 });
+  if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const baseCost = text.isByok ? 0 : await fetchCreditCost(admin, "loot_generation");
@@ -251,99 +227,9 @@ serve(withCors(async (req: Request) => {
   // after: otherwise any authenticated campaign member can loop this endpoint
   // and run up unbounded platform spend that no throttle and no balance check
   // ever sees. See generate-encounter/generate-quest for the same reasoning.
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
-    return new Response(
-      JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
-  const reservation = await reserveCredits(admin, user.id, cost, "loot_generation");
-  if (!reservation.ok) return reservationFailureResponse(reservation);
-
-  // ── Semantic retrieval (#602) ──────────────────────────────────────────────
-  // An ENHANCEMENT, not a requirement: retrieval must never be able to take
-  // loot generation down. A missing vendor, a mid-flip config, a provider
-  // outage or an RPC error all cost grounding, not the feature — the whole
-  // block is one try/catch whose failure path leaves the candidate list empty.
-  //
-  // What "ungrounded" costs here is worth being explicit about, because it is
-  // steeper than it is for quests: the model falls back to naming items from
-  // its training data, and the client can only resolve names that exist in the
-  // DM's vault. So an ungrounded generation does not produce wrong loot, it
-  // produces loot with more unresolved names for the DM to deal with — which
-  // the panel surfaces rather than silently dropping.
-  let candidates: CandidateItem[] = [];
-
-  try {
-    const embedProvider = await resolveEmbeddingProvider(admin, {
-      openai: platformKeys.openai ?? null,
-      gemini: platformKeys.gemini ?? null,
-    });
-    const { vectors, usage: embedUsage } = await embedProvider.embed([prompt]);
-
-    // Recorded HERE, not after the RPCs below — real provider spend was
-    // incurred the moment embed() returned, and everything after this point
-    // can throw into the catch. Recording later would mean a transient DB
-    // error silently converts real money into invisible spend. Platform-paid,
-    // charged to nobody: is_byok stays false because we, not the user, paid
-    // for it — see recordFreeGeneration's doc comment.
-    await recordFreeGeneration(admin, user.id, "entity_embedding", {
-      model:        embedProvider.model,
-      provider:     embedUsage.provider,
-      input_tokens: embedUsage.input_tokens,
-    });
-
-    // Error checked rather than defaulted away: a failed fetch here is
-    // indistinguishable from "this campaign has enabled no sources", and the
-    // two mean opposite things — the latter is a legitimate config, the former
-    // would silently drop the entire library side of the search with nothing
-    // in the logs. Same block, same reasoning, as generate-encounter.
-    const { data: enabledSourceRows, error: enabledSourceError } = await admin
-      .from("campaign_enabled_sources")
-      .select("source_slug")
-      .eq("campaign_id", campaign_id);
-    if (enabledSourceError) throw new Error(enabledSourceError.message);
-    const enabledSlugs = (enabledSourceRows ?? []).map((r: { source_slug: string }) => r.source_slug);
-
-    candidates = await retrieveLootItems(admin, {
-      queryVector:       toVectorLiteral(vectors[0]),
-      campaignId:        campaign_id,
-      // The OWNER, not the caller — matching generate-encounter's bestiary and
-      // generate-quest's entity scoping. A campaign member generating loot
-      // sees the DM's vault, not their own.
-      ownerId:           campaign.user_id,
-      embeddingModel:    embedProvider.model,
-      ruleset,
-      rarities,
-      excludeAttunement: exclude_attunement,
-      // 'grimoire-bundled' is edition-neutral gear every campaign can draw
-      // from regardless of enabled sources — the same constant fetchLibraryItems()
-      // prepends client-side, so the generator offers exactly what the Vault shows.
-      sourceKeys:        ["grimoire-bundled", ...enabledSlugs],
-    });
-
-    if (candidates.length === 0) {
-      // Not necessarily an error — a brand-new campaign with no enabled
-      // sources and an empty vault legitimately has nothing in band — but for
-      // an established campaign it usually means the embedding backfill has
-      // not been run for the item corpora yet.
-      console.warn(`Loot retrieval found zero in-band items for campaign ${campaign_id} (tier ${cr_tier}) — building the prompt without the item block.`);
-    }
-  } catch (e) {
-    // Diagnosable, but never fatal.
-    const why = e instanceof EmbeddingProviderConfigError
-      ? `embedding provider not usable (${e.message})`
-      : e instanceof Error ? e.message : "unknown error";
-    console.warn(`Loot retrieval unavailable for campaign ${campaign_id}, generating without the item block: ${why}`);
-    candidates = [];
-  }
-
-  // formatItemBlock() only formats — whether to call it at all is decided
-  // here, so a zero-candidate retrieval produces no prompt text at all rather
-  // than an empty ---BEGIN/END--- shell.
-  const itemBlock = candidates.length > 0 ? formatItemBlock(candidates) : "";
-
+  // Everything that can be worked out before paying is: the prompt's fixed parts and the campaign's currency read.
   const constraints = [`Tier: ${TIER_LABELS[cr_tier]}`];
   if (rarities.length > 0) constraints.push(`Item rarities appropriate to this tier: ${rarities.join(", ")}`);
   if (exclude_attunement) constraints.push("Avoid items that require attunement — the party has no attunement slots free.");
@@ -353,93 +239,168 @@ serve(withCors(async (req: Request) => {
   try {
     currencyBlock = currencyPromptBlock(await loadCampaignCurrency(admin, campaign_id));
   } catch (e) {
-    await releaseCredits(admin, reservation.ids);
     console.error("Loot currency read failed:", e);
-    return new Response(JSON.stringify({ error: "Could not read the campaign's currency." }), { status: 500, headers: { "Content-Type": "application/json" } });
+    return jsonError(500, "currency_read_failed", "Could not read the campaign's currency.");
   }
 
-  const userContent =
-    `${wrapUserInput(prompt)}\n\nConstraints:\n${constraints.join("\n")}` + currencyBlock + itemBlock;
+  return withCreditHold(admin, { payerId: user.id, reason: "loot_generation", cost, report }, async (hold) => {
+    // ── Semantic retrieval (#602) ────────────────────────────────────────────
+    // An ENHANCEMENT, not a requirement: retrieval must never be able to take
+    // loot generation down. A missing vendor, a mid-flip config, a provider
+    // outage or an RPC error all cost grounding, not the feature — the whole
+    // block is one try/catch whose failure path leaves the candidate list empty.
+    //
+    // What "ungrounded" costs here is worth being explicit about, because it is
+    // steeper than it is for quests: the model falls back to naming items from
+    // its training data, and the client can only resolve names that exist in the
+    // DM's vault. So an ungrounded generation does not produce wrong loot, it
+    // produces loot with more unresolved names for the DM to deal with — which
+    // the panel surfaces rather than silently dropping.
+    let candidates: CandidateItem[] = [];
 
-  const textModel = text.config?.text_model;
+    try {
+      const embedProvider = await resolveEmbeddingProvider(admin, {
+        openai: platformKeys.openai ?? null,
+        gemini: platformKeys.gemini ?? null,
+      });
+      const { vectors, usage: embedUsage } = await embedProvider.embed([prompt]);
 
-  let textResult: TextResult;
-  try {
-    textResult = await callText({
-      text,
-      model: textModel,
-      system: systemContent,
-      user: userContent,
-      // 4–8 entries of a dozen short fields each — much smaller than a
-      // 100-row roll table or five quest hooks, hence 2000 rather than 3000.
-      maxTokens: 2000,
+      // Queued HERE, not after the RPCs below — real provider spend was
+      // incurred the moment embed() returned, and everything after this point
+      // can throw into the catch. A free line is written whatever the work
+      // does, so a transient DB error cannot turn real money into invisible
+      // spend. Platform-paid, charged to nobody.
+      hold.free("entity_embedding", {
+        model:        embedProvider.model,
+        provider:     embedUsage.provider,
+        input_tokens: embedUsage.input_tokens,
+      });
+
+      // Error checked rather than defaulted away: a failed fetch here is
+      // indistinguishable from "this campaign has enabled no sources", and the
+      // two mean opposite things — the latter is a legitimate config, the former
+      // would silently drop the entire library side of the search with nothing
+      // in the logs. Same block, same reasoning, as generate-encounter.
+      const { data: enabledSourceRows, error: enabledSourceError } = await admin
+        .from("campaign_enabled_sources")
+        .select("source_slug")
+        .eq("campaign_id", campaign_id);
+      if (enabledSourceError) throw new Error(enabledSourceError.message);
+      const enabledSlugs = (enabledSourceRows ?? []).map((r: { source_slug: string }) => r.source_slug);
+
+      candidates = await retrieveLootItems(admin, {
+        queryVector:       toVectorLiteral(vectors[0]),
+        campaignId:        campaign_id,
+        // The OWNER, not the caller — matching generate-encounter's bestiary and
+        // generate-quest's entity scoping. A campaign member generating loot
+        // sees the DM's vault, not their own.
+        ownerId:           campaign.user_id,
+        embeddingModel:    embedProvider.model,
+        ruleset,
+        rarities,
+        excludeAttunement: exclude_attunement,
+        // 'grimoire-bundled' is edition-neutral gear every campaign can draw
+        // from regardless of enabled sources — the same constant fetchLibraryItems()
+        // prepends client-side, so the generator offers exactly what the Vault shows.
+        sourceKeys:        ["grimoire-bundled", ...enabledSlugs],
+      });
+
+      if (candidates.length === 0) {
+        // Not necessarily an error — a brand-new campaign with no enabled
+        // sources and an empty vault legitimately has nothing in band — but for
+        // an established campaign it usually means the embedding backfill has
+        // not been run for the item corpora yet.
+        console.warn(`Loot retrieval found zero in-band items for campaign ${campaign_id} (tier ${cr_tier}) — building the prompt without the item block.`);
+      }
+    } catch (e) {
+      // Diagnosable, but never fatal.
+      const why = e instanceof EmbeddingProviderConfigError
+        ? `embedding provider not usable (${e.message})`
+        : e instanceof Error ? e.message : "unknown error";
+      console.warn(`Loot retrieval unavailable for campaign ${campaign_id}, generating without the item block: ${why}`);
+      candidates = [];
+    }
+
+    // formatItemBlock() only formats — whether to call it at all is decided
+    // here, so a zero-candidate retrieval produces no prompt text at all rather
+    // than an empty ---BEGIN/END--- shell.
+    const itemBlock = candidates.length > 0 ? formatItemBlock(candidates) : "";
+
+    const userContent =
+      `${wrapUserInput(prompt)}\n\nConstraints:\n${constraints.join("\n")}` + currencyBlock + itemBlock;
+
+    let textResult: TextResult;
+    try {
+      textResult = await callText({
+        text,
+        model: text.config?.text_model,
+        system: systemContent,
+        user: userContent,
+        // 4–8 entries of a dozen short fields each — much smaller than a
+        // 100-row roll table or five quest hooks, hence 2000 rather than 3000.
+        maxTokens: 2000,
+      });
+    } catch (e) {
+      console.error("Loot text generation failed:", e);
+      return jsonError(502, "generation_failed", e instanceof Error ? e.message : "Text generation failed");
+    }
+
+    const malformed = () =>
+      jsonError(502, "generation_failed", "The loot table came back unreadable. Nothing was charged; please try again.");
+    let lootData: LootGenerationResult;
+    try {
+      lootData = JSON.parse(textResult.content) as LootGenerationResult;
+    } catch {
+      return malformed();
+    }
+    // Entry-level validation stays client-side (see LootEntryAiResult's doc);
+    // this guard only checks that the model returned entries at all. A reply of
+    // `null` parses fine, so it is checked here rather than read through.
+    if (!lootData || !Array.isArray(lootData.entries) || lootData.entries.length === 0) return malformed();
+
+    // Charged the moment the paid call has produced a usable result (delta 0 on BYOK).
+    hold.charge("loot_generation", {
+      cost,
+      isByok: text.isByok,
+      log: {
+        model: textResult.usage.model, provider: textResult.usage.provider,
+        input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+      },
     });
-  } catch (e) {
-    await releaseCredits(admin, reservation.ids);
-    console.error("Loot text generation failed:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
 
-  let lootData: LootGenerationResult;
-  try {
-    lootData = JSON.parse(textResult.content) as LootGenerationResult;
-  } catch {
-    await releaseCredits(admin, reservation.ids);
-    return new Response(
-      JSON.stringify({ error: "AI returned malformed loot data — please try again." }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
-  // Entry-level validation stays client-side (see LootEntryAiResult's doc);
-  // this guard only checks that the model returned entries at all.
-  if (!Array.isArray(lootData.entries) || lootData.entries.length === 0) {
-    await releaseCredits(admin, reservation.ids);
-    return new Response(
-      JSON.stringify({ error: "AI returned malformed loot data — please try again." }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
+    // A near miss ("Potion of Healing (greater)") is put to a judgment model against exactly the items the
+    // prompt offered and rewritten to the offered name when it is confident, so the client's exact-name
+    // resolver finds the row (#1061). Free to the user; off until a typesafe key exists.
+    // A polish step: if it fails the table goes out unrepaired rather than a paid result turning into a 500.
+    try {
+      const [itemRepairs] = await repairGeneratedNames(admin, user.id, [{
+        names: lootData.entries
+          .filter((e) => e?.type === "item" && typeof e.item_name === "string")
+          .map((e) => ({ name: e.item_name as string, note: typeof e.notes === "string" ? e.notes : undefined })),
+        offered: candidates.map((c) => ({ name: c.name, hint: `${c.rarity} ${c.itemType}` })),
+        context: "Treasure for a D&D loot table. Each entry names one item.",
+      }]);
+      lootData = {
+        ...lootData,
+        entries: lootData.entries.map((e) =>
+          e?.type === "item" && typeof e.item_name === "string" ? { ...e, item_name: repaired(itemRepairs, e.item_name) } : e),
+      };
+    } catch (e) {
+      console.warn("Loot name repair failed; returning the table unrepaired:", e);
+    }
 
-  // Release the hold; record the real spend (delta 0 on BYOK).
-  await releaseCredits(admin, reservation.ids);
-  await recordGeneration(admin, user.id, "loot_generation", text.isByok, cost, {
-    model: textResult.usage.model, provider: textResult.usage.provider,
-    input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
-  });
+    const ai_provenance: AiProvenance = {
+      generatorType: "loot_generation",
+      provider: textResult.usage.provider,
+      model: textResult.usage.model,
+      generatedAt: new Date().toISOString(),
+      edited: false,
+    };
 
-  // A near miss ("Potion of Healing (greater)") is put to a judgment model against exactly the items the
-  // prompt offered and rewritten to the offered name when it is confident, so the client's exact-name
-  // resolver finds the row (#1061). Free to the user; off until a typesafe key exists.
-  const [itemRepairs] = await repairGeneratedNames(admin, user.id, [{
-    names: lootData.entries
-      .filter((e) => e?.type === "item" && typeof e.item_name === "string")
-      .map((e) => ({ name: e.item_name as string, note: typeof e.notes === "string" ? e.notes : undefined })),
-    offered: candidates.map((c) => ({ name: c.name, hint: `${c.rarity} ${c.itemType}` })),
-    context: "Treasure for a D&D loot table. Each entry names one item.",
-  }]);
-  lootData = {
-    ...lootData,
-    entries: lootData.entries.map((e) =>
-      e?.type === "item" && typeof e.item_name === "string" ? { ...e, item_name: repaired(itemRepairs, e.item_name) } : e),
-  };
-
-  const ai_provenance: AiProvenance = {
-    generatorType: "loot_generation",
-    provider: textResult.usage.provider,
-    model: textResult.usage.model,
-    generatedAt: new Date().toISOString(),
-    edited: false,
-  };
-
-  return new Response(
     // `grounded` lets the panel tell the DM why a table came back with names
     // it could not resolve — an ungrounded generation is the usual reason, and
     // without this flag that looks like a resolution bug rather than a
     // backfill that has not run.
-    JSON.stringify({ ...lootData, cr_tier, grounded: candidates.length > 0, ai_provenance }),
-    { headers: { "Content-Type": "application/json" } },
-  );
+    return json({ ...lootData, cr_tier, grounded: candidates.length > 0, ai_provenance });
+  });
 }));

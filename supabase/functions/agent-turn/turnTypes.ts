@@ -30,7 +30,7 @@ import type { PendingRoll, RollAsk, Rolled } from "../_shared/agent/playerRoll.t
 import type { NarrationJudge } from "./narration.ts";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
 import type { AgentLine, AgentTool, AgentUsage, CallTool, DmRoll } from "../_shared/agent/types.ts";
-import type { CreditLogFields } from "../_shared/credits.ts";
+import type { JobLedger } from "../_shared/pipeline/creditHold.ts";
 
 // Limits of one turn. The player waits on a turn, and a model that loops on tools can spend a lot without saying
 // anything, so each limit has its own reason.
@@ -44,7 +44,7 @@ export const MAX_OUTPUT_TOKENS = 2000;
  * 10,000 of these; the budget is several times that and still stops a turn that loops.
  */
 export const TOKEN_BUDGET = 60_000;
-/** Held before the turn so an account with no credits is refused before any model call; the real charge is metered. */
+/** Held before the turn so an account with no credits is refused before any model call (`withCreditHold`); the real charge is metered. */
 export const RESERVE_CREDITS = 1;
 
 /** A refusal before the stream opened: an ordinary JSON response. */
@@ -130,7 +130,11 @@ export interface SessionRow {
   pursuit_encounter_id?: string | null;
 }
 
-export type Reservation = { ok: true; ids: string[] } | { ok: false; refusal: Refusal };
+/**
+ * The ledger a running turn writes to: its charge and its free lines (the turn's, a summary's), queued while it runs
+ * and written once the hold is released (`settleHandedOff`).
+ */
+export type TurnLedger = JobLedger;
 
 export interface AgentTurnDeps {
   /** Suspended or child accounts. */
@@ -179,12 +183,17 @@ export interface AgentTurnDeps {
   isFlaggedOutput(text: string, childTookPart: boolean): Promise<boolean>;
   /** Whether any of these characters of the campaign is a child by their record (`readsAsChild`). */
   anyChild(campaignId: string, characterIds: string[]): Promise<boolean>;
-  reserve(userId: string, credits: number): Promise<Reservation>;
-  release(ids: string[]): Promise<void>;
-  /** `recordGeneration`: BYOK writes a zero row, otherwise spends `cost`. */
-  recordGeneration(isByok: boolean, cost: number, log: CreditLogFields): Promise<void>;
-  /** `recordFreeGeneration`: a zero-credit ledger row that still says the platform paid the provider. */
-  recordFreeGeneration(log: CreditLogFields): Promise<void>;
+  /**
+   * Takes the hold (`withCreditHold`, reason "agent_turn"; 0 credits holds nothing, own-key play) and runs `work` under
+   * it. The work `hand`s the hold off to the stream, which settles it (`settle`). A refused hold answers its refusal
+   * without running `work`.
+   */
+  withHold(userId: string, credits: number, work: (hold: { handOff(): string[] }) => Promise<Response>): Promise<Response>;
+  /**
+   * The stream's half of the hold (`settleHandedOff`): releases `ids` exactly once when `work` ends, however it ends,
+   * then writes the ledger lines it queued. The lines of work that threw are written free.
+   */
+  settle(userId: string, ids: string[], work: (ledger: TurnLedger) => Promise<void>): Promise<void>;
   /**
    * `append_agent_turns`. `due` is the whole credits the conversation's running total newly crossed, decided in SQL
    * under the row lock. "conflict" is SQLSTATE 40001: the conversation moved on. Any other failure throws.
@@ -378,5 +387,11 @@ export const MESSAGES = {
 
 export type BegunTurn =
   | { kind: "refused"; refusal: Refusal }
-  | { kind: "ready"; run: (send: (event: AgentEvent) => void, signal?: AbortSignal) => Promise<void> };
+  | {
+    kind: "ready";
+    /** Credits to hold before running: 0 for own-key play. */
+    reserve: number;
+    /** `reservationIds` are the hold's, handed off to this run, which settles them. */
+    run: (send: (event: AgentEvent) => void, signal: AbortSignal | undefined, reservationIds: string[]) => Promise<void>;
+  };
 

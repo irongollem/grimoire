@@ -36,12 +36,15 @@ export const sendToNoteReading: ReadingTransport = async (request) => {
   });
 };
 
-/** A refusal in the player's own words; the server's are written for logs. */
-export function readingRefusal(status: number, code: string | null): string {
+/**
+ * A refusal in the player's own words. `code` is the server's `error` code and `message` its sentence for a person
+ * (#1234); a refusal that has a sentence shows it, and the codes the page branches on are read from `code`.
+ */
+export function readingRefusal(status: number, code: string | null, message: string | null = null): string {
   if (status === 402 || code === "insufficient_credits") return "You are out of credits, so the note could not be read aloud. Nothing was charged.";
-  if (status === 422 && code !== null) return code;
+  if (status === 422 && message !== null) return message;
   if (status === 403 && code === "child_account") return "Reading aloud is not open to a child account.";
-  if (status === 403) return code ?? "Only the Dungeon Master has a note read aloud.";
+  if (status === 403) return message ?? "Only the Dungeon Master has a note read aloud.";
   if (status === 404) return "There is no recording of this note to play.";
   if (code === "voices_spent") return "The voices have used up their allowance for now. Nothing was charged.";
   if (status === 503) return "Reading aloud is not switched on for this server.";
@@ -50,13 +53,15 @@ export function readingRefusal(status: number, code: string | null): string {
 
 async function refusalOf(response: Response): Promise<string> {
   let code: string | null = null;
+  let message: string | null = null;
   try {
     const body: unknown = await response.json();
     if (typeof body === "object" && body !== null && "error" in body && typeof body.error === "string") code = body.error;
+    if (typeof body === "object" && body !== null && "message" in body && typeof body.message === "string") message = body.message;
   } catch {
     // Not JSON (a gateway's page): the status alone decides.
   }
-  return readingRefusal(response.status, code);
+  return readingRefusal(response.status, code, message);
 }
 
 /**

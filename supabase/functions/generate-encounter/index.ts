@@ -5,14 +5,7 @@ import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { gameSystemEdition, NO_RULES_SYSTEM_MESSAGE, rulesetContextKey } from "../_shared/gameSystem.ts";
-import {
-  fetchCreditCost,
-  wholeCredits,
-  recordGeneration,
-  releaseCredits,
-  reserveCredits,
-  reservationFailureResponse,
-} from "../_shared/credits.ts";
+import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
   AI_PROMPT_LIMIT_SHORT,
@@ -20,7 +13,6 @@ import {
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import {
@@ -28,14 +20,16 @@ import {
   toVectorLiteral,
   EmbeddingProviderConfigError,
 } from "../_shared/embeddings.ts";
-import { recordFreeGeneration } from "../_shared/credits.ts";
 import { retrieveMonsterCandidates, type CandidateMonster } from "../_shared/monsterRetrieval.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { repairGeneratedNames } from "../_shared/nameRepairWire.ts";
 import { repaired } from "../_shared/nameRepair.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText } from "../_shared/worldBlock.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 
 /**
  * Party-aware AI encounter suggester (#337).
@@ -96,7 +90,8 @@ interface CustomMonsterRow {
   id: string;
   name: string;
   monster_type: string;
-  stat_block: { challenge_rating?: string };
+  /** Nullable in the table; a row without one is offered with an unknown CR rather than throwing. */
+  stat_block: { challenge_rating?: string } | null;
 }
 
 // How many rows each side contributes. Custom monsters get a guaranteed share
@@ -114,7 +109,7 @@ function fromCustomRow(row: CustomMonsterRow): CandidateMonster {
   return {
     id: row.id,
     name: row.name,
-    cr: row.stat_block.challenge_rating ?? "?",
+    cr: row.stat_block?.challenge_rating ?? "?",
     type: row.monster_type,
   };
 }
@@ -138,81 +133,60 @@ interface EncounterData {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+interface EncounterCampaign extends BaseCampaign {
+  text_provider: string | null;
+  game_system: string | null;
+}
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate — including BYOK, which skips
   // the credit gate for both (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
-  let campaign_id: string, prompt: string, difficulty: string;
-
-  try {
-    const body = await req.json();
-    campaign_id = body.campaign_id;
-    prompt      = body.prompt;
-    difficulty  = typeof body.difficulty === "string" ? body.difficulty : "auto";
-    if (!campaign_id || !prompt) throw new Error("invalid");
-  } catch {
-    return new Response("Invalid body — need { campaign_id, prompt }", { status: 400 });
-  }
+  const body = await readJsonBody(req);
+  const campaign_id = typeof body?.campaign_id === "string" && body.campaign_id ? body.campaign_id : undefined;
+  const prompt = typeof body?.prompt === "string" && body.prompt ? body.prompt : undefined;
+  if (!body || !campaign_id || !prompt) return jsonError(400, "invalid_body", "Need { campaign_id, prompt }.");
+  const difficulty = typeof body.difficulty === "string" ? body.difficulty : "auto";
 
   if (!VALID_DIFFICULTIES.includes(difficulty)) {
-    return new Response(
-      `Invalid difficulty — must be one of ${VALID_DIFFICULTIES.join(", ")}`,
-      { status: 400 },
-    );
+    return jsonError(400, "invalid_difficulty", `Invalid difficulty: must be one of ${VALID_DIFFICULTIES.join(", ")}.`);
   }
 
   const promptCheck = validatePromptInput(prompt, AI_PROMPT_LIMIT_SHORT);
   if (!promptCheck.ok) return promptCheck.errorResponse;
 
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, game_system")
-    .eq("id", campaign_id)
-    .maybeSingle();
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
-
   // DMs only: no player surface calls this, and it spends the campaign's
   // credits or the owner's own provider key (see _shared/campaignAccess.ts).
-  if (!(await isCampaignDm(admin, campaign, user.id))) {
-    return new Response("Forbidden", { status: 403 });
-  }
+  const load = await loadAiCampaign<EncounterCampaign>(admin, campaign_id, user.id, {
+    columns: ["text_provider", "game_system"],
+  });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
   // Ruleset-aware generation (#564): the context row follows the campaign's 5e system.
   // 5e-shaped output with no meaning in a Generic campaign (#934): the client
   // hides the button, this is the server-side backstop. No edition, no fallback.
   const ruleset = gameSystemEdition(campaign.game_system);
-  if (!ruleset) return new Response(NO_RULES_SYSTEM_MESSAGE, { status: 400 });
+  if (!ruleset) return jsonError(400, "no_rules_system", NO_RULES_SYSTEM_MESSAGE);
   const rulesetKey = rulesetContextKey(campaign.game_system);
 
   // ── Server-side context: party summary + custom monster index ─────────────
-  const { data: partyMemberRows } = await admin
+  const { data: partyMemberRows, error: partyError } = await admin
     .from("party_members")
     .select("id, name, class, level")
     .eq("campaign_id", campaign_id);
+  if (partyError) throw partyError;
   const partyMembers = (partyMemberRows ?? []) as PartyMemberRow[];
 
   let classesByMember = new Map<string, CharacterClassRow[]>();
   if (partyMembers.length > 0) {
-    const { data: classRows } = await admin
+    const { data: classRows, error: classError } = await admin
       .from("character_classes")
       .select("party_member_id, class_name, levels")
       .in("party_member_id", partyMembers.map((m) => m.id));
+    if (classError) throw classError;
     classesByMember = ((classRows ?? []) as CharacterClassRow[]).reduce((map, row) => {
       const list = map.get(row.party_member_id) ?? [];
       list.push(row);
@@ -232,7 +206,7 @@ serve(withCors(async (req: Request) => {
   // is kept alongside for the reason monsterRetrieval.ts gives. Also excludes
   // Open5e-imported rows (the model already knows standard 5e monsters) and rows
   // pinned to another ruleset.
-  const { data: customMonsterRows, count: customMonsterTotal } = await admin
+  const { data: customMonsterRows, count: customMonsterTotal, error: customMonsterError } = await admin
     .from("monsters")
     .select("id, name, monster_type, stat_block", { count: "exact" })
     .eq("user_id", campaign.user_id)
@@ -241,6 +215,7 @@ serve(withCors(async (req: Request) => {
     .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
     .order("name")
     .limit(MAX_CUSTOM_MONSTERS);
+  if (customMonsterError) throw customMonsterError;
   const customMonsters = (customMonsterRows ?? []) as CustomMonsterRow[];
 
   // The cap is ordered by name, so crossing it silently hands the model an
@@ -256,14 +231,15 @@ serve(withCors(async (req: Request) => {
     );
   }
 
-  const { data: promptRows } = await admin
+  const { data: promptRows, error: promptError } = await admin
     .from("ai_system_prompts").select("generator_type, content")
     .in("generator_type", ["encounter", ...(rulesetKey ? [rulesetKey] : [])]);
+  if (promptError) throw promptError;
   const promptRow = promptRows?.find((r) => r.generator_type === "encounter");
   // Missing row (older DBs that predate #564) is a silent skip, not an error.
   const rulesetContext =
     promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
-  if (!promptRow) return new Response("Prompt not configured", { status: 500 });
+  if (!promptRow) return jsonError(500, "prompt_not_configured", "This generator is not set up yet.");
 
   const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
     loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
@@ -282,7 +258,7 @@ serve(withCors(async (req: Request) => {
     platformKeys,
     providerConfigs,
   });
-  if (!text) return new Response(NO_TEXT_PROVIDER_MESSAGE, { status: 422 });
+  if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const baseCost = text.isByok ? 0 : await fetchCreditCost(admin, "encounter_generation");
@@ -299,171 +275,157 @@ serve(withCors(async (req: Request) => {
   // after: otherwise any authenticated campaign member can loop this endpoint
   // and run up unbounded platform spend that no throttle and no balance check
   // ever sees.
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
-    return new Response(
-      JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
-  const reservation = await reserveCredits(admin, user.id, cost, "encounter_generation");
-  if (!reservation.ok) return reservationFailureResponse(reservation);
-
-  // ── Semantic retrieval (#595) ──────────────────────────────────────────────
-  // An ENHANCEMENT over the compact index built above, which remains the
-  // fallback. Retrieval must never be able to take encounter generation down:
-  // a missing vendor, a mid-flip config, a provider outage or an RPC error all
-  // cost recall, not the feature. Hence the whole block is one try/catch whose
-  // failure path simply leaves `retrieved` null.
-  //
-  // Why it is worth doing: without it the model only knows the DM's custom
-  // monsters plus whatever 5e it learned in training. That covers the 656 SRD
-  // rows in library_monsters but not the other ~2,885 (Kobold Press, EN
-  // Publishing and friends) — it may know those concepts but not their exact
-  // names, and resolution is by name. Retrieval is what makes them reachable.
-  let retrieved: CandidateMonster[] | null = null;
-
-  try {
-    const embedProvider = await resolveEmbeddingProvider(admin, {
-      openai: platformKeys.openai ?? null,
-      gemini: platformKeys.gemini ?? null,
-    });
-    const { vectors, usage: embedUsage } = await embedProvider.embed([prompt]);
-
-    // Recorded HERE, not after the RPCs below — real provider spend was
-    // incurred the moment embed() returned, and everything after this point
-    // can throw into the catch. Recording later would mean a transient DB
-    // error silently converts real money into invisible spend, which is the
-    // exact failure recordFreeGeneration exists to prevent. embed-monsters
-    // makes the same call for the same reason.
+  return withCreditHold(admin, { payerId: user.id, reason: "encounter_generation", cost, report }, async (hold) => {
+    // ── Semantic retrieval (#595) ────────────────────────────────────────────
+    // An ENHANCEMENT over the compact index built above, which remains the
+    // fallback. Retrieval must never be able to take encounter generation down:
+    // a missing vendor, a mid-flip config, a provider outage or an RPC error all
+    // cost recall, not the feature. Hence the whole block is one try/catch whose
+    // failure path simply leaves `retrieved` null.
     //
-    // Platform-paid, charged to nobody: is_byok stays false because we, not
-    // the user, paid for it — see recordFreeGeneration's note.
-    await recordFreeGeneration(admin, user.id, "monster_embedding", {
-      model:        embedProvider.model,
-      provider:     embedUsage.provider,
-      input_tokens: embedUsage.input_tokens,
+    // Why it is worth doing: without it the model only knows the DM's custom
+    // monsters plus whatever 5e it learned in training. That covers the 656 SRD
+    // rows in library_monsters but not the other ~2,885 (Kobold Press, EN
+    // Publishing and friends) — it may know those concepts but not their exact
+    // names, and resolution is by name. Retrieval is what makes them reachable.
+    let retrieved: CandidateMonster[] | null = null;
+
+    try {
+      const embedProvider = await resolveEmbeddingProvider(admin, {
+        openai: platformKeys.openai ?? null,
+        gemini: platformKeys.gemini ?? null,
+      });
+      const { vectors, usage: embedUsage } = await embedProvider.embed([prompt]);
+
+      // Queued HERE, not after the RPCs below — real provider spend was
+      // incurred the moment embed() returned, and everything after this point
+      // can throw into the catch. A free line is written whatever the work
+      // does, so a transient DB error cannot turn real money into invisible
+      // spend. embed-monsters makes the same call for the same reason.
+      //
+      // Platform-paid, charged to nobody. Recorded as `monster_embedding`, not
+      // the `entity_embedding` its siblings use, because what is embedded here
+      // is monsters and the reason names what was embedded.
+      hold.free("monster_embedding", {
+        model:        embedProvider.model,
+        provider:     embedUsage.provider,
+        input_tokens: embedUsage.input_tokens,
+      });
+
+      // Two-corpus bestiary retrieval, extracted to _shared/monsterRetrieval.ts
+      // when generate-complication (#604) became its second consumer. The
+      // compact-index fallback below is NOT part of that module and stays here:
+      // encounter building must always offer creatures, which is this
+      // function's duty alone.
+      const candidates = await retrieveMonsterCandidates(admin, {
+        queryVector:    toVectorLiteral(vectors[0]),
+        ownerId:        campaign.user_id,
+        campaignId:     campaign_id,
+        ruleset,
+        embeddingModel: embedProvider.model,
+        perSide:        RETRIEVAL_PER_SIDE,
+        unembeddedCap:  MAX_UNEMBEDDED_APPEND,
+      });
+      if (candidates.length > 0) retrieved = candidates;
+
+    } catch (e) {
+      // Diagnosable, but never fatal.
+      const why = e instanceof EmbeddingProviderConfigError
+        ? `embedding provider not usable (${e.message})`
+        : e instanceof Error ? e.message : "unknown error";
+      console.warn(`Encounter retrieval unavailable for campaign ${campaign_id}, falling back to the compact index: ${why}`);
+    }
+
+    const constraints: string[] = [`Difficulty: ${difficulty}`, partySummary];
+
+    const candidateBlock: CandidateMonster[] = retrieved ?? customMonsters.map(fromCustomRow);
+    if (candidateBlock.length > 0) {
+      const monsterLines = candidateBlock.map((c) => `${c.name}|${c.cr}|${c.type}`);
+      // The truncation note only applies to the fallback path — the retrieved set
+      // is a relevance-ranked selection, not a partial alphabetical slice, so
+      // warning the model that it is "incomplete" would be misleading.
+      const truncationNote = retrieved === null && customMonsterTruncated
+        ? ` NOTE: this is the first ${customMonsters.length} of ${customMonsterTotal} custom monsters, ordered by name — the DM has others not shown here.`
+        : "";
+      constraints.push(
+        "Monsters available in the DM's bestiary that fit this concept; prefer the DM's own creations " +
+        "when one works. One per line as Name|CR|type. Use the exact name shown — the app resolves these " +
+        "back to real bestiary entries by name, and a name that is not on this list and is not a standard " +
+        "5e monster becomes a manual chore for the DM." +
+        truncationNote + "\n" +
+        "---BEGIN AVAILABLE MONSTERS---\n" +
+        monsterLines.join("\n") +
+        "\n---END AVAILABLE MONSTERS---",
+      );
+    }
+    const userContent = `${wrapUserInput(prompt)}\n\nConstraints:\n${constraints.join("\n")}`;
+
+    let textResult: TextResult;
+    try {
+      textResult = await callText({
+        text,
+        model: text.config?.text_model,
+        system: systemContent,
+        user: userContent,
+        maxTokens: 1200,
+      });
+    } catch (e) {
+      console.error("Encounter text generation failed:", e);
+      return jsonError(502, "generation_failed", e instanceof Error ? e.message : "Text generation failed");
+    }
+
+    const malformed = () =>
+      jsonError(502, "generation_failed", "The encounter came back unreadable. Nothing was charged; please try again.");
+    let encounterData: EncounterData;
+    try {
+      encounterData = JSON.parse(textResult.content) as EncounterData;
+    } catch {
+      return malformed();
+    }
+    // A reply of `null` parses fine, so it is checked here rather than read through.
+    if (!encounterData || !Array.isArray(encounterData.combatants) || encounterData.combatants.length === 0) return malformed();
+
+    // Charged the moment the paid call has produced a usable result (delta 0 on BYOK).
+    hold.charge("encounter_generation", {
+      cost,
+      isByok: text.isByok,
+      log: {
+        model: textResult.usage.model, provider: textResult.usage.provider,
+        input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+      },
     });
 
-    // Two-corpus bestiary retrieval, extracted to _shared/monsterRetrieval.ts
-    // when generate-complication (#604) became its second consumer. The
-    // compact-index fallback below is NOT part of that module and stays here:
-    // encounter building must always offer creatures, which is this
-    // function's duty alone.
-    const candidates = await retrieveMonsterCandidates(admin, {
-      queryVector:    toVectorLiteral(vectors[0]),
-      ownerId:        campaign.user_id,
-      campaignId:     campaign_id,
-      ruleset,
-      embeddingModel: embedProvider.model,
-      perSide:        RETRIEVAL_PER_SIDE,
-      unembeddedCap:  MAX_UNEMBEDDED_APPEND,
-    });
-    if (candidates.length > 0) retrieved = candidates;
+    // A near miss ("Skeletal Archers", "Dire Wolf Alpha") is put to a judgment model against exactly the
+    // creatures the prompt offered and rewritten to the offered name when it is confident, so the client's
+    // exact-name resolver finds the row (#1061). Free to the user; off until a typesafe key exists.
+    // A polish step: if it fails the encounter goes out unrepaired rather than a paid result turning into a 500.
+    try {
+      const [combatantRepairs] = await repairGeneratedNames(admin, user.id, [{
+        names: encounterData.combatants
+          .filter((c) => typeof c?.name === "string")
+          .map((c) => ({ name: c.name, note: typeof c.role === "string" ? c.role : undefined })),
+        offered: candidateBlock.map((c) => ({ name: c.name, hint: `CR ${c.cr} ${c.type}` })),
+        context: "A D&D combat encounter. Each combatant is a creature, from the DM's bestiary where possible.",
+      }]);
+      encounterData = {
+        ...encounterData,
+        combatants: encounterData.combatants.map((c) =>
+          typeof c?.name === "string" ? { ...c, name: repaired(combatantRepairs, c.name) } : c),
+      };
+    } catch (e) {
+      console.warn("Encounter name repair failed; returning the encounter unrepaired:", e);
+    }
 
-  } catch (e) {
-    // Diagnosable, but never fatal.
-    const why = e instanceof EmbeddingProviderConfigError
-      ? `embedding provider not usable (${e.message})`
-      : e instanceof Error ? e.message : "unknown error";
-    console.warn(`Encounter retrieval unavailable for campaign ${campaign_id}, falling back to the compact index: ${why}`);
-  }
+    const ai_provenance: AiProvenance = {
+      generatorType: "encounter_generation",
+      provider: textResult.usage.provider,
+      model: textResult.usage.model,
+      generatedAt: new Date().toISOString(),
+      edited: false,
+    };
 
-  const constraints: string[] = [`Difficulty: ${difficulty}`, partySummary];
-
-  const candidateBlock: CandidateMonster[] = retrieved ?? customMonsters.map(fromCustomRow);
-  if (candidateBlock.length > 0) {
-    const monsterLines = candidateBlock.map((c) => `${c.name}|${c.cr}|${c.type}`);
-    // The truncation note only applies to the fallback path — the retrieved set
-    // is a relevance-ranked selection, not a partial alphabetical slice, so
-    // warning the model that it is "incomplete" would be misleading.
-    const truncationNote = retrieved === null && customMonsterTruncated
-      ? ` NOTE: this is the first ${customMonsters.length} of ${customMonsterTotal} custom monsters, ordered by name — the DM has others not shown here.`
-      : "";
-    constraints.push(
-      "Monsters available in the DM's bestiary that fit this concept; prefer the DM's own creations " +
-      "when one works. One per line as Name|CR|type. Use the exact name shown — the app resolves these " +
-      "back to real bestiary entries by name, and a name that is not on this list and is not a standard " +
-      "5e monster becomes a manual chore for the DM." +
-      truncationNote + "\n" +
-      "---BEGIN AVAILABLE MONSTERS---\n" +
-      monsterLines.join("\n") +
-      "\n---END AVAILABLE MONSTERS---",
-    );
-  }
-  const userContent = `${wrapUserInput(prompt)}\n\nConstraints:\n${constraints.join("\n")}`;
-
-  const textModel = text.config?.text_model;
-
-  let textResult: TextResult;
-  try {
-    textResult = await callText({
-      text,
-      model: textModel,
-      system: systemContent,
-      user: userContent,
-      maxTokens: 1200,
-    });
-  } catch (e) {
-    await releaseCredits(admin, reservation.ids);
-    console.error("Encounter text generation failed:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
-  let encounterData: EncounterData;
-  try {
-    encounterData = JSON.parse(textResult.content) as EncounterData;
-  } catch {
-    await releaseCredits(admin, reservation.ids);
-    return new Response(
-      JSON.stringify({ error: "AI returned malformed encounter data — please try again." }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
-  if (!Array.isArray(encounterData.combatants) || encounterData.combatants.length === 0) {
-    await releaseCredits(admin, reservation.ids);
-    return new Response(
-      JSON.stringify({ error: "AI returned malformed encounter data — please try again." }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
-  // Release the hold; record the real spend (delta 0 on BYOK).
-  await releaseCredits(admin, reservation.ids);
-  await recordGeneration(admin, user.id, "encounter_generation", text.isByok, cost, {
-    model: textResult.usage.model, provider: textResult.usage.provider,
-    input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+    return json({ ...encounterData, ai_provenance });
   });
-
-  // A near miss ("Skeletal Archers", "Dire Wolf Alpha") is put to a judgment model against exactly the
-  // creatures the prompt offered and rewritten to the offered name when it is confident, so the client's
-  // exact-name resolver finds the row (#1061). Free to the user; off until a typesafe key exists.
-  const [combatantRepairs] = await repairGeneratedNames(admin, user.id, [{
-    names: encounterData.combatants
-      .filter((c) => typeof c?.name === "string")
-      .map((c) => ({ name: c.name, note: typeof c.role === "string" ? c.role : undefined })),
-    offered: candidateBlock.map((c) => ({ name: c.name, hint: `CR ${c.cr} ${c.type}` })),
-    context: "A D&D combat encounter. Each combatant is a creature, from the DM's bestiary where possible.",
-  }]);
-  encounterData = {
-    ...encounterData,
-    combatants: encounterData.combatants.map((c) =>
-      typeof c?.name === "string" ? { ...c, name: repaired(combatantRepairs, c.name) } : c),
-  };
-
-  const ai_provenance: AiProvenance = {
-    generatorType: "encounter_generation",
-    provider: textResult.usage.provider,
-    model: textResult.usage.model,
-    generatedAt: new Date().toISOString(),
-    edited: false,
-  };
-
-  return new Response(
-    JSON.stringify({ ...encounterData, ai_provenance }),
-    { headers: { "Content-Type": "application/json" } },
-  );
 }));

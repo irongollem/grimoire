@@ -11,6 +11,9 @@ import { STAND_IN_MAX_OUTPUT_TOKENS, standInPrompt, standInReply, standInsAnswer
 import type { AgentBlock } from "../_shared/agent/types.ts";
 import type { StoredMention } from "../../../src/lib/chat/chatMentions.ts";
 import { UUID_RE } from "../_shared/agent/parse.ts";
+import type { BaseCampaign, CampaignLoad } from "../_shared/pipeline/aiCampaign.ts";
+import type { CreditHold } from "../_shared/pipeline/creditHold.ts";
+import { json, jsonError } from "../_shared/pipeline/respond.ts";
 
 export interface ChatLine {
   id: string;
@@ -23,19 +26,20 @@ export interface ChatLine {
   mentions: StoredMention[];
 }
 
-export interface ReplyCampaign {
-  id: string;
-  /** The campaign's owner: the Dungeon Master who pays. */
-  user_id: string;
-  ai_enabled: boolean | null;
+export interface ReplyCampaign extends BaseCampaign {
+  text_provider: string | null;
 }
 
-type Reservation = { ok: true; ids: string[] } | { ok: false; status: number; error: string };
+/** The ledger lines a reply may queue; the hold itself (reserve, release, write) is `withCreditHold`'s. */
+export type ReplyHold = Pick<CreditHold, "charge" | "free">;
 type UsageLog = { provider: string; model: string; input_tokens: number; output_tokens: number };
 
 export interface ReplyDeps {
   loadLine(messageId: string): Promise<ChatLine | null>;
-  loadCampaign(campaignId: string): Promise<ReplyCampaign | null>;
+  /** The campaign, or the refusal to answer with: the caller must sit at it. */
+  loadCampaign(campaignId: string, userId: string): Promise<CampaignLoad<ReplyCampaign>>;
+  /** Whether the AI table is on for the campaign (`tableAiEnabled`). Off is a quiet "nobody answered", not a refusal. */
+  aiOn(campaign: ReplyCampaign): Promise<boolean>;
   /** The party as the chat knows it, each with whose character it is and the two words that let it answer. */
   loadParty(campaignId: string): Promise<StandIn[]>;
   /** The characters that have already answered this line: asking twice answers once. */
@@ -50,78 +54,77 @@ export interface ReplyDeps {
   loadMemories(campaignId: string, partyMemberId: string): Promise<string[]>;
   /** The newest public chat lines before this one, oldest first. Whispers are never among them. */
   loadRecent(line: ChatLine): Promise<{ from: string; text: string }[]>;
-  reserve(ownerId: string, credits: number): Promise<Reservation>;
-  release(ids: string[]): Promise<void>;
-  postReply(reply: { line: ChatLine; character: StandIn; text: string; recipientUserId: string | null; provider: string; model: string }): Promise<void>;
+  /**
+   * Holds `credits` on the campaign owner's account (0 holds nothing: own-key play), runs one character's reply and
+   * releases the hold whatever happens. A refused hold answers its refusal without running `work`.
+   */
+  withHold(ownerId: string, credits: number, work: (hold: ReplyHold) => Promise<Response>): Promise<Response>;
+  postReply(reply: { line: ChatLine; character: StandIn; ownerId: string; text: string; recipientUserId: string | null; provider: string; model: string }): Promise<void>;
   fileMemory(memory: { campaignId: string; partyMemberId: string; ownerId: string; body: string; provider: string; model: string }): Promise<void>;
-  charge(ownerId: string, isByok: boolean, credits: number, log: UsageLog): Promise<void>;
-  logUncharged(ownerId: string, isByok: boolean, log: UsageLog): Promise<void>;
 }
 
 /** Held per reply while it is written: a chat line costs a fraction of a turn of the story. */
 export const REPLY_RESERVE_CREDITS = 1;
+/** The ledger reason every reply is held and charged under. */
+export const GENERATION = "character_reply";
 
 export const REPLY_MESSAGES = {
   badBody: "The request is not valid.",
   notFound: "That message was not found.",
 } as const;
 
-export type ReplyOutcome = { ok: false; status: number; error: string } | { ok: true; replies: number };
+/** "Nobody answered": the line was posted, and whether a character answers is not the sender's business. */
+const nobody = (replies = 0) => json({ replies });
 
-const refuse = (status: number, error: string): ReplyOutcome => ({ ok: false, status, error });
-const NOBODY: ReplyOutcome = { ok: true, replies: 0 };
-
-export async function answerChatLine(input: { userId: string; body: unknown; deps: ReplyDeps }): Promise<ReplyOutcome> {
+export async function answerChatLine(input: { userId: string; body: unknown; deps: ReplyDeps }): Promise<Response> {
   const { userId, deps } = input;
   const raw = input.body;
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return refuse(400, REPLY_MESSAGES.badBody);
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return jsonError(400, "invalid_body", REPLY_MESSAGES.badBody);
   const messageId = (raw as Record<string, unknown>).messageId;
-  if (typeof messageId !== "string" || !UUID_RE.test(messageId)) return refuse(400, REPLY_MESSAGES.badBody);
+  if (typeof messageId !== "string" || !UUID_RE.test(messageId)) return jsonError(400, "invalid_body", REPLY_MESSAGES.badBody);
 
   // Only the one who typed a line may ask for its answer: nobody replays someone else's line at the DM's cost,
   // and a line the caller cannot have written is "not found", not "forbidden".
   const line = await deps.loadLine(messageId);
-  if (!line || line.user_id !== userId || line.type !== "chat") return refuse(404, REPLY_MESSAGES.notFound);
-  const campaign = await deps.loadCampaign(line.campaign_id);
-  if (!campaign) return refuse(404, REPLY_MESSAGES.notFound);
+  if (!line || line.user_id !== userId || line.type !== "chat") return jsonError(404, "message_not_found", REPLY_MESSAGES.notFound);
+  const load = await deps.loadCampaign(line.campaign_id, userId);
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
   // From here every "no" is quiet: the line was posted, and whether a character answers is not the sender's business.
-  if (campaign.ai_enabled !== true) return NOBODY;
+  // AI off included: the chat asks on every line a stand-in might answer.
+  if (!(await deps.aiOn(campaign))) return nobody();
 
   const answered = new Set(await deps.answeredBy(line.id));
   const answering = standInsAnswering(
     { mentions: line.mentions, recipientUserId: line.recipient_user_id, senderUserId: line.user_id },
     await deps.loadParty(campaign.id),
   ).filter((c) => !answered.has(c.id));
-  if (answering.length === 0) return NOBODY;
-  if (await deps.ownerRefused(campaign.user_id)) return NOBODY;
-  if (await deps.isFlagged(line.message, line.user_id)) return NOBODY;
+  if (answering.length === 0) return nobody();
+  if (await deps.ownerRefused(campaign.user_id)) return nobody();
+  if (await deps.isFlagged(line.message, line.user_id)) return nobody();
 
   const provider = await deps.resolveProvider(campaign);
-  if (!provider || !provider.callModel) return NOBODY;
+  if (!provider || !provider.callModel) return nobody();
   let price: ModelPrice | null = null;
   let calibration: CreditCalibration | null = null;
   if (!provider.isByok) {
     price = await deps.loadPrice(provider.model);
     const found = await deps.loadCalibration();
     calibration = usableCalibration(found);
-    if (!price || !calibration) return NOBODY;
+    if (!price || !calibration) return nobody();
   }
 
+  const callModel = provider.callModel;
   const whisper = line.recipient_user_id !== null;
   const recent = whisper ? [] : await deps.loadRecent(line);
   const from = line.sender_name ?? "Someone";
   let replies = 0;
   for (const character of answering) {
-    let reservationIds: string[] = [];
-    if (!provider.isByok) {
-      const reservation = await deps.reserve(campaign.user_id, REPLY_RESERVE_CREDITS);
-      // The DM is out of credits (or held back): the rest of the party stays silent too.
-      if (!reservation.ok) break;
-      reservationIds = reservation.ids;
-    }
-    try {
+    let ran = false;
+    const answer = await deps.withHold(campaign.user_id, provider.isByok ? 0 : REPLY_RESERVE_CREDITS, async (hold) => {
+      ran = true;
       const prompt = standInPrompt({ character, memories: await deps.loadMemories(campaign.id, character.id), recent, line: { from, text: line.message }, whisper });
-      const step = await provider.callModel({
+      const step = await callModel({
         system: prompt.system,
         messages: [{ role: "user", blocks: [{ type: "text", text: prompt.user }] }],
         tools: [],
@@ -132,20 +135,27 @@ export async function answerChatLine(input: { userId: string; body: unknown; dep
       const text = step.stop === "refusal" ? "" : step.blocks.filter((b): b is Extract<AgentBlock, { type: "text" }> => b.type === "text").map((b) => b.text).join("");
       const reply = standInReply(text);
       if (reply === null) {
-        await deps.logUncharged(campaign.user_id, provider.isByok, log);
-        continue;
+        hold.charge(GENERATION, { cost: 0, isByok: provider.isByok, log });
+        return nobody();
       }
       // A whisper is answered in a whisper, back to the one who sent it.
-      await deps.postReply({ line, character, text: reply.says, recipientUserId: whisper ? line.user_id : null, provider: usage.provider, model: usage.model });
+      await deps.postReply({ line, character, ownerId: campaign.user_id, text: reply.says, recipientUserId: whisper ? line.user_id : null, provider: usage.provider, model: usage.model });
       replies += 1;
       const credits = provider.isByok || !price || !calibration ? 0 : Math.max(1, Math.ceil(creditsForUsd(usdForSteps([usage], price), calibration)));
-      await deps.charge(campaign.user_id, provider.isByok, credits, log);
+      hold.charge(GENERATION, { cost: credits, isByok: provider.isByok, log });
       if (reply.remembers !== null) {
-        await deps.fileMemory({ campaignId: campaign.id, partyMemberId: character.id, ownerId: campaign.user_id, body: reply.remembers, provider: usage.provider, model: usage.model });
+        // A memory is a nicety: failing to file it must not turn a posted, paid reply into an error.
+        try {
+          await deps.fileMemory({ campaignId: campaign.id, partyMemberId: character.id, ownerId: campaign.user_id, body: reply.remembers, provider: usage.provider, model: usage.model });
+        } catch (e) {
+          console.error("character memory not filed:", e);
+        }
       }
-    } finally {
-      await deps.release(reservationIds);
-    }
+      return nobody();
+    });
+    // The hold was refused (the DM is out of credits, or held back): its refusal is the answer, and the rest of the
+    // party stays silent too.
+    if (!ran) return answer;
   }
-  return { ok: true, replies };
+  return nobody(replies);
 }

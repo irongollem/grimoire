@@ -67,7 +67,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import WorldNodeShape from "@/components/world/WorldNodeShape.vue";
 import WorldWebTieGroups from "@/components/world/WorldWebTieGroups.vue";
 import { IconClose, IconExternalLink, IconLink, IconNetwork } from "@/lib/icons";
-import { npcRelationshipCanvasColor } from "@/lib/npcDisplay";
+import { npcRelationshipCanvasColor } from "@/lib/worldWeb/relationshipCanvasColor";
 import type { TypeChoice } from "@/lib/worldLinks/connections";
 import { isLinkKind, kindNoun } from "@/lib/worldWeb/kinds";
 import type { WebEntity } from "@/lib/worldWeb/model";

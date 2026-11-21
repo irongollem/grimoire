@@ -14,8 +14,8 @@
 //     once its turn is kept, and nothing about it can be changed by the page.
 //
 // METERED: every call is a paid request to a speech service on the platform's key. Credits are reserved before the
-// line is spoken and the cost is accrued on the sitting, billed in whole credits as they are crossed (`reserve` and
-// `charge` below; `accrue_agent_voice`). It answers only where the stack has voices on (`voicesOn`, `_shared/speech.ts`).
+// line is spoken (`withHold`) and the cost is accrued on the sitting, billed in whole credits as they are crossed
+// (`accrue`; `accrue_agent_voice`). It answers only where the stack has voices on (`voicesOn`, `_shared/speech.ts`).
 
 import { VoicesSpent, type SpeechService } from "../_shared/speech.ts";
 import { creditsForSpeech, creditsPerMinute, speechChars } from "../_shared/agent/voiceCost.ts";
@@ -23,11 +23,12 @@ import type { CreditCalibration } from "../_shared/agent/metering.ts";
 import { NARRATOR_CUE, narratorSpeaker, pickVoice, type AgeBand, type NarratorVoice, type Sex } from "./voicePick.ts";
 import { VOICE_ROLES, type VoiceRole } from "../_shared/agent/lineKey.ts";
 import { UUID_RE } from "../_shared/agent/parse.ts";
+import type { BaseCampaign, CampaignLoad } from "../_shared/pipeline/aiCampaign.ts";
+import type { CreditHold } from "../_shared/pipeline/creditHold.ts";
+import { json, jsonError, rateLimited } from "../_shared/pipeline/respond.ts";
 
-export interface VoiceRefusal {
-  status: number;
-  error: string;
-}
+/** The ledger lines a spoken line may queue; the hold itself (reserve, release, write) is `withCreditHold`'s. */
+export type VoiceHold = Pick<CreditHold, "charge" | "free">;
 
 export interface VoiceSession {
   id: string;
@@ -37,19 +38,13 @@ export interface VoiceSession {
   narrator_voice: NarratorVoice;
 }
 
-export interface VoiceCampaign {
-  id: string;
-  user_id: string;
-  ai_enabled: boolean | null;
-}
-
 export interface TableVoiceDeps {
   /** Whether voices are switched on for this stack: the speech key and the trial switch are both set. */
   voiceOn(): boolean;
   /** By id alone: the handler decides whether it belongs to the caller. */
   loadSession(sessionId: string): Promise<VoiceSession | null>;
-  loadCampaign(campaignId: string): Promise<VoiceCampaign | null>;
-  isDm(campaign: VoiceCampaign, userId: string): Promise<boolean>;
+  /** The campaign, or the refusal to answer with: the caller must be its DM, and AI must be on. */
+  loadCampaign(campaignId: string, userId: string): Promise<CampaignLoad<BaseCampaign>>;
   rateLimit(userId: string): Promise<boolean>;
   /** Whether the key is the one `agent-turn` gave for exactly this line of this conversation. */
   keyFits(sessionId: string, line: VoicedLine, key: string): boolean;
@@ -84,11 +79,15 @@ export interface TableVoiceDeps {
   /** True when the line must not be spoken (the same screen a turn's own words go through). Throws when it cannot run. */
   isFlagged(text: string): Promise<boolean>;
   loadRate(service: VoiceService): Promise<{ usdPerMillionChars: number; calibration: CreditCalibration } | null>;
-  /** Holds credits for a line about to be made. Refused when the account cannot pay or may not spend. */
-  reserve(userId: string, credits: number): Promise<{ ok: true; ids: string[] } | { ok: false; status: number; error: string }>;
-  release(ids: string[]): Promise<void>;
-  /** Adds the line's exact cost to the conversation and bills the whole credits it newly crossed. */
-  charge(at: { sessionId: string; userId: string }, credits: number, log: { service: VoiceService; chars: number }): Promise<void>;
+  /** The model the service speaks with, for the ledger line. */
+  modelOf(service: VoiceService): string;
+  /** Holds `credits` for a line about to be made, runs it and releases the hold whatever happens; a refused hold answers its refusal. */
+  withHold(userId: string, credits: number, work: (hold: VoiceHold) => Promise<Response>): Promise<Response>;
+  /**
+   * Adds the line's exact cost to the conversation and answers the whole credits it newly crossed (0 when none).
+   * Billing those is the hold's: `table_voice` lines are charged by accrual, not per line.
+   */
+  accrue(sessionId: string, credits: number): Promise<number>;
 }
 
 /** A line as it is signed, kept and spoken. */
@@ -136,16 +135,13 @@ export const VOICE_MESSAGES = {
   badBody: "The request is not valid.",
   off: "Voices are not switched on.",
   notFound: "That conversation was not found.",
-  aiOff: "AI is disabled for this campaign.",
   forbidden: "Only the campaign's DM can use the AI table.",
-  rateLimited: "rate_limited",
   noLine: "That line is not one this sitting has shown.",
-  failed: "The line could not be spoken right now.",
-  spent: "voices_spent",
+  failed: "The line could not be spoken right now. Nothing was charged.",
+  spent: "The voices have used up their allowance for now.",
   unpriced: "Voices cannot be metered right now.",
   unspeakable: "That line cannot be read aloud.",
 } as const;
-
 
 export interface VoiceBody {
   campaignId: string;
@@ -206,23 +202,20 @@ export async function speakLine(input: {
   userId: string;
   body: unknown;
   deps: TableVoiceDeps;
-}): Promise<{ ok: true; audio: string; mime: "audio/mpeg" } | { ok: false; refusal: VoiceRefusal }> {
+}): Promise<Response> {
   const { userId, deps } = input;
-  const refuse = (status: number, error: string) => ({ ok: false as const, refusal: { status, error } });
 
   const body = parseVoiceBody(input.body);
-  if (!body) return refuse(400, VOICE_MESSAGES.badBody);
-  if (!deps.voiceOn()) return refuse(503, VOICE_MESSAGES.off);
+  if (!body) return jsonError(400, "invalid_body", VOICE_MESSAGES.badBody);
+  if (!deps.voiceOn()) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
 
   // Someone else's conversation, or one in another campaign, is "not found": a 403 would say it exists.
   const session = await deps.loadSession(body.sessionId);
-  if (!session || session.user_id !== userId || session.campaign_id !== body.campaignId) return refuse(404, VOICE_MESSAGES.notFound);
-  const campaign = await deps.loadCampaign(session.campaign_id);
-  if (!campaign) return refuse(404, VOICE_MESSAGES.notFound);
-  if (campaign.ai_enabled !== true) return refuse(403, VOICE_MESSAGES.aiOff);
-  if (!(await deps.isDm(campaign, userId))) return refuse(403, VOICE_MESSAGES.forbidden);
+  if (!session || session.user_id !== userId || session.campaign_id !== body.campaignId) return jsonError(404, "conversation_not_found", VOICE_MESSAGES.notFound);
+  const load = await deps.loadCampaign(session.campaign_id, userId);
+  if (!load.ok) return load.response;
 
-  if (!(await deps.rateLimit(userId))) return refuse(429, VOICE_MESSAGES.rateLimited);
+  if (!(await deps.rateLimit(userId))) return rateLimited();
 
   const line: VoicedLine = { role: body.role, speaker: { id: body.speakerId, name: body.speakerName }, text: body.text, how: body.how };
   const at = { campaignId: session.campaign_id, sessionId: session.id };
@@ -230,7 +223,7 @@ export async function speakLine(input: {
   // A clip made before is answered as it was made. A store that cannot be read costs a new clip, never the line.
   try {
     const kept = await deps.loadClip(at, line);
-    if (kept !== null) return { ok: true, audio: kept, mime: "audio/mpeg" };
+    if (kept !== null) return json({ audio: kept, mime: "audio/mpeg" });
   } catch (error) {
     console.error("table-voice: reading the kept clip failed:", error);
   }
@@ -238,17 +231,17 @@ export async function speakLine(input: {
   // with; one read back from a reopened sitting has no key, and is looked up in the conversation's own stored turns
   // (and spoken with the cue stored there, never one the page sends).
   if (body.key !== null) {
-    if (!deps.keyFits(session.id, line, body.key)) return refuse(404, VOICE_MESSAGES.noLine);
+    if (!deps.keyFits(session.id, line, body.key)) return jsonError(404, "line_not_shown", VOICE_MESSAGES.noLine);
   } else {
     const shown = await deps.findShown(session.id, line);
-    if (shown === null) return refuse(404, VOICE_MESSAGES.noLine);
+    if (shown === null) return jsonError(404, "line_not_shown", VOICE_MESSAGES.noLine);
     line.how = shown.how;
   }
 
   // A line is voiced the moment it arrives, before its turn has been screened and kept, so it is screened here
   // too: a line the table may not tell is never spoken. An outage of the screen does not silence the table.
   try {
-    if (await deps.isFlagged(line.text)) return refuse(422, VOICE_MESSAGES.unspeakable);
+    if (await deps.isFlagged(line.text)) return jsonError(422, "line_unspeakable", VOICE_MESSAGES.unspeakable);
   } catch (error) {
     console.error("table-voice: screening the line failed:", error);
   }
@@ -257,31 +250,36 @@ export async function speakLine(input: {
   // A line that is made is paid for: what it costs is worked out before it is made, from the admin's numbers.
   // Without them nothing is made, because nothing could be charged.
   const rate = await deps.loadRate(voice.service);
-  if (rate === null) return refuse(503, VOICE_MESSAGES.unpriced);
+  if (rate === null) return jsonError(503, "metering_unavailable", VOICE_MESSAGES.unpriced);
   // Narration carries no cue of its own; on ElevenLabs, which acts on one, the Narrator tells as a storyteller
   // (the maintainer's ear: "significantly better"). The cue is sent, so it is counted like the words.
   const how = line.role === "narrator" && voice.service === "elevenlabs" ? NARRATOR_CUE : line.how;
   const chars = speechChars(line.text, how);
   const credits = creditsForSpeech(chars, rate.usdPerMillionChars, rate.calibration);
-  const held = await deps.reserve(userId, Math.max(1, Math.ceil(credits)));
-  if (!held.ok) return refuse(held.status, held.error);
-  try {
-    // The words and the cue are the ones under the key: the page could not have changed either.
-    const audio = await deps.synthesize(voice, { text: line.text, how, narration: line.role === "narrator" });
+  return deps.withHold(userId, Math.max(1, Math.ceil(credits)), async (hold) => {
+    let audio: string;
+    try {
+      // The words and the cue are the ones under the key: the page could not have changed either.
+      audio = await deps.synthesize(voice, { text: line.text, how, narration: line.role === "narrator" });
+    } catch (error) {
+      // Out of allowance is told apart, so the page can say so once and stop asking for every line.
+      if (error instanceof VoicesSpent) return jsonError(402, "voices_spent", VOICE_MESSAGES.spent);
+      console.error("table-voice: the speech service failed:", error);
+      return jsonError(502, "generation_failed", VOICE_MESSAGES.failed);
+    }
     // Kept before it is answered, but a clip that cannot be kept is still heard.
     await deps.keepClip(at, line, audio).catch((error) => console.error("table-voice: keeping the clip failed:", error));
-    // Charged once it exists. A charge that fails is logged and the line is still heard: the player is never
-    // made to pay twice by asking again, since the clip is kept.
-    await deps.charge({ sessionId: session.id, userId }, credits, { service: voice.service, chars }).catch((error) => console.error("table-voice: charging the line failed:", error));
-    return { ok: true, audio, mime: "audio/mpeg" };
-  } catch (error) {
-    // Out of allowance is told apart, so the page can say so once and stop asking for every line.
-    if (error instanceof VoicesSpent) return refuse(402, VOICE_MESSAGES.spent);
-    console.error("table-voice: the speech service failed:", error);
-    return refuse(502, VOICE_MESSAGES.failed);
-  } finally {
-    await deps.release(held.ids).catch((error) => console.error("table-voice: releasing the held credits failed:", error));
-  }
+    // Accrued once it exists: the exact cost goes on the conversation and only the whole credits it newly crossed are
+    // billed. An accrual that fails is logged and the line is still heard: the player is never made to pay twice by
+    // asking again, since the clip is kept.
+    try {
+      const due = await deps.accrue(session.id, credits);
+      if (due > 0) hold.charge("table_voice", { cost: due, isByok: false, log: { provider: voice.service, model: deps.modelOf(voice.service) } });
+    } catch (error) {
+      console.error("table-voice: charging the line failed:", error);
+    }
+    return json({ audio, mime: "audio/mpeg" });
+  });
 }
 
 const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);

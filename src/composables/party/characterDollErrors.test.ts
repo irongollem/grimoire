@@ -13,7 +13,7 @@ describe("dollErrorMessage", () => {
   ];
 
   it("gives every known code its own sentence, never the generic fallback", () => {
-    const sentences = CODES.map(dollErrorMessage);
+    const sentences = CODES.map((c) => dollErrorMessage(c));
     expect(sentences).not.toContain(DOLL_FALLBACK_ERROR);
     expect(new Set(sentences).size).toBe(CODES.length);
   });
@@ -35,5 +35,15 @@ describe("dollErrorMessage", () => {
   it("falls back for anything it does not know", () => {
     expect(dollErrorMessage("Edge Function returned a non-2xx status code")).toBe(DOLL_FALLBACK_ERROR);
     expect(dollErrorMessage("")).toBe(DOLL_FALLBACK_ERROR);
+  });
+});
+
+describe("dollErrorMessage with a code", () => {
+  // #1234: the shared refusals put a sentence in `message` and the code in `error`; the doll's own wording keys on the
+  // code, so a sentence alone falls back while the code gives the player the doll's words.
+  it("words the refusal from its code, not from the server's sentence", () => {
+    const sentence = "AI is turned off for this campaign.";
+    expect(dollErrorMessage(sentence)).toBe(DOLL_FALLBACK_ERROR);
+    expect(dollErrorMessage(sentence, "ai_disabled")).toBe("Your DM has turned AI off for this table.");
   });
 });

@@ -16,6 +16,9 @@ import { isNarratorVoice, NARRATOR_VOICES, type NarratorVoice } from "../_shared
 import { isTelling, joinAudio, noteSpeechText, READING_MAX_CHARS, READING_PARALLEL, readingHash, readingKey, speechPieces, storytellerPieces, type Telling } from "../_shared/noteReading.ts";
 import type { SpeechService } from "../_shared/speech.ts";
 import { UUID_RE } from "../_shared/uuid.ts";
+import type { BaseCampaign, CampaignLoad } from "../_shared/pipeline/aiCampaign.ts";
+import type { CreditHold } from "../_shared/pipeline/creditHold.ts";
+import { json, jsonError, rateLimited } from "../_shared/pipeline/respond.ts";
 
 export interface ReadingNote {
   id: string;
@@ -24,22 +27,21 @@ export interface ReadingNote {
   reading_voice: NarratorVoice | null;
 }
 
-export interface ReadingCampaign {
-  id: string;
-  user_id: string;
-  ai_enabled: boolean | null;
-}
-
-type Reservation = { ok: true; ids: string[] } | { ok: false; status: number; error: string };
+/** The ledger lines a reading may queue; the hold itself (reserve, release, write) is `withCreditHold`'s. */
+export type ReadingHold = Pick<CreditHold, "charge" | "free">;
 
 export interface NoteReadingDeps {
   /** Whether this stack speaks at all (the admin's ElevenLabs key is set). Asked first by every path that speaks. */
   voiceOn(): Promise<boolean>;
   /** By id alone: the handler decides what the caller may do with it. */
   loadNote(noteId: string): Promise<ReadingNote | null>;
-  loadCampaign(campaignId: string): Promise<ReadingCampaign | null>;
-  /** The owner or a co-DM. */
-  isDm(campaign: ReadingCampaign, userId: string): Promise<boolean>;
+  /**
+   * The campaign, or the refusal to answer with. Only the owner or a co-DM passes. Making a reading ("make") also needs
+   * AI on; tidying up ("sweep") does not, and answers a caller without access as if the campaign were not there.
+   */
+  loadCampaign(campaignId: string, userId: string, purpose: "make" | "sweep"): Promise<CampaignLoad<BaseCampaign>>;
+  /** Whether the caller is within the rate limit for reading aloud; spends one of it. */
+  withinRate(userId: string): Promise<boolean>;
   /** Whether the caller may read this note, asked as the caller: their own, their campaign's as its DM, or one shared with them as a player. */
   mayRead(campaignId: string, noteId: string): Promise<boolean>;
   /** The note's text as a player may read it, the Dungeon Master's secret passages withheld; null when it cannot be checked. */
@@ -48,9 +50,10 @@ export interface NoteReadingDeps {
   loadRate(service: SpeechService): Promise<{ usdPerMillionChars: number; calibration: CreditCalibration } | null>;
   /** The same screen every text sent to a model goes through. */
   isFlagged(text: string): Promise<boolean>;
-  reserve(userId: string, credits: number): Promise<Reservation>;
-  release(ids: string[]): Promise<void>;
-  charge(userId: string, credits: number, log: { service: SpeechService }): Promise<void>;
+  /** The model the service speaks with, for the ledger line. */
+  modelOf(service: SpeechService): string;
+  /** Holds `credits`, runs the reading and releases the hold whatever happens; a refused hold answers its refusal. */
+  withHold(userId: string, credits: number, work: (hold: ReadingHold) => Promise<Response>): Promise<Response>;
   synthesize(voice: { service: SpeechService; id: string }, text: string): Promise<Uint8Array>;
   loadAudio(key: string): Promise<Uint8Array<ArrayBuffer> | null>;
   keepAudio(key: string, audio: Uint8Array): Promise<void>;
@@ -69,14 +72,13 @@ export const READING_MESSAGES = {
   badBody: "The request is not valid.",
   off: "Voices are not switched on.",
   notFound: "That note was not found.",
-  aiOff: "AI is disabled for this campaign.",
-  notDm: "Only the Dungeon Master has a note read aloud.",
   empty: "There is nothing in this note to read aloud.",
   tooLong: "This note is too long to read aloud in one go. Split it, or shorten it.",
   unchecked: "This note's text could not be checked, so it is not read aloud.",
   flagged: "This note holds something that may not be sent to be spoken.",
   noPrice: "Reading aloud has no price set, so it cannot be charged.",
   noReading: "This note has not been read aloud yet.",
+  notDm: "Only the Dungeon Master has a note read aloud.",
 } as const;
 
 export interface ReadingBody {
@@ -100,14 +102,7 @@ export function parseReadingBody(raw: unknown): ReadingBody | null {
   return { action: r.action, noteId: r.noteId, voice, telling };
 }
 
-export type ReadingOutcome =
-  | { ok: false; status: number; error: string }
-  | { ok: true; kind: "estimate"; chars: number; credits: number; has: boolean }
-  | { ok: true; kind: "made"; chars: number; credits: number }
-  | { ok: true; kind: "audio"; audio: Uint8Array<ArrayBuffer> }
-  | { ok: true; kind: "swept"; removed: number };
-
-const refuse = (status: number, error: string): ReadingOutcome => ({ ok: false, status, error });
+const noteNotFound = () => jsonError(404, "note_not_found", READING_MESSAGES.notFound);
 
 /**
  * Who speaks a reading. With feeling: ElevenLabs, which acts on cues, in the Narrator's voice of that choice there.
@@ -129,54 +124,54 @@ function speakerOf(deps: NoteReadingDeps, voice: NarratorVoice, telling: Telling
  * so a sweep can never take anything away from anyone: the campaign's DM may ask, and for a campaign that no longer
  * exists anyone signed in may, since every recording under it is then unreferenced.
  */
-async function sweepCampaign(input: { userId: string; campaignId: string; deps: NoteReadingDeps }): Promise<ReadingOutcome> {
+async function sweepCampaign(input: { userId: string; campaignId: string; deps: NoteReadingDeps }): Promise<Response> {
   const { userId, campaignId, deps } = input;
   if (await deps.campaignExists(campaignId)) {
-    const campaign = await deps.loadCampaign(campaignId);
-    if (!campaign || !(await deps.isDm(campaign, userId))) return refuse(404, READING_MESSAGES.notFound);
+    const load = await deps.loadCampaign(campaignId, userId, "sweep");
+    if (!load.ok) return load.response;
   }
-  return { ok: true, kind: "swept", removed: await deps.sweep(campaignId) };
+  return json({ removed: await deps.sweep(campaignId) });
 }
 
-export async function readNote(input: { userId: string; body: unknown; deps: NoteReadingDeps }): Promise<ReadingOutcome> {
+export async function readNote(input: { userId: string; body: unknown; deps: NoteReadingDeps }): Promise<Response> {
   const { userId, deps } = input;
   const raw = input.body;
   if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && (raw as Record<string, unknown>).action === "sweep") {
     const campaignId = (raw as Record<string, unknown>).campaignId;
-    if (typeof campaignId !== "string" || !UUID_RE.test(campaignId)) return refuse(400, READING_MESSAGES.badBody);
+    if (typeof campaignId !== "string" || !UUID_RE.test(campaignId)) return jsonError(400, "invalid_body", READING_MESSAGES.badBody);
     return sweepCampaign({ userId, campaignId, deps });
   }
   const body = parseReadingBody(input.body);
-  if (!body) return refuse(400, READING_MESSAGES.badBody);
+  if (!body) return jsonError(400, "invalid_body", READING_MESSAGES.badBody);
 
   const note = await deps.loadNote(body.noteId);
   // A note outside a campaign has no players to hear it and no campaign to say AI is on: nothing is read.
-  if (!note || note.campaign_id === null) return refuse(404, READING_MESSAGES.notFound);
+  if (!note || note.campaign_id === null) return noteNotFound();
   // Someone who may not read the note is told it does not exist: a 403 would say it does.
-  if (!(await deps.mayRead(note.campaign_id, note.id))) return refuse(404, READING_MESSAGES.notFound);
+  if (!(await deps.mayRead(note.campaign_id, note.id))) return noteNotFound();
 
   if (body.action === "listen") {
-    if (note.reading_hash === null) return refuse(404, READING_MESSAGES.noReading);
+    if (note.reading_hash === null) return jsonError(404, "no_reading", READING_MESSAGES.noReading);
     const audio = await deps.loadAudio(readingKey({ campaignId: note.campaign_id, noteId: note.id, hash: note.reading_hash }));
-    return audio === null ? refuse(404, READING_MESSAGES.noReading) : { ok: true, kind: "audio", audio };
+    return audio === null ? jsonError(404, "no_reading", READING_MESSAGES.noReading) : new Response(new Uint8Array(audio), { status: 200, headers: { "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=3600" } });
   }
 
   // Making a reading, and asking what one costs, is the Dungeon Master's.
-  if (!(await deps.voiceOn())) return refuse(503, READING_MESSAGES.off);
-  const campaign = await deps.loadCampaign(note.campaign_id);
-  if (!campaign) return refuse(404, READING_MESSAGES.notFound);
-  if (!(await deps.isDm(campaign, userId))) return refuse(403, READING_MESSAGES.notDm);
-  if (campaign.ai_enabled !== true) return refuse(403, READING_MESSAGES.aiOff);
+  if (!(await deps.voiceOn())) return jsonError(503, "voices_off", READING_MESSAGES.off);
+  const load = await deps.loadCampaign(note.campaign_id, userId, "make");
+  if (!load.ok) return load.response;
+  // Both asking and making send the note to a speech service and a moderation screen: neither is unmetered.
+  if (!(await deps.withinRate(userId))) return rateLimited();
 
   const stored = await deps.playerText(note.id);
-  if (stored === null) return refuse(422, READING_MESSAGES.unchecked);
+  if (stored === null) return jsonError(422, "note_unchecked", READING_MESSAGES.unchecked);
   const text = noteSpeechText(stored);
-  if (text === "") return refuse(422, READING_MESSAGES.empty);
-  if (text.length > READING_MAX_CHARS) return refuse(422, READING_MESSAGES.tooLong);
+  if (text === "") return jsonError(422, "note_empty", READING_MESSAGES.empty);
+  if (text.length > READING_MAX_CHARS) return jsonError(422, "note_too_long", READING_MESSAGES.tooLong);
 
   const voice = speakerOf(deps, body.voice, body.telling);
   const rate = await deps.loadRate(voice.service);
-  if (rate === null) return refuse(503, READING_MESSAGES.noPrice);
+  if (rate === null) return jsonError(503, "no_price", READING_MESSAGES.noPrice);
   // What is sent is what is paid for: the words, and the cues of a telling with feeling.
   const plain = speechPieces(text);
   const pieces = voice.cued ? storytellerPieces(plain) : plain;
@@ -185,23 +180,22 @@ export async function readNote(input: { userId: string; body: unknown; deps: Not
   const credits = Math.max(1, Math.ceil(creditsForSpeech(sent, rate.usdPerMillionChars, rate.calibration)));
   // Named by the words, the voice and who really speaks it, so the two tellings of one note never share a recording.
   const hash = await readingHash(text, `${body.voice}:${voice.service}:${voice.cued ? "cued" : "plain"}`);
+  const campaignId = note.campaign_id;
   const key = readingKey({ campaignId: note.campaign_id, noteId: note.id, hash });
 
   if (body.action === "estimate") {
-    return { ok: true, kind: "estimate", chars: text.length, credits, has: note.reading_hash === hash };
+    return json({ chars: text.length, credits, has: note.reading_hash === hash });
   }
 
   // This very text in this voice was already spoken (a retry after the row could not be written): nothing is made
   // or charged twice.
   if ((await deps.loadAudio(key)) !== null) {
     await deps.setReading(note.id, { hash, voice: body.voice, chars: text.length });
-    return { ok: true, kind: "made", chars: text.length, credits: 0 };
+    return json({ made: true, chars: text.length, credits: 0 });
   }
 
-  if (await deps.isFlagged(text)) return refuse(422, READING_MESSAGES.flagged);
-  const reservation = await deps.reserve(userId, credits);
-  if (!reservation.ok) return refuse(reservation.status, reservation.error);
-  try {
+  if (await deps.isFlagged(text)) return jsonError(422, "note_flagged", READING_MESSAGES.flagged);
+  return deps.withHold(userId, credits, async (hold) => {
     const spoken: Uint8Array[] = [];
     for (let i = 0; i < pieces.length; i += READING_PARALLEL) {
       const batch = pieces.slice(i, i + READING_PARALLEL);
@@ -211,13 +205,11 @@ export async function readNote(input: { userId: string; body: unknown; deps: Not
     }
     await deps.keepAudio(key, joinAudio(spoken));
     await deps.setReading(note.id, { hash, voice: body.voice, chars: text.length });
-    // Charged last: a reading that could not be kept or put on the note is not paid for.
-    await deps.charge(userId, credits, { service: voice.service });
+    // Queued last: a reading that could not be kept or put on the note is not paid for.
+    hold.charge("note_reading", { cost: credits, isByok: false, log: { provider: voice.service, model: deps.modelOf(voice.service) } });
     // The note now refers to this recording alone: an earlier telling of it is nobody's any more. Best effort: a
     // recording left behind costs storage, never the reading.
-    await deps.sweep(note.campaign_id).catch((error) => console.error("note-reading: sweeping the old recordings failed:", error));
-    return { ok: true, kind: "made", chars: text.length, credits };
-  } finally {
-    await deps.release(reservation.ids);
-  }
+    await deps.sweep(campaignId).catch((error) => console.error("note-reading: sweeping the old recordings failed:", error));
+    return json({ made: true, chars: text.length, credits });
+  });
 }

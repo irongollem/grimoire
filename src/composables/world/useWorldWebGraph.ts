@@ -3,7 +3,7 @@ import { defineConfigs } from "v-network-graph";
 import { ForceLayout } from "v-network-graph/lib/force-layout";
 
 import { groupClusteringForce, groupFenceForce } from "@/lib/worldWeb/groupClustering";
-import { npcRelationshipCanvasColor } from "@/lib/npcDisplay";
+import { npcRelationshipCanvasColor } from "@/lib/worldWeb/relationshipCanvasColor";
 import type { RestGraph } from "@/lib/worldWeb/model";
 import type { WebKind } from "@/lib/worldWeb/kinds";
 import { cssValue, familyColor, nodeSizeFor } from "@/lib/worldWeb/palette";

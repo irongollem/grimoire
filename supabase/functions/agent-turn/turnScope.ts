@@ -15,11 +15,13 @@ import type { QuestMove } from "../_shared/agent/quests.ts";
 import type { FiledFact } from "./turnTools.ts";
 import { safely } from "./turnSupport.ts";
 import type { Admitted } from "./admitTurn.ts";
-import type { AgentEvent, AgentTurnDeps } from "./turnTypes.ts";
+import type { AgentEvent, AgentTurnDeps, TurnLedger } from "./turnTypes.ts";
 
 export interface TurnScope extends Admitted {
   userId: string;
   deps: AgentTurnDeps;
+  /** The turn's ledger lines, queued here and written once the hold is released. */
+  ledger: TurnLedger;
   /** Never throws: a listener that throws (a closed stream) must not cost the player the turn that is already paid for. */
   emit: (event: AgentEvent) => void;
   signal: AbortSignal | undefined;

@@ -79,7 +79,7 @@ const totalProcessed = ref(0);
  * shape (`embedding_provider_unavailable` + a `detail` string, see
  * resolveEmbeddingProvider) needs `detail` surfaced, which the generic helper
  * discards. */
-async function extractErrorMessage(err: unknown): Promise<string> {
+export async function extractErrorMessage(err: unknown): Promise<string> {
   const fnError = err as { message?: string; context?: Response };
   let body: { error?: string; detail?: string; message?: string } | null = null;
   try {
@@ -87,7 +87,8 @@ async function extractErrorMessage(err: unknown): Promise<string> {
   } catch {
     /* response had no JSON body */
   }
-  return body?.detail ?? body?.error ?? body?.message ?? fnError.message ?? "The request failed.";
+  // `message` is the sentence and `error` a code (#1234), so the sentence comes before the code.
+  return body?.detail ?? body?.message ?? body?.error ?? fnError.message ?? "The request failed.";
 }
 
 /** One bounded batch call for `target`, routed to the edge function that owns it. */

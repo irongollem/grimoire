@@ -3,15 +3,15 @@
 // the provider, price and calibration lookups a turn of the table uses.
 import { serve } from "std/http/server.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { tableAiEnabled } from "../_shared/featureAccess.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { toPlainText } from "../_shared/ai-prompt.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
-import { recordGeneration, releaseCredits, reserveCredits, reservationRefusal } from "../_shared/credits.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { jsonError, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 import { loadAgentCalibration, loadModelPrice, resolveAgentProvider } from "../_shared/agent/providerIo.ts";
 import { closedLevels, questIdsForTitles, rollTableEntries, type PrepDigest } from "../_shared/campaignPrep.ts";
-import { prepCampaign, type PrepDeps } from "./handler.ts";
+import { prepCampaign, type PrepCampaign, type PrepDeps } from "./handler.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -20,10 +20,6 @@ const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY
 const QUESTS_MAX = 40;
 const BEATS_MAX = 200;
 const NAMES_MAX = 400;
-
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-}
 
 /** How the campaign levels its party, and the milestones it has, with the titles of the quests each waits on. */
 async function loadLevelling(admin: SupabaseClient, campaignId: string): Promise<PrepDigest["levelling"]> {
@@ -51,45 +47,18 @@ async function loadLevelling(admin: SupabaseClient, campaignId: string): Promise
 
 const lower = (rows: Array<{ name: unknown }> | null): Set<string> => new Set((rows ?? []).flatMap((r) => (typeof r.name === "string" ? [r.name.trim().toLowerCase()] : [])));
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-  const supabase = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
   // Fail closed, as a turn of the table does: a model is not called on an account a lookup could not clear.
   const gate = await generationRefusal(admin, user.id, { failClosed: true });
   if (gate) return gate;
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return json(400, { error: "Invalid JSON body." });
-  }
-
-  let rawCampaign: Record<string, unknown> | null = null;
+  const body = await readJsonBody(req);
+  if (body === null) return jsonError(400, "invalid_body", "The request is not valid.");
 
   const deps: PrepDeps = {
-    async loadCampaign(campaignId) {
-      const { data, error } = await admin
-        .from("campaigns")
-        .select("id, user_id, name, ai_enabled, text_provider")
-        .eq("id", campaignId)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) return null;
-      rawCampaign = data;
-      return { id: data.id as string, user_id: data.user_id as string, name: data.name as string, ai_enabled: await tableAiEnabled(admin, data) };
-    },
-
-    isDm: (campaign, userId) => isCampaignDm(admin, campaign, userId),
+    // The DM only, and anyone else is told the campaign does not exist: a 403 would say it does.
+    loadCampaign: (campaignId, userId) =>
+      loadAiCampaign<PrepCampaign>(admin, campaignId, userId, { columns: ["name", "text_provider"], aiSwitch: "table", hideFromOutsiders: true }),
 
     async loadDigest(campaign): Promise<PrepDigest> {
       const [quests, beats, places, hazards, items, tables, features, levelling] = await Promise.all([
@@ -149,28 +118,20 @@ serve(withCors(async (req: Request) => {
     },
 
     async resolveProvider(campaign) {
-      if (!rawCampaign) return null;
-      const resolved = await resolveAgentProvider(admin, { id: campaign.id, ownerId: campaign.user_id, textProvider: rawCampaign.text_provider as string | null });
+      const resolved = await resolveAgentProvider(admin, { id: campaign.id, ownerId: campaign.user_id, textProvider: campaign.text_provider });
       return resolved === null ? null : resolved.provider;
     },
 
     loadPrice: (model) => loadModelPrice(admin, model),
     loadCalibration: () => loadAgentCalibration(admin),
 
-    async reserve(userId, credits) {
-      const reservation = await reserveCredits(admin, userId, credits, "campaign_prep");
-      if (reservation.ok) return { ok: true, ids: reservation.ids };
-      return { ok: false, ...reservationRefusal(reservation, "The prep cannot be metered right now.") };
-    },
-
-    release: (ids) => releaseCredits(admin, ids),
-    charge: (userId, isByok, credits, log) => recordGeneration(admin, userId, "campaign_prep", isByok, credits, log),
+    withHold: (credits, work) => withCreditHold(admin, { payerId: user.id, reason: "campaign_prep", cost: credits, report }, work),
 
     // Ordinary campaign content, marked as made by AI. Written as the caller, so the tables' own rules decide
     // (their policies, and a plan's limits): a record the DM could not have made by hand is not made here either.
     async make({ campaign, userId }, proposal) {
       // The mark names the model that proposes for this campaign: the same lookup the proposing step made.
-      const resolved = rawCampaign === null ? null : await resolveAgentProvider(admin, { id: campaign.id, ownerId: campaign.user_id, textProvider: rawCampaign.text_provider as string | null });
+      const resolved = await resolveAgentProvider(admin, { id: campaign.id, ownerId: campaign.user_id, textProvider: campaign.text_provider });
       const mark = {
         generatorType: "campaign_prep",
         provider: resolved === null ? "unknown" : resolved.provider.provider,
@@ -238,12 +199,5 @@ serve(withCors(async (req: Request) => {
     },
   };
 
-  try {
-    const outcome = await prepCampaign({ userId: user.id, body, deps });
-    if (!outcome.ok) return json(outcome.status, { error: outcome.error });
-    return json(200, outcome.kind === "proposed" ? { proposals: outcome.proposals, credits: outcome.credits } : { made: outcome.made, skipped: outcome.skipped });
-  } catch (error) {
-    console.error("campaign-prep failed:", error);
-    return json(500, { error: "The campaign could not be prepped right now. Nothing was charged." });
-  }
+  return prepCampaign({ userId: user.id, body, deps });
 }));

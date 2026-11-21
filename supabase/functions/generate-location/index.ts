@@ -4,7 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
+import { fetchCreditCost, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
@@ -17,14 +17,16 @@ import {
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
 import { buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { callText, resolveTextProvider, NO_TEXT_PROVIDER_MESSAGE, type TextResult } from "../_shared/textGen.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText, worldImageSetting } from "../_shared/worldBlock.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -34,72 +36,55 @@ const admin = createClient(
 const MAP_BASE_PROMPT =
   "Top-down fantasy cartography map. Hand-drawn ink style, bird's-eye view, clean linework, labeled zones, hatching for walls and elevation, minimal colour. Readable as a functional map, not a painting.";
 
+interface LocationCampaign extends BaseCampaign {
+  text_provider: string | null;
+  image_provider: string | null;
+  game_system: string | null;
+}
+
+const optionalString = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate — including BYOK, which skips
   // the credit gate for both (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
-  let campaign_id: string, prompt: string, location_type: string | undefined,
-      parent_name: string | undefined, generate_image: boolean, generate_map: boolean;
-
-  try {
-    const body = await req.json();
-    campaign_id    = body.campaign_id;
-    prompt         = body.prompt;
-    location_type  = body.location_type;
-    parent_name    = body.parent_name;
-    generate_image = body.generate_image !== false;
-    generate_map   = body.generate_map === true;
-    if (!campaign_id || !prompt) throw new Error("invalid");
-  } catch {
-    return new Response("Invalid body — need { campaign_id, prompt }", { status: 400 });
-  }
+  const body = await readJsonBody(req);
+  const campaign_id = optionalString(body?.campaign_id);
+  const prompt = optionalString(body?.prompt);
+  if (!body || !campaign_id || !prompt) return jsonError(400, "invalid_body", "Need { campaign_id, prompt }.");
+  const location_type = optionalString(body.location_type);
+  const parent_name = optionalString(body.parent_name);
+  const generate_image = body.generate_image !== false;
+  const generate_map = body.generate_map === true;
 
   const promptCheck = validatePromptInput(prompt, AI_PROMPT_LIMIT);
   if (!promptCheck.ok) return promptCheck.errorResponse;
 
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, image_provider, game_system")
-    .eq("id", campaign_id)
-    .maybeSingle();
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
-
   // DMs only: no player surface calls this, and it spends the campaign's
   // credits or the owner's own provider key (see _shared/campaignAccess.ts).
-  if (!(await isCampaignDm(admin, campaign, user.id))) {
-    return new Response("Forbidden", { status: 403 });
-  }
+  const load = await loadAiCampaign<LocationCampaign>(admin, campaign_id, user.id, {
+    columns: ["text_provider", "image_provider", "game_system"],
+  });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
   // Ruleset-aware generation (#564): the context row follows the campaign's 5e system; Generic has none.
   const rulesetKey = rulesetContextKey(campaign.game_system);
 
-  const { data: promptRows } = await admin
+  const { data: promptRows, error: promptError } = await admin
     .from("ai_system_prompts").select("generator_type, content")
     .in("generator_type", ["location", "image_base", ...(rulesetKey ? [rulesetKey] : [])]);
+  if (promptError) throw promptError;
   const promptRow = promptRows?.find((r) => r.generator_type === "location");
   const imageBasePrompt = promptRows?.find((r) => r.generator_type === "image_base")?.content ?? "";
   // Missing row (older DBs that predate #564) is a silent skip, not an error.
   const rulesetContext =
     promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
-  if (!promptRow) return new Response("Prompt not configured", { status: 500 });
+  if (!promptRow) return jsonError(500, "prompt_not_configured", "This generator is not set up yet.");
 
   const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
     loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
@@ -130,12 +115,7 @@ serve(withCors(async (req: Request) => {
     platformKeys,
     providerConfigs,
   });
-  if (!text) {
-    return new Response(
-      JSON.stringify({ error: NO_TEXT_PROVIDER_MESSAGE }),
-      { status: 422, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
   const baseLocationCost = text.isByok ? 0 : await fetchCreditCost(admin, "location_generation");
@@ -152,146 +132,134 @@ serve(withCors(async (req: Request) => {
     ? wholeCredits(applyMultiplier(baseImageCost, img.imageMultiplier) * sizeMultiplier("1024x1024"))
     : 0;
   const locationTotalCost = locationCost + (generate_image ? perImageCost : 0) + (generate_map ? perImageCost : 0);
-  // Atomic affordability gate: hold the balance across the paid text+image calls.
   // Throttle abusive burst volume before any paid provider work (issue #466).
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
-    return new Response(
-      JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
-  const reservation = await reserveCredits(admin, user.id, locationTotalCost, "location_generation");
-  if (!reservation.ok) {
-    return reservationFailureResponse(reservation);
-  }
-
-  let textResult: TextResult;
-
-  try {
-    textResult = await callText({
-      text,
-      model: text.config?.text_model,
-      system: systemContent,
-      user: userContent,
-    });
-  } catch (e) {
-    await releaseCredits(admin, reservation.ids);
-    console.error("Location text generation failed:", e);
-    return new Response(
-      JSON.stringify({ error: "Text generation failed" }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
-  const locationData = JSON.parse(textResult.content);
-
-  // ── Images in parallel ────────────────────────────────────────────────────
-  let image_b64: string | null = null;
-  let map_b64: string | null = null;
-  type ImgResult = Awaited<ReturnType<typeof generateImage>>;
-  let sceneImgResult: ImgResult | null = null;
-  let mapImgResult: ImgResult | null = null;
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
   // Both the scene and the map bill against "entity_image", so they share one
-  // resolved quality.
+  // resolved quality. Read before the hold: an awaited read that throws must not strand a reservation.
   const imageQuality = img ? await resolveImageQuality(admin, "entity_image", img) : null;
 
-  if (img && (generate_image || generate_map)) {
-    const [imgSettled, mapSettled] = await Promise.allSettled([
-      generate_image
-        ? generateImage({
-            provider: img.provider, model: img.model, apiKey: img.apiKey,
-            screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "location_scene" },
-            prompt: buildSimpleImagePrompt({
-              base: imageBasePrompt,
-              setting: worldImageSetting(world),
-              subject: String(locationData.image_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS),
-            }),
-            size: "1024x1024", quality: imageQuality, boostStyle: true,
-          })
-        : Promise.resolve(null),
-      generate_map
-        ? generateImage({
-            provider: img.provider, model: img.model, apiKey: img.apiKey,
-            screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "location_map" },
-            prompt: [MAP_BASE_PROMPT, String(locationData.map_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS)].filter(Boolean).join(" — "),
-            size: "1024x1024", quality: imageQuality,
-          })
-        : Promise.resolve(null),
-    ]);
+  // Hold the balance across the paid text+image calls; the hold is released whatever happens inside, and only
+  // what succeeded is charged.
+  return withCreditHold(admin, { payerId: user.id, reason: "location_generation", cost: locationTotalCost, report }, async (hold) => {
+    let textResult: TextResult;
 
-    // EU AI Act Art 50(2) — mark before the bytes leave this pipeline. No
-    // server-side upload here (the client uploads image_b64/map_b64), so this
-    // is the last point the resolved provider/model are known.
-    if (imgSettled.status === "fulfilled" && imgSettled.value) {
-      sceneImgResult = imgSettled.value;
-      const prov: AiProvenance = {
-        generatorType: "location",
-        provider: imgSettled.value.usage.provider,
-        model: img.model,
-        generatedAt: new Date().toISOString(),
-        edited: false,
-      };
-      image_b64 = markGeneratedImageB64(imgSettled.value.b64, imgSettled.value.contentType, prov);
-    } else if (imgSettled.status === "rejected") {
-      console.error("Location scene image failed (non-fatal):", imgSettled.reason);
+    try {
+      textResult = await callText({
+        text,
+        model: text.config?.text_model,
+        system: systemContent,
+        user: userContent,
+      });
+    } catch (e) {
+      console.error("Location text generation failed:", e);
+      return jsonError(502, "generation_failed", "Text generation failed. Nothing was charged; please try again.");
     }
 
-    if (mapSettled.status === "fulfilled" && mapSettled.value) {
-      mapImgResult = mapSettled.value;
-      const prov: AiProvenance = {
-        generatorType: "location_map",
-        provider: mapSettled.value.usage.provider,
-        model: img.model,
-        generatedAt: new Date().toISOString(),
-        edited: false,
-      };
-      map_b64 = markGeneratedImageB64(mapSettled.value.b64, mapSettled.value.contentType, prov);
-    } else if (mapSettled.status === "rejected") {
-      console.error("Location map image failed (non-fatal):", mapSettled.reason);
+    let locationData: Record<string, unknown>;
+    try {
+      const parsed: unknown = JSON.parse(textResult.content);
+      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("not an object");
+      locationData = parsed as Record<string, unknown>;
+    } catch {
+      return jsonError(502, "generation_failed", "The location came back unreadable. Nothing was charged; please try again.");
     }
-  }
 
-  // Release the hold; record the real spend below (text always, each image if it rendered).
-  await releaseCredits(admin, reservation.ids);
+    // Log text generation (with credit deduction), the moment it has produced a usable result.
+    hold.charge("location_generation", {
+      cost: locationCost,
+      isByok: text.isByok,
+      log: {
+        model: textResult.usage.model, provider: textResult.usage.provider,
+        input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+      },
+    });
 
-  // Log text generation (with credit deduction)
-  await recordGeneration(admin, user.id, "location_generation", text.isByok, locationCost, {
-    model: textResult.usage.model, provider: textResult.usage.provider,
-    input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+    // ── Images in parallel ──────────────────────────────────────────────────
+    let image_b64: string | null = null;
+    let map_b64: string | null = null;
+
+    if (img && (generate_image || generate_map)) {
+      const [imgSettled, mapSettled] = await Promise.allSettled([
+        generate_image
+          ? generateImage({
+              provider: img.provider, model: img.model, apiKey: img.apiKey,
+              screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "location_scene" },
+              prompt: buildSimpleImagePrompt({
+                base: imageBasePrompt,
+                setting: worldImageSetting(world),
+                subject: String(locationData.image_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS),
+              }),
+              size: "1024x1024", quality: imageQuality, boostStyle: true,
+            })
+          : Promise.resolve(null),
+        generate_map
+          ? generateImage({
+              provider: img.provider, model: img.model, apiKey: img.apiKey,
+              screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "location_map" },
+              prompt: [MAP_BASE_PROMPT, String(locationData.map_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS)].filter(Boolean).join(" — "),
+              size: "1024x1024", quality: imageQuality,
+            })
+          : Promise.resolve(null),
+      ]);
+
+      // Charge each image as its own entity_image row (or delta=0 on BYOK), as soon as it rendered and before the
+      // provenance mark below: a picture that was made is paid for even if marking it then throws.
+      for (const settled of [imgSettled, mapSettled]) {
+        if (settled.status !== "fulfilled" || !settled.value) continue;
+        const result = settled.value;
+        hold.charge("entity_image", {
+          cost: perImageCost,
+          isByok: imageIsByok,
+          log: {
+            model: img.model, quality: imageQuality, size: "1024x1024",
+            provider: result.usage.provider, image_count: 1,
+            input_tokens:       result.usage.input_tokens       || undefined,
+            input_image_tokens: result.usage.input_image_tokens || undefined,
+            output_tokens:      result.usage.output_tokens      || undefined,
+          },
+        });
+      }
+
+      // EU AI Act Art 50(2) — mark before the bytes leave this pipeline. No
+      // server-side upload here (the client uploads image_b64/map_b64), so this
+      // is the last point the resolved provider/model are known. A legal step:
+      // if marking throws, the hold writes the queued charges as free lines.
+      if (imgSettled.status === "fulfilled" && imgSettled.value) {
+        const prov: AiProvenance = {
+          generatorType: "location",
+          provider: imgSettled.value.usage.provider,
+          model: img.model,
+          generatedAt: new Date().toISOString(),
+          edited: false,
+        };
+        image_b64 = markGeneratedImageB64(imgSettled.value.b64, imgSettled.value.contentType, prov);
+      } else if (imgSettled.status === "rejected") {
+        console.error("Location scene image failed (non-fatal):", imgSettled.reason);
+      }
+
+      if (mapSettled.status === "fulfilled" && mapSettled.value) {
+        const prov: AiProvenance = {
+          generatorType: "location_map",
+          provider: mapSettled.value.usage.provider,
+          model: img.model,
+          generatedAt: new Date().toISOString(),
+          edited: false,
+        };
+        map_b64 = markGeneratedImageB64(mapSettled.value.b64, mapSettled.value.contentType, prov);
+      } else if (mapSettled.status === "rejected") {
+        console.error("Location map image failed (non-fatal):", mapSettled.reason);
+      }
+    }
+
+    const ai_provenance: AiProvenance = {
+      generatorType: "location_generation",
+      provider: textResult.usage.provider,
+      model: textResult.usage.model,
+      generatedAt: new Date().toISOString(),
+      edited: false,
+    };
+
+    return json({ ...locationData, image_b64, map_b64, ai_provenance });
   });
-
-  // Charge each image as its own entity_image row (or delta=0 on BYOK).
-  if (sceneImgResult) {
-    await recordGeneration(admin, user.id, "entity_image", imageIsByok, perImageCost, {
-      model: img!.model, quality: imageQuality, size: "1024x1024",
-      provider: sceneImgResult.usage.provider, image_count: 1,
-      input_tokens:       sceneImgResult.usage.input_tokens       || undefined,
-      input_image_tokens: sceneImgResult.usage.input_image_tokens || undefined,
-      output_tokens:      sceneImgResult.usage.output_tokens      || undefined,
-    });
-  }
-  if (mapImgResult) {
-    await recordGeneration(admin, user.id, "entity_image", imageIsByok, perImageCost, {
-      model: img!.model, quality: imageQuality, size: "1024x1024",
-      provider: mapImgResult.usage.provider, image_count: 1,
-      input_tokens:       mapImgResult.usage.input_tokens       || undefined,
-      input_image_tokens: mapImgResult.usage.input_image_tokens || undefined,
-      output_tokens:      mapImgResult.usage.output_tokens      || undefined,
-    });
-  }
-
-  const ai_provenance: AiProvenance = {
-    generatorType: "location_generation",
-    provider: textResult.usage.provider,
-    model: textResult.usage.model,
-    generatedAt: new Date().toISOString(),
-    edited: false,
-  };
-
-  return new Response(
-    JSON.stringify({ ...locationData, image_b64, map_b64, ai_provenance }),
-    { headers: { "Content-Type": "application/json" } },
-  );
 }));

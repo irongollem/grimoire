@@ -20,6 +20,9 @@ export const RATE_LIMITS = {
   // One spoken line voiced at the AI table (#1021). A turn shows up to a handful of lines and each is a paid call to
   // a speech service, so this is its own bucket: far above a story being played, well below a loop.
   table_voice:   { action: "table_voice",   limit: 60, windowSeconds: 60 },
+  // Reading a note aloud (#1234). `make` voices a whole note through a paid speech service and `estimate` runs an
+  // unmetered moderation call, and neither had a bound. A DM reads a handful of notes a session; this stops a loop.
+  note_reading:  { action: "note_reading",  limit: 20, windowSeconds: 60 },
   bug_report:    { action: "bug_report",    limit: 15, windowSeconds: 86_400 },
   // One event per notify invocation (which may email a whole party). Bounds a
   // compromised or misbehaving DM account to 30 email bursts an hour.

@@ -1,3 +1,4 @@
+
 /**
  * Plain, player-facing sentences for what generate-character-doll (or the job
  * it starts) can answer. `raw` is what edgeErrorMessage or the job row gave:
@@ -6,13 +7,13 @@
 export const DOLL_FALLBACK_ERROR = "The doll could not be made. You have not been charged.";
 
 /**
- * Translate a trimmed generator error into a player-facing message. Preserve
- * recognized screening, credit, rate, and account messages; use the generic
- * fallback for unrecognized errors.
+ * Translate a generator error into a player-facing message. `code` is the response's error code when there was one
+ * (a job row's failure has none: its `raw` text is all there is). Preserve recognized screening, credit, rate, and
+ * account messages; use the generic fallback for unrecognized errors.
  */
-export function dollErrorMessage(raw: string): string {
+export function dollErrorMessage(raw: string, code?: string | null): string {
   const text = raw.trim();
-  switch (text) {
+  switch (code ?? text) {
     case "no_portrait":
       return "Add a portrait first: the doll is drawn from it.";
     case "doll_in_progress":
@@ -28,6 +29,7 @@ export function dollErrorMessage(raw: string): string {
     case "likeness_acknowledgement_required":
       return "Confirm the likeness notice first, then try again.";
     case "not_found":
+    case "campaign_not_found":
       return "This character could not be found.";
     default:
       break;

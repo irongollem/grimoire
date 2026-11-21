@@ -14,7 +14,9 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
-import { releaseCredits, recordGeneration } from "../_shared/credits.ts";
+import { settleHandedOff } from "../_shared/pipeline/creditHold.ts";
+import { json, jsonError } from "../_shared/pipeline/respond.ts";
+import { reportEdgeError } from "../_shared/observability/report.ts";
 import { getImageTo3dTask, resolveMeshyKey, type MeshFormat } from "../_shared/mesh3d.ts";
 import { resolveSculptOutcome, isStale, sculptPhaseStartedAt, type MiniStatusB } from "../_shared/simulacrum.ts";
 import { uploadWithRetry, fetchBytes, publicUrlFor } from "../_shared/storage-upload.ts";
@@ -108,7 +110,14 @@ async function uploadModelFile(path: string, bytes: Uint8Array, contentType: str
 }
 
 /** Terminal failure path shared by "no task id" / "no Meshy key" / resolveSculptOutcome's "fail". */
-async function failMini(mini: MiniRow, nextStatus: MiniStatusB, error: string, creditsSpent: number): Promise<boolean> {
+type Report = (err: unknown) => void;
+
+/** Give a hold back without charging: the sculpt failed, or never ran. */
+function releaseHold(mini: MiniRow, ids: string[], report: Report): Promise<void> {
+  return settleHandedOff(admin, { payerId: mini.user_id, ids, report }, async () => undefined);
+}
+
+async function failMini(mini: MiniRow, nextStatus: MiniStatusB, error: string, creditsSpent: number, report: Report): Promise<boolean> {
   const won = await updateLeasedMini(mini, {
     status: nextStatus,
     error,
@@ -119,7 +128,7 @@ async function failMini(mini: MiniRow, nextStatus: MiniStatusB, error: string, c
     poll_lease_until: null,
     poll_last_error: error.slice(0, 1000),
   }, ["sculpting", "downloading"]);
-  if (won && mini.reservation_ids?.length) await releaseCredits(admin, mini.reservation_ids);
+  if (won && mini.reservation_ids?.length) await releaseHold(mini, mini.reservation_ids, report);
   return won;
 }
 
@@ -166,7 +175,7 @@ async function composeMiniModel(
   return { glbPath, stlPath };
 }
 
-async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
+async function processMini(mini: MiniRow, meshyKey: string, report: Report): Promise<void> {
   const stale = isStale(sculptPhaseStartedAt(mini), Date.now());
 
   if (!mini.meshy_task_id) {
@@ -174,7 +183,7 @@ async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
     // and persisting its id. Do not immediately discard a task if the edge
     // request was merely still finishing; fail only once its sculpt phase has
     // exceeded the normal provider window.
-    if (stale) await failMini(mini, "failed", "Meshy task id was not recorded", 0);
+    if (stale) await failMini(mini, "failed", "Meshy task id was not recorded", 0, report);
     else await releaseLease(mini, "Waiting for Meshy task id");
     return;
   }
@@ -185,7 +194,7 @@ async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
   // staleness clock into an infinite retry loop).
   if (mini.status === "downloading" && stale) {
     const nextStatus = mini.glb_path ? "ready" : "failed";
-    await failMini(mini, nextStatus, "Model download failed repeatedly", nextStatus === "failed" ? 0 : mini.credits_spent);
+    await failMini(mini, nextStatus, "Model download failed repeatedly", nextStatus === "failed" ? 0 : mini.credits_spent, report);
     return;
   }
 
@@ -198,7 +207,7 @@ async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
     // deliberately independent of leases, so it eventually terminally fails.
     if (stale) {
       const nextStatus = mini.glb_path ? "ready" : "failed";
-      await failMini(mini, nextStatus, `Meshy status checks kept failing: ${message}`, nextStatus === "failed" ? 0 : mini.credits_spent);
+      await failMini(mini, nextStatus, `Meshy status checks kept failing: ${message}`, nextStatus === "failed" ? 0 : mini.credits_spent, report);
     } else {
       await releaseLease(mini, message);
     }
@@ -217,7 +226,7 @@ async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
 
   if (outcome.kind === "fail") {
     const creditsSpent = outcome.nextStatus === "failed" ? 0 : mini.credits_spent;
-    await failMini(mini, outcome.nextStatus, task.error ?? "Sculpt timed out", creditsSpent);
+    await failMini(mini, outcome.nextStatus, task.error ?? "Sculpt timed out", creditsSpent, report);
     return;
   }
 
@@ -313,13 +322,15 @@ async function processMini(mini: MiniRow, meshyKey: string): Promise<void> {
   // already wrote it). `completed` is the terminal ownership guard: an
   // overlapping/reclaimed worker cannot enter this block and double-charge.
   if (mini.reservation_ids?.length) {
-    await releaseCredits(admin, mini.reservation_ids);
-    await recordGeneration(admin, mini.user_id, "mini_sculpt", false, mini.credits_spent).catch(console.error);
+    await settleHandedOff(admin, { payerId: mini.user_id, ids: mini.reservation_ids, report }, async (ledger) => {
+      ledger.charge("mini_sculpt", { cost: mini.credits_spent, isByok: false });
+    });
   }
 }
 
 serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
+  if (req.method !== "POST") return jsonError(405, "method_not_allowed");
+  const report: Report = (err) => void reportEdgeError(err, req);
 
   const authHeader = req.headers.get("Authorization") ?? "";
   const token = authHeader.replace(/^Bearer\s+/i, "");
@@ -339,12 +350,12 @@ serve(withCors(async (req: Request) => {
     // before the Meshy subscription exists — but note that the cron never even
     // reaches it while its own secrets are missing, which is why that checklist
     // says to verify with a real sculpt rather than by reading `cron.job`.
-    if (!expected) return new Response("Poller not configured", { status: 503 });
-    if (!timingSafeEqual(token, expected)) return new Response("Unauthorized", { status: 401 });
+    if (!expected) return jsonError(503, "poller_not_configured", "The poller is not configured.");
+    if (!timingSafeEqual(token, expected)) return jsonError(401, "unauthorized", "Unauthorized.");
   }
 
   const nowIso = new Date().toISOString();
-  const { data: candidates } = await admin
+  const { data: candidates, error: candidatesError } = await admin
     .from("minis")
     .select("id, user_id, format, status, meshy_task_id, glb_path, reservation_ids, credits_spent, sculpt_count, scale_mm, updated_at, sculpt_started_at, download_started_at, poll_lease_id, poll_lease_until, poll_last_error")
     .in("status", ["sculpting", "downloading"])
@@ -352,8 +363,9 @@ serve(withCors(async (req: Request) => {
     .order("sculpt_started_at", { ascending: true, nullsFirst: true })
     .limit(20);
 
+  if (candidatesError) throw candidatesError;
   const rows = (candidates ?? []) as MiniRow[];
-  if (!rows.length) return new Response(JSON.stringify({ processed: 0 }), { headers: { "Content-Type": "application/json" } });
+  if (!rows.length) return json({ processed: 0 });
 
   // One key fetch per tick, not per mini — it can't differ between rows.
   const meshyKey = await resolveMeshyKey(admin);
@@ -383,10 +395,10 @@ serve(withCors(async (req: Request) => {
         // wins; releasing first could drop another worker's live reservation.
         .select("id");
       if (failed?.length && mini.reservation_ids?.length) {
-        await releaseCredits(admin, mini.reservation_ids);
+        await releaseHold(mini, mini.reservation_ids, report);
       }
     }
-    return new Response(JSON.stringify({ processed: 0 }), { headers: { "Content-Type": "application/json" } });
+    return json({ processed: 0 });
   }
 
   let processed = 0;
@@ -410,7 +422,7 @@ serve(withCors(async (req: Request) => {
     if (!claimed) continue;
     const mini = claimed as MiniRow;
     try {
-      await processMini(mini, meshyKey);
+      await processMini(mini, meshyKey, report);
       processed++;
     } catch (e) {
       console.error(`poll-meshy-jobs: mini ${mini.id} failed`, e);
@@ -419,12 +431,12 @@ serve(withCors(async (req: Request) => {
       // independently tracked phase clock is stale, stop retrying forever.
       if (isStale(sculptPhaseStartedAt(mini), Date.now())) {
         const nextStatus = mini.glb_path ? "ready" : "failed";
-        await failMini(mini, nextStatus, message, nextStatus === "failed" ? 0 : mini.credits_spent);
+        await failMini(mini, nextStatus, message, nextStatus === "failed" ? 0 : mini.credits_spent, report);
       } else {
         await releaseLease(mini, message);
       }
     }
   }
 
-  return new Response(JSON.stringify({ processed }), { headers: { "Content-Type": "application/json" } });
+  return json({ processed });
 }));

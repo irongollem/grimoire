@@ -14,9 +14,12 @@ import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import { buildTileProvenance } from "./tileProvenance.ts";
 import { libraryPackTarget, mintLibraryPackId, packPrefix, userPackTarget, type PackTarget } from "./packTarget.ts";
 import { PROOF_SLOT_IDENTITIES, PROOF_SLOTS, baseReferenceCandidates, initialGenerationStatus, parseTileSlot, validateLibraryPackPatch } from "./libraryActions.ts";
-import { fetchCreditCost, recordFreeGeneration, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, wholeCredits } from "../_shared/credits.ts";
+import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { withCors } from "../_shared/cors.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { tilePackModel, tilePackSlug, webpDimensions } from "../_shared/tilePackGeneration.ts";
 import { attemptCharge, attemptsRemaining, canAttempt } from "../../../src/cartographer/generationBudget.ts";
@@ -38,10 +41,6 @@ const admin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-}
-
 function decodeBase64(value: string): Uint8Array {
   const binary = atob(value);
   const bytes = new Uint8Array(binary.length);
@@ -58,21 +57,9 @@ function encodeBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-async function requireUser(req: Request) {
-  const authorization = req.headers.get("Authorization");
-  if (!authorization) return null;
-  const client = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authorization } } },
-  );
-  const { data: { user } } = await client.auth.getUser();
-  return user;
-}
-
 /** The same server-controlled claim `_shared/requireAdmin.ts` checks — checked
  *  inline here because every caller already has the `user` object in hand
- *  (from `requireUser` below), and `requireAdmin` would mean re-fetching it. */
+ *  (from `serveUser`), and `requireAdmin` would mean re-fetching it. */
 function isAppAdmin(user: User): boolean {
   return user.app_metadata?.role === "admin";
 }
@@ -92,9 +79,10 @@ function isAppAdmin(user: User): boolean {
  *    started it is on holiday.
  */
 async function requireGenerationRun(runId: string, user: User) {
-  const { data } = await admin.from("tile_pack_generation_runs")
+  const { data, error } = await admin.from("tile_pack_generation_runs")
     .select("*, user_tile_packs(*), library_tile_packs(*)")
     .eq("id", runId).maybeSingle();
+  if (error) throw error;
   const row = data as null | {
     id: string;
     user_id: string;
@@ -118,15 +106,12 @@ async function requireGenerationRun(runId: string, user: User) {
   return { ...row, lane: "library" as const, target: libraryPackTarget(row.library_tile_packs) };
 }
 
-async function campaignForGeneration(campaignId: string, userId: string) {
-  const { data: campaign } = await admin.from("campaigns")
-    .select("id, user_id, ai_enabled")
-    .eq("id", campaignId).maybeSingle();
-  if (!campaign || campaign.ai_enabled !== true) return null;
-  if (campaign.user_id === userId) return campaign;
-  const { data: member } = await admin.from("campaign_members").select("role")
-    .eq("campaign_id", campaignId).eq("user_id", userId).eq("role", "dm").maybeSingle();
-  return member ? campaign : null;
+/**
+ * The user lane's gate: the caller must be the campaign's DM and AI must be on (every plan may generate once it is,
+ * same as every other generator). Not-found, forbidden and AI-off are told apart, so a DM sees why a run is refused.
+ */
+function campaignForGeneration(campaignId: string, userId: string) {
+  return loadAiCampaign<BaseCampaign>(admin, campaignId, userId);
 }
 
 function artBible(name: string, description: string): PackArtBible {
@@ -154,7 +139,8 @@ async function createRun(userId: string, body: Record<string, unknown>): Promise
   if (!campaignId || !name || name.length > 100 || description.length > 1000) {
     return json({ error: "invalid_pack_concept" }, 400);
   }
-  if (!(await campaignForGeneration(campaignId, userId))) return json({ error: "campaign_forbidden" }, 403);
+  const gate = await campaignForGeneration(campaignId, userId);
+  if (!gate.ok) return gate.response;
   const basePackId = tilePackSlug(typeof body.pack_id === "string" ? body.pack_id : name);
   const packId = `custom-${basePackId.replace(/^custom-/, "")}-${userId.slice(0, 8)}`;
   if (!basePackId) return json({ error: "invalid_pack_id" }, 400);
@@ -751,10 +737,17 @@ async function appendPlanAttempt(
   if (path?.raw) job.paths.raw = path.raw;
   if (path?.normalized) job.paths.normalized = path.normalized;
   plan.updated_at = new Date().toISOString();
-  await admin.from("tile_pack_generation_runs").update({ plan }).eq("id", runId);
+  const { error } = await admin.from("tile_pack_generation_runs").update({ plan }).eq("id", runId);
+  if (error) throw error;
 }
 
-async function generateSlot(user: User, body: Record<string, unknown>): Promise<Response> {
+/** Marks a job failed without ever throwing: it runs in error paths, where a second failure must not hide the first. */
+async function failJob(jobId: string, message: string): Promise<void> {
+  const { error } = await admin.from("tile_pack_generation_jobs").update({ status: "failed", error: message }).eq("id", jobId);
+  if (error) console.error(`Could not mark tile job ${jobId} failed:`, error.message);
+}
+
+async function generateSlot(user: User, body: Record<string, unknown>, report: (err: unknown) => void): Promise<Response> {
   const userId = user.id;
   const runId = typeof body.run_id === "string" ? body.run_id : "";
   const jobId = typeof body.job_id === "string" ? body.job_id : "";
@@ -766,41 +759,40 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
 
   // Which gate applies depends on the lane, and the lane is only known once
   // the run (and its target) is resolved above.
-  let campaign: Awaited<ReturnType<typeof campaignForGeneration>> = null;
+  let campaign: BaseCampaign | null = null;
   if (run.lane === "user") {
     // tile_pack_generation_runs_campaign_matches_lane guarantees campaign_id
     // is set whenever tile_pack_id (user lane) is. campaignForGeneration is
     // the ai_enabled gate for this lane — every plan may generate once it's
     // on, same as every other generator.
-    campaign = await campaignForGeneration(run.campaign_id!, userId);
-    if (!campaign) return json({ error: "campaign_forbidden" }, 403);
+    const gate = await campaignForGeneration(run.campaign_id!, userId);
+    if (!gate.ok) return gate.response;
+    campaign = gate.campaign;
   }
   // Library lane: the admin claim was already verified inside
   // requireGenerationRun. There is no campaign and no per-user plan to check
   // for platform-authored content.
-  if (!(await checkRateLimit(admin, userId, "ai_generation"))) return json({ error: "rate_limited" }, 429);
+  if (!(await checkRateLimit(admin, userId, "ai_generation"))) return rateLimited();
 
   const allowedPhase = run.status === "proof_pending" ? "proof" : run.status === "generating" ? "pack" : null;
   if (!allowedPhase) return json({ error: "run_not_ready", status: run.status }, 409);
-  const { data: claimed } = await admin.from("tile_pack_generation_jobs")
-    .update({ status: "generating", error: null })
-    .eq("id", jobId).eq("run_id", runId).eq("phase", allowedPhase).eq("status", "pending")
-    .select().maybeSingle();
-  if (!claimed) return json({ error: "job_not_pending" }, 409);
-  const job = claimed.job as GenerationJob;
-  const attemptsSoFar = (claimed.generation_attempts as number | null) ?? 0;
-  // The slot was paid for once; this is what that bought. Checked after the
-  // claim so a capped slot cannot be raced back into `generating` and left there.
-  if (!canAttempt(attemptsSoFar)) {
-    await admin.from("tile_pack_generation_jobs")
-      .update({ status: "failed", error: "No retries left for this tile — accept it, or start a new pack." })
-      .eq("id", jobId);
-    return json({ error: "attempt_limit_reached" }, 409);
-  }
 
-  const [platformKeys, baseCost] = await Promise.all([
+  // Everything that prices and authorises the call is read BEFORE the job is
+  // claimed: a throw between the claim and the hold used to strand the job in
+  // "generating". The attempt count the price depends on is read here and
+  // checked against the claimed row below.
+  const { data: pending, error: pendingError } = await admin.from("tile_pack_generation_jobs")
+    .select("generation_attempts")
+    .eq("id", jobId).eq("run_id", runId).eq("phase", allowedPhase).eq("status", "pending")
+    .maybeSingle();
+  if (pendingError) throw pendingError;
+  if (!pending) return json({ error: "job_not_pending" }, 409);
+  const attemptsSoFar = pending.generation_attempts as number;
+
+  const [platformKeys, baseCost, providerConfigs] = await Promise.all([
     fetchPlatformKeys(admin, ["openai"]),
     fetchCreditCost(admin, "tile_pack_generation"),
+    fetchProviderConfigs(admin, ["openai"]),
   ]);
   let campaignKey: string | null = null;
   // Library lane: platform key only. There is no campaign, so there is no
@@ -808,55 +800,89 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
   // is skipped entirely.
   if (campaign) campaignKey = (await loadCampaignKeys(admin, campaign, decryptValue)).openai;
   const apiKey = campaignKey ?? platformKeys.openai;
-  if (!apiKey) {
-    await admin.from("tile_pack_generation_jobs").update({ status: "failed", error: "No OpenAI API key configured" }).eq("id", jobId);
-    return json({ error: "no_openai_key" }, 422);
-  }
+  if (!apiKey) return jsonError(422, "no_openai_key", "No OpenAI API key is configured.");
   const isByok = !!campaignKey;
+  const model = tilePackModel(providerConfigs.openai);
+  // A tile's whole economy rests on its quality: "low" is ~196 output tokens
+  // against thousands for "high", and the 12-credit price covers four
+  // attempts on that basis. The migration that added image_quality_tier
+  // (20260926104103) sets this row to "low" for exactly that reason, so an
+  // admin raising image quality elsewhere cannot silently multiply the cost
+  // of a 57-tile pack — reaching "high" here now takes an explicit,
+  // visible change in Admin -> Pricing rather than a shared provider knob.
+  const quality = await resolveImageQuality(admin, "tile_pack_generation", {
+    base: "openai",
+    imageQuality: providerConfigs.openai?.image_quality ?? null,
+  });
   // Retries are inside the price: the first attempt on a slot is charged, the
   // three after it are not. A provider error never reaches the increment below,
-  // so our own failures do not eat the budget the user paid for.
+  // so our own failures do not eat the budget the user paid for. A zero cost
+  // (a free retry, BYOK, the library lane) is still written as a free ledger
+  // line by the hold, so every provider call stays visible to cost reporting
+  // and get_credit_calibration_hints.
   //
   // Library lane charges nothing at all — it is platform content, not billed
-  // to any user — so it skips `reserveCredits` entirely rather than calling
-  // it with cost 0 (which would no-op anyway, but the run has no credit
-  // relationship to reserve against in the first place).
+  // to any user — so it holds nothing.
   const cost = run.lane === "library" ? 0 : isByok ? 0 : wholeCredits(attemptCharge(baseCost, attemptsSoFar));
-  const reservation = run.lane === "library"
-    ? { ok: true as const, ids: [] as string[] }
-    : await reserveCredits(admin, userId, cost, "tile_pack_generation");
-  if (!reservation.ok) {
-    await admin.from("tile_pack_generation_jobs").update({ status: "pending" }).eq("id", jobId);
-    return reservationFailureResponse(reservation);
-  }
 
-  try {
-    const references = await slotReferences(runId, run.target, job.slot, allowedPhase);
-    const providerConfigs = await fetchProviderConfigs(admin, ["openai"]);
-    const model = tilePackModel(providerConfigs.openai);
-    // A tile's whole economy rests on its quality: "low" is ~196 output tokens
-    // against thousands for "high", and the 12-credit price covers four
-    // attempts on that basis. The migration that added image_quality_tier
-    // (20260926104103) sets this row to "low" for exactly that reason, so an
-    // admin raising image quality elsewhere cannot silently multiply the cost
-    // of a 57-tile pack — reaching "high" here now takes an explicit,
-    // visible change in Admin -> Pricing rather than a shared provider knob.
-    const quality = await resolveImageQuality(admin, "tile_pack_generation", {
-      base: "openai",
-      imageQuality: providerConfigs.openai?.image_quality ?? null,
-    });
-    const result = await generateImage({
-      provider: "openai",
+  return withCreditHold(admin, { payerId: userId, reason: "tile_pack_generation", cost, report }, async (hold) => {
+    // Atomic claim: only one concurrent request flips pending -> generating.
+    // A refused hold is answered before this point, so the job never sits in
+    // "generating" without a hold behind it.
+    const { data: claimed, error: claimError } = await admin.from("tile_pack_generation_jobs")
+      .update({ status: "generating", error: null })
+      .eq("id", jobId).eq("run_id", runId).eq("phase", allowedPhase).eq("status", "pending")
+      .select().maybeSingle();
+    if (claimError) throw claimError;
+    if (!claimed) return json({ error: "job_not_pending" }, 409);
+    const job = claimed.job as GenerationJob;
+    // The price was set from the count read above; a retry that landed between
+    // the two reads would make it wrong, so give the job back and let the
+    // client ask again.
+    if ((claimed.generation_attempts as number) !== attemptsSoFar) {
+      const { error } = await admin.from("tile_pack_generation_jobs").update({ status: "pending" }).eq("id", jobId);
+      if (error) throw error;
+      return json({ error: "job_not_pending" }, 409);
+    }
+    // The slot was paid for once; this is what that bought. Checked after the
+    // claim so a capped slot cannot be raced back into `generating` and left there.
+    if (!canAttempt(attemptsSoFar)) {
+      await failJob(jobId, "No retries left for this tile — accept it, or start a new pack.");
+      return json({ error: "attempt_limit_reached" }, 409);
+    }
+
+    let result: Awaited<ReturnType<typeof generateImage>>;
+    try {
+      const references = await slotReferences(runId, run.target, job.slot, allowedPhase);
+      result = await generateImage({
+        provider: "openai",
+        model,
+        apiKey,
+        // Same key: this path is openai-only, so the renderer's key screens too.
+        screening: { apiKey, admin, userId, generationType: "tile_pack" },
+        prompt: job.prompt.final_prompt,
+        size: job.execution.requested_size,
+        quality,
+        sourceImages: references,
+        background: job.mechanics.alpha === "transparent-outside-footprint" ? "transparent" : "opaque",
+      });
+    } catch (error) {
+      // The provider call failed: nothing was made, nothing is charged.
+      const message = error instanceof Error ? error.message : "Image generation failed";
+      await failJob(jobId, message);
+      return jsonError(502, "generation_failed", message);
+    }
+
+    const usage = {
       model,
-      apiKey,
-      // Same key: this path is openai-only, so the renderer's key screens too.
-      screening: { apiKey, admin, userId, generationType: "tile_pack" },
-      prompt: job.prompt.final_prompt,
-      size: job.execution.requested_size,
       quality,
-      sourceImages: references,
-      background: job.mechanics.alpha === "transparent-outside-footprint" ? "transparent" : "opaque",
-    });
+      size: job.execution.requested_size,
+      provider: result.usage.provider,
+      image_count: 1,
+      input_tokens: result.usage.input_tokens,
+      input_image_tokens: result.usage.input_image_tokens,
+      output_tokens: result.usage.output_tokens,
+    };
     const attemptNumber = ((claimed.attempts as unknown[] | null)?.length ?? 0) + 1;
     // Scoped by RUN, not just by slot and attempt. `attemptNumber` counts
     // attempts within one job row and so restarts at 1 for every new run, while
@@ -875,77 +901,67 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
     // `styleReferences` reads whatever `raw_path` the job recorded, and
     // deleting a pack still sweeps the entire prefix.
     const rawPath = `${run.target.prefix}/raw/${runId}/${job.id.replaceAll(":", "-")}-${attemptNumber}.webp`;
-    // Marked here, once, right where the bytes come back from the provider —
-    // every downstream consumer (the raw upload below, and the b64 handed
-    // back to the client for normalization) shares this one marked copy.
-    // `result.contentType` is the provider-reported format, not an assumed
-    // webp (imageGen.ts's ImageGenResult docstring) — required so the XMP
-    // embedder picks the matching binary format rather than silently no-op'ing.
-    const prov = buildTileProvenance(result.usage.provider, model);
-    const markedB64 = markGeneratedImageB64(result.b64, result.contentType, prov);
-    const rawBytes = decodeBase64(markedB64);
-    const { error: uploadError } = await admin.storage.from(run.target.bucket).upload(rawPath, rawBytes, {
-      contentType: result.contentType,
-      upsert: false,
-    });
-    if (uploadError) throw uploadError;
-
-    await releaseCredits(admin, reservation.ids);
-    const usage = {
-      model,
-      quality,
-      size: job.execution.requested_size,
-      provider: result.usage.provider,
-      image_count: 1,
-      input_tokens: result.usage.input_tokens,
-      input_image_tokens: result.usage.input_image_tokens,
-      output_tokens: result.usage.output_tokens,
-    };
-    // A free retry is still provider spend, and `recordGeneration` writes
-    // nothing at cost 0 — spendCredits short-circuits. Left that way, three of
-    // every four calls would be invisible to cost reporting AND to
-    // get_credit_calibration_hints, which averages what it can see and would
-    // therefore recommend cutting a price it had only ever seen a quarter of.
-    // recordFreeGeneration exists for exactly this: delta 0, is_byok false.
-    //
-    // The library lane always takes this branch: every tile is free to the
-    // admin who requested it, but the real provider spend still has to stay
-    // visible for the same reason a free retry does — otherwise cost
-    // reporting and get_credit_calibration_hints would never see a single
-    // library-pack tile's cost.
-    if (run.lane === "library" || (!isByok && cost === 0)) {
-      await recordFreeGeneration(admin, userId, "tile_pack_generation", usage);
-    } else {
-      await recordGeneration(admin, userId, "tile_pack_generation", isByok, cost, usage);
+    let markedB64: string;
+    try {
+      // Marked here, once, right where the bytes come back from the provider —
+      // every downstream consumer (the raw upload below, and the b64 handed
+      // back to the client for normalization) shares this one marked copy.
+      // `result.contentType` is the provider-reported format, not an assumed
+      // webp (imageGen.ts's ImageGenResult docstring) — required so the XMP
+      // embedder picks the matching binary format rather than silently no-op'ing.
+      const prov = buildTileProvenance(result.usage.provider, model);
+      markedB64 = markGeneratedImageB64(result.b64, result.contentType, prov);
+      const { error: uploadError } = await admin.storage.from(run.target.bucket).upload(rawPath, decodeBase64(markedB64), {
+        contentType: result.contentType,
+        upsert: false,
+      });
+      if (uploadError) throw uploadError;
+    } catch (error) {
+      // The provider was paid but nothing was delivered: the spend stays
+      // visible as a free line, and the user is not charged for it.
+      hold.free("tile_pack_generation", usage);
+      const message = error instanceof Error ? error.message : "Image generation failed";
+      await failJob(jobId, message);
+      return jsonError(502, "generation_failed", message);
     }
-    const attempt: GenerationAttempt = {
-      at: new Date().toISOString(),
-      action: "generated",
-      source_path: rawPath,
-      execution: {
-        provider: result.usage.provider,
-        model,
-        quality: isImageGenerationQuality(quality) ? quality : undefined,
-        input_text_tokens: result.usage.input_tokens,
-        input_image_tokens: result.usage.input_image_tokens,
-        output_image_tokens: result.usage.output_tokens,
-      },
-    };
-    await admin.from("tile_pack_generation_jobs").update({
-      generation_attempts: attemptsSoFar + 1,
-      status: "generated",
-      raw_path: rawPath,
-      attempts: [...((claimed.attempts as unknown[] | null) ?? []), attempt],
-    }).eq("id", jobId);
-    await admin.from("tile_pack_generation_runs").update({ charged_credits: run.charged_credits + cost }).eq("id", runId);
-    await appendPlanAttempt(runId, run.plan, job.id, "generated", attempt, { raw: rawPath });
+
+    // Stored: charge now, before any bookkeeping that might throw.
+    hold.charge("tile_pack_generation", { cost, isByok, log: usage });
+
+    try {
+      const attempt: GenerationAttempt = {
+        at: new Date().toISOString(),
+        action: "generated",
+        source_path: rawPath,
+        execution: {
+          provider: result.usage.provider,
+          model,
+          quality: isImageGenerationQuality(quality) ? quality : undefined,
+          input_text_tokens: result.usage.input_tokens,
+          input_image_tokens: result.usage.input_image_tokens,
+          output_image_tokens: result.usage.output_tokens,
+        },
+      };
+      const { error: jobError } = await admin.from("tile_pack_generation_jobs").update({
+        generation_attempts: attemptsSoFar + 1,
+        status: "generated",
+        raw_path: rawPath,
+        attempts: [...((claimed.attempts as unknown[] | null) ?? []), attempt],
+      }).eq("id", jobId);
+      if (jobError) throw jobError;
+      // Read-modify-write: two concurrent generates on one run can lose an update.
+      const { error: runError } = await admin.from("tile_pack_generation_runs")
+        .update({ charged_credits: run.charged_credits + cost }).eq("id", runId);
+      if (runError) throw runError;
+      await appendPlanAttempt(runId, run.plan, job.id, "generated", attempt, { raw: rawPath });
+    } catch (error) {
+      // Bookkeeping failed after the raw was stored: the job must not stay in
+      // "generating", and the throw makes the hold write the charge as free.
+      await failJob(jobId, error instanceof Error ? error.message : "Image generation failed");
+      throw error;
+    }
     return json({ job_id: jobId, slot_id: job.id, image_b64: markedB64, content_type: result.contentType, mechanics: job.mechanics });
-  } catch (error) {
-    await releaseCredits(admin, reservation.ids);
-    const message = error instanceof Error ? error.message : "Image generation failed";
-    await admin.from("tile_pack_generation_jobs").update({ status: "failed", error: message }).eq("id", jobId);
-    return json({ error: message }, 502);
-  }
+  });
 }
 
 /**
@@ -1252,15 +1268,13 @@ async function updateRun(user: User, body: Record<string, unknown>): Promise<Res
   return json({ error: "invalid_action" }, 409);
 }
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-  const user = await requireUser(req);
-  if (!user) return new Response("Unauthorized", { status: 401 });
-  // Frozen or child accounts cannot generate (#919).
+serve(serveUser(async ({ user, req, report }) => {
+  // Frozen or child accounts cannot generate (#919). Runs for every action,
+  // deletes included, as it always has.
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
-  let body: Record<string, unknown>;
-  try { body = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
+  const body = await readJsonBody(req);
+  if (!body) return jsonError(400, "invalid_json", "The request body must be a JSON object.");
   switch (body.action) {
     case "create": return createRun(user.id, body);
     case "create_library": return createLibraryRun(user, body);
@@ -1273,7 +1287,7 @@ serve(withCors(async (req: Request) => {
     case "update_library_pack": return updateLibraryPack(user, body);
     case "upload_library_tile": return uploadLibraryTile(user, body);
     case "generate_library_pack": return generateLibraryPack(user, body);
-    case "generate": return generateSlot(user, body);
+    case "generate": return generateSlot(user, body, report);
     case "resume": return resumeSlot(user, body);
     case "complete": return completeSlot(user, body);
     case "complete_rotation": return completeRotation(user, body);
@@ -1281,6 +1295,6 @@ serve(withCors(async (req: Request) => {
     case "cancel":
     case "retry_job": return updateRun(user, body);
     case "regenerate_job": return updateRun(user, body);
-    default: return json({ error: "unknown_action" }, 400);
+    default: return jsonError(400, "unknown_action", "Unknown action.");
   }
 }));
