@@ -149,7 +149,7 @@ describe("art-publish when R2 reports no size", () => {
   const BYTES = Buffer.from("<svg/>");
   const SVG: [string, string] = ["/assets/vision/darkvision.svg", "app-art/assets/vision/darkvision.a92d9123.svg"];
 
-  function svgDeps(remote: Uint8Array | null, verify: boolean) {
+  function svgDeps(remote: Uint8Array<ArrayBuffer> | null, verify: boolean) {
     return {
       deps: makeDeps({
         readFile: vi.fn(() => BYTES),

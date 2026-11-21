@@ -1,6 +1,6 @@
 // note-reading (#1021 row 19): a note read aloud in the Narrator's voice. The rules are `handler.ts`'s; this file
 // wires the database, the speech service and the voices' store. It answers only where voices are switched on for
-// the stack (ELEVENLABS_API_KEY and TABLE_VOICE_TRIAL=on), except for listening, which needs only the recording.
+// the stack (an ElevenLabs key in Admin > Providers, `voicesOn`), except for listening, which needs only the recording.
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
@@ -13,12 +13,12 @@ import { isNarratorVoice } from "../_shared/narratorVoice.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { sweepNoteReadings, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
-import { hasSpeechService, loadSpeechRate, speechEnvFrom, speechModelOf, synthesizeSpeech, voicesOn, VoicesSpent } from "../_shared/speech.ts";
+import { loadSpeechEnv } from "../_shared/speechKeys.ts";
+import { type SpeechEnv, hasSpeechService, loadSpeechRate, speechModelOf, synthesizeSpeech, voicesOn, VoicesSpent } from "../_shared/speech.ts";
 import { readNote, READING_MESSAGES, type NoteReadingDeps } from "./handler.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-const speech = speechEnvFrom((key) => Deno.env.get(key));
 // The same private store the table's clips are kept in: nothing serves it but a function that has checked the caller.
 const voiceStore = voiceStoreFrom((key) => Deno.env.get(key));
 
@@ -26,8 +26,14 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
   const body = await readJsonBody(req);
   if (body === null) return jsonError(400, "invalid_body", "The request is not valid.");
 
+  // The admin's keys, read for this request and only once something is to be spoken: listening to a recording
+  // needs none. The handler asks `voiceOn` before anything else that speaks, so the sync `hasService` below only
+  // ever runs after they are loaded; before that it answers false.
+  let speech: SpeechEnv | undefined;
+  const loadSpeech = async (): Promise<SpeechEnv> => (speech ??= await loadSpeechEnv(admin));
+
   const deps: NoteReadingDeps = {
-    voiceOn: () => voicesOn(speech) && voiceStore !== null,
+    voiceOn: async () => voicesOn(await loadSpeech()) && voiceStore !== null,
 
     async loadNote(noteId) {
       const { data, error } = await admin.from("notes").select("id, campaign_id, reading_hash, reading_voice").eq("id", noteId).maybeSingle();
@@ -67,8 +73,8 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
       return typeof data === "string" ? data : null;
     },
 
-    hasService: (service) => hasSpeechService(speech, service),
-    loadRate: (service) => loadSpeechRate(admin, speech, service),
+    hasService: (service) => speech !== undefined && hasSpeechService(speech, service),
+    loadRate: async (service) => loadSpeechRate(admin, await loadSpeech(), service),
 
     // The same screen the table's own lines go through, logged under this surface.
     async isFlagged(text) {
@@ -82,11 +88,15 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
       }
     },
 
-    modelOf: (service) => speechModelOf(speech, service),
+    // Named only once a reading was made, and making one asked `voiceOn` first, which loaded the keys.
+    modelOf: (service) => {
+      if (speech === undefined) throw new Error("note-reading: a model was named before the speech keys were read");
+      return speechModelOf(speech, service);
+    },
 
     withHold: (userId, credits, work) => withCreditHold(admin, { payerId: userId, reason: "note_reading", cost: credits, report }, work),
 
-    synthesize: (voice, text) => synthesizeSpeech(speech, voice, text),
+    synthesize: async (voice, text) => synthesizeSpeech(await loadSpeech(), voice, text),
 
     async loadAudio(key) {
       return voiceStore === null ? null : await getObject(voiceStore, key);

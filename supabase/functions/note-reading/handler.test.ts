@@ -24,7 +24,7 @@ function harness(over: Partial<{ text: string | null; note: ReadingNote | null }
     refuseHold: null as Response | null,
     holds: [] as number[],
     synthThrows: false,
-    store: new Map<string, Uint8Array>(),
+    store: new Map<string, Uint8Array<ArrayBuffer>>(),
     spoken: [] as Array<{ service: string; voiceId: string; text: string }>,
     charged: [] as number[],
     caller: DM,
@@ -33,7 +33,7 @@ function harness(over: Partial<{ text: string | null; note: ReadingNote | null }
     deps: undefined as unknown as NoteReadingDeps,
   };
   h.deps = {
-    voiceOn: () => h.on,
+    voiceOn: async () => h.on,
     loadNote: async () => (h.note === null ? null : { ...h.note }),
     // DM-only and AI-on are `loadAiCampaign`'s rules (its own test); here a non-DM is refused and a refusal passes through.
     loadCampaign: async (_id, userId) => {
@@ -63,7 +63,7 @@ function harness(over: Partial<{ text: string | null; note: ReadingNote | null }
     },
     loadAudio: async (key) => h.store.get(key) ?? null,
     keepAudio: async (key, audio) => {
-      h.store.set(key, audio);
+      h.store.set(key, new Uint8Array(audio)); // a copy, as the round trip through the bucket gives back
     },
     campaignExists: async () => h.campaignThere,
     // As the real one: everything in the store that the note does not refer to now goes.
@@ -290,6 +290,15 @@ describe("listening", () => {
     expect(heard).toMatchObject({ status: 200, audio: true });
     expect(await ask(h, "listen", STRANGER)).toMatchObject({ status: 404, error: "note_not_found" });
     expect(h.charged).toHaveLength(1);
+  });
+
+  // Bug caught: the voices' check moved above the listen branch, so a player pressing play waits on (and fails with)
+  // a read of the speech keys that listening never needs, or hears nothing once the admin clears the key.
+  it("plays a kept recording without asking whether voices are on", async () => {
+    const h = harness();
+    await ask(h, "make");
+    h.deps.voiceOn = () => Promise.reject(new Error("the speech keys were read"));
+    expect(await ask(h, "listen", PLAYER)).toMatchObject({ status: 200, audio: true });
   });
 
   // Bug caught: the recording read from wherever the row says, so a forged value on a note serves another note's

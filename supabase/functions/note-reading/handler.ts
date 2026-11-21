@@ -31,8 +31,8 @@ export interface ReadingNote {
 export type ReadingHold = Pick<CreditHold, "charge" | "free">;
 
 export interface NoteReadingDeps {
-  /** Whether this stack speaks at all (its speech key and switch are set). */
-  voiceOn(): boolean;
+  /** Whether this stack speaks at all (the admin's ElevenLabs key is set). Asked first by every path that speaks. */
+  voiceOn(): Promise<boolean>;
   /** By id alone: the handler decides what the caller may do with it. */
   loadNote(noteId: string): Promise<ReadingNote | null>;
   /**
@@ -55,7 +55,7 @@ export interface NoteReadingDeps {
   /** Holds `credits`, runs the reading and releases the hold whatever happens; a refused hold answers its refusal. */
   withHold(userId: string, credits: number, work: (hold: ReadingHold) => Promise<Response>): Promise<Response>;
   synthesize(voice: { service: SpeechService; id: string }, text: string): Promise<Uint8Array>;
-  loadAudio(key: string): Promise<Uint8Array | null>;
+  loadAudio(key: string): Promise<Uint8Array<ArrayBuffer> | null>;
   keepAudio(key: string, audio: Uint8Array): Promise<void>;
   /**
    * Removes the campaign's recordings that no note refers to any more: of a deleted note, or of a telling since
@@ -157,7 +157,7 @@ export async function readNote(input: { userId: string; body: unknown; deps: Not
   }
 
   // Making a reading, and asking what one costs, is the Dungeon Master's.
-  if (!deps.voiceOn()) return jsonError(503, "voices_off", READING_MESSAGES.off);
+  if (!(await deps.voiceOn())) return jsonError(503, "voices_off", READING_MESSAGES.off);
   const load = await deps.loadCampaign(note.campaign_id, userId, "make");
   if (!load.ok) return load.response;
   // Both asking and making send the note to a speech service and a moderation screen: neither is unmetered.

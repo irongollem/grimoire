@@ -75,7 +75,7 @@ export async function putObject(config: R2Config, input: PutObjectInput): Promis
  * `--verify --deep` (byte-level comparison) — the serving path never uses it,
  * that is what the Worker binding is for.
  */
-export async function getObject(config: R2Config, key: string): Promise<Uint8Array | null> {
+export async function getObject(config: R2Config, key: string): Promise<Uint8Array<ArrayBuffer> | null> {
   const url = objectUrl(config, key);
   const headers = await signRequest(r2Credentials(config), {
     method: "GET",

@@ -9,20 +9,19 @@ import { clipName, lineKeyFits } from "../_shared/agent/lineKey.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { clipKey, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
 import { shownInTurns, speakLine, VOICE_MESSAGES, voiceRates, type TableVoiceDeps } from "./handler.ts";
-import { base64FromBytes, bytesFromBase64, hasSpeechService, loadSpeechRate, speechEnvFrom, speechModelOf, synthesizeSpeech, voicesOn } from "../_shared/speech.ts";
+import { base64FromBytes, bytesFromBase64, hasSpeechService, loadSpeechRate, speechModelOf, synthesizeSpeech, voicesOn } from "../_shared/speech.ts";
 import { serveUser } from "../_shared/pipeline/serveUser.ts";
 import { json, jsonError, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { loadAiCampaign } from "../_shared/pipeline/aiCampaign.ts";
 import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
+import { loadSpeechEnv } from "../_shared/speechKeys.ts";
 import { deliveryCue } from "../_shared/agent/characterTurn.ts";
 import { ageOf, inworldText, isNarratorVoice, NARRATION_MAX_CHARS, sexFromGender, sexOf, speechText } from "./voicePick.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
-const speech = speechEnvFrom((key) => Deno.env.get(key));
 
 // The clips have a store of their own (the maintainer's choice, 17 Nov 2026): a private R2 bucket that nothing
 // serves but this function, to the conversation's own owner. Without R2 credentials nothing is kept and every line
@@ -35,6 +34,9 @@ const pronounWords = (pronouns: string): string => pronouns.replace(/[/,;|]+/g, 
 serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
   const body = await readJsonBody(req);
   if (body === null) return jsonError(400, "invalid_body", "The request is not valid.");
+
+  // The admin's keys, read for this request.
+  const speech = await loadSpeechEnv(admin);
 
   const deps: TableVoiceDeps = {
     voiceOn: () => voicesOn(speech),

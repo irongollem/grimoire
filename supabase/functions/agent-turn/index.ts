@@ -11,7 +11,7 @@ import { MAX_PEOPLES } from "../_shared/agent/peoples.ts";
 import { lineKey } from "../_shared/agent/lineKey.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { speechEnvFrom, voicesOn } from "../_shared/speech.ts";
+import { SPEECH_KEY_PROVIDERS, speechEnvFrom, voicesOn } from "../_shared/speech.ts";
 import { tableAiEnabled } from "../_shared/featureAccess.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
@@ -115,6 +115,10 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     };
   }
 
+  // One read of the platform keys a turn may use: the judging model's, for both judges, and the speech services',
+  // for whether lines get a voice key. A failed read answers none (`fetchPlatformKeys`), so the judges and the voices
+  // are simply off for the turn rather than failing it.
+  const turnKeys = fetchPlatformKeys(admin, ["typesafe", ...SPEECH_KEY_PROVIDERS]);
   // The running turn's ledger, for the free lines its judges and the canon lookup write (platform-paid, never the
   // player's). Set while the stream's run is settling; outside it (nothing is held then) the line is written directly.
   let runLedger: JobLedger | null = null;
@@ -781,7 +785,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     }),
     // The same judge as the narration check, with a tighter wait: a refusal is read inside a tool call.
     judgeCanon: await narrationJudgeFor({
-      getKey: async () => (await fetchPlatformKeys(admin, ["typesafe"])).typesafe,
+      getKey: async () => (await turnKeys).typesafe,
       record: (log) => freeLine("entity_judgment", log),
       signal: req.signal,
       timeoutMs: CANON_JUDGE_TIMEOUT_MS,
@@ -789,14 +793,14 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
 
     // Holds back narration that only repeats the characters' lines; null (everything shown) without a judging key.
     judgeNarration: await narrationJudgeFor({
-      getKey: async () => (await fetchPlatformKeys(admin, ["typesafe"])).typesafe,
+      getKey: async () => (await turnKeys).typesafe,
       record: (log) => freeLine("entity_judgment", log),
       signal: req.signal,
     }),
 
     // The same switch `table-voice` answers to: without it no line is given a key.
     voiceKey:
-      voicesOn(speechEnvFrom((key) => Deno.env.get(key)))
+      voicesOn(speechEnvFrom(await turnKeys, (key) => Deno.env.get(key)))
         ? (sessionId, line) => lineKey(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, sessionId, line)
         : null,
 
