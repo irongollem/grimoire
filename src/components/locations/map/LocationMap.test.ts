@@ -1,4 +1,4 @@
-import { config, mount } from "@vue/test-utils";
+import { config, enableAutoUnmount, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -64,6 +64,10 @@ beforeEach(() => {
     left: 0, top: 0, right: 200, bottom: 100, width: 200, height: 100, x: 0, y: 0, toJSON: () => ({}),
   });
 });
+
+// Unmount every map after its test: a tap arms the frame's 300 ms click swallow, and a map left mounted let that timer
+// fire after the test environment was torn down ("window is not defined", which failed a CI shard on 21 Nov 2026).
+enableAutoUnmount(afterEach);
 
 afterEach(() => {
   vi.restoreAllMocks();
