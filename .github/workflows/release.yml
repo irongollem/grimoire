@@ -83,6 +83,42 @@ jobs:
       - name: Unit tests (vitest, shard ${{ matrix.shard }} of 3)
         run: npx vitest run --shard=${{ matrix.shard }}/3
 
+  # Type-checks every Edge Function, which nothing else does: tsconfig.edge.json
+  # reaches only the *.test.ts files (and what they import), and the release's
+  # `supabase functions deploy` bundles without checking types. So a function
+  # shipped a type error twice before this job existed (#1236): r2-delete passed
+  # a readonly array where a mutable one was declared, and encounter-command
+  # pulled a src/ module that reads the DOM into a runtime that has none.
+  #
+  # One invocation for all of them: they share the module graph, so this is a
+  # few seconds where 76 separate checks would be minutes.
+  #
+  # Deno is pinned to the release that wrote deno.lock (lockfile v5), not to
+  # the Deno inside the edge runtime (2.1.4 in edge-runtime v1.74.2 to v1.79.1).
+  # 2.1.4 cannot read a v5 lockfile, and it ships TypeScript 5.6, which has no
+  # generic typed arrays: the functions share code with the app, which compiles
+  # under TypeScript 6 and needs `Uint8Array<ArrayBuffer>`. Checking against the
+  # runtime's Deno would hold that shared code to two compilers at once. The
+  # runtime does not type-check, so what it would add is only a `Deno.*` API
+  # newer than production has; that one still needs a deploy to find.
+  #
+  # --frozen fails the job when deno.lock no longer covers deno.json, rather
+  # than silently resolving fresh versions. The cache (DENO_DIR, keyed on the
+  # lockfile) saves the npm and deno.land fetches the deploy step retries around.
+  edge-functions:
+    name: Edge Functions — deno check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: 2.9.2
+          cache: true
+          cache-hash: ${{ hashFiles('supabase/functions/deno.lock') }}
+      - name: Type-check every Edge Function (deno check)
+        run: deno check --frozen --config supabase/functions/deno.json supabase/functions/*/index.ts
+
   # Everything that needs a real Postgres: the migration-version guard, a
   # full replay of every migration, pgTAP, the embed check, the content-
   # integrity self-test and the spell concurrency test. Called
@@ -379,7 +415,7 @@ jobs:
   production-release:
     name: Release backend — migrations, Edge Functions
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.release-changes.outputs.supabase == 'true'
-    needs: [application, unit-tests, database, release-changes]
+    needs: [application, unit-tests, edge-functions, database, release-changes]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     concurrency:
@@ -521,7 +557,10 @@ jobs:
   # Runs when production-release succeeded OR was skipped (a push with no
   # Supabase changes has nothing to wait for) — never after it failed, which
   # would put a frontend in front of a half-released backend. `always()` is
-  # what lets a skipped dependency through at all.
+  # what lets a skipped dependency through at all. It also lets a FAILED one
+  # through, so every gate in `needs` has to be named below: unit-tests was
+  # missing until #1236, which shipped a frontend over a red vitest run on any
+  # push with no Supabase changes.
   #
   # Same concurrency group as production-release, never cancelled: releases
   # queue behind each other, so an older run can't deploy over a newer one.
@@ -536,9 +575,11 @@ jobs:
       always()
       && github.event_name == 'push' && github.ref == 'refs/heads/main'
       && needs.application.result == 'success'
+      && needs.unit-tests.result == 'success'
+      && needs.edge-functions.result == 'success'
       && needs.database.result == 'success'
       && (needs.production-release.result == 'success' || needs.production-release.result == 'skipped')
-    needs: [application, unit-tests, database, release-changes, production-release]
+    needs: [application, unit-tests, edge-functions, database, release-changes, production-release]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Records each release on GitHub's Production deployments page. Vercel's own
