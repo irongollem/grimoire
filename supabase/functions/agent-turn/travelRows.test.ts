@@ -35,11 +35,13 @@ describe("travelMapFrom", () => {
       ...base,
       terrains: [{ key: "snow", name: "Packed snow", factor: 0.5, sink: 1 }],
       ways: [{ key: "beak_sled", name: "Dogsled (axe beak)", kind: "vehicle", speed_feet: null, mph: null, companion_id: "c1", at_home: ["snow"], sink: {}, through_the_night: false }],
-      companions: [{ id: "c1", speed: 50 }],
+      companions: [{ id: "c1", speed: 50, speed_line: "50 ft." }, { id: "griffon", speed: 30, speed_line: "30 ft., fly 80 ft." }],
     });
     expect(out.terrains.find((t) => t.key === "snow")?.factor).toBe(0.5);
     expect(out.ways.map((w) => w.key)).toContain("beak_sled");
-    expect([out.companionSpeed("c1"), out.companionSpeed("gone")]).toEqual([50, null]);
+    expect([out.companionSpeed("c1", "vehicle"), out.companionSpeed("gone", "vehicle")]).toEqual([50, null]);
+    // A flying mount travels at its fly speed, and a walker has none. Bug caught: a griffon flying at its 30 ft walk.
+    expect([out.companionSpeed("griffon", "air"), out.companionSpeed("c1", "air")]).toEqual([80, null]);
   });
 
   it("keeps a road's own table apart from the road row, whether the join gave an object or a one-element array", () => {

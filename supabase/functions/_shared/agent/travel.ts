@@ -13,7 +13,7 @@ import { placesPassed, roadPlaceOf, shortestWay, type Way } from "../../../../sr
 import type { Road } from "../../../../src/lib/travel/roads.ts";
 import { rationsNeeded } from "../../../../src/rules/rations.ts";
 import { DEFAULT_TRAVEL_PACE, formatTravelTime, fromMiles, getTravelPace, timeOfTravelHours, TRAVEL_PACES, type TravelPaceId } from "../../../../src/rules/travelPace.ts";
-import { baseMph, legTravelHours, ON_FOOT_KEY, WAY_PRESETS, type Terrain, type TravelContext, type WayOfTravel } from "../../../../src/rules/travelSpeed.ts";
+import { type CompanionSpeed, baseMph, legTravelHours, ON_FOOT_KEY, WAY_PRESETS, type Terrain, type TravelContext, type WayOfTravel } from "../../../../src/rules/travelSpeed.ts";
 import { tablesAlong, tablesLine, type PlacedTable, type TableOnTheWay } from "./roadTables.ts";
 import type { AgentTool } from "./types.ts";
 import { UUID_RE } from "./parse.ts";
@@ -129,8 +129,8 @@ export interface TravelMap {
   terrains: readonly Terrain[];
   /** The ways the party may travel: the presets with the campaign's own laid over them. */
   ways: readonly WayOfTravel[];
-  /** A companion's walking speed in feet, for a way a companion carries or pulls; null when it is not known. */
-  companionSpeed: (companionId: string) => number | null;
+  /** A companion's speed in feet for a way it carries or pulls (its fly speed for a flying way); null when unknown. */
+  companionSpeed: CompanionSpeed;
   roadTables: readonly { roadId: string; table: Omit<PlacedTable, "placeId"> }[];
 }
 

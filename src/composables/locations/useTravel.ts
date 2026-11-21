@@ -4,7 +4,8 @@ import { getCurrentUser, supabase } from "@/lib/supabase";
 import { TRAVEL_KEY } from "@/lib/campaignLiveSync/registry";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useCampaignStore } from "@/stores/campaign";
-import { campaignTerrains, campaignWays, type Terrain, type TerrainRow, type WayOfTravel, type WayRow } from "@/rules/travelSpeed";
+import { flyingSpeed } from "@/lib/movement";
+import { beastTravelOf, campaignTerrains, campaignWays, type BeastTravel, type CompanionSpeed, type Terrain, type TerrainRow, type WayOfTravel, type WayRow } from "@/rules/travelSpeed";
 
 /**
  * A campaign's travel (#1222 decision 9): the preset terrains and ways of travelling with the campaign's own laid
@@ -54,11 +55,16 @@ export function useTravel() {
   const campaign = useCampaignStore();
   const rows = useTravelRows();
   const { data: companions } = useCompanions();
-  const speeds = computed(() => new Map((companions.value ?? []).map((c) => [c.id, c.speed])));
-  const companionSpeed = (id: string): number | null => speeds.value.get(id) ?? null;
+  // Walking speed from the companion's own column; a flying mount travels at the fly speed in its stat block.
+  const speeds = computed(() => new Map((companions.value ?? []).map((c) => [c.id, { walk: c.speed, fly: flyingSpeed(c.stat_block?.speed) }])));
+  const companionSpeed: CompanionSpeed = (id, kind) => {
+    const s = speeds.value.get(id);
+    if (!s) return null;
+    return kind === "air" ? s.fly : s.walk;
+  };
   const terrains = computed<Terrain[]>(() => campaignTerrains(rows.data.value?.terrains ?? []));
   const ways = computed<WayOfTravel[]>(() =>
-    campaignWays(rows.data.value?.ways ?? []).filter((w) => (w.mph !== null && w.mph > 0) || (w.companionId !== null ? companionSpeed(w.companionId) !== null : w.speedFeet !== null)),
+    campaignWays(rows.data.value?.ways ?? []).filter((w) => (w.mph !== null && w.mph > 0) || (w.companionId !== null ? companionSpeed(w.companionId, w.kind) !== null : w.speedFeet !== null)),
   );
   const openLand = computed(() => campaign.activeCampaign?.open_land_terrain ?? "difficult");
   return { rows, terrains, ways, companionSpeed, openLand, isLoading: computed(() => rows.isLoading.value) };
@@ -107,4 +113,34 @@ export function useResetTravel(table: "travel_terrains" | "travel_ways") {
     const { error } = await supabase.from(table).delete().eq("campaign_id", campaignId).eq("key", key);
     if (error) throw error;
   });
+}
+
+/**
+ * What the bestiary says a companion is good for on the road (`library_monsters.travel`): read from the library row
+ * the companion was made from, so picking "Snowbeak" for a sled fills in that an axe beak pulls and is at home on
+ * snow. Null for a companion made from no library creature, or one the bestiary has not marked. `flies` is whether
+ * the companion's own stat block has a fly speed.
+ */
+export function useBeastTravel(companionId: () => string | null) {
+  const { data: companions } = useCompanions();
+  const companion = computed(() => {
+    const id = companionId();
+    return id ? ((companions.value ?? []).find((c) => c.id === id) ?? null) : null;
+  });
+  const sourceId = computed(() => companion.value?.source_monster_id ?? null);
+  const query = useQuery({
+    queryKey: computed(() => ["library-monster-travel", sourceId.value] as const),
+    queryFn: async ({ queryKey: [, id] }): Promise<BeastTravel | null> => {
+      if (!id) return null;
+      // A campaign monster's id is a uuid the library does not have: no row, no traits.
+      const { data, error } = await supabase.from("library_monsters").select("travel").eq("id", id).maybeSingle();
+      if (error) throw error;
+      return beastTravelOf(data?.travel);
+    },
+    enabled: () => sourceId.value !== null,
+    staleTime: Infinity,
+  });
+  const traits = computed(() => (sourceId.value === null ? null : (query.data.value ?? null)));
+  const flies = computed(() => flyingSpeed(companion.value?.stat_block?.speed) !== null);
+  return { traits, flies };
 }

@@ -23,6 +23,7 @@
  *
  * Imported by the edge functions too, so its imports are relative and carry the extension.
  */
+import { flyingSpeed } from "../lib/movement.ts";
 import { getTravelPace, TRAVEL_HOURS_PER_DAY, type TravelPaceId } from "./travelPace.ts";
 
 // ── Terrains ──────────────────────────────────────────────────────────────────
@@ -160,12 +161,13 @@ export function paceFactor(paceId: TravelPaceId): number {
 
 /**
  * A way's own speed in miles an hour, before pace and terrain: its miles an hour, else its speed (or its
- * companion's, read through `companionSpeed`) in feet ÷ 10. Null when it has neither, such as a mount whose
- * companion is gone: that way cannot be travelled.
+ * companion's, read through `companionSpeed` for the way's kind: a flying mount's fly speed) in feet ÷ 10. Null
+ * when it has neither, such as a mount whose companion is gone, or a "flying" one with no fly speed: that way
+ * cannot be travelled.
  */
-export function baseMph(w: WayOfTravel, companionSpeed: (id: string) => number | null): number | null {
+export function baseMph(w: WayOfTravel, companionSpeed: CompanionSpeed): number | null {
   if (w.mph !== null && w.mph > 0) return w.mph;
-  const feet = w.companionId !== null ? companionSpeed(w.companionId) : w.speedFeet;
+  const feet = w.companionId !== null ? companionSpeed(w.companionId, w.kind) : w.speedFeet;
   return feet !== null && feet > 0 ? feet / 10 : null;
 }
 
@@ -189,8 +191,11 @@ export interface TravelContext {
   paceId: TravelPaceId;
   way: WayOfTravel;
   terrains: readonly Terrain[];
-  companionSpeed: (id: string) => number | null;
+  companionSpeed: CompanionSpeed;
 }
+
+/** A companion's speed in feet for a kind of travel: its fly speed for `air`, its walking speed otherwise. */
+export type CompanionSpeed = (id: string, kind: WayKind) => number | null;
 
 const onFoot = (): WayOfTravel => WAY_PRESETS[0];
 
@@ -210,4 +215,56 @@ export function legTravelHours(leg: TimedLeg, ctx: TravelContext): number | null
   if (!(speed > 0)) return null;
   const hoursADay = w.throughTheNight ? 24 : TRAVEL_HOURS_PER_DAY;
   return (Math.max(0, leg.miles) / speed) * (TRAVEL_HOURS_PER_DAY / hoursADay);
+}
+
+// ── A creature's travel traits (`library_monsters.travel`) ───────────────────
+
+/** What a creature is good for on the road, as the bestiary marks it; null for one nobody rides or yokes. */
+export interface BeastTravel {
+  ridden: boolean;
+  pulls: boolean;
+  at_home: readonly string[];
+}
+
+/** Reads a `travel` column defensively: anything not shaped like the traits is no traits. */
+export function beastTravelOf(raw: unknown): BeastTravel | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.ridden !== "boolean" || typeof r.pulls !== "boolean" || !Array.isArray(r.at_home)) return null;
+  return { ridden: r.ridden, pulls: r.pulls, at_home: r.at_home.filter((k): k is string => typeof k === "string") };
+}
+
+/**
+ * The way of travelling a creature suggests when a DM picks it to carry or pull one: flying when it is ridden and
+ * has a fly speed, ridden when it is ridden, pulled when it only pulls; and the terrains it is at home on. A kind
+ * the DM already chose and the creature can do (pulling a sled with a horse that can also be ridden) is kept.
+ */
+export function suggestWay(traits: BeastTravel, flies: boolean, current: WayKind): { kind: WayKind; atHome: string[] } {
+  const can = (kind: WayKind): boolean =>
+    kind === "air" ? traits.ridden && flies : kind === "ride" ? traits.ridden : kind === "vehicle" ? traits.pulls : false;
+  const kind: WayKind = can(current) ? current : traits.ridden && flies ? "air" : traits.ridden ? "ride" : traits.pulls ? "vehicle" : current;
+  return { kind, atHome: [...traits.at_home] };
+}
+
+/**
+ * What a creature is good for on the road, in words: "can be ridden, pulls a load, at home on snow"; "a flying
+ * mount". Empty for none. `terrainName` gives the campaign's name for a terrain key (the presets' otherwise).
+ */
+export function beastTravelText(traits: BeastTravel, flies: boolean, terrainName: (key: string) => string = presetTerrainName): string {
+  const parts = [traits.ridden ? (flies ? "a flying mount" : "can be ridden") : null, traits.pulls ? "pulls a load" : null];
+  const home = traits.at_home.map((k) => terrainName(k).toLowerCase());
+  if (home.length) parts.push(`at home on ${home.join(" and ")}`);
+  return parts.filter((p): p is string => p !== null).join(", ");
+}
+
+function presetTerrainName(key: string): string {
+  return TERRAIN_PRESETS.find((t) => t.key === key)?.name ?? key;
+}
+
+/** A bestiary creature's "On the road" line ("Can be ridden, pulls a load, at home on snow"), or "" for none. */
+export function creatureOnTheRoad(creature: { travel?: unknown; stat_block: { speed?: string | null } }): string {
+  const traits = beastTravelOf(creature.travel);
+  if (!traits) return "";
+  const text = beastTravelText(traits, flyingSpeed(creature.stat_block.speed) !== null);
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }

@@ -67,6 +67,7 @@
       <QuickFact label="Size" :value="monster.size" class="bg-card capitalize" />
       <QuickFact label="Alignment" :value="monster.alignment" class="bg-card capitalize" />
       <QuickFact label="Habitat" :value="monster.habitat" class="bg-card" />
+      <QuickFact label="On the road" :value="onTheRoad || null" class="bg-card" />
     </template>
 
     <template #after-facts>
@@ -195,6 +196,7 @@
 </template>
 
 <script setup lang="ts">
+import { creatureOnTheRoad } from "@/rules/travelSpeed";
 import { computed, reactive, ref, toRef } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useRouter } from "vue-router";
@@ -224,6 +226,8 @@ import type { Monster } from "@/types/monster.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { monster } = defineProps<{ monster: Monster }>();
+/** The bestiary's word on a mount or a draught animal (#1222). */
+const onTheRoad = computed(() => creatureOnTheRoad(monster));
 
 const description = useMonsterDescription(() => monster);
 

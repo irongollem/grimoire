@@ -86,3 +86,44 @@ describe("a campaign's own numbers", () => {
     expect(ways).toHaveLength(WAY_PRESETS.length);
   });
 });
+
+describe("a creature's travel traits", () => {
+  const traits = (over: Record<string, unknown> = {}) => ({ ridden: true, pulls: true, at_home: ["snow"], ...over });
+
+  // Bug caught: a malformed bestiary row (a missing flag, a string list) read as a mount.
+  it("reads the bestiary's traits only when they are whole", async () => {
+    const { beastTravelOf } = await import("./travelSpeed");
+    expect(beastTravelOf(traits())).toEqual({ ridden: true, pulls: true, at_home: ["snow"] });
+    expect(beastTravelOf({ ridden: true, at_home: [] })).toBeNull();
+    expect(beastTravelOf(null)).toBeNull();
+  });
+
+  // The maintainer's axe beak: picked for a sled it stays a sled (it pulls), at home on snow; a griffon picked for a
+  // new way flies. Bug caught: the DM's sled turned into a ridden mount, or a griffon flying at its walking pace.
+  it("suggests the way a creature can travel, keeping what the DM chose when the creature can do it", async () => {
+    const { suggestWay } = await import("./travelSpeed");
+    expect(suggestWay(traits(), false, "vehicle")).toEqual({ kind: "vehicle", atHome: ["snow"] });
+    expect(suggestWay(traits({ pulls: false, at_home: [] }), true, "foot")).toEqual({ kind: "air", atHome: [] });
+    expect(suggestWay(traits({ ridden: false }), false, "ride")).toEqual({ kind: "vehicle", atHome: ["snow"] });
+  });
+
+  // Bug caught: a flying mount's companion speed asked for its walking speed.
+  it("asks a companion for its fly speed when the way flies", () => {
+    const asked: string[] = [];
+    baseMph({ ...preset("airship"), mph: null, companionId: "griffon" }, (_id, kind) => {
+      asked.push(kind);
+      return 80;
+    });
+    expect(asked).toEqual(["air"]);
+  });
+});
+
+describe("a creature's line on the sheet", () => {
+  // Bug caught: a griffon shown as merely "can be ridden", or a creature nobody rides given a line at all.
+  it("says what the bestiary marks, a flyer as a flying mount, and nothing for an unmarked creature", async () => {
+    const { creatureOnTheRoad } = await import("./travelSpeed");
+    expect(creatureOnTheRoad({ travel: { ridden: true, pulls: true, at_home: ["snow"] }, stat_block: { speed: "50 ft." } })).toBe("Can be ridden, pulls a load, at home on snow");
+    expect(creatureOnTheRoad({ travel: { ridden: true, pulls: false, at_home: [] }, stat_block: { speed: "30 ft., fly 80 ft." } })).toBe("A flying mount");
+    expect(creatureOnTheRoad({ travel: null, stat_block: { speed: "30 ft." } })).toBe("");
+  });
+});

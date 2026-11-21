@@ -66,7 +66,7 @@ export const LIBRARY_MONSTER_COLUMNS = [
   "id", "name", "monster_type", "size", "alignment", "habitat", "source", "source_title", "source_url",
   "is_shared", "open5e_import", "tags", "stat_block", "notes", "image_url", "portrait_focal_point",
   "created_at", "updated_at", "ruleset", "conceptual_key", "source_document_key", "source_record_key",
-  "source_revision", "source_license", "provenance",
+  "source_revision", "source_license", "provenance", "travel",
 ].join(",");
 
 const LIBRARY_DESCRIPTION_QUERY_KEY = "library-monster-description";

@@ -630,7 +630,7 @@ serve(withCors(async (req: Request) => {
         // The campaign's own terrains and ways of travelling, and its companions' speeds for a way one pulls.
         supabase.from("travel_terrains").select("key, name, factor, sink").eq("campaign_id", campaignId),
         supabase.from("travel_ways").select("key, name, kind, speed_feet, mph, companion_id, at_home, sink, through_the_night").eq("campaign_id", campaignId),
-        supabase.from("companions").select("id, speed").eq("campaign_id", campaignId),
+        supabase.from("companions").select("id, speed, speed_line:stat_block->>speed").eq("campaign_id", campaignId),
       ]);
       if (rations.error) throw rations.error;
       if (placed.error) throw placed.error;

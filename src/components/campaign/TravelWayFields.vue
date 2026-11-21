@@ -39,6 +39,10 @@ export interface WayForm {
       />
       <AppInput v-else-if="form.speedMode === 'feet'" v-model.number="form.feet" type="number" block data-testid="way-feet" />
       <AppInput v-else v-model.number="form.mph" type="number" block data-testid="way-mph" />
+      <!-- What the bestiary says about the creature, applied when it is picked; the DM may change any of it. -->
+      <p v-if="form.speedMode === 'companion' && traitsText" class="text-caption text-muted-foreground" data-testid="way-beast-traits">
+        From the bestiary: {{ traitsText }}.
+      </p>
       <p v-if="form.speedMode === 'companion' && companions.length === 0" class="text-caption text-muted-foreground">
         No companions in this campaign yet. Add the creature that pulls or carries it first.
       </p>
@@ -66,10 +70,12 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
-import type { Terrain } from "@/rules/travelSpeed";
+import { computed, watch } from "vue";
+import { useBeastTravel } from "@/composables/locations/useTravel";
+import { beastTravelText, suggestWay, type Terrain } from "@/rules/travelSpeed";
 import { canTravelThroughTheNight, WAY_KIND_LABELS, WAY_KINDS } from "./travelSettings";
 
-defineProps<{
+const { terrains } = defineProps<{
   terrains: readonly Terrain[];
   /** `name` carries the creature's speed: "Snowbeak (50 ft)". */
   companions: { id: string; name: string }[];
@@ -82,4 +88,20 @@ const SPEED_MODES: { value: WayForm["speedMode"]; label: string }[] = [
   { value: "feet", label: "Feet" },
   { value: "mph", label: "Miles an hour" },
 ];
+
+// ── The bestiary's word on the creature ──────────────────────────────────────
+const { traits, flies } = useBeastTravel(() => (form.value.speedMode === "companion" && form.value.companionId !== "" ? form.value.companionId : null));
+// Applied when the DM picks a creature other than the one the form opened with (as soon as its traits arrive),
+// never over a way reopened with its creature unchanged: what the DM saved stands.
+const openedWith = form.value.companionId;
+watch(
+  [() => form.value.companionId, traits],
+  ([id, t]) => {
+    if (!t || id === "" || id === openedWith) return;
+    const suggestion = suggestWay(t, flies.value, form.value.kind);
+    form.value = { ...form.value, kind: suggestion.kind, atHome: suggestion.atHome };
+  },
+);
+const traitsText = computed(() => (traits.value ? beastTravelText(traits.value, flies.value, (k) => terrains.find((x) => x.key === k)?.name ?? k) : ""));
 </script>
+

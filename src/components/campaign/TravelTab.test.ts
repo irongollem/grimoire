@@ -9,7 +9,7 @@ const { fake, h } = await vi.hoisted(async () => {
   const { createSupabaseFake } = await import("@/test/supabaseFake");
   return {
     fake: createSupabaseFake(),
-    h: { updateCampaign: vi.fn(), confirm: vi.fn(async () => true), companions: [] as { id: string; name: string; speed: number }[] },
+    h: { updateCampaign: vi.fn(), confirm: vi.fn(async () => true), companions: [] as { id: string; name: string; speed: number; source_monster_id?: string | null; stat_block?: { speed: string } | null }[] },
   };
 });
 
@@ -100,5 +100,33 @@ describe("Campaign Settings, Travel", () => {
     const row = w.find('[data-testid="way-dogsled_axe_beak"]');
     expect(row.find('[data-testid="way-speed"]').text()).toBe("Snowbeak's speed (50 ft)");
     expect(row.text()).toContain("At home on: Snow");
+  });
+  // The maintainer's request (20 Nov 2026): the bestiary marks the beasts of burden, so a companion made from one
+  // brings what it is good for. Bug caught: the axe beak's "at home on snow" not filled in, so the sled crawls
+  // across the tundra; or a reopened way's saved choices overwritten by the bestiary's.
+  it("fills in a picked creature's traits from the bestiary, and leaves a saved way as it was", async () => {
+    h.companions = [{ id: "k1", name: "Snowbeak", speed: 50, source_monster_id: "srd_srd_axe_beak", stat_block: { speed: "50 ft." } }];
+    fake.seed("library_monsters", [{ id: "srd_srd_axe_beak", name: "Axe Beak", travel: { ridden: true, pulls: true, at_home: ["snow"] } }]);
+    fake.seed("travel_ways", [
+      { id: "w1", campaign_id: "c1", key: "beak_cart", name: "Beak cart", kind: "vehicle", speed_feet: null, mph: null, companion_id: "k1", at_home: [], sink: {}, through_the_night: false },
+    ]);
+    const w = await mountTab();
+
+    // Reopened with its creature unchanged: the DM's "at home on nothing" stands.
+    await w.find('[data-testid="way-beak_cart"]').findAll("button").find((b) => b.text() === "Edit")!.trigger("click");
+    await flushPromises();
+    const snowBox = () => w.findAll('input[type="checkbox"]').find((i) => i.element.closest("label")?.textContent?.includes("Snow"));
+    expect((snowBox()!.element as HTMLInputElement).checked).toBe(false);
+    expect(w.find('[data-testid="way-beast-traits"]').text()).toContain("can be ridden, pulls a load, at home on snow");
+    await w.findAll("button").find((b) => b.text() === "Cancel")!.trigger("click");
+
+    // A new way with the axe beak picked: it pulls (the sled the form starts as) and is at home on snow.
+    await w.findAll("button").find((b) => b.text() === "Add a way of travelling")!.trigger("click");
+    await w.findAll("button").find((b) => b.text() === "A creature's speed")!.trigger("click");
+    const { default: EntityCombobox } = await import("@/components/common/controls/EntityCombobox.vue");
+    w.findComponent(EntityCombobox).vm.$emit("update:modelValue", "k1");
+    await flushPromises();
+    expect((w.find('select[data-testid="way-kind"]').element as HTMLSelectElement).value).toBe("vehicle");
+    expect((snowBox()!.element as HTMLInputElement).checked).toBe(true);
   });
 });
