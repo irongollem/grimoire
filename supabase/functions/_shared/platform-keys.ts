@@ -23,8 +23,13 @@ export async function fetchPlatformKeys(
     .from("platform_api_keys")
     .select("provider, encrypted_key")
     .in("provider", providers);
-  // A read that failed is not "no key": answering {} would quietly run every caller on its no-key path.
-  if (error) throw error;
+  // Every caller treats a missing platform key as a path of its own (a campaign's BYOK key, the feature off), so a
+  // failed read answers no keys rather than failing the request. It is logged, never silent: otherwise a database
+  // hiccup reads as "the admin never set a key".
+  if (error) {
+    console.error("fetchPlatformKeys: reading platform_api_keys failed:", error.message);
+    return {};
+  }
 
   if (!data?.length) return {};
 
@@ -34,6 +39,8 @@ export async function fetchPlatformKeys(
         const key = await decryptValue(row.encrypted_key);
         return [row.provider, key] as [Provider, string];
       } catch {
+        // Admin shows such a key as Set, so say why it is not used (a rotated VAULT_KEY, most likely). Never the key.
+        console.error(`fetchPlatformKeys: the ${row.provider} key does not decrypt; it is treated as not set`);
         return null;
       }
     }),

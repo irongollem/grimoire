@@ -31,7 +31,7 @@ function harness(over: Partial<{ text: string | null; note: ReadingNote | null }
     deps: undefined as unknown as NoteReadingDeps,
   };
   h.deps = {
-    voiceOn: () => h.on,
+    voiceOn: async () => h.on,
     loadNote: async () => (h.note === null ? null : { ...h.note }),
     loadCampaign: async () => ({ id: CAMPAIGN, user_id: DM, ai_enabled: h.aiEnabled }),
     isDm: async (_c, userId) => userId === DM,
@@ -252,6 +252,15 @@ describe("listening", () => {
     expect(heard).toMatchObject({ ok: true, kind: "audio" });
     expect(await ask(h, "listen", STRANGER)).toEqual({ ok: false, status: 404, error: READING_MESSAGES.notFound });
     expect(h.charged).toHaveLength(1);
+  });
+
+  // Bug caught: the voices' check moved above the listen branch, so a player pressing play waits on (and fails with)
+  // a read of the speech keys that listening never needs, or hears nothing once the admin clears the key.
+  it("plays a kept recording without asking whether voices are on", async () => {
+    const h = harness();
+    await ask(h, "make");
+    h.deps.voiceOn = () => Promise.reject(new Error("the speech keys were read"));
+    expect(await ask(h, "listen", PLAYER)).toMatchObject({ ok: true, kind: "audio" });
   });
 
   // Bug caught: the recording read from wherever the row says, so a forged value on a note serves another note's

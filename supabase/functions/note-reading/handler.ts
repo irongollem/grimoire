@@ -33,8 +33,8 @@ export interface ReadingCampaign {
 type Reservation = { ok: true; ids: string[] } | { ok: false; status: number; error: string };
 
 export interface NoteReadingDeps {
-  /** Whether this stack speaks at all (its speech key and switch are set). */
-  voiceOn(): boolean;
+  /** Whether this stack speaks at all (the admin's ElevenLabs key is set). Asked first by every path that speaks. */
+  voiceOn(): Promise<boolean>;
   /** By id alone: the handler decides what the caller may do with it. */
   loadNote(noteId: string): Promise<ReadingNote | null>;
   loadCampaign(campaignId: string): Promise<ReadingCampaign | null>;
@@ -162,7 +162,7 @@ export async function readNote(input: { userId: string; body: unknown; deps: Not
   }
 
   // Making a reading, and asking what one costs, is the Dungeon Master's.
-  if (!deps.voiceOn()) return refuse(503, READING_MESSAGES.off);
+  if (!(await deps.voiceOn())) return refuse(503, READING_MESSAGES.off);
   const campaign = await deps.loadCampaign(note.campaign_id);
   if (!campaign) return refuse(404, READING_MESSAGES.notFound);
   if (!(await deps.isDm(campaign, userId))) return refuse(403, READING_MESSAGES.notDm);

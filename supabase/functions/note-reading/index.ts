@@ -12,7 +12,8 @@ import { isNarratorVoice } from "../_shared/narratorVoice.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { sweepNoteReadings, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
-import { hasSpeechService, loadSpeechRate, SPEECH_KEY_PROVIDERS, speechEnvFrom, speechModelOf, synthesizeSpeech, voicesOn, VoicesSpent } from "../_shared/speech.ts";
+import { loadSpeechEnv } from "../_shared/speechKeys.ts";
+import { type SpeechEnv, hasSpeechService, loadSpeechRate, speechModelOf, synthesizeSpeech, voicesOn, VoicesSpent } from "../_shared/speech.ts";
 import { readNote, type NoteReadingDeps } from "./handler.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -43,11 +44,14 @@ serve(withCors(async (req: Request) => {
     return json(400, { error: "Invalid JSON body." });
   }
 
-  // The admin's keys, read for this request (`speechEnvFrom`).
-  const speech = speechEnvFrom(await fetchPlatformKeys(admin, [...SPEECH_KEY_PROVIDERS]), (key) => Deno.env.get(key));
+  // The admin's keys, read for this request and only once something is to be spoken: listening to a recording
+  // needs none. The handler asks `voiceOn` before anything else that speaks, so the sync `hasService` below only
+  // ever runs after they are loaded; before that it answers false.
+  let speech: SpeechEnv | undefined;
+  const loadSpeech = async (): Promise<SpeechEnv> => (speech ??= await loadSpeechEnv(admin));
 
   const deps: NoteReadingDeps = {
-    voiceOn: () => voicesOn(speech) && voiceStore !== null,
+    voiceOn: async () => voicesOn(await loadSpeech()) && voiceStore !== null,
 
     async loadNote(noteId) {
       const { data, error } = await admin.from("notes").select("id, campaign_id, reading_hash, reading_voice").eq("id", noteId).maybeSingle();
@@ -86,8 +90,8 @@ serve(withCors(async (req: Request) => {
       return typeof data === "string" ? data : null;
     },
 
-    hasService: (service) => hasSpeechService(speech, service),
-    loadRate: (service) => loadSpeechRate(admin, speech, service),
+    hasService: (service) => speech !== undefined && hasSpeechService(speech, service),
+    loadRate: async (service) => loadSpeechRate(admin, await loadSpeech(), service),
 
     // The same screen the table's own lines go through, logged under this surface.
     async isFlagged(text) {
@@ -110,10 +114,10 @@ serve(withCors(async (req: Request) => {
     release: (ids) => releaseCredits(admin, ids),
 
     async charge(userId, credits, log) {
-      await recordGeneration(admin, userId, "note_reading", false, credits, { provider: log.service, model: speechModelOf(speech, log.service) });
+      await recordGeneration(admin, userId, "note_reading", false, credits, { provider: log.service, model: speechModelOf(await loadSpeech(), log.service) });
     },
 
-    synthesize: (voice, text) => synthesizeSpeech(speech, voice, text),
+    synthesize: async (voice, text) => synthesizeSpeech(await loadSpeech(), voice, text),
 
     async loadAudio(key) {
       return voiceStore === null ? null : await getObject(voiceStore, key);

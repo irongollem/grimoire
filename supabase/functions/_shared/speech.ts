@@ -35,9 +35,8 @@ export const SPEECH_KEY_PROVIDERS = ["elevenlabs", "inworld"] as const;
 
 /**
  * The speech services' keys are the admin's, set in Admin > Providers like every other provider's and kept
- * encrypted in `platform_api_keys`. The caller reads them per request (`fetchPlatformKeys(admin,
- * SPEECH_KEY_PROVIDERS)`), so a key set or cleared there takes effect at once; this module stays free of the vault so
- * it can be imported anywhere. There is no separate switch: a key is how voices are turned on, as it is for the
+ * encrypted in `platform_api_keys`, and read per request through `loadSpeechEnv` (`speechKeys.ts`), so a key set or
+ * cleared there takes effect at once; this module stays free of the vault so it can be imported anywhere. There is no separate switch: a key is how voices are turned on, as it is for the
  * judging model, and clearing it turns them off. (They were function secrets plus `TABLE_VOICE_TRIAL=on` while speech
  * was not charged for.) `TABLE_VOICE_MODEL` is still the environment's, to name another ElevenLabs model.
  */

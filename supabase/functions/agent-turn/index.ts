@@ -132,6 +132,11 @@ serve(withCors(async (req: Request) => {
     };
   }
 
+  // One read of the platform keys a turn may use: the judging model's, for both judges, and the speech services',
+  // for whether lines get a voice key. A failed read answers none (`fetchPlatformKeys`), so the judges and the voices
+  // are simply off for the turn rather than failing it.
+  const turnKeys = fetchPlatformKeys(admin, ["typesafe", ...SPEECH_KEY_PROVIDERS]);
+
   const deps: AgentTurnDeps = {
     async accountRefusal(userId): Promise<Refusal | null> {
       // Fail closed: a conversation with a model is not something to allow on a lookup that could not be made.
@@ -788,7 +793,7 @@ serve(withCors(async (req: Request) => {
     }),
     // The same judge as the narration check, with a tighter wait: a refusal is read inside a tool call.
     judgeCanon: await narrationJudgeFor({
-      getKey: async () => (await fetchPlatformKeys(admin, ["typesafe"])).typesafe,
+      getKey: async () => (await turnKeys).typesafe,
       record: (log) => recordFreeGeneration(admin, user.id, "entity_judgment", log),
       signal: req.signal,
       timeoutMs: CANON_JUDGE_TIMEOUT_MS,
@@ -796,14 +801,14 @@ serve(withCors(async (req: Request) => {
 
     // Holds back narration that only repeats the characters' lines; null (everything shown) without a judging key.
     judgeNarration: await narrationJudgeFor({
-      getKey: async () => (await fetchPlatformKeys(admin, ["typesafe"])).typesafe,
+      getKey: async () => (await turnKeys).typesafe,
       record: (log) => recordFreeGeneration(admin, user.id, "entity_judgment", log),
       signal: req.signal,
     }),
 
     // The same switch `table-voice` answers to: without it no line is given a key.
     voiceKey:
-      voicesOn(speechEnvFrom(await fetchPlatformKeys(admin, [...SPEECH_KEY_PROVIDERS]), (key) => Deno.env.get(key)))
+      voicesOn(speechEnvFrom(await turnKeys, (key) => Deno.env.get(key)))
         ? (sessionId, line) => lineKey(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, sessionId, line)
         : null,
 
