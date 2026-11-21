@@ -63,7 +63,7 @@ export function isHidden(conditions: readonly AppliedCondition[]): boolean {
  * Whether the players' screens leave this combatant out (#1021 row 13, the maintainer's decision of 21 Nov 2026): a creature
  * that took the Hide action and has not been found has no known place, so neither its token nor its row is shown to them. A
  * party member who hides stays: the players are on its side. The server's player projection applies the same rule
- * (supabase/migrations/20261120230833_hidden_creatures_leave_the_players_view.sql). The DM sees it.
+ * (supabase/migrations/20261121010616_hidden_creatures_leave_the_players_view.sql). The DM sees it.
  */
 export function hiddenFromPlayers(c: { type: string; conditions: readonly AppliedCondition[] }): boolean {
   return c.type !== "player" && isHidden(c.conditions);
