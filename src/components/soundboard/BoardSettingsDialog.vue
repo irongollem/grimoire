@@ -64,6 +64,30 @@
         </p>
       </div>
 
+      <!-- Temporary: the CarPlay experiment in lib/audio/bufferedPlaybackTest.ts. -->
+      <div class="space-y-1.5 rounded-md border border-dashed border-border p-3">
+        <p class="text-label-lg">CarPlay test: a music pad, loaded whole</p>
+        <p class="text-caption text-muted-foreground">
+          Plays a music pad you played this session, loaded into memory first instead of streamed
+          through the mixer. Use it in the car with Direct output off: if it does not stutter, the
+          mixer can be kept in the car.
+        </p>
+        <div class="flex items-center gap-2">
+          <AppButton
+            :variant="testPlaying ? 'tinted' : 'outline'"
+            tone="primary"
+            emphasis="soft"
+            size="sm"
+            :label="testPlaying ? 'Stop the test' : 'Play the test'"
+            :loading="testLoading"
+            :disabled="!testPlaying && testUrl === null"
+            @click="toggleTest"
+          />
+          <span v-if="testUrl === null && !testPlaying" class="text-caption text-muted-foreground">Play a music pad first.</span>
+          <span v-if="testError" class="text-caption text-destructive">{{ testError }}</span>
+        </div>
+      </div>
+
       <DeckControllersSection />
     </div>
 
@@ -74,7 +98,9 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from "vue";
 import { IconSettings } from "@/lib/icons";
+import { isBufferedTestPlaying, startBufferedTest, stopBufferedTest } from "@/lib/audio/bufferedPlaybackTest";
 import { useAudioTriggerPrefs } from "@/composables/soundboard/useAudioThemeTriggers";
 import { useSoundboardBroadcast } from "@/composables/soundboard/useSoundboardBroadcast";
 import { useSoundboardStore } from "@/stores/soundboard";
@@ -98,5 +124,33 @@ const emit = defineEmits<{ (e: "close"): void }>();
 const store = useSoundboardStore();
 const { audioTriggersEnabled, setAudioTriggersEnabled } = useAudioTriggerPrefs();
 const { broadcasting, broadcastError, setBroadcasting } = useSoundboardBroadcast();
+
+// The CarPlay buffered-playback experiment. Temporary, like its module.
+const testPlaying = ref(isBufferedTestPlaying());
+const testLoading = ref(false);
+const testError = ref<string | null>(null);
+const testUrl = computed(() => (open ? store.lastFileUrl("music") : null));
+
+async function toggleTest(): Promise<void> {
+  testError.value = null;
+  if (testPlaying.value) {
+    stopBufferedTest();
+    testPlaying.value = false;
+    return;
+  }
+  const url = testUrl.value;
+  if (url === null) return;
+  // The board's own audio would play over the test and hide what it measures.
+  store.stopAll();
+  testLoading.value = true;
+  try {
+    await startBufferedTest(url);
+    testPlaying.value = true;
+  } catch (error) {
+    testError.value = error instanceof Error ? error.message : "The test could not start";
+  } finally {
+    testLoading.value = false;
+  }
+}
 </script>
 
