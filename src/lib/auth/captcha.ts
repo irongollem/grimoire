@@ -21,7 +21,7 @@ import type { ShallowRef } from "vue";
 export type CaptchaSource = () => Promise<string | undefined>;
 
 const CAPTCHA_COPY =
-  "The security check didn't go through. Turn off any content blocker for this page, then try again.";
+  "The security check didn't go through. Try again. If it keeps failing, allow this page in your content blocker or try a different browser.";
 
 /** The check could not produce a token: script blocked, widget errored, or the form went away. */
 export class CaptchaUnavailableError extends Error {
@@ -85,6 +85,7 @@ declare global {
 }
 
 const SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+const SCRIPT_TIMEOUT_MS = 15_000;
 
 let loading: Promise<TurnstileApi> | null = null;
 
@@ -93,16 +94,29 @@ let loading: Promise<TurnstileApi> | null = null;
  * a visitor who switches a content blocker off can retry without reloading.
  */
 export function loadTurnstile(): Promise<TurnstileApi> {
+  if (window.turnstile) return Promise.resolve(window.turnstile);
   loading ??= new Promise<TurnstileApi>((resolve, reject) => {
     const script = document.createElement("script");
     script.src = SCRIPT_URL;
     script.async = true;
-    const fail = () => {
+    function cleanup() {
+      clearTimeout(timeout);
+      script.removeEventListener("load", loaded);
+      script.removeEventListener("error", fail);
+    }
+    function fail() {
+      cleanup();
       script.remove();
       loading = null;
       reject(new CaptchaUnavailableError());
-    };
-    script.addEventListener("load", () => (window.turnstile ? resolve(window.turnstile) : fail()));
+    }
+    function loaded() {
+      if (!window.turnstile) return fail();
+      cleanup();
+      resolve(window.turnstile);
+    }
+    const timeout = setTimeout(fail, SCRIPT_TIMEOUT_MS);
+    script.addEventListener("load", loaded);
     script.addEventListener("error", fail);
     document.head.append(script);
   });

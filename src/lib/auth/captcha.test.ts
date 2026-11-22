@@ -121,7 +121,29 @@ describe("loadTurnstile", () => {
     scripts[0].dispatchEvent(new Event("load"));
     await expect(empty).rejects.toBeInstanceOf(fresh.CaptchaUnavailableError);
 
-    void fresh.loadTurnstile();
+    const retried = fresh.loadTurnstile();
     expect(scripts).toHaveLength(2);
+    window.turnstile = api;
+    scripts[1].dispatchEvent(new Event("load"));
+    await expect(retried).resolves.toBe(api);
+  });
+
+  it("retries when a script request never fires load or error", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.resetModules();
+      const fresh = await import("./captcha");
+      const timedOut = expect(fresh.loadTurnstile()).rejects.toBeInstanceOf(fresh.CaptchaUnavailableError);
+      await vi.advanceTimersByTimeAsync(15_000);
+      await timedOut;
+
+      const retried = fresh.loadTurnstile();
+      expect(scripts).toHaveLength(2);
+      window.turnstile = api;
+      scripts[1].dispatchEvent(new Event("load"));
+      await expect(retried).resolves.toBe(api);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

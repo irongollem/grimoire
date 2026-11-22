@@ -117,16 +117,22 @@ describe("CaptchaGate", () => {
     expect(mocks.report.mock.calls[1][0].message).toBe("Turnstile configuration error 110200");
   });
 
-  it("reports a submit that waits on a check which never answers", async () => {
+  it("releases a stalled submit and resets the widget so a retry can succeed", async () => {
     vi.useFakeTimers();
     try {
       const wrapper = await mountGate();
-      void wrapper.vm.take().catch(() => {});
+      const rejected = expect(wrapper.vm.take()).rejects.toBeInstanceOf(CaptchaUnavailableError);
       await vi.advanceTimersByTimeAsync(19_000);
       expect(mocks.report).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(1_000);
+      await rejected;
       expect(mocks.report).toHaveBeenCalledTimes(1);
       expect(mocks.report.mock.calls[0][0].message).toBe("Turnstile gave no token");
+      expect(mocks.reset).toHaveBeenCalledWith("w1");
+
+      const retry = wrapper.vm.take();
+      widget.callback("fresh");
+      await expect(retry).resolves.toBe("fresh");
     } finally {
       vi.useRealTimers();
     }

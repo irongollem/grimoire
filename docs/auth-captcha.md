@@ -72,6 +72,14 @@ on. Setting the key for Preview as well means adding `vercel.app` to the
 widget's hostnames, because preview URLs are not subdomains of anything
 narrower.
 
+## Recovering from a stall
+
+If a submitted form waits 20 seconds for a token while Turnstile is in the
+background, the form shows a retryable error and resets the rendered widget.
+Waiting for a visitor to click the challenge is excluded from this timeout.
+A script request that never finishes times out after 15 seconds so a retry
+can load it again.
+
 ## Looking at it locally
 
 Nothing renders without `VITE_TURNSTILE_SITE_KEY`, which is every ordinary

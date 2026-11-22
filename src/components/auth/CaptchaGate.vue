@@ -1,5 +1,5 @@
 <template>
-  <div ref="host" :class="interactive ? (compact ? 'flex justify-center' : undefined) : 'absolute'" />
+  <div ref="host" :class="interactive || failed ? (compact ? 'flex justify-center' : undefined) : 'absolute'" />
 </template>
 
 <script setup lang="ts">
@@ -22,6 +22,7 @@ const { activeThemeId, themes } = useTheme();
 // empty box does not add a gap to the form's `space-y`. It is not hidden with
 // `display: none`: the check has to run in a rendered element.
 const interactive = ref(false);
+const failed = ref(false);
 // Turnstile's full-width widget is never narrower than 300px, and the auth
 // card's content box is narrower than that on a phone. Its compact widget is
 // 150px wide and stands centred instead.
@@ -36,9 +37,8 @@ let token: string | null = null;
 let waiters: { resolve: (token: string) => void; reject: (err: Error) => void }[] = [];
 
 // A submit can also wait on a check that never answers at all, neither token
-// nor error, and the button sits on its loading label for good. That leaves no
-// trace anywhere, so a submit still waiting after this long, while Turnstile is
-// not asking the visitor for a click, is reported as a stall.
+// nor error. Release the submit so the visitor can try again. Give visitors
+// who are being asked to click as much time as Turnstile allows.
 const STALL_MS = 20_000;
 let stallTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -48,8 +48,13 @@ function watchForStall() {
     stallTimer = undefined;
     if (waiters.length === 0) return;
     // Waiting on the visitor's click is not a stall; look again later.
-    if (interactive.value) watchForStall();
-    else report("Turnstile gave no token", "stall", { waitedMs: STALL_MS, widgetRendered: widgetId !== null });
+    if (interactive.value) {
+      watchForStall();
+      return;
+    }
+    rejectWaiters();
+    report("Turnstile gave no token", "stall", { waitedMs: STALL_MS, widgetRendered: widgetId !== null });
+    if (api && widgetId !== null) api.reset(widgetId);
   }, STALL_MS);
 }
 
@@ -76,6 +81,7 @@ function handOut(fresh: string, resolve: (token: string) => void) {
 
 function onToken(fresh: string) {
   interactive.value = false;
+  failed.value = false;
   const waiter = waiters.shift();
   if (waiter) handOut(fresh, waiter.resolve);
   else token = fresh;
@@ -88,7 +94,8 @@ function onError(code: string): boolean {
   // Troubleshoot link) after the interaction that preceded it has ended, so
   // the host goes back into the flow; out of it, the failure box sat on top
   // of the submit button.
-  interactive.value = true;
+  interactive.value = false;
+  failed.value = true;
   rejectWaiters();
   report(code.startsWith("110") ? `Turnstile configuration error ${code}` : `Turnstile error ${code}`, code);
   return true;
