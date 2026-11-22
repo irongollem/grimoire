@@ -11,7 +11,7 @@
         :disabled="isAnyAiGenerating"
         :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
         :label="copy.open"
-        @click="showSteer = !showSteer"
+        @click="toggleSteer"
       />
     </div>
 
@@ -62,6 +62,7 @@
         <AppButton variant="subtle" size="sm" label="Dismiss all" @click="dismissAll" />
       </div>
       <p class="text-caption text-muted-foreground">Nothing is saved until you accept one. An accepted entry carries the AI label until you change it.</p>
+      <p v-if="hasBoundarySuggestions" class="text-caption text-muted-foreground">Accepting a line or veil makes it an active rule for AI generations immediately. It stays private until you share it; review it with your players before accepting.</p>
       <div v-for="p in proposals" :key="p.key" class="flex flex-col gap-2 border border-border bg-card p-3" data-testid="canon-proposal">
         <div class="flex flex-wrap items-center gap-1.5">
           <span class="text-eyebrow text-muted-foreground">{{ p.tag }}</span>
@@ -115,7 +116,8 @@ import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { useCanonSuggestions, type ClueSuggestion, type ForceSuggestion, type LoreSuggestion, type PremiseSuggestion, type QuestionSuggestion, type TruthSuggestion } from "@/ai/useCanonSuggestions";
 import type { AiProvenance } from "@/ai/provenance";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
-import type { CanonEntry, LoreKind } from "@/types/canon.types";
+import { premiseEntryText } from "@edge-shared/worldBlock.ts";
+import type { CanonEntry, LoreKind, PremiseKind } from "@/types/canon.types";
 
 type Suggestion = PremiseSuggestion | TruthSuggestion | ClueSuggestion | QuestionSuggestion | ForceSuggestion | LoreSuggestion;
 
@@ -201,13 +203,16 @@ const COPY = {
 const copy = computed(() => (mode === "lore" && lore?.entryId ? COPY.split : COPY[mode]));
 
 const SPOT_TAG = { location: "A place you have", npc: "A person you have", quest_beat: "A beat you have" } as const;
-const KIND_TAG: Record<PremiseSuggestion["kind"], string> = {
+const KIND_TAG: Record<PremiseKind, string> = {
   pitch: "Pitch",
   theme: "Theme",
   table: "At the table",
   voice: "Voice",
   look: "Look",
+  line: "Line",
+  veil: "Veil",
 };
+const BOUNDARY_KINDS: readonly PremiseKind[] = ["line", "veil"];
 const MARK_TAG = { all: "Known to all", some: "Known to some", secret: "Secret" } as const;
 
 const campaign = useCampaignStore();
@@ -235,6 +240,17 @@ const { nameKnower } = useKnownTo(() => null);
 const showSteer = ref(false);
 const steer = ref("");
 const isAccepting = ref(false);
+const hasBoundarySuggestions = computed(() => mode === "premise" && (suggestions.value as Suggestion[]).some(
+  (proposal) => "text" in proposal && "kind" in proposal && BOUNDARY_KINDS.includes(proposal.kind),
+));
+
+function toggleSteer() {
+  if (!showSteer.value && mode === "premise" && steer.value.trim() === "") {
+    const pitch = entries.find((entry) => entry.part === "premise" && entry.premise_kind === "pitch");
+    if (pitch) steer.value = premiseEntryText(pitch.premise_kind, pitch.title, pitch.body).slice(0, AI_PROMPT_LIMIT).trimEnd();
+  }
+  showSteer.value = !showSteer.value;
+}
 
 async function run() {
   if (!canSpend(cost.value, textIsByok.value)) return;
@@ -319,12 +335,23 @@ async function acceptPremise(s: PremiseSuggestion) {
   const field = s.kind === "pitch" ? { body: PITCH_TEXT(s.text) } : { title: s.text };
   const existing = single ? entries.find((e) => e.part === "premise" && e.premise_kind === s.kind) : undefined;
   if (existing) {
-    const ok = await confirm("Replace the existing text?", { title: `Replace the ${s.kind}`, confirmLabel: "Replace", danger: false });
+    const oldText = premiseEntryText(existing.premise_kind, existing.title, existing.body);
+    const ok = await confirm(
+      `This will replace “${oldText}” with “${s.text}”; are you sure?`,
+      { title: `Replace the ${s.kind}?`, confirmLabel: "Replace", danger: false },
+    );
     if (!ok) return false;
     // A voice or look is carried by its title, so a body left over from the old text would be read with the new one.
     const patch = s.kind === "pitch" ? { ...field } : { ...field, body: null };
     await updateEntry({ id: existing.id, patch: { ...patch, ...stamp() } });
     return true;
+  }
+  if (s.kind === "line" || s.kind === "veil") {
+    const ok = await confirm(
+      `Accepting this ${s.kind} makes it an active rule for AI generations immediately. It stays private unless you share it. Review it with your players before accepting: “${s.text}”.`,
+      { title: `Activate this ${s.kind}?`, confirmLabel: "Accept boundary", danger: false },
+    );
+    if (!ok) return false;
   }
   const count = entries.filter((e) => e.part === "premise" && e.premise_kind === s.kind).length;
   await createEntry({ part: "premise", premise_kind: s.kind, ...field, player_visible_to: [], sort_order: count, ...stamp() });

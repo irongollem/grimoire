@@ -22,10 +22,14 @@ const people: KnowerCandidate[] = [
 ];
 
 describe("sanitizePremise", () => {
-  it("refuses a line or a veil, which the table agrees on and the model must never write", () => {
+  it("keeps line and veil proposals as private drafts for the DM to discuss with the table", () => {
     const out = sanitizePremise({ suggestions: [{ kind: "line", text: "No harm to children" }, { kind: "veil", text: "War" }, { kind: "theme", text: "Mercy" }] }, []);
-    expect(out.suggestions).toEqual([{ kind: "theme", text: "Mercy" }]);
-    expect(out.setAside).toHaveLength(2);
+    expect(out.suggestions).toEqual([
+      { kind: "line", text: "No harm to children" },
+      { kind: "veil", text: "War" },
+      { kind: "theme", text: "Mercy" },
+    ]);
+    expect(out.setAside).toEqual([]);
   });
 
   it("drops a kind the model invented", () => {

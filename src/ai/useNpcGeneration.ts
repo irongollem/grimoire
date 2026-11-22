@@ -26,6 +26,8 @@ import {
 } from "@/ai/useImageGeneration";
 import { buildAiProvenance } from "@/ai/provenance";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
+import { useCampaignStore } from "@/stores/campaign";
+import type { RulesetKey } from "@/types/ruleset.types";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -55,7 +57,14 @@ export function useNpcGeneration() {
     options?: { generateAlterEgo?: boolean; generateImage?: boolean },
   ): Promise<NpcAiGenerated | null> {
     if (isAnyAiGenerating.value) return null;
+    const campaign = useCampaignStore();
+    const campaignAtStart = campaign.activeCampaignId;
+    const rulesetAtStart = ruleset.value;
     if (options?.generateAlterEgo && !(await ensureLikenessAck())) return null;
+    if (campaign.activeCampaignId !== campaignAtStart) {
+      _state.error.value = "The active campaign changed. Reopen the generator and try again.";
+      return null;
+    }
     _state.isGenerating.value = true;
     _state.error.value = null;
     startAiQuotes();
@@ -69,13 +78,23 @@ export function useNpcGeneration() {
       stopAiQuotes();
       return null;
     }
+    if (campaign.activeCampaignId !== campaignAtStart || imageContext.campaignId !== campaignAtStart) {
+      _state.error.value = "The active campaign changed. Reopen the generator and try again.";
+      _state.isGenerating.value = false;
+      stopAiQuotes();
+      return null;
+    }
     const campaignId = imageContext.campaignId;
 
     try {
       const isLocalMode = await textRunsOnLocalKey();
+      if (campaign.activeCampaignId !== campaignAtStart) {
+        _state.error.value = "The active campaign changed. Reopen the generator and try again.";
+        return null;
+      }
 
       return isLocalMode
-        ? await generateClientSide(userPrompt, options, imageContext)
+        ? await generateClientSide(userPrompt, options, imageContext, rulesetAtStart)
         : await generateServerSide(userPrompt, options, campaignId, imageContext);
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";
@@ -112,7 +131,7 @@ export function useNpcGeneration() {
       startAiQuotes("image");
     }
 
-    const npcData = data as NpcAiResult;
+    const npcData = normalizeNpcVoice(data as NpcAiResult);
     return { ...npcData, ...await generateNpcImages(npcData, options, imageContext) };
   }
 
@@ -123,6 +142,7 @@ export function useNpcGeneration() {
     userPrompt: string,
     options: { generateAlterEgo?: boolean; generateImage?: boolean } | undefined,
     imageContext: ImageGenerationContext,
+    rulesetAtStart: RulesetKey,
   ): Promise<NpcAiGenerated | null> {
     const world = requireWorld(imageContext.world);
 
@@ -130,7 +150,7 @@ export function useNpcGeneration() {
     const textProvider = getTextProvider();
     const [basePrompt, rulesetContext] = await Promise.all([
       fetchSystemPrompt("npc"),
-      fetchRulesetContext(ruleset.value),
+      fetchRulesetContext(rulesetAtStart),
     ]);
     if (!basePrompt) throw new Error("NPC system prompt not configured.");
     const systemContent =
@@ -145,7 +165,7 @@ export function useNpcGeneration() {
     const { content, usage: textUsage } = await textProvider.complete(systemContent, userContent);
     logUsage({ reason: "npc_generation", textUsage });
 
-    const npcData = JSON.parse(content) as NpcAiResult;
+    const npcData = normalizeNpcVoice(JSON.parse(content) as NpcAiResult);
     npcData.ai_provenance = buildAiProvenance("npc_text", textUsage.provider, textUsage.model);
 
     if (
@@ -186,4 +206,8 @@ export function useNpcGeneration() {
   }
 
   return { ..._state, generate };
+}
+
+function normalizeNpcVoice(data: NpcAiResult): NpcAiResult {
+  return { ...data, voice: typeof data.voice === "string" ? data.voice : "" };
 }

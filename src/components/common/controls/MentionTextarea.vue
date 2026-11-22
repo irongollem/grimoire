@@ -30,6 +30,7 @@
         @mouseenter="selectedIndex = idx"
       >
         <span
+          v-if="item.entityType"
           class="text-label font-bold px-[0.35rem] py-[0.1rem] rounded-full border shrink-0"
           :class="BADGE_CLASSES[item.entityType]"
         >
@@ -44,8 +45,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { mentionToken } from "@/lib/mentionToken";
 import type { EntityMentionItem } from "@/lib/tiptap/EntityMention";
 import type { EntityType } from "@/lib/tiptap/nodeViewTypes";
+
+type MentionOption = Pick<EntityMentionItem, "id" | "label"> & { entityType?: EntityType };
 
 const ENTITY_LABELS: Record<EntityType, string> = {
   player:   "PC",
@@ -73,12 +77,14 @@ const {
   disabled = false,
   inputClass = "field-input resize-none text-sm",
 } = defineProps<{
-  items?: EntityMentionItem[];
+  items?: readonly MentionOption[];
   rows?: number;
   placeholder?: string;
   disabled?: boolean;
   inputClass?: string;
 }>();
+
+const emit = defineEmits<{ "item-selected": [selection: { item: MentionOption; token: string; value: string }] }>();
 
 const textareaRef  = ref<HTMLTextAreaElement | null>(null);
 const mentionQuery = ref<string | null>(null);  // null = no active mention
@@ -158,14 +164,16 @@ function onBlur() {
   setTimeout(() => { mentionQuery.value = null; }, 150);
 }
 
-function selectItem(item: EntityMentionItem) {
+function selectItem(item: MentionOption) {
   const ta = textareaRef.value;
   if (!ta) return;
-  const inserted  = `@${item.label.replace(/ /g, "_")} `;
+  const token = mentionToken(item.label);
+  const inserted  = `${token} `;
   const before    = ta.value.slice(0, mentionStart.value);
   const after     = ta.value.slice(ta.selectionStart);
   const newValue  = before + inserted + after;
   model.value = newValue;
+  emit("item-selected", { item, token, value: newValue });
   mentionQuery.value = null;
   // Restore focus and place cursor after the inserted text
   ta.value = newValue;

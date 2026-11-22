@@ -101,10 +101,12 @@ quests where the party meets it, once each). Players never read any of it.
   naming its force, with Undo on each force's newest tick only (`ForceLog` with `forceName`); each force's detail keeps
   its own. A tick's world date is formatted by the campaign's calendar adapter (`useCalendarStore().adapter.formatDate`).
 - Quests are added from the campaign's own quests (a quest already linked is not offered) and each links to its page.
-- **Suggest forces** (`suggest-canon` mode `forces`, `canon_force_suggestion`) proposes forces; Accept writes the entry,
-  its steps in order, its quest links and, when it names a faction or person the campaign has, an `about` link from the
-  force to them, all carrying the run's provenance (`writeAcceptedForce`, `useCanonForces.ts`). Nothing is written
-  before Accept.
+- **Suggest forces** (`suggest-canon` mode `forces`, `canon_force_suggestion`) proposes each listed faction with an
+  active agenda in the world block or DM's steer, up to ten, rather than a fixed count. It prefers exact listed faction
+  or person names so the accepted force gets an `about` link to that record. Accept writes the entry, its steps in order,
+  its quest links and matched `about` link, all carrying the run's provenance (`writeAcceptedForce`,
+  `useCanonForces.ts`). Manual forces can also select a faction and clock size in `ForcesSection.vue`. Nothing is
+  written before Accept (for suggestions) or Add force (for manual entry).
 - `canon_force_step` is an MCP kind; `canon` also takes `wants` and `clock_size`. Ticks are not (a tick is written by
   the clock's buttons and undone, never edited).
 
@@ -137,8 +139,8 @@ sets `told_at`, `told_session_id` (the open session) and `player_visible_to` (ev
 first and clears all three. It may come out at one place, person or beat (`WherePicker.vue`, shared with the clue form;
 the other two columns are cleared on a move), and shows "Also a clue to" any secret whose clue points at it
 (`canon_clues.passage_id`; telling it the first time marks those clues found, in the database). Passages are added,
-reordered (renumbered from position) and removed in the entry. The detail takes the page's side column at a desktop, as
-every part's does, so a passage's margin sits under its text; below a desktop it opens under the part.
+reordered (renumbered from position) and removed in the entry. Lore detail takes the page's side column at a desktop, so
+a passage's margin sits under its text; below a desktop it opens under the part.
 
 At the table `CanonHere.vue` is one block for everything the canon placed at a place, person or beat: the clues lying
 there and the lore passages that come out there and are not yet told (never an entry's first passage), each with
@@ -168,12 +170,16 @@ written, lets them share it only with party members, and refuses a place, a beat
 passage says whose it is: "Written by <player> · before play" or "... after session N" (N is the latest session that had
 started before it was written, `writtenWhen`) or "Your passage". **The people from this past** are the entry's
 connections (`ConnectionsSection`, subject `{ kind: "canon" }`, each tie with its own reveal), and **New NPC from this
-backstory** creates a person hidden from every player and tied `about` from the entry, then opens them
-(`useNewBackstoryNpc`).
+backstory** asks how that person relates to the character, creates that People connection alongside the Canon `about`
+link, keeps both hidden from players, then opens the NPC (`useNewBackstoryNpc`). In the NPC's Connections block, the
+People relationship is primary and its Canon origin is a compact marker linking back to the source entry.
 
 The DM's side is `BackstoriesSection` (one row per party member: "played by", passages, "n not yet told"; the contents
 column counts characters, not entries) and `BackstoryDetail` (opened with `?backstory=<party member id>`, or
-`?entry=<backstory entry id>`); `LorePassageRow` carries the byline, the player's-own variant (no Tell, no place) and the
+`?entry=<backstory entry id>`), together in the page body: the selected pair uses up to 64rem; at 56rem of available width it
+gives about one third to the ledger and two thirds to editing, then stacks below that breakpoint. A deep link scrolls to
+the Backstories section.
+`LorePassageRow` carries the byline, the player's-own variant (no Tell, no place) and the
 tell target, and `usePassageList` is the add/move/remove the lore entry shares. Who may read the entry besides its
 character is the entry's own `player_visible_to` (the **Share** control in the detail): `canon_entry_seen` lets a backstory
 reach its own character always and others when shared, and a passage reaches whom it was told to. **A player's "Share with
@@ -188,11 +194,16 @@ character). The MCP enum lists the part; the generic readers still refuse canon.
 
 Help on a part ships with that part's story, as DM help at a real table (frame 13). `suggest-canon` (server path only,
 DM-gated, `canon_premise_suggestion` / `canon_truth_suggestion` at 1 credit, prompt rows `canon_premise` /
-`canon_truths`) answers two modes: **Draft from a pitch** proposes premise entries (pitch, themes, at the table, voice,
-look) from a few lines, and **Suggest truths** proposes up to eight truths with their marks. The pure check is
-`supabase/functions/_shared/canonSuggestions.ts`: lines and veils are never proposed (they are agreed with the
-players), a "known to some" truth names only people and factions the campaign has (unknown names are set aside, and a
-"some" truth with nobody left is set aside rather than offered). Nothing is written until the DM accepts
+`canon_truths`) answers two modes: **Draft from a pitch** uses the saved pitch as its starting text when the steer is
+empty, then proposes the campaign starter through pitch, themes, how play feels at the table, voice, look, and private
+line/veil discussion drafts; if there is no saved pitch and the model omits one, the DM's submitted pitch is offered as
+the pitch proposal. **Suggest truths** is the next step and proposes up to eight truths with their marks. The pure
+check is `supabase/functions/_shared/canonSuggestions.ts`: duplicate premise text is dropped, while lines and veils
+remain private drafts in the proposal list. The DM must discuss them with players before accepting, because acceptance
+activates them as rules for future AI generations immediately; sharing them with players is a separate action.
+Replacing a saved pitch, voice or look shows the old and new text in a confirmation first. A "known to
+some" truth names only people and factions the campaign has (unknown names are set aside, and a "some" truth with
+nobody left is set aside rather than offered). Nothing is written until the DM accepts
 (`src/components/canon/CanonSuggestions.vue`); an accepted entry and the `known_to` ties it brings carry
 `ai_provenance`. An AI-written entry is marked edited by the database the first time its words change
 (`private.canon_entries_mark_edited`), whoever changes them.

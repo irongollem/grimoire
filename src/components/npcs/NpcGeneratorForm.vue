@@ -1,6 +1,6 @@
 <template>
   <!-- Concept -->
-  <div>
+  <div class="relative">
     <label
       class="block text-label-lg font-semibold text-muted-foreground mb-1.5"
     >
@@ -10,13 +10,15 @@
         >(AI will use this)</span
       >
     </label>
-    <textarea
-      :value="concept"
-      rows="3"
+    <MentionTextarea
+      v-model="conceptModel"
+      :items="itemMentionOptions"
+      :rows="3"
       placeholder="A mysterious tiefling bard who works as a city informant and hides a dark past…"
-      class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-      @input="emit('update:concept', ($event.target as HTMLTextAreaElement).value)"
+      input-class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+      @item-selected="rememberItemMention"
     />
+    <p v-if="itemOptions.length" class="mt-1 text-caption text-muted-foreground">Type @ to include an item in this NPC’s inventory.</p>
   </div>
 
   <div class="gold-divider" />
@@ -115,6 +117,7 @@
           <span :style="{ paddingLeft: `${(opt as LocationOption).depth * 0.75}rem` }">{{ opt.name }}</span>
         </template>
       </EntityCombobox>
+      <p class="mt-1 text-caption text-muted-foreground">A location named in the concept is assigned automatically unless you choose one here.</p>
     </div>
 
     <div>
@@ -122,6 +125,7 @@
         >Stat block template</label
       >
       <AppSelect v-model="templateIdModel" tone="muted" size="body" weight="normal" block>
+        <option value="auto">Automatic on Generate</option>
         <option value="">None</option>
         <optgroup
           v-for="cat in templateCategories"
@@ -137,6 +141,7 @@
           </option>
         </optgroup>
       </AppSelect>
+      <p class="mt-1 text-caption text-muted-foreground">Generate picks a matching starter profile. Quick Create uses only a profile you choose.</p>
     </div>
 
     <div>
@@ -256,6 +261,7 @@
 
 <script setup lang="ts">
 import { computed, watch } from "vue";
+import { includesMentionToken, mentionToken } from "@/lib/mentionToken";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { IconGenerate } from "@/lib/icons";
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES } from "@/data/npcTemplates";
@@ -269,6 +275,7 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
+import MentionTextarea from "@/components/common/controls/MentionTextarea.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
@@ -312,6 +319,7 @@ const {
   quickForm,
   generateAlterEgo,
   generateImage,
+  itemOptions = [],
   isAiEnabled,
   isGenerating,
   genError = null,
@@ -320,6 +328,7 @@ const {
   quickForm: QuickForm;
   generateAlterEgo: boolean;
   generateImage: boolean;
+  itemOptions?: readonly { id: string; name: string }[];
   isAiEnabled: boolean;
   isGenerating: boolean;
   genError?: string | null;
@@ -330,8 +339,31 @@ const emit = defineEmits<{
   "update:quickForm": [value: QuickForm];
   "update:generateAlterEgo": [value: boolean];
   "update:generateImage": [value: boolean];
+  "update:mentionedItemIds": [ids: string[]];
   "dismiss-to-background": [];
 }>();
+
+const itemIdsByToken = new Map<string, string>();
+const itemMentionOptions = computed(() => itemOptions.map((item) => ({ id: item.id, label: item.name })));
+const conceptModel = computed({
+  get: () => concept,
+  set: (value: string) => emit("update:concept", value),
+});
+
+function publishMentionedItems(text: string) {
+  for (const token of itemIdsByToken.keys()) {
+    const label = itemOptions.find((item) => mentionToken(item.name) === token)?.name;
+    if (!label || !includesMentionToken(text, label)) itemIdsByToken.delete(token);
+  }
+  emit("update:mentionedItemIds", [...new Set(itemIdsByToken.values())]);
+}
+
+function rememberItemMention(selection: { item: { id: string; label: string }; token: string; value: string }) {
+  itemIdsByToken.set(selection.token, selection.item.id);
+  publishMentionedItems(selection.value);
+}
+
+watch(() => concept, publishMentionedItems, { immediate: true });
 
 function patchForm<K extends keyof QuickForm>(key: K, value: QuickForm[K]) {
   emit("update:quickForm", { ...quickForm, [key]: value });

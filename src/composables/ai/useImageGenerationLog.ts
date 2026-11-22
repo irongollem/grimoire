@@ -86,6 +86,8 @@ export interface LogImageGenerationParams {
   targetId?: string | null;
   targetTable?: string | null;
   targetColumn?: string | null;
+  /** Campaign that owns a background generation completed after navigation. */
+  campaignId?: string;
 }
 
 /**
@@ -104,7 +106,7 @@ export function useImageGenerationLog() {
   async function logImageGeneration(params: LogImageGenerationParams): Promise<void> {
     try {
       const user = getCurrentUser();
-      const campaignId = activeCampaignId.value;
+      const campaignId = params.campaignId ?? activeCampaignId.value;
       if (!user || !campaignId || !params.imageUrl) return;
 
       const meta = KIND_META[params.kind];

@@ -16,6 +16,7 @@
     :is-saving="isSaving"
     :is-sending-to-scriptorium="isSendingToScriptorium"
     :is-ai-enabled="isAiEnabled"
+    :lore-editor-revision="loreEditorRevision"
     @save="save"
     @cancel="onMobileCancel"
     @delete="confirmDelete"
@@ -109,6 +110,7 @@
 
         <!-- Everything this NPC is tied to, factions included (#1084). -->
         <ConnectionsSection v-if="npc?.id" :subject="{ kind: 'npc', id: npc.id }" :subject-name="form.name" />
+        <FamilyBlock v-if="npc?.id" :person="personKey('npc', npc.id)" />
 
         <!-- Tab bar: Lore | Inventory | Combat -->
         <div>
@@ -116,6 +118,7 @@
 
           <!-- Lore tab -->
           <NpcLoreTab
+            :key="loreEditorRevision"
             v-if="activeTab === 'lore'"
             :npc-name="form.name"
             :appearance="form.appearance"
@@ -253,6 +256,8 @@ import { bookInsertFromImport, formatNpcForScriptorium } from '@/scriptorium/lib
 import { buildEntityEmbedDocumentJson } from '@/scriptorium/lib/entityEmbeds'
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES, getNpcTemplate } from '@/data/npcTemplates'
 import ConnectionsSection from '@/components/connections/ConnectionsSection.vue'
+import FamilyBlock from '@/components/kinship/FamilyBlock.vue'
+import { personKey } from '@/lib/kinship/keys'
 import NpcInventorySection from '@/components/npcs/NpcInventorySection.vue'
 import NpcLoreTab from '@/components/npcs/NpcLoreTab.vue'
 import NpcIdentitySection from '@/components/npcs/NpcIdentitySection.vue'
@@ -270,6 +275,8 @@ import CopyToCampaignDialog from '@/components/common/overlays/CopyToCampaignDia
 import { useCopyEntityToCampaign } from '@/composables/campaign/useCopyEntityToCampaign'
 import { isQuotaExceeded } from '@/lib/quotaError'
 import { getNpcDisplayName, getNpcPlayerFacingName, NPC_UNNAMED_IN_PROSE } from '@/lib/npcDisplay'
+import { generatedBirthFromAge } from '@/lib/npcGenerator/generatedBirth'
+import { getCalendarAdapter } from '@/settings'
 import TabBar from '@/components/common/controls/TabBar.vue'
 import DmNoteBox from '@/components/notes/DmNoteBox.vue'
 import StatBlockEditor from '@/components/common/statblock/StatBlockEditor.vue'
@@ -328,6 +335,7 @@ const isSendingToScriptorium = ref(false)
 // ── UI state ──────────────────────────────────────────────────────────────────
 
 const activeTab = ref<TabKey>('lore')
+const loreEditorRevision = ref(0)
 const showGenerateDialog = ref(false)
 const artTab = ref<NpcArtTab>(
   props.npc?.disguise_name || props.npc?.disguise_portrait_url ? 'alter-ego' : 'true-form'
@@ -341,13 +349,23 @@ function onAiGenerated(result: NpcAiGenerated) {
   form.race        = result.race || null
   form.alignment   = result.alignment || null
   form.age         = result.age || null
+  const generatedBirth = generatedBirthFromAge(
+    getCalendarAdapter(campaign.activeCampaign?.calendar_id ?? null, campaign.activeCampaign?.custom_calendar ?? null),
+    result.age,
+    { year: campaign.todayYear, month: campaign.todayMonth, day: campaign.todayDay },
+  )
+  if (generatedBirth.born_year !== null) Object.assign(form, generatedBirth)
   form.occupation  = result.occupation || null
   form.status      = result.status
   form.relationship = result.relationship
   form.tags        = [...result.tags]
   form.appearance  = result.appearance  ? toTiptapJson(result.appearance)  : null
   form.personality = result.personality ? toTiptapJson(result.personality) : null
+  form.voice       = result.voice?.trim() || null
   form.backstory   = result.backstory   ? toTiptapJson(result.backstory)   : null
+  // RichTextEditor reads its initial document once; remount these editors so
+  // generated prose is visible immediately instead of after navigation.
+  loreEditorRevision.value++
   if (result.portrait_url) {
     form.portrait_url = result.portrait_url
     form.portrait_focal_point = null

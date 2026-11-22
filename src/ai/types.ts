@@ -16,6 +16,8 @@ export interface NpcAiResult {
   /** Plain text — convert to Tiptap JSON before writing to form */
   appearance: string;
   personality: string;
+  /** Plain speech cues for the DM, kept as text rather than rich text. */
+  voice: string;
   backstory: string;
   notes: string;
   status: NpcStatus;

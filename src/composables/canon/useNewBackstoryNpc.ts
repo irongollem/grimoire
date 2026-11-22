@@ -1,8 +1,10 @@
 import { useRouter } from "vue-router";
 import { toast } from "@/lib/toast";
-import { useCreateConnection } from "@/composables/connections/useConnections";
-import { useCreateNpc } from "@/composables/npcs/useNpcs";
-import { typeChoices } from "@/lib/worldLinks/connections";
+import { useCreateConnectionInCampaign } from "@/composables/connections/useConnections";
+import { useCreateNpcInCampaign } from "@/composables/npcs/useNpcs";
+import { useCampaignStore } from "@/stores/campaign";
+import { typeChoices, type TypeChoice } from "@/lib/worldLinks/connections";
+import { ref } from "vue";
 
 /**
  * New NPC from this backstory (#1226 story 10, frame 14): the person a character's past brings in, made already tied to
@@ -11,15 +13,33 @@ import { typeChoices } from "@/lib/worldLinks/connections";
  */
 export function useNewBackstoryNpc() {
   const router = useRouter();
-  const { mutateAsync: createNpc, isPending: creating } = useCreateNpc();
-  const { mutateAsync: connect } = useCreateConnection();
+  const { mutateAsync: createNpc } = useCreateNpcInCampaign();
+  const { mutateAsync: connect } = useCreateConnectionInCampaign();
+  const campaign = useCampaignStore();
+  const creating = ref(false);
+  let pendingNpc: { id: string; name: string; campaignId: string } | null = null;
+  let completedConnections = new Set<string>();
 
-  async function start(entryId: string, characterName: string): Promise<void> {
+  function discardPending(): void {
+    pendingNpc = null;
+    completedConnections = new Set();
+  }
+
+  async function start(entryId: string, characterName: string, characterId: string, personTie: TypeChoice): Promise<void> {
+    if (creating.value) return;
+    const campaignId = campaign.activeCampaignId;
+    if (!campaignId) return;
+    if (pendingNpc && pendingNpc.campaignId !== campaignId) {
+      toast.error("Switch back to the campaign where this NPC was started, then retry the connection.");
+      return;
+    }
     const about = typeChoices("canon", "npc").find((c) => c.key === "about" && c.subjectIsFrom && c.home === undefined);
     if (!about) throw new Error("A canon entry has no `about` tie to a person");
+    creating.value = true;
     try {
-      const npc = await createNpc({
+      const createdNpc = pendingNpc ?? await createNpc({
         name: `Someone from ${characterName}'s past`,
+        campaign_id: campaignId,
         race: null,
         alignment: null,
         age: null,
@@ -43,12 +63,26 @@ export function useNewBackstoryNpc() {
         player_visible_to: [],
         player_visible_fields: [],
       });
-      await connect({ subject: { kind: "canon", id: entryId }, other: { kind: "npc", id: npc.id, name: npc.name }, choice: about });
-      await router.push({ name: "npc-detail", params: { id: npc.id } });
+      const npc = { ...createdNpc, campaignId };
+      pendingNpc = npc;
+      if (!completedConnections.has("canon")) {
+        await connect({ input: { subject: { kind: "canon", id: entryId }, other: { kind: "npc", id: npc.id, name: npc.name }, choice: about }, campaignId });
+        completedConnections.add("canon");
+      }
+      if (!completedConnections.has("person")) {
+        await connect({ input: { subject: { kind: "npc", id: npc.id }, other: { kind: "party_member", id: characterId, name: characterName }, choice: personTie }, campaignId });
+        completedConnections.add("person");
+      }
+      if (campaign.activeCampaignId === campaignId) await router.push({ name: "npc-detail", params: { id: npc.id } });
+      else toast.info("NPC created in the campaign where you started. Switch back to open it.");
+      pendingNpc = null;
+      completedConnections = new Set();
     } catch (e) {
       toast.error(toast.fromError(e));
+    } finally {
+      creating.value = false;
     }
   }
 
-  return { start, creating };
+  return { start, creating, discardPending };
 }

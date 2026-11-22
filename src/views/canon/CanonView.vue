@@ -6,7 +6,10 @@
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
       <CanonContents class="lg:sticky lg:top-0 lg:shrink-0" :active="active" :counts="counts" @select="goTo" />
 
-      <div class="flex min-w-0 max-w-3xl flex-1 flex-col gap-8">
+      <div
+        class="@container flex min-w-0 flex-1 flex-col gap-8"
+        :class="selectedBackstoryMember ? 'max-w-5xl [&>:not(.canon-backstories)]:max-w-3xl' : 'max-w-3xl'"
+      >
         <ListSkeleton v-if="isLoading || campaign === null" variant="rows" :count="4" />
         <p v-else-if="isError" role="alert" class="text-body text-destructive">Could not load the canon.</p>
         <template v-else>
@@ -21,8 +24,13 @@
           <WorldWorksSection />
           <LoreSection :lore="lore" :selected-id="selectedLore?.id ?? null" @select="select" />
           <LoreDetail v-if="selectedLore && !wide" :key="selectedLore.id" :entry="selectedLore" @delete="removeSelected" />
-          <BackstoriesSection :party="party" :entries="backstories" :passages="allPassages ?? []" :selected-id="selectedBackstoryMember?.id ?? null" @select="selectBackstory" />
-          <BackstoryDetail v-if="selectedBackstoryMember && !wide" :key="selectedBackstoryMember.id" :member="selectedBackstoryMember" />
+          <div
+            class="canon-backstories grid min-w-0 items-start gap-4"
+            :class="selectedBackstoryMember ? '@4xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] @4xl:gap-6' : ''"
+          >
+            <BackstoriesSection :party="party" :entries="backstories" :passages="allPassages ?? []" :selected-id="selectedBackstoryMember?.id ?? null" @select="selectBackstory" />
+            <BackstoryDetail v-if="selectedBackstoryMember" :key="selectedBackstoryMember.id" :member="selectedBackstoryMember" />
+          </div>
           <ChronicleSection :lore="lore" :forces="forces" />
           <TableAddedSection :truth-count="truths.length" />
           <!-- The header holds Bring in a book from a tablet up; a phone's header is the page's own bar. -->
@@ -31,12 +39,11 @@
       </div>
     </div>
 
-    <template v-if="(selected || selectedBackstoryMember) && wide" #sidebar>
+    <template v-if="selected && wide" #sidebar>
       <TruthDetail v-if="selectedTruth" :key="selectedTruth.id" :entry="selectedTruth" @delete="removeSelected" />
       <ForceDetail v-else-if="selectedForce" :key="selectedForce.id" :entry="selectedForce" @delete="removeSelected" />
       <SecretDetail v-else-if="selectedSecret" :key="selectedSecret.id" :entry="selectedSecret" @delete="removeSelected" />
       <LoreDetail v-else-if="selectedLore" :key="selectedLore.id" :entry="selectedLore" @delete="removeSelected" />
-      <BackstoryDetail v-else-if="selectedBackstoryMember" :key="selectedBackstoryMember.id" :member="selectedBackstoryMember" />
     </template>
   </PageHeader>
 </template>
@@ -169,4 +176,15 @@ watch([selected, isLoading], async ([truth]) => {
   await nextTick();
   document.getElementById(`canon-entry-${truth.id}`)?.scrollIntoView({ block: "center" });
 }, { immediate: true });
+
+watch(
+  () => campaign.value && !isLoading.value && !isError.value ? selectedBackstoryMember.value?.id : undefined,
+  async (memberId) => {
+    if (!memberId) return;
+    active.value = "backstories";
+    await nextTick();
+    document.getElementById("canon-backstories")?.scrollIntoView({ block: "start" });
+  },
+  { immediate: true },
+);
 </script>

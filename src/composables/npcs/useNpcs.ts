@@ -277,6 +277,18 @@ export function useCreateNpc() {
   });
 }
 
+/** NPC generation remains bound to the campaign captured with its prompt. */
+export function useCreateNpcInCampaign() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (npc: NpcInsert) => createNpc(npc),
+    onSuccess: (npc) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queueNpcEmbedding(npc.id);
+    },
+  });
+}
+
 export function useUpdateNpc() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();

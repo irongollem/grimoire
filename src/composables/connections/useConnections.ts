@@ -212,9 +212,10 @@ async function itemName(item: WorldRef, other: NamedRef): Promise<string> {
 }
 
 /** Write one tie to wherever it lives. A quest's own records are written by the quest, not here. */
-async function writeTie(input: CreateConnectionInput): Promise<void> {
+async function writeTie(input: CreateConnectionInput, campaignOverride?: string): Promise<void> {
   const { subject, other, choice } = input;
-  const { campaignId, userId } = requireContext("useCreateConnection");
+  const { campaignId: activeCampaignId, userId } = requireContext("useCreateConnection");
+  const campaignId = campaignOverride ?? activeCampaignId;
   const { from, to } = ends(subject, other, choice);
 
   if (!choice.home) {
@@ -380,8 +381,20 @@ async function eraseTie(connection: Connection, subject: WorldRef): Promise<void
 export function useCreateConnection() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: writeTie,
+    mutationFn: (input: CreateConnectionInput) => writeTie(input),
     onSuccess: async (_d, input) => {
+      requeueEnds(input.subject, input.other);
+      await invalidateFor(qc, input.choice.home ?? "link");
+    },
+  });
+}
+
+/** Generation follow-up ties stay in their originating campaign after navigation. */
+export function useCreateConnectionInCampaign() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ input, campaignId }: { input: CreateConnectionInput; campaignId: string }) => writeTie(input, campaignId),
+    onSuccess: async (_d, { input }) => {
       requeueEnds(input.subject, input.other);
       await invalidateFor(qc, input.choice.home ?? "link");
     },

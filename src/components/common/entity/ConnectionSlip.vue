@@ -24,9 +24,11 @@
       :class="[pc ? 'border-primary ring-1 ring-primary' : 'border-border', dead && 'opacity-60']"
       aria-hidden="true"
     >
-      <!-- Through FocalImage both ways: it maps a stored URL to the asset CDN, which a bare <img> would miss. -->
-      <FocalImage v-if="image && !lowArt" :src="image" alt="" record :format="imageFormat === 'token' ? 'token' : 'square'" class="size-full" />
-      <template v-else>{{ initial }}</template>
+      <slot name="thumbnail">
+        <!-- Through FocalImage both ways: it maps a stored URL to the asset CDN, which a bare <img> would miss. -->
+        <FocalImage v-if="image && !lowArt" :src="image" alt="" record :format="imageFormat === 'token' ? 'token' : 'square'" class="size-full" />
+        <template v-else>{{ initial }}</template>
+      </slot>
     </span>
 
     <div class="flex min-w-0 flex-1 flex-col gap-0.5">

@@ -55,6 +55,8 @@ export interface Connection {
   other_id: string;
   other_name: string;
   other_image: string | null;
+  /** On an NPC's incoming `about` link, the owner of the Canon backstory. */
+  backstory_party_member_id?: string;
   /** Links only. */
   note: string | null;
   told: string | null;

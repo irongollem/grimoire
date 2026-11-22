@@ -28,6 +28,7 @@ import {
   forceShape,
   isLoreKind,
   loreShape,
+  MAX_PREMISE_SUGGESTIONS,
   premiseShape,
   questionShape,
   sanitizeClues,
@@ -247,7 +248,17 @@ serve(serveUser(async ({ user, req, report }) => {
         system = base(premiseShape());
         user_ = `${steer}The DM's pitch is above. Entries the campaign already has (do not repeat them):\n` +
           (existing.length > 0 ? existing.map((e) => `- ${e.kind}: ${e.text}`).join("\n") : "(none yet)");
-        sanitize = (parsed) => sanitizePremise(parsed, existing);
+        sanitize = (parsed) => {
+          const result = sanitizePremise(parsed, existing);
+          const hasPitch = existing.some((entry) => entry.kind === "pitch");
+          const proposedPitch = result.suggestions.some((entry) => entry.kind === "pitch");
+          // The DM's own first pitch is canonical input, not a model-dependent optional suggestion.
+          if (!hasPitch && !proposedPitch) {
+            if (result.suggestions.length >= MAX_PREMISE_SUGGESTIONS) result.suggestions.pop();
+            result.suggestions.unshift({ kind: "pitch", text: prompt });
+          }
+          return result;
+        };
       } else if (mode === "clues") {
         const [secrets, clues, found] = await Promise.all([
           readRows<{ title: string; body: string | null }>(
@@ -316,7 +327,7 @@ serve(serveUser(async ({ user, req, report }) => {
         const existing = listOfTitles(forces);
         system = base(forceShape());
         user_ = `${steer}Forces the campaign already has (do not repeat them):\n${bullets(existing)}\n\n` +
-          "Factions and people a force may be. Prefer one of these, copied exactly:\n---BEGIN WHO---\n" +
+          "Factions and people a force may be. If the canon or the DM's steer gives a listed faction its own active agenda, include it as a separate force and set who to that exact listed name so it links to the campaign record. Use free text only when no listed person or faction fits.\n---BEGIN WHO---\n" +
           (whos.length > 0 ? whos.map((w) => `${w.kind}|${w.name}`).join("\n") : "(nobody yet)") + "\n---END WHO---\n\n" +
           "Quests where the party may meet a force. Every quest must be copied exactly from one of these lines:\n---BEGIN QUESTS---\n" +
           (questRefs.length > 0 ? questRefs.map((q) => q.title).join("\n") : "(no quests yet: name none)") + "\n---END QUESTS---";
@@ -356,7 +367,8 @@ serve(serveUser(async ({ user, req, report }) => {
       }
       let textResult: TextResult;
       try {
-        textResult = await callText({ text, model: text.config?.text_model, system, user: user_, maxTokens: mode === "lore" ? 4000 : 2500 });
+        const maxTokens = mode === "premise" || mode === "forces" ? 5000 : mode === "lore" ? 4000 : 2500;
+        textResult = await callText({ text, model: text.config?.text_model, system, user: user_, maxTokens });
       } catch (e) {
         console.error("Canon suggestion text generation failed:", e);
         return jsonError(502, "generation_failed", e instanceof Error ? e.message : "Text generation failed");

@@ -416,7 +416,15 @@ Additional AI options:
 
 Generation can be **dismissed to background**: the panel closes while the AI call continues. A badge in the nav or list indicates when generation finishes.
 
-On completion, all AI-returned fields are applied to the NPC form (name, species, alignment, age, occupation, status, relationship, tags, appearance, personality, backstory, notes, portrait URL, disguise name, disguise portrait URL) and the user is taken to the new NPC's detail page.
+On completion, all AI-returned fields are applied to the NPC form (name, species, alignment, age, occupation, status, relationship, tags, appearance, personality, voice, backstory, notes, portrait URL, disguise name, disguise portrait URL) and the user is taken to the new NPC's detail page. A numeric age becomes a full randomized birth date using the active calendar's month/day shape while preserving the age shown today; descriptive ages such as "ancient" stay free text. The generated voice cue is plain text.
+
+`generatedBirthFromAge` (`src/lib/npcGenerator/generatedBirth.ts`) assigns a full randomized birthday within the active calendar's real month lengths and preserves the age computed for today. Newly generated NPCs receive a free-text starter inventory pack chosen by occupation/tags from `app_settings.npc_starter_inventory_packs`, with defaults in `src/lib/npcGenerator/inventorySets.ts`; admins manage the packs, cues, items, and match priority in Admin → Content. Typing `@` in `NpcGeneratorForm.vue` offers items from the active item index; a selected item is added as a catalogue reference to the new NPC's inventory and is named as a generation constraint. This is generation-panel behavior, not a change to Quick Create.
+
+The generator also assigns a campaign location explicitly named in the concept, preferring a manually selected location. `locationNamedInStory` resolves exact location-name mentions (longest match wins); the resolved place is included in the prompt and stored on the new NPC.
+
+AI generation defaults to a starter stat profile selected from generated occupation and tags (`src/lib/npcGenerator/starterStats.ts`), using the reserved NPC profiles such as Commoner, Guard, Veteran, Bandit, Priest and Mage. The DM can choose a specific template or None; Quick Create does not auto-assign stats.
+
+The edit form mounts `FamilyBlock` beside the general Connections block so kin is visible and editable in both edit and read modes.
 
 A **Generate** button is also available from within an existing NPC's edit form (header action) via `NpcGenerateDialog`, which applies results to the current NPC rather than creating a new one.
 

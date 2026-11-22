@@ -122,12 +122,13 @@ describe("AddConnectionDialog", () => {
     headed.value = true;
     const w = render();
     await w.get("[data-pick='thane']").trigger("click");
-    await choiceButton(w, "member of")!.trigger("click");
-    const roles = w.findAll("select option").map((o) => o.text());
+    const roles = w.findAll("[aria-label='Faction role'] button").map((button) => button.text());
     expect(roles).toContain("Officer");
     expect(roles).not.toContain("Leader");
+    expect(choiceButton(w, "member of")).toBeUndefined();
+    expect(w.findAll("select")).toHaveLength(0);
     expect(w.text()).toContain("already has a head");
-    await w.findAll("[aria-label='Role'] button").find((b) => b.text() === "Officer")!.trigger("click");
+    await w.findAll("[aria-label='Faction role'] button").find((b) => b.text() === "Officer")!.trigger("click");
     await w.findAll("button").find((b) => b.text() === "Add connection")!.trigger("click");
     await flushPromises();
     expect(mocks.create.mock.calls[0]![0]).toMatchObject({ choice: { key: "member_of", home: "membership" }, role: "Officer" });
@@ -224,8 +225,7 @@ describe("AddConnectionDialog", () => {
   it("falls back to Member when the role chosen is no longer offered", async () => {
     const w = render();
     await w.get("[data-pick='thane']").trigger("click");
-    await choiceButton(w, "member of")!.trigger("click");
-    await w.findAll("[aria-label='Role'] button").find((b) => b.text() === "Leader")!.trigger("click");
+    await w.findAll("[aria-label='Faction role'] button").find((b) => b.text() === "Leader")!.trigger("click");
     headed.value = true;
     await w.vm.$nextTick();
     await w.findAll("button").find((b) => b.text() === "Add connection")!.trigger("click");

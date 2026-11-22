@@ -4,24 +4,22 @@
  * not in a prompt a model may forget. Pure (no Deno-only imports), so the browser imports it as
  * `@edge-shared/canonSuggestions.ts`.
  *
- *  - a premise proposal is one of pitch, theme, table, voice, look. Never a line or a veil: those are agreed with the
- *    players at the table, so a proposal of either kind is refused here whatever the prompt said;
+ *  - premise suggestions cover the campaign starter, including line and veil drafts; the DM reviews those with
+ *    players before acceptance (acceptance activates them for AI, while sharing remains separate);
  *  - a truth carries a knowledge mark; "some" must name who knows it, and every name is matched back (case
  *    insensitively) to a real person or faction of the campaign. An unknown name never becomes a tie, and a "some"
  *    truth left with nobody is set aside rather than offered as a truth nobody knows.
  */
-import { KNOWLEDGE_MARKS, PREMISE_KINDS, type KnowledgeMark, type PremiseKind, LORE_KINDS, type LoreKind } from "../../../src/types/canon.types.ts";
+import { KNOWLEDGE_MARKS, PREMISE_KINDS, type KnowledgeMark, LORE_KINDS, type LoreKind } from "../../../src/types/canon.types.ts";
 
-/** The kinds the model may propose: every premise kind except the two the table agrees on itself. */
-export const SUGGESTED_PREMISE_KINDS = PREMISE_KINDS.filter(
-  (k): k is Exclude<PremiseKind, "line" | "veil"> => k !== "line" && k !== "veil",
-);
+/** Every premise kind the campaign starter may propose, including private line and veil drafts. */
+export const SUGGESTED_PREMISE_KINDS = PREMISE_KINDS;
 export type SuggestedPremiseKind = (typeof SUGGESTED_PREMISE_KINDS)[number];
 
 /** A kind that holds one entry: a second proposal of it in one answer is dropped. */
 export const SINGLE_PREMISE_KINDS: readonly SuggestedPremiseKind[] = ["pitch", "voice", "look"];
 
-export const MAX_PREMISE_SUGGESTIONS = 8;
+export const MAX_PREMISE_SUGGESTIONS = 18;
 export const MAX_TRUTH_SUGGESTIONS = 8;
 /** A one-line entry (theme, table note, truth). */
 export const MAX_LINE_CHARS = 300;
@@ -90,10 +88,6 @@ export function sanitizePremise(
     const kind = raw.kind;
     const text = clean(raw.text, kind === "pitch" || kind === "voice" || kind === "look" ? MAX_PARAGRAPH_CHARS : MAX_LINE_CHARS);
     if (text === "") continue;
-    if (kind === "line" || kind === "veil") {
-      setAside.push({ claim: text, reason: "lines and veils are agreed with your players at the table, so they are never suggested" });
-      continue;
-    }
     if (!isSuggestedKind(kind)) continue;
     const key = `${kind}|${norm(text)}`;
     if (seen.has(key)) continue;
@@ -147,7 +141,7 @@ export function sanitizeTruths(
 }
 
 export function premiseShape(): string {
-  return `\n\nReturn a single JSON object {"suggestions":[...]}, each suggestion {"kind":"${SUGGESTED_PREMISE_KINDS.join("|")}","text":"the entry, in plain words"}.\n` +
+  return `\n\nReturn a single JSON object {"suggestions":[...]}, up to ${MAX_PREMISE_SUGGESTIONS} suggestions, each {"kind":"${SUGGESTED_PREMISE_KINDS.join("|")}","text":"the entry, in plain words"}. Build the campaign starter from the DM's pitch and campaign context. Include one pitch, at least one theme, one table note, one voice, one look, and one grounded line and veil draft. Existing pitch, voice, and look may be proposed as replacements only when meaningfully improved; the DM will see the old and new text and confirm before replacing. Lines and veils are private discussion drafts, never agreed boundaries: the DM must review them with players before accepting.\n` +
     "Return only the JSON object. No markdown fences, no explanation.";
 }
 
@@ -170,7 +164,8 @@ export interface SpotCandidate {
 
 export const MAX_CLUE_SUGGESTIONS = 3;
 export const MAX_QUESTION_SUGGESTIONS = 6;
-export const MAX_FORCE_SUGGESTIONS = 3;
+/** Leave room for every distinct faction with an active agenda in the canon, without unbounded model output. */
+export const MAX_FORCE_SUGGESTIONS = 10;
 export const MAX_FORCE_STEPS = 5;
 export const MAX_FORCE_QUESTS = 6;
 /** The database check on `canon_entries.clock_size`. */
@@ -416,7 +411,7 @@ export function questionShape(): string {
 }
 
 export function forceShape(): string {
-  return `\n\nReturn a single JSON object {"suggestions":[...]}, each suggestion {"who":"a faction or person copied exactly from the list given, or a new name if none fits","wants":"what they want, one line","steps":["three to five next steps, in order"],"clock_size":4 to 8,"quests":["quest titles copied exactly from the list given, or []"]}.\n` +
+  return `\n\nReturn a single JSON object {"suggestions":[...]}, each suggestion {"who":"a faction or person copied exactly from the list given, or a new name if none fits","wants":"what they want, one line","steps":["three to five next steps, in order"],"clock_size":4 to 8,"quests":["quest titles copied exactly from the list given, or []"]}. Include every distinct listed faction that has an active agenda in the canon or the DM's steer; do not stop at an arbitrary count, and do not invent extra forces just to fill a quota. At most ${MAX_FORCE_SUGGESTIONS} suggestions.\n` +
     "Return only the JSON object. No markdown fences, no explanation.";
 }
 

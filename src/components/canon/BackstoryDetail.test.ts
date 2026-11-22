@@ -63,9 +63,12 @@ describe("BackstoryDetail", () => {
     expect(mountDetail().find("[data-testid=backstory-tally]").text()).toBe("3 passages, 2 not yet told");
   });
 
-  it("creates the person from this backstory through the new-NPC flow, naming the character", async () => {
-    await mountDetail().find("[data-testid=new-npc]").trigger("click");
-    expect(mocks.startNpc).toHaveBeenCalledWith("b1", "Tansy");
+  it("creates the person from this backstory after choosing their relationship to the character", async () => {
+    const w = mountDetail();
+    await w.find("[data-testid=new-npc]").trigger("click");
+    await w.findAll("button").find((button) => button.text() === "friend of")!.trigger("click");
+    await w.find("[data-testid=create-npc]").trigger("click");
+    expect(mocks.startNpc).toHaveBeenCalledWith("b1", "Tansy", "m1", expect.objectContaining({ key: "friend" }));
   });
 
   // Bug caught: the people and passages drawn (and New NPC offered) for an entry that did not exist yet.

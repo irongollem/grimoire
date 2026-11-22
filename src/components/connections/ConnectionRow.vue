@@ -1,7 +1,7 @@
 <template>
   <li :class="inactive && 'opacity-60'" :data-source="connection.source">
     <ConnectionSlip
-      :name="connection.other_name"
+      :name="otherName"
       :image="connection.other_image"
       :image-format="connection.other_kind === 'faction' ? 'token' : 'portrait'"
       :pc="connection.other_kind === 'party_member'"
@@ -12,19 +12,33 @@
       :notes="connection.note"
       @open="peek(connection.other_id)"
     >
+      <template v-if="connection.other_kind === 'canon' && !connection.other_image" #thumbnail>
+        <IconNavCanon class="size-5" />
+      </template>
       <template #tags>
         <ConnectionTypePicker
           v-if="choices.length > 1"
           :word="word"
           :color="color"
           :subject-name="subjectName"
-          :other-name="connection.other_name"
+          :other-name="otherName"
           :choices="choices"
           :is-current="isCurrent"
           :replaces="replaces"
           @pick="retype"
         />
         <span v-else class="text-label font-semibold" :style="{ color }" data-testid="type-word-static">{{ word }}</span>
+
+        <AppButton
+          v-if="canonOrigin"
+          :to="dmSheetPath({ kind: 'canon', id: canonOrigin.other_id })"
+          :aria-label="`From Canon: ${otherName}'s backstory`"
+          variant="tinted"
+          tone="neutral"
+          emphasis="outline"
+          size="xs"
+          label="From Canon"
+        />
 
         <span
           v-if="connection.source !== 'link'"
@@ -54,12 +68,12 @@
             v-if="(connection.source === 'link' || connection.source === 'membership') && connection.player_visible_to"
             form="inline"
             :visible-to="connection.player_visible_to"
-            :name="`${subjectName} and ${connection.other_name}`"
+            :name="`${subjectName} and ${otherName}`"
             @change="(next) => setWhoKnows(next)"
           />
           <OverflowMenu
             variant="ghost"
-            :label="`More actions for ${connection.other_name}`"
+            :label="`More actions for ${otherName}`"
             :items="menu"
             size="icon-sm"
             @select="onMenu"
@@ -86,6 +100,7 @@ import {
   membershipEnds,
   offeredRoles,
 } from "@/components/connections/connectionRows";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import ConnectionSlip, { type ConnectionTag } from "@/components/common/entity/ConnectionSlip.vue";
@@ -98,17 +113,19 @@ import {
 } from "@/composables/factions/useFactions";
 import { useOpenNpc } from "@/composables/npcs/useNpcPeek";
 import { useToast } from "@/composables/useToast";
+import { IconNavCanon } from "@/lib/icons";
 import { dmSheetPath } from "@/lib/worldWeb/kinds";
 import { connectionFamily, connectionWord, typeChoices, type TypeChoice } from "@/lib/worldLinks/connections";
 import { NPC_FACTION_STATUS_COLORS, type NpcFactionStatus } from "@/types/faction.types";
 import type { Connection, WorldRef } from "@/types/connections.types";
 
-const { connection, subject, subjectName, all } = defineProps<{
+const { connection, subject, subjectName, all, canonOrigin } = defineProps<{
   connection: Connection;
   subject: WorldRef;
   subjectName: string;
   /** Every row of the block, to say what a one-valued record would replace. */
   all: readonly Connection[];
+  canonOrigin?: Pick<Connection, "other_id">;
 }>();
 
 const router = useRouter();
@@ -121,6 +138,12 @@ const updateNpcRole = useUpdateFactionNpcRole();
 const updatePcRole = useUpdateFactionPartyMemberRole();
 
 const editing = ref(false);
+
+// Some canon parts (notably backstories) have no title of their own. Keep the
+// row and its type-picker wording readable while the name read is unavailable.
+const otherName = computed(() => connection.other_kind === "canon"
+  ? connection.other_name?.trim() || "Canon entry"
+  : connection.other_name);
 
 const word = computed(() => connectionWord(connection, subject.kind));
 const color = computed(() => `var(--link-${connectionFamily(connection, subject.kind)})`);

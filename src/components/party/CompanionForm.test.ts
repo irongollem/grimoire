@@ -6,10 +6,13 @@ import type { Companion } from "@/types/companion.types";
 
 const create = vi.fn();
 const update = vi.fn();
+const remove = vi.fn();
+const confirm = vi.fn();
 
 vi.mock("@/composables/encounters/useCompanions", () => ({
   useCreateCompanion: () => ({ mutateAsync: create }),
   useUpdateCompanion: () => ({ mutateAsync: update }),
+  useDeleteCompanion: () => ({ mutateAsync: remove }),
 }));
 vi.mock("@/composables/monsters/useMonsters", () => ({ fetchResolvedMonster: vi.fn() }));
 vi.mock("@/composables/monsters/useMonsterIndex", () => ({ useMonsterIndex: () => ({ data: { value: [] } }) }));
@@ -20,14 +23,19 @@ vi.mock("@/composables/npcs/useNpcs", () => ({
 }));
 vi.mock("@/composables/useImageUpload", () => ({ useImageUpload: () => ({ isUploading: false, upload: vi.fn() }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: String }) }));
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm }) }));
 
 beforeEach(() => {
   setActivePinia(createPinia());
   create.mockReset().mockResolvedValue({});
   update.mockReset().mockResolvedValue({});
+  remove.mockReset().mockResolvedValue({});
+  confirm.mockReset().mockResolvedValue(true);
 });
 
 const stubs = {
+  AppModal: { props: ["open", "size", "align", "panelClass"], template: "<div><slot /></div>" },
+  ModalHeader: { props: ["title"], template: "<header>{{ title }}</header>" },
   FocalImage: true, FocalPointPicker: true, DmNoteBox: true, EntityCombobox: true,
   StatBlockDefenseFields: true, StatBlockEntrySection: true, DiceExprInput: true, BannerLoader: true,
 };
@@ -45,6 +53,18 @@ async function pickType(wrapper: ReturnType<typeof mountForm>, type: string) {
 }
 
 const hasStatus = (w: ReturnType<typeof mountForm>) => w.text().includes("With the party");
+
+describe("CompanionForm deletion", () => {
+  it("offers confirmed deletion while editing", async () => {
+    const companion = { id: "c3", name: "Old companion" } as Companion;
+    const wrapper = mountForm(companion);
+    await wrapper.findAll("button").find((b) => b.text() === "Delete companion")?.trigger("click");
+    await flushPromises();
+    expect(confirm).toHaveBeenCalledWith("Delete Old companion? This cannot be undone.", expect.objectContaining({ danger: true }));
+    expect(remove).toHaveBeenCalledWith(companion);
+    expect(wrapper.emitted("saved")).toHaveLength(1);
+  });
+});
 
 // #1115: the database refuses a ready pet, and nobody drives a pet.
 describe("CompanionForm pets", () => {

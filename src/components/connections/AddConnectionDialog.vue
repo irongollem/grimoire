@@ -22,8 +22,17 @@
 
         <div v-else class="flex flex-col gap-3">
           <div>
-            <span class="field-label">How is {{ subjectName }} tied to {{ other.name }}?</span>
-            <TypeChoiceChips :key="other.id" :choices="choices" :current="choice" label="Type" @pick="choice = $event" />
+            <template v-if="isFactionMembershipPair">
+              <span class="field-label">{{ subject.kind === 'faction' ? 'Choose their role' : `Choose ${subjectName}’s role in ${other.name}` }}</span>
+              <div class="flex flex-wrap gap-1.5" role="group" aria-label="Faction role">
+                <AppButton v-for="r in roleList" :key="r" variant="chip" size="md" :active="choice?.home === 'membership' && role === r" :label="r" @click="chooseRole(r)" />
+              </div>
+              <p v-if="headed" class="text-caption italic text-muted-foreground">This faction already has a head, so Leader and Head of house are not offered.</p>
+            </template>
+            <template v-else>
+              <span class="field-label">How is {{ subjectName }} tied to {{ other.name }}?</span>
+              <TypeChoiceChips :key="other.id" :choices="choices" :current="choice" label="Type" @pick="choice = $event" />
+            </template>
             <p v-if="choices.length === 0" class="text-caption italic text-muted-foreground">
               Nothing ties a {{ kindNoun(subject.kind).toLowerCase() }} to a {{ kindNoun(other.kind).toLowerCase() }} yet.
             </p>
@@ -49,25 +58,7 @@
 
             <!-- A record has fields of its own; a link has a note, a told line and who knows. -->
             <template v-if="choice.home === 'membership'">
-              <div>
-                <span class="field-label">Role</span>
-                <div class="flex flex-wrap items-center gap-1" role="group" aria-label="Role">
-                  <AppButton
-                    v-for="r in commonRoles"
-                    :key="r"
-                    size="sm"
-                    :active="role === r"
-                    :label="r"
-                    @click="role = r"
-                  />
-                  <AppSelect v-model="role" tone="filled" size="caption" weight="normal" aria-label="More roles">
-                    <option v-for="r in roleList" :key="r" :value="r">{{ r }}</option>
-                  </AppSelect>
-                </div>
-                <p v-if="headed" class="mt-1 text-caption italic text-muted-foreground">
-                  This faction already has a head, so Leader and Head of house are not offered.
-                </p>
-              </div>
+              <p class="text-caption italic text-muted-foreground">Role: {{ role }}</p>
             </template>
             <p v-else-if="replacesLine" class="text-caption italic text-muted-foreground" data-testid="replaces">{{ replacesLine }}</p>
 
@@ -137,7 +128,6 @@
 import { computed, ref, useId, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
-import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import WorldEntityPicker from "@/components/common/entity/WorldEntityPicker.vue";
@@ -170,7 +160,6 @@ const { open, subject, subjectName, connections } = defineProps<{
 }>();
 const emit = defineEmits<{ close: [] }>();
 
-const COMMON_ROLES: readonly string[] = ["Leader", "Officer", "Member", "Initiate", "Patron"];
 
 const toast = useToast();
 const create = useCreateConnection();
@@ -219,12 +208,18 @@ const opposite = computed(() => (other.value && choice.value ? oppositeWord(subj
 
 // ── A membership's role ────────────────────────────────────────────────────────
 const factionId = computed(() => {
-  if (choice.value?.home !== "membership" || !other.value) return null;
-  return subject.kind === "faction" ? subject.id : other.value.id;
+  if (!other.value) return null;
+  if (subject.kind === "faction") return subject.id;
+  if (other.value.kind === "faction") return other.value.id;
+  return null;
 });
 const headed = useFactionHeaded(factionId);
 const roleList = computed(() => offeredRoles(headed.value));
-const commonRoles = computed(() => COMMON_ROLES.filter((r) => roleList.value.includes(r)));
+const isFactionMembershipPair = computed(() => choices.value.some((c) => c.home === "membership"));
+function chooseRole(next: string) {
+  role.value = next;
+  choice.value = choices.value.find((c) => c.home === "membership") ?? null;
+}
 watch(roleList, (list) => { if (!list.includes(role.value)) role.value = "Member"; });
 
 /** "Moves Brenna's home from Thane's Crossing to Drover's Rest": a one-valued record replaces its old value. */

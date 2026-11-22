@@ -2,6 +2,7 @@
   <div class="space-y-6">
     <!-- Demo campaign offer switch (#912) -->
     <DemoCampaignAdminPanel />
+    <NpcStarterPacksPanel />
 
     <!-- Semantic-search index for monsters, NPCs, factions, locations, notes and items.
          Lives here rather than under Providers because running it is
@@ -103,6 +104,7 @@
 import { ref, computed } from "vue";
 import { IconCheck } from "@/lib/icons";
 import DemoCampaignAdminPanel from "@/components/admin/DemoCampaignAdminPanel.vue";
+import NpcStarterPacksPanel from "@/components/admin/NpcStarterPacksPanel.vue";
 import MonsterEmbeddingBackfill from "@/components/admin/MonsterEmbeddingBackfill.vue";
 import LibraryFocalQueuePanel from "@/components/admin/LibraryFocalQueuePanel.vue";
 import LibraryArtRepairPanel from "@/components/admin/LibraryArtRepairPanel.vue";

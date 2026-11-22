@@ -49,6 +49,25 @@ export function useCreateKinLink() {
   });
 }
 
+/** Internal follow-up writes for a generation that must finish in its originating campaign. */
+export function useCreateKinLinkInCampaign() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ input, campaignId }: { input: KinLinkInsert; campaignId: string }): Promise<KinLink> => {
+      const user = getCurrentUser();
+      if (!user) throw new Error("useCreateKinLink called while signed out");
+      const { data, error } = await supabase
+        .from("kin_links")
+        .insert({ ...input, campaign_id: campaignId, user_id: user.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as KinLink;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [KIN_LINKS_KEY] }),
+  });
+}
+
 export function useUpdateKinLink() {
   const queryClient = useQueryClient();
   return useMutation({

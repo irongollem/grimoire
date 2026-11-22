@@ -44,8 +44,16 @@
         <span class="text-eyebrow text-muted-foreground">The people from this past</span>
         <p class="m-0 text-caption text-muted-foreground">The world web, from the backstory's side. Each tie has its own reveal, so the player can know one person and not another's name.</p>
         <ConnectionsSection :subject="{ kind: 'canon', id: entry.id }" :subject-name="member.name" />
-        <AppButton variant="outline" size="sm" :icon="IconAdd" icon-size="xs" label="New NPC from this backstory" class="self-start" :loading="creating" data-testid="new-npc" @click="newNpc" />
-        <p class="m-0 text-caption text-muted-foreground">Creates the person already tied to this backstory, hidden until you share them.</p>
+        <AppButton v-if="!settingUpNpc" variant="outline" size="sm" :icon="IconAdd" icon-size="xs" label="New NPC from this backstory" class="self-start" data-testid="new-npc" @click="settingUpNpc = true" />
+        <div v-else class="flex flex-col gap-2" data-testid="new-npc-setup">
+          <span class="field-label">How are they connected to {{ member.name }}?</span>
+          <TypeChoiceChips :choices="personChoices" :current="personTie" label="Relationship" @pick="personTie = $event" />
+          <div class="flex gap-2">
+            <AppButton variant="subtle" size="sm" label="Cancel" :disabled="creating" @click="cancelNpcSetup" />
+            <AppButton variant="primary" size="sm" label="Create NPC" :loading="creating" :disabled="!personTie || creating" data-testid="create-npc" @click="newNpc" />
+          </div>
+          <p class="m-0 text-caption text-muted-foreground">The NPC will also be linked to this backstory and hidden until you share them.</p>
+        </div>
       </div>
     </template>
   </section>
@@ -57,11 +65,12 @@
  * passage in order (the player's own marked as theirs, the DM's untold until told to that character), and the people
  * this past brings into the world. The DM edits every passage. The entry is made the first time a character is opened.
  */
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
+import TypeChoiceChips from "@/components/connections/TypeChoiceChips.vue";
 import BackstoryBeforePlay from "./BackstoryBeforePlay.vue";
 import LorePassageRow from "./LorePassageRow.vue";
 import { isPlayersPassage, passageByline } from "@/lib/canon/canonBackstory";
@@ -70,6 +79,7 @@ import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { usePassageList } from "@/composables/canon/usePassageList";
 import { useNewBackstoryNpc } from "@/composables/canon/useNewBackstoryNpc";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
+import { typeChoices, type TypeChoice } from "@/lib/worldLinks/connections";
 import { IconAdd } from "@/lib/icons";
 import type { PartyMember } from "@/types/party.types";
 
@@ -85,8 +95,17 @@ function setAudience(next: string[]) {
   if (entry.value !== null) update({ id: entry.value.id, patch: { player_visible_to: next } });
 }
 
-const { start, creating } = useNewBackstoryNpc();
+const { start, creating, discardPending } = useNewBackstoryNpc();
+const settingUpNpc = ref(false);
+const personChoices = typeChoices("npc", "party_member");
+const personTie = ref<TypeChoice | null>(null);
 function newNpc() {
-  if (entry.value !== null) void start(entry.value.id, member.name);
+  if (entry.value !== null && personTie.value) void start(entry.value.id, member.name, member.id, personTie.value);
+}
+function cancelNpcSetup() {
+  if (creating.value) return;
+  discardPending();
+  settingUpNpc.value = false;
+  personTie.value = null;
 }
 </script>

@@ -122,7 +122,10 @@ describe("CanonSuggestions", () => {
     suggestions.value = [{ kind: "pitch", text: "A drowned kingdom." }];
     const w = mountIt("premise", [entry({ id: "p1", premise_kind: "pitch" })]);
     await click(w, "Accept");
-    expect(mocks.confirm).toHaveBeenCalledWith("Replace the existing text?", expect.anything());
+    expect(mocks.confirm).toHaveBeenCalledWith(
+      "This will replace “x” with “A drowned kingdom.”; are you sure?",
+      expect.anything(),
+    );
     expect(mocks.create).not.toHaveBeenCalled();
     expect(mocks.update).toHaveBeenCalledWith({ id: "p1", patch: expect.objectContaining({ body: expect.stringContaining("A drowned kingdom."), ai_provenance: expect.anything() }) });
   });

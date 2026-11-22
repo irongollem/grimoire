@@ -42,6 +42,7 @@
               :subject="subject"
               :subject-name="subjectName"
               :all="connections"
+              :canon-origin="entry.canonOrigin"
             />
             <li
               v-else

@@ -96,6 +96,16 @@ export function useAddNpcInventoryItem() {
   });
 }
 
+/** Internal generation follow-up: keep starter gear in the campaign where the NPC was created. */
+export function useAddNpcInventoryItemInCampaign() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (item: NpcInventoryInsert) => addItem(item),
+    onSuccess: (_data, vars) =>
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, vars.npc_id] }),
+  });
+}
+
 export function useRemoveNpcInventoryItem() {
   const queryClient = useQueryClient();
   return useMutation({

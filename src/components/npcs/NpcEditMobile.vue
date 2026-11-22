@@ -161,6 +161,7 @@
       <!-- Lore card (collapsible) -->
       <AccordionSection v-model:open="loreOpen" title="Lore">
         <NpcLoreTab
+          :key="loreEditorRevision"
           :npc-name="form.name"
           :appearance="form.appearance"
           :personality="form.personality"
@@ -178,6 +179,9 @@
       <!-- Connections card (existing NPCs only; factions are in it, #1084) -->
       <section v-if="npc?.id" class="rounded-xl border border-border bg-card p-4">
         <ConnectionsSection :subject="{ kind: 'npc', id: npc.id }" :subject-name="npc.name" />
+      </section>
+      <section v-if="npc?.id" class="rounded-xl border border-border bg-card p-4">
+        <FamilyBlock :person="personKey('npc', npc.id)" />
       </section>
 
       <!-- Stat Block card -->
@@ -332,6 +336,8 @@ import NpcIdentitySection from "./NpcIdentitySection.vue";
 import RelationshipWheel from "@/components/common/entity/RelationshipWheel.vue";
 import NpcLoreTab from "./NpcLoreTab.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
+import FamilyBlock from "@/components/kinship/FamilyBlock.vue";
+import { personKey } from "@/lib/kinship/keys";
 import AccordionSection from "@/components/common/AccordionSection.vue";
 import { IconCopy, IconDelete, IconGenerate, IconScrollText } from "@/lib/icons";
 import { NPC_ART_VARIANTS, type NpcArtTab } from "./npcArtTabs";
@@ -351,6 +357,7 @@ const {
   isSaving = false,
   isSendingToScriptorium = false,
   isAiEnabled = false,
+  loreEditorRevision = 0,
 } = defineProps<{
   form: Omit<NpcInsert, "notes" | "size"> & { size: MonsterSize };
   statBlock: StatBlock;
@@ -363,6 +370,7 @@ const {
   isSaving?: boolean;
   isSendingToScriptorium?: boolean;
   isAiEnabled?: boolean;
+  loreEditorRevision?: number;
 }>();
 
 // A system without stat blocks (Generic, #934) has no Stat Block card.

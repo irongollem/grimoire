@@ -1,14 +1,7 @@
 <template>
-  <!-- Backdrop -->
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" @click.self="$emit('cancel')">
-    <div class="w-full max-w-lg rounded-xl border border-border bg-card shadow-xl flex flex-col gap-4 p-5 max-h-[90vh] overflow-y-auto">
-      <!-- Header -->
-      <div class="flex items-center justify-between">
-        <h2 class="text-heading-sm font-bold text-foreground">
-          {{ isEdit ? "Edit Companion" : "Add Companion" }}
-        </h2>
-        <AppButton variant="ghost" size="icon-sm" :icon="IconClose" tooltip="Close" aria-label="Close" @click="$emit('cancel')" />
-      </div>
+  <AppModal :open="true" size="xl" align="sheet" panel-class="h-[92dvh] sm:h-auto sm:max-h-[calc(100dvh-2rem)]" @close="$emit('cancel')">
+    <ModalHeader :title="isEdit ? 'Edit Companion' : 'Add Companion'" closeable @close="$emit('cancel')" />
+    <div class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
 
       <!-- Source type tabs -->
       <SegmentedControl v-model="sourceType" :options="SOURCE_TABS" size="sm" block />
@@ -75,8 +68,8 @@
       <input ref="fileInput" type="file" accept="image/*" class="sr-only" @change="onFileSelected" />
 
       <!-- Stats form -->
-      <div class="grid grid-cols-2 gap-3">
-        <div class="col-span-2 flex flex-col gap-1.5">
+      <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+        <div class="col-span-full flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">Name</label>
           <AppInput
             v-model="name"
@@ -235,34 +228,47 @@
       <DraftConflictNotice :fields="conflictLabels" :on-discard="reset" />
 
       <!-- Error -->
-      <p v-if="saveError" class="text-destructive text-body">{{ saveError }}</p>
+    </div>
 
       <!-- Actions -->
-      <div class="flex items-center justify-end gap-2 pt-1">
-        <AppButton variant="subtle" size="lg" label="Cancel" @click="$emit('cancel')" />
+      <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-6">
+        <p v-if="saveError" role="alert" class="mr-auto min-w-0 basis-full text-body text-destructive sm:order-first">{{ saveError }}</p>
         <AppButton
-          variant="primary"
+          v-if="isEdit"
+          variant="subtle"
           size="md"
-          :disabled="!name.trim() || saving"
-          @click="save"
-        >
-          {{ saving ? "Saving…" : isEdit ? "Save" : "Add Companion" }}
-        </AppButton>
+          label="Delete companion"
+          tone="danger"
+          :loading="deleting"
+          :disabled="saving || deleting"
+          @click="deleteCompanion"
+        />
+        <div class="ml-auto flex flex-wrap justify-end gap-2">
+          <AppButton variant="subtle" size="lg" label="Cancel" @click="$emit('cancel')" />
+          <AppButton
+            variant="primary"
+            size="md"
+            :disabled="!name.trim() || saving || deleting"
+            @click="save"
+          >
+            {{ saving ? "Saving…" : isEdit ? "Save" : "Add Companion" }}
+          </AppButton>
+        </div>
       </div>
-    </div>
-  </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed } from "vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
-import { IconAddImage, IconClose } from '@/lib/icons';
-import { useCreateCompanion, useUpdateCompanion } from "@/composables/encounters/useCompanions";
+import { IconAddImage } from '@/lib/icons';
+import { useCreateCompanion, useUpdateCompanion, useDeleteCompanion } from "@/composables/encounters/useCompanions";
 import { fetchResolvedMonster } from "@/composables/monsters/useMonsters";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useToast } from "@/composables/useToast";
+import { useConfirm } from "@/composables/useConfirm";
 import { useNpcs, useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
@@ -290,6 +296,8 @@ import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import DiceExprInput from "@/components/common/dice/DiceExprInput.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
@@ -339,6 +347,7 @@ const isEdit = !!props.companion;
 const { data: pickableMonsters } = useMonsterIndex();
 const { data: storedMonsters }   = useMonstersByIds(() => [props.companion?.source_monster_id]);
 const toast = useToast();
+const { confirm } = useConfirm();
 
 // NPC source — role-gated. DMs browse the raw `npcs` table (full stat blocks,
 // true identities); players get the player-visible projection only, so a
@@ -370,6 +379,7 @@ const lockedOwnerName = computed(() =>
 
 const { mutateAsync: create } = useCreateCompanion();
 const { mutateAsync: update } = useUpdateCompanion();
+const { mutateAsync: deleteCompanionMutation } = useDeleteCompanion();
 const { isUploading, upload } = useImageUpload("npc-portraits");
 
 // Form state. One draft holds every field, including the stat block and its
@@ -500,6 +510,7 @@ const conflictLabels = computed(() => {
 });
 
 const saving            = ref(false);
+const deleting          = ref(false);
 const saveError         = ref("");
 const fileInput         = ref<HTMLInputElement | null>(null);
 // SegmentedControl needs a string|number model; combatReady is the boolean
@@ -679,6 +690,24 @@ async function save() {
     saveError.value = msg || "Failed to save companion";
   } finally {
     saving.value = false;
+  }
+}
+
+async function deleteCompanion() {
+  if (!props.companion || !(await confirm(`Delete ${props.companion.name}? This cannot be undone.`, {
+    title: "Delete companion",
+    confirmLabel: "Delete",
+    danger: true,
+  }))) return;
+  deleting.value = true;
+  saveError.value = "";
+  try {
+    await deleteCompanionMutation(props.companion);
+    emit("saved");
+  } catch (e: unknown) {
+    saveError.value = e instanceof Error ? e.message : "Failed to delete companion";
+  } finally {
+    deleting.value = false;
   }
 }
 </script>

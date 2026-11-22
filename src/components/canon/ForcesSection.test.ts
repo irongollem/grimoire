@@ -3,9 +3,12 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { canonEntry } from "@/test/canonEntry";
 
-const mocks = vi.hoisted(() => ({ create: vi.fn(), undo: vi.fn() }));
+const mocks = vi.hoisted(() => ({ create: vi.fn(), undo: vi.fn(), connect: vi.fn(), campaignId: "campaign-1" }));
 vi.mock("@/stores/calendar", () => ({ useCalendarStore: () => ({ adapter: { formatDate: () => "" } }) }));
-vi.mock("@/composables/canon/useCanonEntries", () => ({ useCreateCanonEntry: () => ({ mutateAsync: mocks.create, isPending: ref(false) }) }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ get activeCampaignId() { return mocks.campaignId; } }) }));
+vi.mock("@/composables/canon/useCanonEntries", () => ({ useCreateCanonEntryInCampaign: () => ({ mutateAsync: mocks.create }) }));
+vi.mock("@/composables/factions/useFactions", () => ({ useAllFactions: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/connections/useConnections", () => ({ useCreateConnectionInCampaign: () => ({ mutateAsync: mocks.connect }) }));
 vi.mock("@/composables/canon/useCanonForces", async (original) => ({
   ...(await original<typeof import("@/composables/canon/useCanonForces")>()),
   useUndoForceTick: () => ({ mutate: mocks.undo }),
@@ -24,10 +27,10 @@ vi.mock("@/composables/canon/useCanonForces", async (original) => ({
 import ForcesSection from "./ForcesSection.vue";
 
 const forces = [canonEntry({ id: "f1", part: "force", title: "The Stain spreads", wants: "to be forgotten into", clock_size: 6 }), canonEntry({ id: "f2", part: "force", title: "The Brewlings", wants: "somewhere north" })];
-const mountIt = (rows = forces) => mount(ForcesSection, { props: { forces: rows }, global: { stubs: { CanonSuggestions: true } } });
+const mountIt = (rows = forces) => mount(ForcesSection, { props: { forces: rows }, global: { stubs: { CanonSuggestions: true, EntityCombobox: true } } });
 
 describe("ForcesSection", () => {
-  beforeEach(() => { mocks.create.mockReset(); mocks.undo.mockReset(); });
+  beforeEach(() => { mocks.create.mockReset(); mocks.undo.mockReset(); mocks.connect.mockReset(); mocks.campaignId = "campaign-1"; });
 
   it("shows each force with its own clock and its own reached step, never another force's", () => {
     const rows = mountIt().findAll("li");
@@ -56,7 +59,7 @@ describe("ForcesSection", () => {
     await w.get("input[aria-label='What the new force wants']").setValue(" the river to themselves ");
     await w.get("form").trigger("submit");
     await flushPromises();
-    expect(mocks.create).toHaveBeenCalledWith({ part: "force", title: "The Ferrymen", wants: "the river to themselves", sort_order: 2 });
+    expect(mocks.create).toHaveBeenCalledWith({ campaignId: "campaign-1", input: { part: "force", title: "The Ferrymen", wants: "the river to themselves", sort_order: 2 } });
     expect(w.emitted("select")?.[0]).toEqual(["f9"]);
     expect((w.get("input[aria-label='A new force']").element as HTMLInputElement).value).toBe("");
   });

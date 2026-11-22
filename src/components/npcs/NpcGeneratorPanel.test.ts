@@ -1,4 +1,4 @@
-import { mount, RouterLinkStub } from "@vue/test-utils";
+import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import NpcGeneratorPanel from "./NpcGeneratorPanel.vue";
@@ -24,7 +24,7 @@ const fixtures = vi.hoisted(() => ({
 // The campaign's AI toggle, mutable per test (#thisspec: "AI for every plan
 // with credits" — the generate control is gated on this and on affordability,
 // never on plan).
-const campaignState = vi.hoisted(() => ({ isAiEnabled: true }));
+const campaignState = vi.hoisted(() => ({ isAiEnabled: true, activeCampaignId: "campaign-1" }));
 // The free-plan npcs quota — generation spends a credit, so this is checked
 // before generating, separately from the AI-on/off toggle above.
 const canCreateNpc = ref(true);
@@ -32,6 +32,7 @@ const canCreateNpc = ref(true);
 // click through requireCredits() into the out-of-credits dialog instead of
 // calling generate().
 const affordableState = vi.hoisted(() => ({ value: true }));
+const starterPackState = vi.hoisted(() => ({ fail: false, switchCampaign: false }));
 
 vi.mock("vue-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("vue-router")>(),
@@ -42,18 +43,21 @@ vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref(fi
 vi.mock("@/composables/kinship/useKinLinks", () => ({
   useKinLinks: () => ({ data: ref([]) }),
   useCreateKinLink: () => ({ mutateAsync: mocks.createKin }),
+  useCreateKinLinkInCampaign: () => ({ mutateAsync: mocks.createKin }),
 }));
 vi.mock("@/stores/ui/npcs", () => ({ useNpcsUiStore: () => ({ npcGeneratorOpen: true }) }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() { return campaignState.isAiEnabled; },
-    activeCampaignId: "campaign-1",
+    get activeCampaignId() { return campaignState.activeCampaignId; },
+    activeGameSystem: "dnd5e-2014",
     todayYear: 1495,
     activeCampaign: { text_provider: "openai", image_provider: "openai" },
   }),
 }));
 vi.mock("@/composables/npcs/useNpcs", () => ({
   useCreateNpc: () => ({ mutateAsync: mocks.createNpc, isPending: ref(false) }),
+  useCreateNpcInCampaign: () => ({ mutateAsync: mocks.createNpc, isPending: ref(false) }),
   useNpcs: () => ({ data: ref(fixtures.npcs) }),
 }));
 vi.mock("@/composables/ai/useImageGenerationLog", () => ({
@@ -79,11 +83,30 @@ vi.mock("@/composables/ai/useProviderConfig", () => ({
   PORTRAIT_SIZE_BY_PROVIDER: { openai: "1024x1536", gemini: "1024x1536" },
 }));
 vi.mock("@/composables/locations/useLocations", () => ({ useLocationTree: () => ({ locationOptions: ref([]) }) }));
+vi.mock("@/composables/items/useItemIndex", () => ({ useItemIndex: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/npcs/useNpcStarterPacks", () => ({
+  useNpcStarterPacks: () => ({
+    data: ref(undefined),
+    refetch: async () => {
+      if (starterPackState.switchCampaign) campaignState.activeCampaignId = "campaign-2";
+      return starterPackState.fail
+        ? { isError: true, data: undefined, error: new Error("offline") }
+        : { isError: false, data: [{ id: "everyday", label: "Everyday carry", cues: [], items: ["Coin purse"] }] };
+    },
+  }),
+}));
+vi.mock("@/composables/items/useNpcInventory", () => ({
+  useAddNpcInventoryItem: () => ({ mutateAsync: vi.fn() }),
+  useAddNpcInventoryItemInCampaign: () => ({ mutateAsync: vi.fn() }),
+}));
 vi.mock("@/composables/factions/useFactions", () => ({
   useAllFactions: () => ({ data: ref([]) }),
   useAddFactionNpc: () => ({ mutateAsync: vi.fn() }),
 }));
-vi.mock("@/composables/connections/useConnections", () => ({ useCreateConnection: () => ({ mutateAsync: mocks.createConnection }) }));
+vi.mock("@/composables/connections/useConnections", () => ({
+  useCreateConnection: () => ({ mutateAsync: mocks.createConnection }),
+  useCreateConnectionInCampaign: () => ({ mutateAsync: mocks.createConnection }),
+}));
 vi.mock("@/ai/useNpcGeneration", () => ({
   useNpcGeneration: () => ({
     isGenerating: ref(false),
@@ -113,6 +136,9 @@ describe("NpcGeneratorPanel — AI gating (every plan, credits only)", () => {
     mocks.generate.mockReset();
     mocks.push.mockReset();
     campaignState.isAiEnabled = true;
+    campaignState.activeCampaignId = "campaign-1";
+    starterPackState.fail = false;
+    starterPackState.switchCampaign = false;
     canCreateNpc.value = true;
   });
 
@@ -122,6 +148,27 @@ describe("NpcGeneratorPanel — AI gating (every plan, credits only)", () => {
     const generateButton = wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"));
     expect(generateButton).toBeTruthy();
     expect(wrapper.findComponent(AiOffNotice).exists()).toBe(false);
+  });
+
+  it("does not start paid generation when the configured starter packs cannot be loaded", async () => {
+    starterPackState.fail = true;
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue("A traveling herbalist.");
+    await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+    await flushPromises();
+    expect(mocks.generate).not.toHaveBeenCalled();
+    starterPackState.fail = false;
+  });
+
+  it("does not send generation into another campaign if it switches during pack loading", async () => {
+    starterPackState.switchCampaign = true;
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue("A traveling herbalist.");
+    await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+    await flushPromises();
+    expect(mocks.generate).not.toHaveBeenCalled();
+    starterPackState.switchCampaign = false;
+    campaignState.activeCampaignId = "campaign-1";
   });
 
   it("shows AiOffNotice instead of a Generate button when the campaign's AI toggle is off", () => {
@@ -245,7 +292,7 @@ describe("NpcGeneratorPanel — family tie from the Add relative link", () => {
     expect(prompt).toContain(
       "The new NPC is the child of Brenna Ashe (born 1459, 36 now) and Corwin Ashe (born 1456, 39 now). The current year is 1495. Give an age that fits.",
     );
-    expect(mocks.createKin.mock.calls.map(([row]) => [row.kind, row.from_npc_id, row.to_npc_id])).toEqual([
+    expect(mocks.createKin.mock.calls.map(([row]) => [row.input.kind, row.input.from_npc_id, row.input.to_npc_id])).toEqual([
       ["parent", brenna, "wren"],
       ["parent", corwin, "wren"],
     ]);
@@ -277,7 +324,7 @@ describe("NpcGeneratorPanel: the known associate becomes a connection", () => {
     });
     await wrapper.findAll("button").find((b) => b.text().includes("Quick Create NPC"))!.trigger("click");
     await vi.waitFor(() => expect(mocks.createConnection).toHaveBeenCalledTimes(1));
-    return mocks.createConnection.mock.calls[0][0];
+    return mocks.createConnection.mock.calls[0][0].input;
   }
 
   it("writes a symmetric bond from the new NPC", async () => {

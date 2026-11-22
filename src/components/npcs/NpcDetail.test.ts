@@ -166,6 +166,7 @@ function mountDetail(npcProp: Npc | null, { mobile = false }: { mobile?: boolean
       stubs: {
         DmNoteBox: true,
         PlayerNotesWidget: true,
+        FamilyBlock: true,
         NpcEditMobile: true,
         NpcGenerateDialog: true,
         NpcSidebar: true,
@@ -248,6 +249,7 @@ describe("NpcDetail — copy to campaign (#885)", () => {
       props: { npc: npc() },
       global: {
         stubs: {
+          FamilyBlock: true,
           NpcEditMobile: {
             template: '<button class="mobile-copy" @click="$emit(\'copy-to-campaign\')" />',
           },
