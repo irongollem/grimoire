@@ -41,6 +41,8 @@ export interface NavItem {
   to: string;
   icon: Component;
   description: string;
+  /** Marks a section still in beta in the DM navigation. */
+  beta?: boolean;
   /**
    * Shorter label for the bottom bar, where a tab is a ~4rem column under an
    * icon rather than a full-width row.
@@ -123,6 +125,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: "Canon",
+        beta: true,
         to: "/canon",
         icon: IconNavCanon,
         description: "Truths, lore and secrets",
@@ -173,6 +176,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: "Table",
+        beta: true,
         to: "/table",
         feature: "party",
         requiresTable: true,
@@ -365,6 +369,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: "Simulacrum",
+        beta: true,
         desktopOnly: true,
         to: "/minis",
         icon: IconNavSimulacrum,
@@ -374,6 +379,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: "Book Nook",
+        beta: true,
         desktopOnly: true,
         to: "/book-nook",
         icon: IconNavBookNook,

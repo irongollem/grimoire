@@ -9,6 +9,10 @@ TanStack Query 5 · Tailwind v4 (no config file; tokens in `src/assets/*.css`) �
 Reka UI · Tiptap v3 · `@supabase/supabase-js`. Hand-rolled service worker (no
 Workbox / vite-plugin-pwa).
 
+The DM sidebar and mobile More menu read section labels and Beta badges from
+`src/lib/nav.ts`. Canon, Table, Book Nook and Simulacrum carry the badge wherever
+they appear in those menus.
+
 ## The layer diagram
 
 Every feature follows the same vertical. If a bug report names a feature,

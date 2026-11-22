@@ -48,6 +48,7 @@
           >
             <component :is="item.icon" class="h-5 w-5 shrink-0" />
             <span class="text-label leading-tight">{{ item.label }}</span>
+            <AppButton v-if="item.beta" as="span" variant="tinted" size="xs" tone="info" emphasis="outline" label="Beta" />
             <!-- Gold dot: pinned to the bar for the active mode -->
             <span
               v-if="barRoutes.includes(item.to)"

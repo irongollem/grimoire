@@ -7,6 +7,7 @@
   >
     <component :is="item.icon" class="h-5 w-5 shrink-0" />
     <span>{{ item.label }}</span>
+    <AppButton v-if="item.beta" as="span" variant="tinted" size="xs" tone="info" emphasis="outline" label="Beta" />
     <IconLock class="h-3 w-3 ml-auto shrink-0 opacity-50" />
   </div>
 
@@ -23,12 +24,14 @@
   >
     <component :is="item.icon" class="h-5 w-5 shrink-0" />
     <span>{{ item.label }}</span>
+    <AppButton v-if="item.beta" as="span" variant="tinted" size="xs" tone="info" emphasis="outline" label="Beta" />
   </RouterLink>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconLock } from '@/lib/icons';
 import { useCampaignStore } from "@/stores/campaign";
 import type { NavItem } from "@/lib/nav";
