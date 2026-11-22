@@ -2,6 +2,7 @@ import { computed, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
+import type { ItemIndexEntry } from "@/types/item.types";
 
 const update = vi.fn();
 const add = vi.fn();
@@ -19,13 +20,14 @@ function inv(over: Partial<PartyInventoryItem>): PartyInventoryItem {
   } as PartyInventoryItem;
 }
 
-function setup(items: PartyInventoryItem[], library: Array<Partial<Item>>) {
+function setup(items: PartyInventoryItem[], library: Array<Partial<Item>>, catalogue: Array<Partial<ItemIndexEntry>> = []) {
   const myItems = computed(() => items);
   const selectedInv = ref<PartyInventoryItem | null>(null);
   const slots = useInventorySlots({
     equippedItems: computed(() => items.filter((i) => i.location === "equipped")),
     myItems,
     allItems: computed(() => library as Item[]),
+    catalogue: computed(() => catalogue as ItemIndexEntry[]),
     selectedInv,
   });
   return { ...slots, selectedInv };
@@ -139,5 +141,33 @@ describe("useInventorySlots", () => {
       ],
     );
     expect(candidatesForSlot("body").map((i) => i.name)).toEqual(["Chain Mail"]);
+  });
+
+  it("lets a free-text Scale Mail match the item catalogue and links it when equipped", async () => {
+    const mail = inv({ id: "mail", item_id: null, library_item_id: null, name: "scale mail" });
+    const { candidatesForSlot, equipToSlot } = setup([mail], [], [
+      { id: "srd_scale_mail", name: "Scale Mail", item_type: "armor", subtype: "Medium Armor", tags: [] },
+    ]);
+
+    expect(candidatesForSlot("body").map((item) => item.id)).toEqual(["mail"]);
+    await equipToSlot(mail, "body");
+    expect(update).toHaveBeenCalledWith({
+      id: "mail",
+      update: {
+        location: "equipped",
+        slot: "body",
+        is_equipped: true,
+        item_id: null,
+        library_item_id: "srd_scale_mail",
+      },
+    });
+  });
+
+  it("does not resolve a free-text name to a longer catalogue name", () => {
+    const mail = inv({ id: "mail", item_id: null, library_item_id: null, name: "Scale Mail" });
+    const { candidatesForSlot } = setup([mail], [], [
+      { id: "srd_scale_mail_plus_one", name: "Scale Mail +1", item_type: "armor", subtype: "Medium Armor", tags: [] },
+    ]);
+    expect(candidatesForSlot("body")).toEqual([]);
   });
 });

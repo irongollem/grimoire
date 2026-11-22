@@ -3,17 +3,18 @@ import type {
   PartyInventoryItem,
   InventorySlot,
 } from "@/types/inventory.types";
-import type { Item } from "@/types/item.types";
+import type { Item, ItemIndexEntry } from "@/types/item.types";
 import {
   useAddInventoryItem,
   useUpdateInventoryItem,
 } from "@/composables/items/usePartyInventory";
-import { inventoryItemRef } from "@/lib/itemRef";
+import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
 
 interface UseInventorySlotsOptions {
   equippedItems: ComputedRef<PartyInventoryItem[]>;
   myItems: ComputedRef<PartyInventoryItem[]>;
   allItems: ComputedRef<Item[] | undefined>;
+  catalogue: ComputedRef<ItemIndexEntry[] | undefined>;
   selectedInv: Ref<PartyInventoryItem | null>;
 }
 
@@ -21,6 +22,7 @@ export function useInventorySlots({
   equippedItems,
   myItems,
   allItems,
+  catalogue,
   selectedInv,
 }: UseInventorySlotsOptions) {
   const { mutateAsync: addInventoryItem } = useAddInventoryItem();
@@ -28,17 +30,19 @@ export function useInventorySlots({
 
   const slotModal = ref<InventorySlot | null>(null);
 
+  function vaultItem(inv: PartyInventoryItem): Item | ItemIndexEntry | null {
+    const ref = inventoryItemRef(inv);
+    if (ref) return allItems.value?.find((it) => it.id === ref) ?? null;
+    const name = inv.name.trim().toLocaleLowerCase();
+    return catalogue.value?.find((it) => it.name.trim().toLocaleLowerCase() === name) ?? null;
+  }
+
   function slotItem(slot: InventorySlot): PartyInventoryItem | null {
     return equippedItems.value.find((i) => i.slot === slot) ?? null;
   }
 
   function candidatesForSlot(slot: InventorySlot): PartyInventoryItem[] {
     const unequipped = myItems.value.filter((i) => i.location !== "equipped");
-
-    function vaultItem(inv: PartyInventoryItem) {
-      const ref = inventoryItemRef(inv);
-      return ref ? (allItems.value?.find((it) => it.id === ref) ?? null) : null;
-    }
 
     const TAG_SLOTS: Partial<Record<InventorySlot, string[]>> = {
       clothes: ["clothes", "clothing"],
@@ -92,20 +96,28 @@ export function useInventorySlots({
     // Re-check occupancy right before writing — a realtime update could have
     // filled the slot since the modal opened, and two items must not share one.
     if (slot !== "other" && slotItem(slot)) { slotModal.value = null; return; }
+    const resolvedItem = vaultItem(item);
+    const references = {
+      item_id: item.item_id,
+      library_item_id: item.library_item_id,
+    };
+    const newlyResolvedReferences = !inventoryItemRef(item) && resolvedItem
+      ? itemRefColumns(resolvedItem.id)
+      : {};
     if (item.quantity > 1) {
       // Split one off the stack. Two writes, so guard atomicity: if inserting the
       // equipped copy fails, restore the decremented quantity (best-effort rollback)
       // instead of leaving the item partially lost, as the old Promise.all could.
       await updateInventoryItem({
         id: item.id,
-        update: { quantity: item.quantity - 1 },
+        update: { quantity: item.quantity - 1, ...newlyResolvedReferences },
       });
       try {
         await addInventoryItem({
           // Equipping splits one off the stack — the new row must keep whichever
           // reference the original had, not just the vault one.
-          item_id: item.item_id,
-          library_item_id: item.library_item_id,
+          ...references,
+          ...newlyResolvedReferences,
           name: item.name,
           quantity: 1,
           carried_by: item.carried_by,
@@ -120,13 +132,19 @@ export function useInventorySlots({
           is_identified: item.is_identified,
         });
       } catch (e) {
-        await updateInventoryItem({ id: item.id, update: { quantity: item.quantity } });
+        await updateInventoryItem({
+          id: item.id,
+          update: {
+            quantity: item.quantity,
+            ...(Object.keys(newlyResolvedReferences).length > 0 ? references : {}),
+          },
+        });
         throw e;
       }
     } else {
       await updateInventoryItem({
         id: item.id,
-        update: { location: "equipped", slot, is_equipped: true },
+        update: { location: "equipped", slot, is_equipped: true, ...newlyResolvedReferences },
       });
     }
     slotModal.value = null;

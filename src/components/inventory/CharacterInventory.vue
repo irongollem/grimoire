@@ -373,7 +373,7 @@ const {
   unequipSelected,
   equipToSlot,
   unequipSlot,
-} = useInventorySlots({ equippedItems, myItems, allItems, selectedInv });
+} = useInventorySlots({ equippedItems, myItems, allItems, catalogue: computed(() => catalogue.value), selectedInv });
 
 // Where the open item can be equipped. Only the player's own carried items, never the
 // party stash or an item already worn (that one offers Unequip instead).
