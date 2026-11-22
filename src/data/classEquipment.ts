@@ -1,15 +1,11 @@
 /** Starting-equipment bundles per SRD class.
  *
- * Each class offers Choice A or Choice B per the PHB. Item names are matched
- * case-insensitively against the item vault at character creation time — vault
- * items are linked by id; unrecognised names fall back to free-text entries.
- *
- * Ammunition uses the same names as the vault packs ("Arrows (20)", etc.) so
- * that the one vault item covers the whole bundle.
+ * Each class offers Choice A or Choice B. Gear is matched against the
+ * shared library when the character joins a campaign.
  */
 
 export interface EquipmentEntry {
-  /** Item name — matched against the vault's `name` column (case-insensitive). */
+  /** Item name — matched against the library's `name` column (case-insensitive). */
   name: string;
   /** Defaults to 1. Useful for identical items (e.g. quantity: 2 Daggers). */
   quantity?: number;

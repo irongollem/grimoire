@@ -11,109 +11,9 @@ vi.mock("@/lib/observability/sentry", () => ({ reportHandledError: vi.fn() }));
 
 import {
   replayStartingGrants,
-  partitionBundleEntries,
-  buildBackgroundEquipmentRows,
   buildStartingEquipmentPlan,
   parseStartingEquipmentPlan,
-  type VaultEntry,
 } from "./useCharacterEquipmentSeeding";
-
-const CARRIER = "member-1";
-
-describe("partitionBundleEntries", () => {
-  it("routes plain items to a batched row and resolves their vault item_id", () => {
-    const vaultMap = new Map<string, VaultEntry>([
-      ["greataxe", { id: "11111111-1111-4111-8111-111111111111", bundle_items: null }],
-      ["javelin", { id: "22222222-2222-4222-8222-222222222222", bundle_items: null }],
-    ]);
-    const { plainRows, packEntries } = partitionBundleEntries(
-      [{ name: "Greataxe" }, { name: "Javelin", quantity: 4 }],
-      vaultMap,
-      CARRIER,
-    );
-
-    expect(packEntries).toEqual([]);
-    expect(plainRows).toEqual([
-      {
-        item_id: "11111111-1111-4111-8111-111111111111", library_item_id: null, name: "Greataxe", quantity: 1,
-        carried_by: CARRIER, location: "backpack",
-        slot: null, is_container: false, container_id: null,
-        is_attuned: false, is_equipped: false, notes: null,
-        current_charges: null, is_identified: true, sort_order: 0,
-      },
-      {
-        item_id: "22222222-2222-4222-8222-222222222222", library_item_id: null, name: "Javelin", quantity: 4,
-        carried_by: CARRIER, location: "backpack",
-        slot: null, is_container: false, container_id: null,
-        is_attuned: false, is_equipped: false, notes: null,
-        current_charges: null, is_identified: true, sort_order: 0,
-      },
-    ]);
-  });
-
-  it("routes entries with bundle_items to packEntries instead of batching them", () => {
-    const vaultMap = new Map<string, VaultEntry>([
-      ["explorer's pack", { id: "55555555-5555-4555-8555-555555555555", bundle_items: [{ name: "Bedroll", quantity: 1 }] }],
-      ["rapier", { id: "44444444-4444-4444-8444-444444444444", bundle_items: null }],
-    ]);
-    const { plainRows, packEntries } = partitionBundleEntries(
-      [{ name: "Rapier" }, { name: "Explorer's Pack" }],
-      vaultMap,
-      CARRIER,
-    );
-
-    expect(packEntries).toEqual([{ name: "Explorer's Pack" }]);
-    expect(plainRows).toHaveLength(1);
-    expect(plainRows[0].name).toBe("Rapier");
-  });
-
-  it("falls back to item_id: null for a name with no vault match, still batched", () => {
-    const { plainRows, packEntries } = partitionBundleEntries(
-      [{ name: "Homebrew Whatsit" }],
-      new Map(),
-      CARRIER,
-    );
-    expect(packEntries).toEqual([]);
-    expect(plainRows[0]).toMatchObject({ item_id: null, name: "Homebrew Whatsit", quantity: 1 });
-  });
-
-  it("treats an entry whose vault match has an empty bundle_items array as plain", () => {
-    const vaultMap = new Map<string, VaultEntry>([
-      ["dagger", { id: "33333333-3333-4333-8333-333333333333", bundle_items: [] }],
-    ]);
-    const { plainRows, packEntries } = partitionBundleEntries([{ name: "Dagger" }], vaultMap, CARRIER);
-    expect(packEntries).toEqual([]);
-    expect(plainRows[0].item_id).toBe("33333333-3333-4333-8333-333333333333");
-  });
-});
-
-describe("buildBackgroundEquipmentRows", () => {
-  it("splits the background's free-text equipment into one plain row each", () => {
-    const rows = buildBackgroundEquipmentRows(
-      "a holy symbol, a prayer book, vestments, a set of common clothes, and a belt pouch containing 15 gp",
-      CARRIER,
-    );
-    expect(rows.map((r) => r.name)).toEqual([
-      "a holy symbol",
-      "a prayer book",
-      "vestments",
-      "a set of common clothes",
-      "a belt pouch containing 15 gp",
-    ]);
-    for (const row of rows) {
-      expect(row.item_id).toBeNull();
-      expect(row.quantity).toBe(1);
-      expect(row.carried_by).toBe(CARRIER);
-      expect(row.location).toBe("backpack");
-      expect(row.is_container).toBe(false);
-    }
-  });
-
-  it("returns no rows for empty equipment text", () => {
-    expect(buildBackgroundEquipmentRows("", CARRIER)).toEqual([]);
-    expect(buildBackgroundEquipmentRows("   ", CARRIER)).toEqual([]);
-  });
-});
 
 describe("buildStartingEquipmentPlan", () => {
   it("keeps the class bundle choice and the background's item names", () => {
@@ -158,15 +58,24 @@ describe("replayStartingGrants", () => {
 const keysOf = () =>
   invalidate.mock.calls.map(([filters]) => (filters !== undefined && typeof filters !== "function" ? filters.queryKey : undefined));
 
-  const marker = { class_name: null, class_choice: null, background_items: ["A lockpick", "A map"] };
+  const marker = { class_name: null, class_choice: null, background_items: ["A dagger", "A map"] };
 
   beforeEach(() => {
     fake.reset();
+    seedLibrary([{ name: "Dagger" }, { name: "Map" }]);
     invalidate.mockClear();
   });
 
+  function seedLibrary(items: { name: string; id?: string; ruleset?: "2014" | "2024"; bundle_items?: { name: string; quantity?: number }[] }[]) {
+    fake.seed("library_items", items.map(({ name, id, ruleset, bundle_items }) => ({
+      id: id ?? name.toLowerCase().replaceAll(" ", "-"), name, ruleset: ruleset ?? null,
+      source_document_key: ruleset ? `srd-${ruleset}` : "grimoire-bundled",
+      bundle_items: bundle_items ?? null,
+    })));
+  }
+
   const seatCharacter = (classChoices: Record<string, unknown>) =>
-    fake.seed("party_members", [{ id: "pm1", class_choices: classChoices }]);
+    fake.seed("party_members", [{ id: "pm1", class_choices: classChoices, ruleset: "2024" }]);
   const choicesOf = () => fake.rows("party_members")[0]?.class_choices;
 
   it("grants the loadout into the table's inventory, takes the marker off, and keeps every other choice", async () => {
@@ -175,8 +84,8 @@ const keysOf = () =>
     expect(await replayStartingGrants("pm1", "camp-1", client)).toBe(true);
 
     expect(fake.rows("party_inventory")).toMatchObject([
-      { name: "A lockpick", carried_by: "pm1", campaign_id: "camp-1", user_id: "user-1", location: "backpack" },
-      { name: "A map", carried_by: "pm1", campaign_id: "camp-1" },
+      { name: "Dagger", library_item_id: "dagger", item_id: null, carried_by: "pm1", campaign_id: "camp-1", user_id: "user-1", location: "backpack" },
+      { name: "Map", library_item_id: "map", item_id: null, carried_by: "pm1", campaign_id: "camp-1" },
     ]);
     expect(choicesOf()).toEqual({ fighting_style: ["defense"] });
     expect(keysOf()).toContainEqual(["party-inventory"]);
@@ -201,10 +110,32 @@ const keysOf = () =>
     const bundle = CLASS_EQUIPMENT[name!]!;
     for (const choice of ["a", "b"] as const) {
       fake.reset();
+      seedLibrary(bundle[choice].items);
       seatCharacter({ starting_grants: { class_name: name, class_choice: choice, background_items: [] } });
       await replayStartingGrants("pm1", "camp-1", client);
       expect(fake.rows("party_inventory").map((r) => r.name).sort()).toEqual(bundle[choice].items.map((e) => e.name).sort());
     }
+  });
+
+  it("links the character's edition of Scale Mail and the contents of its pack, skipping unmatched prose", async () => {
+    seatCharacter({ starting_grants: { class_name: "Cleric", class_choice: "a", background_items: ["A note from home"] } });
+    seedLibrary([
+      { name: "Scale Mail", id: "scale-2014", ruleset: "2014" },
+      { name: "Scale Mail", id: "scale-2024", ruleset: "2024" },
+      { name: "Priest's Pack", bundle_items: [{ name: "Candle", quantity: 10 }, { name: "Missing item" }] },
+      { name: "Candle" },
+    ]);
+
+    await replayStartingGrants("pm1", "camp-1", client);
+
+    const rows = fake.rows("party_inventory");
+    expect(rows).toHaveLength(3);
+    const pack = rows.find((row) => row.is_container);
+    expect(pack).toMatchObject({ name: "Priest's Pack", library_item_id: "priest's-pack" });
+    expect(rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "Scale Mail", library_item_id: "scale-2024" }),
+      expect.objectContaining({ name: "Candle", library_item_id: "candle", quantity: 10, container_id: pack?.id }),
+    ]));
   });
 
   it("a failed write puts the marker back beside the other choices and leaves no half-granted rows, then throws", async () => {
@@ -247,7 +178,10 @@ const keysOf = () =>
 
   it("takes back the rows that did land when a later write fails, so the retry does not grant them twice", async () => {
     // Rogue's first bundle holds a pack that is written on its own, after the plain rows.
-    fake.seed("items", [{ id: "11111111-1111-4111-8111-111111111111", name: "Burglar's Pack", bundle_items: [{ name: "Bedroll", quantity: 1 }] }]);
+    seedLibrary([...CLASS_EQUIPMENT.Rogue!.a.items.filter((item) => item.name !== "Burglar's Pack"),
+      { name: "Burglar's Pack", bundle_items: [{ name: "Bedroll", quantity: 1 }] },
+      { name: "Bedroll" },
+    ]);
     seatCharacter({ starting_grants: { class_name: "Rogue", class_choice: "a", background_items: [] } });
     fake.failNext("party_inventory", { message: "quota" }, { after: 1 });
 
