@@ -62,11 +62,12 @@ describe("DeckToolStrip", () => {
   });
 
   it("releases a borrowed tool when the strip unmounts mid-hold", async () => {
-    const w = strip();
+    const onTool = vi.fn();
+    const w = strip({ onTool });
     await buttonFor(w, "Volume").trigger("pointerdown");
     vi.advanceTimersByTime(HOLD_MS + 10);
     w.unmount();
-    expect(w.emitted("tool")?.at(-1)).toEqual([{ tool: "volume", phase: "up" }]);
+    expect(onTool).toHaveBeenLastCalledWith({ tool: "volume", phase: "up" });
   });
 
   it("shows only play, loop and stop in Simple", () => {

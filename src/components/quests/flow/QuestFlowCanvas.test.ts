@@ -72,21 +72,23 @@ describe("QuestFlowCanvas viewport persistence", () => {
   });
 
   it("records the view on the way out, whatever moved it", () => {
-    const wrapper = mountCanvas();
+    const onViewportChange = vi.fn();
+    const wrapper = mountCanvas({ onViewportChange });
     mocks.viewport.value = { x: 12, y: 34, zoom: 0.8 };
     wrapper.unmount();
 
-    expect(wrapper.emitted("viewport-change")).toEqual([[{ x: 12, y: 34, zoom: 0.8 }]]);
+    expect(onViewportChange).toHaveBeenCalledExactlyOnceWith({ x: 12, y: 34, zoom: 0.8 });
   });
 
   // Storing a degenerate transform is what parks every beat off-screen on the
   // next open, so an unmeasured or torn-down canvas must report nothing.
   it("refuses to store a viewport from a canvas that never measured", () => {
-    const wrapper = mountCanvas();
+    const onViewportChange = vi.fn();
+    const wrapper = mountCanvas({ onViewportChange });
     mocks.viewport.value = { x: 0, y: 0, zoom: 0 };
     wrapper.unmount();
 
-    expect(wrapper.emitted("viewport-change")).toBeUndefined();
+    expect(onViewportChange).not.toHaveBeenCalled();
   });
 });
 

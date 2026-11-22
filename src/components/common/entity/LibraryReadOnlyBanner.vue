@@ -15,7 +15,7 @@
       size="md"
       class="shrink-0"
       :disabled="busy || disabled"
-      :icon="icon"
+      :icon="icon ?? IconCopy"
       :label="busy ? busyLabel : actionLabel"
       :tooltip="disabled ? disabledReason : undefined"
       @click="emit('action')"
@@ -38,7 +38,7 @@ const {
   busy = false,
   disabled = false,
   disabledReason,
-  icon = IconCopy,
+  icon,
 } = defineProps<{
   /** The row's `source` key; the banner opens with the book's title. */
   source: string | null | undefined;

@@ -36,7 +36,7 @@
           tone="primary"
           emphasis="soft"
           size="xs"
-          :icon="attackIcon"
+          :icon="attackIcon ?? IconSword"
           :label="signed(attackBonus)"
           :disabled="attackDisabled"
           :tooltip="attackDisabled ? attackTitle : undefined"
@@ -73,7 +73,7 @@ const {
   name,
   attackBonus,
   damageLabel = null,
-  attackIcon = IconSword,
+  attackIcon,
   description = null,
   compact = false,
   attackDisabled = false,
