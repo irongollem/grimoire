@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 
 const mocks = vi.hoisted(() => ({ generateAndCreateFaction: vi.fn() }));
@@ -7,6 +7,8 @@ const state = vi.hoisted(() => ({
   aiEnabled: true, canCreate: true, affordable: true,
   npcs: undefined as { id: string; name: string; occupation: string | null }[] | undefined,
   places: undefined as { id: string; name: string }[] | undefined,
+  /** `kind:id` to name for the records the ties name; undefined while "reading". */
+  linkNames: new Map<string, string>() as Map<string, string> | undefined,
 }));
 
 vi.mock("@/stores/campaign", () => ({
@@ -26,6 +28,13 @@ vi.mock("@/composables/rules/useGameSystem", () => ({ useGameSystem: () => ({ of
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: { get value() { return state.npcs; } } }) }));
 vi.mock("@/composables/locations/useLocations", () => ({
   useAllLocations: () => ({ data: { get value() { return state.places; } } }),
+}));
+vi.mock("@/ai/ask/adapters/askLinkRecords", () => ({
+  useAskLinkRecords: (wanted: () => readonly unknown[]) => ({
+    names: computed(() => state.linkNames),
+    loading: computed(() => wanted().length > 0 && state.linkNames === undefined),
+    failed: computed(() => false),
+  }),
 }));
 vi.mock("@/composables/factions/useGenerateFaction", () => ({
   useGenerateFaction: () => ({ generateAndCreateFaction: mocks.generateAndCreateFaction }),
@@ -48,6 +57,62 @@ describe("useFactionAskAdapter", () => {
       aiEnabled: true, canCreate: true, affordable: true,
       npcs: [{ id: "n1", name: "Mara", occupation: "Smith" }, { id: "n2", name: "Odo", occupation: null }, { id: "n3", name: "Odo", occupation: null }],
       places: [{ id: "l1", name: "Thornkeep" }],
+      linkNames: new Map(),
+    });
+  });
+
+  describe("links", () => {
+    const AURIL = "00000000-0000-4000-8000-0000000000a1";
+    const RIVAL = "00000000-0000-4000-8000-0000000000a2";
+    const links = [
+      { kind: "deity", id: AURIL, relation: "serves" },
+      { kind: "faction", id: RIVAL, relation: "rival_of" },
+    ];
+    beforeEach(() => {
+      state.linkNames = new Map([[`deity:${AURIL}`, "Auril"], [`faction:${RIVAL}`, "The Guild"]]);
+    });
+
+    it("names each tie on the quote and hands the page's own pending ties to the workflow", async () => {
+      const adapter = useFactionAskAdapter();
+      const quote = adapter.quote(proposal({ links }));
+      expect(quote.lines.filter((l) => l.value === "Auril" || l.value === "The Guild").map((l) => [l.label, l.value])).toEqual([["Serves", "Auril"], ["Rival of", "The Guild"]]);
+      await adapter.run(proposal({ links }));
+      const options = mocks.generateAndCreateFaction.mock.calls[0][1];
+      expect(options.links.map((l: { kind: string; id: string; name: string; choice: { key: string } }) => [l.kind, l.id, l.name, l.choice.key])).toEqual([
+        ["deity", AURIL, "Auril", "serves"],
+        ["faction", RIVAL, "The Guild", "rival"],
+      ]);
+    });
+
+    // Bug caught: a link to a record that is not this campaign's was tied anyway.
+    it("ignores a tie whose record is not in this campaign", async () => {
+      state.linkNames = new Map([[`deity:${AURIL}`, "Auril"]]);
+      await useFactionAskAdapter().run(proposal({ links }));
+      expect(mocks.generateAndCreateFaction.mock.calls[0][1].links).toHaveLength(1);
+    });
+
+    // Bug caught: run before the records were read made the faction with no ties, silently.
+    it("waits for the records the ties name, and run makes nothing meanwhile", async () => {
+      state.linkNames = undefined;
+      const adapter = useFactionAskAdapter();
+      expect(adapter.quote(proposal({ links })).block).toMatchObject({ reason: "missing", message: "Still reading the records it is tied to." });
+      await adapter.run(proposal({ links }));
+      expect(mocks.generateAndCreateFaction).not.toHaveBeenCalled();
+    });
+
+    // Bug caught: a failed leader was also reported as a Connections part, or a failed tie hid behind the leader's part.
+    it("shows a failed tie as its own part, apart from the leader's and headquarters'", async () => {
+      mocks.generateAndCreateFaction.mockResolvedValue(saved({ leader: "failed", linkErrors: ["The leader could not be added: gone", "Auril: denied"] }));
+      const result = await useFactionAskAdapter().run(proposal({ links, leader_npc_id: "n1" }));
+      const connections = result.parts.find((p) => p.label === "Connections");
+      expect(connections).toMatchObject({ ok: false, error: "Some connections could not be added: Auril: denied" });
+      expect(result.record).toMatchObject({ id: "f1" });
+    });
+
+    it("adds no Connections part when only the leader failed", async () => {
+      mocks.generateAndCreateFaction.mockResolvedValue(saved({ leader: "failed", linkErrors: ["The leader could not be added: gone"] }));
+      const result = await useFactionAskAdapter().run(proposal({ leader_npc_id: "n1" }));
+      expect(result.parts.map((p) => p.label)).not.toContain("Connections");
     });
   });
 
@@ -81,7 +146,7 @@ describe("useFactionAskAdapter", () => {
     expect(mocks.generateAndCreateFaction.mock.calls[0][1]).toEqual({
       faction_type: "Guild", alignment: "Chaotic Neutral",
       leader_name: "Mara (Smith)", headquarters_name: "Thornkeep",
-      leaderNpcId: "n1", headquartersLocationId: "l1", generateImage: false,
+      leaderNpcId: "n1", headquartersLocationId: "l1", generateImage: false, links: [],
     });
   });
 
@@ -90,7 +155,7 @@ describe("useFactionAskAdapter", () => {
     expect(mocks.generateAndCreateFaction.mock.calls[0][1]).toEqual({
       faction_type: undefined, alignment: undefined,
       leader_name: "Odo", headquarters_name: "Nowhere Hall",
-      leaderNpcId: null, headquartersLocationId: null, generateImage: false,
+      leaderNpcId: null, headquartersLocationId: null, generateImage: false, links: [],
     });
   });
 

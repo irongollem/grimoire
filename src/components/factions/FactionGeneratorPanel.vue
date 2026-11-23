@@ -47,6 +47,8 @@
           placeholder="Search locations…"
         />
       </div>
+      <!-- Every other tie (a god they serve, a rival faction, an NPC who works for them) has no field of its own above. -->
+      <GeneratorLinksField v-model="links" subject-kind="faction" noun="this faction" />
     </template>
   </GeneratorPanelShell>
 
@@ -61,6 +63,7 @@ import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue"
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
+import GeneratorLinksField from "@/components/generators/GeneratorLinksField.vue";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useFactionQuote } from "@/composables/ai/quotes/factionQuote";
 import { useGenerateFaction } from "@/composables/factions/useGenerateFaction";
@@ -69,6 +72,7 @@ import { useFactionGeneration } from "@/ai/useFactionGeneration";
 import { FACTION_TYPES, FACTION_ALIGNMENTS } from "@/types/faction.types";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useLocationTree } from "@/composables/locations/useLocations";
+import type { GeneratorLink } from "@/lib/worldLinks/generatorLinks";
 
 const generatorsUi = useGeneratorUiStore();
 const router   = useRouter();
@@ -92,6 +96,7 @@ const constraints            = reactive({ faction_type: "", alignment: "" });
 const generateImage          = ref(true);
 const leaderNpcId            = ref("");
 const headquartersLocationId = ref("");
+const links                  = ref<GeneratorLink[]>([]);
 
 // The price Ask Grimoire quotes for the same run: the emblem counts when it is switched on.
 const quote = computed(() => quoteFaction({ image: generateImage.value }));
@@ -129,6 +134,7 @@ async function generateAndCreate() {
       headquarters_name: headquartersLocation.value?.name || undefined,
       leaderNpcId:            leaderNpcId.value || null,
       headquartersLocationId: headquartersLocationId.value || null,
+      links:                  links.value,
     });
   } catch (e) {
     if (gateQuotaError(e)) return;

@@ -6,7 +6,10 @@
  * sketch is the page's own extra switch and the contract does not offer it, so it is always off here.
  *
  * `keeper_npc_id` names an NPC who keeps the place (the Atlas shows them as its keeper); like `parent_id` it is looked up in
- * this campaign's own NPCs and ignored when it is not there. The page has no picker for a keeper: this link is Ask's alone.
+ * this campaign's own NPCs and ignored when it is not there. The page's panel has a keeper picker too.
+ *
+ * Every other tie goes through `links` (a faction that holds the place, a god worshipped there), looked up in this
+ * campaign by `useAskLinkRecords` and written by the workflow's `applyGeneratorLinks`, as the NPC adapter does.
  *
  * `parent_id` must name a place of this campaign: the id is looked up in the campaign's Atlas and ignored otherwise,
  * so the model cannot file a place under a row of another campaign. The Atlas is read only once a proposal names a
@@ -18,7 +21,9 @@ import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
 import { askFlag, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
-import { conceptBlock, failedRun, matchKey, picturePart, spent } from "@/ai/ask/adapters/askAdapterKit";
+import { askLinkLines, conceptBlock, failedRun, matchKey, picturePart, readAskLinks, resolveAskLinks, spent } from "@/ai/ask/adapters/askAdapterKit";
+import { useAskLinkRecords } from "@/ai/ask/adapters/askLinkRecords";
+import type { AskLink } from "@edge-shared/agent/askLinks";
 import { useCampaignStore } from "@/stores/campaign";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllLocations } from "@/composables/locations/useLocations";
@@ -51,6 +56,10 @@ export function useLocationAskAdapter(): AskAdapter {
   const { data: npcs } = useNpcs(() => keeperWanted.value);
   const keeperLoading = computed(() => keeperWanted.value && npcs.value === undefined);
 
+  // The records the ties name, read only once a proposal has some.
+  const wantedLinks = ref<AskLink[]>([]);
+  const linkRecords = useAskLinkRecords(() => wantedLinks.value);
+
   function understand(proposal: AskProposal) {
     const inputs = readAskInputs("location", proposal.inputs);
     const parentId = askString(inputs, "parent_id");
@@ -59,7 +68,14 @@ export function useLocationAskAdapter(): AskAdapter {
     const keeperId = askString(inputs, "keeper_npc_id");
     if (keeperId !== null) keeperWanted.value = true;
     const keeper = keeperId === null ? null : npcs.value?.find((n) => n.id === keeperId) ?? null;
+    const askedLinks = readAskLinks("location", proposal.inputs);
+    // Set only on a change, so reading a quote never re-triggers itself.
+    if (askedLinks.map((l) => `${l.kind}:${l.id}:${l.relation}`).join() !== wantedLinks.value.map((l) => `${l.kind}:${l.id}:${l.relation}`).join()) {
+      wantedLinks.value = askedLinks;
+    }
+    const links = linkRecords.names.value ? resolveAskLinks("location", askedLinks, linkRecords.names.value) : [];
     return {
+      links,
       keeper: keeper ? { id: keeper.id, name: keeper.name } : null,
       locationType: locationType(askString(inputs, "location_type")),
       parent: parent ? { id: parent.id, name: parent.name } : null,
@@ -76,6 +92,7 @@ export function useLocationAskAdapter(): AskAdapter {
     if (read.locationType) lines.push({ label: "Kind", value: LOCATION_TYPE_LABELS[read.locationType], credits: null });
     if (read.parent) lines.push({ label: "Inside", value: read.parent.name, credits: null });
     if (read.keeper) lines.push({ label: "Kept by", value: read.keeper.name, credits: null });
+    lines.push(...askLinkLines(read.links));
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
@@ -85,6 +102,7 @@ export function useLocationAskAdapter(): AskAdapter {
       block = { reason: "missing", message: "Still reading this campaign's places." };
     }
     if (!block && keeperLoading.value) block = { reason: "missing", message: "Still reading this campaign's NPCs." };
+    if (!block && linkRecords.loading.value) block = { reason: "missing", message: "Still reading the records it is tied to." };
     return { lines, total: priced.total, byok: priced.byok, block };
   }
 
@@ -103,6 +121,7 @@ export function useLocationAskAdapter(): AskAdapter {
         // Explicit either way: left out, the generator paints a scene. The map sketch is not Ask's to spend on.
         generateImage: read.image,
         generateMap: false,
+        links: read.links,
       });
     } catch (e) {
       const message = isQuotaExceeded(e)
@@ -121,6 +140,9 @@ export function useLocationAskAdapter(): AskAdapter {
         credits: spent(current.lines.find((l) => l.label === "Picture")),
         noun: "place",
       }));
+    }
+    if (outcome.linkErrors.length) {
+      parts.push({ label: "Connections", ok: false, credits: 0, error: `Some connections could not be added: ${outcome.linkErrors.join("; ")}` });
     }
     return { record: { type: "location", id, name: outcome.name }, route: placeRoute(id), parts };
   }

@@ -6,13 +6,19 @@
  * headquarters (a "based in" tie to an existing place). The faction is saved first; a leader or headquarters that
  * then fails to link is reported in the outcome and never undoes it, because the generation was already paid for. A
  * failed faction save throws, so the caller can say nothing was kept.
+ *
+ * Every other tie (a god they serve, a rival faction, an NPC who works for them) goes through `links`, written after
+ * the save by the page's own `applyGeneratorLinks`. The leader and headquarters keep their fields, so a link that
+ * repeats one of them (the leader as a member, the headquarters as "based in") is not written a second time.
  */
 import { useCreateFaction, useAddFactionNpc } from "@/composables/factions/useFactions";
 import { useCreateConnection } from "@/composables/connections/useConnections";
 import { useFactionGeneration, type FactionGenerationOptions } from "@/ai/useFactionGeneration";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
+import { useApplyGeneratorLinks } from "@/composables/worldLinks/useApplyGeneratorLinks";
 import { typeChoices } from "@/lib/worldLinks/connections";
+import { linksContextLine, type GeneratorLink } from "@/lib/worldLinks/generatorLinks";
 
 // The headquarters is a "based in" tie from the new faction to the place (#1084).
 const BASED_IN = (() => {
@@ -26,6 +32,8 @@ export interface GenerateFactionOptions extends FactionGenerationOptions {
   leaderNpcId?: string | null;
   /** An existing place the faction is based in. */
   headquartersLocationId?: string | null;
+  /** Any other ties to existing records, written after the faction is saved; a failure is a `linkErrors` entry. */
+  links?: readonly GeneratorLink[];
 }
 
 export type LinkState = "none" | "saved" | "failed";
@@ -44,6 +52,12 @@ export interface GenerateFactionOutcome {
   linkErrors: string[];
 }
 
+/** A tie the leader or headquarters field already writes: the same record under the same tie. */
+function repeatsOwnField(link: GeneratorLink, leaderNpcId: string | null | undefined, headquartersLocationId: string | null | undefined): boolean {
+  if (link.kind === "npc" && link.id === leaderNpcId && link.choice.key === "member_of") return true;
+  return link.kind === "location" && link.id === headquartersLocationId && link.choice.key === BASED_IN.key && link.choice.subjectIsFrom === BASED_IN.subjectIsFrom;
+}
+
 function reason(e: unknown): string {
   return e instanceof Error ? e.message : "unknown error";
 }
@@ -52,6 +66,7 @@ export function useGenerateFaction() {
   const { mutateAsync: createFaction } = useCreateFaction();
   const { mutateAsync: addFactionNpc } = useAddFactionNpc();
   const { mutateAsync: createConnection } = useCreateConnection();
+  const { applyGeneratorLinks } = useApplyGeneratorLinks();
   const { generate, error: genError } = useFactionGeneration();
 
   async function generateAndCreateFaction(concept: string, options: GenerateFactionOptions = {}): Promise<GenerateFactionOutcome> {
@@ -60,8 +75,10 @@ export function useGenerateFaction() {
     );
     if (isAnyAiGenerating.value) return nothing("Another AI generation is already in progress.");
 
-    const { leaderNpcId, headquartersLocationId, ...generationOptions } = options;
-    const result = await generate(concept, generationOptions);
+    const { leaderNpcId, headquartersLocationId, links = [], ...generationOptions } = options;
+    // The generation options carry no free-form context, so the ties are said to the model after the concept.
+    const ties = linksContextLine(links);
+    const result = await generate(ties ? `${concept}\n${ties}` : concept, generationOptions);
     if (!result) return nothing(genError.value ?? "Faction generation failed.");
 
     const faction = await createFaction({
@@ -90,6 +107,8 @@ export function useGenerateFaction() {
     const linkErrors: string[] = [];
     if (leader.status === "rejected") linkErrors.push(`The leader could not be added: ${reason(leader.reason)}`);
     if (headquarters.status === "rejected") linkErrors.push(`The headquarters could not be set: ${reason(headquarters.reason)}`);
+    const otherLinks = links.filter((link) => !repeatsOwnField(link, leaderNpcId, headquartersLocationId));
+    linkErrors.push(...await applyGeneratorLinks({ kind: "faction", id: faction.id }, otherLinks, faction.campaign_id));
 
     const asked = generationOptions.generateImage !== false;
     return {

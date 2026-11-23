@@ -11,6 +11,9 @@
  * the description and never link (a name is not an identity: two NPCs share one). The campaign's NPCs and places are
  * read only once a proposal names one, because this adapter lives as long as the panel.
  *
+ * Every other tie goes through `links` (a god they serve, a rival faction, an NPC who works for them), read and
+ * written as the NPC adapter does.
+ *
  * The faction is saved before its ties and its emblem are judged. A leader or headquarters that fails to link is its
  * own failed part and never undoes the faction; a failed emblem is a failed part with no retry, because no paint flow
  * exists for a faction's emblem.
@@ -20,7 +23,9 @@ import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
 import { askFlag, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
-import { conceptBlock, failedRun, picturePart, spent } from "@/ai/ask/adapters/askAdapterKit";
+import { askLinkLines, conceptBlock, failedRun, picturePart, readAskLinks, resolveAskLinks, spent } from "@/ai/ask/adapters/askAdapterKit";
+import { useAskLinkRecords } from "@/ai/ask/adapters/askLinkRecords";
+import type { AskLink } from "@edge-shared/agent/askLinks";
 import { useCampaignStore } from "@/stores/campaign";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllLocations } from "@/composables/locations/useLocations";
@@ -46,12 +51,23 @@ export function useFactionAskAdapter(): AskAdapter {
   const { data: locations } = useAllLocations(() => lookupsWanted.value);
   const lookupsLoading = computed(() => lookupsWanted.value && (npcs.value === undefined || locations.value === undefined));
 
+  // The records the ties name, read only once a proposal has some.
+  const wantedLinks = ref<AskLink[]>([]);
+  const linkRecords = useAskLinkRecords(() => wantedLinks.value);
+
   function understand(proposal: AskProposal) {
     const inputs = readAskInputs("faction", proposal.inputs);
     const leaderId = askString(inputs, "leader_npc_id");
     const headquartersId = askString(inputs, "headquarters_id");
     if (leaderId !== null || headquartersId !== null) lookupsWanted.value = true;
+    const askedLinks = readAskLinks("faction", proposal.inputs);
+    // Set only on a change, so reading a quote never re-triggers itself.
+    if (askedLinks.map((l) => `${l.kind}:${l.id}:${l.relation}`).join() !== wantedLinks.value.map((l) => `${l.kind}:${l.id}:${l.relation}`).join()) {
+      wantedLinks.value = askedLinks;
+    }
+    const links = linkRecords.names.value ? resolveAskLinks("faction", askedLinks, linkRecords.names.value) : [];
     return {
+      links,
       factionType: canonical(askString(inputs, "faction_type"), FACTION_TYPES),
       alignment: canonical(askString(inputs, "alignment"), FACTION_ALIGNMENTS),
       leaderName: askString(inputs, "leader_name"),
@@ -74,6 +90,7 @@ export function useFactionAskAdapter(): AskAdapter {
     else if (read.leaderName) lines.push({ label: "Leader", value: `${read.leaderName}, named only`, credits: null });
     if (read.headquarters) lines.push({ label: "Headquarters", value: `${read.headquarters.name}, from your Atlas`, credits: null });
     else if (read.headquartersName) lines.push({ label: "Headquarters", value: `${read.headquartersName}, named only`, credits: null });
+    lines.push(...askLinkLines(read.links));
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Emblem", value: "None", credits: null });
@@ -81,6 +98,9 @@ export function useFactionAskAdapter(): AskAdapter {
     let block = blockFor({ total: priced.total, byok: priced.byok }) ?? conceptBlock(read.concept, "faction");
     if (!block && lookupsLoading.value) {
       block = { reason: "missing", message: "Still reading this campaign's NPCs and places." };
+    }
+    if (!block && linkRecords.loading.value) {
+      block = { reason: "missing", message: "Still reading the records it is tied to." };
     }
     return { lines, total: priced.total, byok: priced.byok, block };
   }
@@ -101,6 +121,7 @@ export function useFactionAskAdapter(): AskAdapter {
         headquarters_name: read.headquarters ? read.headquarters.name : read.headquartersName ?? undefined,
         leaderNpcId: read.leader?.id ?? null,
         headquartersLocationId: read.headquarters?.id ?? null,
+        links: read.links,
         // Explicit either way: left out, the generator paints an emblem.
         generateImage: read.image,
       });
@@ -132,6 +153,11 @@ export function useFactionAskAdapter(): AskAdapter {
       parts.push(outcome.headquarters === "saved"
         ? { label: "Headquarters", ok: true, credits: 0 }
         : { label: "Headquarters", ok: false, credits: 0, error: outcome.linkErrors.find((m) => m.startsWith("The headquarters")) ?? "The headquarters could not be set." });
+    }
+    // Every other tie in one part: the leader and headquarters have their own above, so they are not named twice.
+    const otherErrors = outcome.linkErrors.filter((m) => !m.startsWith("The leader") && !m.startsWith("The headquarters"));
+    if (otherErrors.length) {
+      parts.push({ label: "Connections", ok: false, credits: 0, error: `Some connections could not be added: ${otherErrors.join("; ")}` });
     }
     return { record: { type: "faction", id, name: outcome.name }, route: `/factions/${id}`, parts };
   }

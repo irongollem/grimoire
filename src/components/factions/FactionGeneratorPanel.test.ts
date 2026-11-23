@@ -2,6 +2,7 @@ import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import FactionGeneratorPanel from "./FactionGeneratorPanel.vue";
+import { typeChoices } from "@/lib/worldLinks/connections";
 import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 
 const mocks = vi.hoisted(() => ({
@@ -10,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   addFactionNpc: vi.fn(),
   createConnection: vi.fn(),
+  createConnectionIn: vi.fn(),
   ui: { factionGeneratorOpen: true },
   npcs: [] as { id: string; name: string; occupation: string | null }[],
   places: [] as { id: string; name: string; depth: number }[],
@@ -41,6 +43,7 @@ vi.mock("@/composables/factions/useFactions", () => ({
 }));
 vi.mock("@/composables/connections/useConnections", () => ({
   useCreateConnection: () => ({ mutateAsync: mocks.createConnection }),
+  useCreateConnectionInCampaign: () => ({ mutateAsync: mocks.createConnectionIn }),
 }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: ref(mocks.npcs) }) }));
 vi.mock("@/composables/locations/useLocations", () => ({ useLocationTree: () => ({ locationOptions: ref(mocks.places) }) }));
@@ -157,6 +160,7 @@ describe("FactionGeneratorPanel — generate and create", () => {
     mocks.generate.mockReset().mockResolvedValue(generated);
     mocks.addFactionNpc.mockReset();
     mocks.createConnection.mockReset();
+    mocks.createConnectionIn.mockReset().mockResolvedValue(undefined);
     mocks.push.mockReset();
     mocks.ui.factionGeneratorOpen = true;
     campaignState.isAiEnabled = true;
@@ -229,5 +233,21 @@ describe("FactionGeneratorPanel — generate and create", () => {
     expect(w.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
     expect(mocks.addFactionNpc).not.toHaveBeenCalled();
     expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: ties chosen under "Tie it to…" lived in the panel but the faction was saved without them.
+  it("writes a tie chosen in the Ties field to the new faction, and tells the model about it", async () => {
+    mocks.createFaction.mockResolvedValue({ id: "f1", campaign_id: "campaign-1" });
+    const w = mountPanel();
+    await w.get("textarea").setValue("A guild");
+    const serves = typeChoices("faction", "deity").find((c) => c.key === "serves")!;
+    w.findComponent({ name: "GeneratorLinksField" }).vm.$emit("update:modelValue", [{ kind: "deity", id: "d1", name: "Auril", choice: serves }]);
+    await w.vm.$nextTick();
+    await generate(w);
+    expect(mocks.createConnectionIn).toHaveBeenCalledWith({
+      input: { subject: { kind: "faction", id: "f1" }, other: { kind: "deity", id: "d1", name: "Auril" }, choice: serves },
+      campaignId: "campaign-1",
+    });
+    expect(mocks.generate.mock.calls[0][0]).toContain("Ties: serves Auril");
   });
 });

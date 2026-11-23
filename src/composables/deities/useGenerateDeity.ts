@@ -7,11 +7,16 @@
  *
  * A deity is two writes: the row, then the DM's private note holding its secrets. The deity exists once the first
  * succeeds, so a failed note is reported (`notesFailure`) and never throws: a retry must not make a second deity.
+ *
+ * Ties other than the pantheon (a faction that serves them, a holy place, a relic) go through `links`, written after
+ * the save by the page's own `applyGeneratorLinks`; they ride on the draft so a retried save still writes them.
  */
 import { useCreateDeity } from "@/composables/deities/useDeities";
 import { useCreateEntityNote } from "@/composables/notes/useEntityNotes";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
 import { useDeityGeneration } from "@/ai/useDeityGeneration";
+import { useApplyGeneratorLinks } from "@/composables/worldLinks/useApplyGeneratorLinks";
+import { linksContextLine, type GeneratorLink } from "@/lib/worldLinks/generatorLinks";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import type { DeityAiGenerated } from "@/lib/deities/deityAi";
@@ -25,6 +30,8 @@ export interface DeityGenerateInput {
   alignment?: string;
   primaryDomain?: string;
   generateImage: boolean;
+  /** Ties to existing records, written after the deity is saved. */
+  links?: readonly GeneratorLink[];
 }
 
 /** A generated deity with the choices it was generated under, so a retried save files it where it was meant to go. */
@@ -32,6 +39,7 @@ export interface DeityDraft {
   result: DeityAiGenerated;
   pantheonId: string | null;
   alignment: string | null;
+  links: readonly GeneratorLink[];
 }
 
 export interface SavedDeity {
@@ -40,6 +48,8 @@ export interface SavedDeity {
   campaignId: string;
   /** Set when the secrets note could not be written; the deity itself is saved. */
   notesFailure: unknown;
+  /** One sentence per tie that could not be written; the deity is saved either way. */
+  linkErrors: string[];
 }
 
 export interface GenerateDeityOutcome {
@@ -54,6 +64,7 @@ export function useGenerateDeity() {
   const { mutateAsync: createDeity } = useCreateDeity();
   const { mutateAsync: createNote } = useCreateEntityNote();
   const { logImageGeneration } = useImageGenerationLog();
+  const { applyGeneratorLinks } = useApplyGeneratorLinks();
   const generation = useDeityGeneration();
 
   /** Generates the draft; null when it failed (`generation.error` says why). Nothing is saved. */
@@ -65,7 +76,10 @@ export function useGenerateDeity() {
           .filter((d) => d.pantheon_id === input.pantheon?.id)
           .map((d) => ({ name: d.name, portfolio: d.portfolio }))
       : undefined;
-    const result = await generation.generate(concept, {
+    const links = input.links ?? [];
+    // The generation options carry no free-form context, so the ties are said to the model after the concept.
+    const ties = linksContextLine(links);
+    const result = await generation.generate(ties ? `${concept}\n${ties}` : concept, {
       pantheonName: input.pantheon?.name,
       pantheonDeities: siblings,
       alignment: input.alignment,
@@ -73,7 +87,7 @@ export function useGenerateDeity() {
       generateImage: input.generateImage,
     });
     if (!result) return null;
-    return { result, pantheonId: input.pantheon?.id ?? null, alignment: input.alignment ?? null };
+    return { result, pantheonId: input.pantheon?.id ?? null, alignment: input.alignment ?? null, links };
   }
 
   /** Writes the deity and its secrets note. Throws if the deity row cannot be written. */
@@ -115,6 +129,8 @@ export function useGenerateDeity() {
       }
     }
 
+    const linkErrors = await applyGeneratorLinks({ kind: "deity", id: created.id }, draft.links, created.campaign_id);
+
     // Log the portrait to the Gallery, linked back to the new deity.
     if (result.portrait_url) {
       void logImageGeneration({
@@ -122,7 +138,7 @@ export function useGenerateDeity() {
         targetId: created.id, targetColumn: "portrait_url",
       });
     }
-    return { id: created.id, name: result.name, campaignId: created.campaign_id, notesFailure };
+    return { id: created.id, name: result.name, campaignId: created.campaign_id, notesFailure, linkErrors };
   }
 
   /** Generate then save. Checks `isAnyAiGenerating` first: `generate` returns null silently on it. */

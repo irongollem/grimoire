@@ -24,6 +24,14 @@
           block
         />
       </div>
+      <div>
+        <label class="block text-caption text-muted-foreground mb-1">Place</label>
+        <EntityCombobox
+          v-model="locationId"
+          :options="locationOptions"
+          placeholder="Search locations…"
+        />
+      </div>
     </template>
 
     <template v-if="result" #results>
@@ -164,6 +172,7 @@ import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue"
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import { useLocationTree } from "@/composables/locations/useLocations";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import {
@@ -215,7 +224,11 @@ const quote = computed(() => quoteEncounter());
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("encounters");
 
+// Mounted on every DM page: the place tree is read only while the panel is open.
+const { locationOptions } = useLocationTree(() => generatorsUi.encounterGeneratorOpen);
 const concept = ref("");
+// The place the encounter is set in (`encounters.location_id`), where the Atlas then lists it.
+const locationId = ref("");
 const difficulty = ref<EncounterDifficultyOption>("auto");
 
 const creating = ref(false);
@@ -302,6 +315,7 @@ async function createEncounterFromResult() {
       result.value,
       finalMatches.value.map((m) => m.def),
       resolved.value.unmatched,
+      locationId.value || null,
     );
     createdEncounterId.value = encounter.id;
     completedEntityId.value = encounter.id;

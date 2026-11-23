@@ -42,6 +42,8 @@
           </AppSelect>
         </div>
       </div>
+      <!-- Every other tie (a faction that serves them, a holy place, a relic) has no field of its own above. -->
+      <GeneratorLinksField v-model="links" subject-kind="deity" noun="this deity" />
     </template>
   </GeneratorPanelShell>
 
@@ -58,12 +60,14 @@ import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue"
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
+import GeneratorLinksField from "@/components/generators/GeneratorLinksField.vue";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useDeityQuote } from "@/composables/ai/quotes/deityQuote";
 import { useGenerateDeity, type DeityDraft } from "@/composables/deities/useGenerateDeity";
 import { CLERIC_DOMAINS, DEITY_ALIGNMENTS } from "@/types/deity.types";
+import type { GeneratorLink } from "@/lib/worldLinks/generatorLinks";
 
 const generatorsUi = useGeneratorUiStore();
 const router   = useRouter();
@@ -87,6 +91,7 @@ const concept       = ref("");
 const constraints   = reactive({ alignment: "", primaryDomain: "" });
 const generateImage = ref(true);
 const pantheonId    = ref("");
+const links         = ref<GeneratorLink[]>([]);
 
 const pantheonOptions = computed(() =>
   (pantheons.value ?? []).map((p) => ({ id: p.id, name: p.name })),
@@ -115,6 +120,7 @@ async function generateAndCreate() {
     alignment: constraints.alignment || undefined,
     primaryDomain: constraints.primaryDomain || undefined,
     generateImage: generateImage.value,
+    links: links.value,
   });
   if (!draft) return;
 
@@ -131,6 +137,10 @@ async function save(draft: DeityDraft) {
       // create a second deity: report it and carry on.
       if (saved.notesFailure) {
         toast.error(`The deity was created, but its DM notes were not saved. ${toast.fromError(saved.notesFailure)}`);
+      }
+      // The same for a tie that did not write: the deity is there, and a retry must not make a second one.
+      if (saved.linkErrors.length) {
+        toast.error(`The deity was created, but some connections could not be added: ${saved.linkErrors.join("; ")}`);
       }
       return saved;
     } catch (e) {
