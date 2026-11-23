@@ -78,10 +78,20 @@ describe("useRecipeAskAdapter", () => {
 
   it("passes only an understood discipline, with the campaign's items to match the output against", async () => {
     await useRecipeAskAdapter().run(proposal({ discipline: "alchemy", system_prompt: "x" }));
-    expect(mocks.gen).toHaveBeenCalledWith("A smoky draught", { discipline: "alchemy", items: ITEMS });
+    expect(mocks.gen).toHaveBeenCalledWith("A smoky draught", { discipline: "alchemy", items: ITEMS, output: null });
     mocks.gen.mockClear();
     await useRecipeAskAdapter().run(proposal({ discipline: "juggling" }));
-    expect(mocks.gen).toHaveBeenCalledWith("A smoky draught", { discipline: undefined, items: ITEMS });
+    expect(mocks.gen).toHaveBeenCalledWith("A smoky draught", { discipline: undefined, items: ITEMS, output: null });
+  });
+
+  it("makes the item named by id, shows it in the quote, and ignores an id the campaign's items lack", async () => {
+    const adapter = useRecipeAskAdapter();
+    expect(adapter.quote(proposal({ output_item_id: "i1" })).lines.find((l) => l.label === "Makes")?.value).toBe("Healing Potion");
+    await adapter.run(proposal({ output_item_id: "i1" }));
+    expect(mocks.gen.mock.calls[0][1].output).toEqual(ITEMS[0]);
+    mocks.gen.mockClear();
+    await adapter.run(proposal({ output_item_id: "other-campaign" }));
+    expect(mocks.gen.mock.calls[0][1].output).toBeNull();
   });
 
   it("a successful run names the recipe and opens it where the page does", async () => {

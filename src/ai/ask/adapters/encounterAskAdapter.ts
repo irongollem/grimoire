@@ -6,9 +6,14 @@
  * the resolve-and-create step the page calls. The page's version picker for a creature that exists in several
  * sourcebooks is not part of Ask: the encounter takes the resolver's pick and the DM can swap it in the editor.
  *
+ * `location_id` sets the encounter in a place of this campaign (the Atlas lists an encounter at its place). The page has
+ * no picker for it; Ask can name one, looked up in the campaign's own Atlas and ignored when it is not there. The Atlas
+ * is read only once a proposal names a place, because this adapter lives as long as the panel.
+ *
  * A creature the Bestiary does not have is not a failure of the run: the encounter is saved and its description lists
  * the creatures to add by hand, which the result says in its own part.
  */
+import { computed, ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskQuoteLine, AskRunResult } from "@/lib/ask/askAdapter";
 import { conceptBlock, failedRun, spent } from "@/ai/ask/adapters/askAdapterKit";
@@ -16,6 +21,7 @@ import { askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 import { useEncounterQuote } from "@/composables/ai/quotes/encounterQuote";
+import { useAllLocations } from "@/composables/locations/useLocations";
 import { useGenerateEncounter } from "@/composables/encounters/useGenerateEncounter";
 import { isQuotaExceeded } from "@/lib/quotaError";
 
@@ -24,10 +30,17 @@ export function useEncounterAskAdapter(): AskAdapter {
   const { blockFor } = useAskGate("encounters", "encounter");
   const { generateAndCreateEncounter } = useGenerateEncounter();
 
+  const lookupsWanted = ref(false);
+  const { data: locations } = useAllLocations(() => lookupsWanted.value);
+  const lookupsLoading = computed(() => lookupsWanted.value && locations.value === undefined);
+
   function understand(proposal: AskProposal) {
     const inputs = readAskInputs("encounter", proposal.inputs);
     const said = askString(inputs, "difficulty");
+    const locationId = askString(inputs, "location_id");
+    if (locationId !== null) lookupsWanted.value = true;
     return {
+      location: locationId === null ? null : locations.value?.find((l) => l.id === locationId) ?? null,
       // The page's own default: the server resolves "auto" from the party.
       difficulty: said === null ? "auto" : said,
       concept: proposal.concept.trim(),
@@ -38,10 +51,13 @@ export function useEncounterAskAdapter(): AskAdapter {
     const read = understand(proposal);
     const priced = quoteEncounter();
 
-    const lines: AskQuoteLine[] = [{ label: "Difficulty", value: read.difficulty, credits: null }, ...priced.lines];
+    const lines: AskQuoteLine[] = [{ label: "Difficulty", value: read.difficulty, credits: null }];
+    if (read.location) lines.push({ label: "In", value: read.location.name, credits: null });
+    lines.push(...priced.lines);
 
     let block = blockFor({ total: priced.total, byok: priced.byok, fiveE: true });
     block = block ?? conceptBlock(read.concept, "encounter", { empty: "Say what this encounter is first.", limit: AI_PROMPT_LIMIT_SHORT });
+    if (!block && lookupsLoading.value) block = { reason: "missing", message: "Still reading this campaign's places." };
     return { lines, total: priced.total, byok: priced.byok, block };
   }
 
@@ -53,7 +69,7 @@ export function useEncounterAskAdapter(): AskAdapter {
 
     let outcome;
     try {
-      outcome = await generateAndCreateEncounter(read.concept, { difficulty: read.difficulty });
+      outcome = await generateAndCreateEncounter(read.concept, { difficulty: read.difficulty, locationId: read.location?.id ?? null });
     } catch (e) {
       const message = isQuotaExceeded(e)
         ? "You have reached your limit of encounters on this plan."

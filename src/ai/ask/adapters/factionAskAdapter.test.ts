@@ -71,13 +71,13 @@ describe("useFactionAskAdapter", () => {
     expect(useFactionAskAdapter().quote(proposal({}, "")).block?.reason).toBe("missing");
   });
 
-  it("waits for the NPCs and places before it quotes a named leader", () => {
+  it("waits for the NPCs and places before it quotes a leader named by id", () => {
     state.npcs = undefined;
-    expect(useFactionAskAdapter().quote(proposal({ leader_name: "Mara" })).block).toMatchObject({ reason: "missing" });
+    expect(useFactionAskAdapter().quote(proposal({ leader_npc_id: "n1" })).block).toMatchObject({ reason: "missing" });
   });
 
-  it("links a leader and a headquarters only when the name is exactly one record, worded as the page words them", async () => {
-    await useFactionAskAdapter().run(proposal({ leader_name: "mara", headquarters_name: "Thornkeep", faction_type: "guild", alignment: "chaotic neutral" }));
+  it("links the leader and the headquarters it is given by id, worded as the page words them", async () => {
+    await useFactionAskAdapter().run(proposal({ leader_npc_id: "n1", headquarters_id: "l1", faction_type: "guild", alignment: "chaotic neutral" }));
     expect(mocks.generateAndCreateFaction.mock.calls[0][1]).toEqual({
       faction_type: "Guild", alignment: "Chaotic Neutral",
       leader_name: "Mara (Smith)", headquarters_name: "Thornkeep",
@@ -85,13 +85,21 @@ describe("useFactionAskAdapter", () => {
     });
   });
 
-  it("never links an ambiguous or unknown name, and still tells the generator the name as a constraint", async () => {
-    await useFactionAskAdapter().run(proposal({ leader_name: "Odo", headquarters_name: "Nowhere Hall", system_prompt: "x" }));
+  it("never links a name, or an id this campaign lacks, and still tells the generator the name as a constraint", async () => {
+    await useFactionAskAdapter().run(proposal({ leader_name: "Odo", headquarters_name: "Nowhere Hall", headquarters_id: "other-campaign", system_prompt: "x" }));
     expect(mocks.generateAndCreateFaction.mock.calls[0][1]).toEqual({
       faction_type: undefined, alignment: undefined,
       leader_name: "Odo", headquarters_name: "Nowhere Hall",
       leaderNpcId: null, headquartersLocationId: null, generateImage: false,
     });
+  });
+
+  it("names the linked leader and headquarters in the quote, and a bare name as named only", () => {
+    const linked = useFactionAskAdapter().quote(proposal({ leader_npc_id: "n1", headquarters_id: "l1" })).lines;
+    expect(linked.find((l) => l.label === "Leader")?.value).toBe("Mara, from your NPCs");
+    expect(linked.find((l) => l.label === "Headquarters")?.value).toBe("Thornkeep, from your Atlas");
+    const named = useFactionAskAdapter().quote(proposal({ leader_name: "Odo" })).lines;
+    expect(named.find((l) => l.label === "Leader")?.value).toBe("Odo, named only");
   });
 
   it("a blocked run spends nothing: the workflow is never called", async () => {
@@ -104,7 +112,7 @@ describe("useFactionAskAdapter", () => {
     mocks.generateAndCreateFaction.mockResolvedValue(saved({
       leader: "failed", headquarters: "saved", linkErrors: ["The leader could not be added: npc gone"],
     }));
-    const result = await useFactionAskAdapter().run(proposal({ leader_name: "Mara", headquarters_name: "Thornkeep" }));
+    const result = await useFactionAskAdapter().run(proposal({ leader_npc_id: "n1", headquarters_id: "l1" }));
     expect(result).toMatchObject({ record: { type: "faction", id: "f1", name: "The Ravens" }, route: "/factions/f1" });
     expect(result.parts.map((p) => [p.label, p.ok])).toEqual([["Faction", true], ["Leader", false], ["Headquarters", true]]);
     expect(result.parts[1].error).toContain("npc gone");

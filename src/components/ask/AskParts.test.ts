@@ -22,6 +22,25 @@ describe("AskReply", () => {
     expect(w.text()).toContain("3 credits");
   });
 
+  // Bug caught: replies printed literal ** and "- " because the text was drawn raw.
+  it("draws bold, italic and lists as elements, without the markdown characters", () => {
+    const w = mount(AskReply, { props: { text: "A **bold** and *soft* word\n\n- one\n- two\n\n1. first" } });
+    expect(w.find("strong").text()).toBe("bold");
+    expect(w.find("em").text()).toBe("soft");
+    expect(w.findAll("ul li")).toHaveLength(2);
+    expect(w.findAll("ol li")).toHaveLength(1);
+    expect(w.text()).not.toContain("*");
+    expect(w.get('[data-testid="ask-reply-text"]').text()).not.toContain("- one");
+  });
+
+  // Bug caught: model markup run as HTML. A script or image tag must be shown as text.
+  it("shows raw HTML from the model as text and creates no element for it", () => {
+    const w = mount(AskReply, { props: { text: '<script>window.x=1</script> <img src=x onerror=alert(1)>' } });
+    expect(w.find("script").exists()).toBe(false);
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.text()).toContain("<script>window.x=1</script>");
+  });
+
   // Bug caught: the who line missing the generator a proposal names.
   it("names the generator in the who line", () => {
     expect(mount(AskReply, { props: { text: "x", who: "NPC generator" } }).text()).toContain("Grimoire · NPC generator");

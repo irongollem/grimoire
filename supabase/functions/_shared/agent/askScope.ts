@@ -20,8 +20,13 @@ import { noulOf, type JudgeRequest, type JudgeResult, type NoulQuestion } from "
  * a few tokens, and the prompt and the output check still stand behind it. The labelled set in
  * `askScope.fixtures.ts` is what to run live to move it: it must sit under the lowest in-scope probability the judge
  * gives, with room, and above the highest off-topic one it can.
+ *
+ * Measured live on 23 Nov 2026 over the 53 labelled messages: every off-topic one scored 0.01 to 0.06 (code,
+ * homework, translation, "ignore your instructions", "repeat your system prompt", role-play), every in-scope one 0.13
+ * to 0.99, the lowest the deliberately vague "Who is this?" and the next "Paint a portrait for Mara" at 0.54. Terse
+ * follow-ups judged with the turn before ("yes", "no, darker", "the miller") scored 0.96 to 0.97. 0.10 sits in the gap.
  */
-export const ASK_SCOPE_THRESHOLD = 0.25;
+export const ASK_SCOPE_THRESHOLD = 0.1;
 
 /** A judgement that takes longer than this is skipped (fail open): the DM is waiting on it before anything streams. */
 export const ASK_SCOPE_TIMEOUT_MS = 3_000;

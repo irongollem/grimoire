@@ -8,8 +8,8 @@ import { isAskRecordType } from "./askBody.ts";
 import { isRecord } from "./parse.ts";
 import type { AgentMessage } from "./types.ts";
 
-/** The tool answers that name records. `campaign_overview` is a digest, not a record. */
-const READERS = new Set(["search", "get", "list", "find"]);
+/** The tool answers that name records. `campaign_overview` is a digest, but the party, active quests and recent notes it lists are records the model has seen by id and name. */
+const READERS = new Set(["search", "get", "list", "find", "campaign_overview"]);
 
 /** `bindTools` cuts a long answer and appends a notice; what came before the notice is still JSON up to the cut. */
 function parseAnswer(content: string): unknown {
@@ -39,6 +39,21 @@ function refsOfList(list: unknown): AskRecordRef[] {
   return out;
 }
 
+/**
+ * An overview's rows carry no `type`: the list they sit in says it. Without them a canon idea that rests on "the active
+ * quest" read through the overview lost its refs and was shown as a new idea.
+ */
+function refsOfTypedList(type: AskRecordType, list: unknown, nameField: "name" | "title"): AskRecordRef[] {
+  if (!Array.isArray(list)) return [];
+  const out: AskRecordRef[] = [];
+  for (const row of list) {
+    if (!isRecord(row)) continue;
+    const ref = refOf(type, row.id, row[nameField]);
+    if (ref) out.push(ref);
+  }
+  return out;
+}
+
 /** The records a reading tool's answer named. A failed call, an unknown tool or an answer that is not JSON names none. */
 export function recordsRead(tool: string, input: Record<string, unknown>, answer: { content: string; isError: boolean }): AskRecordRef[] {
   if (answer.isError || !READERS.has(tool)) return [];
@@ -50,6 +65,12 @@ export function recordsRead(tool: string, input: Record<string, unknown>, answer
       return refsOfList(parsed.hits);
     case "list":
       return refsOfList(parsed.items);
+    case "campaign_overview":
+      return [
+        ...refsOfTypedList("party_member", parsed.party, "name"),
+        ...refsOfTypedList("quest", parsed.active_quests, "title"),
+        ...refsOfTypedList("note", parsed.recent_notes, "title"),
+      ];
     case "get": {
       // A whole row: its kind is what was asked for, and its name is `name` or `title` by the kind.
       const ref = refOf(input.type, parsed.id, parsed.name ?? parsed.title);

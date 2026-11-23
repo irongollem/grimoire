@@ -13,6 +13,8 @@ const state = vi.hoisted(() => ({
   offersStatBlocks: true,
   locations: undefined as { id: string; name: string }[] | undefined,
   factions: undefined as { id: string; name: string }[] | undefined,
+  npcs: undefined as { id: string; name: string; born_year?: number | null }[] | undefined,
+  party: undefined as { id: string; name: string; born_year?: number | null }[] | undefined,
 }));
 
 vi.mock("@/stores/campaign", () => ({
@@ -39,6 +41,12 @@ vi.mock("@/composables/locations/useLocations", () => ({
 }));
 vi.mock("@/composables/factions/useFactions", () => ({
   useAllFactions: () => ({ data: { get value() { return state.factions; } } }),
+}));
+vi.mock("@/composables/npcs/useNpcs", () => ({
+  useNpcs: () => ({ data: { get value() { return state.npcs; } } }),
+}));
+vi.mock("@/composables/party/useParty", () => ({
+  useParty: () => ({ data: { get value() { return state.party; } } }),
 }));
 vi.mock("@/ai/useMissingPortrait", () => ({
   useMissingPortrait: () => ({ paint: mocks.paint, cost: ref(10), error: ref(null) }),
@@ -69,6 +77,8 @@ describe("useNpcAskAdapter", () => {
     state.offersStatBlocks = true;
     state.locations = [{ id: "l1", name: "Harrow" }];
     state.factions = [{ id: "f1", name: "Guild" }];
+    state.npcs = [{ id: "n-smuggler", name: "Perf Smuggler", born_year: 1450 }, { id: "n-odo", name: "Odo", born_year: 1440 }];
+    state.party = [{ id: "pc-thorne", name: "Thorne" }];
     mocks.generateAndCreateNpc.mockResolvedValue(saved());
   });
 
@@ -181,5 +191,85 @@ describe("useNpcAskAdapter", () => {
     mocks.generateAndCreateNpc.mockResolvedValue({ ...saved(), id: null, name: null, error: null, stage: "generate" });
     const result = await useNpcAskAdapter().run(proposal({ alter_ego: true }));
     expect(result.parts[0].error).toMatch(/likeness/i);
+  });
+
+  describe("linking to what the campaign already has", () => {
+    const UUID_N = "n-smuggler";
+    const request = () => mocks.generateAndCreateNpc.mock.calls[0][0];
+
+    it("reads a family word onto the page's kin field with the related NPC, never the bond field", async () => {
+      await useNpcAskAdapter().run(proposal({ related_npc_id: UUID_N, relation: "sibling" }));
+      expect(request().form).toMatchObject({ related_npc_id: UUID_N, related_npc_kin: "sibling", related_pc_id: null });
+      expect(request().associate).toBeNull();
+    });
+
+    it("reads a bond word onto the page's tie field in the new NPC's direction, and hands the associate to the workflow", async () => {
+      await useNpcAskAdapter().run(proposal({ related_npc_id: UUID_N, relation: "betrayed_by" }));
+      expect(request().form.related_npc_kin).toBeNull();
+      expect(request().form.related_npc_tie).toMatchObject({ key: "betrayed", subjectIsFrom: false });
+      expect(request().associate).toEqual({ id: UUID_N, name: "Perf Smuggler" });
+    });
+
+    it("ties a related person named with no relation as a contact, the page's own default, instead of dropping them", async () => {
+      await useNpcAskAdapter().run(proposal({ related_npc_id: UUID_N }));
+      expect(request().form.related_npc_tie).toMatchObject({ key: "contact" });
+      expect(request().associate).toEqual({ id: UUID_N, name: "Perf Smuggler" });
+    });
+
+    it("puts a party member on the PC field, with the second parent only for a child", async () => {
+      await useNpcAskAdapter().run(proposal({ related_pc_id: "pc-thorne", relation: "child", second_parent_id: "n-odo" }));
+      expect(request().form).toMatchObject({ related_pc_id: "pc-thorne", related_npc_id: null, related_npc_kin: "child", second_parent: "npc:n-odo" });
+    });
+
+    it("ignores a second parent when the NPC is not a child", async () => {
+      await useNpcAskAdapter().run(proposal({ related_npc_id: UUID_N, relation: "sibling", second_parent_id: "n-odo" }));
+      expect(request().form.second_parent).toBeNull();
+    });
+
+    it("ignores an id this campaign does not have: nothing reaches the workflow and the quote names no link", async () => {
+      const adapter = useNpcAskAdapter();
+      const quote = adapter.quote(proposal({ related_npc_id: "other-campaign", related_pc_id: "elsewhere", relation: "sibling", second_parent_id: "nope" }));
+      expect(quote.lines.map((l) => l.label)).not.toContain("Sibling of");
+      await adapter.run(proposal({ related_npc_id: "other-campaign", relation: "sibling" }));
+      expect(request().form).toMatchObject({ related_npc_id: null, related_npc_kin: null, related_pc_id: null });
+      expect(request().associate).toBeNull();
+    });
+
+    it("ignores a relation word outside the contract and falls back to a contact tie", async () => {
+      await useNpcAskAdapter().run(proposal({ related_npc_id: UUID_N, relation: "cousin" }));
+      expect(request().form).toMatchObject({ related_npc_kin: null });
+      expect(request().form.related_npc_tie).toMatchObject({ key: "contact" });
+    });
+
+    it("names the link in the quote, in the words of the page", () => {
+      const lines = useNpcAskAdapter().quote(proposal({ related_npc_id: UUID_N, relation: "betrayed", faction_id: "f1", faction_role: "Spy" })).lines;
+      const value = (label: string) => lines.find((l) => l.label === label)?.value;
+      expect(value("Betrayed")).toBe("Perf Smuggler");
+      expect(value("Faction")).toBe("Guild, as Spy");
+    });
+
+    it("seats the NPC in the faction under the role said, and as a Member when none was", async () => {
+      await useNpcAskAdapter().run(proposal({ faction_id: "f1", faction_role: "Spy" }));
+      expect(request().form.faction_role).toBe("Spy");
+      mocks.generateAndCreateNpc.mockClear();
+      await useNpcAskAdapter().run(proposal({ faction_id: "f1" }));
+      expect(request().form.faction_role).toBe("Member");
+    });
+
+    it("gives the model the related people with their birth years, so kin ages fit", async () => {
+      await useNpcAskAdapter().run(proposal({ related_npc_id: UUID_N, relation: "child", second_parent_id: "n-odo" }));
+      expect(request().context).toContain("The new NPC is the child of Perf Smuggler (born 1450, 45 now) and Odo (born 1440, 55 now).");
+    });
+
+    it("gives the model a related party member's name and birth year, from the party list", async () => {
+      state.party = [{ id: "pc-thorne", name: "Thorne", born_year: 1470 }];
+      await useNpcAskAdapter().run(proposal({ related_pc_id: "pc-thorne", relation: "parent" }));
+      expect(request().context).toContain("The new NPC is the parent of Thorne (born 1470, 25 now).");
+    });
+
+    it("waits for the people a proposal names instead of linking nobody", () => {
+      state.npcs = undefined;
+      expect(useNpcAskAdapter().quote(proposal({ related_npc_id: UUID_N, relation: "friend" })).block?.reason).toBe("missing");
+    });
   });
 });

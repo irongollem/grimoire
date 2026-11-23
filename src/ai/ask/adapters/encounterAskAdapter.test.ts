@@ -3,7 +3,7 @@ import { ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 
 const mocks = vi.hoisted(() => ({ generateAndCreate: vi.fn() }));
-const state = vi.hoisted(() => ({ aiEnabled: true, canCreate: true, affordable: true, offersStatBlocks: true }));
+const state = vi.hoisted(() => ({ aiEnabled: true, canCreate: true, affordable: true, offersStatBlocks: true, places: undefined as { id: string; name: string }[] | undefined }));
 
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({ get isAiEnabled() { return state.aiEnabled; }, activeCampaign: { name: "Sugarwell" } }),
@@ -19,6 +19,9 @@ vi.mock("@/composables/ai/useCampaignProviders", () => ({
 }));
 vi.mock("@/composables/billing/useQuota", () => ({ useQuota: () => ({ canCreate: { get value() { return state.canCreate; } } }) }));
 vi.mock("@/composables/rules/useGameSystem", () => ({ useGameSystem: () => ({ offers: () => state.offersStatBlocks }) }));
+vi.mock("@/composables/locations/useLocations", () => ({
+  useAllLocations: () => ({ data: { get value() { return state.places; } } }),
+}));
 vi.mock("@/composables/encounters/useGenerateEncounter", () => ({
   useGenerateEncounter: () => ({ generateAndCreateEncounter: mocks.generateAndCreate }),
 }));
@@ -34,7 +37,7 @@ const saved = (over: Record<string, unknown> = {}) => ({ id: "r1", name: "Road A
 describe("useEncounterAskAdapter", () => {
   beforeEach(() => {
     mocks.generateAndCreate.mockReset();
-    Object.assign(state, { aiEnabled: true, canCreate: true, affordable: true, offersStatBlocks: true });
+    Object.assign(state, { aiEnabled: true, canCreate: true, affordable: true, offersStatBlocks: true, places: [{ id: "l1", name: "Whispering Caves" }] });
     mocks.generateAndCreate.mockResolvedValue(saved());
   });
 
@@ -75,9 +78,9 @@ describe("useEncounterAskAdapter", () => {
 
   it("passes only understood constraints, and the page's default when one is not understood", async () => {
     await useEncounterAskAdapter().run(proposal({ difficulty: "Deadly", party_level: 9 }));
-    expect(mocks.generateAndCreate).toHaveBeenLastCalledWith("Goblins on the forest road", { difficulty: "deadly" });
+    expect(mocks.generateAndCreate).toHaveBeenLastCalledWith("Goblins on the forest road", { difficulty: "deadly", locationId: null });
     await useEncounterAskAdapter().run(proposal({ difficulty: "impossible" }));
-    expect(mocks.generateAndCreate).toHaveBeenLastCalledWith("Goblins on the forest road", { difficulty: "auto" });
+    expect(mocks.generateAndCreate).toHaveBeenLastCalledWith("Goblins on the forest road", { difficulty: "auto", locationId: null });
   });
 
   it("returns a failed part instead of throwing when generation fails or the save throws", async () => {
@@ -98,5 +101,19 @@ describe("useEncounterAskAdapter", () => {
 
   it("a clean run has the one part", async () => {
     expect((await useEncounterAskAdapter().run(proposal())).parts).toHaveLength(1);
+  });
+
+  it("sets the encounter in a place of the campaign, names it in the quote, and ignores a place the campaign lacks", async () => {
+    const adapter = useEncounterAskAdapter();
+    expect(adapter.quote(proposal({ location_id: "l1" })).lines.find((l) => l.label === "In")?.value).toBe("Whispering Caves");
+    await adapter.run(proposal({ location_id: "l1" }));
+    expect(mocks.generateAndCreate.mock.calls[0][1]).toMatchObject({ locationId: "l1" });
+    await adapter.run(proposal({ location_id: "other-campaign" }));
+    expect(mocks.generateAndCreate.mock.calls[1][1]).toMatchObject({ locationId: null });
+  });
+
+  it("waits for the Atlas when a place is named instead of saving the encounter nowhere", () => {
+    state.places = undefined;
+    expect(useEncounterAskAdapter().quote(proposal({ location_id: "l1" })).block?.reason).toBe("missing");
   });
 });

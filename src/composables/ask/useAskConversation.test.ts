@@ -143,6 +143,14 @@ describe("useAskConversation: the quote", () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 
+  // Bug caught: the confirmed line read "You confirmed: Create NPC · 1 credits".
+  it("words a one-credit confirmation as 1 credit", async () => {
+    const { convo, card } = await withProposal({ quote: { lines: [], total: 1, byok: false, block: null } });
+    await convo.confirm(card.id);
+    const line = convo.items.value.find((i) => i.kind === "confirmed");
+    expect(line).toMatchObject({ text: expect.stringMatching(/ · 1 credit$/) });
+  });
+
   // Bug caught: the same proposalId arriving as a second card (a replayed event) running a second time.
   it("runs a proposalId once even when it arrives as two cards", async () => {
     const { convo, card, run } = await withProposal();

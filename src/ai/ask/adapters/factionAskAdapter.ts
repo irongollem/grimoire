@@ -4,10 +4,11 @@
  * A seam over the page's own workflow: the price is `useFactionQuote`'s (the one `FactionGeneratorPanel` shows), the
  * gates are the page's (`useAskGate`, with the plan's faction quota), and the run is `useGenerateFaction`.
  *
- * The contract gives the leader and the headquarters as names, where the page has pickers of existing records. A name
- * that is exactly one NPC (or one place) of this campaign is linked, as the page's picker would: the NPC becomes the
- * faction's "Leader" and the place its "based in" tie. Any other name still goes to the model as a constraint, so the
- * description reads right, but nothing is linked to a record that does not exist. The campaign's NPCs and places are
+ * The page has pickers of existing records, and the contract gives the same as ids: `leader_npc_id` seats an existing
+ * NPC as the faction's "Leader" and `headquarters_id` ties it "based in" an existing place. Each id is looked up in
+ * this campaign's own NPCs and Atlas and ignored when it is not there, so the model cannot link a row of another
+ * campaign. `leader_name` and `headquarters_name` are for a person or place that does not exist yet: they only shape
+ * the description and never link (a name is not an identity: two NPCs share one). The campaign's NPCs and places are
  * read only once a proposal names one, because this adapter lives as long as the panel.
  *
  * The faction is saved before its ties and its emblem are judged. A leader or headquarters that fails to link is its
@@ -34,13 +35,6 @@ function canonical(value: string | null, list: readonly string[]): string | null
   return list.find((entry) => entry.toLowerCase() === value.toLowerCase()) ?? null;
 }
 
-/** The one record whose name is `name`, case aside; null for none or for several (a guess would link the wrong one). */
-function onlyNamed<T extends { name: string }>(rows: readonly T[] | undefined, name: string | null): T | null {
-  if (name === null || rows === undefined) return null;
-  const hits = rows.filter((row) => row.name.trim().toLowerCase() === name.toLowerCase());
-  return hits.length === 1 ? hits[0] : null;
-}
-
 export function useFactionAskAdapter(): AskAdapter {
   const campaign = useCampaignStore();
   const quoteFaction = useFactionQuote();
@@ -54,16 +48,16 @@ export function useFactionAskAdapter(): AskAdapter {
 
   function understand(proposal: AskProposal) {
     const inputs = readAskInputs("faction", proposal.inputs);
-    const leaderName = askString(inputs, "leader_name");
-    const headquartersName = askString(inputs, "headquarters_name");
-    if (leaderName !== null || headquartersName !== null) lookupsWanted.value = true;
+    const leaderId = askString(inputs, "leader_npc_id");
+    const headquartersId = askString(inputs, "headquarters_id");
+    if (leaderId !== null || headquartersId !== null) lookupsWanted.value = true;
     return {
       factionType: canonical(askString(inputs, "faction_type"), FACTION_TYPES),
       alignment: canonical(askString(inputs, "alignment"), FACTION_ALIGNMENTS),
-      leaderName,
-      leader: onlyNamed(npcs.value, leaderName),
-      headquartersName,
-      headquarters: onlyNamed(locations.value, headquartersName),
+      leaderName: askString(inputs, "leader_name"),
+      leader: leaderId === null ? null : npcs.value?.find((n) => n.id === leaderId) ?? null,
+      headquartersName: askString(inputs, "headquarters_name"),
+      headquarters: headquartersId === null ? null : locations.value?.find((l) => l.id === headquartersId) ?? null,
       image: askFlag(inputs, "image"),
       concept: proposal.concept.trim(),
     };
@@ -76,8 +70,10 @@ export function useFactionAskAdapter(): AskAdapter {
     const lines: AskQuoteLine[] = [];
     if (read.factionType) lines.push({ label: "Type", value: read.factionType, credits: null });
     if (read.alignment) lines.push({ label: "Alignment", value: read.alignment, credits: null });
-    if (read.leaderName) lines.push({ label: "Leader", value: read.leader ? `${read.leader.name}, from your NPCs` : `${read.leaderName}, named only`, credits: null });
-    if (read.headquartersName) lines.push({ label: "Headquarters", value: read.headquarters ? `${read.headquarters.name}, from your Atlas` : `${read.headquartersName}, named only`, credits: null });
+    if (read.leader) lines.push({ label: "Leader", value: `${read.leader.name}, from your NPCs`, credits: null });
+    else if (read.leaderName) lines.push({ label: "Leader", value: `${read.leaderName}, named only`, credits: null });
+    if (read.headquarters) lines.push({ label: "Headquarters", value: `${read.headquarters.name}, from your Atlas`, credits: null });
+    else if (read.headquartersName) lines.push({ label: "Headquarters", value: `${read.headquartersName}, named only`, credits: null });
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Emblem", value: "None", credits: null });

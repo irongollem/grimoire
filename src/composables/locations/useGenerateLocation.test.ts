@@ -32,6 +32,13 @@ describe("useGenerateLocation", () => {
     expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ location_type: "city", parent_id: "p1", player_summary: null, notes: null }));
   });
 
+  it("records the NPC who keeps the place, and no one when none was named", async () => {
+    await useGenerateLocation().generateAndCreateLocation("an inn", { keeperNpcId: "n1" });
+    expect(mocks.create).toHaveBeenLastCalledWith(expect.objectContaining({ npc_owner_id: "n1" }));
+    await useGenerateLocation().generateAndCreateLocation("an inn");
+    expect(mocks.create).toHaveBeenLastCalledWith(expect.objectContaining({ npc_owner_id: null }));
+  });
+
   it("with no kind or parent it is an unfiled place of kind other", async () => {
     await useGenerateLocation().generateAndCreateLocation("a forge");
     expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ location_type: "other", parent_id: null }));

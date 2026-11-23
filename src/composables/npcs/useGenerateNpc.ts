@@ -91,10 +91,13 @@ export function buildNpcAiContext(
   const kinPeople = kinPromptPeople(form, sources);
   if (form.related_npc_kin && kinPeople.length > 0) {
     constraints.push(kinPromptLine(form.related_npc_kin, kinPeople, sources.todayYear));
-  } else if (form.related_npc_id) {
-    const npc = sources.npcs.find((n) => n.id === form.related_npc_id);
-    if (npc) {
-      constraints.push(`Known associate: ${npc.name} (this NPC is ${form.related_npc_tie.word} ${npc.name})`);
+  } else if (form.related_pc_id || form.related_npc_id) {
+    // A bond with a party member (Ask can name one; the page's picker only lists NPCs for a bond).
+    const other = form.related_pc_id
+      ? sources.party.find((p) => p.id === form.related_pc_id)
+      : sources.npcs.find((n) => n.id === form.related_npc_id);
+    if (other) {
+      constraints.push(`Known associate: ${other.name} (this NPC is ${form.related_npc_tie.word} ${other.name})`);
     }
   }
   if (items.length) {
@@ -240,16 +243,17 @@ export function useGenerateNpc() {
           errors.push(`family tie: ${toast.fromError(error)}`);
         }
       }
-    } else if (form.related_npc_id) {
+    } else if (form.related_npc_id || form.related_pc_id) {
       if (!associate) {
         errors.push("the selected associate is no longer in this campaign");
         return errors;
       }
-      // The new NPC is the subject, and the choice is read from it: "Wren is apprentice of Brenna".
+      // The new NPC is the subject, and the choice is read from it: "Wren is apprentice of Brenna". A character is the
+      // other end when the caller named one (the page's picker only lists NPCs; Ask can name a party member).
       try {
         await createConnection({ input: {
           subject: { kind: "npc", id: npcId },
-          other: { kind: "npc", id: associate.id, name: associate.name },
+          other: { kind: form.related_pc_id ? "party_member" : "npc", id: associate.id, name: associate.name },
           choice: form.related_npc_tie,
         }, campaignId });
       } catch (error: unknown) {

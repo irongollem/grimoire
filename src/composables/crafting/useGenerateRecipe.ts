@@ -151,18 +151,23 @@ export function useGenerateRecipe() {
     return { id: recipeId, name: recipe.name, partsFailure };
   }
 
-  /** `items` is the campaign's item index, which the output is matched against. */
+  /**
+   * `items` is the campaign's item index, which the output is matched against. `output` is the item the DM chose to be
+   * made, as the page's "Output item" picker holds it: the model is told its name and the recipe produces that row
+   * instead of one it matched or invented.
+   */
   async function generateAndCreateRecipe(
     concept: string,
-    options: RecipeGenerationOptions & { items: readonly NamedItem[] },
+    options: Omit<RecipeGenerationOptions, "outputName"> & { items: readonly NamedItem[]; output?: NamedItem | null },
   ): Promise<GenerateRecipeOutcome> {
     if (isAnyAiGenerating.value) return { recipe: null, error: "Another AI generation is already in progress." };
     generation.concept.value = concept;
     generation.clearCompleted();
-    const { items, ...generationOptions } = options;
-    const recipe = await generation.generate(concept, generationOptions);
+    const { items, output, ...generationOptions } = options;
+    const picked = output ?? null;
+    const recipe = await generation.generate(concept, { ...generationOptions, ...(picked ? { outputName: picked.name } : {}) });
     if (!recipe) return { recipe: null, error: generation.error.value ?? "Recipe generation failed." };
-    const saved = await saveRecipe({ recipe, resolution: resolveRecipeOutputFor(recipe, items, null) });
+    const saved = await saveRecipe({ recipe, resolution: resolveRecipeOutputFor(recipe, items, picked) });
     return { recipe: saved, error: null };
   }
 

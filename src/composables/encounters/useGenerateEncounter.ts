@@ -71,6 +71,8 @@ export function useGenerateEncounter() {
     result: EncounterAiResult,
     combatants: CombatantDef[],
     unmatched: EncounterCombatantAiResult[],
+    /** The place of this campaign the fight happens in (the Atlas lists it there). The page offers no picker; Ask can name one. */
+    locationId: string | null = null,
   ): Promise<Encounter> {
     // Never build an encounter against a party that has not arrived: it would start without them.
     if (party.value === undefined || companions.value === undefined) {
@@ -91,7 +93,7 @@ export function useGenerateEncounter() {
       trap_ids: [],
       reward_currency_pools: [],
       events: [],
-      location_id: null,
+      location_id: locationId,
       is_finished: false,
       lair_enabled: false,
       lair_owner_def_id: null,
@@ -99,13 +101,17 @@ export function useGenerateEncounter() {
     });
   }
 
-  async function generateAndCreateEncounter(concept: string, options: EncounterGenerationOptions): Promise<GenerateEncounterOutcome> {
+  async function generateAndCreateEncounter(
+    concept: string,
+    options: EncounterGenerationOptions & { locationId?: string | null },
+  ): Promise<GenerateEncounterOutcome> {
+    const { locationId = null, ...generationOptions } = options;
     // Checked up front: `generate` returns null on this without touching its error, which would read stale.
     if (isAnyAiGenerating.value) {
       return { id: null, name: null, error: "Another AI generation is already in progress.", unmatched: 0 };
     }
     wanted.value = true;
-    const result = await generate(concept, options);
+    const result = await generate(concept, generationOptions);
     if (!result) {
       return { id: null, name: null, error: genError.value ?? "Encounter generation failed.", unmatched: 0 };
     }
@@ -115,7 +121,7 @@ export function useGenerateEncounter() {
     const bestiary = monsters.value;
     if (bestiary === undefined) throw new Error("The Bestiary did not load.");
     const resolved = resolveGeneratedCombatants(result.combatants, bestiary);
-    const encounter = await saveGeneratedEncounter(result, resolved.matched.map((m) => m.def), resolved.unmatched);
+    const encounter = await saveGeneratedEncounter(result, resolved.matched.map((m) => m.def), resolved.unmatched, locationId);
     return { id: encounter.id, name: result.name, error: null, unmatched: resolved.unmatched.length };
   }
 

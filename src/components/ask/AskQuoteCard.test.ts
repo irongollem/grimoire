@@ -46,6 +46,13 @@ describe("AskQuoteCard", () => {
     expect(w.emitted("confirm")).toBeUndefined();
   });
 
+  // Bug caught: a one-credit price read "1 credits" on the button and the total.
+  it("says 1 credit, not 1 credits", () => {
+    const w = card({ ...ready, lines: [{ label: "NPC", value: "a baker", credits: 1 }], total: 1 });
+    expect(w.get('[data-testid="ask-confirm"]').text()).toBe("Create NPC · 1 credit");
+    expect(w.get('[data-testid="ask-total"]').text()).toMatch(/1 credit$/);
+  });
+
   // Bug caught: a blocked generator (out of credits) still showing a live gilt button.
   it("replaces the button with the block's message and the way past it", async () => {
     const w = card({ ...ready, block: { reason: "credits", message: "You are 2 credits short." } });

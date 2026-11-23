@@ -17,6 +17,8 @@ export interface GenerateLocationOptions {
   locationType?: LocationType;
   /** A place of this campaign the new one sits inside. */
   parent?: { id: string; name: string } | null;
+  /** An NPC of this campaign who keeps the place (`locations.npc_owner_id`). The page offers no picker; Ask can name one. */
+  keeperNpcId?: string | null;
   generateImage?: boolean;
   generateMap?: boolean;
 }
@@ -67,7 +69,7 @@ export function useGenerateLocation() {
       is_description_shared: false,
       is_npcs_shared:        false,
       is_inventory_shared:   false,
-      npc_owner_id:          null,
+      npc_owner_id:          options.keeperNpcId ?? null,
       related_location_ids:  [],
       source_map_id:         null,
       is_battle_map:         false,
