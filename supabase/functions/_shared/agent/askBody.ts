@@ -16,19 +16,24 @@ export function isAskRecordType(value: unknown): value is AskRecordType {
 }
 
 const ROUTE_MAX = 200;
+/** The page title only says where a drafted report happened; a long one is a page abusing the field, not a title. */
+export const TITLE_MAX = 120;
 
 function parseContext(raw: unknown): AskContext | null | undefined {
   if (raw === undefined || raw === null) return undefined;
   if (typeof raw !== "object" || Array.isArray(raw)) return null;
-  const { route, record } = raw as Record<string, unknown>;
+  const { route, record, title: rawTitle } = raw as Record<string, unknown>;
   if (typeof route !== "string" || route.length > ROUTE_MAX) return null;
-  if (record === undefined || record === null) return { route };
+  // Untrusted and cosmetic: trimmed, cut, and dropped when empty or not text. It is never an id and never read from.
+  const trimmed = typeof rawTitle === "string" ? rawTitle.replace(/\s+/g, " ").trim().slice(0, TITLE_MAX).trim() : "";
+  const titled = trimmed === "" ? {} : { title: trimmed };
+  if (record === undefined || record === null) return { route, ...titled };
   if (typeof record !== "object" || Array.isArray(record)) return null;
   const { type, id } = record as Record<string, unknown>;
   // A record the contract does not know is not an error worth a refusal: the page asked about where it is, and the
   // route says that. It is dropped, never read.
-  if (!isAskRecordType(type) || typeof id !== "string" || !UUID_RE.test(id)) return { route };
-  return { route, record: { type, id } };
+  if (!isAskRecordType(type) || typeof id !== "string" || !UUID_RE.test(id)) return { route, ...titled };
+  return { route, ...titled, record: { type, id } };
 }
 
 export type ParsedAskBody = { ok: true; body: AskTurnBody } | { ok: false };

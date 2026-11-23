@@ -35,18 +35,20 @@ interface Harness {
   turns: Array<{ session_id: string; seq: number; role: string; blocks: AgentBlock[] }>;
   usage: { day: string; free_used: number } | null;
   charges: number[];
-  ledger: Array<{ kind: "charge" | "free"; reason: string; cost?: number; isByok?: boolean }>;
+  ledger: Array<{ kind: "charge" | "free"; reason: string; cost?: number; isByok?: boolean; tokens?: number }>;
   holds: number[];
   held: { refuse: boolean };
   appends: number;
   records: Map<string, string>;
+  /** What `recordManualGap` was given: the question and the pages, and nothing else. */
+  gaps: Array<{ question: string; pages: string[] }>;
   /** Routed turns written and not yet settled, as `ask_pending_routes` holds them. */
   pending: Array<{ proposalId: string; sessionId: string; credits: number }>;
   /** Generations the DM ran since the routes were written: each confirms one route, as the ledger does. */
   generations: number;
   settleCalls: number;
   /** What the scope judge is asked and what it answers: a probability of "in scope", null for no key, or a throw. */
-  scope: { asked: JudgeRequest[]; answer: number | null | "throws" };
+  scope: { asked: JudgeRequest[]; answer: number | null | "throws"; report: { app_report: number; is_bug: number } | null };
   settleFails: boolean;
   byok: boolean;
   summaries: number;
@@ -55,7 +57,7 @@ interface Harness {
 function harness(): Harness {
   const h: Harness = {
     deps: undefined as unknown as AskTurnDeps, events: [], requests: [], steps: [], sessions: new Map(), turns: [], usage: null,
-    charges: [], ledger: [], holds: [], held: { refuse: false }, appends: 0, records: new Map(), pending: [], generations: 0, settleCalls: 0, scope: { asked: [], answer: 1 }, settleFails: false, byok: false, summaries: 0,
+    charges: [], ledger: [], holds: [], held: { refuse: false }, appends: 0, records: new Map(), gaps: [], pending: [], generations: 0, settleCalls: 0, scope: { asked: [], answer: 1, report: null }, settleFails: false, byok: false, summaries: 0,
   };
   const callModel: CallModel = async (request) => {
     h.requests.push(request);
@@ -72,7 +74,7 @@ function harness(): Harness {
   };
   const ledger: JobLedger = {
     charge: (reason, line) => { h.ledger.push({ kind: "charge", reason, cost: line.cost, isByok: line.isByok }); },
-    free: (reason) => { h.ledger.push({ kind: "free", reason }); },
+    free: (reason, log) => { h.ledger.push({ kind: "free", reason, tokens: log?.output_tokens }); },
   };
   h.deps = {
     accountRefusal: async () => null,
@@ -88,7 +90,12 @@ function harness(): Harness {
       h.scope.asked.push(request);
       if (h.scope.answer === "throws") throw new Error("timeout");
       if (h.scope.answer === null) return null;
-      return { model: "jev-1", inputTokens: 10, answers: { in_scope: { type: "noul", noul: h.scope.answer } } };
+      return {
+        model: "jev-1", inputTokens: 10, answers: {
+        in_scope: { type: "noul", noul: h.scope.answer },
+        ...(h.scope.report ? { app_report: { type: "noul", noul: h.scope.report.app_report }, is_bug: { type: "noul", noul: h.scope.report.is_bug } } : {}),
+      },
+    };
     },
     settleRoutes: async () => {
       h.settleCalls++;
@@ -127,6 +134,7 @@ function harness(): Harness {
     find: async () => [],
     loadRecord: async (campaign, _type, id) => (campaign.id === CAMPAIGN && h.records.has(id) ? { name: h.records.get(id)! } : null),
     newId: () => "proposal-1",
+    recordManualGap: async (question, pages) => { h.gaps.push({ question, pages }); },
   };
   return h;
 }
@@ -363,6 +371,20 @@ describe("an answer", () => {
   });
 });
 
+describe("the manual", () => {
+  // Bug caught: the handler not wiring the ledger dep through, so "the manual does not cover it" was said but never noted.
+  it("notes a gap with the question and pages only, through the dep the handler was given", async () => {
+    const h = harness();
+    h.steps.push(
+      call("c1", "read_manual", { query: "zzqx flurble" }),
+      call("c2", "log_manual_gap", { question: "What does the flurble switch do?", pages_checked: ["worldbuilding-canon", "not-a-page"] }),
+      say("The manual does not cover it yet. It has been noted for the team."),
+    );
+    await ask(h);
+    expect(h.gaps).toEqual([{ question: "What does the flurble switch do?", pages: ["worldbuilding-canon"] }]);
+  });
+});
+
 describe("a proposal", () => {
   it("is routed: not charged, not counted, written as pending, and its cost is written as a free routing line", async () => {
     const h = harness();
@@ -530,5 +552,102 @@ describe("beginAsk", () => {
     const h = harness();
     h.usage = { day: "2026-11-22", free_used: 5 };
     expect(await beginAsk({ userId: DM, body: { campaignId: CAMPAIGN, message: "x" }, deps: h.deps })).toMatchObject({ reserve: 0 });
+  });
+});
+
+describe("a report about the app (the free draft path)", () => {
+  const BUG = { kind: "bug", where: "/quests", action: "Dragged a quest", expected: "It moves", actual: "It snaps back" };
+  const reporting = (h: Harness) => { h.scope.answer = 0.02; h.scope.report = { app_report: 0.9, is_bug: 0.9 }; };
+  const say_ = "the quest list will not let me drag, it snaps back";
+  const body = { campaignId: CAMPAIGN, message: say_, context: { route: "/quests", title: "Quests" } };
+
+  // Bug caught: the report path charging, counting, holding, saving a turn or opening a session, so a report cost the
+  // DM one of the five free answers or a credit.
+  it("drafts the report and nothing else: no hold, no charge, no count, no saved turn, no session", async () => {
+    const h = harness();
+    reporting(h);
+    h.steps.push(call("c1", "draft_report", BUG));
+    expect(await ask(h, { body })).toBeNull();
+    expect(h.events.find((e) => e.type === "report")).toEqual({ type: "report", report: BUG });
+    expect(done(h)).toEqual({ type: "done", end: "done", routed: false, free: false, credits: 0, freeLeft: 5 });
+    expect(h.holds).toEqual([0]);
+    expect(h.charges).toEqual([]);
+    expect(h.usage).toBeNull();
+    expect(h.appends).toBe(0);
+    expect(h.turns).toEqual([]);
+    expect(h.sessions.size).toBe(0);
+    expect(h.pending).toEqual([]);
+    expect(h.ledger.filter((l) => l.kind === "charge")).toEqual([]);
+    expect(h.ledger).toEqual([{ kind: "free", reason: "ask_report", tokens: 100 }]);
+  });
+
+  // Bug caught: the report turn streaming the model's words, which would make it a free way to get an answer.
+  it("streams no text and shows the model only draft_report, even when it writes an answer", async () => {
+    const h = harness();
+    reporting(h);
+    h.steps.push({ blocks: [{ type: "text", text: "Sure! Here is how to fix your quest list..." }, { type: "tool_call", id: "c1", name: "draft_report", input: BUG }], stop: "tool_calls", usage: usage(100) });
+    await ask(h, { body });
+    expect(types(h)).toEqual(["report", "done"]);
+    expect(h.requests).toHaveLength(1);
+    expect(h.requests[0].tools.map((t) => t.name)).toEqual(["draft_report"]);
+    expect(JSON.stringify(h.requests[0])).not.toContain("propose");
+  });
+
+  // Bug caught: no draft when the model drew none, leaving the DM with a report that could not be sent.
+  it("uses the DM's own words when the model draws no draft, or an invalid one", async () => {
+    for (const steps of [[say("I cannot help with that.")], [call("c1", "draft_report", { kind: "bug", where: "x" }), say("sorry")]]) {
+      const h = harness();
+      reporting(h);
+      h.steps.push(...steps);
+      await ask(h, { body });
+      expect(h.events.find((e) => e.type === "report")).toEqual({
+        type: "report",
+        report: { kind: "bug", where: "Quests, /quests", action: say_, expected: "See what I wrote above.", actual: "See what I wrote above." },
+      });
+      expect(types(h)).not.toContain("text");
+    }
+  });
+
+  // Bug caught: a provider failure on this path losing the DM's report instead of handing back their words.
+  it("still gives the fallback draft when the provider fails", async () => {
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const h = harness();
+    reporting(h);
+    h.scope.report = { app_report: 0.9, is_bug: 0.1 };
+    await ask(h, { body });
+    quiet.mockRestore();
+    expect(h.events.find((e) => e.type === "report")).toMatchObject({ report: { kind: "feature", summary: say_, problem: say_ } });
+    expect(types(h)).toEqual(["report", "done"]);
+    expect(h.charges).toEqual([]);
+  });
+
+  // Bug caught: the report path skipping the earlier routes' settlement, so routed turns are never confirmed or charged.
+  it("still settles earlier routes, and reports the unchanged free answers left", async () => {
+    const h = harness();
+    reporting(h);
+    h.pending.push({ proposalId: "old", sessionId: SESSION, credits: 2 });
+    h.steps.push(call("c1", "draft_report", BUG));
+    await ask(h, { body });
+    expect(h.settleCalls).toBe(1);
+    expect(h.pending).toEqual([]);
+    expect(done(h).freeLeft).toBe(4);
+  });
+
+  // Bug caught: the report verdict being ignored, so a bug report is refused as off topic.
+  it("is not refused as off topic although in_scope is low", async () => {
+    const h = harness();
+    reporting(h);
+    h.steps.push(call("c1", "draft_report", BUG));
+    expect(await ask(h, { body })).toBeNull();
+  });
+
+  // Bug caught: an ordinary turn that drafts a report not counting as an answer (it is a normal turn, so it is metered).
+  it("counts and charges an ordinary turn that ends in a draft, as any answer", async () => {
+    const h = harness();
+    h.steps.push(call("c1", "draft_report", BUG));
+    await ask(h, { body: { campaignId: CAMPAIGN, message: "who runs the mill? also the map editor is broken" } });
+    expect(h.events.find((e) => e.type === "report")).toEqual({ type: "report", report: BUG });
+    expect(h.charges).toHaveLength(1);
+    expect(h.appends).toBe(1);
   });
 });

@@ -2,7 +2,13 @@
 // meaning, `ask_choice` puts a question to the DM, `offer_ideas` lays out a brainstorm, `propose` names a generator.
 // None of them writes: what a proposal does, the browser does, after the DM confirms the quote.
 //
-// Two of them end the turn (`ask_choice`, `propose`): the DM's reply, or their press of the quote's button, is the
+// `read_manual` answers a question about how Grimoire itself works from the in-app manual, and `log_manual_gap` notes,
+// anonymously, a question the manual could not answer (the admin ledger of docs to write). Neither ends the turn.
+//
+// `draft_report` also ends the turn: it hands the DM a drafted bug report or feature request to review in the report
+// form (`askReport.ts`); it sends nothing.
+//
+// Three of them end the turn (`ask_choice`, `propose`, `draft_report`): the DM's reply, or their press of the quote's button, is the
 // next step, so another model call would only restate what is on the screen. The loop is not told to stop (it is the
 // table's loop and knows nothing of Ask), so `endAware` answers the call that would follow with an empty step.
 // Pure with its dependencies passed in, so every guard below is tested without a database.
@@ -11,11 +17,15 @@ import type { AskEvent, AskGenerator, AskInputSchema, AskProposal } from "./askC
 import { linkableKinds, relationWords } from "./askLinks.ts";
 import { checkProposal, generatorsFor } from "./askPropose.ts";
 import { checkIdeas } from "./askIdeas.ts";
+import { answerDraft, draftReportTool } from "./askReport.ts";
 import { recordsRead, type ReadLog } from "./askReads.ts";
 import type { AskCampaignRow, AskFound, AskRecordLookup } from "./askTypes.ts";
 import type { AskRecordType, AskChoice } from "./askContract.ts";
 import { isPictureQuestion, pictureSettled } from "./askSettled.ts";
 import { isRecord } from "./parse.ts";
+import { MANUAL_PAGES } from "../manual/manualPages.generated.ts";
+import type { ManualPageSource } from "../manual/buildIndex.ts";
+import { searchManual } from "../manual/searchManual.ts";
 import type { AgentTool, CallModel, CallTool, ToolAnswer } from "./types.ts";
 
 const QUESTION_MAX = 300;
@@ -25,8 +35,12 @@ const LABEL_MAX = 60;
 const REPLY_MAX = 300;
 const NOTE_MAX = 40;
 const FIND_QUERY_MAX = 200;
+const MANUAL_QUERY_MAX = 200;
+/** A gap is a short neutral question, and a ledger row is read by an admin: a long one is a pasted passage. */
+export const GAP_QUESTION_MAX = 500;
+export const GAP_PAGES_MAX = 10;
 
-export type AskEnd = "ask" | "propose";
+export type AskEnd = "ask" | "propose" | "report";
 
 const STOP_NOW = "It is shown to the DM. Stop now and write nothing more in this turn.";
 
@@ -174,6 +188,30 @@ export function askOwnTools(fiveE: boolean): AgentTool[] {
         additionalProperties: false,
       },
     },
+    {
+      name: "read_manual",
+      description: "Search Grimoire's own manual, the pages that explain how the app works: its screens, buttons, fields, features and the words on them. Use it whenever the DM asks how Grimoire itself works, never the campaign readers. Returns the best matching pages (id, title, text). Answer from them and name the page.",
+      inputSchema: {
+        type: "object",
+        properties: { query: { type: "string", description: "What to look up, in a few words: the feature, the screen or the term." } },
+        required: ["query"],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: "log_manual_gap",
+      description: "Note, for the app's makers, a question about how Grimoire works that read_manual did not answer. Call it only after read_manual, only when the manual does not cover the question, and at most once per turn. `question` is the question reworded neutrally: no names of people, places, factions or campaigns, and nothing from the DM's campaign, only the question about the app. It is stored with no account or campaign attached.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          question: { type: "string", description: `The question about the app, reworded neutrally, at most ${GAP_QUESTION_MAX} characters. No names, nothing from the campaign.` },
+          pages_checked: { type: "array", description: `The ids of the manual pages read_manual returned and that you read, at most ${GAP_PAGES_MAX}.`, items: { type: "string" } },
+        },
+        required: ["question"],
+        additionalProperties: false,
+      },
+    },
+    draftReportTool(),
   ];
 }
 
@@ -187,6 +225,13 @@ export interface AskToolsInput {
   find(query: string): Promise<AskFound[] | null>;
   loadRecord(type: AskRecordType, id: string): Promise<AskRecordLookup | null>;
   newId(): string;
+  /**
+   * Writes one anonymous row to the manual-gap ledger (`record_manual_gap`). It takes the question and the page ids
+   * and nothing else: no user, no campaign, no session, and none is to be added. A throw is logged, never fatal.
+   */
+  recordManualGap(question: string, pages: string[]): Promise<void>;
+  /** The manual's pages; the generated copy unless a test passes its own. */
+  manualPages?: readonly ManualPageSource[];
   reads: ReadLog;
   emit(event: AskEvent): void;
   /**
@@ -250,11 +295,18 @@ export function makeAskTools(input: AskToolsInput): AskTools {
   const mcpNames = new Set(input.mcpTools.map((t) => t.name));
   let proposal: AskProposal | null = null;
   let ended: AskEnd | null = null;
+  const manual = input.manualPages ?? MANUAL_PAGES;
+  let manualRead = false;
+  let gapLogged = false;
 
   const failure = (content: string): ToolAnswer => ({ content, isError: true });
   const campaignOf = (content: string) => campaignOfAnswer(content, campaign.id);
   const alreadyEnded = (): ToolAnswer =>
-    failure(ended === "propose" ? "A proposal is already made this turn. Only one per turn." : "A question is already put to the DM this turn. Stop and wait for the answer.");
+    failure(
+      ended === "propose" ? "A proposal is already made this turn. Only one per turn."
+      : ended === "report" ? "A report is already drafted this turn. Only one per turn."
+      : "A question is already put to the DM this turn. Stop and wait for the answer.",
+    );
 
   /** Tells the browser which records an answer named, once each. Names only. */
   const reported = (name: string, args: Record<string, unknown>, answer: ToolAnswer): ToolAnswer => {
@@ -283,6 +335,34 @@ export function makeAskTools(input: AskToolsInput): AskTools {
       isError: false,
     };
     return reported("find", args, answer);
+  }
+
+  function readManual(args: Record<string, unknown>): ToolAnswer {
+    const query = typeof args.query === "string" ? args.query.trim().slice(0, MANUAL_QUERY_MAX) : "";
+    if (query.length < 2) return failure("`query` needs at least two characters.");
+    manualRead = true;
+    const hits = searchManual(query, manual);
+    if (hits.length === 0) {
+      return { content: JSON.stringify({ query, pages: [], note: "No page of the manual matches. If the question is about how Grimoire works, tell the DM the manual does not cover it yet and call log_manual_gap. Do not guess." }), isError: false };
+    }
+    return { content: JSON.stringify({ query, pages: hits }), isError: false };
+  }
+
+  async function logManualGap(args: Record<string, unknown>): Promise<ToolAnswer> {
+    if (!manualRead) return failure("Search the manual with read_manual first. Note a gap only when it did not answer.");
+    if (gapLogged) return failure("A gap is already noted this turn.");
+    const question = typeof args.question === "string" ? args.question.replace(/\s+/g, " ").trim().slice(0, GAP_QUESTION_MAX) : "";
+    if (question === "") return failure("A gap needs the question, reworded neutrally.");
+    const known = new Set(manual.map((p) => p.id));
+    const pages = [...new Set(Array.isArray(args.pages_checked) ? args.pages_checked.filter((p): p is string => typeof p === "string" && known.has(p)) : [])].slice(0, GAP_PAGES_MAX);
+    gapLogged = true;
+    try {
+      await input.recordManualGap(question, pages);
+    } catch (error) {
+      // The DM's answer does not depend on the ledger: a failed note is logged and the turn goes on.
+      console.error("ask-turn: the manual gap could not be noted:", error instanceof Error ? error.message : "unknown error");
+    }
+    return { content: "Noted for the team. Tell the DM the manual does not cover it yet and that it has been noted.", isError: false };
   }
 
   async function propose(args: Record<string, unknown>): Promise<ToolAnswer> {
@@ -324,6 +404,15 @@ export function makeAskTools(input: AskToolsInput): AskTools {
     return { content: `Shown ${checked.ideas.length} idea${checked.ideas.length === 1 ? "" : "s"}.${notes}`, isError: false };
   }
 
+  function draftReport(args: Record<string, unknown>): ToolAnswer {
+    if (ended !== null) return alreadyEnded();
+    const drafted = answerDraft(args);
+    if (drafted.report === null) return drafted.answer;
+    ended = "report";
+    emit({ type: "report", report: drafted.report });
+    return drafted.answer;
+  }
+
   const callTool: CallTool = async (name, args) => {
     if (mcpNames.has(name)) return read(name, args);
     switch (name) {
@@ -331,6 +420,9 @@ export function makeAskTools(input: AskToolsInput): AskTools {
       case "ask_choice": return askChoice(args);
       case "offer_ideas": return offerIdeas(args);
       case "propose": return propose(args);
+      case "draft_report": return draftReport(args);
+      case "read_manual": return readManual(args);
+      case "log_manual_gap": return logManualGap(args);
       default: return failure(`No such tool: ${name}`);
     }
   };

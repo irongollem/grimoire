@@ -12,6 +12,7 @@ import {
   type AskIdea,
   type AskIdeaLine,
   type AskProposal,
+  type AskReportDraft,
   type AskRecordRef,
   type AskRecordType,
   type AskTurnEnd,
@@ -93,6 +94,25 @@ export function parseAskProposal(raw: unknown): AskProposal | null {
   return { proposalId: raw.proposalId, generator: raw.generator, concept: raw.concept, inputs: raw.inputs, ...(target ? { target } : {}) };
 }
 
+/**
+ * A report draft, or null. Every field its form requires must be a string, because the draft fills that form and a
+ * missing one would open it with a hole the DM did not make. Nothing is sent from here: the DM presses Send.
+ */
+export function parseAskReport(raw: unknown): AskReportDraft | null {
+  if (!isRecord(raw)) return null;
+  if (raw.kind === "bug") {
+    const { where, action, expected, actual } = raw;
+    if (typeof where !== "string" || typeof action !== "string" || typeof expected !== "string" || typeof actual !== "string") return null;
+    return { kind: "bug", where, action, expected, actual };
+  }
+  if (raw.kind === "feature") {
+    const { where, summary, problem } = raw;
+    if (typeof where !== "string" || typeof summary !== "string" || typeof problem !== "string") return null;
+    return { kind: "feature", where, summary, problem };
+  }
+  return null;
+}
+
 export function parseAskEvent(raw: unknown): AskEvent | null {
   if (!isRecord(raw) || typeof raw.type !== "string") return null;
   switch (raw.type) {
@@ -125,6 +145,10 @@ export function parseAskEvent(raw: unknown): AskEvent | null {
     case "propose": {
       const proposal = parseAskProposal(raw.proposal);
       return proposal ? { type: "propose", proposal } : null;
+    }
+    case "report": {
+      const report = parseAskReport(raw.report);
+      return report ? { type: "report", report } : null;
     }
     case "done": {
       const { end, routed, free, credits, freeLeft } = raw;

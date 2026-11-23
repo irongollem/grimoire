@@ -11,9 +11,12 @@ export interface ScopeFixture {
   /** The turn before, for a short follow-up. */
   earlier?: ScopeEarlier;
   inScope: boolean;
+  /** Set on a message that is the DM reporting a problem with the app or asking for a feature: `app_report` should be high. */
+  report?: "bug" | "feature";
 }
 
 const inScope = (message: string, earlier?: ScopeEarlier): ScopeFixture => ({ message, inScope: true, ...(earlier ? { earlier } : {}) });
+const reportOf = (report: "bug" | "feature", message: string): ScopeFixture => ({ message, inScope: false, report });
 const outOfScope = (message: string, earlier?: ScopeEarlier): ScopeFixture => ({ message, inScope: false, ...(earlier ? { earlier } : {}) });
 
 export const SCOPE_FIXTURES: readonly ScopeFixture[] = [
@@ -73,4 +76,36 @@ export const SCOPE_FIXTURES: readonly ScopeFixture[] = [
   outOfScope("Debug my React component, it re-renders forever"),
   outOfScope("ok", { user: "Write a Python script that scrapes a website", assistant: "Ask helps with this campaign." }),
   outOfScope("now do it in JavaScript", { user: "Write a Python script that scrapes a website", assistant: "Ask helps with this campaign." }),
+
+  // ── how to use Grimoire itself: in scope, answered from the manual (`read_manual`) ───────────────────────────────
+  inScope("In backstories I can mark a connection as 'about' or 'known to', which is which?"),
+  inScope("how do I share a note with one player?"),
+  inScope("where is the soundboard?"),
+  inScope("what does the Explored badge on a room mean?"),
+  inScope("how do I add a door in the Cartographer?"),
+  inScope("what is the difference between canon and a note?"),
+  inScope("where do I change the campaign's game system?"),
+  inScope("how do credits work for generating a portrait?"),
+
+  // ── a report about the app itself: `app_report` high, whatever `in_scope` says ────────────────────────────────────
+  reportOf("bug", "The map editor crashed when I dragged a door and I lost my walls"),
+  reportOf("bug", "this button does nothing"),
+  reportOf("bug", "the initiative tracker skips the second goblin every round, it's broken"),
+  reportOf("bug", "WHY DOES IT KEEP LOGGING ME OUT?? fix this garbage"),
+  reportOf("bug", "I uploaded a portrait for Mara and it shows up blank on the player's phone"),
+  reportOf("bug", "quest page is super slow to load since yesterday"),
+  reportOf("bug", "I get an error when I try to save the encounter"),
+  reportOf("feature", "Can you add a way to export my notes to PDF?"),
+  reportOf("feature", "please add dark mode"),
+  reportOf("feature", "it would be great if I could drag quests between lists"),
+  reportOf("feature", "there is no way to bulk delete NPCs, that needs a checkbox or something"),
+  reportOf("feature", "Grimoire should let players roll their own initiative"),
+
+  // ── near-misses: sound like a complaint or a wish but are about the campaign, so NOT a report ──────────────────
+  inScope("make the NPC scarier, he is way too friendly"),
+  inScope("the quest is broken, the party skipped the bridge. How do I fix the plot?"),
+  inScope("I wish the villain had a better motive, any ideas?"),
+  inScope("add a secret door to the vault room"),
+  inScope("Why does grappling not work against a Huge creature in my game?"),
+  inScope("can you change the tavern so it is on fire?"),
 ];

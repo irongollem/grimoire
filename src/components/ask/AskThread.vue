@@ -37,6 +37,7 @@
         @credits="emit('credits', $event)"
         @upgrade="emit('upgrade')"
       />
+      <AskReportCard v-else-if="item.kind === 'report'" :report="item.report" @review="emit('review', item.report)" />
       <p v-else-if="item.kind === 'confirmed'" class="text-caption text-muted-foreground">{{ item.text }}</p>
       <AskResultCard
         v-else-if="item.kind === 'result'"
@@ -57,7 +58,7 @@
 <script setup lang="ts">
 /** The conversation: one block per thing said, drawn by kind. It holds no state; the conversation does. */
 import { nextTick, ref, watch } from "vue";
-import type { AskChoice } from "@edge-shared/agent/askContract";
+import type { AskChoice, AskReportDraft } from "@edge-shared/agent/askContract";
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
 import type { AskItem } from "@/composables/ask/useAskConversation";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
@@ -69,6 +70,7 @@ import AskPending from "@/components/ask/AskPending.vue";
 import { askGenerator } from "@edge-shared/agent/askContract";
 import { canAnimate } from "@/lib/motion";
 import AskResultCard from "@/components/ask/AskResultCard.vue";
+import AskReportCard from "@/components/ask/AskReportCard.vue";
 import AskUpsell from "@/components/ask/AskUpsell.vue";
 
 const { items, adapters, running = false } = defineProps<{ items: AskItem[]; adapters: AskAdapters; running?: boolean }>();
@@ -83,6 +85,7 @@ const emit = defineEmits<{
   leave: [itemId: number, index: number];
   credits: [needed: number];
   upgrade: [];
+  review: [report: AskReportDraft];
 }>();
 
 const scroller = ref<HTMLElement | null>(null);

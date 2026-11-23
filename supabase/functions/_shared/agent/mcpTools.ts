@@ -24,7 +24,7 @@ export const SOLO_TABLE_TOOLS: ReadonlySet<string> = new Set(["roll", "search", 
 export const ASK_TOOLS: ReadonlySet<string> = new Set(["search", "get", "list", "campaign_overview"]);
 
 /** Ask's own tools, which are not MCP tools (`askTools.ts` answers them). Named here so the two families can be held apart by test. */
-export const ASK_OWN_TOOLS: ReadonlySet<string> = new Set(["find", "ask_choice", "offer_ideas", "propose"]);
+export const ASK_OWN_TOOLS: ReadonlySet<string> = new Set(["find", "ask_choice", "offer_ideas", "propose", "draft_report", "read_manual", "log_manual_gap"]);
 
 /** The schema with every `enum` that lists a refused value cut down to the rest, at any depth. */
 function withoutRefused(node: unknown, refused: ReadonlySet<string>): unknown {

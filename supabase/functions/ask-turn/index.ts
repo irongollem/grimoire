@@ -253,6 +253,12 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     },
 
     newId: () => crypto.randomUUID(),
+
+    // The service role, and on purpose with no user, campaign or session in the call: the ledger is anonymous.
+    async recordManualGap(question, pages) {
+      const { error } = await admin.rpc("record_manual_gap", { p_question: question, p_pages: pages });
+      if (error) throw error;
+    },
   };
 
   const begun = await beginAsk({ userId: user.id, body, deps });

@@ -25,6 +25,7 @@
       <AdminPromptsTab   v-else-if="activeTab === 'prompts'" />
       <AdminProvidersTab v-else-if="activeTab === 'providers'" />
       <AdminReportsTab   v-else-if="activeTab === 'reports'" />
+      <AdminManualGapsTab v-else-if="activeTab === 'manual-gaps'" />
       <AdminAuditTab     v-else-if="activeTab === 'audit'" />
       <AdminDsrTab       v-else-if="activeTab === 'requests'" />
       <AdminLegalTab     v-else-if="activeTab === 'legal'" />
@@ -35,7 +36,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAddUser, IconBug, IconCoins, IconDocument, IconGridView, IconLibrary, IconParty, IconSettings, IconShieldCheck, IconTag } from "@/lib/icons";
+import { IconAddUser, IconBookMarked, IconBug, IconCoins, IconDocument, IconGridView, IconLibrary, IconParty, IconSettings, IconShieldCheck, IconTag } from "@/lib/icons";
 import TabBar from "@/components/common/controls/TabBar.vue";
 import AdminPlansTab     from "@/components/admin/AdminPlansTab.vue";
 import AdminUsersTab     from "@/components/admin/AdminUsersTab.vue";
@@ -46,6 +47,7 @@ import AdminCreditsTab   from "@/components/admin/AdminCreditsTab.vue";
 import AdminPromptsTab   from "@/components/admin/AdminPromptsTab.vue";
 import AdminProvidersTab from "@/components/admin/AdminProvidersTab.vue";
 import AdminReportsTab   from "@/components/admin/AdminReportsTab.vue";
+import AdminManualGapsTab from "@/components/admin/AdminManualGapsTab.vue";
 import AdminAuditTab     from "@/components/admin/AdminAuditTab.vue";
 import AdminDsrTab       from "@/components/admin/AdminDsrTab.vue";
 import AdminLegalTab     from "@/components/admin/AdminLegalTab.vue";
@@ -53,8 +55,8 @@ import AdminLegalTab     from "@/components/admin/AdminLegalTab.vue";
 const route = useRoute();
 const router = useRouter();
 
-type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" | "prompts" | "providers" | "reports" | "audit" | "requests" | "legal";
-const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts", "providers", "reports", "audit", "requests", "legal"]);
+type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" | "prompts" | "providers" | "reports" | "manual-gaps" | "audit" | "requests" | "legal";
+const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts", "providers", "reports", "manual-gaps", "audit", "requests", "legal"]);
 const TABS = [
   { id: "plans"     as TabId, label: "Plans",     icon: IconGridView },
   { id: "users"     as TabId, label: "Users",     icon: IconParty },
@@ -65,6 +67,7 @@ const TABS = [
   { id: "prompts"   as TabId, label: "Prompts",   icon: IconDocument },
   { id: "providers" as TabId, label: "Providers", icon: IconSettings },
   { id: "reports"   as TabId, label: "Reports",   icon: IconBug },
+  { id: "manual-gaps" as TabId, label: "Manual gaps", icon: IconBookMarked },
   { id: "audit"     as TabId, label: "Audit",     icon: IconShieldCheck },
   { id: "requests"  as TabId, label: "Requests",  icon: IconDocument },
   { id: "legal"     as TabId, label: "Legal",     icon: IconShieldCheck },

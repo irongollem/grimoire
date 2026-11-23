@@ -43,4 +43,12 @@ describe("AskThread", () => {
     await w.get('[data-testid="ask-landed-jump"]').trigger("click");
     expect(scrolled).toEqual(["3"]);
   });
+
+  // Bug caught: the report card's press not reaching the panel with the draft, so the form opens empty.
+  it("draws a report as its card and passes the draft up on review", async () => {
+    const report = { kind: "bug", where: "Atlas", action: "a", expected: "b", actual: "c" } as const;
+    const w = thread([{ kind: "report", id: 1, report }]);
+    await w.get('[data-testid="ask-report-review"]').trigger("click");
+    expect(w.emitted("review")?.[0]).toEqual([report]);
+  });
 });

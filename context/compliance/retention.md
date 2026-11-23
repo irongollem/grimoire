@@ -38,6 +38,7 @@ decided answer, not that every number is small.
 | Rate-limit counters | `rate_limit_events` | **25 hours** | `purge-rate-limit-events` (`20260621000008`) |
 | Invite tokens | `app_invites`, `campaign_invites` | **90 days** after the token stops working | `private.purge_expired_retention()` |
 | Product signal | `feature_interest` | **365 days** | `private.purge_expired_retention()` |
+| Documentation gaps | `manual_gaps`: questions about the app that Ask's manual could not answer (#1253 follow-up) | **Indefinite** | — not personal data by construction: no account, campaign or session column, and the question is the model's rewording with names and campaign details left out (`20261123194159`) |
 | Objection to being contacted | A request to stop receiving fault notices or experience questions — see `legitimate-interests.md` | **Indefinite**, deliberately | Kept precisely so the address is never used again; deleting it would re-enable the contact the person objected to. Not yet a table — hand-kept while the volume is three people, and the first thing to formalise if it stops being three |
 | Derived vectors | the eight `*_embeddings` tables | Lifetime of the row they describe | FK cascade from the source row |
 | Shared library content | `library_*`, `sound_library`, `content_sources` | **Indefinite** | — not personal data |

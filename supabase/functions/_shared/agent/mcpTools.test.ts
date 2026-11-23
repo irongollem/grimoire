@@ -173,7 +173,7 @@ describe("ASK_TOOLS and the table's tools are two configurations that never shar
   it("gives the table none of Ask's own tools, and gives Ask's own tools no MCP name", () => {
     for (const name of ASK_OWN_TOOLS) expect(SOLO_TABLE_TOOLS.has(name)).toBe(false);
     for (const name of ASK_OWN_TOOLS) expect(ASK_TOOLS.has(name)).toBe(false);
-    expect([...ASK_OWN_TOOLS].sort()).toEqual(["ask_choice", "find", "offer_ideas", "propose"]);
+    expect([...ASK_OWN_TOOLS].sort()).toEqual(["ask_choice", "draft_report", "find", "log_manual_gap", "offer_ideas", "propose", "read_manual"]);
   });
 
   it("refuses, without calling anything, every tool that belongs to the other configuration", async () => {

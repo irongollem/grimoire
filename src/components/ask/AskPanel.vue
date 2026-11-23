@@ -23,6 +23,9 @@
   </template>
 
   <!-- A result that finished while the panel was closed, or the DM was somewhere else. -->
+  <!-- The report form, with Ask's draft in it. Only its own Send files anything. -->
+  <BugReportModal v-if="reportMounted" v-model="reportOpen" :draft="reportDraft ?? undefined" />
+
   <AskResultNotice v-if="notice" :notice="notice" @dismiss="notice = null" @open="openResult" />
 </template>
 
@@ -32,11 +35,12 @@
  * generation running when it is hidden carries on and its result still arrives (as a notice and a dot on the
  * button). It owns the wiring; `AskSurface` is the face and `useAskConversation` the conversation.
  */
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, defineAsyncComponent, nextTick, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
+import { useLazyMount } from "@/composables/useLazyMount";
 import { railTransition } from "@/lib/motion";
-import { FREE_ASKS_PER_DAY } from "@edge-shared/agent/askContract";
+import { FREE_ASKS_PER_DAY, type AskReportDraft } from "@edge-shared/agent/askContract";
 import { useAskAdapters } from "@/ai/ask/useAskAdapters";
 import { useAskConversation, type AskNotice } from "@/composables/ask/useAskConversation";
 import { askContextFor } from "@/composables/ask/askContext";
@@ -58,9 +62,14 @@ const adapters = useAskAdapters();
 const surface = ref<InstanceType<typeof AskSurface> | null>(null);
 const notice = ref<AskNotice | null>(null);
 
+const BugReportModal = defineAsyncComponent(() => import("@/components/common/overlays/BugReportModal.vue"));
+const reportOpen = ref(false);
+const reportMounted = useLazyMount(reportOpen);
+const reportDraft = ref<AskReportDraft | null>(null);
+
 const convo = useAskConversation({
   campaignId: () => campaign.activeCampaignId,
-  context: () => askContextFor({ path: route.path, query: route.query }),
+  context: () => askContextFor({ path: route.path, query: route.query }, route.meta.title),
   adapters,
   campaignName: () => campaign.activeCampaign?.name ?? "this campaign",
   routePath: () => route.fullPath,
@@ -73,10 +82,12 @@ const convo = useAskConversation({
 });
 
 const freeLeft = computed(() => convo.freeLeft.value ?? usage.freeLeft.value);
-const hasAsked = computed(() => convo.items.value.some((i) => i.kind === "user"));
+// The count stays until it runs out: switching to the cost sentence after the first question read as if the free
+// ones were already gone (maintainer, 23 Nov 2026).
 const allowanceLine = computed(() => {
-  if (hasAsked.value) return "After that, an answer costs what it uses, charged in whole credits.";
-  return freeLeft.value === null ? "" : `${freeLeft.value} of ${FREE_ASKS_PER_DAY} free questions left today`;
+  if (freeLeft.value === null) return "";
+  if (freeLeft.value === 0) return "No free questions left today. An answer now costs what it uses, charged in whole credits.";
+  return `${freeLeft.value} of ${FREE_ASKS_PER_DAY} free questions left today`;
 });
 
 const surfaceProps = computed(() => ({
@@ -102,6 +113,10 @@ const surfaceHandlers = {
   leave: convo.leavePart,
   credits: (needed: number) => openOutOfCredits(needed),
   upgrade: () => void router.push("/billing"),
+  review: (report: AskReportDraft) => {
+    reportDraft.value = report;
+    reportOpen.value = true;
+  },
 };
 
 async function openResult(to: string) {

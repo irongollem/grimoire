@@ -14,6 +14,7 @@ import {
   askGenerator,
   type AskChoice,
   type AskContext,
+  type AskReportDraft,
   type AskIdea,
   type AskProposal,
   type AskRecordRef,
@@ -46,6 +47,8 @@ export type AskItem =
        */
       landedAt?: number;
     }
+  /** A report Ask drafted. Nothing is sent: the DM reviews it in the report form and presses Send there. */
+  | { kind: "report"; id: number; report: AskReportDraft }
   | { kind: "confirmed"; id: number; text: string }
   | {
       kind: "result";
@@ -229,6 +232,10 @@ export function useAskConversation(deps: AskConversationDeps) {
             written.add(push({ kind: "proposal", proposal: event.proposal, state: "quote", choices: {} }).id);
             break;
           }
+          case "report":
+            reply = null;
+            written.add(push({ kind: "report", report: event.report }).id);
+            break;
           case "done":
             freeLeft.value = event.freeLeft;
             break;

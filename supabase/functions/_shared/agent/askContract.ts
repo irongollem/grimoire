@@ -266,7 +266,22 @@ export interface AskChoice {
 export interface AskContext {
   route: string;
   record?: { type: AskRecordType; id: string };
+  /**
+   * The page's title as the DM sees it ("Quests", "Mara Thorne"). Untrusted and capped; it is only ever used to say
+   * where a drafted report happened, never to read anything.
+   */
+  title?: string;
 }
+
+/**
+ * A bug report or feature request Ask drafted from what the DM said (#1253 follow-up). The fields are exactly the
+ * report form's (`create-bug-report/issue.ts` `ReportText`), so the draft fills that form. NOTHING IS SENT: the
+ * maintainer's rule is that a report goes out only when the DM gives consent, which is pressing Send in the form the
+ * draft opens. No Ask code calls `create-bug-report`.
+ */
+export type AskReportDraft =
+  | { kind: "bug"; where: string; action: string; expected: string; actual: string }
+  | { kind: "feature"; where: string; summary: string; problem: string };
 
 /** The request body `ask-turn` accepts. */
 export interface AskTurnBody {
@@ -293,6 +308,8 @@ export type AskEvent =
   | { type: "ideas"; ideas: AskIdea[] }
   /** A generator to quote. Nothing has run. */
   | { type: "propose"; proposal: AskProposal }
+  /** A drafted report for the DM to review in the report form and send, or not. Nothing has been sent. */
+  | { type: "report"; report: AskReportDraft }
   /**
    * `routed`: the turn ended at a proposal, so it is inside the generator's price and did not count.
    * Otherwise `free` says whether it used a free answer, `credits` what it charged, `freeLeft` what is left today.

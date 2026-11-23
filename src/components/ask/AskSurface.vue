@@ -32,6 +32,7 @@
       @leave="(id, i) => emit('leave', id, i)"
       @credits="emit('credits', $event)"
       @upgrade="emit('upgrade')"
+      @review="emit('review', $event)"
     />
 
     <AskComposer ref="composer" :running="running" :line="allowanceLine" @send="emit('send', $event)" />
@@ -41,7 +42,7 @@
 <script setup lang="ts">
 /** The panel's face: header, where-from chip, the thread and the composer. State and wiring belong to AskPanel. */
 import { ref } from "vue";
-import type { AskChoice } from "@edge-shared/agent/askContract";
+import type { AskChoice, AskReportDraft } from "@edge-shared/agent/askContract";
 import { IconAsk, IconClose } from "@/lib/icons";
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
 import type { AskItem } from "@/composables/ask/useAskConversation";
@@ -71,6 +72,7 @@ const emit = defineEmits<{
   leave: [itemId: number, index: number];
   credits: [needed: number];
   upgrade: [];
+  review: [report: AskReportDraft];
 }>();
 
 const composer = ref<InstanceType<typeof AskComposer> | null>(null);

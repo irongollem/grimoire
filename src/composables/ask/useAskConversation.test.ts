@@ -384,4 +384,23 @@ describe("useAskConversation: campaign, allowance and withheld proposals", () =>
     await convo.send("make me a baker");
     expect(convo.items.value.map((i) => i.kind)).toEqual(["user", "error"]);
   });
+
+  // Bug caught: a drafted report never reaching the thread, or leaving the next text appended to the paragraph before it.
+  it("shows a drafted report as a card and starts a new paragraph after it", async () => {
+    const report = { kind: "bug", where: "Encounters", action: "a", expected: "b", actual: "c" } as const;
+    const { convo } = setup({
+      responses: [sse([{ type: "text", delta: "Drafted." }, { type: "report", report }, { type: "text", delta: "Anything else?" }, done])],
+    });
+    await convo.send("the tracker is broken");
+    expect(convo.items.value.map((i) => i.kind)).toEqual(["user", "reply", "report", "reply"]);
+    expect(convo.items.value[2]).toMatchObject({ kind: "report", report });
+  });
+
+  // Bug caught: a withheld answer leaving its drafted report on screen, still one press from the form.
+  it("takes back a report the same turn drafted when the answer is withheld", async () => {
+    const report = { kind: "feature", where: "", summary: "s", problem: "p" } as const;
+    const { convo } = setup({ responses: [sse([{ type: "report", report }, { type: "error", message: "Withheld.", withheld: true }])] });
+    await convo.send("idea");
+    expect(convo.items.value.map((i) => i.kind)).toEqual(["user", "error"]);
+  });
 });

@@ -132,6 +132,8 @@ export interface AskTurnDeps extends GateDeps<AskCampaignRow, AskSessionRow> {
    */
   loadRecord(campaign: AskCampaignRow, type: AskRecordType, id: string): Promise<AskRecordLookup | null>;
   newId(): string;
+  /** `record_manual_gap` as the service role: one anonymous row for a question the manual could not answer. Takes no user or campaign, on purpose. */
+  recordManualGap(question: string, pages: string[]): Promise<void>;
 }
 
 export interface BegunAsk {

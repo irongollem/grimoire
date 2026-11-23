@@ -20,6 +20,7 @@ function setup(over: Partial<AskToolsInput> = {}) {
     find: async () => [],
     loadRecord: async () => ({ name: "Harl" }),
     newId: () => "proposal-1",
+    recordManualGap: async () => undefined,
     reads: createReadLog(),
     emit: (e) => events.push(e),
     ...over,
@@ -28,9 +29,9 @@ function setup(over: Partial<AskToolsInput> = {}) {
 }
 
 describe("the tool list", () => {
-  it("offers the four readers and Ask's own four, and no tool that writes or rolls", () => {
+  it("offers the four readers and Ask's own seven, and no tool that writes or rolls", () => {
     const names = setup().tools.tools.map((t) => t.name);
-    expect(names.sort()).toEqual(["ask_choice", "campaign_overview", "find", "get", "list", "offer_ideas", "propose", "search"]);
+    expect(names.sort()).toEqual(["ask_choice", "campaign_overview", "draft_report", "find", "get", "list", "log_manual_gap", "offer_ideas", "propose", "read_manual", "search"]);
   });
 
   it("offers a 5e generator in propose only where the campaign plays 5e", () => {
@@ -241,6 +242,126 @@ describe("ask_choice about a picture the DM already settled", () => {
     expect((await open.tools.callTool("ask_choice", picture)).isError).toBe(false);
     const other = setup({ dmMessages: ["a baker, no portrait"] });
     const answer = await other.tools.callTool("ask_choice", { question: "Where do they live?", choices: [{ label: "Town", reply: "Town" }, { label: "Farm", reply: "Farm" }] });
+    expect(answer.isError).toBe(false);
+  });
+});
+
+describe("draft_report", () => {
+  const bug = { kind: "bug", where: "NPCs, Mara", action: "Opened Mara", expected: "A portrait", actual: "A blank box" };
+
+  // Bug caught: a draft that did not reach the browser, or one that left the turn running to write "I sent it".
+  it("emits the draft, ends the turn and tells the model to stop", async () => {
+    const { tools, events } = setup();
+    const answer = await tools.callTool("draft_report", bug);
+    expect(answer.isError).toBe(false);
+    expect(events).toEqual([{ type: "report", report: bug }]);
+    expect(tools.ended()).toBe("report");
+    expect(answer.content).toMatch(/Stop now/);
+  });
+
+  // Bug caught: an invalid draft shown to the DM, or ending the turn so the model cannot correct it.
+  it("refuses a draft missing a field, emits nothing and leaves the turn open", async () => {
+    const { tools, events } = setup();
+    expect(await tools.callTool("draft_report", { ...bug, actual: "" })).toMatchObject({ isError: true });
+    expect(events).toEqual([]);
+    expect(tools.ended()).toBeNull();
+  });
+
+  // Bug caught: a second draft (or a draft after a question) stacking forms on the DM's screen.
+  it("allows one draft per turn, and none after the turn ended another way", async () => {
+    const { tools, events } = setup();
+    await tools.callTool("draft_report", bug);
+    expect(await tools.callTool("draft_report", bug)).toMatchObject({ isError: true });
+    expect(events).toHaveLength(1);
+    const asked = setup();
+    await asked.tools.callTool("ask_choice", { question: "Which?", choices: [{ label: "a", reply: "a" }, { label: "b", reply: "b" }] });
+    expect(await asked.tools.callTool("draft_report", bug)).toMatchObject({ isError: true });
+  });
+
+  // Bug caught: the model being called again after a draft, billing a restatement of what is on the screen.
+  it("makes the next model call answer at once, like a proposal", async () => {
+    const { tools } = setup();
+    await tools.callTool("draft_report", bug);
+    const real: CallModel = vi.fn();
+    const step = await tools.endAware(real, { provider: "p", model: "m" })({} as never);
+    expect(real).not.toHaveBeenCalled();
+    expect(step.blocks).toEqual([]);
+  });
+});
+
+describe("read_manual", () => {
+  // Bug caught: the DM's "about" versus "known to" question answered from campaign records because the manual tool
+  // returned nothing useful (#1253: Ask read six records, found nothing and guessed).
+  it("returns the Canon page for the about / known to question, without ending the turn or telling the browser", async () => {
+    const { tools, events } = setup();
+    const answer = await tools.callTool("read_manual", { query: "about known to backstory connection" });
+    const parsed = JSON.parse(answer.content) as { pages: Array<{ id: string; text: string }> };
+    expect(answer.isError).toBe(false);
+    expect(parsed.pages[0].id).toBe("worldbuilding-canon");
+    expect(parsed.pages[0].text).toMatch(/known to/i);
+    expect(tools.ended()).toBeNull();
+    expect(events).toEqual([]);
+  });
+
+  // Bug caught: an empty result that gives the model nothing to act on, so it fills the silence with a guess.
+  it("says so when no page matches, and tells the model not to guess", async () => {
+    const answer = await setup().tools.callTool("read_manual", { query: "zzqx flurble wombat" });
+    expect(JSON.parse(answer.content)).toMatchObject({ pages: [], note: expect.stringContaining("log_manual_gap") });
+  });
+});
+
+describe("log_manual_gap", () => {
+  const read = (t: ReturnType<typeof setup>) => t.tools.callTool("read_manual", { query: "zzqx" });
+
+  // Bug caught: the ledger gaining a user, campaign or session argument, which makes an "anonymous" row identifiable.
+  it("passes the dep the question and the page ids and nothing else", async () => {
+    const recordManualGap = vi.fn(async () => undefined);
+    const t = setup({ recordManualGap });
+    await read(t);
+    await t.tools.callTool("log_manual_gap", { question: "What does the flurble switch do?", pages_checked: ["worldbuilding-canon"] });
+    expect(recordManualGap).toHaveBeenCalledTimes(1);
+    expect(recordManualGap.mock.calls[0]).toEqual(["What does the flurble switch do?", ["worldbuilding-canon"]]);
+  });
+
+  // Bug caught: a model that loops on the tool filling the ledger with one question many times.
+  it("refuses a second note in the same turn", async () => {
+    const recordManualGap = vi.fn(async () => undefined);
+    const t = setup({ recordManualGap });
+    await read(t);
+    await t.tools.callTool("log_manual_gap", { question: "one" });
+    const second = await t.tools.callTool("log_manual_gap", { question: "two" });
+    expect(second.isError).toBe(true);
+    expect(recordManualGap).toHaveBeenCalledTimes(1);
+  });
+
+  // Bug caught: noting a gap without looking, so a question the manual does answer lands in the ledger.
+  it("refuses before the manual was searched this turn", async () => {
+    const recordManualGap = vi.fn(async () => undefined);
+    const answer = await setup({ recordManualGap }).tools.callTool("log_manual_gap", { question: "How does X work?" });
+    expect(answer.isError).toBe(true);
+    expect(recordManualGap).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: invented page ids, a long pasted question and duplicate ids reaching the ledger.
+  it("drops ids that are not manual pages, caps the question and the pages", async () => {
+    const recordManualGap = vi.fn(async () => undefined);
+    const manualPages = Array.from({ length: 12 }, (_, i) => ({ id: `p${i}`, title: `P${i}`, section: "S", summary: "", keywords: [], body: "" }));
+    const t = setup({ recordManualGap, manualPages });
+    await read(t);
+    await t.tools.callTool("log_manual_gap", { question: "q".repeat(900), pages_checked: ["ghost", "p1", "p1", ...manualPages.map((p) => p.id)] });
+    const [question, pages] = recordManualGap.mock.calls[0] as unknown as [string, string[]];
+    expect(question).toHaveLength(500);
+    expect(pages).toHaveLength(10);
+    expect(pages).not.toContain("ghost");
+    expect(new Set(pages).size).toBe(pages.length);
+  });
+
+  // Bug caught: a ledger outage failing the DM's answer (the maintainer: a failed note is never fatal).
+  it("does not fail the turn when the ledger write throws", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const t = setup({ recordManualGap: async () => { throw new Error("db down"); } });
+    await read(t);
+    const answer = await t.tools.callTool("log_manual_gap", { question: "How does X work?" });
     expect(answer.isError).toBe(false);
   });
 });
