@@ -15,7 +15,7 @@ import type { Campaign } from "@/types/campaign.types";
  * mount it across a session) and reset only when the module is re-evaluated,
  * i.e. on a full page reload.
  *
- * Not used by the chooser flow (`ai_enabled === null`) — "Not now" there
+ * Not used by the chooser flow (`ai_enabled === null`) — "Keep AI off" there
  * persists an explicit `false` immediately, which is itself a decision that
  * never needs to re-prompt, so there is nothing session-scoped to track.
  */
@@ -73,7 +73,7 @@ export function shouldShowAiUseNotice(
  * (`ai_enabled === false` — not `null`, which is `shouldOfferAiChoice`'s
  * case), `currentUserId` is the campaign's owner, the account is Pro, and
  * the re-offer hasn't already been answered (`hasAcknowledgedReoffer`,
- * whichever way — confirm and "Not now" both record it, see
+ * whichever way — confirm and "Keep AI off" both record it, see
  * `AiUseNoticeGate.vue`). Never true for a `null` campaign — that's the
  * plain chooser's case and takes precedence regardless of plan. Pure
  * predicate, exported for testing without mounting `AiUseNoticeGate` or

@@ -1,11 +1,11 @@
 <template>
-  <AppModal :open="open" size="md" @close="cancel">
+  <AppModal :open="open" size="md" @close="dismiss">
     <ModalHeader
       :title="copy.title"
       :icon="IconInfo"
       tone="primary"
       closeable
-      @close="cancel"
+      @close="dismiss"
     />
 
     <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-4 flex flex-col gap-3">
@@ -40,7 +40,14 @@
 
     <div class="shrink-0 flex justify-end gap-2 px-5 pb-5 pt-2">
       <AppButton variant="subtle" size="sm" :label="cancelLabel" @click="cancel" />
-      <AppButton variant="primary" size="sm" :disabled="isSaving" :label="confirmLabel" @click="confirm" />
+      <AppButton
+        variant="primary"
+        size="sm"
+        :disabled="isSaving"
+        :label="confirmLabel"
+        :autofocus="mode === 'choose' || undefined"
+        @click="confirm"
+      />
     </div>
   </AppModal>
 </template>
@@ -160,7 +167,19 @@ const confirmLabel = computed(() => {
   if (mode !== "choose") return isSaving.value ? "Saving…" : "I understand";
   return isSaving.value ? "Enabling…" : "Enable AI assistance";
 });
-const cancelLabel = computed(() => (mode === "choose" ? "Not now" : "Cancel"));
+const cancelLabel = computed(() => (mode === "choose" ? "Keep AI off" : "Cancel"));
+
+/**
+ * Closing the dialog without a button: the cross, Escape or the backdrop.
+ * In the chooser AI is the default (Jeffrey, 23 Nov 2026), so only pressing
+ * "Keep AI off" turns it off; a close counts as the primary choice. The
+ * switch only decides whether AI features are offered: nothing is generated
+ * until the DM asks for it. Every other notice closes as a cancel.
+ */
+function dismiss() {
+  if (mode === "choose") void confirm();
+  else cancel();
+}
 
 async function confirm() {
   const attempt = ++saveAttempt;
@@ -176,7 +195,7 @@ async function confirm() {
   } catch {
     if (attempt === saveAttempt && open.value) {
       saveError.value = mode === "choose"
-        ? "We couldn't save this choice. Check your connection, then try again or choose Not now."
+        ? "We couldn't save this choice. Check your connection, then try again or choose Keep AI off."
         : "We couldn't save this acknowledgement. Check your connection, then try again or close this notice.";
     }
   } finally {
