@@ -6,7 +6,7 @@
     <template v-for="item in items" :key="item.id">
       <!-- The DM's words, right-aligned and in the hand. -->
       <div v-if="item.kind === 'user'" class="flex justify-end">
-        <AskHandText class="max-w-[85%] whitespace-pre-line bg-muted/50 px-3 py-1.5 text-right text-base leading-6" data-testid="ask-user-message">{{ item.text }}</AskHandText>
+        <span data-hand="text" class="max-w-[85%] whitespace-pre-line bg-muted/50 px-3 py-1.5 text-right text-base leading-6" data-testid="ask-user-message">{{ item.text }}</span>
       </div>
       <AskReply v-else-if="item.kind === 'reply'" :text="item.text" :who="item.who" />
       <AskReply
@@ -52,7 +52,6 @@ import type { AskChoice } from "@edge-shared/agent/askContract";
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
 import type { AskItem } from "@/composables/ask/useAskConversation";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
-import AskHandText from "@/components/ask/AskHandText.vue";
 import AskReply from "@/components/ask/AskReply.vue";
 import AskRead from "@/components/ask/AskRead.vue";
 import AskIdeas from "@/components/ask/AskIdeas.vue";

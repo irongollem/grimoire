@@ -949,6 +949,20 @@
   font-family: var(--vl-serif);
 }
 
+/* The DM's words that are not an AppInput or a note: a plain element or field
+   marked `data-hand="text"` (Ask Grimoire's composer, the messages the DM sent,
+   the query under the search row's Ask). One rule here rather than a scoped
+   copy per component, which also kept a component's CSS file off every page
+   that shows the search box. The placeholder stays in print. */
+:root[data-theme^="vellum"] [data-hand="text"] {
+  font-family: "Fondamento", var(--vl-serif);
+  font-style: normal;
+  color: var(--vl-hand-ink);
+}
+:root[data-theme^="vellum"] [data-hand="text"]::placeholder {
+  font-family: var(--vl-serif);
+}
+
 /* Floating slip. Outset 7px so a full-width hovered row never pokes past the
    torn line. Nothing animates here.
    The underleaf and the contact shadow are drawn inside --vl-slip-frame, not
