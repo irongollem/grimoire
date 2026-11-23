@@ -273,7 +273,6 @@ import { IconGenerate } from "@/lib/icons";
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES } from "@/data/npcTemplates";
 import type { NpcRelationship } from "@/types/npc.types";
 import { ASSOCIATE_CHOICES, associateById, associateId } from "@/lib/npcGenerator/associate";
-import type { TypeChoice } from "@/lib/worldLinks/connections";
 import { NPC_FACTION_ROLES } from "@/types/faction.types";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
@@ -293,32 +292,15 @@ import {
   GENERATOR_KIN_RELATIONS,
   isGeneratorKin,
   onlySpouseOf,
-  type GeneratorKinRelation,
 } from "@/lib/npcGenerator/kinPrompt";
 import type { PersonKey } from "@/types/kinship.types";
 import type { Location } from "@/types/location.types";
+import type { NpcGenerateForm } from "@/composables/npcs/useGenerateNpc";
 
 type LocationOption = Location & { depth: number };
 
-export interface QuickForm {
-  name: string;
-  race: string;
-  alignment: string;
-  relationship: NpcRelationship;
-  templateId: string;
-  location_id: string | null;
-  faction_id: string | null;
-  faction_role: string;
-  related_npc_id: string | null;
-  /** What the new NPC is to the associate when the tie is a bond. Exclusive with kin. */
-  related_npc_tie: TypeChoice;
-  /** What the new NPC is to the associate when the tie is family. Exclusive with a bond. */
-  related_npc_kin: GeneratorKinRelation | null;
-  /** A character as the associate (arrives by link; the combobox lists NPCs). */
-  related_pc_id: string | null;
-  /** The other parent when the new NPC is a child. */
-  second_parent: PersonKey | null;
-}
+/** What the form edits: the fields `useGenerateNpc` reads, so the page and Ask Grimoire describe an NPC the same way. */
+export type QuickForm = NpcGenerateForm;
 
 const {
   concept,

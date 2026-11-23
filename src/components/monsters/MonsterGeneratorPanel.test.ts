@@ -8,6 +8,7 @@ import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 const mocks = vi.hoisted(() => ({
   generateAndCreateMonster: vi.fn(),
   push: vi.fn(),
+  quoteFor: vi.fn(() => ({ lines: [], total: 1, byok: false })),
 }));
 
 // The campaign's AI toggle, mutable per test (#thisspec: "AI for every plan
@@ -35,9 +36,6 @@ vi.mock("@/stores/campaign", () => ({
     activeCampaign: { text_provider: "openai" },
   }),
 }));
-vi.mock("@/composables/ai/useCampaignProviders", () => ({
-  useCampaignProviders: () => ({ textIsByok: ref(false), textCredits: (base: number) => Math.ceil(base) }),
-}));
 vi.mock("@/composables/monsters/useGenerateMonster", () => ({
   useGenerateMonster: () => ({ generateAndCreateMonster: mocks.generateAndCreateMonster }),
 }));
@@ -54,8 +52,9 @@ vi.mock("@/ai/useMonsterGeneration", () => ({
 vi.mock("@/composables/ai/useAiCredits", () => ({
   useAiCredits: () => ({ affordable: () => affordableState.value, balance: ref(10) }),
 }));
-vi.mock("@/composables/monsters/useMonsterGenerationCost", () => ({
-  useMonsterGenerationCost: () => ({ credits: ref(1) }),
+// The price is the shared quote's (the one Ask Grimoire reads too); its own arithmetic is tested beside it.
+vi.mock("@/composables/ai/useGeneratorQuote", () => ({
+  useGeneratorQuote: () => ({ quoteFor: mocks.quoteFor }),
 }));
 vi.mock("@/composables/billing/useQuota", () => ({
   useQuota: () => ({ canCreate: canCreateMonster, quota: ref(null) }),
@@ -186,6 +185,12 @@ describe("MonsterGeneratorPanel — what it asks for and where it lands", () => 
     await Promise.resolve();
     await Promise.resolve();
   }
+
+  it("prices the run through the shared quote, with the picture counted while its toggle is on", async () => {
+    mocks.quoteFor.mockClear();
+    mountPanel();
+    expect(mocks.quoteFor).toHaveBeenCalledWith("monster", { image: true });
+  });
 
   it("asks for the trimmed concept and leaves every blank constraint out", async () => {
     mocks.generateAndCreateMonster.mockResolvedValue({ id: null, error: null });
