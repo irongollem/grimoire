@@ -151,8 +151,3 @@ export function planProvisions(input: {
     forage: forageLog,
   };
 }
-
-/** How long a character can go without, for the words the dialog shows. */
-export function freeDays(t: Pick<ProvisionTraveller, "conModifier" | "ruleset">): number {
-  return daysWithoutFoodAllowed(t.conModifier, t.ruleset);
-}
