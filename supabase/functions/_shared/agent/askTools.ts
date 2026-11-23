@@ -14,6 +14,7 @@ import { checkIdeas } from "./askIdeas.ts";
 import { recordsRead, type ReadLog } from "./askReads.ts";
 import type { AskCampaignRow, AskFound, AskRecordLookup } from "./askTypes.ts";
 import type { AskRecordType, AskChoice } from "./askContract.ts";
+import { isPictureQuestion, pictureSettled } from "./askSettled.ts";
 import { isRecord } from "./parse.ts";
 import type { AgentTool, CallModel, CallTool, ToolAnswer } from "./types.ts";
 
@@ -188,6 +189,11 @@ export interface AskToolsInput {
   newId(): string;
   reads: ReadLog;
   emit(event: AskEvent): void;
+  /**
+   * What the DM wrote in this conversation, this turn's message last. Their own words only, never a tool result or
+   * a record: `ask_choice` reads it to refuse a question about a picture they already answered.
+   */
+  dmMessages?: readonly string[];
 }
 
 export interface AskTools {
@@ -298,6 +304,13 @@ export function makeAskTools(input: AskToolsInput): AskTools {
     if (question === "") return failure("A question needs its words.");
     const choices = choicesOf(args.choices);
     if (choices.length < CHOICES_MIN) return failure(`Give ${CHOICES_MIN} to ${CHOICES_MAX} choices, each with a label and a reply.`);
+    // The prompt asks the model not to repeat a question the DM answered, and it does anyway (#1253 live run): so the
+    // refusal is here, with what the DM said, and the model proposes in the same turn instead of waiting.
+    const settled = isPictureQuestion(question, choices) ? pictureSettled(input.dmMessages ?? []) : null;
+    if (settled !== null) {
+      const said = settled === "no" ? "wants no picture" : "wants a picture";
+      return failure(`The DM already said they ${said}. Do not ask about it. Call propose now with portrait/image set to ${settled === "no" ? "none (no picture)" : "a picture"}.`);
+    }
     ended = "ask";
     emit({ type: "ask", question, choices });
     return { content: `Asked. ${STOP_NOW}`, isError: false };

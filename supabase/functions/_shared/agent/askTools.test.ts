@@ -217,3 +217,30 @@ describe("endAware", () => {
     expect(after).toMatchObject({ blocks: [], stop: "end", usage: { inputTokens: 0, outputTokens: 0 } });
   });
 });
+
+describe("ask_choice about a picture the DM already settled", () => {
+  const picture = { question: "Want a portrait for Mara?", choices: [{ label: "Yes", reply: "Yes, paint one" }, { label: "No", reply: "No portrait" }] };
+  // Bug caught: the model asking about a portrait after the DM wrote "No portrait." (live run, twice).
+  it("refuses it, tells the model what the DM said, and ends nothing", async () => {
+    const { tools, events } = setup({ dmMessages: ["Make a baker called Mara. No portrait."] });
+    const answer = await tools.callTool("ask_choice", picture);
+    expect(answer.isError).toBe(true);
+    expect(answer.content).toContain("no picture");
+    expect(events).toEqual([]);
+    expect(tools.ended()).toBeNull();
+  });
+
+  it("also refuses it when an earlier message settled it", async () => {
+    const { tools } = setup({ dmMessages: ["no portrait", "make her a baker"] });
+    expect((await tools.callTool("ask_choice", picture)).isError).toBe(true);
+  });
+
+  // Bug caught: the guard blocking every question, or asking nothing of a DM who never settled the picture.
+  it("lets a picture question through when the DM said nothing, and other questions when they said no", async () => {
+    const open = setup({ dmMessages: ["a baker"] });
+    expect((await open.tools.callTool("ask_choice", picture)).isError).toBe(false);
+    const other = setup({ dmMessages: ["a baker, no portrait"] });
+    const answer = await other.tools.callTool("ask_choice", { question: "Where do they live?", choices: [{ label: "Town", reply: "Town" }, { label: "Farm", reply: "Farm" }] });
+    expect(answer.isError).toBe(false);
+  });
+});

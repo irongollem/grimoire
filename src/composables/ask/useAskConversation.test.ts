@@ -43,6 +43,26 @@ async function withProposal(over: Parameters<typeof setup>[0] = {}) {
 }
 
 describe("useAskConversation: the turn", () => {
+  // Bug caught: one answer that called three read tools showing "Read 1 record" three times in a row.
+  it("merges the reads of one answer into one line, each record once", async () => {
+    const a = { type: "npc", id: "n1", name: "Mara" } as const;
+    const b = { type: "npc", id: "n2", name: "Harl" } as const;
+    const { convo } = setup({ responses: [sse([{ type: "read", records: [a] }, { type: "read", records: [a] }, { type: "read", records: [b] }, done])] });
+    await convo.send("who?");
+    const reads = convo.items.value.filter((i) => i.kind === "read");
+    expect(reads).toHaveLength(1);
+    expect(reads[0]).toMatchObject({ records: [a, b] });
+  });
+
+  // Bug caught: a later turn's reads folding into the previous answer's line, so a new answer showed no line of its own.
+  it("does not merge a turn's reads into an earlier turn's line", async () => {
+    const a = { type: "npc", id: "n1", name: "Mara" } as const;
+    const { convo } = setup({ responses: [sse([{ type: "read", records: [a] }, done]), sse([{ type: "read", records: [a] }, done])] });
+    await convo.send("one");
+    await convo.send("two");
+    expect(convo.items.value.filter((i) => i.kind === "read")).toHaveLength(2);
+  });
+
   // Bug caught: every text delta starting its own paragraph, or the reply never carrying the generator it names.
   it("builds one reply from the deltas and labels it with the generator a proposal names", async () => {
     const { convo } = setup({ responses: [sse([{ type: "text", delta: "A " }, { type: "text", delta: "baker." }, { type: "propose", proposal }, done])] });
