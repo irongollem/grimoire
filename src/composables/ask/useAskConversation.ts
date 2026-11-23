@@ -109,7 +109,7 @@ export interface AskConversationDeps {
   onFinished?: (finished: AskRunFinished) => void;
 }
 
-const NOT_ANSWERED = "Grimoire could not answer that. Try again.";
+const NOT_ANSWERED = "Your Familiar could not answer that. Try again.";
 
 /** What a refusal's own code means, for the codes that come without a sentence. */
 const REFUSAL_CODES: Readonly<Record<string, string>> = {

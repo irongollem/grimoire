@@ -133,6 +133,7 @@ function harness(): Harness {
     callMcp: () => async (name) => ({ content: JSON.stringify(name === "search" ? { hits: [{ type: "npc", id: NPC, name: "Harl" }] } : {}), isError: false }),
     find: async () => [],
     loadRecord: async (campaign, _type, id) => (campaign.id === CAMPAIGN && h.records.has(id) ? { name: h.records.get(id)! } : null),
+    readRules: async () => ({ status: "ok", edition: "2024", hits: [], books: [] }),
     newId: () => "proposal-1",
     recordManualGap: async (question, pages) => { h.gaps.push({ question, pages }); },
   };

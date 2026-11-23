@@ -19,6 +19,7 @@ function setup(over: Partial<AskToolsInput> = {}) {
     callMcp: async () => ok({ hits: [] }),
     find: async () => [],
     loadRecord: async () => ({ name: "Harl" }),
+    readRules: async () => ({ status: "ok", edition: "2024", hits: [], books: [] }),
     newId: () => "proposal-1",
     recordManualGap: async () => undefined,
     reads: createReadLog(),
@@ -29,9 +30,9 @@ function setup(over: Partial<AskToolsInput> = {}) {
 }
 
 describe("the tool list", () => {
-  it("offers the four readers and Ask's own seven, and no tool that writes or rolls", () => {
+  it("offers the four readers and Ask's own eight, and no tool that writes or rolls", () => {
     const names = setup().tools.tools.map((t) => t.name);
-    expect(names.sort()).toEqual(["ask_choice", "campaign_overview", "draft_report", "find", "get", "list", "log_manual_gap", "offer_ideas", "propose", "read_manual", "search"]);
+    expect(names.sort()).toEqual(["ask_choice", "campaign_overview", "draft_report", "find", "get", "list", "log_manual_gap", "offer_ideas", "propose", "read_manual", "read_rules", "search"]);
   });
 
   it("offers a 5e generator in propose only where the campaign plays 5e", () => {
@@ -307,6 +308,37 @@ describe("read_manual", () => {
   it("says so when no page matches, and tells the model not to guess", async () => {
     const answer = await setup().tools.callTool("read_manual", { query: "zzqx flurble wombat" });
     expect(JSON.parse(answer.content)).toMatchObject({ pages: [], note: expect.stringContaining("log_manual_gap") });
+  });
+});
+
+describe("read_rules", () => {
+  const grappled = { status: "ok" as const, edition: "2024" as const, books: ["Grimoire Rules"], hits: [{ kind: "condition" as const, name: "Grappled", source: "srd-2024", sourceTitle: "Grimoire Rules", text: "Speed 0." }] };
+
+  // Bug caught: the model's `kind` reaching the reader unchecked, so a made-up kind searched nothing and answered "not covered".
+  it("refuses a kind it does not know and never calls the reader", async () => {
+    const readRules = vi.fn(async () => grappled);
+    const answer = await setup({ readRules }).tools.callTool("read_rules", { query: "grappled", kind: "weather" });
+    expect(answer.isError).toBe(true);
+    expect(readRules).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: a rules answer that does not name the book, so the DM cannot tell it from the model's memory.
+  it("answers with the passage, its book's title and the edition, without ending the turn", async () => {
+    const t = setup({ readRules: async () => grappled });
+    const answer = await t.tools.callTool("read_rules", { query: "grappled", kind: "condition" });
+    const parsed = JSON.parse(answer.content) as { edition: string; hits: Array<{ book: string; text: string }> };
+    expect(parsed.edition).toBe("2024");
+    expect(parsed.hits).toEqual([expect.objectContaining({ book: "Grimoire Rules", text: "Speed 0." })]);
+    expect(t.tools.ended()).toBeNull();
+  });
+
+  // Bug caught: an empty result that invites the model to answer from memory instead of saying the books do not cover it.
+  it("says the enabled books do not cover it when nothing is found", async () => {
+    const t = setup({ readRules: async () => ({ status: "ok", edition: "2014", hits: [], books: ["Grimoire Rules"] }) });
+    const parsed = JSON.parse((await t.tools.callTool("read_rules", { query: "flurble", kind: "any" })).content) as { hits: unknown[]; note: string };
+    expect(parsed.hits).toEqual([]);
+    expect(parsed.note).toContain("Grimoire Rules");
+    expect(parsed.note).toContain("do not cover it");
   });
 });
 

@@ -10,7 +10,7 @@
   >
     <IconAsk class="size-4 shrink-0 text-primary" />
     <span class="flex min-w-0 flex-1 flex-col">
-      <span>Ask Grimoire</span>
+      <span>Ask your Familiar</span>
       <span data-hand="text" class="truncate text-caption">{{ query.trim() }}</span>
     </span>
     <KeyCap v-if="!touch">{{ combo }}</KeyCap>

@@ -29,6 +29,7 @@ import { eventStreamResponse, refusalResponse } from "../_shared/agent/conversat
 import { FREE_ASKS_PER_DAY, type AskEvent, type AskRecordType } from "../_shared/agent/askContract.ts";
 import type { AskCampaignRow, AskFound, AskSessionRow, AskTurnDeps } from "../_shared/agent/askTypes.ts";
 import type { CampaignSearchKind } from "../_shared/campaignSearch.ts";
+import { readRulesFrom } from "../_shared/agent/askRulesRead.ts";
 import { beginAsk, holdAsk } from "./handler.ts";
 import { ASK_RECORD_TABLES, askRecordScope } from "./recordTables.ts";
 
@@ -251,6 +252,9 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
       const name = (data as unknown as Record<string, unknown>)[source.nameColumn];
       return typeof name === "string" && name.trim() !== "" ? { name: name.trim() } : null;
     },
+
+    // As the caller, like `loadRecord`: the edition and the enabled sources are filtered in the queries themselves.
+    readRules: (campaign, query, kind) => readRulesFrom(supabase, { campaignId: campaign.id, gameSystem: campaign.game_system, query, kind }),
 
     newId: () => crypto.randomUUID(),
 

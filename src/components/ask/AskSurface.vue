@@ -3,12 +3,12 @@
     <header class="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-2.5">
       <div class="flex min-w-0 items-center gap-2">
         <IconAsk class="size-4 shrink-0 text-primary" />
-        <h2 class="text-heading font-semibold text-foreground">Ask Grimoire</h2>
+        <h2 class="text-heading font-semibold text-foreground">Familiar</h2>
         <AppButton as="span" variant="tinted" size="xs" tone="info" emphasis="outline" label="Beta" data-testid="ask-beta" />
       </div>
       <div class="flex items-center gap-1">
         <AppButton variant="ghost" size="inline" label="New conversation" data-testid="ask-new" @click="emit('new')" />
-        <AppButton variant="ghost" size="icon-xs" :icon="IconClose" icon-size="md" aria-label="Close Ask Grimoire" data-testid="ask-close" @click="emit('close')" />
+        <AppButton variant="ghost" size="icon-xs" :icon="IconClose" icon-size="md" aria-label="Close the Familiar" data-testid="ask-close" @click="emit('close')" />
       </div>
     </header>
 

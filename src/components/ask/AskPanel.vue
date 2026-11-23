@@ -1,7 +1,7 @@
 <template>
   <!-- Desktop and tablet: a column beside the page, as the campaign chat is. -->
   <Transition v-if="!isMobile" v-bind="railTransition()">
-    <aside v-if="ui.open" class="hidden w-104 shrink-0 md:flex sticky top-0 h-dvh" aria-label="Ask Grimoire" data-testid="ask-panel">
+    <aside v-if="ui.open" class="hidden w-104 shrink-0 md:flex sticky top-0 h-dvh" aria-label="Familiar" data-testid="ask-panel">
       <div class="flex w-104 shrink-0 flex-col border-l border-border bg-card">
         <AskSurface ref="surface" v-bind="surfaceProps" v-on="surfaceHandlers" />
       </div>
@@ -15,7 +15,7 @@
       v-if="ui.open"
       class="fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))] inset-x-0 z-50 flex h-[65vh] flex-col rounded-t-2xl border-t border-border bg-card"
       role="dialog"
-      aria-label="Ask Grimoire"
+      aria-label="Familiar"
       data-testid="ask-panel"
     >
       <AskSurface ref="surface" v-bind="surfaceProps" v-on="surfaceHandlers" />

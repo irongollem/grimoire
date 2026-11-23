@@ -342,7 +342,7 @@ describe("useAskConversation: ideas", () => {
 describe("refusalMessage", () => {
   // Bug caught: the server sends a sentence as {error: "refused", message}, and the panel showed the word "refused".
   it("shows the refusal's sentence, not its code", () => {
-    expect(refusalMessage({ error: "refused", message: "Only the campaign's DM can ask Grimoire." })).toBe("Only the campaign's DM can ask Grimoire.");
+    expect(refusalMessage({ error: "refused", message: "Only the campaign's DM can ask the Familiar." })).toBe("Only the campaign's DM can ask the Familiar.");
   });
 
   // Bug caught: a code-only refusal shown to the DM as "rate_limited".

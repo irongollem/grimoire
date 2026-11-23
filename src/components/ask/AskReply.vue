@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-1.5">
-    <p class="text-eyebrow uppercase text-muted-foreground">{{ who ? `Grimoire · ${who}` : "Grimoire" }}</p>
+    <p class="text-eyebrow uppercase text-muted-foreground">{{ who ? `Familiar · ${who}` : "Familiar" }}</p>
     <!-- Drawn from parsed data as text nodes, never v-html: a model's markup shows as written. -->
     <div v-if="text" class="flex flex-col gap-1.5 text-body text-foreground" data-testid="ask-reply-text">
       <template v-for="(block, i) in blocks" :key="i">

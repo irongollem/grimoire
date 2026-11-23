@@ -48,7 +48,7 @@ describe("GlobalSearch and Ask", () => {
     one.w.unmount();
     const two = await typed("Mara");
     const row = two.w.get('[data-testid="ask-search-row"]');
-    expect(row.text()).toContain("Ask Grimoire");
+    expect(row.text()).toContain("Ask your Familiar");
     expect(row.text()).toContain("Mara");
     two.w.unmount();
   });

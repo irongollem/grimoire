@@ -190,7 +190,7 @@ useHotkeys(
   [
     {
       combo: "mod+j",
-      description: "Ask Grimoire",
+      description: "Ask your Familiar",
       // Like mod+k, it pulls focus from wherever it is, including another field.
       allowInTextEntry: true,
       handler: () => ask.openPanel(),

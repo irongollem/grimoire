@@ -5,6 +5,9 @@
 // `read_manual` answers a question about how Grimoire itself works from the in-app manual, and `log_manual_gap` notes,
 // anonymously, a question the manual could not answer (the admin ledger of docs to write). Neither ends the turn.
 //
+// `read_rules` answers a rules question from the campaign's own enabled books, in its edition (`askRules.ts`); it does
+// not end the turn either.
+//
 // `draft_report` also ends the turn: it hands the DM a drafted bug report or feature request to review in the report
 // form (`askReport.ts`); it sends nothing.
 //
@@ -23,6 +26,7 @@ import type { AskCampaignRow, AskFound, AskRecordLookup } from "./askTypes.ts";
 import type { AskRecordType, AskChoice } from "./askContract.ts";
 import { isPictureQuestion, pictureSettled } from "./askSettled.ts";
 import { isRecord } from "./parse.ts";
+import { RULES_KINDS, RULES_QUERY_MAX, rulesAnswer, type RulesKind, type RulesRead } from "./askRules.ts";
 import { MANUAL_PAGES } from "../manual/manualPages.generated.ts";
 import type { ManualPageSource } from "../manual/buildIndex.ts";
 import { searchManual } from "../manual/searchManual.ts";
@@ -199,6 +203,19 @@ export function askOwnTools(fiveE: boolean): AgentTool[] {
       },
     },
     {
+      name: "read_rules",
+      description: "Read the rules of the game from the books this campaign has enabled, in the campaign's own edition. Use it whenever the DM asks how a rule, condition, spell, creature or item works in the game, never answer that from memory. Returns the best matching passages with the book each is from. Answer from them and name the book.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "What to look up, in a few words: the rule, condition, spell, creature or item." },
+          kind: { type: "string", enum: [...RULES_KINDS], description: "What kind of thing it is, or any when unsure." },
+        },
+        required: ["query", "kind"],
+        additionalProperties: false,
+      },
+    },
+    {
       name: "log_manual_gap",
       description: "Note, for the app's makers, a question about how Grimoire works that read_manual did not answer. Call it only after read_manual, only when the manual does not cover the question, and at most once per turn. `question` is the question reworded neutrally: no names of people, places, factions or campaigns, and nothing from the DM's campaign, only the question about the app. It is stored with no account or campaign attached.",
       inputSchema: {
@@ -224,6 +241,8 @@ export interface AskToolsInput {
   callMcp: CallTool;
   find(query: string): Promise<AskFound[] | null>;
   loadRecord(type: AskRecordType, id: string): Promise<AskRecordLookup | null>;
+  /** The campaign's own books, in its edition: what `read_rules` answers from. */
+  readRules(query: string, kind: RulesKind): Promise<RulesRead>;
   newId(): string;
   /**
    * Writes one anonymous row to the manual-gap ledger (`record_manual_gap`). It takes the question and the page ids
@@ -348,6 +367,14 @@ export function makeAskTools(input: AskToolsInput): AskTools {
     return { content: JSON.stringify({ query, pages: hits }), isError: false };
   }
 
+  async function readRules(args: Record<string, unknown>): Promise<ToolAnswer> {
+    const query = typeof args.query === "string" ? args.query.trim().slice(0, RULES_QUERY_MAX) : "";
+    if (query.length < 2) return failure("`query` needs at least two characters.");
+    const kind = RULES_KINDS.find((k) => k === args.kind);
+    if (kind === undefined) return failure(`\`kind\` is one of ${RULES_KINDS.join(", ")}.`);
+    return { content: rulesAnswer(query, await input.readRules(query, kind)), isError: false };
+  }
+
   async function logManualGap(args: Record<string, unknown>): Promise<ToolAnswer> {
     if (!manualRead) return failure("Search the manual with read_manual first. Note a gap only when it did not answer.");
     if (gapLogged) return failure("A gap is already noted this turn.");
@@ -422,6 +449,7 @@ export function makeAskTools(input: AskToolsInput): AskTools {
       case "propose": return propose(args);
       case "draft_report": return draftReport(args);
       case "read_manual": return readManual(args);
+      case "read_rules": return readRules(args);
       case "log_manual_gap": return logManualGap(args);
       default: return failure(`No such tool: ${name}`);
     }

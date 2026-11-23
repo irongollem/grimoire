@@ -133,6 +133,7 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
           callMcp: deps.callMcp(campaign.id),
           find: (query) => deps.find(campaign, query),
           loadRecord: (type, id) => deps.loadRecord(campaign, type, id),
+          readRules: (query, kind) => deps.readRules(campaign, query, kind),
           newId: () => deps.newId(),
           recordManualGap: (question, pages) => deps.recordManualGap(question, pages),
           reads,
