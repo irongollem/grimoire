@@ -105,6 +105,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AdminTableReopen from "@/components/admin/AdminTableReopen.vue";
 import type { AdminUser, ExemptReason } from "@/composables/admin/useAdminUsers";
 import { accountSegment, SEGMENT_INFO, type AccountSegment } from "@/lib/admin/accountSegments";
+import { aiChoiceLabel } from "@/lib/admin/aiChoice";
 import { outreachMailto, renderOutreach, type OutreachTemplate } from "@/lib/admin/outreachEmail";
 import { NOTICE_GRACE_DAYS } from "@/lib/account/retentionPeriods";
 import type { PlanId } from "@/types/subscription.types";
@@ -148,6 +149,7 @@ const campaignsLine = computed(() => {
   const parts: string[] = [];
   if (user.campaigns_owned > 0) {
     parts.push(`${user.campaigns_owned} ${user.campaigns_owned === 1 ? "campaign" : "campaigns"}`);
+    parts.push(aiChoiceLabel(user));
   }
   if (user.campaigns_playing > 0) parts.push(`plays in ${user.campaigns_playing}`);
   return parts.join(" · ");
