@@ -28,8 +28,11 @@
  *    the campaign's OWNER (`shouldOfferAiChoice`) → the inviting-but-honest
  *    chooser (mode "choose", kind "ai_use"). Confirm records the `ai_use`
  *    acknowledgement (inside `AiNoticeDialog`) and this gate then flips
- *    `ai_enabled` to `true`; "Not now" flips it to `false` directly, with no
- *    acknowledgement and no re-prompt — settings is the way back in. Players
+ *    `ai_enabled` to `true`; closing the dialog (cross, Escape, backdrop)
+ *    counts as confirm, because AI is the default and only an explicit
+ *    "Keep AI off" turns it off (23 Nov 2026). "Keep AI off" flips it to
+ *    `false` directly, with no acknowledgement and no re-prompt; settings is
+ *    the way back in. Players
  *    and non-owners of a null campaign see nothing here: `isAiEnabled` stays
  *    `false` (only `=== true` counts), which already hides every AI
  *    affordance.
@@ -37,10 +40,11 @@
  *    upgraded to Pro → the one-time free->Pro re-ask (mode "choose", kind
  *    "ai_pro_reoffer", `proReoffer: true` for Pro-aware copy). Owner decision
  *    4 Aug 2026: people pay for Pro expecting AI and may have forgotten an
- *    old "Not now", so they get exactly one re-ask, never an auto-flip.
+ *    old "Keep AI off", so they get exactly one re-ask, never an auto-flip.
  *    Confirm records BOTH `ai_use` (if this account hadn't already recorded
  *    it — e.g. a decline before ever seeing the plain notice) AND
- *    `ai_pro_reoffer`, then flips `ai_enabled` to `true`. "Not now" records
+ *    `ai_pro_reoffer`, then flips `ai_enabled` to `true` (a close counts as
+ *    confirm here too). "Keep AI off" records
  *    ONLY `ai_pro_reoffer` and leaves `ai_enabled` false — that reconsidered
  *    "no" is final, on every device, forever (the acknowledgement is
  *    user-level, not per-campaign — see `shouldOfferProReoffer`). These two
@@ -189,7 +193,7 @@ function handleCancel() {
     return;
   }
   if (kind.value === "ai_pro_reoffer") {
-    // "Not now" on the re-ask: the dialog's cancel() never auto-records (only
+    // "Keep AI off" on the re-ask: the dialog's cancel() never auto-records (only
     // confirm does), so this gate records it explicitly. ai_enabled is
     // already false — nothing to persist, and this row means no future
     // re-prompt on any device (see the file-header note above).

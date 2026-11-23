@@ -23,6 +23,10 @@
         />
       </div>
 
+      <p class="text-caption text-muted-foreground">
+        AI on for {{ aiCounts.on }} of {{ aiCounts.on + aiCounts.off }} campaign owners
+      </p>
+
       <AppInput
         v-model="ui.adminUsersSearch"
         type="search"
@@ -83,6 +87,7 @@ import AdminUserRow from "@/components/admin/AdminUserRow.vue";
 import OutreachTemplateEditor from "@/components/admin/OutreachTemplateEditor.vue";
 import { useAdminUiStore } from "@/stores/ui/admin";
 import { accountSegment, countBySegment, SEGMENT_INFO, SEGMENT_ORDER } from "@/lib/admin/accountSegments";
+import { countAiChoice } from "@/lib/admin/aiChoice";
 import {
   loadOutreachTemplate,
   resetOutreachTemplate,
@@ -105,6 +110,7 @@ const RETENTION_OPTIONS = [
 
 const allUsers = computed(() => usersQuery.data.value ?? []);
 const counts = computed(() => countBySegment(allUsers.value, now));
+const aiCounts = computed(() => countAiChoice(allUsers.value));
 
 const busy = computed(() => ({
   plan: usersQuery.setPlan.isPending.value,

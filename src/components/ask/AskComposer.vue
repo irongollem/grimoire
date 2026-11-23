@@ -2,7 +2,7 @@
   <div class="flex shrink-0 flex-col gap-1.5 border-t border-border px-3 py-2.5">
     <div class="flex items-end gap-2">
       <label class="flex min-w-0 flex-1">
-        <span class="sr-only">Ask Grimoire</span>
+        <span class="sr-only">Ask your Familiar</span>
         <textarea
           ref="field"
           v-model="draft"

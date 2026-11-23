@@ -5,8 +5,8 @@
       :size="size"
       :icon="IconAsk"
       icon-size="md"
-      :aria-label="ask.hasUnread ? 'Ask Grimoire, a result is ready' : 'Ask Grimoire'"
-      :tooltip="`Ask Grimoire (${hotkeyText})`"
+      :aria-label="ask.hasUnread ? 'Ask your Familiar, a result is ready' : 'Ask your Familiar'"
+      :tooltip="`Ask your Familiar, beta (${hotkeyText})`"
       data-testid="ask-button"
       @click="ask.openPanel()"
     />

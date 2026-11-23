@@ -192,6 +192,7 @@ export function useEntityImageGeneration(bucketId: BucketId) {
       setting: worldImageSetting(world),
       subject,
     });
+    // The browser-key path takes no look pictures: it has no refusal fallback, and it is being removed (#1260).
     const { b64, usage: imageUsage } = await imageProvider.generate(imagePrompt, IMAGE_SIZE);
     logUsage({ reason: "entity_image", imageUsage });
 

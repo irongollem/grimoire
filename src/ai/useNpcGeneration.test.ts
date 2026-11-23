@@ -8,13 +8,15 @@ const mocks = vi.hoisted(() => ({
   /** Species rows per table, and which campaign the campaign's own were read for. */
   species: { species: [] as { name: string; image_url: string | null }[], library_species: [] as { name: string; image_url: string | null }[] },
   speciesCampaign: [] as unknown[],
+  speciesError: null as Error | null,
 }));
+vi.mock("@/lib/observability/sentry", () => ({ reportHandledError: vi.fn() }));
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     functions: { invoke: mocks.invoke },
     from: (table: "species" | "library_species") => {
-      const result = { data: mocks.species[table], error: null };
+      const result = { data: mocks.species[table], error: mocks.speciesError };
       const chain = {
         select: () => chain,
         eq: (_column: string, value: unknown) => { mocks.speciesCampaign.push(value); return chain; },
@@ -44,6 +46,20 @@ describe("useNpcGeneration", () => {
     mocks.generateImage.mockResolvedValue("https://img/p.webp");
     mocks.species = { species: [], library_species: [] };
     mocks.speciesCampaign = [];
+    mocks.speciesError = null;
+  });
+
+  // Bug caught: a failed read of the optional species picture skipping the portrait the DM paid for.
+  it("still paints the portrait, without a reference, when the species lookup fails", async () => {
+    mocks.speciesError = new Error("read failed");
+    mocks.invoke.mockResolvedValue({
+      data: { name: "Bram", race: "Halfling", true_portrait_prompt: "A weathered old ferryman." },
+      error: null,
+    });
+    const result = await useNpcGeneration().generate("an old ferryman", { generateImage: true });
+    expect(mocks.generateImage).toHaveBeenCalledTimes(1);
+    expect(mocks.generateImage.mock.calls[0]?.[0]).not.toHaveProperty("referenceUrls");
+    expect(result?.portrait_url).toBe("https://img/p.webp");
   });
 
   // Bug caught: a halfling ferryman painted as a tall human, because the picture was painted from the text model's

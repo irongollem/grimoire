@@ -73,6 +73,7 @@
     "spells:advisor-check": "tsx --tsconfig tsconfig.node.json scripts/spells/advisor-check.ts",
     "spells:apply-curated": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/spells/apply-curated-spell-mechanics.ts",
     "nook:stock": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/book-nook-stock.ts",
+    "manual:index": "tsx --tsconfig tsconfig.node.json scripts/manual/buildManualIndex.ts",
     "stat-blocks:structure": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/stat-blocks/structure-stat-blocks.ts",
     "stat-blocks:release": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/stat-blocks/release.ts",
     "dev:library": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/dev-library.ts",

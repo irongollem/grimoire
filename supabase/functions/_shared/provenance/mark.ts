@@ -10,25 +10,13 @@
  */
 import type { AiProvenance } from "./types.ts";
 import { embedProvenance } from "./embed.ts";
+import { base64FromBytes as bytesToBase64 } from "../base64.ts";
 
 /** Marks raw image bytes. Alias of `embedProvenance` kept for call-site symmetry with `markGeneratedImageB64` below. */
 export function markGeneratedImage(bytes: Uint8Array, contentType: string, prov: AiProvenance): Uint8Array {
   return embedProvenance(bytes, contentType, prov);
 }
 
-// Spread-arg chunk size for String.fromCharCode — a naive
-// `String.fromCharCode(...bytes)` over a whole image (realistically several
-// hundred KB to a few MB) blows V8's argument-count limit ("Maximum call
-// stack size exceeded"); encoding in chunks avoids that.
-const BASE64_CHUNK_SIZE = 0x8000;
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += BASE64_CHUNK_SIZE) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + BASE64_CHUNK_SIZE));
-  }
-  return btoa(binary);
-}
 
 function base64ToBytes(b64: string): Uint8Array {
   const binary = atob(b64);

@@ -256,7 +256,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
+import type { AskReportDraft } from "@edge-shared/agent/askContract";
 import {
   IconAddImage,
   IconBug,
@@ -279,6 +280,8 @@ const KIND_OPTIONS = [
 ] as const;
 
 const open = defineModel<boolean>({ required: true });
+// A report Ask drafted (#1253): it only fills the form. The DM edits it and presses Send, or cancels; Ask files nothing.
+const { draft } = defineProps<{ draft?: AskReportDraft }>();
 
 const kind = ref<ReportKind>("bug");
 const isBug = computed(() => kind.value === "bug");
@@ -297,6 +300,19 @@ const submitting = ref(false);
 const submitted = ref(false);
 const error = ref("");
 const issueNumber = ref<number | null>(null);
+
+watch(
+  [open, () => draft],
+  ([isOpen, d]) => {
+    if (!isOpen || !d) return;
+    kind.value = d.kind;
+    form.value =
+      d.kind === "bug"
+        ? { ...form.value, where: d.where, action: d.action, expected: d.expected, actual: d.actual }
+        : { ...form.value, where: d.where, summary: d.summary, problem: d.problem };
+  },
+  { immediate: true },
+);
 
 function close() {
   open.value = false;

@@ -506,11 +506,13 @@
    clip a hanging ribbon, so the active tab gets an oxblood underline there. */
 :root[data-theme^="vellum"] .tab-bar > [role="tab"][aria-selected="true"] { box-shadow: inset 0 -2px 0 var(--live-ink); }
 @media (min-width: 48rem) {
-  :root[data-theme^="vellum"] .tab-bar { overflow: visible; }
-  :root[data-theme^="vellum"] .tab-bar > [role="tab"][aria-selected="true"] { box-shadow: none; }
+  :root[data-theme^="vellum"] .tab-bar:not(.tab-bar--overflowing) { overflow: visible; }
+  :root[data-theme^="vellum"] .tab-bar:not(.tab-bar--overflowing) > [role="tab"][aria-selected="true"] { box-shadow: none; }
+  /* A row wider than the screen scrolls as it does on a phone, with the underline, since a ribbon would be clipped. */
+  :root[data-theme^="vellum"] .tab-bar.tab-bar--overflowing { overflow-x: auto; overflow-y: hidden; }
 }
 @media (min-width: 48rem) {
-:root[data-theme^="vellum"] .tab-bar > [role="tab"][aria-selected="true"]::after {
+:root[data-theme^="vellum"] .tab-bar:not(.tab-bar--overflowing) > [role="tab"][aria-selected="true"]::after {
   content: "";
   position: absolute;
   z-index: 2;

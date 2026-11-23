@@ -30,6 +30,15 @@ Once a map is saved, Grimoire offers three actions from the editor's **Map** men
 
 Nothing here is ever silently discarded: anything Grimoire can't confidently match is left alone or flagged, never dropped. If you're not happy with a publish, the footer note tells you: undo is simply publishing again from the previous revision.
 
+## Props on the battle map: publish again
+
+Props (the tables, beds, coffins and barrels you place from the **Place** tool) are part of your drawing, but the battle map does not read your drawing directly. It plays on the picture that **Publish to Atlas** bakes. So a prop you place, move or turn shows up at the table only after you publish again.
+
+- Place or move props as you like, then open **Publish to Atlas** (or **Re-publish** from the place in the Atlas) and publish. The new picture carries the props.
+- Until you do, the site in the Atlas is behind your drawing, and the editor shows that it has changed since the last publish.
+- Props never create, reshape or block a room, door or wall. They are scenery, so publishing a map with only new props changes the picture and nothing in the plan.
+- You cannot yet hide or reveal a single prop during play. A prop is in the picture for everyone who can see that part of the map.
+
 ## Download PNG
 
 Click **↓ PNG** to export the map as a full-resolution PNG rendered right in your browser: nothing is uploaded. Use this for sharing outside Grimoire or printing.

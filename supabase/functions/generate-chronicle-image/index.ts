@@ -23,6 +23,7 @@ import { registerImageProvenance } from "../_shared/provenance/register.ts";
 import { hasLikenessAcknowledgement } from "../_shared/provenance/likeness-gate.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldImageSetting } from "../_shared/worldBlock.ts";
+import { lookReferenceBlobs } from "../_shared/lookReferenceBlobs.ts";
 
 // Keep browser-supplied composition inputs bounded before req.json()/atob hold
 // both the encoded and decoded copies in the Edge isolate.
@@ -46,29 +47,33 @@ type ImagePurpose =
   | "monster" | "item" | "spell" | "faction" | "location" | "location_map"
   | "trap" | "puzzle" | "party_member" | "species" | "dungeon_feature" | "deity";
 
+// takesLook: a map is top-down cartography, so the look's pictures would paint it as a scene. `deity` and
+// `dungeon_feature` take the look's style on purpose: an emblem and a feature are painted in the campaign's hand.
 const PURPOSE_CONFIG: Record<ImagePurpose, {
   kind: ImageJobKind;
   bucket: string;
   prefix: string;
   creditType: "chronicle_image" | "entity_image" | "map_style_generation";
   boostStyle: boolean;
+  /** Whether the campaign Look's style pictures go to the image model beside the written look (#1252). */
+  takesLook: boolean;
 }> = {
-  chronicler:     { kind: "chronicler",     bucket: "chronicle",       prefix: "scene",    creditType: "chronicle_image",    boostStyle: true },
-  group_portrait: { kind: "group_portrait", bucket: "chronicle",       prefix: "group",    creditType: "chronicle_image",    boostStyle: true },
-  npc_portrait:   { kind: "npc_portrait",   bucket: "npc-portraits",   prefix: "npc",      creditType: "entity_image",       boostStyle: true },
-  npc_disguise:   { kind: "npc_disguise",   bucket: "npc-portraits",   prefix: "disguise", creditType: "entity_image",       boostStyle: true },
-  monster:        { kind: "monster",        bucket: "monster-images",  prefix: "monster",  creditType: "entity_image",       boostStyle: true },
-  item:           { kind: "item",           bucket: "item-images",     prefix: "item",     creditType: "entity_image",       boostStyle: true },
-  spell:          { kind: "spell",          bucket: "spell-images",    prefix: "spell",    creditType: "entity_image",       boostStyle: true },
-  faction:        { kind: "faction",        bucket: "faction-images",  prefix: "faction",  creditType: "entity_image",       boostStyle: true },
-  location:       { kind: "location",       bucket: "location-images", prefix: "location", creditType: "entity_image",       boostStyle: true },
-  location_map:   { kind: "location_map",   bucket: "location-images", prefix: "map",      creditType: "entity_image",       boostStyle: false },
-  trap:           { kind: "trap",           bucket: "trap-images",     prefix: "trap",     creditType: "entity_image",       boostStyle: true },
-  puzzle:         { kind: "puzzle",         bucket: "puzzle-images",   prefix: "puzzle",   creditType: "entity_image",       boostStyle: true },
-  party_member:   { kind: "party_member",   bucket: "chronicle",       prefix: "party",    creditType: "entity_image",       boostStyle: true },
-  species:        { kind: "species",        bucket: "species-images",  prefix: "species",  creditType: "entity_image",       boostStyle: true },
-  dungeon_feature: { kind: "dungeon_feature", bucket: "dungeon-feature-images", prefix: "feature", creditType: "entity_image", boostStyle: true },
-  deity:          { kind: "deity",          bucket: "pantheon-emblems", prefix: "deity",   creditType: "entity_image",       boostStyle: true },
+  chronicler:     { kind: "chronicler",     bucket: "chronicle",       prefix: "scene",    creditType: "chronicle_image",    boostStyle: true, takesLook: true },
+  group_portrait: { kind: "group_portrait", bucket: "chronicle",       prefix: "group",    creditType: "chronicle_image",    boostStyle: true, takesLook: true },
+  npc_portrait:   { kind: "npc_portrait",   bucket: "npc-portraits",   prefix: "npc",      creditType: "entity_image",       boostStyle: true, takesLook: true },
+  npc_disguise:   { kind: "npc_disguise",   bucket: "npc-portraits",   prefix: "disguise", creditType: "entity_image",       boostStyle: true, takesLook: true },
+  monster:        { kind: "monster",        bucket: "monster-images",  prefix: "monster",  creditType: "entity_image",       boostStyle: true, takesLook: true },
+  item:           { kind: "item",           bucket: "item-images",     prefix: "item",     creditType: "entity_image",       boostStyle: true, takesLook: true },
+  spell:          { kind: "spell",          bucket: "spell-images",    prefix: "spell",    creditType: "entity_image",       boostStyle: true, takesLook: true },
+  faction:        { kind: "faction",        bucket: "faction-images",  prefix: "faction",  creditType: "entity_image",       boostStyle: true, takesLook: true },
+  location:       { kind: "location",       bucket: "location-images", prefix: "location", creditType: "entity_image",       boostStyle: true, takesLook: true },
+  location_map:   { kind: "location_map",   bucket: "location-images", prefix: "map",      creditType: "entity_image",       boostStyle: false, takesLook: false },
+  trap:           { kind: "trap",           bucket: "trap-images",     prefix: "trap",     creditType: "entity_image",       boostStyle: true, takesLook: true },
+  puzzle:         { kind: "puzzle",         bucket: "puzzle-images",   prefix: "puzzle",   creditType: "entity_image",       boostStyle: true, takesLook: true },
+  party_member:   { kind: "party_member",   bucket: "chronicle",       prefix: "party",    creditType: "entity_image",       boostStyle: true, takesLook: true },
+  species:        { kind: "species",        bucket: "species-images",  prefix: "species",  creditType: "entity_image",       boostStyle: true, takesLook: true },
+  dungeon_feature: { kind: "dungeon_feature", bucket: "dungeon-feature-images", prefix: "feature", creditType: "entity_image", boostStyle: true, takesLook: true },
+  deity:          { kind: "deity",          bucket: "pantheon-emblems", prefix: "deity",   creditType: "entity_image",       boostStyle: true, takesLook: true },
 };
 
 function buildScenePrompt(sceneText: string, textDescriptions: string[], setting: string, imageBasePrompt: string): string {
@@ -152,6 +157,8 @@ async function runGeneration(args: {
   size: string;
   quality: string | null;
   portrait_urls: string[];
+  /** The look's style pictures (#1252), empty for a map. */
+  look_reference_urls: string[];
   isByok: boolean;
   cost: number;
   reservationIds: string[];
@@ -159,7 +166,7 @@ async function runGeneration(args: {
   source_image_b64: string | null;
   report: (err: unknown) => void;
 }) {
-  const { jobId, userId, provider, model, apiKey, moderationKey, prompt, size, quality, portrait_urls, isByok, cost, reservationIds, purpose, source_image_b64, report } = args;
+  const { jobId, userId, provider, model, apiKey, moderationKey, prompt, size, quality, portrait_urls, look_reference_urls, isByok, cost, reservationIds, purpose, source_image_b64, report } = args;
 
   // Once the picture is stored it is charged, and nothing after that may call the job failed (the hand-wired worker
   // marked a delivered image failed when completeImageJob or the release threw, #1234).
@@ -188,10 +195,12 @@ async function runGeneration(args: {
         portraitBlobs.push(new Blob([bytes], { type: "image/png" }));
       }
 
+      const styleReferences = await lookReferenceBlobs(look_reference_urls);
       const { b64, contentType, usage } = await generateImage({
         provider, model, apiKey, prompt, size, quality, boostStyle: PURPOSE_CONFIG[purpose].boostStyle && imageBoostFor(purpose),
         screening: { apiKey: moderationKey, admin, userId, generationType: purpose },
         sourceImages: portraitBlobs.length > 0 ? portraitBlobs : undefined,
+        styleReferences,
       });
 
       // provider/model here mirror what the ledger logs: usage.provider is the actual responding provider, model is
@@ -316,7 +325,9 @@ serve(serveUser(async ({ user, req, report }) => {
     : wholeCredits(await fetchCreditCost(admin, config.creditType) * sizeMultiplier(size) * img.imageMultiplier);
   const quality = await resolveImageQuality(admin, config.creditType, img);
 
-  const setting = worldImageSetting(await loadWorldBlock(admin, campaign.id));
+  const world = await loadWorldBlock(admin, campaign.id);
+  const setting = worldImageSetting(world);
+  const lookReferenceUrls = config.takesLook ? world.lookReferences : [];
 
   const { data: imageBaseRow, error: imageBaseError } = await admin
     .from("ai_system_prompts").select("content")
@@ -375,7 +386,7 @@ serve(serveUser(async ({ user, req, report }) => {
     // past response. Deno Deploy's EdgeRuntime keeps the isolate alive for waitUntil.
     const run = runGeneration({
       jobId, userId: user.id, provider: img.provider, model, apiKey: img.apiKey, moderationKey: img.moderationKey,
-      prompt, size, quality, portrait_urls, isByok, cost: imageCost,
+      prompt, size, quality, portrait_urls, look_reference_urls: lookReferenceUrls, isByok, cost: imageCost,
       reservationIds: hold.handOff(), purpose, source_image_b64, report,
     });
     try {

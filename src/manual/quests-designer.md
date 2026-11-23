@@ -27,6 +27,40 @@ keywords: quest designer, design it, ai, conversation, beat tree, propose, excha
 
 **Edit** (next to your original prose, once a turn has happened) lets you revise your description and start over from a fresh proposal. **Start over** clears the whole conversation.
 
+## What the tree is made of
+
+The tree is a spine, the same shape you would build by hand in Story Flow:
+
+- **Beats**: the scenes, in story order, each with a title and a kind. The first is the quest's opening beat.
+- **Routes**: the connections between beats. A fork where the party chooses is a set of **choice** routes. Something that happens next to the main story is an **and also** route.
+- **Objectives**: what the party is trying to achieve, each tied to the beat that raises it. One raised by the opening beat starts out live. One raised only by a later beat waits, because the party has not been sent down that branch yet.
+
+Each beat also arrives with a short rumor line and a reveal line, the two things players are shown about it once you share it. They hold no DM-only secrets, and every beat still starts hidden: writing what players would see is not showing it to them. Sharing stays your call, beat by beat.
+
+If the model's answer leaves out a piece, for example a route pointing at a beat that is not there, that piece is dropped and the rest of the quest still lands. Nothing is invented to fill a hole.
+
+## After you click Create quest
+
+The quest opens in Story Flow with every beat and route on the canvas. From there:
+
+1. Click a beat to open it in the drawer on the right. It shows where it is staged, the read-aloud, the description and **Where it can go**, the routes out of it.
+2. Use **Edit text** to change a beat's words. It saves itself as you type.
+3. Click a route to rename it, give it a cost, or change it between **Choice** and **And also**.
+
+The designer writes the spine and the rumor and reveal lines. The read-aloud text and the longer DM lead of each beat are yours to write, by hand or with **Fill with AI** below.
+
+## Filling one beat with AI
+
+You do not have to use the designer to get help with a single scene. At the top of a beat's text form (click **Edit text** in the drawer) is **Fill with AI**. It is there only when AI is switched on for the campaign.
+
+1. Optionally type a steer, such as "a tense negotiation" or "a trap in the cellar", in the box. The box is optional; leave it empty and the model works from the quest alone.
+2. Check the credit cost shown below the box, then click **Fill**.
+3. The model proposes a **title**, **read-aloud** text and a **DM lead** for the beat, and they appear in the beat's own fields. Edit anything you like. It saves like any other edit.
+
+The model reads the quest's title and summary, the beat's kind and current title and notes, where the beat is staged, the beats that come before and after it, and the objectives still open, so the new text carries on the flow instead of repeating it.
+
+If the beat already has read-aloud or lead text, Grimoire first asks **Replace the existing text?** Decline and nothing is spent. A beat filled by AI carries the AI label until you change its words.
+
 ## What your players see
 
 Nothing: this is a prep-time tool. Nothing about a quest is visible to players until one of its beats is rumored or revealed, exactly as for any other quest.

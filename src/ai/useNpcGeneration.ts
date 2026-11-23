@@ -25,6 +25,7 @@ import {
   generateImage,
   type ImageGenerationContext,
 } from "@/ai/useImageGeneration";
+import { reportHandledError } from "@/lib/observability/sentry";
 import { buildAiProvenance } from "@/ai/provenance";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 import { useCampaignStore } from "@/stores/campaign";
@@ -217,7 +218,13 @@ export function useNpcGeneration() {
     try {
       // The species leads, so the picture cannot paint a human where the record says halfling, and its own picture goes
       // along when it has one: not every species is known to an image model, and no homebrew one is.
-      const reference = await speciesPicture(imageContext.campaignId, npcData.race);
+      // An optional reference that fails to load paints without it: the portrait is already paid for.
+      let reference: string | null = null;
+      try {
+        reference = await speciesPicture(imageContext.campaignId, npcData.race);
+      } catch (e) {
+        reportHandledError(e, "npc-species-reference");
+      }
       portrait_url = await generateImage({
         ...imageContext,
         purpose: "npc_portrait",

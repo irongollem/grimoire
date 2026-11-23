@@ -6,7 +6,7 @@
  * cannot make a second record). Lives in the panel's scope, which stays mounted while the panel is merely hidden,
  * so a running turn or generation carries on.
  */
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { creditsText } from "@/lib/ask/askCredits";
 import {
   ASK_OFF_TOPIC_MESSAGE,
@@ -14,6 +14,7 @@ import {
   askGenerator,
   type AskChoice,
   type AskContext,
+  type AskReportDraft,
   type AskIdea,
   type AskProposal,
   type AskRecordRef,
@@ -46,6 +47,8 @@ export type AskItem =
        */
       landedAt?: number;
     }
+  /** A report Ask drafted. Nothing is sent: the DM reviews it in the report form and presses Send there. */
+  | { kind: "report"; id: number; report: AskReportDraft }
   | { kind: "confirmed"; id: number; text: string }
   | {
       kind: "result";
@@ -85,15 +88,19 @@ export interface AskRunFinished {
   route: string | null;
   open?: () => void;
   credits: number;
+  /** The campaign's name at the press, so a switch while it ran cannot rename where it was made. */
+  campaign: string;
   /** The page the DM was on when they pressed the button. */
   startedAt: string;
 }
 
 /** The floating notice: a finished run plus the campaign it was made in. */
-export type AskNotice = Omit<AskRunFinished, "startedAt"> & { campaign: string };
+export type AskNotice = Omit<AskRunFinished, "startedAt">;
 
 export interface AskConversationDeps {
   campaignId: () => string | null;
+  /** The active campaign's name, read at the confirm press. */
+  campaignName: () => string;
   context: () => AskContext;
   adapters: AskAdapters;
   /** The page now, to tell whether the DM moved on while it ran. */
@@ -102,7 +109,7 @@ export interface AskConversationDeps {
   onFinished?: (finished: AskRunFinished) => void;
 }
 
-const NOT_ANSWERED = "Grimoire could not answer that. Try again.";
+const NOT_ANSWERED = "Your Familiar could not answer that. Try again.";
 
 /** What a refusal's own code means, for the codes that come without a sentence. */
 const REFUSAL_CODES: Readonly<Record<string, string>> = {
@@ -124,10 +131,29 @@ export function partsCredits(parts: readonly AskRunPart[]): number {
   return parts.reduce((sum, p) => sum + p.credits, 0);
 }
 
+/** How long after the last words the Familiar keeps moving: text arrives in bursts, and a still-move-still flicker reads as a glitch. */
+export const SPEAKING_TAIL_MS = 700;
+
 export function useAskConversation(deps: AskConversationDeps) {
   const transport = deps.transport ?? sendToAskTurn;
   const items = ref<AskItem[]>([]);
   const running = ref(false);
+  /**
+   * The Familiar is writing words right now: true while text arrives, false once it has paused a moment or the turn
+   * ends. Its avatar moves only then (maintainer, 24 Nov 2026), not while it reads or waits on a tool.
+   */
+  const speaking = ref(false);
+  let quietTimer: ReturnType<typeof setTimeout> | null = null;
+  function hush() {
+    if (quietTimer !== null) clearTimeout(quietTimer);
+    quietTimer = null;
+    speaking.value = false;
+  }
+  function heard() {
+    speaking.value = true;
+    if (quietTimer !== null) clearTimeout(quietTimer);
+    quietTimer = setTimeout(hush, SPEAKING_TAIL_MS);
+  }
   /** What the server last said is left of today's free questions; null until a turn has said. */
   const freeLeft = ref<number | null>(null);
   let sessionId: string | undefined;
@@ -189,6 +215,7 @@ export function useAskConversation(deps: AskConversationDeps) {
             written.add(reply.id);
           }
           reply.text += event.delta;
+          heard();
           continue;
         }
         // Anything that is not words ends the paragraph being written.
@@ -222,9 +249,13 @@ export function useAskConversation(deps: AskConversationDeps) {
             const generator = askGenerator(event.proposal.generator);
             if (reply && generator) reply.who = `${generator.noun} generator`;
             reply = null;
-            push({ kind: "proposal", proposal: event.proposal, state: "quote", choices: {} });
+            written.add(push({ kind: "proposal", proposal: event.proposal, state: "quote", choices: {} }).id);
             break;
           }
+          case "report":
+            reply = null;
+            written.add(push({ kind: "report", report: event.report }).id);
+            break;
           case "done":
             freeLeft.value = event.freeLeft;
             break;
@@ -245,6 +276,7 @@ export function useAskConversation(deps: AskConversationDeps) {
       if (controller === mine) {
         running.value = false;
         controller = null;
+        hush();
       }
     }
   }
@@ -270,9 +302,16 @@ export function useAskConversation(deps: AskConversationDeps) {
     controller?.abort();
     controller = null;
     running.value = false;
+    hush();
     sessionId = undefined;
     items.value = [];
+    // The allowance line goes back to the server's row: an own-key turn had streamed 0.
+    freeLeft.value = null;
   }
+
+  // A conversation belongs to one campaign: its session is that campaign's, and a quote confirmed after a switch
+  // would run in the new one. A run already under way keeps going; the epoch keeps its result out of the new thread.
+  watch(() => deps.campaignId(), () => newConversation());
 
   // ── what the DM does with a proposal ──────────────────────────────────────────────────────────────────────────
 
@@ -327,6 +366,7 @@ export function useAskConversation(deps: AskConversationDeps) {
     item.state = "running";
     push({ kind: "confirmed", text: `You confirmed: ${generator.action} · ${price}` });
     const startedAt = deps.routePath();
+    const campaignName = deps.campaignName();
     const mine = epoch;
     let result: AskRunResult;
     try {
@@ -343,7 +383,7 @@ export function useAskConversation(deps: AskConversationDeps) {
     if (mine === epoch) {
       item.landedAt = push({ kind: "result", name, noun: generator.noun, review, record: result.record, route: result.route, ...(result.open ? { open: result.open } : {}), ...(result.picture ? { picture: result.picture } : {}), parts: result.parts.map((p) => ({ ...p })) }).id;
     }
-    deps.onFinished?.({ name, noun: generator.noun, review, route: result.route, ...(result.open ? { open: result.open } : {}), credits: partsCredits(result.parts), startedAt });
+    deps.onFinished?.({ name, noun: generator.noun, review, route: result.route, ...(result.open ? { open: result.open } : {}), credits: partsCredits(result.parts), campaign: campaignName, startedAt });
   }
 
   async function retryPart(resultId: number, index: number) {
@@ -369,5 +409,5 @@ export function useAskConversation(deps: AskConversationDeps) {
     if (part) part.left = true;
   }
 
-  return { items, running, freeLeft, send, choose, newConversation, handOff, adjust, decide, cancel, confirm, retryPart, leavePart };
+  return { items, running, speaking, freeLeft, send, choose, newConversation, handOff, adjust, decide, cancel, confirm, retryPart, leavePart };
 }

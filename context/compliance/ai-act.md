@@ -90,6 +90,7 @@ Verified against `supabase/functions/` and `src/ai/` on 5 Aug 2026.
 | `generate-entity-text` | text | same | spell, monster, item and faction generators — one function keyed by generator (`ai_system_prompts` row + ledger reason); their art goes through `generate-entity-image`. Added 18 Sep 2026: until then these four were client-direct only and failed for every DM without a local key. Epic #910 (4 Oct 2026) added twelve more keys on the same path: dungeon feature, deity, species, background, class, archetype, ability, house rule, crafting recipe and calendar event (whole entities from a DM's concept), and site room and quest beat (a fill of one existing row, grounded in context the client sends as bounded constraint lines: the site and its neighbouring rooms, the beats either side). Each writes `ai_provenance` on its row (columns added in `20261003235538`) |
 | `suggest-connections` | text | same | epics #910 and #1084: proposes ties from one NPC, character, faction, place, deity or item to existing records of any kind, grounded in the campaign through `_shared/campaignEntityRetrieval.ts`; names are matched back to existing rows and nothing is written until the DM accepts a suggestion, which then carries `ai_provenance`. Server-path only |
 | `suggest-canon` | text | same | epic #1226: "Draft from a pitch" proposes the campaign starter (pitch, themes, table, voice, look, and private line/veil discussion drafts); saved single fields require explicit old/new replacement confirmation. Accepting a line/veil activates it for future AI generations immediately, so the DM reviews it with players before accepting; sharing is separate. "Suggest truths" proposes up to eight truths with named knowers matched to campaign records. "Suggest forces" proposes each listed faction with an active agenda (up to ten), with faction/person links resolved to campaign records. DM-only; nothing is written until the DM accepts an entry, which then carries `ai_provenance`. Server-path only |
+| `describe-look` | text (vision) | same | #1252: reads up to four pictures the DM chose for the campaign's look and drafts the Look entry's words (how the pictures are painted, never who or what they show). Requires the likeness acknowledgement, because the pictures may show real people. DM-only; nothing is written by the function: the text lands in the Look field, where the DM edits it. The same pictures are then sent as style references with every AI picture painted from the look (`styleReferences` in `_shared/imageGen.ts`). Server-path only |
 | `draft-scriptorium-document` | text | same | epic #910: drafts a Scriptorium handout, faction dossier or session recap from rows the function reads itself, always scoped to the caller's campaign; a player-audience packet reads only what players may see. The draft is a new document carrying `ai_provenance`. Server-path only |
 | `generate-chronicle-text` | text | same | session recap text |
 | `generate-npc-voice` | text | same | "NPC Voice Coach" — generates speakable-as-is lines only; ephemeral, nothing persisted |
@@ -245,11 +246,23 @@ soundscapes, grounded in the campaign's own content); an honest block states
 drafts can be wrong or resemble existing work, prompts/context go to the
 campaign's configured third-party provider, output carries an invisible AI
 marker, and the choice can change anytime in settings; primary button "Enable
-AI assistance", quiet secondary "Not now" — no pre-ticked state, no guilt
-copy on decline. Confirm records the `ai_use` acknowledgement (same as the
-plain notice) **and** sets `ai_enabled = true`; "Not now" sets `ai_enabled =
+AI assistance" (focused), quiet secondary "Keep AI off", no guilt copy on
+decline. Confirm records the `ai_use` acknowledgement (same as the plain
+notice) **and** sets `ai_enabled = true`; "Keep AI off" sets `ai_enabled =
 false` directly with no acknowledgement and no re-prompt — one dialog, one
-decision, settings is the only way back in either way. Upgrade/downgrade
+decision, settings is the only way back in either way.
+
+**AI is the default in the chooser (Jeffrey, 23 Nov 2026).** Closing the
+chooser without a button (the cross, Escape, the backdrop) counts as "Enable AI
+assistance": the notice was shown, the acknowledgement is recorded and the
+campaign is switched on. Only "Keep AI off" turns it off. Until then the
+secondary button read "Not now" and every close saved `false`, so the off
+count mixed DMs who declined with DMs who closed a popup on their first visit.
+The switch is not a consent to processing. It is a layer for DMs who dislike
+AI enough not to want to see it: off hides every AI feature, while a DM with
+AI on can simply never use it, because nothing is generated or sent to a
+provider until the DM presses a generate button. What Art 50 asks for is the notice and the marker, and both
+stand. Campaigns already saved as off stay off. Upgrade/downgrade
 paths were audited (`rg -n "ai_enabled" src/ supabase/functions/`, plus the
 Stripe webhook/checkout/portal functions specifically) and none of them write
 `ai_enabled` — a plan change never flips this choice.
@@ -264,7 +277,7 @@ only the toggle and its existing consent-dialog flow are free.
 upgrades to Pro, campaigns they previously and explicitly declined AI on
 (`ai_enabled === false`, not `null` — that's the chooser's case above) get
 ONE re-ask: people pay for Pro expecting AI and may have forgotten an old
-"Not now". `AiUseNoticeGate.vue` gained a third branch — `ai_enabled ===
+"Not now" (now "Keep AI off"). `AiUseNoticeGate.vue` gained a third branch — `ai_enabled ===
 false` AND current user is the campaign owner AND the account is Pro AND the
 `ai_pro_reoffer` kind hasn't been recorded yet — that reuses the existing
 chooser (`mode="choose"`) with Pro-aware lead copy
@@ -272,7 +285,8 @@ chooser (`mode="choose"`) with Pro-aware lead copy
 and both buttons are identical to the standard chooser, no guilt phrasing on
 decline). This never auto-flips `ai_enabled` — confirm records `ai_use` (if
 not already recorded) and `ai_pro_reoffer`, then sets `ai_enabled = true`;
-"Not now" records only `ai_pro_reoffer` and leaves `ai_enabled` false. The
+"Keep AI off" records only `ai_pro_reoffer` and leaves `ai_enabled` false;
+closing it counts as confirm. The
 `ai_pro_reoffer` kind was added to `ai_acknowledgements.kind`'s check
 constraint (migration `20260804000008`).
 

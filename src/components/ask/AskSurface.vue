@@ -2,13 +2,13 @@
   <div class="flex h-full min-h-0 w-full flex-col">
     <header class="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-2.5">
       <div class="flex min-w-0 items-center gap-2">
-        <IconAsk class="size-4 shrink-0 text-primary" />
-        <h2 class="text-heading font-semibold text-foreground">Ask Grimoire</h2>
-        <span class="text-eyebrow uppercase text-muted-foreground">Beta</span>
+        <FamiliarAvatar class="size-9" :speaking="speaking" />
+        <h2 class="text-heading font-semibold text-foreground">Familiar</h2>
+        <AppButton as="span" variant="tinted" size="xs" tone="info" emphasis="outline" label="Beta" data-testid="ask-beta" />
       </div>
       <div class="flex items-center gap-1">
         <AppButton variant="ghost" size="inline" label="New conversation" data-testid="ask-new" @click="emit('new')" />
-        <AppButton variant="ghost" size="icon-xs" :icon="IconClose" icon-size="md" aria-label="Close Ask Grimoire" data-testid="ask-close" @click="emit('close')" />
+        <AppButton variant="ghost" size="icon-xs" :icon="IconClose" icon-size="md" aria-label="Close the Familiar" data-testid="ask-close" @click="emit('close')" />
       </div>
     </header>
 
@@ -32,6 +32,7 @@
       @leave="(id, i) => emit('leave', id, i)"
       @credits="emit('credits', $event)"
       @upgrade="emit('upgrade')"
+      @review="emit('review', $event)"
     />
 
     <AskComposer ref="composer" :running="running" :line="allowanceLine" @send="emit('send', $event)" />
@@ -41,8 +42,9 @@
 <script setup lang="ts">
 /** The panel's face: header, where-from chip, the thread and the composer. State and wiring belong to AskPanel. */
 import { ref } from "vue";
-import type { AskChoice } from "@edge-shared/agent/askContract";
-import { IconAsk, IconClose } from "@/lib/icons";
+import type { AskChoice, AskReportDraft } from "@edge-shared/agent/askContract";
+import { IconClose } from "@/lib/icons";
+import FamiliarAvatar from "@/components/ask/FamiliarAvatar.vue";
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
 import type { AskItem } from "@/composables/ask/useAskConversation";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -53,6 +55,8 @@ defineProps<{
   items: AskItem[];
   adapters: AskAdapters;
   running: boolean;
+  /** Words are arriving: the avatar moves only then. */
+  speaking: boolean;
   campaignName: string;
   pageTitle: string | null;
   allowanceLine: string;
@@ -71,6 +75,7 @@ const emit = defineEmits<{
   leave: [itemId: number, index: number];
   credits: [needed: number];
   upgrade: [];
+  review: [report: AskReportDraft];
 }>();
 
 const composer = ref<InstanceType<typeof AskComposer> | null>(null);

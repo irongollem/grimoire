@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-3">
-    <p class="text-eyebrow uppercase text-muted-foreground">Grimoire · Ideas</p>
+    <p class="text-eyebrow uppercase text-muted-foreground">Familiar · Ideas</p>
     <article v-for="(idea, i) in ideas" :key="i" class="flex flex-col gap-1.5 border border-border bg-background/40 px-3 py-2.5" data-testid="ask-idea">
       <h3 class="text-body font-bold text-foreground">{{ idea.title }}</h3>
       <ul class="flex flex-col gap-1">

@@ -9,14 +9,20 @@
 //   `run`       opens the conversation if it is new, reads its history, runs the loop with Ask's tools, saves, settles
 //               the answer on the ledger (`askBilling.ts`), says `done`, then may fold the older messages into the
 //               rolling summary. The hold is taken first (`holdAsk`) and settled by `run`.
+//
+// A message that is the DM reporting a bug in Grimoire, or asking for a feature, takes a third road (`runReport`): a
+// free, held-for-nothing turn whose only output is a drafted report for the DM to review in the report form. It never
+// answers, never saves a turn, never counts as one of the day's free answers and never sends anything: the DM sends
+// the report from the form, which is the consent.
 
-import type { AskEvent, AskTurnBody } from "../_shared/agent/askContract.ts";
+import type { AskEvent, AskReportDraft, AskTurnBody } from "../_shared/agent/askContract.ts";
 import { ASK_OFF_TOPIC_MESSAGE, ASK_REFUSALS } from "../_shared/agent/askContract.ts";
 import { parseAskBody } from "../_shared/agent/askBody.ts";
-import { reserveFor, settleAnswer, settleEarlierRoutes, spendOwedRoutes } from "../_shared/agent/askBilling.ts";
+import { reserveFor, settleAnswer, settleEarlierRoutes } from "../_shared/agent/askBilling.ts";
 import { checkOutput } from "../_shared/agent/askOutput.ts";
 import { checkScope, earlierFrom, isShortFollowUp, type ScopeEarlier } from "../_shared/agent/askScope.ts";
 import { ASK_HEADINGS, askState, askSystem } from "../_shared/agent/askPrompt.ts";
+import { answerDraft, draftReportTool, fallbackDraft, reportSystem, whereFrom } from "../_shared/agent/askReport.ts";
 import { createReadLog, seedReadLog } from "../_shared/agent/askReads.ts";
 import { dmWordsOf } from "../_shared/agent/askSettled.ts";
 import { makeAskTools } from "../_shared/agent/askTools.ts";
@@ -36,7 +42,7 @@ import { gameSystemEdition } from "../_shared/gameSystem.ts";
 import { creditsForUsd, usdForSteps } from "../_shared/agent/metering.ts";
 import { runTurn } from "../_shared/agent/turn.ts";
 import { historyFrom, systemWithSummary, type StoredTurn } from "../_shared/agent/transcript.ts";
-import { AgentProviderError, type AgentBlock } from "../_shared/agent/types.ts";
+import { AgentProviderError, type AgentBlock, type AgentUsage, type CallModel } from "../_shared/agent/types.ts";
 import type { CreditLogFields } from "../_shared/credits.ts";
 import { jsonError } from "../_shared/pipeline/respond.ts";
 
@@ -65,7 +71,7 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
   let recordName: string | null = null;
   if (body.context?.record !== undefined) {
     try {
-      const found = await deps.loadRecord(campaign.id, body.context.record.type, body.context.record.id);
+      const found = await deps.loadRecord(campaign, body.context.record.type, body.context.record.id);
       recordName = found === null ? null : found.name;
     } catch (error) {
       console.error("ask-turn: reading the record the DM had open failed:", error);
@@ -86,11 +92,22 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
   if (scope.kind === "off_topic") return { kind: "refused", refusal: { status: 422, error: ASK_REFUSALS.offTopic } };
 
   // Earlier routed turns are settled first: each is free if the DM ran a generator after it, else metered as an answer
-  // (`settle_ask_routes`, which also says how many free answers are left). Own-key use is never counted, so an own-key
-  // account never calls it and none of its routes exist. A settlement that fails is logged and owes nothing now.
-  const earlier = await settleEarlierRoutes({ userId, isByok: provider.isByok, settleRoutes: (id) => deps.settleRoutes(id) });
-  const freeLeft = earlier.freeLeft;
-  const owed = earlier.credits;
+  // and charged (`settle_ask_routes` charges it itself, and says how many free answers are left). Own-key use is never
+  // counted, so an own-key account never calls it and none of its routes exist. A settlement that fails is logged, and
+  // its routes stay open for the next turn.
+  const { freeLeft } = await settleEarlierRoutes({ userId, isByok: provider.isByok, settleRoutes: (id) => deps.settleRoutes(id) });
+
+  // A report draft is the free path: nothing is held, nothing is counted, and what comes out is a draft and nothing
+  // else, so it cannot be used for free answers (the model is shown only `draft_report`, and no text is streamed).
+  if (scope.kind === "report") {
+    const where = whereFrom(body.context);
+    return {
+      kind: "ready",
+      reserve: 0,
+      run: (send, signal, reservationIds) =>
+        runReport({ userId, deps, send, signal, reservationIds, report: scope.report, message: body.message, where, earlier: earlierTurn, callModel, provider, freeLeft }),
+    };
+  }
 
   const fiveE = gameSystemEdition(campaign.game_system) !== undefined;
 
@@ -98,8 +115,6 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
     const emit = safeEmit(send);
     // Settled whatever the outcome (success, failure, conflict, abort): released once, then the ledger lines written.
     await deps.settle(userId, reservationIds, async (ledger) => {
-      // The routes were consumed by settlement, so what they came to is spent first, whatever happens to this turn.
-      spendOwedRoutes(ledger, owed);
       try {
         const session = existing ?? await deps.createSession({ userId, campaignId: campaign.id, provider: provider.provider, model: provider.model });
         emit({ type: "session", sessionId: session.id });
@@ -117,8 +132,10 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
           mcpTools: deps.mcpTools,
           callMcp: deps.callMcp(campaign.id),
           find: (query) => deps.find(campaign, query),
-          loadRecord: (type, id) => deps.loadRecord(campaign.id, type, id),
+          loadRecord: (type, id) => deps.loadRecord(campaign, type, id),
+          readRules: (query, kind) => deps.readRules(campaign, query, kind),
           newId: () => deps.newId(),
+          recordManualGap: (question, pages) => deps.recordManualGap(question, pages),
           reads,
           emit,
           dmMessages: [...dmWordsOf(history), body.message],
@@ -197,7 +214,8 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
         }
         // A routed turn is pending until the DM runs the generator (see askBilling.ts). Only a kept turn is written, and
         // never for an own key. Failing to write it costs the platform one routed turn, never the DM or the answer.
-        const proposal = tools.proposal();
+        // A withheld turn is refused whole: its proposal is taken back with its words, so it is no route either.
+        const proposal = withheld ? null : tools.proposal();
         if (proposal !== null && !provider.isByok) {
           try {
             await deps.recordRoute(userId, { proposalId: proposal.proposalId, sessionId: session.id, credits: accrued });
@@ -245,7 +263,86 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
     });
   };
 
-  return { kind: "ready", reserve: reserveFor({ freeLeft, owed, isByok: provider.isByok }), run };
+  return { kind: "ready", reserve: reserveFor({ freeLeft, isByok: provider.isByok }), run };
+}
+
+/** The report turn's reading of where the DM is and what was said just before, for a short message such as "yes, that one". */
+function reportState(where: string, earlier: ScopeEarlier | null, message: string): string {
+  const lines = [`The DM is at: ${where}.`];
+  if (earlier !== null && isShortFollowUp(message)) {
+    if (earlier.user !== null && earlier.user.trim() !== "") lines.push(`Just before, the DM said: ${earlier.user.trim().slice(0, 500)}`);
+    if (earlier.assistant !== null && earlier.assistant.trim() !== "") lines.push(`Just before, the assistant said: ${earlier.assistant.trim().slice(0, 500)}`);
+  }
+  return lines.join("\n");
+}
+
+/**
+ * The free report turn: one small model call with ONE tool, `draft_report`. Its words are never streamed, its
+ * conversation is never stored, no session is opened for it and nothing is charged or counted (the tokens go on the
+ * ledger as a platform-paid `ask_report` line). It always ends with a `report` event: the model's draft, or the DM's
+ * own words when there is none or it fails, since their message is enough to fill the form and they edit it there.
+ */
+async function runReport(input: {
+  userId: string;
+  deps: AskTurnDeps;
+  send: (event: AskEvent) => void;
+  signal: AbortSignal | undefined;
+  reservationIds: string[];
+  report: "bug" | "feature";
+  message: string;
+  where: string;
+  earlier: ScopeEarlier | null;
+  callModel: CallModel;
+  provider: { provider: string; model: string };
+  freeLeft: number;
+}): Promise<void> {
+  const emit = safeEmit(input.send);
+  await input.deps.settle(input.userId, input.reservationIds, async (ledger) => {
+    let drawn = null as AskReportDraft | null;
+    let steps: AgentUsage[] = [];
+    let aborted = false;
+    try {
+      const result = await runTurn({
+        system: reportSystem(),
+        state: reportState(input.where, input.earlier, input.message),
+        headings: ASK_HEADINGS,
+        history: [],
+        user: input.message,
+        tools: [draftReportTool()],
+        // Once drafted, the call that would follow answers at once with nothing: it could only restate the draft.
+        callModel: async (request) => {
+          if (drawn === null) return input.callModel(request);
+          return { blocks: [], stop: "end", usage: { provider: input.provider.provider, model: input.provider.model, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 } };
+        },
+        callTool: async (name, args) => {
+          if (name !== "draft_report") return { content: `No such tool: ${name}`, isError: true };
+          const answered = answerDraft(args);
+          if (drawn === null) drawn = answered.report;
+          return answered.answer;
+        },
+        // Two steps: the draft, and one retry when the first was missing a field. No `onEvent`: nothing streams.
+        limits: { maxSteps: 2, maxOutputTokens: ASK_MAX_OUTPUT_TOKENS, tokenBudget: ASK_TOKEN_BUDGET },
+        signal: input.signal,
+      });
+      steps = result.steps;
+      aborted = result.end === "aborted";
+    } catch (error) {
+      // The DM's words still fill the form, so a provider failure costs them nothing.
+      console.error("ask-turn: drafting the report failed, using the DM's own words:", error);
+    }
+    if (steps.length > 0) {
+      const last = steps[steps.length - 1];
+      ledger.free("ask_report", {
+        model: last.model,
+        provider: last.provider,
+        input_tokens: steps.reduce((n, s) => n + s.inputTokens + s.cacheReadTokens + s.cacheWriteTokens, 0),
+        output_tokens: steps.reduce((n, s) => n + s.outputTokens, 0),
+      });
+    }
+    if (aborted) return;
+    emit({ type: "report", report: drawn ?? fallbackDraft(input.report, input.message, input.where) });
+    emit({ type: "done", end: "done", routed: false, free: false, credits: 0, freeLeft: input.freeLeft });
+  });
 }
 
 /**

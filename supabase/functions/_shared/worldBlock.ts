@@ -20,6 +20,8 @@ export interface WorldBlock {
   table: string[];
   voice: string | null;
   look: string | null;
+  /** The look's style reference pictures (#1252): public storage URLs, at most four, from the Look entry. */
+  lookReferences: string[];
   lines: string[];
   veils: string[];
   truths: string[];
@@ -108,13 +110,14 @@ export interface CanonRowForBlock {
   title: string;
   body: string | null;
   sort_order: number;
+  reference_images: string[];
 }
 
 /** What the block reads of `campaign_peoples_named`, in the DM's order, for both loaders. */
 export const WORLD_BLOCK_PEOPLES_COLUMNS = "name, percent";
 
 /** Columns the block reads, for both the server and the client loader. */
-export const WORLD_BLOCK_CANON_COLUMNS = "part, premise_kind, knowledge, title, body, sort_order";
+export const WORLD_BLOCK_CANON_COLUMNS = "part, premise_kind, knowledge, title, body, sort_order, reference_images";
 /** PostgREST `or` filter: the premise, and only the truths known to all. */
 export const WORLD_BLOCK_CANON_FILTER = "part.eq.premise,and(part.eq.truth,knowledge.eq.all)";
 
@@ -167,6 +170,9 @@ export function worldBlockFromRows(
     table: ofKind("table"),
     voice: joined("voice"),
     look: joined("look"),
+    lookReferences: ordered
+      .filter((r) => r.part === "premise" && r.premise_kind === "look")
+      .flatMap((r) => r.reference_images),
     lines: ofKind("line"),
     veils: ofKind("veil"),
     truths: ordered

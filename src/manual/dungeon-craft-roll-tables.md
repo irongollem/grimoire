@@ -58,6 +58,43 @@ A sticky panel on the right of the detail view has a **Roll** button. Clicking i
 
 Roll tables use an inline editing interface: entries are edited directly in the table grid without navigating to a separate form. Click any cell to edit it.
 
+## Asking the table: send a roll table to your players
+
+A roll table is also a list of options you can put in front of your players as a question: which pet does each child take, which road does the party follow, which trinket does the giant hold out. Players answer on their own phones, so nobody needs to see your screen.
+
+### Prepare the entries
+
+Each entry can carry more than words:
+
+1. In the entry row, use the "this entry is" picker to choose **Nothing**, **Creature**, **Item** or **NPC**, then search for the one you mean. Its picture appears beside the entry, and an empty label is filled with its name. A label you typed is never overwritten.
+2. In the blurb box, **What the players read under the picture**, write one or two sentences the players will read. This is shown to players. The DM-only note on the entry is not.
+
+### Send it
+
+1. Open the roll table and click **Send to the table**. On your dashboard, the roll table card has **Ask the table** for the same thing, so you can do it mid-session without leaving the dashboard.
+2. Check the **Question**, which starts as the table's name, and edit it if you like, for example "Which road do we take?".
+3. Under **How do they answer?**, choose:
+   - **Each picks their own**: every player chooses for their own character. Turn on **Only one of each** if no two players may take the same option. Turn on **What they pick is theirs** to give them what they choose: an item goes into their pack, and a creature or NPC joins their companions. That switch appears only when some entry names a creature, item or NPC. A gift cannot be swapped by the player, though you can take one back.
+   - **The table votes**: you see the tally and decide when to close it. **Hide votes until I close it** is on by default so nobody copies the first answer.
+   - **Each rolls**: every player rolls the table from their own screen and gets what it lands on.
+4. Look over the options as players will see them, then click **Send to the table**. Options are copied when you send, so changing the table later does not change a question already sent. A different list is a new question.
+
+### What your players see
+
+The question appears first on the **Hearth** page of the player portal, as a grid of large pictures with the name and the blurb under each. A tap picks it. A gift asks once to confirm before it is taken, and then it is final. A roll is one big button. Child accounts get the same cards, two across, with nothing extra to read. A player with an open question they have not answered sees a dot on the Hearth tile.
+
+### Watching the answers
+
+Questions you have sent are listed under **Sent to the table** on the roll table's page, and the open ones on the dashboard card. Each one shows, for every option, who chose it and how many. You can:
+
+- **Close** a question. For a vote you are asked which option the table goes with, or choose **No result**. The player screens then show the outcome.
+- **Reopen** a closed one.
+- Take back one answer, which lets that player answer again. This is also how a player rolls again, and it takes back a gift.
+- Switch a vote between hidden and open while it runs.
+- Delete the question and everyone's answers. Deleting does not take back anything the party was already given.
+
+Once a question is closed, players can change nothing.
+
 ## AI roll table generator
 
 Click **Generate** to open the Roll Table Generator panel. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost, and if AI is off, the panel points you at the toggle instead of the form:

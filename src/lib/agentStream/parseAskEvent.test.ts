@@ -68,3 +68,29 @@ describe("parseAskEvent", () => {
     expect(parseAskEvent({ ...base, end: "exploded" })).toBeNull();
   });
 });
+
+describe("parseAskEvent: report", () => {
+  const bug = { kind: "bug", where: "Encounters", action: "Pressed next", expected: "Next turn", actual: "Nothing" };
+  const feature = { kind: "feature", where: "", summary: "Dark mode", problem: "Eyes hurt" };
+
+  // Bug caught: a report draft dropped by the parser, so the DM is never offered the form.
+  it("accepts a well-formed bug and feature draft", () => {
+    expect(parseAskEvent({ type: "report", report: bug })).toEqual({ type: "report", report: bug });
+    expect(parseAskEvent({ type: "report", report: feature })).toEqual({ type: "report", report: feature });
+  });
+
+  // Bug caught: a draft with a missing field opening the form with a hole, or an unknown kind becoming a card.
+  it("skips a draft with a missing, non-string or unknown-kind field", () => {
+    expect(parseAskEvent({ type: "report", report: { ...bug, actual: undefined } })).toBeNull();
+    expect(parseAskEvent({ type: "report", report: { ...bug, expected: 3 } })).toBeNull();
+    expect(parseAskEvent({ type: "report", report: { ...feature, problem: null } })).toBeNull();
+    expect(parseAskEvent({ type: "report", report: { ...feature, kind: "praise" } })).toBeNull();
+    expect(parseAskEvent({ type: "report" })).toBeNull();
+  });
+
+  // Bug caught: a feature's field names checked on a bug (or the reverse), letting a half draft through.
+  it("checks each kind against its own fields", () => {
+    expect(parseAskEvent({ type: "report", report: { kind: "bug", where: "x", summary: "y", problem: "z" } })).toBeNull();
+    expect(parseAskEvent({ type: "report", report: { kind: "feature", where: "x", action: "a", expected: "b", actual: "c" } })).toBeNull();
+  });
+});

@@ -47,14 +47,7 @@
           :campaign-id="campaign.id"
           :entry="ofKind('voice')[0]"
         />
-        <PremiseTextField
-          kind="look"
-          label="Look"
-          placeholder="How its pictures are painted: storybook gouache, candlelit oils…"
-          help="Players never read this. Every AI picture is painted from it."
-          :campaign-id="campaign.id"
-          :entry="ofKind('look')[0]"
-        />
+        <PremiseLook :campaign="campaign" :entry="ofKind('look')[0]" />
       </div>
     </div>
   </section>
@@ -72,6 +65,7 @@ import { tableViolenceLabel } from "@/lib/campaign/tableViolence";
 import CanonSuggestFold from "./CanonSuggestFold.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
 import CanonRubric from "./CanonRubric.vue";
+import PremiseLook from "./PremiseLook.vue";
 import PremiseLines from "./PremiseLines.vue";
 import PremisePitch from "./PremisePitch.vue";
 import PremiseTextField from "./PremiseTextField.vue";

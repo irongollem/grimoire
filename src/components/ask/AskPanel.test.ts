@@ -64,6 +64,18 @@ describe("AskPanel", () => {
     w.unmount();
   });
 
+  // Bug caught: the count replaced by the cost sentence after the first question, as if the free ones were gone.
+  it("keeps counting the free questions after one is asked, and explains the cost only when none are left", async () => {
+    const ui = useAskUiStore();
+    ui.openPanel();
+    const w = mount(AskPanel, { global: { stubs } });
+    await w.get('[data-testid="ask-input"]').setValue("who runs the mill?");
+    await w.get('[data-testid="ask-input"]').trigger("keydown", { key: "Enter" });
+    await flushPromises();
+    expect(w.get('[data-testid="ask-allowance"]').text()).toMatch(/^\d of 5 free questions left today$/);
+    w.unmount();
+  });
+
   // Bug caught: a generation finishing behind a closed panel with nothing to tell the DM (no slip, no dot).
   it("raises the slip and the dot when a run ends with the panel closed, and Open goes to the result", async () => {
     const ui = useAskUiStore();

@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
 import type { Campaign } from "@/types/campaign.types";
 import type { CanonEntry } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
@@ -11,6 +12,12 @@ vi.mock("@/composables/canon/useCanonEntries", () => ({
   createCanonEntry: vi.fn(),
   updateCanonEntry: vi.fn(),
 }));
+// The look's pictures and AI button have their own test; here it is the same plain field as the voice.
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ isAiEnabled: false }) }));
+vi.mock("@/composables/ai/useLikenessGate", () => ({ useLikenessGate: () => ({ ensureLikenessAck: async () => true }) }));
+vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
+vi.mock("@/composables/ai/useGenerationGate", () => ({ useGenerationGate: () => ({ canSpend: () => true }) }));
+vi.mock("@/composables/ai/useCampaignProviders", () => ({ useCampaignProviders: () => ({ textCredits: (n: number) => n, textIsByok: { value: false } }) }));
 vi.mock("@tanstack/vue-query", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/vue-query")>()),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
@@ -36,6 +43,8 @@ function mountSection(entries: CanonEntry[], table_violence: Campaign["table_vio
 }
 
 describe("PremiseSection", () => {
+  beforeEach(() => setActivePinia(createPinia()));
+
   // Bug caught (#1258 item 19): the premise helper left open on the page, above the pitch on every visit.
   it("keeps the helper inside the Suggest fold", () => {
     const w = mountSection([]);

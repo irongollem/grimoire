@@ -4,7 +4,7 @@
 //     (`ask_pending_routes`) with its exact credits. It is free only when the DM runs the generator: at their next
 //     Ask turn `settle_ask_routes` confirms each route against a generation charged after it (its routing is inside
 //     that generator's price), and meters every other one as an answer (a free answer if one is left, else whole
-//     credits, the fraction carried). "We're offering a tool to work with your campaign, not to ideate": without
+//     credits, the fraction carried, and charged there and then). "We're offering a tool to work with your campaign, not to ideate": without
 //     this a proposal was an unlimited free answer. Its measured cost is still written as a free ledger line
 //     (`ask_routing`), so what routing costs can be measured.
 //   - Any other turn is an answer. The first five a day are free per account; after that an answer is charged from
@@ -41,18 +41,14 @@ export async function settleEarlierRoutes(input: {
   }
 }
 
-/** Spends the credits settlement said were owed, through the hold's ledger. Nothing when none are. */
-export function spendOwedRoutes(ledger: JobLedger, owed: number): void {
-  if (owed > 0) ledger.charge("ask_answer", { cost: owed, isByok: false, log: {} });
-}
-
 /**
- * What to hold before the turn: the whole credits settlement says are owed, plus one for this answer when no free
- * one is left. Nothing for an own key, whose routes are never written and so are never owed.
+ * What to hold before the turn: one credit for this answer when no free one is left, else nothing. What earlier
+ * routes owed is not held: `settle_ask_routes` charges it itself, in the transaction that removes them, so a refused
+ * hold cannot lose it. Nothing for an own key.
  */
-export function reserveFor(input: { freeLeft: number; owed: number; isByok: boolean }): number {
+export function reserveFor(input: { freeLeft: number; isByok: boolean }): number {
   if (input.isByok) return 0;
-  return input.owed + (input.freeLeft > 0 ? 0 : ASK_RESERVE_CREDITS);
+  return input.freeLeft > 0 ? 0 : ASK_RESERVE_CREDITS;
 }
 
 export interface AskSettlement {

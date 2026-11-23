@@ -22,8 +22,12 @@ const DETAIL: readonly { prefix: string; type: AskRecordType }[] = [
   { prefix: "/party/", type: "party_member" },
 ];
 
-export function askContextFor(route: RouteLike): AskContext {
-  const base: AskContext = { route: route.path };
+/**
+ * `title` is the page's own title (`route.meta.title`), so a bug report Ask drafts can say which page the DM was on
+ * in the page's words, not only its address.
+ */
+export function askContextFor(route: RouteLike, title?: unknown): AskContext {
+  const base: AskContext = { route: route.path, ...(typeof title === "string" && title.trim() !== "" ? { title } : {}) };
   // The Atlas selects a place in the address, not in the path.
   if (route.path === "/locations") {
     const at = route.query?.at;

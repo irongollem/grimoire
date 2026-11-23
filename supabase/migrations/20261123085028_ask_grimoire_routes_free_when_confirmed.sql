@@ -19,6 +19,16 @@
 --
 -- The check is the server's, against the ledger, at settlement: nothing a browser sends can mark a route confirmed,
 -- and a generator the DM ran from its own screen (the Quest Designer, a map style) confirms it as well.
+--
+-- What a metered route owes is charged here, in the same transaction that removes it. The first version returned the
+-- credits for the turn to spend later, under its credit hold, but the routes were already gone by then: an account
+-- whose hold was refused (it could not cover what it owed plus the answer) had its debt deleted and paid nothing, so
+-- repeating that made every unrun proposal free. The charge may take the balance below zero, as every generation's
+-- settlement may (`spend_credits` with `p_allow_negative`): the tokens were spent, so the debt is real.
+--
+-- A confirmed route is kept only while it can still matter. It exists so one generation confirms one route, and a
+-- route can only be confirmed by a charge made at or after it, so once no open route is older than the charge that
+-- confirmed it, nothing can match that charge again and the row is deleted.
 
 create table public.ask_pending_routes (
   proposal_id uuid primary key,
@@ -32,7 +42,10 @@ create table public.ask_pending_routes (
   updated_at timestamptz not null default now()
 );
 
-create index ask_pending_routes_open_idx on public.ask_pending_routes (user_id, created_at) where confirmed_at is null;
+-- Full indexes, not one limited to open routes: a key lookup (an account or a session deleted) cannot use a partial
+-- one, and settlement's read of a caller's routes by age is served as well by the full (user_id, created_at).
+create index ask_pending_routes_user_created_idx on public.ask_pending_routes (user_id, created_at);
+create index ask_pending_routes_session_idx on public.ask_pending_routes (session_id);
 
 create trigger ask_pending_routes_updated_at
   before update on public.ask_pending_routes
@@ -47,8 +60,8 @@ create policy "ask_pending_routes_select" on public.ask_pending_routes
 grant select on public.ask_pending_routes to authenticated;
 grant select, insert, update, delete on public.ask_pending_routes to service_role;
 
--- Settles the account's open routes, oldest first. Returns the whole credits now owed (to spend on the ledger under
--- the reason `ask_answer`) and the free answers left today afterwards.
+-- Settles the account's open routes, oldest first, and charges what they owe (reason `ask_answer`). Returns the whole
+-- credits it charged and the free answers left today afterwards.
 create or replace function public.settle_ask_routes(p_user_id uuid, p_free_per_day integer)
 returns table (credits integer, free_left integer)
 language plpgsql
@@ -94,6 +107,18 @@ begin
       delete from public.ask_pending_routes r where r.proposal_id = v_route.proposal_id;
     end if;
   end loop;
+
+  if v_owed > 0 then
+    perform public.spend_credits(p_user_id, 'ask_answer', v_owed, '{}'::jsonb, true);
+  end if;
+
+  delete from public.ask_pending_routes r
+  using public.ai_credit_ledger l
+  where r.user_id = p_user_id
+    and r.confirmed_by = l.id
+    and l.created_at < coalesce(
+      (select min(o.created_at) from public.ask_pending_routes o where o.user_id = p_user_id and o.confirmed_at is null),
+      'infinity'::timestamptz);
 
   select * into v_usage from public.ask_usage u where u.user_id = p_user_id;
   return query select v_owed,

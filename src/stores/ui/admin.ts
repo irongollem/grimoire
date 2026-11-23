@@ -72,7 +72,17 @@ export const useAdminUiStore = defineStore("ui:admin", () => {
     adminDsrFilterStatus.value = "all";
   }
 
+  // Admin → Manual gaps: open gaps by default, the ones still worth writing up.
+  const manualGapsStatus = ref<"open" | "covered" | "all">("open");
+  const manualGapsHasActiveFilters = computed(() => manualGapsStatus.value !== "open");
+  function resetManualGapsFilters() {
+    manualGapsStatus.value = "open";
+  }
+
   return {
+    manualGapsStatus,
+    manualGapsHasActiveFilters,
+    resetManualGapsFilters,
     promptScreeningSurface,
     promptScreeningHasActiveFilters,
     resetPromptScreeningFilters,

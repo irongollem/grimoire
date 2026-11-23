@@ -57,13 +57,6 @@ export function bytesFromBase64(text: string): Uint8Array {
   return bytes;
 }
 
-export function base64FromBytes(bytes: Uint8Array): string {
-  let binary = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  return btoa(binary);
-}
-
 /**
  * Speaks the text in the voice and answers the audio (MP3). The text is sent as given: how a cue is put to each
  * service is the caller's (`voicePick.ts`). Throws `VoicesSpent` when the account's allowance is used up, and an

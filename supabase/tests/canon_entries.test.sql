@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(29);
 
 -- canon_entries (20261120033038, #1226): the campaign's canon. Only the campaign's DMs read or write the table; a
 -- player reads get_player_canon, which applies each part's audience (a truth's knowledge mark, the premise's reveal
@@ -196,6 +196,30 @@ select set_config('request.jwt.claim.sub', '12260000-0000-4000-8000-000000000003
 select is_empty(
   $$ select 1 from public.get_player_canon('12260000-0000-4000-8000-000000000010', '12260000-0000-4000-8000-000000000020') $$,
   'another campaign''s DM cannot read this canon, even naming one of its characters to preview');
+
+-- ── The look's pictures (#1252) ────────────────────────────────────────────────
+-- Checks hold for every writer, so they are read as the table's owner.
+reset role;
+
+select lives_ok(
+  $$ insert into public.canon_entries (user_id, campaign_id, part, premise_kind, reference_images)
+     values ('12260000-0000-4000-8000-000000000001', '12260000-0000-4000-8000-000000000010', 'premise', 'look',
+             array['https://x/1.webp', 'https://x/2.webp', 'https://x/3.webp', 'https://x/4.webp']) $$,
+  'the look holds four pictures');
+
+select throws_ok(
+  $$ insert into public.canon_entries (user_id, campaign_id, part, premise_kind, reference_images)
+     values ('12260000-0000-4000-8000-000000000001', '12260000-0000-4000-8000-000000000010', 'premise', 'look',
+             array['https://x/1.webp', 'https://x/2.webp', 'https://x/3.webp', 'https://x/4.webp', 'https://x/5.webp']) $$,
+  '23514', null,
+  'a fifth picture is refused: each one is sent with every picture the campaign paints');
+
+select throws_ok(
+  $$ insert into public.canon_entries (user_id, campaign_id, part, premise_kind, reference_images)
+     values ('12260000-0000-4000-8000-000000000001', '12260000-0000-4000-8000-000000000010', 'premise', 'pitch',
+             array['https://x/1.webp']) $$,
+  '23514', null,
+  'only the look holds pictures');
 
 select * from finish();
 rollback;

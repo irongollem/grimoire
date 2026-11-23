@@ -44,7 +44,7 @@ describe("AskReply", () => {
 
   // Bug caught: the who line missing the generator a proposal names.
   it("names the generator in the who line", () => {
-    expect(mount(AskReply, { props: { text: "x", who: "NPC generator" } }).text()).toContain("Grimoire · NPC generator");
+    expect(mount(AskReply, { props: { text: "x", who: "NPC generator" } }).text()).toContain("Familiar · NPC generator");
   });
 });
 

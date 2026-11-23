@@ -22,6 +22,8 @@ export interface AdminUser {
   last_active_at: string
   /** Campaigns they own, the demo copy excluded. */
   campaigns_owned: number
+  /** Of those, how many have AI switched on (an unchosen campaign counts as off). */
+  campaigns_ai_on: number
   /** Seats in other people's campaigns. */
   campaigns_playing: number
   is_child: boolean

@@ -33,3 +33,13 @@ describe("askContextFor", () => {
     expect(askContextFor({ path: "/quests/q1/beats/b1" }).record).toEqual({ type: "quest", id: "q1" });
   });
 });
+
+describe("askContextFor: title", () => {
+  // Bug caught: a drafted bug report naming only the address, because the page's title never reached the server.
+  it("carries the page title, and leaves it out when blank or not a string", () => {
+    expect(askContextFor({ path: "/quests" }, "Quests")).toEqual({ route: "/quests", title: "Quests" });
+    expect(askContextFor({ path: "/quests" }, "  ")).toEqual({ route: "/quests" });
+    expect(askContextFor({ path: "/quests" }, 7)).toEqual({ route: "/quests" });
+    expect(askContextFor({ path: "/quests" })).toEqual({ route: "/quests" });
+  });
+});

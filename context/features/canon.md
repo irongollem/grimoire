@@ -49,25 +49,25 @@ the `campaigns` row, which every member reads (#1228).
   clues). RLS: the campaign's DMs read and write; players read only `get_player_canon`, which never returns the reveal
   list and withholds secret blocks in the body. It rings the campaign doorbell (`canon_entries` → `CANON_KEY`,
   `CONNECTIONS_KEY`).
-- `canon_arcs` (`20261123154815_canon_story_tools.sql`, #1255 item 11): the story's arcs, each a `name` (1 to 80
+- `canon_arcs` (`20261123233519_canon_story_tools.sql`, #1255 item 11): the story's arcs, each a `name` (1 to 80
   characters) and one line of `summary`, in the DM's `sort_order`; DM-only, rings the doorbell (`canon_arcs` →
   `CANON_KEY`). `canon_entries.arc_id` names the arc an entry belongs to (`on delete set null`, so deleting an arc leaves
   its entries in no arc; never set on a premise entry, 23514). Read by `useCanonArcs` under `[CANON_KEY, "arcs",
   campaignId]`.
-- `canon_entry_quests` (`20261123135952_canon_entry_quests.sql`, #1255 items 12 and 13): which quests a canon entry matters
+- `canon_entry_quests` (`20261123233518_canon_entry_quests.sql`, #1255 items 12 and 13): which quests a canon entry matters
   in, once each per (entry, quest) (23505). It began as `canon_force_quests` ("where the party meets it") and was renamed and
   widened, never copied: a force, a secret, a truth, lore or a backstory may be tied to a quest, a premise entry or an
   open question may not (23514). DMs read and write, players read none of it; it rings the doorbell (`canon_entry_quests`
   → `CANON_KEY`) and is read once for the campaign with the forces' data (`useCanonForceData().quests`, written by
   `useCanonEntryQuests`).
-- `campaign_peoples` (`20261123124451_campaign_peoples.sql`, #1255 item 30): who lives in the world, one row per people
+- `campaign_peoples` (`20261123233516_campaign_peoples.sql`, #1255 item 30): who lives in the world, one row per people
   with its `percent` share. A people is a record the campaign already has, never typed: exactly one of `species_id`
   (a DM-written species), `library_species_id` (a shared book's), `monster_id` (a DM-written creature) or
   `library_monster_id` (a shared book's). One row per people per campaign; a library id that names nothing is refused
   (23503); the shares of a campaign may not pass 100, checked at commit by a deferred constraint trigger (23514). The
   view `campaign_peoples_named` (invoker) gives `kind`, `record_id`, `from_library` and the record's `name`, and leaves out
   a row whose record is gone. DMs read and write; it rings the doorbell (`campaign_peoples` → `CANON_KEY`).
-- `campaign_habitats`, `campaign_habitat_places`, `campaign_habitat_life` (`20261123154815_canon_story_tools.sql` section 5,
+- `campaign_habitats`, `campaign_habitat_places`, `campaign_habitat_life` (`20261123233519_canon_story_tools.sql` section 5,
   #1255 item 31): the ecology. A habitat is a kind of country (`name` 1 to 80 characters, a rich-text `description`,
   `sort_order`); `campaign_habitat_places` ties it to the Atlas places it covers, a place in at most one habitat (23505);
   `campaign_habitat_life` is what lives there as shares, exactly one of `monster_id` (the DM's creature) or
@@ -603,6 +603,26 @@ own `ai_system_prompts` row; the client reads each price through `canonSuggestio
 None of the three could be run against a model in the test environment (no AI keys): the tests cover everything around
 the model call, and the two new prompt rows need a run against a real key before they are trusted.
 
+## The look, shown (#1252)
+
+A look is often easier to show than to put into words. The Look field in Part I takes up to four pictures
+(`canon_entries.reference_images`, migration `20261123064323`: at most four, and only on the look premise entry, both
+held by checks). The browser stores each at 512 px on its longest side as WebP in `asset-images` (style carries at that
+size, and every picture is billed as image input on every render), after the likeness notice, since a picture may show
+a real person. **Describe from the pictures** calls `describe-look` (server path only, DM-gated, likeness backstop,
+`canon_look_description` at 1 credit, prompt row `canon_look`), which reads them through `callDocument` and returns one
+paragraph about how they are painted, never who or what they show; nothing is written server side. The text lands in
+the field and autosaves; replacing existing text asks first, as the other canon suggestions do.
+
+The pictures travel with the world block (`WorldBlock.lookReferences`), so every generator that paints from the look
+also hands them to the image model as style references: `generate-entity-image`, `generate-npc`, `generate-location`'s
+scene, `generate-trap`, `generate-chronicle-image`, and the two local-key paths. A map never gets them (top-down
+cartography), and neither do the tools that edit a given picture. `generateImage`'s `styleReferences` puts them after
+any source images and adds the one sentence that names them as style only (`_shared/styleReferences.ts`). On OpenAI
+they send the render to the edits endpoint, which cannot take `moderation: "low"`; so when the pictures were the only
+reason for the edit and OpenAI refuses, the render is retried once as a plain generation without them, inside the same
+screening row. The server fetches them only through the SSRF guard.
+
 ## Taking a book apart (story 7)
 
 The document import reads two more kinds, `canon` and `deities`, and takes a Scriptorium book as a source, so a campaign
@@ -619,7 +639,7 @@ route, and `CanonImportView.test.ts` fails if a `/campaign/settings?tab=import` 
 
 ## Deleted entries (#1255 item 17)
 
-Deleting an entry on the page moves it to **Deleted (n)**, a quiet disclosure at the very bottom of the Canon page (`CanonDeleted`, absent when empty), for thirty days. Its clues, steps, ticks, passages, quest ties and world links are kept with it as a snapshot in `canon_trash` (DM-only; `trash_canon_entry`, `restore_canon_entry`, migration `20261123154815`; purged by `purge-canon-trash`). A deleted entry is simply not in `canon_entries`, so no reader of canon has to leave it out. Each row says what it was, when it was deleted and how many days are left, with **Restore** and **Delete for good** (asks first). A delete also toasts with Undo.
+Deleting an entry on the page moves it to **Deleted (n)**, a quiet disclosure at the very bottom of the Canon page (`CanonDeleted`, absent when empty), for thirty days. Its clues, steps, ticks, passages, quest ties and world links are kept with it as a snapshot in `canon_trash` (DM-only; `trash_canon_entry`, `restore_canon_entry`, migration `20261123233519`; purged by `purge-canon-trash`). A deleted entry is simply not in `canon_entries`, so no reader of canon has to leave it out. Each row says what it was, when it was deleted and how many days are left, with **Restore** and **Delete for good** (asks first). A delete also toasts with Undo.
 
 Restore puts everything back **as the restoring DM** (rows come back owned by them), re-points what pointed at the entry, queues the entry's embedding again (a delete dropped the vector) and opens it by `/canon?entry=<id>`. It does not undo anything else: a reference to something deleted meanwhile is emptied, a quest tie to a deleted quest is dropped, and a backstory comes back only while its character has none (otherwise the server answers 23505 in words: delete the new one first). Deletes made by MCP or other server paths are still permanent. The list is read under a `CANON_KEY` query, so `canon_trash` ringing the doorbell refreshes it.
 

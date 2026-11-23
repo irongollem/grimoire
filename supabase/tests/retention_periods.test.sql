@@ -336,7 +336,11 @@ select is(
         'library_spells', 'library_tile_packs', 'library_nook_parts',
         'library_art_defaults', 'library_monster_art_canonical',
         'library_spell_art_canonical', 'library_item_embeddings',
-        'library_monster_embeddings', 'sound_library'
+        'library_monster_embeddings', 'sound_library',
+        -- Ask's documentation gaps (20261123194159): no account, campaign or
+        -- session column, and the question is reworded without names, so it
+        -- describes a hole in the manual, not a person.
+        'manual_gaps'
       ])
   ),
   '{}'::text[],

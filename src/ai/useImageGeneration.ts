@@ -198,8 +198,10 @@ async function runLocal(request: ImageGenerationRequest): Promise<string> {
     })),
   ]);
   if (request.sourceImage) references.push(request.sourceImage);
-  const setting = worldImageSetting(requireWorld(request.world));
-  const prompt = config.scene
+  const world = requireWorld(request.world);
+  const setting = worldImageSetting(world);
+  // The browser-key path takes no look pictures: it has no refusal fallback, and it is being removed (#1260).
+  const basePrompt = config.scene
     ? buildScenePrompt(request.subject, request.textDescriptions ?? [], setting, base)
     : request.purpose === "location_map"
       ? request.subject
@@ -208,9 +210,10 @@ async function runLocal(request: ImageGenerationRequest): Promise<string> {
     imageProvider: request.imageProvider,
     apiKey: request.imageApiKey,
   });
-  const { b64, usage } = references.some(Boolean) && provider.edit
-    ? await provider.edit(references.filter((entry): entry is Blob => !!entry), prompt, request.size ?? config.size)
-    : await provider.generate(prompt, request.size ?? config.size);
+  const sources = references.filter((entry): entry is Blob => !!entry);
+  const { b64, usage } = sources.length > 0 && provider.edit
+    ? await provider.edit(sources, basePrompt, request.size ?? config.size)
+    : await provider.generate(basePrompt, request.size ?? config.size);
   const markedB64 = await markLocalResult(request.purpose, b64, usage);
   const { url, userId } = await uploadLocalResult(request.purpose, markedB64);
   if (request.purpose === "chronicler") {

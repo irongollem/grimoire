@@ -9,6 +9,7 @@ import type { StoredTurn, TurnRow } from "./transcript.ts";
 import type { AgentTool, AgentUsage, CallTool } from "./types.ts";
 import type { JudgeRequest, JudgeResult } from "../typesafe.ts";
 import type { JobLedger } from "../pipeline/creditHold.ts";
+import type { RulesKind, RulesRead } from "./askRules.ts";
 
 // Limits of one turn. An answer is a few reads and a few sentences; the DM waits on it.
 /** A turn reads, searches and answers; six model calls stops a model that keeps calling tools. */
@@ -27,15 +28,15 @@ export const ASK_MESSAGES = {
   notFound: "That conversation was not found.",
   noCampaign: "Campaign not found.",
   aiOff: "AI is disabled for this campaign.",
-  forbidden: "Only the campaign's DM can ask Grimoire.",
+  forbidden: "Only the campaign's DM can ask the Familiar.",
   rateLimited: "rate_limited",
-  noProvider: "Ask Grimoire is not available right now.",
-  noAdapter: "Ask Grimoire is not available on this provider yet.",
-  noMetering: "Ask Grimoire cannot be metered right now.",
-  flagged: "That message cannot be sent to Ask Grimoire.",
+  noProvider: "The Familiar is not available right now.",
+  noAdapter: "The Familiar is not available on this provider yet.",
+  noMetering: "The Familiar cannot be metered right now.",
+  flagged: "That message cannot be sent to the Familiar.",
   conflict: "This conversation was continued somewhere else. Reload it and ask again.",
   providerBusy: "The AI provider is busy right now. Ask again in a moment.",
-  failed: "Ask Grimoire ran into a problem. Ask again.",
+  failed: "The Familiar ran into a problem. Ask again.",
   notSaved: "The answer could not be saved. Ask again.",
 } as const satisfies GateMessages & Record<string, string>;
 
@@ -125,9 +126,20 @@ export interface AskTurnDeps extends GateDeps<AskCampaignRow, AskSessionRow> {
   callMcp(campaignId: string): CallTool;
   /** Search by meaning over the campaign; null when it is not available right now (no embedding provider, rate limited). */
   find(campaign: AskCampaignRow, query: string): Promise<AskFound[] | null>;
-  /** A record of THIS campaign by kind and id, or null: an id from the browser or the model is never trusted. */
-  loadRecord(campaignId: string, type: AskRecordType, id: string): Promise<AskRecordLookup | null>;
+  /**
+   * A record this campaign sees, by kind and id, or null: an id from the browser or the model is never trusted. For a
+   * kind with a personal library (`ASK_RECORD_TABLES[type].library`) that includes the caller's and the campaign
+   * owner's rows set to all campaigns, as the campaign's own lists do (`campaignScopeFilter`).
+   */
+  loadRecord(campaign: AskCampaignRow, type: AskRecordType, id: string): Promise<AskRecordLookup | null>;
+  /**
+   * `read_rules`: the campaign's own enabled books, in its edition (`askRulesRead.ts`). Read as the caller, so RLS
+   * decides; a campaign that plays no 5e system answers `no_system` without a query.
+   */
+  readRules(campaign: AskCampaignRow, query: string, kind: RulesKind): Promise<RulesRead>;
   newId(): string;
+  /** `record_manual_gap` as the service role: one anonymous row for a question the manual could not answer. Takes no user or campaign, on purpose. */
+  recordManualGap(question: string, pages: string[]): Promise<void>;
 }
 
 export interface BegunAsk {
