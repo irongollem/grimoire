@@ -39,7 +39,7 @@ const PickerStub = {
 function mountDetail(e: CanonEntry) {
   return mount(TruthDetail, {
     props: { entry: e },
-    global: { stubs: { ConnectionsSection: true, CanonEntryNotes: true, WorldEntityPicker: PickerStub } },
+    global: { stubs: { RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" }, ConnectionsSection: true, CanonEntryNotes: true, WorldEntityPicker: PickerStub } },
   });
 }
 
@@ -120,5 +120,13 @@ describe("TruthDetail", () => {
     expect(mocks.update).not.toHaveBeenCalled();
     // The field is remade on a revert, so look it up again.
     expect((w.find("textarea[aria-label='The truth']").element as HTMLInputElement).value).toBe("The river gives back.");
+  });
+
+  // Bug caught (#1255 item 22): a truth made at the table not saying so, or every truth claiming to have begun there.
+  it("says a truth began at the table only when it was made from a fact", () => {
+    expect(mountDetail(entry()).find("[data-testid=truth-from-table]").exists()).toBe(false);
+    const w = mountDetail(entry({ from_fact_id: "f1" }));
+    expect(w.find("[data-testid=truth-from-table]").text()).toBe("First said at the table.");
+    expect(w.find("[data-testid=truth-from-table] a").attributes("href")).toBe("/table/story");
   });
 });

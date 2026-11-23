@@ -14,9 +14,15 @@ export interface People {
   kind: "species" | "creature";
   recordId: string;
   fromLibrary: boolean;
+  /** Its record's name; {@link UNREADABLE_PEOPLE} when this reader may not read the record. */
   name: string;
+  /** False for a species on another DM's own shelf: its share counts, but its name is not this reader's to see. */
+  readable: boolean;
   percent: number;
 }
+
+/** What stands where a name would, for a people listed by a co-DM from their own shelf. */
+export const UNREADABLE_PEOPLE = "A people another DM listed";
 
 export function peoplesTotal(list: readonly Pick<People, "percent">[]): number {
   return Math.round(list.reduce((sum, p) => sum + p.percent, 0) * 100) / 100;
@@ -41,7 +47,8 @@ export function rollPeople(list: readonly People[], random: () => number = Math.
   let edge = 0;
   for (const p of list) {
     edge += p.percent;
-    if (point < edge) return p;
+    // A people this reader cannot name cannot be handed to a generator: its share is "anyone else" for this roll.
+    if (point < edge) return p.readable ? p : null;
   }
   return null;
 }

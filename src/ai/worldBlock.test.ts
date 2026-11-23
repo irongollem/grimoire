@@ -39,4 +39,16 @@ describe("fetchWorldBlock", () => {
     fake.failNext("campaign_peoples_named", { message: "boom" });
     await expect(fetchWorldBlock("c1")).rejects.toMatchObject({ message: "boom" });
   });
+
+  // Bug: a pitch's @mention stored no name, so the DM's own local-key generators read the world without it.
+  it("names a mention in the pitch from this campaign's NPCs", async () => {
+    const npc = "11111111-1111-4111-8111-111111111111";
+    const body = JSON.stringify({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "Ruled by " }, { type: "entityMention", attrs: { id: npc, entityType: "npc" } }, { type: "text", text: "." }] }],
+    });
+    fake.seed("canon_entries", [{ campaign_id: "c1", part: "premise", premise_kind: "pitch", knowledge: null, title: "", body, sort_order: 0 }]);
+    fake.seed("npcs", [{ id: npc, campaign_id: "c1", name: "Maren Voss" }]);
+    expect(worldBlockText(await fetchWorldBlock("c1"))).toContain("Ruled by Maren Voss.");
+  });
 });

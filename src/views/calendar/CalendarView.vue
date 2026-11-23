@@ -64,6 +64,14 @@
         @update:model-value="calendar.setView"
       />
 
+      <!-- Canon on the Chronicle timeline (DM only: the canon is the DM's) -->
+      <AppCheckbox
+        v-if="view === 'timeline' && auth.isDM"
+        v-model="calendarUi.showCanonOnCalendar"
+        label="Show canon on the calendar"
+        class="shrink-0"
+      />
+
       <!-- Setting bundle import -->
       <AppButton
         v-if="hasBundleForCurrentCalendar"
@@ -93,7 +101,7 @@
     <CalendarGrid v-if="view === 'month'" @edit-event="openEditModal" @create-event="openCreateModalForDay" />
 
     <!-- Timeline view -->
-    <CalendarTimeline v-else @edit-event="openEditModal" />
+    <CalendarTimeline v-else :canon-items="canonItems" @edit-event="openEditModal" />
 
     <!-- Event modal -->
     <EventModal v-model="modalOpen" :edit-event="editingEvent" :initial-day="initialDay" @update:model-value="onModalClose" />
@@ -104,7 +112,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
+import { useRoute } from "vue-router";
 import { IconCalendarDays, IconPopulate } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
@@ -113,9 +122,13 @@ import { useSetCampaignToday } from "@/composables/campaign/useCampaigns";
 import { SETTING_BUNDLES } from "@/data/bundles/index";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import { useCanonOnCalendar } from "@/composables/canon/useCanonOnCalendar";
+import { useAuthStore } from "@/stores/auth";
+import { useCalendarUiStore } from "@/stores/ui/calendar";
 import { useTodayWeather } from "@/composables/calendar/useTodayWeather";
 import CalendarGrid from "@/components/calendar/CalendarGrid.vue";
 import CalendarSkyLine from "@/components/calendar/CalendarSkyLine.vue";
@@ -133,6 +146,21 @@ const CALENDAR_VIEW_OPTIONS = [
 const calendar = useCalendarStore();
 const campaignStore = useCampaignStore();
 const todayWeather = useTodayWeather();
+const auth = useAuthStore();
+const calendarUi = useCalendarUiStore();
+const { items: canonItems } = useCanonOnCalendar();
+
+// The almanac links here at a date: `?year=` and `?month=` open the month grid on it.
+const route = useRoute();
+onMounted(() => {
+  const year = Number(route.query.year);
+  if (typeof route.query.year !== "string" || !Number.isInteger(year)) return;
+  const month = Number(route.query.month);
+  const known = typeof route.query.month === "string" && calendar.adapter.months.some((m) => m.num === month);
+  if (known) calendar.goToMonth(year, month);
+  else calendar.goToYear(year);
+  calendar.setView("month");
+});
 const view = computed(() => calendar.view);
 
 const description = computed(() =>

@@ -32,6 +32,11 @@
         :kinds="['line', 'veil']"
         :entries="premise"
       />
+      <!-- The dial is how the table plays, not a fact about the world, so it stays in Settings; the Narrator reads both. -->
+      <p v-if="tableOpen" class="-mt-2 m-0 text-caption text-muted-foreground" data-testid="premise-violence">
+        Violence and horror at the AI table: {{ tableViolenceLabel(campaign.table_violence) }}. Change it in
+        <AppButton to="/campaign/settings" variant="link" size="inline" label="Campaign settings" />.
+      </p>
 
       <div class="grid gap-4 border-t border-border pt-4 @2xl:grid-cols-2">
         <PremiseTextField
@@ -61,6 +66,9 @@
  * look every AI suggestion is written and painted from.
  */
 import { computed } from "vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { useTableAccess } from "@/composables/campaign/useTableAccess";
+import { tableViolenceLabel } from "@/lib/campaign/tableViolence";
 import CanonSuggestions from "./CanonSuggestions.vue";
 import CanonRubric from "./CanonRubric.vue";
 import PremiseLines from "./PremiseLines.vue";
@@ -72,6 +80,7 @@ import type { CanonEntry, PremiseKind } from "@/types/canon.types";
 
 const { campaign, entries } = defineProps<{ campaign: Campaign; entries: readonly CanonEntry[] }>();
 
+const { open: tableOpen } = useTableAccess();
 const premise = computed(() => entries.filter((e) => e.part === "premise"));
 function ofKind(kind: PremiseKind): CanonEntry[] {
   return premise.value.filter((e) => e.premise_kind === kind);

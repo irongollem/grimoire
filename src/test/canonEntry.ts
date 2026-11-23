@@ -30,6 +30,7 @@ export function canonEntry(over: Partial<CanonEntry> = {}): CanonEntry {
     closed_at: null,
     closed_note: null,
     became_entry_id: null,
+    from_fact_id: null,
     created_at: "2026-11-19T10:00:00Z",
     updated_at: "2026-11-19T10:00:00Z",
     ...over,

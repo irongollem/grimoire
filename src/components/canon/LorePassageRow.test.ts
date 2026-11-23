@@ -15,6 +15,7 @@ vi.mock("@/composables/canon/useCanonClues", () => ({ useCanonClues: () => ({ da
 vi.mock("@/composables/canon/useCanonEntries", () => ({ useCanonEntries: () => ({ data: entries }) }));
 vi.mock("@/composables/canon/useClueWhere", () => ({ useClueWhere: () => computed(() => () => null) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref([{ id: "m1", name: "Pip" }, { id: "m2", name: "Sift" }]) }) }));
+vi.mock("@/composables/notes/useEntityMentionItems", () => ({ useEntityMentionItems: () => ({ mentionItems: ref([{ id: "n1", entityType: "npc", label: "Maren Voss" }]) }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 
 import LorePassageRow from "./LorePassageRow.vue";
@@ -160,5 +161,13 @@ describe("LorePassageRow", () => {
       expect(w.findAll("button").some((b) => b.text() === "Remove passage")).toBe(true);
       expect(w.findComponent({ name: "AppInput" }).exists()).toBe(true);
     });
+  });
+
+  // Bug: canon text had no @, so the DM could not name a person, place or faction; and the player's own passage,
+  // which the DM only edits, would have put the DM's list of names into text the player already reads.
+  it("offers @mentions on a passage the DM writes and none on a player's own", () => {
+    const items = (w: ReturnType<typeof mountRow>) => w.findComponent({ name: "RichTextEditor" }).props("entityMentionItems");
+    expect(items(mountRow(passage()))).toEqual([{ id: "n1", entityType: "npc", label: "Maren Voss" }]);
+    expect(items(mountRow(passage(), false, { playersOwn: true }))).toBeUndefined();
   });
 });

@@ -496,7 +496,7 @@ const { data: campaignSpecies } = useCampaignSpecies();
 const { peoples } = useCampaignPeoples();
 /** The world's peoples in the DM's order, then the campaign's species not already listed. */
 const speciesOptions = computed(() => {
-  const names = peoples.value.map((p) => p.name);
+  const names = peoples.value.filter((p) => p.readable).map((p) => p.name);
   const listed = new Set(names.map((n) => n.toLowerCase()));
   for (const { name } of campaignSpecies.value) {
     if (listed.has(name.toLowerCase())) continue;

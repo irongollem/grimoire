@@ -162,3 +162,25 @@ describe("worldImageSetting", () => {
     expect(worldImageSetting(build(null, []))).toBe("");
   });
 });
+
+describe("mentions in canon text", () => {
+  const mentioning = (before: string, after: string) =>
+    JSON.stringify({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: before }, { type: "entityMention", attrs: { id: "n1", entityType: "npc" } }, { type: "text", text: after }] }],
+    });
+  const nameOf = (type: string, id: string) => (type === "npc" && id === "n1" ? "Maren Voss" : null);
+
+  // Bug the resolver exists for: a mention stores no name, so "The bell was sold by @Maren" reached every generator
+  // as "The bell was sold by".
+  it("reads a pitch's mention and a truth's body with the name in the block", () => {
+    const rows = [
+      premise("pitch", "", mentioning("The bell was sold by ", " to the ferryman.")),
+      premise("theme", "Debt", mentioning("Owed to ", ".")),
+    ];
+    const text = worldBlockText(worldBlockFromRows("Sothery", rows, [], nameOf));
+    expect(text).toContain("The bell was sold by Maren Voss to the ferryman.");
+    expect(text).toContain("Debt: Owed to Maren Voss.");
+    expect(worldBlockText(worldBlockFromRows("Sothery", rows, []))).toContain("The bell was sold by  to the ferryman.");
+  });
+});

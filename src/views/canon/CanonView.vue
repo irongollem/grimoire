@@ -43,7 +43,7 @@
             <BackstoryDetail v-if="selectedBackstoryMember" :key="selectedBackstoryMember.id" :member="selectedBackstoryMember" />
           </div>
           <ChronicleSection :lore="lore" :forces="forces" />
-          <TableAddedSection :truth-count="truths.length" />
+          <TableAddedSection :truths="truths" />
           <!-- The header holds Bring in a book from a tablet up; a phone's header is the page's own bar. -->
           <AppButton to="/canon/import" variant="outline" size="md" :icon="IconUpload" label="Bring in a book" class="self-start md:hidden" />
         </template>

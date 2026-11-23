@@ -3,7 +3,7 @@ import { peoplesLine } from "@edge-shared/worldBlock.ts";
 import { peoplesProblem, peoplesTotal, rollPeople, type People } from "./peoples";
 
 const people = (name: string, percent: number, over: Partial<People> = {}): People => ({
-  id: `p-${name}`, kind: "species", recordId: `lib_${name}`, fromLibrary: true, name, percent, ...over,
+  id: `p-${name}`, kind: "species", recordId: `lib_${name}`, fromLibrary: true, name, readable: true, percent, ...over,
 });
 const world = [people("Elf", 80), people("Human", 15)];
 
@@ -86,5 +86,16 @@ describe("peoplesTotal and peoplesLine", () => {
   it("writes the shares largest first with the remainder as anyone else", () => {
     expect(peoplesLine([people("Human", 15), people("Elf", 80)])).toBe("Elf 80%, Human 15%, anyone else 5%");
     expect(peoplesLine([])).toBe("");
+  });
+});
+
+describe("a people this reader cannot name", () => {
+  // Bug caught: a species on a co-DM's own shelf was rolled and its placeholder handed to the generator as a race,
+  // or dropped from the total so the shares no longer added up.
+  it("still counts toward the total but is never rolled: its share is anyone else", () => {
+    const list = [people("A people another DM listed", 60, { readable: false }), people("Elf", 30)];
+    expect(peoplesTotal(list)).toBe(90);
+    expect(rollPeople(list, () => 0.3)).toBeNull();
+    expect(rollPeople(list, () => 0.7)?.name).toBe("Elf");
   });
 });

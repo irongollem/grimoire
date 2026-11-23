@@ -72,6 +72,8 @@ export interface CanonEntry {
   closed_note: string | null;
   /** The entry this one turned into (the truth or secret that answers a question, the truth a revealed secret became). */
   became_entry_id: string | null;
+  /** The table fact (`story_facts`) this truth was made from. Set only when `part` is `truth`; one fact makes at most one truth. */
+  from_fact_id: string | null;
   created_at: string;
   updated_at: string;
 }

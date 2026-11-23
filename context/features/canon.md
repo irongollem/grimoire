@@ -64,11 +64,25 @@ Chronicler's `{settingPrompt}` placeholder is filled with it. It also carries `#
 there, as shares, largest first, with "do not default to humans"; see "How the world works"), left out when the DM
 listed none. Both loaders read the names and shares from `campaign_peoples_named` in the same round trip as the canon rows.
 
+Canon text takes @mentions (pitch, lore and backstory passages, notes on a truth, secret or force; not a player's own
+passage), but a stored mention is `{ id, entityType }` with no name, on purpose (#932). The plain-text walkers emit only
+text, so every path that turns canon into words for an AI or for search reads the names itself: `loadMentionNames`
+(`_shared/mentionNames.ts`, one query per table, scoped to the campaign) returns a `nameOf`, and `tiptapToPlainText`,
+`plainWithoutSecrets`, `premiseEntryText`, `worldBlockFromRows` and `buildCanonEmbedText` take it. Both world block
+loaders, `embed-content`, the Narrator's canon reads (`canonIo.ts`) and `suggest-canon` pass it; they run for the DM or
+the server, so the names are the true ones. A mention inside a `secretBlock` is never read for the AI. A renamed person
+reaches a canon vector only when that entry is next embedded.
+
 ## The page
 
 `/canon` (`src/views/canon/CanonView.vue`, components in `src/components/canon/`, data in `src/composables/canon/`),
 after Notes in the nav. `?entry=<id>` selects and scrolls to an entry; search results and the world web link there.
 Premise and tone and the truths autosave; the World field moved here from Campaign settings' Details tab.
+
+Under "Lines and veils" one quiet line reads the violence and horror dial back (`campaigns.table_violence`, labels in
+`src/lib/campaign/tableViolence.ts`, shared with Campaign settings) and links to Campaign settings, where it stays: it is
+how the AI table plays, not a fact about the world. Settings' dial says in turn that what must never happen is set in the
+canon's lines and veils. The Narrator reads both. The Canon line shows only where the AI table is open (`useTableAccess`).
 The contents column lists the parts I to VIII, then, set apart below a rule, "✦ What the table added" with its count of
 unreviewed lines as "n new" and the hint "Filled by the Narrator as it invents. Keep, edit or strike each line." (`canonParts.ts`, the only place a part
 is added). The header's **Bring in a book** (a button under the page on a phone) opens `/canon/import`.
@@ -333,8 +347,13 @@ at a time, because each reads its own session's learned moments.
 
 **The almanac** (`ChronicleAlmanac`, `almanac()`): one timeline in the world's calendar of lore with a `world_year`, force
 ticks that carry a world date (`canon_force_ticks.world_year`, worded by the DM's note or by which way the clock moved) and
-every session by its note's world date. Dated events are in world order (a year alone before a month); sessions with no
-world date come last, oldest first. Undated lore and ticks are not in it.
+every session by its note's world date, and the campaign's Calendar events (`useCampaignCalendarEvents`; read, never
+copied, each worded by its type and linking to `/calendar?year=&month=`, which opens the Calendar's month grid there). A
+Calendar event of type `session` is left out, because `useNoteCalendarSync` mirrors every session note into one and the
+note already makes the session an entry (it would be listed twice). Dated events are in world order (a year alone before
+a month); sessions with no world date come last, oldest first. Undated lore and ticks are not in it. The other direction
+is the Calendar's Chronicle timeline, which shows the DM dated lore and force moves read-only (`canonCalendarItems`, see
+`campaign-notes-calendar.md`).
 
 ### What the table added (frame 03, the list)
 
@@ -349,5 +368,15 @@ unreviewed facts is the contents column's "n new", and the list opens on **New**
 `useCanonUiStore`). A line acted on stays listed under any filter until the page is left. The story view
 (`/table/story`) shows a struck fact struck through as removed, with nothing to do to it, and hides it from a player.
 Live through `STORY_RECORD_KEY`; nothing polls.
+
+A truth made from a fact remembers it (`canon_entries.from_fact_id`, #1255 item 22; only a truth may have it, and the
+unique index lets one fact make one truth). The fact's row then says "Now a truth" with a link to the truth and no longer
+offers Make it a truth; a second attempt from another tab is refused by the index (23505) and toasts "That line is
+already a truth." The truth's detail says "First said at the table." and links to `/table/story`, which cannot be opened
+at one fact. Keep and Strike are not the Canon page's alone (item 23): on `/table/story` the DM gets the same two (and
+Undo on a struck line) for a fact the table added, through `useFactReview`, the one place that holds the writes, the
+toasts and what a Strike took away. The two rows differ in markup (the story page's is a plain line with links) so they
+share the writes and `factReview`, not a component. Adding a fact of your own and Reveal stay on the story record; the
+section's intro says so and links to it.
 
 **A book drawn from the campaign (story 8).** The Scriptorium can draw a setting book from the canon and the Atlas, For the DM or For the players, as chapters of linked entries (`entityEmbed` with `entityType: "canon"` for canon rows), so the book follows the campaign until published. The DM's book sets each secret in a DM box; a players' book is built from, and its preview and PDF resolved from, the Open Book snapshot, never the DM's tables. See publishing-tools.md, "From this campaign".

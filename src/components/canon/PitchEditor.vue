@@ -4,6 +4,7 @@
       v-model="draft.body"
       size="sm"
       toolbar="focus"
+      :entity-mention-items="mentionItems"
       placeholder="What is this campaign like? Its country, its trouble, its mood…"
     />
     <div class="flex flex-wrap items-center gap-2">
@@ -27,12 +28,15 @@ import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import { useDeleteCanonEntry, useUpdateCanonEntry, updateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import { useAutosave } from "@/composables/useAutosave";
 import { useConfirm } from "@/composables/useConfirm";
 import { IconDelete } from "@/lib/icons";
 import type { CanonEntry } from "@/types/canon.types";
 
 const { entry } = defineProps<{ entry: CanonEntry }>();
+// @mentions of the campaign's people, places and factions; the node stores no name, the AI reads it by id (mentionNames.ts).
+const { mentionItems } = useEntityMentionItems();
 
 interface PitchDraft { body: string | null }
 

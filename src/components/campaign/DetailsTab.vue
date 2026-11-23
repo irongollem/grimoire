@@ -38,6 +38,10 @@
       <SettingChoiceList v-model="form.table_violence" label="VIOLENCE AND HORROR AT THE AI TABLE" :options="TABLE_VIOLENCE_OPTIONS" />
       <!-- Fixed for every table, so it is said here beside the one dial rather than left to be discovered. -->
       <p class="text-caption text-muted-foreground mt-1.5">The rules on sexual content are the same at every table and cannot be changed.</p>
+      <p class="text-caption text-muted-foreground mt-1.5" data-testid="violence-canon-link">
+        What must never happen, or only off screen, is set in the
+        <AppButton to="/canon" variant="link" size="inline" label="canon's lines and veils" />.
+      </p>
     </div>
 
     <!-- Immersive Rolls -->
@@ -84,6 +88,7 @@
 </template>
 
 <script setup lang="ts">
+import { TABLE_VIOLENCE_OPTIONS } from "@/lib/campaign/tableViolence";
 import { DEFAULT_THEME_ID } from "@/lib/themes";
 import { computed } from "vue";
 import ThemeSwatchButton from '@/components/common/settings/ThemeSwatchButton.vue';
@@ -123,12 +128,6 @@ const MAP_MEMORY_OPTIONS = [
 const PLAYER_SIGHT_OPTIONS = [
   { value: "shared" as const, label: "Shared by the party", desc: "Every screen shows what any character can see. Best when everyone sits at one table." },
   { value: "own" as const, label: "Each their own", desc: "A player's phone shows only what their own character can see. For online play." },
-] as const;
-
-const TABLE_VIOLENCE_OPTIONS = [
-  { value: "gentle" as const, label: "Gentle", desc: "Danger and defeat are told without lingering on wounds, blood or cruelty. For younger or gentler players." },
-  { value: "standard" as const, label: "Standard", desc: "Told plainly, the way a D&D table tells it, without relish." },
-  { value: "grim" as const, label: "Grim", desc: "Wounds, fear and horror are told with weight and consequence, still never gore for its own sake." },
 ] as const;
 
 function buildForm(c: Campaign | null) {

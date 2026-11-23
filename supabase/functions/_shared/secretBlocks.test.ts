@@ -12,3 +12,17 @@ describe("plainWithoutSecrets", () => {
     expect(plainWithoutSecrets(null)).toBe("");
   });
 });
+
+describe("plainWithoutSecrets with mentions", () => {
+  const doc = JSON.stringify({
+    type: "doc",
+    content: [
+      { type: "paragraph", content: [{ type: "text", text: "Ask " }, { type: "entityMention", attrs: { id: "n1", entityType: "npc" } }, { type: "text", text: "." }] },
+      { type: "secretBlock", content: [{ type: "paragraph", content: [{ type: "entityMention", attrs: { id: "n2", entityType: "npc" } }] }] },
+    ],
+  });
+  // Bug: the resolver was not passed through, so the name vanished; or a secret block's mention name leaked.
+  it("names a mention outside a secret block and still drops the block", () => {
+    expect(plainWithoutSecrets(doc, (_t, id) => ({ n1: "Maren", n2: "THE LICH" })[id] ?? null)).toBe("Ask Maren.");
+  });
+});

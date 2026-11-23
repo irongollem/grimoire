@@ -9,6 +9,7 @@ import {
   worldBlockFromRows,
   type WorldBlock,
 } from "@edge-shared/worldBlock.ts";
+import { collectMentions, loadMentionNames } from "@edge-shared/mentionNames.ts";
 
 export type { WorldBlock };
 
@@ -24,12 +25,17 @@ export async function fetchWorldBlock(campaignId: string): Promise<WorldBlock> {
       .from("campaign_peoples_named")
       .select(WORLD_BLOCK_PEOPLES_COLUMNS)
       .eq("campaign_id", campaignId)
+      // A people whose record this reader may not read has no name; its share falls under "anyone else".
+      .not("name", "is", null)
       .order("sort_order", { ascending: true }),
   ]);
   if (campaign.error) throw campaign.error;
   if (canon.error) throw canon.error;
   if (peoples.error) throw peoples.error;
-  return worldBlockFromRows(campaign.data.setting, canon.data, peoples.data);
+  // A mention in a body stores no name; the DM's own client reads the true ones so the block keeps them.
+  const mentions = canon.data.flatMap((r) => collectMentions(r.body, { skipSecrets: true }));
+  const nameOf = await loadMentionNames(supabase, campaignId, mentions);
+  return worldBlockFromRows(campaign.data.setting, canon.data, peoples.data, nameOf);
 }
 
 /** The local-key paths need the block; a null one means the capture decided they would not run. Never read as empty. */

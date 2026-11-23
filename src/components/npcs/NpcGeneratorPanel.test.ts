@@ -34,7 +34,7 @@ const canCreateNpc = ref(true);
 // calling generate().
 const affordableState = vi.hoisted(() => ({ value: true }));
 // The world's peoples and the roll's outcome, mutable per test (#1255 item 30).
-type TestPeople = { id: string; kind: "species" | "creature"; recordId: string; fromLibrary: boolean; name: string; percent: number };
+type TestPeople = { id: string; kind: "species" | "creature"; recordId: string; fromLibrary: boolean; name: string; readable: boolean; percent: number };
 const worldState = vi.hoisted(() => ({ peoples: [] as TestPeople[], roll: vi.fn<() => TestPeople | null>() }));
 const starterPackState = vi.hoisted(() => ({ fail: false, switchCampaign: false }));
 
@@ -425,9 +425,9 @@ describe("NpcGeneratorPanel: the NPC it creates", () => {
     expect(mocks.createNpc.mock.calls[0][0].name).toBe("Aldous Pell");
   });
 
-  const elf: TestPeople = { id: "p1", kind: "species", recordId: "srd_elf", fromLibrary: true, name: "Elf", percent: 80 };
-  const human: TestPeople = { id: "p2", kind: "species", recordId: "srd_human", fromLibrary: true, name: "Human", percent: 15 };
-  const owlbear: TestPeople = { id: "p3", kind: "creature", recordId: "srd_owlbear", fromLibrary: true, name: "Owlbear", percent: 5 };
+  const elf: TestPeople = { id: "p1", kind: "species", recordId: "srd_elf", fromLibrary: true, name: "Elf", readable: true, percent: 80 };
+  const human: TestPeople = { id: "p2", kind: "species", recordId: "srd_human", fromLibrary: true, name: "Human", readable: true, percent: 15 };
+  const owlbear: TestPeople = { id: "p3", kind: "creature", recordId: "srd_owlbear", fromLibrary: true, name: "Owlbear", readable: true, percent: 5 };
 
   describe("species from the world's peoples", () => {
     beforeEach(() => {

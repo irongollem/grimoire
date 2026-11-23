@@ -122,6 +122,45 @@ describe("TableStoryView", () => {
     expect(w.find('[data-testid="record-add"]').exists()).toBe(false);
   });
 
+  // Bug caught (#1255 item 23): the DM able to Keep and Strike on the Canon page but not here, or offered them on a line they wrote themselves.
+  it("offers the DM Keep and Strike on a fact the table added, and neither on a fact the DM wrote", async () => {
+    setUp("dm");
+    fake.seed("story_facts", [fact("a"), fact("bb", { source: "dm", body: "Mine" })]);
+    const w = await mountView();
+    const [table, mine] = w.findAll('[data-testid="record-fact"]');
+    const labels = (row: typeof table) => row!.findAll("button, a").map((b) => b.text());
+    expect(labels(table)).toEqual(expect.arrayContaining(["Keep", "Strike"]));
+    expect(labels(mine)).not.toContain("Keep");
+    expect(labels(mine)).not.toContain("Strike");
+    w.unmount();
+  });
+
+  // Bug caught: the DM's account, sitting at the table as the played character (it is the DM's account there), offered a review that is not the player's.
+  it("offers nobody at the played seat Keep or Strike, though the account is the DM's", async () => {
+    setUp("dm");
+    useAppUiStore().tablePlay = { sessionId: "s1" } as never;
+    fake.seed("story_facts", [fact("a")]);
+    const w = await mountView();
+    expect(button(w, "Keep")).toBeUndefined();
+    expect(button(w, "Strike")).toBeUndefined();
+    w.unmount();
+  });
+
+  // Bug caught: Strike stamping the wrong fact or leaving the line without a way back; Undo giving back a keep that was there.
+  it("strikes a fact, and Undo gives the earlier keep back", async () => {
+    setUp("dm");
+    fake.seed("story_facts", [fact("a", { kept_at: "2026-11-11T10:00:00Z" })]);
+    const w = await mountView();
+    await button(w, "Strike")!.trigger("click");
+    await vi.waitFor(() => expect(fake.rows("story_facts")[0]!["struck_at"]).not.toBeNull());
+    expect(fake.rows("story_facts")[0]!["kept_at"]).toBeNull();
+    await vi.waitFor(() => expect(button(w, "Undo")).toBeDefined());
+    await button(w, "Undo")!.trigger("click");
+    await vi.waitFor(() => expect(fake.rows("story_facts")[0]!["struck_at"]).toBeNull());
+    expect(fake.rows("story_facts")[0]!["kept_at"]).toBe("2026-11-11T10:00:00Z");
+    w.unmount();
+  });
+
   // Bug caught: a correction rewriting the original row, or losing its hidden state, sitting or ties.
   it("files a correction as a new fact that keeps the original's hidden state, sitting and ties, and never updates the original", async () => {
     setUp("dm");

@@ -11,6 +11,10 @@
         aria-label="The truth"
         placeholder="What is true in this world…"
       />
+      <!-- The story record cannot be opened at one fact, so the line leads to the page. -->
+      <p v-if="entry.from_fact_id" class="m-0 text-caption text-muted-foreground" data-testid="truth-from-table">
+        <AppButton to="/table/story" variant="link" size="inline" label="First said at the table." />
+      </p>
     </div>
 
     <CanonEntryNotes

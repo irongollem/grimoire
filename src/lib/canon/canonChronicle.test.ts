@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { almanac, chronicleExcerpt, chronicleItems, firstNoteImage, orderChronicle, writtenCount } from "./canonChronicle";
 import { canonEntry } from "@/test/canonEntry";
+import type { CalendarEvent } from "@/types/calendar.types";
 import type { CanonForceTick } from "@/types/canon.types";
 import type { Note } from "@/types/notes.types";
 import type { CampaignSession } from "@/types/session.types";
@@ -19,6 +20,13 @@ const tick = (id: string, over: Partial<CanonForceTick> = {}): CanonForceTick =>
   id, user_id: "u", campaign_id: "c1", force_id: "f1", delta: 1, note: "", session_id: null, step_id: null,
   world_year: null, world_month: null, world_day: null, created_at: "2026-11-01T10:00:00Z", ...over,
 });
+
+const calEvent = (id: string, over: Partial<CalendarEvent> = {}): CalendarEvent => ({
+  id, user_id: "u", campaign_id: "c1", title: `Event ${id}`, description: null, event_type: "world", year: 500, month: null, day: null,
+  festival_day: null, is_multi_day: false, end_year: null, end_month: null, end_day: null, color: "#000", linked_quest_id: null,
+  linked_encounter_id: null, linked_location_id: null, linked_note_id: null, created_at: "2026-11-01T10:00:00Z", updated_at: "2026-11-01T10:00:00Z",
+  ...over,
+} as CalendarEvent);
 
 describe("chronicleItems", () => {
   // Bug caught: a note with no session listed as a chronicle entry (it is a DM's own note, kept off the Chronicle).
@@ -89,6 +97,41 @@ describe("almanac", () => {
   // Bug caught: a tick of a force that was deleted crashing the timeline or showing as "undefined".
   it("skips a tick whose force is gone", () => {
     expect(almanac({ lore: [], forces: [], ticks: [tick("t", { world_year: 5 })], items: [] })).toEqual([]);
+  });
+});
+
+describe("almanac with the Calendar's events", () => {
+  const forces = [canonEntry({ id: "f1", part: "force", title: "The Ferrymen" })];
+  const lore = [canonEntry({ id: "l1", part: "lore", title: "The roads are first spun", world_year: 460 })];
+  const items = chronicleItems([session("s1")], [note("n1", { session_id: "s1", title: "The Toll", session_start_year: 512 })]);
+
+  // Bug caught: a world event logged on the Calendar ("The harbour burns") missing from the almanac, or sorted by kind.
+  it("puts a Calendar world event in date order between lore and a session, worded by its type", () => {
+    const events = almanac({ lore, forces, ticks: [], items, calendarEvents: [calEvent("e1", { title: "The harbour burns", year: 490, month: 2, day: 3 })] });
+    expect(events.map((e) => [e.kind, e.title, e.word])).toEqual([
+      ["lore", "The roads are first spun", null],
+      ["calendar", "The harbour burns", "World"],
+      ["session", "The Toll", null],
+    ]);
+    expect(events[1]!.to).toEqual({ path: "/calendar", query: { year: "490", month: "2" } });
+  });
+
+  // Bug caught: every session listed twice, once from its note and once from the session event useNoteCalendarSync mirrors.
+  it("leaves out a session-type Calendar event, because the note already makes the session an entry", () => {
+    const events = almanac({ lore: [], forces, ticks: [], items, calendarEvents: [calEvent("mirror", { event_type: "session", title: "The Toll", year: 512 })] });
+    expect(events.map((e) => e.key)).toEqual(["session:s1"]);
+  });
+
+  // Bug caught: a year-only Calendar event given a month, so its link opened the wrong page of the Calendar.
+  it("links a year-only event to its year alone", () => {
+    const [event] = almanac({ lore: [], forces, ticks: [], items: [], calendarEvents: [calEvent("e", { year: 300 })] });
+    expect(event!.to).toEqual({ path: "/calendar", query: { year: "300" } });
+  });
+
+  // Bug caught: undated lore still pinned to year 0 once Calendar events were added to the merge.
+  it("still leaves out undated lore", () => {
+    const events = almanac({ lore: [canonEntry({ id: "u", part: "lore", world_year: null })], forces, ticks: [], items: [], calendarEvents: [calEvent("e", { year: 300 })] });
+    expect(events.map((e) => e.key)).toEqual(["calendar:e"]);
   });
 });
 

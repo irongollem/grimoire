@@ -20,19 +20,23 @@ vi.mock("@/composables/canon/useTableFacts", () => ({
 vi.mock("@/composables/table/useFactAbout", () => ({ useFactAbout: () => () => [] }));
 vi.mock("@/composables/sessions/useCampaignSessions", () => ({ useCampaignSessions: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: mocks.error, success: mocks.success, fromError: (_e: unknown, m: string) => m }) }));
-vi.mock("vue-router", () => ({ RouterLink: { template: "<a><slot /></a>" } }));
+vi.mock("vue-router", () => ({ RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" } }));
+const tableOpen = ref(true);
+vi.mock("@/composables/campaign/useTableAccess", () => ({ useTableAccess: () => ({ open: tableOpen }) }));
 
 import { useCanonUiStore } from "@/stores/ui/canon";
 import TableAddedSection from "./TableAddedSection.vue";
+import { canonEntry } from "@/test/canonEntry";
 
 const fact = (id: string, over: Partial<StoryFact> = {}): StoryFact => ({
   id, campaign_id: "c1", session_id: null, body: `Fact ${id}`, known_to_player: true, supersedes_id: null, source: "table",
   kept_at: null, struck_at: null, created_at: `2026-11-10T10:00:0${id.length}Z`, ...over,
 });
 
-const mountIt = () =>
+const TRUTHS = [canonEntry({ id: "t1" }), canonEntry({ id: "t2" })];
+const mountIt = (truths = TRUTHS) =>
   mount(TableAddedSection, {
-    props: { truthCount: 2 },
+    props: { truths },
     global: { stubs: { SoloCorrectDialog: true, CanonRubric: true, OverflowMenu: { emits: ["select"], template: "<button data-testid='more' @click=\"$emit('select', 'truth')\" />" } } },
   });
 const button = (w: ReturnType<typeof mountIt>, label: string) => w.findAll("button, a").find((b) => b.text() === label);
@@ -46,6 +50,7 @@ describe("TableAddedSection", () => {
     mocks.undoStrike.mockResolvedValue(undefined);
     mocks.makeTruth.mockResolvedValue("t1");
     facts.value = [fact("a"), fact("bb", { kept_at: "2026-11-11T10:00:00Z" })];
+    tableOpen.value = true;
   });
 
   // Bug caught: the default list showing lines the DM already reviewed, so there was never a clear "to do" list.
@@ -130,5 +135,32 @@ describe("TableAddedSection", () => {
     const w = mountIt();
     expect(w.text()).toContain("Nothing new");
     expect(w.find("[aria-label=Show]").exists()).toBe(true);
+  });
+
+  // Bug caught (#1255 item 22): a fact already filed as a truth still offering Make it a truth, so it could be filed twice.
+  it("links a fact that is already a truth to it and offers no Make it a truth", () => {
+    const w = mountIt([canonEntry({ id: "t9", from_fact_id: "a" })]);
+    expect(w.find("[data-testid=more]").exists()).toBe(false);
+    const link = w.findAll("a").find((b) => b.text() === "Now a truth");
+    expect(link!.attributes("href")).toBe("/canon?entry=t9");
+  });
+
+  // Bug caught: a second truth refused by the database (two tabs) reported as a generic failure, or still toasting success.
+  it("says the line is already a truth when the database refuses a second one", async () => {
+    mocks.makeTruth.mockRejectedValue({ code: "23505", message: "duplicate key" });
+    const w = mountIt();
+    await w.find("[data-testid=more]").trigger("click");
+    await flushPromises();
+    expect(mocks.error).toHaveBeenCalledWith("That line is already a truth.");
+    expect(mocks.success).not.toHaveBeenCalled();
+  });
+
+  // Bug caught (#1255 item 23): the Canon side giving no way to the place where a fact of your own is added.
+  it("points to the story record only where the AI table is open", async () => {
+    const w = mountIt();
+    expect(w.find("[data-testid=table-story-link]").text()).toContain("Add a fact of your own, or reveal one");
+    tableOpen.value = false;
+    await flushPromises();
+    expect(w.find("[data-testid=table-story-link]").exists()).toBe(false);
   });
 });

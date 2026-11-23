@@ -11,6 +11,7 @@
 // the invention rule files facts as before. Never a clock, a reveal or a truth.
 
 import { plainWithoutSecrets } from "../secretBlocks.ts";
+import type { MentionNameOf } from "../mentionNames.ts";
 import { ABSOLUTE_CEILING, RELATIVE_MARGIN } from "../campaignSearch.ts";
 import { UUID_RE } from "./parse.ts";
 import type { AgentTool, ToolAnswer } from "./types.ts";
@@ -31,9 +32,9 @@ export const PREVIOUSLY_MAX = 600;
 /** The parts the Narrator may look up. Never `secret`: it gets a secret's clues where the party stands, never its statement. */
 export const LOOKUP_PARTS = ["truth", "force", "question", "lore", "backstory", "premise"] as const;
 
-export function plain(text: string | null | undefined, max: number): string {
-  // DM-only passages never reach the Narrator, whatever the field.
-  const flat = plainWithoutSecrets(text).replace(/\s+/g, " ").trim();
+export function plain(text: string | null | undefined, max: number, nameOf?: MentionNameOf): string {
+  // DM-only passages never reach the Narrator, whatever the field. A mention stores no name: `nameOf` supplies it.
+  const flat = plainWithoutSecrets(text, nameOf).replace(/\s+/g, " ").trim();
   return flat.length <= max ? flat : `${flat.slice(0, max - 1).trimEnd()}…`;
 }
 

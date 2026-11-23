@@ -8,6 +8,7 @@ import type { CampaignSession } from "@/types/session.types";
 
 const items = ref<ChronicleItem[]>([]);
 vi.mock("@/composables/canon/useChronicle", () => ({ useChronicle: () => ({ items, isLoading: computed(() => false), isError: computed(() => false), written: computed(() => 0) }) }));
+vi.mock("@/composables/calendar/useCampaignCalendarEvents", () => ({ useCampaignCalendarEvents: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/canon/useCanonForces", () => ({ useCanonForceData: () => ({ data: ref({ ticks: [], steps: [], quests: [] }) }) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref([{ id: "m1", name: "Wren" }, { id: "m2", name: "Brakka" }]) }) }));
 vi.mock("@/composables/sessions/useSessionLearned", () => ({ useSessionLearned: () => ({ entries: ref([]) }) }));

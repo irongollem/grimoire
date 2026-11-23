@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-1" data-testid="canon-entry-notes">
     <span class="text-eyebrow text-muted-foreground">{{ label }}</span>
-    <RichTextEditor v-model="draft.body" size="sm" toolbar="focus" allow-secrets :placeholder="placeholder" />
+    <RichTextEditor v-model="draft.body" size="sm" toolbar="focus" allow-secrets :entity-mention-items="mentionItems" :placeholder="placeholder" />
     <AutosaveStatus :status="status" :error="saveError" />
     <p class="m-0 text-caption text-muted-foreground">{{ help }}</p>
   </div>
@@ -16,10 +16,12 @@ import { reactive, watch } from "vue";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import { updateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import { useAutosave } from "@/composables/useAutosave";
 import type { CanonEntry } from "@/types/canon.types";
 
 const { entry } = defineProps<{ entry: CanonEntry; label: string; help: string; placeholder: string }>();
+const { mentionItems } = useEntityMentionItems();
 
 interface NotesDraft { body: string | null }
 

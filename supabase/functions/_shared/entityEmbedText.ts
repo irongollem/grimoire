@@ -83,9 +83,9 @@ function buildTagsClause(tags: string[]): string {
 }
 
 /** Truncated clause from a Tiptap-JSON-or-plain-string field, flattened via `toPlainText`. */
-function buildRichTextClause(content: string | null): string {
+function buildRichTextClause(content: string | null, nameOf?: (entityType: string, id: string) => string | null): string {
   if (!content) return "";
-  const plain = collapseWhitespace(toPlainText(content));
+  const plain = collapseWhitespace(toPlainText(content, nameOf));
   return truncateAtWordBoundary(plain, FREE_TEXT_CHAR_LIMIT);
 }
 
@@ -650,21 +650,24 @@ export interface EmbeddableCanon {
  * force wants, the body flattened to plain text, and for a lore entry each passage's heading and text. One vector per
  * entry, so a query about "the river that gives things back" finds the lore entry whose second passage says it.
  *
+ * A mention in a body or passage stores no name (#932), so `nameOf` says what it is called (the true name: this text is
+ * the DM's own search and the Narrator's lookup); without it a mention adds nothing.
+ *
  * Changing ANY of this changes every canon entry's source_hash and so needs a full canon re-embed (see the module doc).
  */
-export function buildCanonEmbedText(entry: EmbeddableCanon): string {
+export function buildCanonEmbedText(entry: EmbeddableCanon, nameOf?: (entityType: string, id: string) => string | null): string {
   const clauses: string[] = [`${collapseWhitespace(entry.part)}.`, `${collapseWhitespace(entry.title)}.`];
   const character = entry.character ? normalizeField(entry.character) : null;
   if (character) clauses.push(character.endsWith(".") ? character : `${character}.`);
   const wants = normalizeField(entry.wants);
   if (wants) clauses.push(wants.endsWith(".") ? wants : `${wants}.`);
-  const body = buildRichTextClause(entry.body);
+  const body = buildRichTextClause(entry.body, nameOf);
   if (body) clauses.push(body);
   const passages = [...entry.passages].sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id));
   for (const passage of passages) {
     const heading = normalizeField(passage.title);
     if (heading) clauses.push(heading.endsWith(".") ? heading : `${heading}.`);
-    const text = buildRichTextClause(passage.body);
+    const text = buildRichTextClause(passage.body, nameOf);
     if (text) clauses.push(text);
   }
   return truncateAtWordBoundary(clauses.join(" "), CANON_TEXT_CHAR_LIMIT);

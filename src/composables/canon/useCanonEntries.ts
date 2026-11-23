@@ -26,7 +26,16 @@ export type NewCanonEntry =
       /** Set when the entry came from an accepted AI suggestion. */
       ai_provenance?: AiProvenance | null;
     }
-  | { part: "truth"; knowledge: KnowledgeMark; title: string; body?: string | null; sort_order?: number; ai_provenance?: AiProvenance | null }
+  | {
+      part: "truth";
+      knowledge: KnowledgeMark;
+      title: string;
+      body?: string | null;
+      sort_order?: number;
+      ai_provenance?: AiProvenance | null;
+      /** The table fact this truth was made from; the database lets one fact make one truth. */
+      from_fact_id?: string | null;
+    }
   | { part: "force"; title: string; wants?: string | null; clock_size?: number | null; sort_order?: number; ai_provenance?: AiProvenance | null }
   | { part: "secret"; title: string; sort_order?: number; ai_provenance?: AiProvenance | null }
   | { part: "question"; title: string; sort_order?: number; ai_provenance?: AiProvenance | null }

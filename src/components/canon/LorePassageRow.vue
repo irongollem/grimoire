@@ -8,7 +8,7 @@
         <AppButton variant="ghost" size="icon-sm" :icon="IconChevronUp" aria-label="Move this passage earlier" :disabled="!canMoveUp" @click="emit('move', -1)" />
         <AppButton variant="ghost" size="icon-sm" :icon="IconChevronDown" aria-label="Move this passage later" :disabled="!canMoveDown" @click="emit('move', 1)" />
       </div>
-      <RichTextEditor v-model="draft.body" size="sm" toolbar="focus" allow-secrets placeholder="What is told in this passage…" />
+      <RichTextEditor v-model="draft.body" size="sm" toolbar="focus" allow-secrets :entity-mention-items="playersOwn ? undefined : mentionItems" placeholder="What is told in this passage…" />
       <AutosaveStatus :status="status" :error="saveError" />
     </div>
 
@@ -78,6 +78,7 @@ import { passageWhere, wherePatch } from "@/composables/canon/useCanonPassages";
 import { updateCanonPassage, useTellPassage, useUpdateCanonPassage } from "@/composables/canon/useCanonPassageEdits";
 import { useClueWhere } from "@/composables/canon/useClueWhere";
 import { useParty } from "@/composables/party/useParty";
+import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import { useAutosave } from "@/composables/useAutosave";
 import { useConfirm } from "@/composables/useConfirm";
 import { IconChevronDown, IconChevronUp, IconDelete } from "@/lib/icons";
@@ -96,6 +97,8 @@ const { passage, index, first, canMoveUp, canMoveDown, byline = null, playersOwn
   /** A backstory passage is told to its character first: "Tell Tansy" beside "Tell the party". */
   tellTarget?: { id: string; name: string } | null;
 }>();
+// Offered on the DM's own passages only: the list would put names into text a player already reads.
+const { mentionItems } = useEntityMentionItems();
 const emit = defineEmits<{ move: [by: -1 | 1]; remove: [] }>();
 
 const NUMERALS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];

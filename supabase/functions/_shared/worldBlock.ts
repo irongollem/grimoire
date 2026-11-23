@@ -11,6 +11,7 @@
  * `@edge-shared/worldBlock.ts`.
  */
 import { plainWithoutSecrets } from "./secretBlocks.ts";
+import type { MentionNameOf } from "./mentionNames.ts";
 
 export interface WorldBlock {
   world: string | null;
@@ -75,11 +76,12 @@ const TEXT_KINDS: ReadonlySet<string> = new Set(["pitch", "voice", "look", "tabl
 /**
  * What a premise entry says: for a kind that carries text, its body's plain text, headed by its title when both
  * exist and differ; a title alone stands. A line, a veil or a truth is its title, a body standing in when empty.
- * One rule for every generator and for the canon suggester's "already have" list.
+ * One rule for every generator and for the canon suggester's "already have" list. A body's @mentions store no name,
+ * so `nameOf` says what each is called (`mentionNames.ts`); without it they read as nothing.
  */
-export function premiseEntryText(kind: string | null, titleRaw: string, bodyRaw: string | null): string {
+export function premiseEntryText(kind: string | null, titleRaw: string, bodyRaw: string | null, nameOf?: MentionNameOf): string {
   const title = titleRaw.trim();
-  const body = plainWithoutSecrets(bodyRaw).trim();
+  const body = plainWithoutSecrets(bodyRaw, nameOf).trim();
   if (kind !== null && TEXT_KINDS.has(kind)) {
     if (body === "") return title;
     return title === "" || title === body ? body : `${title}: ${body}`;
@@ -87,9 +89,14 @@ export function premiseEntryText(kind: string | null, titleRaw: string, bodyRaw:
   return title !== "" ? title : body;
 }
 
-const entryText = (row: CanonRowForBlock): string => premiseEntryText(row.part === "premise" ? row.premise_kind : null, row.title, row.body);
-
-export function worldBlockFromRows(setting: string | null, rows: CanonRowForBlock[], peoples: readonly People[]): WorldBlock {
+export function worldBlockFromRows(
+  setting: string | null,
+  rows: CanonRowForBlock[],
+  peoples: readonly People[],
+  nameOf?: MentionNameOf,
+): WorldBlock {
+  const entryText = (row: CanonRowForBlock): string =>
+    premiseEntryText(row.part === "premise" ? row.premise_kind : null, row.title, row.body, nameOf);
   const ordered = [...rows].sort((a, b) => a.sort_order - b.sort_order);
   const ofKind = (kind: string): string[] =>
     ordered

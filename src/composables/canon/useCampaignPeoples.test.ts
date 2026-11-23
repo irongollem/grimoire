@@ -73,7 +73,17 @@ describe("fetchPeoples", () => {
     fake.seed("campaign_peoples_named", [named("b", "c1", 2), named("a", "c1", 1), named("x", "c2", 0)]);
     const list = await fetchPeoples("c1");
     expect(list.map((p) => p.id)).toEqual(["a", "b"]);
-    expect(list[0]).toEqual({ id: "a", kind: "species", recordId: "r-a", fromLibrary: true, name: "Name a", percent: 12.5 });
+    expect(list[0]).toEqual({ id: "a", kind: "species", recordId: "r-a", fromLibrary: true, name: "Name a", readable: true, percent: 12.5 });
+  });
+
+  // Bug caught (the security audit, #1255): a species on a co-DM's own shelf has no name for this reader. Dropping the
+  // row made the total not add up; passing null on let a generator be told "Race: null".
+  it("keeps a people whose name it may not read, marked unreadable, with a placeholder for a name", async () => {
+    fake.seed("campaign_peoples_named", [{ ...named("a", "c1", 1), name: null }]);
+    const [row] = await fetchPeoples("c1");
+    expect(row.readable).toBe(false);
+    expect(row.name).toBe("A people another DM listed");
+    expect(row.percent).toBe(12.5);
   });
 
   // Bug: the error was dropped, so a failed read looked like a world with nobody in it.

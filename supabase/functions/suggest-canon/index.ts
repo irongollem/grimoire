@@ -17,6 +17,7 @@ import {
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
+import { collectMentions, loadMentionNames } from "../_shared/mentionNames.ts";
 import { premiseEntryText, worldBlockText } from "../_shared/worldBlock.ts";
 import { serveUser } from "../_shared/pipeline/serveUser.ts";
 import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
@@ -247,7 +248,9 @@ serve(serveUser(async ({ user, req, report }) => {
         const rows = await readRows<{ premise_kind: string | null; title: string; body: string | null }>(
           admin.from("canon_entries").select("premise_kind, title, body").eq("campaign_id", campaign.id).eq("part", "premise"),
         );
-        const existing = rows.map((r) => ({ kind: r.premise_kind, text: premiseEntryText(r.premise_kind, r.title, r.body) }))
+        // A body's @mentions store no name; without theirs the list would offer the DM a duplicate of what they have.
+        const nameOf = await loadMentionNames(admin, campaign.id, rows.flatMap((r) => collectMentions(r.body, { skipSecrets: true })));
+        const existing = rows.map((r) => ({ kind: r.premise_kind, text: premiseEntryText(r.premise_kind, r.title, r.body, nameOf) }))
           .filter((r) => r.text !== "");
         system = base(premiseShape());
         user_ = `${steer}The DM's pitch is above. Entries the campaign already has (do not repeat them):\n` +
@@ -289,7 +292,8 @@ serve(serveUser(async ({ user, req, report }) => {
             (s.kind === "quest_beat" && s.id === c.quest_beat_id));
           return hit ? `${hit.kind} ${hit.name}` : c.passage_id ? "a lore passage" : "somewhere";
         };
-        const statement = [secret.title.trim(), toPlainText(secret.body).trim()].filter((t) => t !== "").join("\n");
+        const secretNames = await loadMentionNames(admin, campaign.id, collectMentions(secret.body));
+        const statement = [secret.title.trim(), toPlainText(secret.body, secretNames).trim()].filter((t) => t !== "").join("\n");
         system = base(clueShape());
         user_ = `${steer}The secret the clues point to (a clue hints at it and never states it):\n${wrapUserInput(statement)}\n\n` +
           `Clues already placed to this secret (do not repeat them):\n${bullets(clues.map((c) => `${c.title.trim()} (at ${where(c)})`))}\n\n` +

@@ -755,6 +755,8 @@ Every calendar carries its world's sky: `moons` and `seasons` on `SettingCalenda
 - Zoom presets drive `startYear`/`endYear` range
 - Session events rendered in a dedicated strip; regular events use lane collision-avoidance
 - Emits: `"edit-event": [event: CalendarEvent]`
+- Takes `canonItems` (`CanonCalendarItem[]`, `src/lib/canon/canonCalendar.ts`): the canon's dated lore and force ticks, drawn as quiet diamonds on a "Canon" strip and listed under "From the canon", read-only, each linking to `/canon?entry=<id>`. They are not `calendar_events` rows and cannot be edited or dragged here. Only the DM's `CalendarView` passes them (from `useCanonOnCalendar`, whose DM-only canon reads are enabled for the DM outside player preview with `useCalendarUiStore().showCanonOnCalendar`, the "Show canon on the calendar" toggle, on); the player's Calendar passes none and never runs those reads.
+- The Canon page's almanac reads the other way: it lists this calendar's events (not `session` ones, which its notes already cover) and links each to `/calendar?year=&month=`, which `CalendarView` reads on mount to open the month grid at that date. Nothing is copied between the two; each side reads the other's rows.
 
 **`src/components/calendar/EventModal.vue`**
 

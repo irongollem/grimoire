@@ -63,6 +63,20 @@ describe("canonStore.lookup", () => {
   });
 });
 
+describe("canonStore.lookup: mentions", () => {
+  const NPC = "11111111-1111-4111-8111-111111111111";
+  // Bug: a mention stores no name, so the Narrator read "The bell was sold by" and could not say who.
+  it("tells the Narrator whom a mention names", async () => {
+    const fake = createSupabaseFake();
+    fake.onRpc("match_campaign_canon", () => [{ id: "e1", part: "lore", knowledge: null, title: "The Bell", distance: 0.1 }]);
+    const body = doc({ type: "paragraph", content: [{ type: "text", text: "Sold by " }, { type: "entityMention", attrs: { id: NPC, entityType: "npc" } }, { type: "text", text: "." }] });
+    fake.seed("canon_entries", [{ id: "e1", campaign_id: "c1", body, wants: null }]);
+    fake.seed("npcs", [{ id: NPC, campaign_id: "c1", name: "Maren Voss" }]);
+    const [entry] = (await store(fake).lookup("c1", "bell")) ?? [];
+    expect(entry.text).toBe("Sold by Maren Voss.");
+  });
+});
+
 describe("canonStore.lookup: a backstory", () => {
   const backstory = () => {
     const fake = createSupabaseFake();

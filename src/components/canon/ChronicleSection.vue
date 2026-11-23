@@ -21,7 +21,7 @@
       <AppButton v-if="ordered.length > shown.length" variant="outline" size="sm" class="self-start" :label="`Show ${Math.min(PAGE, ordered.length - shown.length)} more`" @click="visible += PAGE" />
     </template>
 
-    <ChronicleAlmanac :lore="lore" :forces="forces" :ticks="ticks" :items="items" />
+    <ChronicleAlmanac :lore="lore" :forces="forces" :ticks="ticks" :items="items" :calendar-events="calendarEvents" />
   </section>
 </template>
 
@@ -39,6 +39,7 @@ import SegmentedControl from "@/components/common/controls/SegmentedControl.vue"
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import { useCanonForceData } from "@/composables/canon/useCanonForces";
+import { useCampaignCalendarEvents } from "@/composables/calendar/useCampaignCalendarEvents";
 import { useChronicle } from "@/composables/canon/useChronicle";
 import { useCanonUiStore } from "@/stores/ui/canon";
 import CanonRubric from "./CanonRubric.vue";
@@ -59,6 +60,8 @@ const ui = useCanonUiStore();
 const { items, isLoading, isError } = useChronicle();
 const { data: forceData } = useCanonForceData();
 const ticks = computed(() => forceData.value?.ticks ?? []);
+const { data: calendarEventData } = useCampaignCalendarEvents();
+const calendarEvents = computed(() => calendarEventData.value ?? []);
 
 const visible = ref(PAGE);
 const ordered = computed(() => orderChronicle(items.value, ui.chronicleOrder));

@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/toast";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { useCampaignStore } from "@/stores/campaign";
-import type { People } from "@/lib/canon/peoples";
+import { UNREADABLE_PEOPLE, type People } from "@/lib/canon/peoples";
 
 /**
  * The peoples of the world (#1255 item 30): `campaign_peoples`, each row a species or a creature the campaign already
@@ -22,7 +22,8 @@ interface NamedRow {
   kind: People["kind"];
   record_id: string;
   from_library: boolean;
-  name: string;
+  /** Null when the record is not this reader's to read (a co-DM's own species): the row still counts. */
+  name: string | null;
 }
 
 export interface NewPeople {
@@ -46,7 +47,8 @@ export async function fetchPeoples(campaignId: string): Promise<People[]> {
     kind: r.kind,
     recordId: r.record_id,
     fromLibrary: r.from_library,
-    name: r.name,
+    name: r.name === null ? UNREADABLE_PEOPLE : r.name,
+    readable: r.name !== null,
     percent: Number(r.percent),
   }));
 }

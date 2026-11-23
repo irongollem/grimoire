@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { factReview, keepPatch, strikePatch, tableGroups, truthFromFact, undoStrikePatch, unreviewedCount } from "./canonTableFacts";
+import { factReview, isAlreadyATruth, keepPatch, strikePatch, tableGroups, truthByFact, truthFromFact, undoStrikePatch, unreviewedCount } from "./canonTableFacts";
 import type { SittingInfo, StoryFact } from "@/lib/table/solo/storyRecord";
 
 let clock = 0;
@@ -84,7 +84,25 @@ describe("review writes", () => {
 
   // Bug caught: a fact the party already knows filed as a secret truth (or a hidden one told to everyone).
   it("makes a truth known to all when the party knows the fact, and secret when they do not", () => {
-    expect(truthFromFact({ body: "The ferry takes a sentence", known_to_player: true })).toEqual({ part: "truth", knowledge: "all", title: "The ferry takes a sentence" });
-    expect(truthFromFact({ body: "Bells ring backwards", known_to_player: false }).knowledge).toBe("secret");
+    expect(truthFromFact({ id: "f1", body: "The ferry takes a sentence", known_to_player: true })).toMatchObject({ part: "truth", knowledge: "all", title: "The ferry takes a sentence" });
+    expect(truthFromFact({ id: "f2", body: "Bells ring backwards", known_to_player: false }).knowledge).toBe("secret");
+  });
+
+  // Bug caught (#1255 item 22): the truth not remembering its fact, so the fact could be filed again.
+  it("names the fact a truth was made from", () => {
+    expect(truthFromFact({ id: "f1", body: "x", known_to_player: true }).from_fact_id).toBe("f1");
+  });
+
+  // Bug caught: a truth that never came from a fact (null) listed as the truth of a fact, hiding Make it a truth on the wrong lines.
+  it("maps each fact to its truth, and leaves out truths that were written by hand", () => {
+    const map = truthByFact([{ id: "t1", from_fact_id: "f1" }, { id: "t2", from_fact_id: null }]);
+    expect([...map]).toEqual([["f1", "t1"]]);
+  });
+
+  // Bug caught: the second truth from one fact (two tabs) reported as a generic failure.
+  it("tells the unique-index refusal from any other error", () => {
+    expect(isAlreadyATruth({ code: "23505" })).toBe(true);
+    expect(isAlreadyATruth({ code: "23514" })).toBe(false);
+    expect(isAlreadyATruth(new Error("boom"))).toBe(false);
   });
 });

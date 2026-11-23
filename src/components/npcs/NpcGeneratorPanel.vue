@@ -222,7 +222,7 @@ function chooseRace(picked: string): RaceChoice {
     if (rolled.kind === "creature") constraints.push(`This person is a ${rolled.name}, one of the world's peoples, not a monster to fight.`);
     return { race: rolled.name, constraints };
   }
-  return { race: "", constraints: [`Race: not one of ${list.map((p) => p.name).join(", ")}; a people this world rarely sees`] };
+  return { race: "", constraints: [`Race: not one of ${list.filter((p) => p.readable).map((p) => p.name).join(", ")}; a people this world rarely sees`] };
 }
 
 function buildAiContext(selectedLocationId: string | null, items: readonly ItemIndexEntry[], raceConstraints: readonly string[]): string {
