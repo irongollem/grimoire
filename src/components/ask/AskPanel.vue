@@ -102,9 +102,12 @@ const surfaceHandlers = {
   upgrade: () => void router.push("/billing"),
 };
 
-function openResult(to: string) {
+async function openResult(to: string) {
+  const open = notice.value?.open;
   notice.value = null;
-  void router.push(to);
+  await router.push(to);
+  // Suggestions live in the page's own panel: it opens once the page is there.
+  open?.();
 }
 
 // A question carried over from the search box starts a fresh conversation: it is a new question, not a reply.

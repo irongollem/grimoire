@@ -41,6 +41,8 @@ export type AskItem =
       review: boolean;
       record: AskRunResult["record"];
       route: string | null;
+      /** A result that lives in the page's own panel: opened there after navigating to `route`. */
+      open?: () => void;
       parts: ResultPart[];
     }
   | { kind: "upsell"; id: number }
@@ -55,6 +57,7 @@ export interface AskRunFinished {
   noun: string;
   review: boolean;
   route: string | null;
+  open?: () => void;
   credits: number;
   /** The page the DM was on when they pressed the button. */
   startedAt: string;
@@ -267,9 +270,9 @@ export function useAskConversation(deps: AskConversationDeps) {
     const name = result.record?.name ?? generator.action;
     const review = generator.ending === "review";
     if (mine === epoch) {
-      push({ kind: "result", name, noun: generator.noun, review, record: result.record, route: result.route, parts: result.parts.map((p) => ({ ...p })) });
+      push({ kind: "result", name, noun: generator.noun, review, record: result.record, route: result.route, ...(result.open ? { open: result.open } : {}), parts: result.parts.map((p) => ({ ...p })) });
     }
-    deps.onFinished?.({ name, noun: generator.noun, review, route: result.route, credits: partsCredits(result.parts), startedAt });
+    deps.onFinished?.({ name, noun: generator.noun, review, route: result.route, ...(result.open ? { open: result.open } : {}), credits: partsCredits(result.parts), startedAt });
   }
 
   async function retryPart(resultId: number, index: number) {

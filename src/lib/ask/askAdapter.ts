@@ -49,6 +49,11 @@ export interface AskRunResult {
   record: { type: AskRecordType | "other"; id: string; name: string } | null;
   /** Where "Open <noun>" or "Review suggestions" goes. */
   route: string | null;
+  /**
+   * For a result that lives in a page's own panel rather than at a route (quest hooks to pick from, canon
+   * suggestions to keep or drop): what "Review suggestions" does after navigating to `route`, e.g. open that panel.
+   */
+  open?: () => void;
   parts: AskRunPart[];
 }
 
