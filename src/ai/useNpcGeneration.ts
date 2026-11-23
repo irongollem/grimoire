@@ -29,6 +29,7 @@ import { buildAiProvenance } from "@/ai/provenance";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 import { useCampaignStore } from "@/stores/campaign";
 import type { RulesetKey } from "@/types/ruleset.types";
+import { npcPortraitSubject } from "@/lib/npcGenerator/portraitSubject";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -204,7 +205,8 @@ export function useNpcGeneration() {
     }
     startAiQuotes("image");
     try {
-      portrait_url = await generateImage({ ...imageContext, purpose: "npc_portrait", subject: npcData.true_portrait_prompt });
+      // The species leads, so the picture cannot paint a human where the record says halfling.
+      portrait_url = await generateImage({ ...imageContext, purpose: "npc_portrait", subject: npcPortraitSubject(npcData.race, npcData.true_portrait_prompt) });
     } catch { /* art is non-fatal */ }
     if (options?.generateAlterEgo && portrait_url && npcData.disguise_image_prompt) {
       try {
