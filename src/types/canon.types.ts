@@ -34,6 +34,10 @@ export const LORE_KINDS = ["history", "legend", "culture", "magic", "place", "fa
 export type LoreKind = (typeof LORE_KINDS)[number];
 export type KnowledgeMark = (typeof KNOWLEDGE_MARKS)[number];
 
+/** How an entry ended (`canon_entries.closed_as`): a question is answered; a force succeeded, was stopped or faded. */
+export const CANON_CLOSED_AS = ["answered", "succeeded", "stopped", "faded"] as const;
+export type CanonClosedAs = (typeof CANON_CLOSED_AS)[number];
+
 export interface CanonEntry {
   id: string;
   user_id: string;
@@ -62,6 +66,12 @@ export interface CanonEntry {
   /** Set only when `part` is `backstory`: the character whose past this is (one entry per character). */
   party_member_id: string | null;
   ai_provenance: AiProvenance | null;
+  /** How the entry ended, with when and what became of it. Set together, only on a question or a force. */
+  closed_as: CanonClosedAs | null;
+  closed_at: string | null;
+  closed_note: string | null;
+  /** The entry this one turned into (the truth or secret that answers a question, the truth a revealed secret became). */
+  became_entry_id: string | null;
   created_at: string;
   updated_at: string;
 }

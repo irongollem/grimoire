@@ -18,6 +18,7 @@ vi.mock("@/composables/canon/useCanonEntries", () => ({
 }));
 
 import TruthDetail from "./TruthDetail.vue";
+import CanonEntryNotes from "./CanonEntryNotes.vue";
 
 const entry = (over: Partial<CanonEntry> = {}): CanonEntry => canonEntry({
   id: "t1", part: "truth", knowledge: "some", title: "The river gives back.", ...over,
@@ -38,7 +39,7 @@ const PickerStub = {
 function mountDetail(e: CanonEntry) {
   return mount(TruthDetail, {
     props: { entry: e },
-    global: { stubs: { ConnectionsSection: true, WorldEntityPicker: PickerStub } },
+    global: { stubs: { ConnectionsSection: true, CanonEntryNotes: true, WorldEntityPicker: PickerStub } },
   });
 }
 
@@ -47,6 +48,11 @@ describe("TruthDetail", () => {
     rows.value = [];
     Object.values(mocks).forEach((m) => m.mockReset());
     mocks.create.mockResolvedValue(undefined);
+  });
+
+  // Bug caught (#1255 item 8): the truth had nowhere to write why it matters, or the notes were bound to another entry.
+  it("mounts the notes for this truth", () => {
+    expect(mountDetail(entry()).getComponent(CanonEntryNotes).props("entry")).toMatchObject({ id: "t1" });
   });
 
   it("asks the DM to name who knows a truth marked 'some' while nobody is named", () => {

@@ -32,6 +32,7 @@
         <li v-for="truth in world.onlyMine" :key="truth.id" class="px-4 py-3">
           <p class="text-body text-foreground">{{ truth.title }}</p>
           <p class="text-caption text-muted-foreground/70 italic mt-0.5">Only yours, until you tell the table.</p>
+          <RichTextViewer v-if="truth.body" :content="truth.body" class="mt-1" />
         </li>
       </ul>
     </section>
@@ -39,7 +40,10 @@
     <section v-if="world.known.length" aria-labelledby="world-known">
       <h2 id="world-known" class="text-label text-muted-foreground mb-2">What we know</h2>
       <ul class="rounded-lg border border-border bg-card divide-y divide-border">
-        <li v-for="truth in world.known" :key="truth.id" class="px-4 py-3 text-body text-foreground">{{ truth.title }}</li>
+        <li v-for="truth in world.known" :key="truth.id" class="px-4 py-3">
+          <p class="text-body text-foreground">{{ truth.title }}</p>
+          <RichTextViewer v-if="truth.body" :content="truth.body" class="mt-1" />
+        </li>
       </ul>
     </section>
 

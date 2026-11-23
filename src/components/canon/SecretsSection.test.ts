@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
+import { canonEntry } from "@/test/canonEntry";
 
 const mocks = vi.hoisted(() => ({ create: vi.fn() }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({
@@ -48,5 +49,17 @@ describe("SecretsSection", () => {
     const html = w.html();
     expect(html).toContain("data-testid=\"inline\"");
     expect(html.indexOf("data-testid=\"inline\"")).toBeLessThan(html.indexOf("data-testid=\"questions\""));
+  });
+
+  // Bug caught (#1255 item 10): revealed secrets stayed in the middle of the ledger, so it did not read "still to find" first.
+  it("lists revealed secrets after the ones still to find", () => {
+    const secrets = [
+      canonEntry({ id: "a", part: "secret", title: "Revealed one", revealed_at: "t" }),
+      canonEntry({ id: "b", part: "secret", title: "Hidden one" }),
+    ];
+    const w = mount(SecretsSection, { props: { secrets, questions: [] }, global: { stubs: { QuestionsList: true } } });
+    const rows = w.get("[data-testid=secret-ledger]").findAll("li");
+    expect(rows[0].text()).toContain("Hidden one");
+    expect(rows[1].text()).toContain("Revealed one");
   });
 });

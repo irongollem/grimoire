@@ -42,8 +42,8 @@
 
       <div class="flex flex-col gap-2" data-testid="backstory-people">
         <span class="text-eyebrow text-muted-foreground">The people from this past</span>
-        <p class="m-0 text-caption text-muted-foreground">The world web, from the backstory's side. Each tie has its own reveal, so the player can know one person and not another's name.</p>
-        <ConnectionsSection :subject="{ kind: 'canon', id: entry.id }" :subject-name="member.name" />
+        <p class="m-0 text-caption text-muted-foreground">The same list the character's page shows. Each tie has its own reveal, so the player can know one person and not another's name.</p>
+        <ConnectionsSection :subject="{ kind: 'party_member', id: member.id }" :subject-name="member.name" :origin="origin" />
         <AppButton v-if="!settingUpNpc" variant="outline" size="sm" :icon="IconAdd" icon-size="xs" label="New NPC from this backstory" class="self-start" data-testid="new-npc" @click="settingUpNpc = true" />
         <div v-else class="flex flex-col gap-2" data-testid="new-npc-setup">
           <span class="field-label">How are they connected to {{ member.name }}?</span>
@@ -54,6 +54,15 @@
           </div>
           <p class="m-0 text-caption text-muted-foreground">The NPC will also be linked to this backstory and hidden until you share them.</p>
         </div>
+      </div>
+
+      <div data-testid="backstory-things">
+        <ConnectionsSection
+          :subject="{ kind: 'canon', id: entry.id }"
+          :subject-name="member.name"
+          title="Places and things from this past"
+          :hide="isShownAbove"
+        />
       </div>
     </template>
   </section>
@@ -77,10 +86,13 @@ import { isPlayersPassage, passageByline } from "@/lib/canon/canonBackstory";
 import { useBackstoryEntry } from "@/composables/canon/useBackstory";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { usePassageList } from "@/composables/canon/usePassageList";
+import { useConnections } from "@/composables/connections/useConnections";
 import { useNewBackstoryNpc } from "@/composables/canon/useNewBackstoryNpc";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
 import { typeChoices, type TypeChoice } from "@/lib/worldLinks/connections";
 import { IconAdd } from "@/lib/icons";
+import type { BackstoryOrigin } from "@/components/connections/connectionRows";
+import type { Connection } from "@/types/connections.types";
 import type { PartyMember } from "@/types/party.types";
 
 const { member } = defineProps<{ member: PartyMember }>();
@@ -90,6 +102,22 @@ const { mutate: update } = useUpdateCanonEntry();
 const { passages, adding, addPassage, move, removePassage } = usePassageList(() => entry.value?.id ?? null);
 const untold = computed(() => passages.value.filter((p) => p.told_at === null).length);
 const { data: sessions } = useCampaignSessions();
+
+// The people are the character's own ties, the list their page shows. The entry's own ties are read to know which of
+// them came from this backstory (the NPCs it is `about`), and to leave those out of the second block, where they
+// would be shown twice. An `about` tie to someone the character has no tie to stays there, so nothing is hidden.
+const { data: characterTies } = useConnections("party_member", () => member.id);
+const { data: entryTies } = useConnections("canon", () => entry.value?.id ?? null);
+const isPerson = (c: Connection) => c.other_kind === "npc" || c.other_kind === "party_member";
+const peopleOfCharacter = computed(() => new Set((characterTies.value ?? []).filter(isPerson).map((c) => `${c.other_kind}:${c.other_id}`)));
+const origin = computed<BackstoryOrigin | undefined>(() => {
+  if (entry.value === null) return undefined;
+  const npcIds = new Set((entryTies.value ?? []).filter((c) => c.type === "about" && c.other_kind === "npc").map((c) => c.other_id));
+  return { entryId: entry.value.id, npcIds };
+});
+function isShownAbove(c: Connection): boolean {
+  return c.type === "about" && isPerson(c) && peopleOfCharacter.value.has(`${c.other_kind}:${c.other_id}`);
+}
 
 function setAudience(next: string[]) {
   if (entry.value !== null) update({ id: entry.value.id, patch: { player_visible_to: next } });

@@ -2,8 +2,8 @@
   <section id="canon-table" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-table-heading">
     <div class="flex flex-wrap items-center gap-3">
       <CanonRubric id="canon-table-heading" class="min-w-0 flex-1" numeral="✦" title="What the table added" />
-      <SegmentedControl v-model="ui.tableFactFilter" :options="FACT_FILTER_OPTIONS" size="sm" aria-label="Show" />
-      <AppButton v-if="ui.tableFactsHasActiveFilters" variant="ghost" size="sm" label="Clear" @click="ui.resetTableFactFilters()" />
+      <SegmentedControl v-if="hasFacts" v-model="ui.tableFactFilter" :options="FACT_FILTER_OPTIONS" size="sm" aria-label="Show" />
+      <AppButton v-if="hasFacts && ui.tableFactsHasActiveFilters" variant="ghost" size="sm" label="Clear" @click="ui.resetTableFactFilters()" />
     </div>
     <p class="m-0 text-caption text-muted-foreground">Everything the Narrator made up and put on record, newest first. Until you strike it, it is true at the table.</p>
 
@@ -79,7 +79,9 @@ const EMPTY: Record<FactFilter, { title: string; description: string }> = {
   struck: { title: "Nothing struck", description: "A line you strike never happened: players and the Narrator stop reading it." },
   all: { title: "The table has added nothing", description: "When the Narrator invents a fact at the AI table, it is filed here for you to keep, edit or strike." },
 };
-const empty = computed(() => EMPTY[ui.tableFactFilter]);
+// With nothing on record there is nothing to filter, and "Nothing new" would claim a review that never happened.
+const hasFacts = computed(() => (record.facts.data.value ?? []).length > 0);
+const empty = computed(() => EMPTY[hasFacts.value ? ui.tableFactFilter : "all"]);
 
 function dayOf(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });

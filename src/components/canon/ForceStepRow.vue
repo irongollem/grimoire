@@ -4,7 +4,7 @@
     <span class="flex flex-wrap items-center gap-x-3 gap-y-1">
       <span class="text-label" :class="state === 'now' ? 'font-bold text-primary' : 'text-muted-foreground'" data-testid="force-step-state">{{ STATE_LABEL[state] }}</span>
       <span class="ml-auto flex shrink-0 items-center gap-1">
-        <AppCheckbox :model-value="reached" label="Reached" label-role="label" @update:model-value="(v: boolean) => emit('reach', v)" />
+        <AppCheckbox :model-value="reached" label="Reached" label-role="label" :disabled="frozen" @update:model-value="(v: boolean) => emit('reach', v)" />
         <AppButton variant="ghost" size="icon-sm" :icon="IconChevronUp" aria-label="Move this step earlier" :disabled="first" @click="emit('move', -1)" />
         <AppButton variant="ghost" size="icon-sm" :icon="IconChevronDown" aria-label="Move this step later" :disabled="last" @click="emit('move', 1)" />
         <AppButton variant="ghost" size="icon-sm" :icon="IconClose" aria-label="Remove this step" @click="emit('remove')" />
@@ -26,7 +26,7 @@ import type { CanonForceStep } from "@/types/canon.types";
 
 const STATE_LABEL: Record<StepState, string> = { done: "Done", now: "Now", next: "Next" };
 
-const { step, state, first, last } = defineProps<{ step: CanonForceStep; state: StepState; first: boolean; last: boolean }>();
+const { step, state, first, last, frozen = false } = defineProps<{ step: CanonForceStep; state: StepState; first: boolean; last: boolean; frozen?: boolean }>();
 const emit = defineEmits<{ rename: [title: string]; reach: [reached: boolean]; move: [direction: -1 | 1]; remove: [] }>();
 
 const reached = computed(() => step.reached_at !== null);

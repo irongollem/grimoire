@@ -22,6 +22,48 @@ export interface WorldBlock {
   lines: string[];
   veils: string[];
   truths: string[];
+  /** "Elf 80%, Human 15%, anyone else 5%", largest first; null when the DM has not said who lives there. */
+  peoples: string | null;
+}
+
+/** One people of the world and its share of the population, as `campaigns.peoples` stores it. */
+export interface People {
+  name: string;
+  percent: number;
+}
+
+/**
+ * Reads `campaigns.peoples` defensively: anything but an array of `{ name, percent }` with a non-blank name and a
+ * finite percent above zero is dropped, so an unexpected shape yields an empty list and never a throw.
+ */
+export function parsePeoples(raw: unknown): People[] {
+  if (!Array.isArray(raw)) return [];
+  const out: People[] = [];
+  for (const item of raw) {
+    if (typeof item !== "object" || item === null) continue;
+    const { name, percent } = item as { name?: unknown; percent?: unknown };
+    if (typeof name !== "string" || name.trim() === "") continue;
+    if (typeof percent !== "number" || !Number.isFinite(percent) || percent < 0) continue;
+    out.push({ name: name.trim(), percent });
+  }
+  return out;
+}
+
+const roundShare = (n: number): number => Math.round(n * 100) / 100;
+
+/**
+ * The peoples as words for a prompt, largest share first, the unlisted remainder last as "anyone else":
+ * "Elf 80%, Human 15%, anyone else 5%". "" for an empty list. Shares of zero are left out.
+ */
+export function peoplesLine(list: readonly People[]): string {
+  const listed = list.filter((p) => p.percent > 0);
+  if (listed.length === 0) return "";
+  const parts = [...listed]
+    .sort((a, b) => b.percent - a.percent)
+    .map((p) => `${p.name} ${roundShare(p.percent)}%`);
+  const rest = roundShare(100 - listed.reduce((sum, p) => sum + p.percent, 0));
+  if (rest > 0) parts.push(`anyone else ${rest}%`);
+  return parts.join(", ");
 }
 
 export interface CanonRowForBlock {
@@ -61,7 +103,7 @@ export function premiseEntryText(kind: string | null, titleRaw: string, bodyRaw:
 
 const entryText = (row: CanonRowForBlock): string => premiseEntryText(row.part === "premise" ? row.premise_kind : null, row.title, row.body);
 
-export function worldBlockFromRows(setting: string | null, rows: CanonRowForBlock[]): WorldBlock {
+export function worldBlockFromRows(setting: string | null, rows: CanonRowForBlock[], peoples: unknown): WorldBlock {
   const ordered = [...rows].sort((a, b) => a.sort_order - b.sort_order);
   const ofKind = (kind: string): string[] =>
     ordered
@@ -86,6 +128,7 @@ export function worldBlockFromRows(setting: string | null, rows: CanonRowForBloc
       .filter((r) => r.part === "truth" && r.knowledge === "all")
       .map(entryText)
       .filter((t) => t.length > 0),
+    peoples: peoplesLine(parsePeoples(peoples)) || null,
   };
 }
 
@@ -100,6 +143,11 @@ export function worldBlockText(block: WorldBlock): string {
   if (block.table.length) sections.push(`## At the table\n${bullets(block.table)}`);
   if (block.voice) sections.push(`## Voice\n${block.voice}`);
   if (block.truths.length) sections.push(`## Truths of the world\n${bullets(block.truths)}`);
+  if (block.peoples) {
+    sections.push(
+      `## Peoples of the world\n${block.peoples}\nWhen you invent a person, choose who they are at these odds; do not default to humans.`,
+    );
+  }
   if (block.lines.length) {
     sections.push(`## Lines\nNever include, in any form:\n${bullets(block.lines)}`);
   }

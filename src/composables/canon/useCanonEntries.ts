@@ -26,7 +26,7 @@ export type NewCanonEntry =
       /** Set when the entry came from an accepted AI suggestion. */
       ai_provenance?: AiProvenance | null;
     }
-  | { part: "truth"; knowledge: KnowledgeMark; title: string; sort_order?: number; ai_provenance?: AiProvenance | null }
+  | { part: "truth"; knowledge: KnowledgeMark; title: string; body?: string | null; sort_order?: number; ai_provenance?: AiProvenance | null }
   | { part: "force"; title: string; wants?: string | null; clock_size?: number | null; sort_order?: number; ai_provenance?: AiProvenance | null }
   | { part: "secret"; title: string; sort_order?: number; ai_provenance?: AiProvenance | null }
   | { part: "question"; title: string; sort_order?: number; ai_provenance?: AiProvenance | null }
@@ -37,7 +37,7 @@ export type NewCanonEntry =
  * DM never sends it, and the database marks an AI-written entry edited when its words change
  * (`private.canon_entries_mark_edited`).
  */
-export type CanonEntryPatch = Partial<Pick<CanonEntry, "title" | "body" | "knowledge" | "player_visible_to" | "sort_order" | "ai_provenance" | "revealed_at" | "wants" | "clock_size" | "image_url" | "lore_kind" | "world_year" | "world_month" | "world_day">>;
+export type CanonEntryPatch = Partial<Pick<CanonEntry, "title" | "body" | "knowledge" | "player_visible_to" | "sort_order" | "ai_provenance" | "revealed_at" | "wants" | "clock_size" | "image_url" | "lore_kind" | "world_year" | "world_month" | "world_day" | "closed_as" | "closed_at" | "closed_note" | "became_entry_id">>;
 
 export async function createCanonEntry(campaignId: string, input: NewCanonEntry): Promise<CanonEntry> {
   const user = getCurrentUser();

@@ -2,9 +2,9 @@
   <section id="canon-secrets" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-secrets-heading">
     <CanonRubric id="canon-secrets-heading" numeral="IV" title="Secrets and questions" />
 
-    <ul v-if="secrets.length > 0" class="flex flex-col border border-border bg-card" data-testid="secret-ledger">
+    <ul v-if="ordered.length > 0" class="flex flex-col border border-border bg-card" data-testid="secret-ledger">
       <SecretRow
-        v-for="secret in secrets"
+        v-for="secret in ordered"
         :key="secret.id"
         :entry="secret"
         :clues="cluesOf(secret.id)"
@@ -39,6 +39,7 @@ import CanonAddRow from "./CanonAddRow.vue";
 import CanonRubric from "./CanonRubric.vue";
 import QuestionsList from "./QuestionsList.vue";
 import SecretRow from "./SecretRow.vue";
+import { revealedLast } from "@/lib/canon/canonSecrets";
 import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCanonClues } from "@/composables/canon/useCanonClues";
 import type { CanonClue, CanonEntry } from "@/types/canon.types";
@@ -49,6 +50,9 @@ const { secrets, questions, selectedId = null } = defineProps<{
   selectedId?: string | null;
 }>();
 const emit = defineEmits<{ select: [id: string] }>();
+
+// What is still to find reads first; a revealed secret settles to the end.
+const ordered = computed(() => revealedLast(secrets));
 
 const { data: allClues } = useCanonClues();
 const bySecret = computed(() => {

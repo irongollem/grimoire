@@ -91,6 +91,46 @@ describe("LorePassageRow", () => {
     expect(canAdd(mountRow(passage(), false, { playersOwn: true }))).toBe(false);
   });
 
+  describe("telling some of the party (#1255 item 15)", () => {
+    const tick = (w: ReturnType<typeof mountRow>, id: string) => w.find(`input[data-testid=tell-some-${id}]`).setValue(true);
+
+    // Bug caught: Tell some told the whole party (or no one), instead of exactly the members ticked.
+    it("tells only the ticked members of an untold passage", async () => {
+      const w = mountRow(passage());
+      await w.find("[data-testid=tell-some]").trigger("click");
+      await tick(w, "m2");
+      await w.find("[data-testid=tell-some-confirm]").trigger("click");
+      expect(mocks.tell).toHaveBeenCalledWith(expect.objectContaining({ id: "g1" }), ["m2"]);
+      expect(mocks.update).not.toHaveBeenCalled();
+    });
+
+    // Bug caught: widening went through Tell, which stamps a new told_at, so the people who already had the passage were re-told today.
+    it("widens a partly told passage without re-stamping it and keeps who already had it", async () => {
+      const w = mountRow(passage({ told_at: "2026-11-02T10:00:00Z", player_visible_to: ["m1"] }));
+      await w.find("[data-testid=tell-more]").trigger("click");
+      expect(w.find("input[data-testid=tell-some-m1]").element).toHaveProperty("checked", true);
+      await tick(w, "m2");
+      await w.find("[data-testid=tell-some-confirm]").trigger("click");
+      expect(mocks.tell).not.toHaveBeenCalled();
+      expect(mocks.update).toHaveBeenCalledWith({ id: "g1", patch: { player_visible_to: ["m1", "m2"] } });
+    });
+
+    // Bug caught: unticking someone in "Tell more" took the passage away from a player who already had it; taking back is Take back's job.
+    it("never removes a player who already has it", async () => {
+      const w = mountRow(passage({ told_at: "2026-11-02T10:00:00Z", player_visible_to: ["m1"] }));
+      await w.find("[data-testid=tell-more]").trigger("click");
+      await w.find("input[data-testid=tell-some-m1]").setValue(false);
+      await tick(w, "m2");
+      await w.find("[data-testid=tell-some-confirm]").trigger("click");
+      expect(mocks.update).toHaveBeenCalledWith({ id: "g1", patch: { player_visible_to: ["m1", "m2"] } });
+    });
+
+    // Bug caught: Tell more was offered on a passage the whole party already has, where it can add no one.
+    it("offers Tell more only while someone is missing it", () => {
+      expect(mountRow(passage({ told_at: "2026-11-02T10:00:00Z", player_visible_to: ["m1", "m2"] })).find("[data-testid=tell-more]").exists()).toBe(false);
+    });
+  });
+
   describe("in a backstory (frame 14)", () => {
     const target = { id: "m1", name: "Tansy" };
 

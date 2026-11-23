@@ -4,12 +4,18 @@ import { ref } from "vue";
 import type { CanonClue, CanonEntry } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
 
-const mocks = vi.hoisted(() => ({ update: vi.fn(), confirm: vi.fn(), setFound: vi.fn(), destroyClue: vi.fn() }));
+const mocks = vi.hoisted(() => ({ update: vi.fn(), updateAsync: vi.fn(), create: vi.fn(), toastError: vi.fn(), confirm: vi.fn(), setFound: vi.fn(), destroyClue: vi.fn() }));
 const clues = ref<CanonClue[]>([]);
 const party = ref<{ id: string }[] | undefined>([]);
 const passages = ref<{ id: string; entry_id: string; title: string }[]>([]);
 
-vi.mock("@/composables/canon/useCanonEntries", () => ({ useUpdateCanonEntry: () => ({ mutate: mocks.update }) }));
+const entries = ref<CanonEntry[]>([]);
+vi.mock("@/lib/toast", () => ({ toast: { error: mocks.toastError } }));
+vi.mock("@/composables/canon/useCanonEntries", () => ({
+  useUpdateCanonEntry: () => ({ mutate: mocks.update, mutateAsync: mocks.updateAsync }),
+  useCreateCanonEntry: () => ({ mutateAsync: mocks.create }),
+  useCanonEntries: () => ({ data: entries }),
+}));
 vi.mock("@/composables/canon/useCanonClues", () => ({
   useCanonClues: () => ({ data: clues }),
   useCreateCanonClue: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
@@ -23,6 +29,7 @@ vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: party 
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 
 import SecretDetail from "./SecretDetail.vue";
+import CanonEntryNotes from "./CanonEntryNotes.vue";
 
 const secret = (over: Partial<CanonEntry> = {}): CanonEntry => canonEntry({ id: "s1", part: "secret", title: "Sift is the guild master's daughter.", ...over });
 const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
@@ -30,14 +37,20 @@ const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
   quest_beat_id: null, found_at: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
 });
 
-const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { ConnectionsSection: true, ClueForm: true, CanonSuggestions: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
+const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { ConnectionsSection: true, CanonEntryNotes: true, ClueForm: true, CanonSuggestions: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
 
 describe("SecretDetail", () => {
   beforeEach(() => {
     clues.value = [clue(), clue({ id: "k2", title: "A carving" })];
     party.value = [{ id: "pm1" }, { id: "pm2" }];
     passages.value = [];
+    entries.value = [];
     Object.values(mocks).forEach((m) => m.mockReset());
+  });
+
+  // Bug caught (#1255 item 8): the secret had nowhere to write what is really going on, or the notes were bound to another entry.
+  it("mounts the notes for this secret", () => {
+    expect(mountDetail(secret()).getComponent(CanonEntryNotes).props("entry")).toMatchObject({ id: "s1" });
   });
 
   // Bug caught (#1255 item 5): a clue that is a lore passage read "Not placed anywhere yet", as if it were unplaced.
@@ -120,5 +133,42 @@ describe("SecretDetail", () => {
     await w.find("textarea[aria-label='The secret']").setValue("  ");
     await flushPromises();
     expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  const revealed = (over: Partial<CanonEntry> = {}) => secret({ revealed_at: "2026-11-23T10:00:00Z", body: "{\"type\":\"doc\"}", ...over });
+
+  // Bug caught (#1255 item 10): Make it a truth offered on a secret the party has not learned, publishing it by the back door.
+  it("offers Make it a truth only on a revealed secret", () => {
+    expect(mountDetail(secret()).find("[data-testid=make-truth]").exists()).toBe(false);
+    expect(mountDetail(revealed()).find("[data-testid=make-truth]").exists()).toBe(true);
+  });
+
+  // Bug caught: the truth got the wrong knowledge, lost the secret's notes, or the secret was not pointed at it.
+  it("makes a truth known to all with the secret's words and notes, then points the secret at it", async () => {
+    mocks.create.mockResolvedValue(canonEntry({ id: "t7", part: "truth" }));
+    mocks.updateAsync.mockResolvedValue(undefined);
+    const w = mountDetail(revealed());
+    await w.get("[data-testid=make-truth]").trigger("click");
+    await flushPromises();
+    expect(mocks.create).toHaveBeenCalledWith({ part: "truth", knowledge: "all", title: "Sift is the guild master's daughter.", body: "{\"type\":\"doc\"}" });
+    expect(mocks.updateAsync).toHaveBeenCalledWith({ id: "s1", patch: { became_entry_id: "t7" } });
+  });
+
+  // Bug caught: a failed pointer deleted the truth just made, or failed silently.
+  it("keeps the truth and says so when the secret cannot be pointed at it", async () => {
+    mocks.create.mockResolvedValue(canonEntry({ id: "t7", part: "truth" }));
+    mocks.updateAsync.mockRejectedValue(new Error("no"));
+    const w = mountDetail(revealed());
+    await w.get("[data-testid=make-truth]").trigger("click");
+    await flushPromises();
+    expect(mocks.toastError).toHaveBeenCalled();
+  });
+
+  // Bug caught: the button stayed after the secret became a truth, so it could be made twice.
+  it("replaces the button with a link to the truth it became", () => {
+    entries.value = [canonEntry({ id: "t7", part: "truth", title: "Sift is the daughter." })];
+    const w = mountDetail(revealed({ became_entry_id: "t7" }));
+    expect(w.find("[data-testid=make-truth]").exists()).toBe(false);
+    expect(w.get("[data-testid=secret-became]").text()).toBe("Now a truth: Sift is the daughter.");
   });
 });

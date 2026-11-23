@@ -3,6 +3,7 @@ import type { WeatherPin } from "@/lib/calendar/weather";
 import type { SettingCalendarDef } from "@/settings/types";
 import type { GameSystemKey } from "@/systems/registry";
 import type { CurrencyConfig } from "@/lib/currency/currency";
+import type { People } from "@/lib/canon/peoples";
 
 import type { TableShows } from "@/types/bookNook.types";
 import type { ExploreParty } from "./exploreParty.types.ts";
@@ -84,6 +85,8 @@ export interface Campaign {
   weather_pins: WeatherPin[];
   /** The denominations this campaign counts money in (#934). */
   currency: CurrencyConfig;
+  /** Who lives in the world, as shares of its population, in the DM's order; empty = not said (#1255). */
+  peoples: People[];
   is_archived: boolean;
   /** True on the one campaign new users can load as the demo (#912). Set only by `publish_demo_version`. */
   demo_template: boolean;
@@ -132,6 +135,7 @@ export type CampaignInsert = Omit<
   | "custom_calendar"
   | "ai_enabled"
   | "currency"
+  | "peoples"
   // Written only by the demo RPCs; a trigger discards client writes to them.
   | "demo_template"
   | "demo_version"
@@ -164,6 +168,7 @@ export type CampaignInsert = Omit<
   weather_pins?: WeatherPin[];
   custom_calendar?: SettingCalendarDef | null;
   currency?: CurrencyConfig;
+  peoples?: People[];
 };
 export type CampaignUpdate = Partial<CampaignInsert> & {
   opening_quest_id?: string | null;

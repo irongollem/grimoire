@@ -127,6 +127,21 @@ describe("the lookup", () => {
     expect(text).toContain("The ferryman's coin.");
   });
 
+  // Bug caught (#1255): an answered question still read "Open question: nobody settles it", so the Narrator would not say what the DM had settled.
+  it("labels an answered question with its answer and an open one as kept open", () => {
+    const answered = lookupAnswer([{ part: "question", title: "Who built the mill?", text: "", knownTo: [], step: null, closedAs: "answered", closedNote: "The guild did." }]);
+    expect(answered).toContain("(Answered question: The guild did.)");
+    expect(answered).not.toContain("nobody settles");
+    expect(lookupAnswer([{ part: "question", title: "Q", text: "", knownTo: [], step: null }])).toContain("Open question: nobody settles it");
+  });
+
+  // Bug caught: an ended force was read as one still at work.
+  it("labels an ended force as no longer moving, with how it ended", () => {
+    const text = lookupAnswer([{ part: "force", title: "The Old Guild", text: "", knownTo: [], step: null, closedAs: "stopped", closedNote: "Sift burned the ledger." }]);
+    expect(text).toContain("(Force no longer moving: it was stopped, Sift burned the ledger.)");
+    expect(lookupAnswer([{ part: "force", title: "F", text: "", knownTo: [], step: null }])).toContain("(Force)");
+  });
+
   it("never asks for a secret", () => {
     expect(LOOKUP_PARTS as readonly string[]).not.toContain("secret");
   });

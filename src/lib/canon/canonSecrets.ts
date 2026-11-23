@@ -11,6 +11,11 @@ export function secretState(secret: CanonEntry, clues: readonly CanonClue[]): Se
   return clues.some((c) => c.found_at !== null) ? "partly" : "hidden";
 }
 
+/** The ledger's order: what is still to find first, the revealed after, each group in the DM's own order. */
+export function revealedLast(secrets: readonly CanonEntry[]): CanonEntry[] {
+  return [...secrets.filter((s) => s.revealed_at === null), ...secrets.filter((s) => s.revealed_at !== null)];
+}
+
 export const SECRET_STATE_LABEL: Record<SecretState, string> = {
   hidden: "Hidden",
   partly: "Partly known",

@@ -78,6 +78,19 @@ describe("PlayerJournalWorldTab", () => {
     expect(known.text()).toContain("Magic leaves a taste");
   });
 
+  // Bug caught (#1255 item 8): the DM's "More about it" on a truth never reached the player, in either truth section.
+  it("shows a truth's body under its title, only when it has one", () => {
+    state.world = world({
+      onlyMine: [{ ...truth("a", "The river gives back", "some"), body: "mine body" }],
+      known: [{ ...truth("b", "Magic leaves a taste", "all"), body: "known body" }, truth("c", "Salt keeps", "all")],
+    });
+    const w = mount(PlayerJournalWorldTab, { global: { stubs: { RouterLink: true } } });
+    const [mine, known] = w.findAll("section");
+    expect(mine.find(".rte").text()).toBe("mine body");
+    expect(known.findAll(".rte")).toHaveLength(1);
+    expect(known.find(".rte").text()).toBe("known body");
+  });
+
   it("opens a lore entry to its body and its passages told so far, in order, and marks it read", async () => {
     state.world = world({ lore: [lore([passage("p1", "What everyone says", null), passage("p2", "What Bell-Note believes", "2026-11-09T00:00:00Z")])] });
     const w = mount(PlayerJournalWorldTab);

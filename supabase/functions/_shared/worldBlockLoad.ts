@@ -11,7 +11,7 @@ import {
 
 export async function loadWorldBlock(admin: SupabaseClient, campaignId: string): Promise<WorldBlock> {
   const [campaign, canon] = await Promise.all([
-    admin.from("campaigns").select("setting").eq("id", campaignId).single(),
+    admin.from("campaigns").select("setting, peoples").eq("id", campaignId).single(),
     admin
       .from("canon_entries")
       .select(WORLD_BLOCK_CANON_COLUMNS)
@@ -20,5 +20,5 @@ export async function loadWorldBlock(admin: SupabaseClient, campaignId: string):
   ]);
   if (campaign.error) throw campaign.error;
   if (canon.error) throw canon.error;
-  return worldBlockFromRows(campaign.data.setting, canon.data);
+  return worldBlockFromRows(campaign.data.setting, canon.data, campaign.data.peoples);
 }

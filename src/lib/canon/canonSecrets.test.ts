@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clueTally, passageClue, secretState } from "./canonSecrets";
+import { clueTally, passageClue, revealedLast, secretState } from "./canonSecrets";
 import type { CanonClue, CanonEntry } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
 
@@ -55,5 +55,18 @@ describe("passageClue", () => {
     const told = passageClue({ ...passage, told_at: "2026-11-02T10:00:00Z", told_session_id: "ses1" }, "s1", 0);
     expect(told.found_at).toBe("2026-11-02T10:00:00Z");
     expect(told.found_session_id).toBe("ses1");
+  });
+});
+
+describe("revealedLast", () => {
+  // Bug caught: revealed secrets stayed among the ones still to find, so the list did not read "still to find" first.
+  it("puts the revealed after the rest and keeps each group in its own order", () => {
+    const rows = [
+      canonEntry({ id: "a", revealed_at: "t" }),
+      canonEntry({ id: "b" }),
+      canonEntry({ id: "c", revealed_at: "t" }),
+      canonEntry({ id: "d" }),
+    ];
+    expect(revealedLast(rows).map((e) => e.id)).toEqual(["b", "d", "a", "c"]);
   });
 });

@@ -1,5 +1,10 @@
 <template>
   <section class="flex min-w-0 flex-col gap-4 border border-border bg-card p-4" aria-label="A force" data-testid="force-detail">
+    <div v-if="outcome !== null" class="flex flex-col gap-1.5 border border-border bg-muted/40 px-3 py-2" data-testid="force-ended">
+      <span class="text-body font-bold text-foreground" data-testid="force-ended-line">{{ FORCE_OUTCOME_ENDED[outcome] }}</span>
+      <span v-if="entry.closed_note !== null" class="text-body text-foreground" data-testid="force-ended-note">{{ entry.closed_note }}</span>
+      <AppButton variant="outline" size="sm" label="Set it moving again" class="self-start" data-testid="force-resume" @click="resume" />
+    </div>
     <div class="flex flex-col gap-1">
       <span class="text-eyebrow text-muted-foreground">Who</span>
       <AppInput :key="whoRevision" v-model.lazy="who" size="body" tone="filled" aria-label="Who moves" placeholder="A faction, a person, a power…" />
@@ -8,6 +13,14 @@
       <span class="text-eyebrow text-muted-foreground">Wants</span>
       <AppInput :key="wantsRevision" v-model.lazy="wants" wrap size="body" tone="filled" aria-label="What it wants" placeholder="What it wants, in one line…" />
     </div>
+
+    <CanonEntryNotes
+      :key="entry.id"
+      :entry="entry"
+      label="Notes"
+      help="Never shown to players."
+      placeholder="How it plays, what it will do next…"
+    />
 
     <div class="flex flex-col gap-2">
       <div class="flex flex-wrap items-center justify-between gap-2">
@@ -21,16 +34,27 @@
         <ForceClock :force="entry" :ticks="ticks" />
         <span class="text-body text-foreground" data-testid="force-clock-tally">{{ filled }} of {{ entry.clock_size }}</span>
         <AppInput v-model="note" size="body" tone="filled" class="min-w-0 flex-1 basis-40" aria-label="Why the world moved" placeholder="Why, if you want to say…" />
-        <AppButton variant="outline" size="sm" label="Tick back" :disabled="filled === 0" data-testid="tick-back" @click="tick(-1)" />
-        <AppButton variant="primary" size="sm" label="Tick forward" :disabled="filled === entry.clock_size" data-testid="tick-forward" @click="tick(1)" />
+        <AppButton variant="outline" size="sm" label="Tick back" :disabled="outcome !== null || filled === 0" data-testid="tick-back" @click="tick(-1)" />
+        <AppButton variant="primary" size="sm" label="Tick forward" :disabled="outcome !== null || filled === entry.clock_size" data-testid="tick-forward" @click="tick(1)" />
+      </div>
+      <div v-if="clockIsFull" class="flex flex-col gap-2" data-testid="force-clock-full">
+        <p class="text-body font-bold text-foreground">The clock is full. What happened?</p>
+        <div class="flex flex-wrap gap-2">
+          <AppButton v-for="option in FORCE_OUTCOME_OPTIONS" :key="option.value" variant="outline" size="sm" :label="option.label" :data-testid="`force-full-${option.value}`" @click="end(option.value, '')" />
+        </div>
       </div>
     </div>
 
-    <ForceSteps :force="entry" :steps="steps" />
+    <ForceSteps :force="entry" :steps="steps" :frozen="outcome !== null" />
     <ForceQuests :force="entry" :links="links" />
     <ForceLog :ticks="ticks" @undo="undo" />
 
     <ConnectionsSection :subject="subject" :subject-name="entry.title" />
+
+    <div v-if="outcome === null" class="flex flex-col gap-2">
+      <ForceEndForm v-if="ending" @end="end" @cancel="ending = false" />
+      <AppButton v-else variant="outline" size="sm" label="End this force…" class="self-start" data-testid="force-end" @click="ending = true" />
+    </div>
 
     <AppButton variant="destructive" size="sm" :icon="IconDelete" icon-size="xs" label="Delete this force" class="self-start" @click="emit('delete')" />
   </section>
@@ -46,13 +70,16 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
+import CanonEntryNotes from "./CanonEntryNotes.vue";
 import ForceClock from "./ForceClock.vue";
+import ForceEndForm from "./ForceEndForm.vue";
 import ForceLog from "./ForceLog.vue";
 import ForceQuests from "./ForceQuests.vue";
 import ForceSteps from "./ForceSteps.vue";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { clockFilled, useCanonForceData, useUndoForceTick, useTickForce } from "@/composables/canon/useCanonForces";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
+import { FORCE_OUTCOME_ENDED, FORCE_OUTCOME_OPTIONS, RESUME_FORCE_PATCH, endForcePatch, forceOutcome, type ForceOutcome } from "@/lib/canon/canonClose";
 import { IconDelete } from "@/lib/icons";
 import type { CanonEntry } from "@/types/canon.types";
 import type { WorldRef } from "@/types/connections.types";
@@ -84,6 +111,20 @@ const clockSize = computed<number | null>({
   get: () => entry.clock_size,
   set: (next) => update({ id: entry.id, patch: { clock_size: next } }),
 });
+
+// A force that has ended keeps its past readable and moves no further: no ticks, no step reached, no new step.
+const outcome = computed(() => forceOutcome(entry));
+const clockIsFull = computed(() => outcome.value === null && entry.clock_size !== null && filled.value === entry.clock_size);
+
+// Transient UI state: whether the End form is open.
+const ending = ref(false);
+function end(how: ForceOutcome, why: string) {
+  update({ id: entry.id, patch: endForcePatch(how, why, new Date().toISOString()) });
+  ending.value = false;
+}
+function resume() {
+  update({ id: entry.id, patch: RESUME_FORCE_PATCH });
+}
 
 const note = ref("");
 function tick(delta: 1 | -1) {

@@ -9,6 +9,9 @@
         </span>
         <span v-else class="text-label text-muted-foreground">no clock</span>
       </span>
+      <span v-if="outcome !== null" class="mt-0.5 block text-caption font-bold text-foreground" data-testid="force-outcome">
+        {{ FORCE_OUTCOME_ENDED[outcome] }}<template v-if="entry.closed_note !== null"> · {{ entry.closed_note }}</template>
+      </span>
       <span v-if="entry.wants" class="mt-0.5 block text-caption text-muted-foreground">
         <span class="font-bold text-foreground">Wants</span> {{ entry.wants }}
       </span>
@@ -26,6 +29,7 @@
 import CanonLedgerRow from "./CanonLedgerRow.vue";
 import { computed } from "vue";
 import ForceClock from "./ForceClock.vue";
+import { FORCE_OUTCOME_ENDED, forceOutcome } from "@/lib/canon/canonClose";
 import { clockFilled, stepReached } from "@/composables/canon/useCanonForces";
 import type { CanonEntry, CanonForceStep, CanonForceTick } from "@/types/canon.types";
 
@@ -38,4 +42,5 @@ const { entry, steps, ticks, selected = false } = defineProps<{
 const emit = defineEmits<{ select: [] }>();
 
 const reached = computed(() => stepReached(steps));
+const outcome = computed(() => forceOutcome(entry));
 </script>

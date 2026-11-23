@@ -53,7 +53,9 @@ to all; nothing else can enter (no secret, no force, no truth known to some). Ev
 so they bind every suggestion; pictures take `worldImageSetting` (the world, the look and the lines). Edge functions
 load it with `loadWorldBlock` (`worldBlockLoad.ts`); the browser's local-key path with `fetchWorldBlock`
 (`src/ai/worldBlock.ts`), and only when a local key will run the generation (`captureImageGenerationContext`). The
-Chronicler's `{settingPrompt}` placeholder is filled with it.
+Chronicler's `{settingPrompt}` placeholder is filled with it. It also carries `## Peoples of the world` (who lives
+there, as shares, largest first, with "do not default to humans"; see "How the world works"), left out when the DM
+listed none.
 
 ## The page
 
@@ -99,6 +101,16 @@ three clues, so the party can miss two and still find it. Open questions (`part 
 marked "nobody settles this by invention". `canon_clue` is an MCP kind; `canon_clues` rings the doorbell under the
 canon query root.
 
+**Things end and turn into others (#1255 items 9 and 10).** A question can be answered: *Answer…* on its row makes the
+answer a new entry (a truth with a knowledge mark, or a secret) titled with the answer, then closes the question with
+`closed_as = 'answered'`, `closed_at`, `closed_note` (the answer) and `became_entry_id` (the new entry). If the second write
+fails the new entry stays and a toast says so. Answered questions fold under "Answered (n)", each linking to what it became
+(`/canon?entry=<id>`; the FK clears the pointer if that entry is deleted) with *Reopen*, which nulls all four columns. A
+revealed secret offers *Make it a truth* (known to all, with its words and notes) and then reads "Now a truth: <title>";
+the secret stays, still revealed. A part never changes, so becoming is always a new entry plus `became_entry_id`
+(`src/lib/canon/canonClose.ts` builds both writes). Revealed secrets sort after the ones still to find. The contents column
+and the start strip count only open questions and forces still moving (`sectionCounts`).
+
 ## What is moving
 
 Part III of the page (frame 06; `ForcesSection.vue`, `ForceDetail.vue`). A force is a `canon_entries` row with
@@ -130,7 +142,13 @@ quests where the party meets it, once each). Players never read any of it.
   its quest links and matched `about` link, all carrying the run's provenance (`writeAcceptedForce`,
   `useCanonForces.ts`). Manual forces can also select a faction and clock size in `ForcesSection.vue`. Nothing is
   written before Accept (for suggestions) or Add force (for manual entry).
-- `canon_force_step` is an MCP kind; `canon` also takes `wants` and `clock_size`. Ticks are not (a tick is written by
+- A force can end (`ForceDetail.vue`, `ForceEndForm.vue`): *End this force…* takes an outcome (`succeeded`, `stopped`,
+  `faded`) and an optional note, writing `closed_as`, `closed_at` and `closed_note` together; a full clock that is not ended
+  asks "The clock is full. What happened?" with the same three outcomes. An ended force leaves the ledger for "No longer
+  moving (n)", its detail opens with "Ended: …" and *Set it moving again*, and while ended its ticks, step Reached ticks and
+  add-step row are off. Suggest forces and the Narrator's "forces that moved here" leave ended forces out.
+- `canon_force_step` is an MCP kind; `canon` also takes `wants` and `clock_size`. `canon` reads `closed_as`, `closed_at`,
+  `closed_note` and `became_entry_id` but does not write them (a close needs `closed_at` set with `closed_as`). Ticks are not (a tick is written by
   the clock's buttons and undone, never edited).
 
 ## How the world works
@@ -144,6 +162,17 @@ custom calendar editor and the "Populate from <setting>" panel that hangs off th
 as each is changed; the custom calendar saves after a pause and not while the editor flags a problem; the coins keep
 their explicit Save because removing a coin converts what players hold. Settings lost the Currency tab (a
 `?tab=currency` link falls back to Details) and Details lost calendar, year, climate and Populate.
+
+**Who lives in it** (`campaigns.peoples`, `WorldPeoples.vue`, #1255 item 30): the peoples of the world as shares of its
+population, `[{ name, percent }]` in the DM's order, so a world where elves are 80% generates elf NPCs 80% of the time.
+The table refuses a blank or repeated name, a share outside 0 to 100 and a total past 100 (`campaigns_peoples_valid`);
+the screen says the same first (`peoplesProblem`, `src/lib/canon/peoples.ts`) and autosaves only a list with no
+problem. A total below 100 leaves the rest as "anyone else", a people the DM did not list; empty means not said. The NPC
+generator, with its species left blank, rolls once per generation with `rollPeople` (a quick create too): the rolled
+name goes into the prompt as `Race: <name>` and onto the saved NPC, a roll that lands on "anyone else" asks for a
+people not on the list, and a species the DM picked is never rolled over. The species select lists the peoples first,
+then the campaign's other species. Every other generator is told the shares through the world block (`peoplesLine`,
+shared with the client from `_shared/worldBlock.ts`).
 
 ## Lore, told in passages
 
@@ -195,11 +224,15 @@ tells that character, **Tell the party** everyone. A player may insert, update a
 their own character's backstory (`private.writes_own_backstory`); a trigger (`guard_player_passage`) tells it when
 written, lets them share it only with party members, and refuses a place, a beat or a changed author (42501). Each
 passage says whose it is: "Written by <player> · before play" or "... after session N" (N is the latest session that had
-started before it was written, `writtenWhen`) or "Your passage". **The people from this past** are the entry's
-connections (`ConnectionsSection`, subject `{ kind: "canon" }`, each tie with its own reveal), and **New NPC from this
-backstory** asks how that person relates to the character, creates that People connection alongside the Canon `about`
-link, keeps both hidden from players, then opens the NPC (`useNewBackstoryNpc`). In the NPC's Connections block, the
-People relationship is primary and its Canon origin is a compact marker linking back to the source entry.
+started before it was written, `writtenWhen`) or "Your passage". **The people from this past** are the character's own connections (`ConnectionsSection`, subject
+`{ kind: "party_member" }`, each tie with its own reveal), the same list their page shows, so a person is one row that
+reads the same in both places; the NPCs this entry is `about` carry the "From Canon" marker (the entry's own ties are
+read to know which). Under it, **Places and things from this past** is the entry's own block (subject `{ kind: "canon" }`),
+less the `about` ties to people already listed above; an `about` tie to someone the character has no tie to still shows
+there. **New NPC from this backstory** asks how that person relates to the character, creates that People connection
+alongside the Canon `about` link, keeps both hidden from players, then opens the NPC (`useNewBackstoryNpc`). In the NPC's
+Connections block, the People relationship is primary and its Canon origin is a compact marker linking back to the
+source entry.
 
 The DM's side is `BackstoriesSection` (one row per party member: "played by", passages, "n not yet told"; the contents
 column counts characters, not entries) and `BackstoryDetail` (opened with `?backstory=<party member id>`, or
@@ -267,7 +300,7 @@ Deleting a single passage does not queue its entry (the next edit or the admin b
 
 ## At the AI table
 
-The Narrator (`agent-turn`, see agent-runtime.md "The canon at the table") carries the world block and a short "Previously" in its standing instructions, looks the rest up by meaning through `canon_lookup` (`canon_embeddings`, `match_campaign_canon`, never the `secret` part), and is shown where the party stands as "Canon here": the clues placed there as lines only, untold lore, who present may say a truth only some know, the open questions, the forces that moved there. It never reads a secret's statement. When it puts an invention on record, TypeSafe's Jev checks it against the truths, the open questions and the secrets (the judge alone reads the secrets); a failed check refuses with the reason and nothing is filed. `bring_out` ticks a clue found or a passage told, once the turn is kept. At the table `search`, `get` and `list` refuse the canon types. Canon entries are embedded by `embed-content` (`entity: "canon"`, one vector per entry, a lore entry's passages folded in; `queueCanonEmbedding` after a canon write, 5 s trailing) and are part of the DM's own campaign search (all parts, secrets too).
+The Narrator (`agent-turn`, see agent-runtime.md "The canon at the table") carries the world block and a short "Previously" in its standing instructions, looks the rest up by meaning through `canon_lookup` (`canon_embeddings`, `match_campaign_canon`, never the `secret` part), and is shown where the party stands as "Canon here": the clues placed there as lines only, untold lore, who present may say a truth only some know, the open questions, the forces that moved there. An answered question is no longer open (not in "Canon here", not in the invention check, not in Suggest questions, and `canon_lookup` labels it "Answered question: <answer>"), and an ended force is not one that moved. It never reads a secret's statement. When it puts an invention on record, TypeSafe's Jev checks it against the truths, the open questions and the secrets (the judge alone reads the secrets); a failed check refuses with the reason and nothing is filed. `bring_out` ticks a clue found or a passage told, once the turn is kept. At the table `search`, `get` and `list` refuse the canon types. Canon entries are embedded by `embed-content` (`entity: "canon"`, one vector per entry, a lore entry's passages folded in; `queueCanonEmbedding` after a canon write, 5 s trailing) and are part of the DM's own campaign search (all parts, secrets too).
 
 ## The Chronicle and the notes
 

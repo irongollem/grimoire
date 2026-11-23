@@ -1,6 +1,6 @@
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import NpcGeneratorPanel from "./NpcGeneratorPanel.vue";
 import NpcGeneratorForm from "./NpcGeneratorForm.vue";
 import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
@@ -33,6 +33,8 @@ const canCreateNpc = ref(true);
 // click through requireCredits() into the out-of-credits dialog instead of
 // calling generate().
 const affordableState = vi.hoisted(() => ({ value: true }));
+// The world's peoples and the roll's outcome, mutable per test (#1255 item 30).
+const worldState = vi.hoisted(() => ({ peoples: [] as { name: string; percent: number }[], roll: vi.fn<() => string | null>() }));
 const starterPackState = vi.hoisted(() => ({ fail: false, switchCampaign: false }));
 
 vi.mock("vue-router", async (importOriginal) => ({
@@ -46,6 +48,11 @@ vi.mock("@/composables/kinship/useKinLinks", () => ({
   useCreateKinLink: () => ({ mutateAsync: mocks.createKin }),
   useCreateKinLinkInCampaign: () => ({ mutateAsync: mocks.createKin }),
 }));
+vi.mock("@/composables/rules/useSpecies", () => ({ useCampaignSpecies: () => ({ data: ref([{ name: "Tabaxi" }]) }) }));
+vi.mock("@/lib/canon/peoples", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/canon/peoples")>(),
+  rollPeople: () => worldState.roll(),
+}));
 vi.mock("@/stores/ui/npcs", () => ({ useNpcsUiStore: () => ({ npcGeneratorOpen: true }) }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
@@ -53,7 +60,7 @@ vi.mock("@/stores/campaign", () => ({
     get activeCampaignId() { return campaignState.activeCampaignId; },
     activeGameSystem: "dnd5e-2014",
     todayYear: 1495,
-    activeCampaign: { text_provider: "openai", image_provider: "openai" },
+    get activeCampaign() { return { text_provider: "openai", image_provider: "openai", peoples: worldState.peoples }; },
   }),
 }));
 vi.mock("@/composables/npcs/useNpcs", () => ({
@@ -411,5 +418,51 @@ describe("NpcGeneratorPanel: the NPC it creates", () => {
     await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
     await vi.waitFor(() => expect(mocks.createNpc).toHaveBeenCalledTimes(1));
     expect(mocks.createNpc.mock.calls[0][0].name).toBe("Aldous Pell");
+  });
+
+  describe("species from the world's peoples", () => {
+    beforeEach(() => {
+      worldState.peoples = [{ name: "Elf", percent: 80 }, { name: "Human", percent: 15 }];
+      worldState.roll.mockReset();
+    });
+    afterEach(() => { worldState.peoples = []; });
+
+    // Bug caught: a blank species stayed the model's choice (a human), so an 80% elven world generated humans.
+    it("rolls the species once and uses it in the prompt and on the saved NPC", async () => {
+      worldState.roll.mockReturnValue("Elf");
+      await run();
+      expect(worldState.roll).toHaveBeenCalledTimes(1);
+      expect(mocks.generate.mock.calls[0][1].context).toContain("Race: Elf");
+      expect(mocks.createNpc.mock.calls[0][0].race).toBe("Elf");
+    });
+
+    // Bug caught: the roll overrode a species the DM picked by hand.
+    it("rolls nothing when the DM picked a species", async () => {
+      const wrapper = mountPanel();
+      await wrapper.get("textarea").setValue("A scheming chancellor.");
+      const form = wrapper.getComponent(NpcGeneratorForm);
+      form.vm.$emit("update:quickForm", { ...form.props("quickForm"), race: "Tabaxi" });
+      await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+      await vi.waitFor(() => expect(mocks.createNpc).toHaveBeenCalledTimes(1));
+      expect(worldState.roll).not.toHaveBeenCalled();
+      expect(mocks.generate.mock.calls[0][1].context).toContain("Race: Tabaxi");
+      expect(mocks.createNpc.mock.calls[0][0].race).toBe("Tabaxi");
+    });
+
+    // Bug caught: the 5% left for anyone else silently became a human, or named a listed people.
+    it("asks for a people the list does not hold when the roll lands on anyone else", async () => {
+      worldState.roll.mockReturnValue(null);
+      await run();
+      expect(mocks.generate.mock.calls[0][1].context).toContain("Race: not one of Elf, Human; a people this world rarely sees");
+      expect(mocks.createNpc.mock.calls[0][0].race).toBe("Human");
+    });
+
+    // Bug caught: a campaign that never listed peoples gained a Race line (or a roll) it never asked for.
+    it("adds no species line and rolls nothing when no peoples are set", async () => {
+      worldState.peoples = [];
+      await run();
+      expect(worldState.roll).not.toHaveBeenCalled();
+      expect(mocks.generate.mock.calls[0][1].context).not.toContain("Race:");
+    });
   });
 });

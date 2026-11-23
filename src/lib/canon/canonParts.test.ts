@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CANON_SECTIONS, plainTextToTiptap, sectionCounts, sectionOfPart } from "./canonParts";
+import { CANON_SECTIONS, plainTextToTiptap, sectionCounts, sectionOfPart, startSteps, type CanonSectionId } from "./canonParts";
 import type { CanonEntry } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
 
@@ -31,6 +31,22 @@ describe("sectionCounts", () => {
   it("counts secrets and open questions as one part, so the contents column adds up to what the part lists", () => {
     const counts = sectionCounts([entry("secret", "1"), entry("question", "2"), entry("question", "3"), entry("truth", "4")]);
     expect(counts.secrets).toBe(3);
+  });
+
+  // Bug caught (#1255 item 9): an answered question or an ended force kept counting, so the contents column and the
+  // start strip said something was open or moving when it was not.
+  it("leaves out answered questions and ended forces", () => {
+    const rows = [
+      entry("force", "1"),
+      canonEntry({ id: "2", part: "force", closed_as: "stopped", closed_at: "t" }),
+      entry("question", "3"),
+      canonEntry({ id: "4", part: "question", closed_as: "answered", closed_at: "t" }),
+      entry("secret", "5"),
+    ];
+    const counts = sectionCounts(rows);
+    expect(counts.moving).toBe(1);
+    expect(counts.secrets).toBe(2);
+    expect(startSteps(sectionCounts([canonEntry({ id: "2", part: "force", closed_as: "faded", closed_at: "t" })]), false)[2].done).toBe(false);
   });
 
   it("counts forces under What is moving, and keeps it between Truths and Secrets as the contents column draws it", () => {
@@ -66,5 +82,23 @@ describe("sectionOfPart", () => {
     ["lore", "lore"],
   ] as const)("puts a %s entry in the %s part", (part, section) => {
     expect(sectionOfPart(part)).toBe(section);
+  });
+});
+
+describe("startSteps", () => {
+  const counts = (over: Partial<Record<CanonSectionId, number>> = {}) =>
+    Object.fromEntries(CANON_SECTIONS.map((s) => [s.id, over[s.id] ?? 0])) as Record<CanonSectionId, number>;
+
+  // Bug caught: the pitch judged by the premise count, so a theme alone ticked "Write the pitch".
+  it("marks each step from its own part, and the pitch from hasPitch", () => {
+    const steps = startSteps(counts({ premise: 3, truths: 1 }), false);
+    expect(steps.map((s) => [s.part, s.done])).toEqual([["premise", false], ["truths", true], ["moving", false], ["secrets", false]]);
+    expect(startSteps(counts(), true)[0].done).toBe(true);
+  });
+
+  // Bug caught: the strip never going away, because completion was not detectable from the steps.
+  it("is all done only when every step is", () => {
+    expect(startSteps(counts({ truths: 1, moving: 1, secrets: 1 }), true).every((s) => s.done)).toBe(true);
+    expect(startSteps(counts({ truths: 1, moving: 1 }), true).every((s) => s.done)).toBe(false);
   });
 });

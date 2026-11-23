@@ -51,6 +51,7 @@
 import { ref, reactive, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconGenerate } from "@/lib/icons";
+import { rollPeople } from "@/lib/canon/peoples";
 import { useNpcsUiStore } from "@/stores/ui/npcs";
 import { useCreateNpcInCampaign } from "@/composables/npcs/useNpcs";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
@@ -201,11 +202,26 @@ function kinPromptPeople(): PromptPerson[] {
   return people;
 }
 
-function buildAiContext(selectedLocationId: string | null, items: readonly ItemIndexEntry[]): string {
+/**
+ * Who the new person is: the species the DM picked, else one rolled from the world's peoples (once per generation, so
+ * the prompt and the saved NPC agree). `constraint` is the prompt line; a roll that lands on "anyone else" has no name
+ * and asks for a people the list does not hold. With no peoples set the species is left to the generator.
+ */
+interface RaceChoice { race: string; constraint: string | null }
+function chooseRace(picked: string): RaceChoice {
+  if (picked) return { race: picked, constraint: `Race: ${picked}` };
+  const peoples = campaign.activeCampaign?.peoples ?? [];
+  if (peoples.length === 0) return { race: "", constraint: null };
+  const rolled = rollPeople(peoples);
+  if (rolled) return { race: rolled, constraint: `Race: ${rolled}` };
+  return { race: "", constraint: `Race: not one of ${peoples.map((p) => p.name).join(", ")}; a people this world rarely sees` };
+}
+
+function buildAiContext(selectedLocationId: string | null, items: readonly ItemIndexEntry[], raceConstraint: string | null): string {
   const constraints: string[] = [];
   const location = locationOptions.value.find((loc) => loc.id === selectedLocationId);
   if (quickForm.name.trim()) constraints.push(`Name: ${quickForm.name.trim()}`);
-  if (quickForm.race) constraints.push(`Race: ${quickForm.race}`);
+  if (raceConstraint) constraints.push(raceConstraint);
   if (quickForm.alignment) constraints.push(`Alignment: ${quickForm.alignment}`);
   if (quickForm.relationship) constraints.push(`Party relationship: ${quickForm.relationship}`);
   if (location) constraints.push(`Location: ${location.name}`);
@@ -293,10 +309,11 @@ async function runGenerateAndCreate() {
   const locationId = quickForm.location_id ?? locationNamedInStory(concept.value, locationOptions.value)?.id ?? null;
   const inventoryItems = [...mentionedItems()];
   const prompt = replaceItemTokens(concept.value.trim(), inventoryItems);
-  const context = buildAiContext(locationId, inventoryItems);
+  const formAtStart = { ...quickForm };
+  const raceChoice = chooseRace(formAtStart.race);
+  const context = buildAiContext(locationId, inventoryItems, raceChoice.constraint);
   const generateAlterEgoAtStart = generateAlterEgo.value;
   const generateImageAtStart = generateImage.value;
-  const formAtStart = { ...quickForm };
   const associateNpc = formAtStart.related_npc_id
     ? npcs.value?.find((n) => n.id === formAtStart.related_npc_id) ?? null
     : null;
@@ -333,7 +350,7 @@ async function runGenerateAndCreate() {
   const payload: NpcInsert = {
     name: formAtStart.name.trim() || result.name,
     campaign_id: campaignId,
-    race: formAtStart.race || result.race || null,
+    race: raceChoice.race || result.race || null,
     alignment: formAtStart.alignment || result.alignment || null,
     age: result.age || null,
     ...generatedBirthFromAge(
@@ -520,6 +537,7 @@ async function runQuickCreate() {
   const campaignId = campaign.activeCampaignId;
   if (!campaignId) return;
   const formAtStart = { ...quickForm };
+  const raceChoice = chooseRace(formAtStart.race);
   const associateNpc = formAtStart.related_npc_id
     ? npcs.value?.find((n) => n.id === formAtStart.related_npc_id) ?? null
     : null;
@@ -529,7 +547,7 @@ async function runQuickCreate() {
   const payload: NpcInsert = {
     name,
     campaign_id: campaignId,
-    race: formAtStart.race || null,
+    race: raceChoice.race || null,
     alignment: formAtStart.alignment || null,
     age: null,
     occupation: null,

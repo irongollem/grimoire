@@ -53,8 +53,8 @@
         >Species</label
       >
       <AppSelect v-model="raceModel" tone="muted" size="body" weight="normal" block>
-        <option value="">Any</option>
-        <option v-for="r in RACES" :key="r" :value="r">{{ r }}</option>
+        <option value="">{{ peoples.length ? "Roll from the world's peoples" : "Any" }}</option>
+        <option v-for="r in speciesOptions" :key="r" :value="r">{{ r }}</option>
       </AppSelect>
     </div>
 
@@ -278,6 +278,8 @@ import { NPC_FACTION_ROLES } from "@/types/faction.types";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useCampaignSpecies } from "@/composables/rules/useSpecies";
+import { useCampaignStore } from "@/stores/campaign";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
@@ -481,12 +483,6 @@ const generateImageModel = computed<boolean>({
   set: (value) => emit("update:generateImage", value),
 });
 
-const RACES = [
-  "Human", "Elf", "Half-Elf", "Dwarf", "Halfling", "Gnome",
-  "Half-Orc", "Tiefling", "Dragonborn", "Aasimar", "Tabaxi",
-  "Kenku", "Firbolg", "Goliath", "Triton",
-] as const;
-
 const ALIGNMENTS = [
   "Lawful Good", "Neutral Good", "Chaotic Good",
   "Lawful Neutral", "True Neutral", "Chaotic Neutral",
@@ -496,6 +492,20 @@ const ALIGNMENTS = [
 const { locationOptions } = useLocationTree();
 const { data: factions } = useAllFactions();
 const { data: npcs } = useNpcs();
+const campaignStore = useCampaignStore();
+const { data: campaignSpecies } = useCampaignSpecies();
+const peoples = computed(() => campaignStore.activeCampaign?.peoples ?? []);
+/** The world's peoples in the DM's order, then the campaign's species not already listed. */
+const speciesOptions = computed(() => {
+  const names = peoples.value.map((p) => p.name);
+  const listed = new Set(names.map((n) => n.toLowerCase()));
+  for (const { name } of campaignSpecies.value) {
+    if (listed.has(name.toLowerCase())) continue;
+    listed.add(name.toLowerCase());
+    names.push(name);
+  }
+  return names;
+});
 
 const templateCategories = computed(() => NPC_TEMPLATE_CATEGORIES);
 function templatesByCategory(cat: string) {

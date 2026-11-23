@@ -29,8 +29,19 @@
         <div v-if="untold" class="flex flex-wrap items-center gap-2">
           <AppButton variant="primary" size="sm" :label="tellTarget ? `Tell ${tellTarget.name}` : 'Tell the party'" data-testid="tell" @click="tellFirst" />
           <AppButton v-if="tellTarget" variant="ghost" size="sm" label="Tell the party" data-testid="tell-party" @click="tell(passage)" />
+          <AppButton v-else-if="!choosingWho" variant="ghost" size="sm" label="Tell some…" data-testid="tell-some" @click="choosingWho = true" />
         </div>
-        <AppButton v-else variant="outline" size="sm" label="Take back" class="self-start" data-testid="take-back" @click="takeBack" />
+        <div v-else class="flex flex-wrap items-center gap-2">
+          <AppButton variant="outline" size="sm" label="Take back" data-testid="take-back" @click="takeBack" />
+          <AppButton v-if="toldToSome && !tellTarget && !choosingWho" variant="ghost" size="sm" label="Tell more…" data-testid="tell-more" @click="choosingWho = true" />
+        </div>
+        <PassageTellSome
+          v-if="choosingWho && !tellTarget"
+          :members="party ?? []"
+          :told="passage.player_visible_to"
+          @tell="tellChosen"
+          @cancel="choosingWho = false"
+        />
 
         <span class="text-eyebrow text-muted-foreground">Comes out at</span>
         <div class="flex flex-wrap items-center gap-2">
@@ -61,6 +72,7 @@ import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import CanonRef from "./CanonRef.vue";
 import PassageClues from "./PassageClues.vue";
+import PassageTellSome from "./PassageTellSome.vue";
 import WherePicker, { type Where, type WhereTarget } from "./WherePicker.vue";
 import { passageWhere, wherePatch } from "@/composables/canon/useCanonPassages";
 import { updateCanonPassage, useTellPassage, useUpdateCanonPassage } from "@/composables/canon/useCanonPassageEdits";
@@ -112,10 +124,23 @@ const toldTo = computed(() => {
   return members.filter((m) => passage.player_visible_to.includes(m.id)).map((m) => m.name).join(", ");
 });
 
+/** A told passage some of the party do not have yet: it offers Tell more. */
+const toldToSome = computed(() => {
+  const members = party.value ?? [];
+  return !untold.value && members.length > 0 && !members.every((m) => passage.player_visible_to.includes(m.id));
+});
+const choosingWho = ref(false);
+
 const { tell, takeBack: take } = useTellPassage();
 function tellFirst() {
   if (tellTarget) void tell(passage, [tellTarget.id]);
   else void tell(passage);
+}
+/** A first telling stamps the time and session; widening a told passage only adds people, so who already has it keeps the day they were told. */
+function tellChosen(ids: string[]) {
+  choosingWho.value = false;
+  if (untold.value) void tell(passage, ids);
+  else update({ id: passage.id, patch: { player_visible_to: [...new Set([...passage.player_visible_to, ...ids])] } });
 }
 const { confirm } = useConfirm();
 async function takeBack() {

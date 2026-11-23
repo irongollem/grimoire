@@ -110,9 +110,13 @@ async function loadKnowers(db: SupabaseClient, campaignId: string): Promise<Know
   ];
 }
 
-/** Rows of a canon part (title and body), DM-only, read with the campaign in the query. */
+/**
+ * Titles of a canon part, DM-only, read with the campaign in the query. Only entries still open: an answered question
+ * is no longer kept open and an ended force no longer moves, so neither is offered as one (#1255). The other parts
+ * never close, so the filter leaves them whole.
+ */
 function canonTitles(db: SupabaseClient, campaignId: string, part: string) {
-  return readRows<{ title: string }>(db.from("canon_entries").select("title").eq("campaign_id", campaignId).eq("part", part));
+  return readRows<{ title: string }>(db.from("canon_entries").select("title").eq("campaign_id", campaignId).eq("part", part).is("closed_as", null));
 }
 
 const listOfTitles = (rows: { title: string }[]): string[] => rows.map((r) => r.title.trim()).filter((t) => t !== "");

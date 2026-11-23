@@ -17,6 +17,7 @@ vi.mock("@/composables/canon/useCanonForces", async (original) => ({
 }));
 
 import ForceDetail from "./ForceDetail.vue";
+import CanonEntryNotes from "./CanonEntryNotes.vue";
 
 const tick = (over: Partial<CanonForceTick>): CanonForceTick => ({
   id: "t1", user_id: "u", campaign_id: "c1", force_id: "f1", delta: 1, note: "", session_id: null, step_id: null, world_year: null, world_month: null,
@@ -25,7 +26,7 @@ const tick = (over: Partial<CanonForceTick>): CanonForceTick => ({
 const force = (over = {}) => canonEntry({ id: "f1", campaign_id: "c1", part: "force", title: "The Stain spreads", wants: "to be forgotten into", clock_size: 6, ...over });
 
 const mountIt = (entry = force()) =>
-  mount(ForceDetail, { props: { entry }, global: { stubs: { ForceSteps: true, ForceQuests: true, ConnectionsSection: true } } });
+  mount(ForceDetail, { props: { entry }, global: { stubs: { ForceSteps: true, ForceQuests: true, ConnectionsSection: true, CanonEntryNotes: true } } });
 
 describe("ForceDetail", () => {
   beforeEach(() => {
@@ -38,6 +39,13 @@ describe("ForceDetail", () => {
     expect(mountIt().get("[data-testid=force-clock-tally]").text()).toBe("2 of 6");
     forceData.value.ticks = Array.from({ length: 9 }, (_, i) => tick({ id: `t${i}` }));
     expect(mountIt().get("[data-testid=force-clock-tally]").text()).toBe("6 of 6");
+  });
+
+  // Bug caught (#1255 item 8): the force had nowhere to write how to play it, or the notes were bound to another entry.
+  it("mounts the notes for this force, labelled as never shown to players", () => {
+    const notes = mountIt().getComponent(CanonEntryNotes);
+    expect(notes.props("entry")).toMatchObject({ id: "f1" });
+    expect(notes.props("help")).toBe("Never shown to players.");
   });
 
   it("ticks forward by one with the note typed beside it, then empties the note", async () => {
@@ -85,5 +93,61 @@ describe("ForceDetail", () => {
     const w = mountIt();
     await w.findAll("button").find((b) => b.text() === "Delete this force")!.trigger("click");
     expect(w.emitted("delete")).toHaveLength(1);
+  });
+
+  const ended = (over = {}) => force({ closed_as: "stopped", closed_at: "2026-11-23T10:00:00Z", closed_note: "Sift burned the ledger.", ...over });
+
+  // Bug caught (#1255 item 9): a full clock did nothing, so the force had no way to end.
+  it("offers the outcomes when the clock is full, and choosing one ends the force", async () => {
+    forceData.value.ticks = Array.from({ length: 6 }, (_, i) => tick({ id: `t${i}` }));
+    const w = mountIt();
+    expect(w.get("[data-testid=force-clock-full]").text()).toContain("The clock is full. What happened?");
+    await w.get("[data-testid=force-full-succeeded]").trigger("click");
+    expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: expect.objectContaining({ closed_as: "succeeded", closed_note: null }) });
+  });
+
+  it("does not ask what happened while the clock is not full", () => {
+    forceData.value.ticks = [tick({ id: "a" })];
+    expect(mountIt().find("[data-testid=force-clock-full]").exists()).toBe(false);
+  });
+
+  // Bug caught: an ended force with a full clock asked again what happened.
+  it("does not ask what happened of a force that has already ended", () => {
+    forceData.value.ticks = Array.from({ length: 6 }, (_, i) => tick({ id: `t${i}` }));
+    expect(mountIt(ended()).find("[data-testid=force-clock-full]").exists()).toBe(false);
+  });
+
+  // Bug caught: End this force wrote the outcome without the DM's note, or without the chosen outcome.
+  it("ends the force from the form with the chosen outcome and the note", async () => {
+    const w = mountIt();
+    await w.get("[data-testid=force-end]").trigger("click");
+    const buttons = w.get("[data-testid=force-end-form]").findAll("button");
+    await buttons.find((b) => b.text() === "It faded away")!.trigger("click");
+    await w.get("[data-testid=force-end-form] input").setValue("Nobody remembered it.");
+    await w.get("[data-testid=force-end-form]").trigger("submit");
+    expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: expect.objectContaining({ closed_as: "faded", closed_note: "Nobody remembered it." }) });
+  });
+
+  // Bug caught: an ended force still ticked forward, moving a world it no longer drives.
+  it("shows the ending and disables ticking on an ended force", () => {
+    forceData.value.ticks = [tick({ id: "a" })];
+    const w = mountIt(ended());
+    expect(w.get("[data-testid=force-ended-line]").text()).toBe("Ended: it was stopped");
+    expect(w.get("[data-testid=force-ended-note]").text()).toBe("Sift burned the ledger.");
+    expect(w.get("[data-testid=tick-forward]").attributes("disabled")).toBeDefined();
+    expect(w.get("[data-testid=tick-back]").attributes("disabled")).toBeDefined();
+    expect(w.find("[data-testid=force-end]").exists()).toBe(false);
+  });
+
+  // Bug caught: Set it moving again left closed_note set, which the table refuses.
+  it("sets it moving again by clearing all three columns", async () => {
+    const w = mountIt(ended());
+    await w.get("[data-testid=force-resume]").trigger("click");
+    expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { closed_as: null, closed_at: null, closed_note: null } });
+  });
+
+  it("leaves the steps frozen only for an ended force", () => {
+    expect(mountIt().getComponent({ name: "ForceSteps" }).props("frozen")).toBe(false);
+    expect(mountIt(ended()).getComponent({ name: "ForceSteps" }).props("frozen")).toBe(true);
   });
 });

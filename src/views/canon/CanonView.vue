@@ -13,6 +13,7 @@
         <ListSkeleton v-if="isLoading || campaign === null" variant="rows" :count="4" />
         <p v-else-if="isError" role="alert" class="text-body text-destructive">Could not load the canon.</p>
         <template v-else>
+          <CanonStart :counts="counts" :has-pitch="hasPitch" @go="goTo" />
           <PremiseSection :campaign="campaign" :entries="entries" />
           <TruthsSection :truths="truths" :selected-id="selected?.id ?? null" @select="select" />
           <!-- Below a desktop there is no side column: the selected truth opens under its part. -->
@@ -73,6 +74,7 @@ import BackstoriesSection from "@/components/canon/BackstoriesSection.vue";
 import BackstoryDetail from "@/components/canon/BackstoryDetail.vue";
 import ChronicleSection from "@/components/canon/ChronicleSection.vue";
 import TableAddedSection from "@/components/canon/TableAddedSection.vue";
+import CanonStart from "@/components/canon/CanonStart.vue";
 import CanonContents from "@/components/canon/CanonContents.vue";
 import ForceDetail from "@/components/canon/ForceDetail.vue";
 import ForcesSection from "@/components/canon/ForcesSection.vue";
@@ -111,6 +113,7 @@ const secrets = computed(() => entries.value.filter((e) => e.part === "secret"))
 const lore = computed(() => entries.value.filter((e) => e.part === "lore"));
 const questions = computed(() => entries.value.filter((e) => e.part === "question"));
 const backstories = computed(() => entries.value.filter((e) => e.part === "backstory"));
+const hasPitch = computed(() => entries.value.some((e) => e.part === "premise" && e.premise_kind === "pitch"));
 const { data: partyData } = useParty();
 const party = computed(() => partyData.value ?? []);
 const { data: allPassages } = useCanonPassages();

@@ -33,11 +33,34 @@ export function sectionOfPart(part: CanonPart): CanonSectionId {
   return section.id;
 }
 
-/** How many entries each part holds, for the contents column. */
+/**
+ * How many entries each part holds, for the contents column and the start strip. An entry that has ended (an answered
+ * question, a force no longer moving) is not counted: the number says what is still open or moving, and the strip's
+ * "Name who is moving" is not done by a force that has already stopped. One rule, here, for both readers.
+ */
 export function sectionCounts(entries: readonly CanonEntry[]): Record<CanonSectionId, number> {
   const counts = {} as Record<CanonSectionId, number>;
-  for (const section of CANON_SECTIONS) counts[section.id] = entries.filter((e) => (section.parts as readonly string[]).includes(e.part)).length;
+  for (const section of CANON_SECTIONS) counts[section.id] = entries.filter((e) => e.closed_as === null && (section.parts as readonly string[]).includes(e.part)).length;
   return counts;
+}
+
+export interface StartStep {
+  part: CanonSectionId;
+  label: string;
+  done: boolean;
+}
+
+/**
+ * The four first things a new campaign's canon wants, in order, each marked done once its part holds something. The
+ * pitch is judged by `hasPitch` (the premise part also holds themes and tone, which do not count as a pitch).
+ */
+export function startSteps(counts: Record<CanonSectionId, number>, hasPitch: boolean): StartStep[] {
+  return [
+    { part: "premise", label: "Write the pitch", done: hasPitch },
+    { part: "truths", label: "Say what is true", done: counts.truths > 0 },
+    { part: "moving", label: "Name who is moving", done: counts.moving > 0 },
+    { part: "secrets", label: "Keep a secret, with three clues", done: counts.secrets > 0 },
+  ];
 }
 
 export const KNOWLEDGE_LABEL: Record<KnowledgeMark, string> = {

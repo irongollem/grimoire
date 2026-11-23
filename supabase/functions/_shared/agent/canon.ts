@@ -278,7 +278,25 @@ export interface CanonLookupEntry {
   knownTo: string[];
   /** The latest step a force has reached. */
   step: string | null;
+  /** How a question or force ended (`answered`, `succeeded`, `stopped`, `faded`); null or absent while it is open. */
+  closedAs?: string | null;
+  /** What became of it: a question's answer, or how a force's end looked. */
+  closedNote?: string | null;
 }
+
+const FORCE_ENDED: Record<string, string> = {
+  succeeded: "it got what it wanted",
+  stopped: "it was stopped",
+  faded: "it faded away",
+};
+
+// An answered question is settled by the DM, so the Narrator may say its answer; only an open one is kept open.
+const questionLabel = (e: CanonLookupEntry): string =>
+  e.closedAs == null ? "Open question: nobody settles it" : `Answered question: ${e.closedNote ?? "the DM has answered it"}`;
+
+// A force that has ended is not moving: it is history, and the label says how it ended.
+const forceLabel = (e: CanonLookupEntry): string =>
+  e.closedAs == null ? "Force" : `Force no longer moving: ${FORCE_ENDED[e.closedAs] ?? "it has ended"}${e.closedNote == null ? "" : `, ${e.closedNote}`}`;
 
 export function lookupAnswer(entries: readonly CanonLookupEntry[]): string {
   if (entries.length === 0) return "The canon says nothing about that. It is yours to invent, within what is on record.";
@@ -291,8 +309,8 @@ export function lookupAnswer(entries: readonly CanonLookupEntry[]): string {
             : e.knowledge === "some"
               ? "Truth known to some, nobody named: nobody present may say it"
               : "Truth known to all"
-          : e.part === "question" ? "Open question: nobody settles it"
-            : e.part === "force" ? "Force"
+          : e.part === "question" ? questionLabel(e)
+            : e.part === "force" ? forceLabel(e)
               : e.part === "lore" ? "Lore"
                 : e.part === "backstory" ? "A character's backstory: what the DM has not told is theirs to tell"
                   : "Premise";

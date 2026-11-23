@@ -6,6 +6,9 @@ import {
   type CanonRowForBlock,
 } from "./worldBlock";
 
+/** The block for a campaign that has said nothing of its peoples, unless a test says otherwise. */
+const build = (setting: string | null, rows: CanonRowForBlock[], peoples: unknown = []) => worldBlockFromRows(setting, rows, peoples);
+
 let order = 0;
 const row = (over: Partial<CanonRowForBlock>): CanonRowForBlock => ({
   part: "premise",
@@ -22,7 +25,7 @@ const truth = (knowledge: string, title: string) => row({ part: "truth", knowled
 
 describe("worldBlockFromRows", () => {
   it("never lets a secret or a some-know truth reach a generator", () => {
-    const block = worldBlockFromRows("Sothery", [
+    const block = build("Sothery", [
       truth("all", "The sun is a door"),
       truth("some", "The abbot is a lich"),
       truth("secret", "The king is dead"),
@@ -34,7 +37,7 @@ describe("worldBlockFromRows", () => {
   });
 
   it("ignores forces, secrets, questions, lore and chronicle entries entirely", () => {
-    const block = worldBlockFromRows(null, [
+    const block = build(null, [
       row({ part: "force", title: "The Pale Court" }),
       row({ part: "secret", title: "Hidden crypt" }),
       row({ part: "lore", title: "Old war" }),
@@ -47,26 +50,26 @@ describe("worldBlockFromRows", () => {
       type: "doc",
       content: [{ type: "paragraph", content: [{ type: "text", text: "A drowned kingdom." }] }],
     });
-    const block = worldBlockFromRows(null, [premise("pitch", "", body)]);
+    const block = build(null, [premise("pitch", "", body)]);
     expect(block.pitch).toBe("A drowned kingdom.");
   });
 
   // Bug caught: a pitch with a heading and a body (the book import) reached every generator as its heading alone.
   it("reads a text premise's body under its heading, and the title alone when there is no body", () => {
     const body = JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A drowned kingdom." }] }] });
-    expect(worldBlockFromRows(null, [premise("pitch", "The Sunken Crown", body)]).pitch).toBe("The Sunken Crown: A drowned kingdom.");
-    expect(worldBlockFromRows(null, [premise("voice", "Dry and warm", null)]).voice).toBe("Dry and warm");
-    expect(worldBlockFromRows(null, [premise("line", "Gore", body)]).lines).toEqual(["Gore"]);
+    expect(build(null, [premise("pitch", "The Sunken Crown", body)]).pitch).toBe("The Sunken Crown: A drowned kingdom.");
+    expect(build(null, [premise("voice", "Dry and warm", null)]).voice).toBe("Dry and warm");
+    expect(build(null, [premise("line", "Gore", body)]).lines).toEqual(["Gore"]);
   });
 
   // Bug caught: a secret block inside a premise body went to every generator.
   it("never lets a DM-only block of a premise body through", () => {
     const body = JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Open." }] }, { type: "secretBlock", content: [{ type: "paragraph", content: [{ type: "text", text: "HIDDEN" }] }] }] });
-    expect(worldBlockFromRows(null, [premise("pitch", "", body)]).pitch).toBe("Open.");
+    expect(build(null, [premise("pitch", "", body)]).pitch).toBe("Open.");
   });
 
   it("orders entries by sort_order and joins several voice entries", () => {
-    const block = worldBlockFromRows(null, [
+    const block = build(null, [
       row({ part: "premise", premise_kind: "voice", title: "second", sort_order: 5 }),
       row({ part: "premise", premise_kind: "voice", title: "first", sort_order: 1 }),
     ]);
@@ -76,13 +79,13 @@ describe("worldBlockFromRows", () => {
 
 describe("worldBlockText", () => {
   it("is empty for a campaign with no canon, so a prompt gains nothing", () => {
-    expect(worldBlockText(worldBlockFromRows(null, []))).toBe("");
-    expect(worldBlockText(worldBlockFromRows("   ", []))).toBe("");
+    expect(worldBlockText(build(null, []))).toBe("");
+    expect(worldBlockText(build("   ", []))).toBe("");
   });
 
   it("renders lines and veils as binding rules, not as flavour", () => {
     const text = worldBlockText(
-      worldBlockFromRows("Sothery", [
+      build("Sothery", [
         premise("line", "Harm to children"),
         premise("veil", "Torture"),
       ]),
@@ -93,7 +96,7 @@ describe("worldBlockText", () => {
 
   it("names the world, pitch, voice and truths under their headings and leaves empty ones out", () => {
     const text = worldBlockText(
-      worldBlockFromRows("Sothery", [
+      build("Sothery", [
         premise("pitch", "Cosy horror"),
         premise("voice", "Dry and warm"),
         truth("all", "Winter never ends"),
@@ -108,10 +111,33 @@ describe("worldBlockText", () => {
   });
 });
 
+describe("the peoples of the world", () => {
+  // Bug caught: a world where elves are 80% of the populace reached the generators as silence, so they invented humans.
+  it("tells every generator the shares, largest first, with the remainder as anyone else, and the instruction", () => {
+    const text = worldBlockText(build(null, [], [{ name: "Human", percent: 15 }, { name: "Elf", percent: 80 }]));
+    expect(text).toContain("## Peoples of the world\nElf 80%, Human 15%, anyone else 5%\n");
+    expect(text).toContain("choose who they are at these odds; do not default to humans.");
+  });
+
+  // Bug caught: a row the table never allowed (or an old shape) threw in the loader and took every generator down with it.
+  it.each([[[]], [null], ["elves"], [{ Elf: 80 }], [[{ name: "  ", percent: 50 }, { name: "Elf", percent: "80" }, 7, null]]])(
+    "adds nothing for an empty or malformed list (%j)",
+    (peoples) => {
+      const block = build(null, [], peoples);
+      expect(block.peoples).toBeNull();
+      expect(worldBlockText(block)).toBe("");
+    },
+  );
+
+  it("says 100% without an anyone-else and leaves a share of zero out", () => {
+    expect(build(null, [], [{ name: "Elf", percent: 100 }, { name: "Orc", percent: 0 }]).peoples).toBe("Elf 100%");
+  });
+});
+
 describe("worldImageSetting", () => {
   it("carries the name, the look and the lines, never the pitch or the voice", () => {
     const setting = worldImageSetting(
-      worldBlockFromRows("Sothery", [
+      build("Sothery", [
         premise("pitch", "SECRET-PITCH-MARKER"),
         premise("voice", "VOICE-MARKER"),
         premise("look", "Gouache, muted greens"),
@@ -128,7 +154,7 @@ describe("worldImageSetting", () => {
   // Bug caught: an old setting prompt that carried the visual style (migrated into the pitch) was lost from every picture.
   it("falls back to the pitch, capped, when there is no look, and still never carries the voice", () => {
     const setting = worldImageSetting(
-      worldBlockFromRows("Sothery", [premise("pitch", `Watercolour fens. ${"x".repeat(600)}`), premise("voice", "VOICE-MARKER")]),
+      build("Sothery", [premise("pitch", `Watercolour fens. ${"x".repeat(600)}`), premise("voice", "VOICE-MARKER")]),
     );
     expect(setting).toContain("Setting: Watercolour fens.");
     expect(setting.length).toBeLessThan(450);
@@ -136,6 +162,6 @@ describe("worldImageSetting", () => {
   });
 
   it("is empty when there is nothing to say", () => {
-    expect(worldImageSetting(worldBlockFromRows(null, []))).toBe("");
+    expect(worldImageSetting(build(null, []))).toBe("");
   });
 });

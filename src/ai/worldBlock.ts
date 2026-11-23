@@ -13,7 +13,7 @@ export type { WorldBlock };
 
 export async function fetchWorldBlock(campaignId: string): Promise<WorldBlock> {
   const [campaign, canon] = await Promise.all([
-    supabase.from("campaigns").select("setting").eq("id", campaignId).single(),
+    supabase.from("campaigns").select("setting, peoples").eq("id", campaignId).single(),
     supabase
       .from("canon_entries")
       .select(WORLD_BLOCK_CANON_COLUMNS)
@@ -22,7 +22,7 @@ export async function fetchWorldBlock(campaignId: string): Promise<WorldBlock> {
   ]);
   if (campaign.error) throw campaign.error;
   if (canon.error) throw canon.error;
-  return worldBlockFromRows(campaign.data.setting, canon.data);
+  return worldBlockFromRows(campaign.data.setting, canon.data, campaign.data.peoples);
 }
 
 /** The local-key paths need the block; a null one means the capture decided they would not run. Never read as empty. */

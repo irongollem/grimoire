@@ -82,4 +82,19 @@ describe("ForcesSection", () => {
     expect((w.get("input[aria-label='A new force']").element as HTMLInputElement).value).toBe("The Ferrymen");
     expect(w.emitted("select")).toBeUndefined();
   });
+
+  // Bug caught (#1255 item 9): an ended force stayed in the ledger as if it were still moving.
+  it("keeps an ended force out of the ledger and counts it under No longer moving, naming its outcome", () => {
+    const stopped = canonEntry({ id: "f3", part: "force", title: "The Old Guild", closed_as: "stopped", closed_at: "t" });
+    const w = mountIt([...forces, stopped]);
+    expect(w.get("[data-testid=force-ledger]").text()).not.toContain("The Old Guild");
+    expect(w.get("[data-testid=force-ended-toggle]").text()).toContain("No longer moving (1)");
+    const row = w.get("[data-testid=force-ended-ledger]");
+    expect(row.text()).toContain("The Old Guild");
+    expect(row.get("[data-testid=force-outcome]").text()).toBe("Ended: it was stopped");
+  });
+
+  it("shows no No longer moving drawer when every force is moving", () => {
+    expect(mountIt().find("[data-testid=force-ended-section]").exists()).toBe(false);
+  });
 });

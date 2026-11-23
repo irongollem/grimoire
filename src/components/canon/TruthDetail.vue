@@ -13,6 +13,14 @@
       />
     </div>
 
+    <CanonEntryNotes
+      :key="entry.id"
+      :entry="entry"
+      label="More about it"
+      help="Players who read this truth read this too. Put what only you should see in a DM-only block."
+      placeholder="Why it matters, what lies behind it…"
+    />
+
     <div class="flex flex-col gap-2">
       <span class="text-eyebrow text-muted-foreground">Who knows it</span>
       <SegmentedControl
@@ -88,6 +96,7 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import WorldEntityPicker from "@/components/common/entity/WorldEntityPicker.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
+import CanonEntryNotes from "./CanonEntryNotes.vue";
 import CanonRef from "./CanonRef.vue";
 import { KNOWLEDGE_HELP, MARK_OPTIONS } from "@/lib/canon/canonParts";
 import { useCommittedText } from "@/composables/canon/useCommittedText";

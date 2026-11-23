@@ -7,9 +7,9 @@
 
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
       <div class="flex min-w-0 flex-1 flex-col gap-3">
-        <ul v-if="forces.length > 0" class="flex flex-col border border-border bg-card" data-testid="force-ledger">
+        <ul v-if="moving.length > 0" class="flex flex-col border border-border bg-card" data-testid="force-ledger">
           <ForceRow
-            v-for="force in forces"
+            v-for="force in moving"
             :key="force.id"
             :entry="force"
             :steps="stepsOf(force.id)"
@@ -19,11 +19,37 @@
           />
         </ul>
         <EmptyState
-          v-else
+          v-else-if="ended.length === 0"
           class="border border-dashed border-border bg-card"
           title="Nothing is moving yet"
           description="A force is a faction, a person or a power with its own plans. Give it a clock and steps, and tick it forward as the world moves."
         />
+        <div v-if="ended.length > 0" class="flex flex-col gap-2" data-testid="force-ended-section">
+          <AppButton
+            variant="ghost"
+            size="sm"
+            class="self-start"
+            :label="`No longer moving (${ended.length})`"
+            :icon="showEnded ? IconChevronDown : IconChevronRight"
+            icon-size="xs"
+            :aria-expanded="showEnded"
+            data-testid="force-ended-toggle"
+            @click="showEnded = !showEnded"
+          />
+          <Transition v-bind="drawerTransition()">
+            <ul v-show="showEnded" class="flex flex-col border border-border bg-card" data-testid="force-ended-ledger">
+              <ForceRow
+                v-for="force in ended"
+                :key="force.id"
+                :entry="force"
+                :steps="stepsOf(force.id)"
+                :ticks="ticksOf(force.id)"
+                :selected="force.id === selectedId"
+                @select="emit('select', force.id)"
+              />
+            </ul>
+          </Transition>
+        </div>
       </div>
       <ForceLog v-if="forces.length > 0" class="lg:w-64 lg:shrink-0" :ticks="data?.ticks ?? []" :force-name="nameOf" @undo="undo" />
     </div>
@@ -69,13 +95,20 @@ import { useCanonForceData, useUndoForceTick } from "@/composables/canon/useCano
 import { useCreateConnectionInCampaign } from "@/composables/connections/useConnections";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllFactions } from "@/composables/factions/useFactions";
-import { IconAdd } from "@/lib/icons";
+import { IconAdd, IconChevronDown, IconChevronRight } from "@/lib/icons";
+import { drawerTransition } from "@/lib/motion";
 import { toast } from "@/lib/toast";
 import { typeChoices } from "@/lib/worldLinks/connections";
 import type { CanonEntry, CanonForceStep, CanonForceTick } from "@/types/canon.types";
 
 const { forces, selectedId = null } = defineProps<{ forces: readonly CanonEntry[]; selectedId?: string | null }>();
 const emit = defineEmits<{ select: [id: string] }>();
+
+// A force that has ended leaves the ledger and waits under "No longer moving"; its detail opens as any other.
+const moving = computed(() => forces.filter((f) => f.closed_as === null));
+const ended = computed(() => forces.filter((f) => f.closed_as !== null));
+// Transient UI state: whether the ended forces are showing.
+const showEnded = ref(false);
 
 const { data } = useCanonForceData();
 const NO_STEPS: readonly CanonForceStep[] = [];

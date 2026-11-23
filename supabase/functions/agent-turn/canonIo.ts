@@ -201,7 +201,7 @@ export function canonStore(input: {
         tied === ""
           ? Promise.resolve({ data: [] as Row[], error: null })
           : supabase.from("canon_lore_passages").select("id, entry_id, title, body").eq("campaign_id", campaignId).is("told_at", null).or(tied).order("sort_order").limit(LIST_READ_MAX),
-        supabase.from("canon_entries").select("title").eq("campaign_id", campaignId).eq("part", "question").order("sort_order").limit(LIST_READ_MAX),
+        supabase.from("canon_entries").select("title").eq("campaign_id", campaignId).eq("part", "question").is("closed_as", null).order("sort_order").limit(LIST_READ_MAX),
       ]);
       if (clues.error) throw clues.error;
       if (passages.error) throw passages.error;
@@ -236,7 +236,8 @@ export function canonStore(input: {
         if (links.error) throw links.error;
         const entryIds = [...new Set(((links.data ?? []) as Row[]).map((r) => str(r.from_canon_entry_id)).filter((v) => v !== ""))];
         if (entryIds.length > 0) {
-          const entries = await supabase.from("canon_entries").select("id, title").eq("campaign_id", campaignId).eq("part", "force").in("id", entryIds).order("sort_order");
+          // A force that has ended no longer moves: it is not one that moved here.
+          const entries = await supabase.from("canon_entries").select("id, title").eq("campaign_id", campaignId).eq("part", "force").is("closed_as", null).in("id", entryIds).order("sort_order");
           if (entries.error) throw entries.error;
           const rows = (entries.data ?? []) as Row[];
           const steps = await latestSteps(campaignId, rows.map((r) => str(r.id)));
@@ -281,7 +282,7 @@ export function canonStore(input: {
       const forceIds = hits.filter((h) => h.part === "force").map((h) => h.id);
       const someIds = hits.filter((h) => h.part === "truth" && h.knowledge === "some").map((h) => h.id);
       const [bodies, passages, steps, knownTo] = await Promise.all([
-        supabase.from("canon_entries").select("id, body, wants, party_member_id").eq("campaign_id", campaignId).in("id", ids),
+        supabase.from("canon_entries").select("id, body, wants, party_member_id, closed_as, closed_note").eq("campaign_id", campaignId).in("id", ids),
         loreIds.length === 0
           ? Promise.resolve({ data: [] as Row[], error: null })
           : supabase.from("canon_lore_passages").select("entry_id, title, body").eq("campaign_id", campaignId).in("entry_id", loreIds).order("sort_order"),
@@ -316,6 +317,8 @@ export function canonStore(input: {
           part: h.part,
           title: h.part === "backstory" && character !== undefined ? character : h.title,
           knowledge: h.knowledge,
+          closedAs: row === undefined || typeof row.closed_as !== "string" ? null : row.closed_as,
+          closedNote: row === undefined || typeof row.closed_note !== "string" ? null : row.closed_note,
           text,
           knownTo: knownTo.get(h.id) ?? [],
           step: steps.get(h.id) ?? null,
@@ -326,7 +329,7 @@ export function canonStore(input: {
     async material(campaignId) {
       const { data, error } = await supabase
         .from("canon_entries")
-        .select("id, part, knowledge, title, body, sort_order")
+        .select("id, part, knowledge, title, body, sort_order, closed_as")
         .eq("campaign_id", campaignId)
         .in("part", ["truth", "question", "secret"])
         .order("sort_order");
@@ -335,7 +338,8 @@ export function canonStore(input: {
       const body = (r: Row): string => plain(str(r.body), 300);
       return {
         truths: rows.filter((r) => r.part === "truth").map((r) => ({ text: entryText(r), secret: r.knowledge === "secret" })).filter((t) => t.text !== ""),
-        questions: rows.filter((r) => r.part === "question").map((r) => str(r.title).trim()).filter((t) => t !== ""),
+        // An answered question is no longer kept open: an invention that agrees with the DM's answer is not refused for it.
+        questions: rows.filter((r) => r.part === "question" && r.closed_as == null).map((r) => str(r.title).trim()).filter((t) => t !== ""),
         secrets: rows
           .filter((r) => r.part === "secret")
           .map((r) => ({ id: str(r.id), statement: [str(r.title).trim(), body(r)].filter((t) => t !== "").join(": ") }))

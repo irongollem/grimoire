@@ -9,6 +9,7 @@
         :state="stepState(step, now)"
         :first="index === 0"
         :last="index === steps.length - 1"
+        :frozen="frozen"
         @rename="(title) => update({ id: step.id, patch: { title } })"
         @reach="(reached) => reach({ step, reached })"
         @move="(direction) => move({ steps, id: step.id, direction })"
@@ -16,7 +17,7 @@
       />
     </ul>
     <p v-else class="text-caption text-muted-foreground">No steps yet. A step is what the force does next, so the table can see it coming.</p>
-    <form class="flex flex-wrap gap-2" @submit.prevent="addStep">
+    <form v-if="!frozen" class="flex flex-wrap gap-2" @submit.prevent="addStep">
       <AppInput v-model="draft" tone="filled" size="body" class="min-w-0 flex-1" placeholder="A new step…" aria-label="A new step" />
       <AppButton type="submit" variant="outline" size="sm" class="whitespace-nowrap" :icon="IconAdd" icon-size="xs" label="Add step" :loading="isAdding" :disabled="draft.trim() === ''" />
     </form>
@@ -41,7 +42,8 @@ import {
 import { IconAdd } from "@/lib/icons";
 import type { CanonEntry, CanonForceStep } from "@/types/canon.types";
 
-const { force, steps } = defineProps<{ force: CanonEntry; steps: readonly CanonForceStep[] }>();
+/** `frozen` is a force that has ended: its steps stay readable but cannot be reached, and none is added. */
+const { force, steps, frozen = false } = defineProps<{ force: CanonEntry; steps: readonly CanonForceStep[]; frozen?: boolean }>();
 
 const now = computed(() => stepReached(steps));
 const draft = ref("");
