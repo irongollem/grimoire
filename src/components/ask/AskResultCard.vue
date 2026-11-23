@@ -1,12 +1,15 @@
 <template>
   <section class="flex flex-col gap-2 border border-border bg-card px-3 py-2.5" :aria-label="`${item.name} result`" data-testid="ask-result">
     <h3 class="text-body font-bold text-foreground">{{ item.review ? "Suggestions are ready" : `${item.name} is ready` }}</h3>
-    <!-- What was painted, so the DM sees the face without leaving the page they asked from; marked as AI like every picture. -->
+    <!--
+      What was painted, so the DM sees the face without leaving the page they asked from; marked as AI like every picture.
+      Drawn at its own shape: a portrait is taller than wide, and a square crop cuts the face off.
+    -->
     <div v-if="picture" class="relative w-full max-w-60 self-start">
       <img
         :src="picture"
         :alt="`${item.name}, as painted`"
-        class="aspect-square w-full border border-border object-cover"
+        class="h-auto w-full border border-border"
         data-testid="ask-result-picture"
       />
       <AiImageBadge :src="picture" />
