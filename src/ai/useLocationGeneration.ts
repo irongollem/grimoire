@@ -102,8 +102,6 @@ export function useLocationGeneration() {
         prompt:         userPrompt,
         location_type:  options?.location_type,
         parent_name:    options?.parent_name,
-        generate_image: false,
-        generate_map:   false,
       },
     });
 

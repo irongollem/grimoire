@@ -101,7 +101,6 @@ export function useTrapGeneration() {
         prompt:             userPrompt,
         trap_type:          options?.trap_type,
         cr:                 options?.cr,
-        generate_image:     false,
       },
     });
 

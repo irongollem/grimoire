@@ -3,7 +3,7 @@ import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestDesignerPanel from "./QuestDesignerPanel.vue";
 import type { QuestDesignTree, QuestDesignQuestion } from "@/lib/quests/designer";
-
+import { QUEST_DESIGN_PROSE_LIMIT } from "@/lib/quests/designer";
 const mocks = vi.hoisted(() => ({
   propose: vi.fn(),
   answer: vi.fn(),
@@ -75,7 +75,7 @@ vi.mock("@/ai/useQuestDesigner", () => ({
   }),
 }));
 
-function mountPanel(props: { parentId?: string | null } = {}) {
+function mountPanel(props: { parentId?: string | null; initialProse?: string } = {}) {
   return mount(QuestDesignerPanel, {
     props,
     global: {
@@ -110,6 +110,15 @@ describe("QuestDesignerPanel", () => {
     isAiEnabled.value = true;
     canCreateQuest.value = true;
     requireCredits.mockReset().mockReturnValue(true);
+  });
+
+  // Bug caught: Ask Grimoire opened the Designer with an empty box, so the DM had to describe the quest again.
+  it("starts with the description Ask Grimoire handed over, cut to the box's limit, and does not propose by itself", () => {
+    mountPanel({ initialProse: "A dragon cult under the old mill." });
+    expect(designerState.prose.value).toBe("A dragon cult under the old mill.");
+    expect(mocks.propose).not.toHaveBeenCalled();
+    mountPanel({ initialProse: "x".repeat(QUEST_DESIGN_PROSE_LIMIT + 50) });
+    expect(designerState.prose.value).toHaveLength(QUEST_DESIGN_PROSE_LIMIT);
   });
 
   it("disables Propose a tree while the prose is empty", () => {

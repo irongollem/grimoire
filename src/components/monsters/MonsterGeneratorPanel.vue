@@ -5,8 +5,8 @@
     v-model:generate-image="generateImage"
     title="Monster Generator"
     concept-placeholder="A colossal spider deity that dwells in the Underdark, commanding its cultists through webs of illusion and dreams…"
-    :credits="textCreditCost"
-    :byok="textIsByok"
+    :credits="quote.total"
+    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     blank-to="/monsters/new"
@@ -48,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useMonstersUiStore } from "@/stores/ui/monsters";
 import { useGenerateMonster } from "@/composables/monsters/useGenerateMonster";
@@ -57,8 +57,7 @@ import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue"
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useMonsterGenerationCost } from "@/composables/monsters/useMonsterGenerationCost";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
+import { useMonsterQuote } from "@/composables/ai/quotes/monsterQuote";
 import { useMonsterGeneration } from "@/ai/useMonsterGeneration";
 import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
 
@@ -73,15 +72,17 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("monsters");
 
-const { credits: textCreditCost } = useMonsterGenerationCost();
-const { textIsByok } = useCampaignProviders();
+const quoteFor = useMonsterQuote();
 
 const concept = ref("");
 const constraints = reactive({ challenge_rating: "", monster_type: "", size: "" });
 const generateImage = ref(true);
 
+// The price Ask Grimoire quotes for the same run: the picture counts when it is switched on.
+const quote = computed(() => quoteFor({ image: generateImage.value }));
+
 async function generateAndCreate() {
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(quote.value.total, quote.value.byok)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

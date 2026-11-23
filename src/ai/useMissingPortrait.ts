@@ -54,6 +54,8 @@ export function useMissingPortrait(kind: PortraitKind) {
   const updateItem = useUpdateItem();
   const updateSpell = useUpdateSpell();
 
+  // A retry goes through `generate-entity-image`, which paints every kind at 1024x1536 (spells too), unlike the image
+  // job whose table sizes a spell square. `useMissingPortrait.test.ts` holds this equal to the function's own constant.
   const cost = computed(
     () => imageCredits(costOf("entity_image", { size: "1024x1536" })),
   );

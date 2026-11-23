@@ -25,10 +25,12 @@ import {
   generateImage,
   type ImageGenerationContext,
 } from "@/ai/useImageGeneration";
+import { reportHandledError } from "@/lib/observability/sentry";
 import { buildAiProvenance } from "@/ai/provenance";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 import { useCampaignStore } from "@/stores/campaign";
 import type { RulesetKey } from "@/types/ruleset.types";
+import { npcPortraitSubject, speciesPictureFor } from "@/lib/npcGenerator/portraitSubject";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -53,6 +55,18 @@ interface NpcGenerationOptions {
   generateAlterEgo?: boolean;
   generateImage?: boolean;
   context?: string;
+}
+
+/** The picture of the NPC's species in this campaign or the library, or null; only species with a picture are read. */
+async function speciesPicture(campaignId: string, race: string | null | undefined): Promise<string | null> {
+  if (typeof race !== "string" || race.trim() === "") return null;
+  const [own, library] = await Promise.all([
+    supabase.from("species").select("name, image_url").eq("campaign_id", campaignId).not("image_url", "is", null),
+    supabase.from("library_species").select("name, image_url").not("image_url", "is", null),
+  ]);
+  if (own.error) throw own.error;
+  if (library.error) throw library.error;
+  return speciesPictureFor(race, own.data, library.data);
 }
 
 export function useNpcGeneration() {
@@ -133,8 +147,6 @@ export function useNpcGeneration() {
         prompt:             userPrompt,
         context:            options?.context,
         generate_alter_ego: options?.generateAlterEgo ?? false,
-        // All art goes through the one durable image job pipeline below.
-        generate_image:     false,
       },
     });
 
@@ -204,7 +216,21 @@ export function useNpcGeneration() {
     }
     startAiQuotes("image");
     try {
-      portrait_url = await generateImage({ ...imageContext, purpose: "npc_portrait", subject: npcData.true_portrait_prompt });
+      // The species leads, so the picture cannot paint a human where the record says halfling, and its own picture goes
+      // along when it has one: not every species is known to an image model, and no homebrew one is.
+      // An optional reference that fails to load paints without it: the portrait is already paid for.
+      let reference: string | null = null;
+      try {
+        reference = await speciesPicture(imageContext.campaignId, npcData.race);
+      } catch (e) {
+        reportHandledError(e, "npc-species-reference");
+      }
+      portrait_url = await generateImage({
+        ...imageContext,
+        purpose: "npc_portrait",
+        subject: npcPortraitSubject(npcData.race, npcData.true_portrait_prompt, reference !== null),
+        ...(reference ? { referenceUrls: [reference] } : {}),
+      });
     } catch { /* art is non-fatal */ }
     if (options?.generateAlterEgo && portrait_url && npcData.disguise_image_prompt) {
       try {

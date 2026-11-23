@@ -336,7 +336,6 @@ import {
   generateMusicLocally,
   composeFallbackPrompt,
   MUSIC_LENGTHS,
-  MUSIC_GENERATION_TYPE,
   MUSIC_MAX_IMAGES,
   LYRICS_MAX_CHARS,
   MUSIC_PROMPT_MAX_CHARS,
@@ -344,7 +343,7 @@ import {
   type MusicLengthSeconds,
   type MusicVocals,
 } from "@/lib/audio/aiMusic";
-import { logUsage, useAiCredits } from "@/composables/ai/useAiCredits";
+import { logUsage } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useMusicGeneration } from "@/ai/useMusicGeneration";
 import { currentLoadingQuote, startAiQuotes, stopAiQuotes } from "@/ai/aiGenerationState";
@@ -354,16 +353,14 @@ import SpotifyLocalOnlyInfo from "@/components/soundboard/SpotifyLocalOnlyInfo.v
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import type { SoundCategory } from "@/types/sound.types";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
-import { wholeCredits } from "@edge-shared/credit-math.ts";
+import { useMusicTrackQuote } from "@/composables/ai/quotes/musicTrackQuote";
 import { localKeyModeChosen } from "@/lib/localKeyVault";
 
 const spotifyStore = useSpotifyStore();
-const { costOf } = useAiCredits();
-// The server multiplies the song's price by Gemini's audio multiplier
-// (generate-music), so the price shown here must too.
-const { audioMultiplierFor } = useProviderConfig();
-const musicCost = computed(() => wholeCredits(costOf(MUSIC_GENERATION_TYPE) * audioMultiplierFor("gemini")));
+// The server multiplies the song's price by Gemini's audio multiplier (generate-music); the quote carries that, and
+// Ask Grimoire reads the same one.
+const musicQuote = useMusicTrackQuote();
+const musicCost = computed(() => musicQuote().total);
 const { requireCredits } = useOutOfCredits();
 const { isPro } = useSubscription();
 // Upload (own audio, not AI) stays Pro-only; Generate reads the campaign's

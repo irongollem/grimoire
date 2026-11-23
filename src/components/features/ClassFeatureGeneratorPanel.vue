@@ -40,7 +40,7 @@ import { useCreateFeature } from "@/composables/rules/useFeatures";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useClassFeatureQuote } from "@/composables/ai/quotes/classFeatureQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
@@ -56,11 +56,10 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 
 const { canSpend } = useGenerationGate();
 
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const textCreditCost = computed(
-  () => textCredits(costOf("class_feature_generation")),
-);
+// The price comes from the quote Ask Grimoire reads too, so the page and the panel cannot disagree.
+const { textIsByok } = useCampaignProviders();
+const quote = useClassFeatureQuote();
+const textCreditCost = computed(() => quote().total);
 
 type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;
 const retained = useRetainedGeneration<Generated>();

@@ -402,6 +402,7 @@ Fills a minimal NPC with:
 - Location (location tree combobox)
 - Stat block template (grouped by category from `NPC_TEMPLATE_CATEGORIES`)
 - Known associate (any existing NPC) + relationship to them: a bond, or a family tie (Child of, Parent of, Spouse of, Sibling of; a child may name a second parent, defaulting to the associate's only current spouse). A family tie is told to the model as one directional sentence with birth years and ages, and written as `kin_links` after creation. `/npcs?kin=<child|parent|spouse|sibling>&of=<npc:id|pc:id>&also=<npc:id|pc:id>` opens the panel with the tie filled in (`kin` is what the new NPC is to `of`; `also` is the second parent); the panel clears the query once read.
+- Ties: any other tie of the World Web catalogue, from the new NPC's side, through the "Tie it to…" field (`GeneratorLinksField`, `src/components/generators/`). It lists the ties chosen so far as removable chips ("Worships · Auril") and opens the Connections block's own search and type chips for a record of any kind the catalogue lets an NPC hold (family is left out: kin has its own field). Nothing is written until the NPC is saved: `generateAndCreateNpc` (and Quick Create) then call `applyGeneratorLinks` (`src/composables/worldLinks/useApplyGeneratorLinks.ts`), which writes each through the mutation the Add dialog uses (`useCreateConnectionInCampaign`), in the direction the choice stores, and returns a failed tie as a `linkErrors` entry without losing the NPC. The model is told the ties on one line ("Ties: worships Auril; works at The Docks"). A tie to a party member is made here too. The same field and function are the way to give any other generator its ties.
 
 After creation, faction membership and the associate relationship are added automatically.
 
@@ -413,6 +414,8 @@ Additional AI options:
 
 - **Generate portrait art** toggle (on by default) — generates an image via OpenAI
 - **Generate Alter Ego** toggle (requires portrait toggle on) — generates both a true-form portrait and a disguise portrait (uses 2× image generation credits)
+
+**How the portrait is painted.** `generate-npc` writes text only; the browser then paints the portrait (and the alter ego, edited from it) through the one image job (`generateImage`, `generate-chronicle-image`). The image model is given the text model's `true_portrait_prompt`, which nothing obliges to name the species, and image models paint a human by default (a halfling ferryman came back a tall man, 23 Nov 2026). So the subject is built in code (`npcPortraitSubject`, `src/lib/npcGenerator/portraitSubject.ts`): the NPC's species leads it, with the build of the small and stocky folk an image model draws as humans (halfling, gnome, dwarf, goblin, kobold). When the species has a picture (the campaign's own species first, then the library's; `speciesPictureFor`), it goes along as a reference, and the subject says the reference is for the species' build and features only, never this person's face, pose or clothing. Not for a human: an image model needs none, and a reference costs input tokens on every portrait.
 
 Generation can be **dismissed to background**: the panel closes while the AI call continues. A badge in the nav or list indicates when generation finishes.
 

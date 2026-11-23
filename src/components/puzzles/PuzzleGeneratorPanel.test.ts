@@ -37,7 +37,11 @@ vi.mock("@/composables/ai/useAiCredits", () => ({
   useAiCredits: () => ({ costOf: () => 1, affordable: () => true, balance: ref(10) }),
 }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
-  useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false) }),
+  // The picture is quoted with the text (it is a separate entity_image charge), so the image half is mocked too.
+  useCampaignProviders: () => ({
+    textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false),
+    imageProvider: ref("openai"), imageCredits: (base: number) => Math.ceil(base), imageIsByok: ref(false),
+  }),
 }));
 vi.mock("@/composables/billing/useQuota", () => ({
   useQuota: () => ({ canCreate: { get value() { return quotaState.canCreate; } }, quota: ref(null) }),

@@ -170,6 +170,12 @@ export interface MusicGenerationInput {
   imageUrls: string[];
   /** The DM's edited Lyria prompt, sent as written; null to have it structured. */
   prompt: string | null;
+  /**
+   * Leave the Generate tab's draft exactly as the DM has it. The Add Sound dialog's own Generate wants it cleared
+   * once the track is made; Ask composes a track from a conversation and must not wipe, re-file or overwrite a
+   * half-typed draft that belongs to the dialog.
+   */
+  keepDraft?: boolean;
 }
 
 export function useMusicGeneration() {
@@ -186,7 +192,7 @@ export function useMusicGeneration() {
     _state.error.value = null;
     _state.clearCompleted();
     _state.concept.value = input.soundName;
-    _draft.category.value = input.category;
+    if (!input.keepDraft) _draft.category.value = input.category;
     startAiQuotes("music");
 
     try {
@@ -226,7 +232,7 @@ export function useMusicGeneration() {
       const jobId = (data as { job_id?: string } | null)?.job_id;
       if (!jobId) throw new Error("Music generator did not return a job id.");
       const soundId = await resumeMusicJob(queryClient, jobId, input.campaignId, requestId);
-      resetDraft();
+      if (!input.keepDraft) resetDraft();
       if (soundId) _state.completedEntityId.value = soundId;
       return true;
     } catch (err) {
@@ -234,7 +240,7 @@ export function useMusicGeneration() {
       // generate-music records the prompt on the job before Lyria reads it; a
       // job that failed earlier (structuring, an unreadable image) has none.
       const sentPrompt = err instanceof AiGenerationJobFailedError ? err.job.artifacts.metadata.prompt : null;
-      if (typeof sentPrompt === "string") _draft.editedPrompt.value = sentPrompt;
+      if (typeof sentPrompt === "string" && !input.keepDraft) _draft.editedPrompt.value = sentPrompt;
       return false;
     } finally {
       _state.isGenerating.value = false;

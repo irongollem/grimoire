@@ -21,7 +21,7 @@ import {
   Shrink,
   Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
   Lock, LogOut, Pipette, Pointer, ArrowDownToLine,
-  Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minimize2, Minus, Monitor, MoreHorizontal,
+  Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageCircleQuestion, MessageSquare, Minimize2, Minus, Monitor, MoreHorizontal,
   Moon, MousePointer2, MoveHorizontal, MoveVertical, Music, Music2,
   Navigation, Network,
   Package, PackageOpen, PackagePlus, PaintBucket, Pause, PawPrint, Pen,
@@ -411,6 +411,8 @@ export { Bug as IconBug }
 export { Lightbulb as IconLightbulb }
 export { Monitor as IconMonitor }
 export { MessageCircle as IconMessage }
+// Ask Grimoire (#1253): the entry beside the search box.
+export { MessageCircleQuestion as IconAsk }
 export { MessageSquare as IconComment }
 export { Megaphone as IconAnnounce }
 export { Clock as IconClock }

@@ -5,8 +5,8 @@
     title="Encounter Generator"
     concept-placeholder="Goblin ambush on the forest road, levels 3–5, a betrayal mid-fight…"
     :concept-limit="CONCEPT_LIMIT"
-    :credits="textCreditCost"
-    :byok="textIsByok"
+    :credits="quote.total"
+    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     :show-results="!!result"
@@ -22,6 +22,14 @@
           size="sm"
           gap="loose"
           block
+        />
+      </div>
+      <div>
+        <label class="block text-caption text-muted-foreground mb-1">Place</label>
+        <EntityCombobox
+          v-model="locationId"
+          :options="locationOptions"
+          placeholder="Search locations…"
         />
       </div>
     </template>
@@ -156,30 +164,25 @@ const CONCEPT_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { useRouter } from "vue-router";
 import { IconAdd, IconCheckCircle, IconWarning } from "@/lib/icons";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
-import { useCreateEncounter } from "@/composables/encounters/useEncounters";
+import { useGenerateEncounter, unmatchedLabel } from "@/composables/encounters/useGenerateEncounter";
+import { useEncounterQuote } from "@/composables/ai/quotes/encounterQuote";
 import { useEncounterGeneration } from "@/ai/useEncounterGeneration";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useLocationTree } from "@/composables/locations/useLocations";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
-import { useActiveParty } from "@/composables/party/useActiveParty";
-import { useCompanions } from "@/composables/encounters/useCompanions";
 import {
   resolveGeneratedCombatants,
   swapCombatantVersion,
   type GeneratedCombatantMatch,
   type ResolvableMonster,
 } from "@/lib/encounters/resolveGeneratedCombatants";
-import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
-import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import type { EncounterCombatantAiResult } from "@/ai/types";
-import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 
 type EncounterDifficultyOption = "auto" | "easy" | "medium" | "hard" | "deadly";
 
@@ -205,7 +208,7 @@ const {
   clearResult,
 } = useEncounterGeneration();
 
-const { mutateAsync: createEncounter } = useCreateEncounter();
+const { saveGeneratedEncounter } = useGenerateEncounter();
 // The bestiary resolves the AI's combatant names, so it must be loaded
 // whenever a result can be shown or built from: the panel is open, a
 // generation is in flight (its result will land here even if the panel is
@@ -214,18 +217,18 @@ const { mutateAsync: createEncounter } = useCreateEncounter();
 const { data: monsters, isLoading: monstersLoading } = useMonsterIndex(() => ({
   enabled: generatorsUi.encounterGeneratorOpen || isGenerating.value || !!result.value,
 }));
-const { data: party } = useActiveParty();
-const { data: companions } = useCompanions();
 
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const textCreditCost = computed(
-  () => textCredits(costOf("encounter_generation")),
-);
+// The price is the quote's, the one Ask Grimoire shows too, so the page and Ask cannot disagree.
+const quoteEncounter = useEncounterQuote();
+const quote = computed(() => quoteEncounter());
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("encounters");
 
+// Mounted on every DM page: the place tree is read only while the panel is open.
+const { locationOptions } = useLocationTree(() => generatorsUi.encounterGeneratorOpen);
 const concept = ref("");
+// The place the encounter is set in (`encounters.location_id`), where the Atlas then lists it.
+const locationId = ref("");
 const difficulty = ref<EncounterDifficultyOption>("auto");
 
 const creating = ref(false);
@@ -292,32 +295,13 @@ function matchedLabel(m: GeneratedCombatantMatch): string {
   return m.def.custom_name ?? m.monster.name;
 }
 
-function unmatchedLabel(entry: EncounterCombatantAiResult): string {
-  return entry.role ? `${entry.name} (${entry.role})` : entry.name;
-}
-
 async function runGenerate() {
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(quote.value.total, quote.value.byok)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();
   createdEncounterId.value = null;
   await generate(concept.value.trim(), { difficulty: difficulty.value });
-}
-
-/** Builds the encounter's Tiptap-JSON description from the AI's flavor text,
- *  plus an "Add manually" line for any combatant the Bestiary lookup missed —
- *  the unmatched list is otherwise lost once the panel closes. */
-function buildDescription(): string {
-  const parts: string[] = [];
-  if (result.value?.environment) parts.push(`Environment: ${result.value.environment}`);
-  if (result.value?.tactics) parts.push(`Tactics: ${result.value.tactics}`);
-  if (result.value?.twist) parts.push(`Twist: ${result.value.twist}`);
-  if (resolved.value.unmatched.length) {
-    const names = resolved.value.unmatched.map((u) => unmatchedLabel(u)).join(", ");
-    parts.push(`Add manually: ${names}`);
-  }
-  return toTiptapJson(parts.join("\n\n"));
 }
 
 async function createEncounterFromResult() {
@@ -327,29 +311,12 @@ async function createEncounterFromResult() {
   creating.value = true;
   createError.value = null;
   try {
-    const encounter = await createEncounter({
-      name: result.value.name,
-      description: buildDescription(),
-      party_member_ids: (party.value ?? []).map((m) => m.id),
-      // Companions come along too, matching what EncounterDetail does for a
-      // hand-built new encounter ("start with the whole party, bench whoever
-      // shouldn't join"). They also count as allies in the difficulty
-      // calculation — leaving them out would make the generated encounter
-      // read as harder than the identical one built by hand.
-      companion_ids: (companions.value ?? []).filter(takesPartInCombat).map((c) => c.id),
-      party_member_factions: {},
-      combatants: finalMatches.value.map((m) => m.def),
-      factions: [...DEFAULT_FACTIONS],
-      item_ids: [],
-      trap_ids: [],
-      reward_currency_pools: [],
-      events: [],
-      location_id: null,
-      is_finished: false,
-      lair_enabled: false,
-      lair_owner_def_id: null,
-      ai_provenance: result.value.ai_provenance ?? null,
-    });
+    const encounter = await saveGeneratedEncounter(
+      result.value,
+      finalMatches.value.map((m) => m.def),
+      resolved.value.unmatched,
+      locationId.value || null,
+    );
     createdEncounterId.value = encounter.id;
     completedEntityId.value = encounter.id;
   } catch (e: unknown) {

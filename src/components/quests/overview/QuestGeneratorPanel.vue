@@ -226,7 +226,7 @@
 
 <script setup lang="ts">
 import { questLink } from "@/lib/quests/navigation";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 
 const THEME_LIMIT = AI_PROMPT_LIMIT_SHORT;
@@ -249,11 +249,12 @@ import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
 import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useQuestHooksQuote } from "@/composables/ai/quotes/questHooksQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { resolveGeneratedEntities, type ResolvedEntity, ENTITY_KIND_ROUTE } from "@/ai/resolveGeneratedEntities";
 import { describeSpineRoutes, planSpineBeats } from "@/lib/quests/spine";
+import { buildQuestHooksPrompt } from "@/lib/quests/hooksPrompt";
 import { useToast } from "@/composables/useToast";
 import type { QuestHookResult } from "@/ai/types";
 
@@ -316,11 +317,9 @@ function goToEntity(entity: ResolvedEntity) {
   router.push(`${ENTITY_KIND_ROUTE[entity.kind]}/${entity.id}`);
 }
 
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const textCreditCost = computed(
-  () => textCredits(costOf("quest_generation")),
-);
+const quoteHooks = useQuestHooksQuote();
+const { textIsByok } = useCampaignProviders();
+const textCreditCost = computed(() => quoteHooks().total);
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("quests");
 
@@ -333,6 +332,20 @@ const partyLevelDisplay = computed(() => {
 
 const theme = ref("");
 
+// Ask Grimoire ran the hooks: the quest giver and place it fixed are what a pick is built with, and any hooks the
+// panel showed as already created belong to an earlier run.
+watch(
+  () => questsUi.questGeneratorPrefill,
+  (prefill) => {
+    if (!prefill) return;
+    giverNpcId.value = prefill.giverNpcId;
+    locationId.value = prefill.locationId;
+    createdQuestIds.value = {};
+    questsUi.questGeneratorPrefill = null;
+  },
+  { immediate: true },
+);
+
 function handleClose() {
   questsUi.questGeneratorOpen = false;
 }
@@ -340,36 +353,19 @@ function handleClose() {
 async function runGenerate() {
   if (!canSpend(textCreditCost.value, textIsByok.value)) return;
 
-  const levels = (party.value ?? []).map((m) => m.level);
-  const avgLevel = levels.length
-    ? Math.ceil(levels.reduce((a, b) => a + b, 0) / levels.length)
-    : 1;
-
-  const lines: string[] = [`Party level: ${avgLevel}`];
-
   const npc = giverNpcId.value ? (npcs.value ?? []).find((n) => n.id === giverNpcId.value) : null;
   const loc = locationId.value ? (locations.value ?? []).find((l) => l.id === locationId.value) : null;
+  const { prompt, concept } = buildQuestHooksPrompt({
+    partyLevels: (party.value ?? []).map((m) => m.level),
+    giver: npc ? { name: npc.name, occupation: npc.occupation, relationship: npc.relationship } : null,
+    location: loc ? { name: loc.name } : null,
+    theme: theme.value,
+  });
 
-  const constraints: string[] = [];
-  if (npc) {
-    const detail = [npc.occupation, npc.relationship].filter(Boolean).join(", ");
-    constraints.push(`Quest Giver: ${npc.name}${detail ? ` (${detail})` : ""}`);
-  }
-  if (loc) constraints.push(`Location: ${loc.name}`);
-
-  if (constraints.length) {
-    lines.push(
-      "\nUse these constraints for all 5 hooks (the quest giver and location are already set — weave them naturally into the hook descriptions and discovery objectives):",
-    );
-    lines.push(constraints.join("\n"));
-  }
-
-  if (theme.value.trim()) lines.push(`\nTheme: ${theme.value.trim()}`);
-
-  genConcept.value = theme.value.trim() || `Level ${avgLevel} quest hooks`;
+  genConcept.value = concept;
   clearCompleted();
   createdQuestIds.value = {};
-  await generate(lines.join("\n"));
+  await generate(prompt);
 }
 
 function viewCreated(index: number) {

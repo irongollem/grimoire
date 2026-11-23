@@ -53,23 +53,17 @@ import { useRoute, useRouter } from "vue-router";
 import { IconGenerate } from "@/lib/icons";
 import { useNpcsUiStore } from "@/stores/ui/npcs";
 import { useCreateNpcInCampaign } from "@/composables/npcs/useNpcs";
-import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { PORTRAIT_SIZE_BY_PROVIDER } from "@/composables/ai/useProviderConfig";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
+import { useNpcQuote } from "@/composables/ai/quotes/npcQuote";
+import { buildNpcAiContext, useGenerateNpc } from "@/composables/npcs/useGenerateNpc";
 import { getNpcTemplate } from "@/data/npcTemplates";
 import type { NpcInsert, NpcRelationship } from "@/types/npc.types";
 import { DEFAULT_ASSOCIATE } from "@/lib/npcGenerator/associate";
 import { useParty } from "@/composables/party/useParty";
-import { useCreateKinLinkInCampaign } from "@/composables/kinship/useKinLinks";
-import { kinInsertFor, parsePersonKey, personKey } from "@/lib/kinship/keys";
-import { isGeneratorKin, kinPromptLine, parseKinQueryKey, type PromptPerson } from "@/lib/npcGenerator/kinPrompt";
-import type { PersonKey } from "@/types/kinship.types";
+import { parsePersonKey } from "@/lib/kinship/keys";
+import { isGeneratorKin, parseKinQueryKey } from "@/lib/npcGenerator/kinPrompt";
 import { useCampaignStore } from "@/stores/campaign";
-import { generatedBirthFromAge } from "@/lib/npcGenerator/generatedBirth";
-import { getCalendarAdapter } from "@/settings/index";
-import { useNpcGeneration, toTiptapJson } from "@/ai/useNpcGeneration";
+import { useNpcGeneration } from "@/ai/useNpcGeneration";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import GeneratorPanelFrame from "@/components/common/ai/GeneratorPanelFrame.vue";
 import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
@@ -78,22 +72,15 @@ import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import { useLocationTree } from "@/composables/locations/useLocations";
-import { useAllFactions, useAddFactionNpc } from "@/composables/factions/useFactions";
+import { useAllFactions } from "@/composables/factions/useFactions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useCreateConnectionInCampaign } from "@/composables/connections/useConnections";
 import NpcGeneratorForm from "@/components/npcs/NpcGeneratorForm.vue";
 import type { QuickForm } from "@/components/npcs/NpcGeneratorForm.vue";
 import { useItemIndex } from "@/composables/items/useItemIndex";
-import { useAddNpcInventoryItemInCampaign } from "@/composables/items/useNpcInventory";
-import { itemRefColumns } from "@/lib/itemRef";
-import { npcStarterInventory, type NpcStarterInventoryPack } from "@/lib/npcGenerator/inventorySets";
-import { useNpcStarterPacks } from "@/composables/npcs/useNpcStarterPacks";
-import { npcStarterStatTemplate } from "@/lib/npcGenerator/starterStats";
 import { locationNamedInStory } from "@/lib/npcGenerator/storyLocation";
 import { mentionTokenPattern } from "@/lib/mentionToken";
 import type { ItemIndexEntry } from "@/types/item.types";
 import { useToast } from "@/composables/useToast";
-import { useGameSystem } from "@/composables/rules/useGameSystem";
 
 const FIRST_NAMES = [
   "Aldric", "Mira", "Theron", "Selja", "Corvus", "Lysa",
@@ -114,32 +101,23 @@ const npcsUi = useNpcsUiStore();
 const router = useRouter();
 const route = useRoute();
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpcInCampaign();
-const { logImageGeneration } = useImageGenerationLog();
 const campaign = useCampaignStore();
 const {
   isGenerating,
   error: genError,
-  concept: genConcept,
   completedEntityId: completedNpcId,
-  clearCompleted,
-  generate,
 } = useNpcGeneration();
+const { generateAndCreateNpc, applyNpcLinks, applyGeneratorLinks } = useGenerateNpc();
 // This panel is mounted on every DM page (DefaultLayout) so background
 // generation survives navigation, but its dropdown data is only read while the
 // panel is open. Gate the fetches on that so a closed panel costs no egress.
 const panelOpen = () => npcsUi.npcGeneratorOpen;
 const { locationOptions } = useLocationTree(panelOpen);
 const { data: factions } = useAllFactions(panelOpen);
-const { mutateAsync: addFactionNpc } = useAddFactionNpc();
 const { data: npcs } = useNpcs(panelOpen);
-const { mutateAsync: createConnection } = useCreateConnectionInCampaign();
-const { mutateAsync: createKinLink } = useCreateKinLinkInCampaign();
 const { data: party } = useParty(panelOpen);
 const { data: itemOptions } = useItemIndex(() => ({ enabled: panelOpen() }));
-const { mutateAsync: addNpcInventoryItem } = useAddNpcInventoryItemInCampaign();
 const toast = useToast();
-const { offers } = useGameSystem();
-const starterPackQuery = useNpcStarterPacks(panelOpen);
 const isCreateFlowPending = ref(false);
 const mentionedItemIds = ref<string[]>([]);
 
@@ -147,36 +125,14 @@ const isAiEnabled = computed(() => campaign.isAiEnabled);
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("npcs");
 
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok, imageProvider, imageCredits, imageIsByok } = useCampaignProviders();
+const quoteFor = useNpcQuote();
 
-// Null while any part that will be charged has no known price yet.
-const effectiveCreditCost = computed<number | null>(() => {
-  let cost = 0;
-  if (!textIsByok.value) {
-    const text = textCredits(costOf("npc_text"));
-    if (text === null) return null;
-    cost += text;
-  }
-  if (generateImage.value && !imageIsByok.value) {
-    if (imageProvider.value === null) return null;
-    const n = generateAlterEgo.value ? 2 : 1;
-    const size = PORTRAIT_SIZE_BY_PROVIDER[imageProvider.value];
-    // Rounded up PER portrait, then multiplied by count — matches the server,
-    // which charges (and records) each portrait as its own whole-credit line
-    // rather than rounding a pre-multiplied total (generate-npc/index.ts).
-    const perPortrait = imageCredits(costOf("portrait", { size }));
-    if (perPortrait === null) return null;
-    cost += perPortrait * n;
-  }
-  return cost;
-});
-
-// GenerationCostBadge's own byok flag needs "no credits will be charged at
-// all", not just the text provider — an image-only BYOK key still leaves the
-// text portion billed, so this is true only when every component in play is
-// covered by the DM's own key.
-const isFullyByok = computed(() => textIsByok.value && (!generateImage.value || imageIsByok.value));
+// The price Ask Grimoire quotes for the same run. Null while any part that will be charged has no known price yet.
+const quote = computed(() => quoteFor({ portrait: generateImage.value, alterEgo: generateAlterEgo.value }));
+const effectiveCreditCost = computed(() => quote.value.total);
+// GenerationCostBadge's own byok flag needs "no credits will be charged at all", not just the text provider: an
+// image-only BYOK key still leaves the text portion billed.
+const isFullyByok = computed(() => quote.value.byok);
 
 function dismissToBackground() {
   npcsUi.npcGeneratorOpen = false;
@@ -186,51 +142,14 @@ function handleClose() {
   npcsUi.npcGeneratorOpen = false;
 }
 
-/** The family tie's other ends: the associate, then the second parent, as the prompt names them. */
-function kinPromptPeople(): PromptPerson[] {
-  const people: PromptPerson[] = [];
-  const keys: PersonKey[] = [];
-  if (quickForm.related_pc_id) keys.push(personKey("pc", quickForm.related_pc_id));
-  else if (quickForm.related_npc_id) keys.push(personKey("npc", quickForm.related_npc_id));
-  if (quickForm.related_npc_kin === "child" && quickForm.second_parent) keys.push(quickForm.second_parent);
-  for (const key of keys) {
-    const { type, id } = parsePersonKey(key);
-    const row = type === "npc" ? npcs.value?.find((n) => n.id === id) : party.value?.find((p) => p.id === id);
-    if (row) people.push({ name: row.name, bornYear: row.born_year ?? null });
-  }
-  return people;
-}
-
-function buildAiContext(selectedLocationId: string | null, items: readonly ItemIndexEntry[]): string {
-  const constraints: string[] = [];
-  const location = locationOptions.value.find((loc) => loc.id === selectedLocationId);
-  if (quickForm.name.trim()) constraints.push(`Name: ${quickForm.name.trim()}`);
-  if (quickForm.race) constraints.push(`Race: ${quickForm.race}`);
-  if (quickForm.alignment) constraints.push(`Alignment: ${quickForm.alignment}`);
-  if (quickForm.relationship) constraints.push(`Party relationship: ${quickForm.relationship}`);
-  if (location) constraints.push(`Location: ${location.name}`);
-  if (quickForm.faction_id) {
-    const faction = factions.value?.find((f) => f.id === quickForm.faction_id);
-    if (faction) {
-      const typeLabel = faction.faction_type ? ` (${faction.faction_type})` : "";
-      constraints.push(`Faction: ${faction.name}${typeLabel}, Role: ${quickForm.faction_role}`);
-    }
-  }
-  const kinPeople = kinPromptPeople();
-  if (quickForm.related_npc_kin && kinPeople.length > 0) {
-    constraints.push(kinPromptLine(quickForm.related_npc_kin, kinPeople, campaign.todayYear));
-  } else if (quickForm.related_npc_id) {
-    const npc = npcs.value?.find((n) => n.id === quickForm.related_npc_id);
-    if (npc) {
-      constraints.push(`Known associate: ${npc.name} (this NPC is ${quickForm.related_npc_tie.word} ${npc.name})`);
-    }
-  }
-  if (items.length) {
-    constraints.push(`Starting inventory (include each exact item in this NPC's inventory): ${items.map((item) => item.name).join(", ")}`);
-  }
-  // Keep variable-length lore behind selected names, relationships and items.
-  if (location?.player_summary) constraints.push(`Location summary: ${location.player_summary}`);
-  return constraints.join("\n");
+function aiContext(selectedLocationId: string | null, items: readonly ItemIndexEntry[]): string {
+  return buildNpcAiContext(quickForm, selectedLocationId, items, {
+    locations: locationOptions.value,
+    factions: factions.value ?? [],
+    npcs: npcs.value ?? [],
+    party: party.value ?? [],
+    todayYear: campaign.todayYear,
+  }, quickForm.links);
 }
 
 function mentionedItems(): ItemIndexEntry[] {
@@ -240,36 +159,6 @@ function mentionedItems(): ItemIndexEntry[] {
 
 function replaceItemTokens(text: string, items: readonly ItemIndexEntry[]): string {
   return items.reduce((result, item) => result.replace(mentionTokenPattern(item.name), (_match, prefix: string) => `${prefix}${item.name}`), text);
-}
-
-async function seedNpcInventory(
-  npcId: string,
-  result: Pick<NpcInsert, "occupation" | "tags">,
-  inventoryItems: readonly ItemIndexEntry[],
-  campaignId: string,
-  packs: readonly NpcStarterInventoryPack[],
-) {
-  const rows: { name: string; item: ItemIndexEntry | null }[] = npcStarterInventory(result.occupation, result.tags ?? [], packs).map((name) => ({ name, item: null }));
-  for (const item of inventoryItems) {
-    const existing = rows.findIndex((row) => row.name.toLowerCase() === item.name.toLowerCase());
-    if (existing >= 0) rows.splice(existing, 1);
-    rows.push({ name: item.name, item });
-  }
-
-  const seen = new Set<string>();
-  for (const row of rows) {
-    const key = row.item ? `ref:${row.item.id}` : `name:${row.name.toLowerCase()}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    await addNpcInventoryItem({
-      npc_id: npcId,
-      campaign_id: campaignId,
-      ...itemRefColumns(row.item?.id),
-      name: row.name,
-      quantity: 1,
-      notes: null,
-    });
-  }
 }
 
 async function generateAndCreate() {
@@ -286,121 +175,43 @@ async function runGenerateAndCreate() {
   if (!canSpend(effectiveCreditCost.value, isFullyByok.value)) return;
   const campaignId = campaign.activeCampaignId;
   if (!campaignId) return;
-  const supportsStatBlocks = offers("stat-blocks");
-  const calendarId = campaign.activeCampaign?.calendar_id ?? null;
-  const customCalendar = campaign.activeCampaign?.custom_calendar ?? null;
-  const today = { year: campaign.todayYear, month: campaign.todayMonth, day: campaign.todayDay };
-  const locationId = quickForm.location_id ?? locationNamedInStory(concept.value, locationOptions.value)?.id ?? null;
-  const inventoryItems = [...mentionedItems()];
-  const prompt = replaceItemTokens(concept.value.trim(), inventoryItems);
-  const context = buildAiContext(locationId, inventoryItems);
-  const generateAlterEgoAtStart = generateAlterEgo.value;
-  const generateImageAtStart = generateImage.value;
   const formAtStart = { ...quickForm };
-  const associateNpc = formAtStart.related_npc_id
+  const locationId = formAtStart.location_id ?? locationNamedInStory(concept.value, locationOptions.value)?.id ?? null;
+  const inventoryItems = [...mentionedItems()];
+  const associate = formAtStart.related_npc_id
     ? npcs.value?.find((n) => n.id === formAtStart.related_npc_id) ?? null
     : null;
-  genConcept.value = concept.value.trim();
-  clearCompleted();
 
-  let packs: readonly NpcStarterInventoryPack[];
+  let outcome;
   try {
-    const loaded = await starterPackQuery.refetch();
-    if (loaded.isError || !loaded.data) throw loaded.error ?? new Error("Starter inventory packs are unavailable.");
-    packs = loaded.data;
-  } catch (error: unknown) {
-    toast.error(toast.fromError(error, "Couldn't load starter inventory packs. Retry before generating."));
-    return;
-  }
-  if (campaign.activeCampaignId !== campaignId) {
-    toast.error("The active campaign changed. Reopen the generator and try again.");
-    return;
-  }
-  const starterPacks = packs.map((pack) => ({ ...pack, cues: [...pack.cues], items: [...pack.items] }));
-
-  const result = await generate(prompt, {
-    context,
-    generateAlterEgo: generateAlterEgoAtStart,
-    generateImage: generateImageAtStart,
-  });
-  if (!result) return;
-
-  const templateId = formAtStart.templateId === "auto"
-    ? (supportsStatBlocks ? npcStarterStatTemplate(result.occupation, result.tags ?? []) : null)
-    : formAtStart.templateId;
-  const tpl = templateId ? getNpcTemplate(templateId) : null;
-
-  const payload: NpcInsert = {
-    name: formAtStart.name.trim() || result.name,
-    campaign_id: campaignId,
-    race: formAtStart.race || result.race || null,
-    alignment: formAtStart.alignment || result.alignment || null,
-    age: result.age || null,
-    ...generatedBirthFromAge(
-      getCalendarAdapter(calendarId, customCalendar),
-      result.age,
-      today,
-    ),
-    occupation: result.occupation || null,
-    appearance: result.appearance ? toTiptapJson(result.appearance) : null,
-    personality: result.personality ? toTiptapJson(result.personality) : null,
-    voice: result.voice?.trim() || null,
-    backstory: result.backstory ? toTiptapJson(result.backstory) : null,
-    notes: result.notes ? toTiptapJson(result.notes) : null,
-    status: result.status,
-    relationship: formAtStart.relationship || result.relationship,
-    portrait_url: result.portrait_url ?? null,
-    cutout_url: null,
-    portrait_focal_point: null,
-    disguise_name: result.disguise_name ?? null,
-    disguise_portrait_url: result.disguise_portrait_url ?? null,
-    disguise_portrait_focal_point: null,
-    is_revealed: false,
-    tags: result.tags ?? [],
-    stat_block: tpl?.stat_block ?? null,
-    location_id: locationId,
-    scriptorium_doc_id: null,
-    player_visible_to: [],
-    player_visible_fields: [],
-    ai_provenance: result.ai_provenance ?? null,
-  };
-
-  let created;
-  try {
-    created = await createNpc(payload);
+    outcome = await generateAndCreateNpc({
+      concept: concept.value.trim(),
+      prompt: replaceItemTokens(concept.value.trim(), inventoryItems),
+      context: aiContext(locationId, inventoryItems),
+      generateAlterEgo: generateAlterEgo.value,
+      generateImage: generateImage.value,
+      form: formAtStart,
+      locationId,
+      inventoryItems,
+      associate,
+      links: formAtStart.links,
+    });
   } catch (e) {
     if (gateQuotaError(e)) return;
     throw e;
   }
-
-  // Log generated portraits to the Gallery, linked back to the new NPC.
-  if (result.portrait_url) {
-    void logImageGeneration({
-      kind: "npc_portrait", imageUrl: result.portrait_url, prompt: genConcept.value,
-      targetId: created.id, targetColumn: "portrait_url", campaignId,
-    });
-  }
-  if (result.disguise_portrait_url) {
-    void logImageGeneration({
-      kind: "npc_portrait", imageUrl: result.disguise_portrait_url, prompt: result.disguise_name ?? genConcept.value,
-      targetId: created.id, targetColumn: "disguise_portrait_url", campaignId,
-    });
-  }
-
-  const linkErrors = await applyPostCreate(created.id, formAtStart, campaignId, associateNpc);
-  if (linkErrors.length) toast.error(`NPC created, but some connections could not be added: ${linkErrors.join("; ")}`);
-  try {
-    await seedNpcInventory(created.id, { occupation: result.occupation || null, tags: result.tags ?? [] }, inventoryItems, campaignId, starterPacks);
-  } catch (error: unknown) {
-    // The NPC is already saved. The DM can add items from its inventory tab.
-    toast.error(toast.fromError(error, "NPC created, but some starter items could not be added."));
-  }
+  // A generation that failed left its message on the shared `genError` ref this panel renders; only what happened
+  // before generating has not been said yet.
+  if (outcome.stage === "prepare" && outcome.error) toast.error(outcome.error);
+  if (!outcome.id) return;
+  if (outcome.linkErrors.length) toast.error(`NPC created, but some connections could not be added: ${outcome.linkErrors.join("; ")}`);
+  if (outcome.inventoryError) toast.error(outcome.inventoryError);
 
   if (campaign.activeCampaignId === campaignId && npcsUi.npcGeneratorOpen) {
     npcsUi.npcGeneratorOpen = false;
-    router.push(`/npcs/${created.id}`);
+    router.push(`/npcs/${outcome.id}`);
   } else {
-    completedNpcId.value = created.id;
+    completedNpcId.value = outcome.id;
     if (campaign.activeCampaignId !== campaignId) {
       toast.info("NPC created in the campaign where generation started. Switch back to open it.");
     }
@@ -424,6 +235,8 @@ const quickForm = reactive<QuickForm>({
   related_npc_kin: null,
   related_pc_id: null,
   second_parent: null,
+  also_kin: [],
+  links: [],
 });
 
 // "Add relative" opens the generator with the family tie already filled in:
@@ -453,57 +266,6 @@ watch(
 
 function onUpdateQuickForm(value: QuickForm) {
   Object.assign(quickForm, value);
-}
-
-async function applyPostCreate(
-  npcId: string,
-  form: QuickForm = quickForm,
-  campaignId = campaign.activeCampaignId!,
-  associateNpc = npcs.value?.find((n) => n.id === form.related_npc_id) ?? null,
-) : Promise<string[]> {
-  const errors: string[] = [];
-  if (form.faction_id) {
-    try {
-      await addFactionNpc({ faction_id: form.faction_id, npc_id: npcId, role: form.faction_role });
-    } catch (error: unknown) {
-      errors.push(`faction: ${toast.fromError(error)}`);
-    }
-  }
-  if (form.related_npc_kin) {
-    // The new NPC is the subject: "Wren is the child of Brenna" writes the parent link Brenna to Wren.
-    const subject = personKey("npc", npcId);
-    const others: PersonKey[] = [];
-    if (form.related_pc_id) others.push(personKey("pc", form.related_pc_id));
-    else if (form.related_npc_id) others.push(personKey("npc", form.related_npc_id));
-    if (form.related_npc_kin === "child" && form.second_parent) others.push(form.second_parent);
-    // The second parent can end up naming the associate (the DM picks it, then changes the associate), and a
-    // pair holds one link: write each person once.
-    const self = personKey("npc", npcId);
-    for (const other of new Set(others.filter((o) => o !== self))) {
-      try {
-        await createKinLink({ input: kinInsertFor(subject, form.related_npc_kin, other), campaignId });
-      } catch (error: unknown) {
-        errors.push(`family tie: ${toast.fromError(error)}`);
-      }
-    }
-  } else if (form.related_npc_id) {
-    const other = associateNpc;
-    if (!other) {
-      errors.push("the selected associate is no longer in this campaign");
-      return errors;
-    }
-    // The new NPC is the subject, and the choice is read from it: "Wren is apprentice of Brenna".
-    try {
-      await createConnection({ input: {
-        subject: { kind: "npc", id: npcId },
-        other: { kind: "npc", id: other.id, name: other.name },
-        choice: form.related_npc_tie,
-      }, campaignId });
-    } catch (error: unknown) {
-      errors.push(`relationship: ${toast.fromError(error)}`);
-    }
-  }
-  return errors;
 }
 
 async function quickCreate() {
@@ -556,7 +318,10 @@ async function runQuickCreate() {
   };
 
   const created = await createNpc(payload);
-  const linkErrors = await applyPostCreate(created.id, formAtStart, campaignId, associateNpc);
+  const linkErrors = [
+    ...await applyNpcLinks(created.id, formAtStart, campaignId, associateNpc),
+    ...await applyGeneratorLinks({ kind: "npc", id: created.id }, formAtStart.links, campaignId),
+  ];
   if (linkErrors.length) toast.error(`NPC created, but some connections could not be added: ${linkErrors.join("; ")}`);
   if (campaign.activeCampaignId === campaignId) {
     npcsUi.npcGeneratorOpen = false;

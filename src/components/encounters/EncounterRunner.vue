@@ -238,7 +238,7 @@
       </template>
     </div>
 
-    <ComplicationGeneratorDialog v-if="campaign.isAiEnabled" v-model="generatorOpen" :mode="generatorMode" />
+    <ComplicationGeneratorDialog v-if="campaign.isAiEnabled" v-model="generatorOpen" :mode="generatorMode" :steer-seed="generatorSeed" />
   </div>
 </template>
 
@@ -285,6 +285,7 @@ import RunnerEntityDetail from "./RunnerEntityDetail.vue";
 import RunnerDmTools from "./RunnerDmTools.vue";
 import RunnerGenerateMenu from "./RunnerGenerateMenu.vue";
 import ComplicationGeneratorDialog from "./ComplicationGeneratorDialog.vue";
+import { useAskPrefill } from "@/ai/ask/screens/useAskPrefill";
 import type { ComplicationMode } from "@/ai/useComplicationGeneration";
 import RunnerBossMechanics from "./RunnerBossMechanics.vue";
 import RunnerSurprisePanel from "./RunnerSurprisePanel.vue";
@@ -403,6 +404,13 @@ function openGenerator(mode: ComplicationMode) {
   generatorMode.value = mode;
   generatorOpen.value = true;
 }
+
+// Ask Grimoire (#1253) opens the complication dialog with the DM's wording as the steer; the DM presses Generate.
+const generatorSeed = ref<{ text: string } | null>(null);
+useAskPrefill("complication", (text) => {
+  generatorSeed.value = { text };
+  openGenerator("complication");
+});
 
 const { detailWidth, startMouse, startTouch } = useDetailResize(320);
 

@@ -35,7 +35,7 @@ import { useToast } from "@/composables/useToast";
 import { useCreateBackground } from "@/composables/rules/useBackgrounds";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useBackgroundQuote } from "@/composables/ai/quotes/backgroundQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
@@ -50,11 +50,10 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 
 const { canSpend } = useGenerationGate();
 
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const textCreditCost = computed(
-  () => textCredits(costOf("background_generation")),
-);
+// The price comes from the quote Ask Grimoire reads too, so the page and the panel cannot disagree.
+const { textIsByok } = useCampaignProviders();
+const quote = useBackgroundQuote();
+const textCreditCost = computed(() => quote().total);
 
 type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;
 const retained = useRetainedGeneration<Generated>();

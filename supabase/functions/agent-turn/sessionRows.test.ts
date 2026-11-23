@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { nextSessionNumber, openedSession, prologueFrom, sessionRow, wholeCredits } from "./sessionRows.ts";
+import { wholeCredits } from "../_shared/agent/conversation/turnStore.ts";
+import { nextSessionNumber, openedSession, prologueFrom, sessionRow } from "./sessionRows.ts";
 
 describe("wholeCredits", () => {
   it("a missing or non-numeric answer throws rather than billing nothing", () => {

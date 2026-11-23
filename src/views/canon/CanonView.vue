@@ -177,6 +177,19 @@ watch([selected, isLoading], async ([truth]) => {
   document.getElementById(`canon-entry-${truth.id}`)?.scrollIntoView({ block: "center" });
 }, { immediate: true });
 
+// `?section=<part>` takes the DM to a part of the page (Ask Grimoire's "Review suggestions" does), once it has loaded.
+const sectionParam = computed(() => CANON_SECTIONS.find((s) => s.id === route.query.section)?.id ?? null);
+watch(
+  () => campaign.value && !isLoading.value && !isError.value ? sectionParam.value : null,
+  async (id) => {
+    if (!id) return;
+    active.value = id;
+    await nextTick();
+    document.getElementById(`canon-${id}`)?.scrollIntoView({ block: "start" });
+  },
+  { immediate: true },
+);
+
 watch(
   () => campaign.value && !isLoading.value && !isError.value ? selectedBackstoryMember.value?.id : undefined,
   async (memberId) => {

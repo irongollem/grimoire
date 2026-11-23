@@ -93,7 +93,7 @@ import { useQuestObjectives } from "@/composables/quests/useQuests";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { IconChevronLeft } from "@/lib/icons";
 import { placeRoute } from "@/lib/locations/placeRoute";
-import type { BeatFillContext } from "@/lib/quests/beatFill";
+import { buildBeatFillContext, type BeatFillContext } from "@/lib/quests/beatFill";
 import { hasBeatText } from "@/lib/quests/beatText";
 import { questBeatKindLabel, type QuestBeatPresentation, type QuestBeatStaging } from "@/lib/quests/presentation";
 import type { ThreadStanding } from "@/lib/quests/moves";
@@ -163,18 +163,15 @@ const kindLabel = computed(() => (beat.value ? questBeatKindLabel(beat.value.kin
 const fillContext = computed<BeatFillContext | undefined>(() => {
   const row = beat.value;
   if (!campaign.isAiEnabled || !quest || !row) return undefined;
-  const byId = new Map(beats.value.map((other) => [other.id, other]));
-  const incomingEdges = edges.value.filter((edge) => edge.target_beat_id === row.id);
-  const outgoingEdges = edges.value.filter((edge) => edge.source_beat_id === row.id);
-  return {
+  return buildBeatFillContext({
     quest,
     beat: row,
-    incoming: incomingEdges.flatMap((edge) => byId.get(edge.source_beat_id) ?? []),
-    outgoing: outgoingEdges.flatMap((edge) => byId.get(edge.target_beat_id) ?? []),
+    beats: beats.value,
+    edges: edges.value,
     objectives: objectivesQuery.data.value ?? [],
     stagedAt: staging?.name ?? null,
-    threadLabel: threads.length > 1 ? (incomingEdges.find((edge) => edge.label)?.label ?? null) : null,
-  };
+    threadCount: threads.length,
+  });
 });
 
 const hasReadAloud = computed(() => hasBeatText(beat.value?.read_aloud));

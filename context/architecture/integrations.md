@@ -50,9 +50,8 @@ flowchart LR
   whole credit (`Math.ceil`, never down, never negative, epsilon-guarded
   against float noise); every `generate-*`/`forge-mini`/`tile-pack-generator`
   charge ends in a call to it before it is reserved or recorded. A composite
-  charge (e.g. `generate-npc`'s text + portrait, `generate-trap`'s text +
-  illustration) rounds up **each part it records as its own ledger row**,
-  not their sum — two portraits are two whole-credit charges, not half of a
+  charge (e.g. a text charge plus a picture charge) rounds up **each part it
+  records as its own ledger row**, not their sum — two portraits are two whole-credit charges, not half of a
   rounded total. The client mirrors the same rule for the price it displays
   before generating (`useAiCredits().costOf()` and every per-generator credit
   computed import `wholeCredits` from this same module via the `@edge-shared`
