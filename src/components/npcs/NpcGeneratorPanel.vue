@@ -27,7 +27,7 @@
         size="md"
         block
         :icon="IconGenerate"
-        :disabled="isAnyAiGenerating || isCreateFlowPending || !concept.trim()"
+        :disabled="isAnyAiGenerating || isCreateFlowPending || !concept.trim() || concept.trim().length > AI_PROMPT_LIMIT"
         :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
         :label="isCreateFlowPending && !isGenerating ? 'Finishing…' : isGenerating ? 'Generating…' : 'Generate with AI'"
         @click="generateAndCreate"
@@ -76,6 +76,7 @@ import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue"
 import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
+import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useAllFactions, useAddFactionNpc } from "@/composables/factions/useFactions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
@@ -200,23 +201,14 @@ function kinPromptPeople(): PromptPerson[] {
   return people;
 }
 
-function buildAiPrompt(): string {
-  const items = mentionedItems();
-  const lines = [replaceItemTokens(concept.value.trim(), items)];
+function buildAiContext(selectedLocationId: string | null, items: readonly ItemIndexEntry[]): string {
   const constraints: string[] = [];
-  const storyLocation = locationNamedInStory(concept.value, locationOptions.value);
-  const selectedLocationId = quickForm.location_id ?? storyLocation?.id ?? null;
+  const location = locationOptions.value.find((loc) => loc.id === selectedLocationId);
   if (quickForm.name.trim()) constraints.push(`Name: ${quickForm.name.trim()}`);
   if (quickForm.race) constraints.push(`Race: ${quickForm.race}`);
   if (quickForm.alignment) constraints.push(`Alignment: ${quickForm.alignment}`);
   if (quickForm.relationship) constraints.push(`Party relationship: ${quickForm.relationship}`);
-  if (selectedLocationId) {
-    const loc = locationOptions.value.find((l) => l.id === selectedLocationId);
-    if (loc) {
-      constraints.push(`Location: ${loc.name}`);
-      if (loc.player_summary) constraints.push(`locationSummary: ${loc.player_summary}`);
-    }
-  }
+  if (location) constraints.push(`Location: ${location.name}`);
   if (quickForm.faction_id) {
     const faction = factions.value?.find((f) => f.id === quickForm.faction_id);
     if (faction) {
@@ -236,11 +228,9 @@ function buildAiPrompt(): string {
   if (items.length) {
     constraints.push(`Starting inventory (include each exact item in this NPC's inventory): ${items.map((item) => item.name).join(", ")}`);
   }
-  if (constraints.length) {
-    lines.push("\nUse these constraints (override only if the concept explicitly conflicts):");
-    lines.push(constraints.join("\n"));
-  }
-  return lines.join("\n");
+  // Keep variable-length lore behind selected names, relationships and items.
+  if (location?.player_summary) constraints.push(`Location summary: ${location.player_summary}`);
+  return constraints.join("\n");
 }
 
 function mentionedItems(): ItemIndexEntry[] {
@@ -300,9 +290,10 @@ async function runGenerateAndCreate() {
   const calendarId = campaign.activeCampaign?.calendar_id ?? null;
   const customCalendar = campaign.activeCampaign?.custom_calendar ?? null;
   const today = { year: campaign.todayYear, month: campaign.todayMonth, day: campaign.todayDay };
-  const prompt = buildAiPrompt();
   const locationId = quickForm.location_id ?? locationNamedInStory(concept.value, locationOptions.value)?.id ?? null;
   const inventoryItems = [...mentionedItems()];
+  const prompt = replaceItemTokens(concept.value.trim(), inventoryItems);
+  const context = buildAiContext(locationId, inventoryItems);
   const generateAlterEgoAtStart = generateAlterEgo.value;
   const generateImageAtStart = generateImage.value;
   const formAtStart = { ...quickForm };
@@ -328,6 +319,7 @@ async function runGenerateAndCreate() {
   const starterPacks = packs.map((pack) => ({ ...pack, cues: [...pack.cues], items: [...pack.items] }));
 
   const result = await generate(prompt, {
+    context,
     generateAlterEgo: generateAlterEgoAtStart,
     generateImage: generateImageAtStart,
   });

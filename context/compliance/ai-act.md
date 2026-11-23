@@ -113,6 +113,8 @@ Verified against `supabase/functions/` and `src/ai/` on 5 Aug 2026.
 | `api-key-vault` | infra | n/a | stores/decrypts BYOK keys; not itself a generator, but part of every BYOK pipeline |
 | `list-provider-models` | infra | queries provider APIs for model lists | not generation |
 
+NPC Tracker requests bound the DM concept and added campaign context separately. Both are wrapped as user input before generation.
+
 ### Client-direct generators (`src/ai/`, browser-side, BYOK-cloud or local-key only)
 
 Every `generate-entity-text` generator (the original four and the twelve epic

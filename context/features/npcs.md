@@ -407,7 +407,7 @@ After creation, faction membership and the associate relationship are added auto
 
 ### AI Generation (requires OpenAI API key in Campaign Settings)
 
-An additional **Concept** textarea (required) prompts the AI with a free-text description. Quick option fields (name, species, alignment, relationship, faction, location, associate) are injected as constraints into the prompt.
+An additional **Concept** textarea (required) prompts the AI with a free-text description. The visible 1,000-character limit applies to the concept. Quick options, mentions, and location details travel in a separate context field capped at 2,000 characters, with location prose last so it cannot crowd out the selected constraints.
 
 Additional AI options:
 

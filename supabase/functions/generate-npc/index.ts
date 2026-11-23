@@ -17,8 +17,8 @@ import {
   INJECTION_GUARD_SUFFIX,
   MAX_IMAGE_SUBJECT_CHARS,
   validatePromptInput,
-  wrapUserInput,
 } from "../_shared/ai-prompt.ts";
+import { formatNpcUserInput, NPC_CONTEXT_LIMIT } from "../_shared/npcPrompt.ts";
 import {
   buildLabelledImagePrompt,
   buildSimpleImagePrompt,
@@ -69,6 +69,10 @@ serve(serveUser(async ({ user, req, report }) => {
 
   const promptCheck = validatePromptInput(prompt, AI_PROMPT_LIMIT);
   if (!promptCheck.ok) return promptCheck.errorResponse;
+  const context = typeof body.context === "string" ? body.context.trim() : "";
+  if (context.length > NPC_CONTEXT_LIMIT) {
+    return jsonError(400, "invalid_context", `NPC context exceeds the ${NPC_CONTEXT_LIMIT}-character limit.`);
+  }
 
   // DMs only: no player surface calls this, and it spends the campaign's
   // credits or the owner's own provider key (see _shared/campaignAccess.ts).
@@ -166,9 +170,7 @@ serve(serveUser(async ({ user, req, report }) => {
     worldBlockText(world) +
     INJECTION_GUARD_SUFFIX;
 
-  const userContent = generateAlterEgo
-    ? `${wrapUserInput(prompt)}\n\nThis NPC has a disguise identity — populate disguise_name and disguise_image_prompt.`
-    : wrapUserInput(prompt);
+  const userContent = formatNpcUserInput(prompt, context, generateAlterEgo);
 
   const textModel = text.config?.text_model;
 

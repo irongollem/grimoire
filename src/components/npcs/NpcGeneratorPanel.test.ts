@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
 const fixtures = vi.hoisted(() => ({
   npcs: [] as { id: string; name: string; born_year: number | null }[],
   pcs: [] as { id: string; name: string; born_year: number | null }[],
+  locations: [] as { id: string; name: string; player_summary: string }[],
   query: {} as Record<string, string>,
 }));
 
@@ -82,7 +83,7 @@ vi.mock("@/composables/ai/useCampaignProviders", async () => {
 vi.mock("@/composables/ai/useProviderConfig", () => ({
   PORTRAIT_SIZE_BY_PROVIDER: { openai: "1024x1536", gemini: "1024x1536" },
 }));
-vi.mock("@/composables/locations/useLocations", () => ({ useLocationTree: () => ({ locationOptions: ref([]) }) }));
+vi.mock("@/composables/locations/useLocations", () => ({ useLocationTree: () => ({ locationOptions: ref(fixtures.locations) }) }));
 vi.mock("@/composables/items/useItemIndex", () => ({ useItemIndex: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/npcs/useNpcStarterPacks", () => ({
   useNpcStarterPacks: () => ({
@@ -211,16 +212,27 @@ describe("NpcGeneratorPanel — quota gate (npcs, checked before spending credit
     expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
   });
 
-  it("generates normally when under the limit", async () => {
+  it("sends a short concept separately from a location summary that would put it over the limit", async () => {
     canCreateNpc.value = true;
     mocks.generate.mockResolvedValue(null);
+    const summary = "Targos lives off the lake. ".repeat(39).trim();
+    fixtures.locations = [{ id: "targos", name: "Targos", player_summary: summary }];
     const wrapper = mountPanel();
-    await wrapper.get("textarea").setValue("A mysterious tiefling bard.");
-
-    const generateButton = wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!;
-    await generateButton.trigger("click");
-
-    expect(mocks.generate).toHaveBeenCalledTimes(1);
+    const concept = "A trader who once regularly visited Taj's home community and became stranded in Icewind Dale. She remembers the place and some of its people, giving him a personal connection to his past.";
+    try {
+      await wrapper.get("textarea").setValue(concept);
+      const form = wrapper.getComponent(NpcGeneratorForm);
+      form.vm.$emit("update:quickForm", { ...form.props("quickForm"), location_id: "targos", name: "Sera Vael", race: "Halfling" });
+      const generateButton = wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!;
+      await generateButton.trigger("click");
+      expect(mocks.generate).toHaveBeenCalledExactlyOnceWith(concept, expect.objectContaining({
+        context: expect.stringContaining(`Location summary: ${summary}`),
+      }));
+      expect(mocks.generate.mock.calls[0][1].context).toContain("Name: Sera Vael\nRace: Halfling");
+    } finally {
+      wrapper.unmount();
+      fixtures.locations = [];
+    }
   });
 });
 
@@ -288,8 +300,8 @@ describe("NpcGeneratorPanel — family tie from the Add relative link", () => {
     await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
     await vi.waitFor(() => expect(mocks.createKin).toHaveBeenCalledTimes(2));
 
-    const prompt = mocks.generate.mock.calls[0][0] as string;
-    expect(prompt).toContain(
+    const { context } = mocks.generate.mock.calls[0][1];
+    expect(context).toContain(
       "The new NPC is the child of Brenna Ashe (born 1459, 36 now) and Corwin Ashe (born 1456, 39 now). The current year is 1495. Give an age that fits.",
     );
     expect(mocks.createKin.mock.calls.map(([row]) => [row.input.kind, row.input.from_npc_id, row.input.to_npc_id])).toEqual([

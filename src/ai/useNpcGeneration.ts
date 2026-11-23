@@ -1,15 +1,16 @@
 import { supabase } from "@/lib/supabase";
 import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
+import { formatNpcUserInput, NPC_CONTEXT_LIMIT } from "@edge-shared/npcPrompt.ts";
 import type { NpcAiResult, NpcAiGenerated } from "./types";
 import { requireWorld } from "./worldBlock";
 import {
+  AI_PROMPT_LIMIT,
   buildCampaignContext,
 } from "./utils";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { getTextProvider } from "./providers";
-import { wrapUserInput } from "./utils";
 import {
   createAiGenerationState,
   startAiQuotes,
@@ -48,18 +49,30 @@ registerAiGenerator({
 // use it without dragging in supabase/Pinia module side effects.
 export { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 
+interface NpcGenerationOptions {
+  generateAlterEgo?: boolean;
+  generateImage?: boolean;
+  context?: string;
+}
+
 export function useNpcGeneration() {
   const { ruleset } = useTableRuleset();
   const { ensureLikenessAck } = useLikenessGate();
 
   async function generate(
     userPrompt: string,
-    options?: { generateAlterEgo?: boolean; generateImage?: boolean },
+    options?: NpcGenerationOptions,
   ): Promise<NpcAiGenerated | null> {
     if (isAnyAiGenerating.value) return null;
+    const prompt = userPrompt.trim();
+    if (prompt.length > AI_PROMPT_LIMIT) {
+      _state.error.value = `Shorten the concept to ${AI_PROMPT_LIMIT} characters and try again.`;
+      return null;
+    }
     const campaign = useCampaignStore();
     const campaignAtStart = campaign.activeCampaignId;
     const rulesetAtStart = ruleset.value;
+    const generationOptions = { ...options, context: options?.context?.trim().slice(0, NPC_CONTEXT_LIMIT) };
     if (options?.generateAlterEgo && !(await ensureLikenessAck())) return null;
     if (campaign.activeCampaignId !== campaignAtStart) {
       _state.error.value = "The active campaign changed. Reopen the generator and try again.";
@@ -94,8 +107,8 @@ export function useNpcGeneration() {
       }
 
       return isLocalMode
-        ? await generateClientSide(userPrompt, options, imageContext, rulesetAtStart)
-        : await generateServerSide(userPrompt, options, campaignId, imageContext);
+        ? await generateClientSide(prompt, generationOptions, imageContext, rulesetAtStart)
+        : await generateServerSide(prompt, generationOptions, campaignId, imageContext);
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";
       return null;
@@ -110,7 +123,7 @@ export function useNpcGeneration() {
 
   async function generateServerSide(
     userPrompt: string,
-    options: { generateAlterEgo?: boolean; generateImage?: boolean } | undefined,
+    options: NpcGenerationOptions | undefined,
     campaignId: string,
     imageContext: ImageGenerationContext,
   ): Promise<NpcAiGenerated | null> {
@@ -118,6 +131,7 @@ export function useNpcGeneration() {
       body: {
         campaign_id:        campaignId,
         prompt:             userPrompt,
+        context:            options?.context,
         generate_alter_ego: options?.generateAlterEgo ?? false,
         // All art goes through the one durable image job pipeline below.
         generate_image:     false,
@@ -140,7 +154,7 @@ export function useNpcGeneration() {
 
   async function generateClientSide(
     userPrompt: string,
-    options: { generateAlterEgo?: boolean; generateImage?: boolean } | undefined,
+    options: NpcGenerationOptions | undefined,
     imageContext: ImageGenerationContext,
     rulesetAtStart: RulesetKey,
   ): Promise<NpcAiGenerated | null> {
@@ -158,9 +172,9 @@ export function useNpcGeneration() {
       (rulesetContext ? `\n\n${rulesetContext}` : "") +
       buildCampaignContext(world);
 
-    const userContent = options?.generateAlterEgo
-      ? `${wrapUserInput(userPrompt)}\n\nThis NPC has a disguise identity — populate disguise_name and disguise_image_prompt.`
-      : wrapUserInput(userPrompt);
+    const userContent = formatNpcUserInput(
+      userPrompt, options?.context ?? "", options?.generateAlterEgo === true,
+    );
 
     const { content, usage: textUsage } = await textProvider.complete(systemContent, userContent);
     logUsage({ reason: "npc_generation", textUsage });

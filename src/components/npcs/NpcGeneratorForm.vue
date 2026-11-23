@@ -18,7 +18,12 @@
       input-class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
       @item-selected="rememberItemMention"
     />
-    <p v-if="itemOptions.length" class="mt-1 text-caption text-muted-foreground">Type @ to include an item in this NPC’s inventory.</p>
+    <div class="mt-1 flex flex-wrap justify-between gap-x-3 text-caption">
+      <p v-if="itemOptions.length" class="text-muted-foreground">Type @ to include an item in this NPC’s inventory.</p>
+      <p class="ml-auto" :class="conceptModel.trim().length > AI_PROMPT_LIMIT ? 'text-destructive' : 'text-muted-foreground'">
+        {{ conceptModel.trim().length }} / {{ AI_PROMPT_LIMIT }}
+      </p>
+    </div>
   </div>
 
   <div class="gold-divider" />
@@ -261,6 +266,7 @@
 
 <script setup lang="ts">
 import { computed, watch } from "vue";
+import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import { includesMentionToken, mentionToken } from "@/lib/mentionToken";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { IconGenerate } from "@/lib/icons";
