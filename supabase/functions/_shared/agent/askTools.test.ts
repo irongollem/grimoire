@@ -73,6 +73,24 @@ describe("reading", () => {
     }
   });
 
+  // Bug caught (#1253 audit): bindTools cuts an answer over 20,000 characters, the cut text no longer parses, and
+  // the check used to pass it on as "naming no campaign", so a long row of another campaign reached the model.
+  it("refuses a cut `get` answer of another campaign's row, and keeps a cut one of this campaign's", async () => {
+    const cut = (campaign_id: string) => ({ content: `${JSON.stringify({ id: NPC, campaign_id, name: "Long", notes: "x".repeat(25_000) }).slice(0, 20_000)}\n[Cut: too long]`, isError: false });
+    const foreign = setup({ callMcp: async () => cut(OTHER) });
+    const refused = await foreign.tools.callTool("get", { type: "quest", id: NPC });
+    expect(refused.isError).toBe(true);
+    expect(foreign.events).toEqual([]);
+    const own = setup({ callMcp: async () => cut(CAMPAIGN) });
+    expect((await own.tools.callTool("get", { type: "quest", id: NPC })).isError).toBe(false);
+  });
+
+  // Bug caught: an answer whose campaign cannot be read at all passing on the benefit of the doubt.
+  it("refuses a `get` answer whose campaign it cannot read", async () => {
+    const { tools } = setup({ callMcp: async () => ({ content: "not json and names nothing", isError: false }) });
+    expect((await tools.callTool("get", { type: "npc", id: NPC })).isError).toBe(true);
+  });
+
   it("answers find with the nearest records, and tells the model to use search when find is not available", async () => {
     const found = setup({ find: async () => [{ type: "location", id: NPC, name: "The mill", descriptor: "building" }] });
     const answer = await found.tools.callTool("find", { query: "where the grain is ground" });
