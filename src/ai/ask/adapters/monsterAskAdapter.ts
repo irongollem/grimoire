@@ -126,3 +126,5 @@ export function useMonsterAskAdapter(): AskAdapter {
 
   return { id: "monster", quote, run };
 }
+
+export default useMonsterAskAdapter;
