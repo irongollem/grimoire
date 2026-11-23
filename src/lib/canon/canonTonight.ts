@@ -1,4 +1,4 @@
-import { clockFilled } from "@/composables/canon/useCanonForces";
+import { clockFilled } from "@/lib/canon/canonForces";
 import { openThreads, type BackstoryThreadLink } from "@/lib/canon/backstoryThreads";
 import { isPlayersPassage } from "@/lib/canon/canonBackstory";
 import { unreviewedCount } from "@/lib/canon/canonTableFacts";

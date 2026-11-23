@@ -16,7 +16,7 @@ const facts = read<unknown[]>([]);
 vi.mock("@/composables/canon/useCanonEntries", () => ({ useCanonEntries: () => entries }));
 vi.mock("@/composables/canon/useCanonClues", () => ({ useCanonClues: () => clues }));
 vi.mock("@/composables/canon/useCanonPassages", () => ({ useCanonPassages: () => passages }));
-vi.mock("@/composables/canon/useCanonForces", () => ({ useCanonForceData: () => forces, clockFilled: (ticks: { delta: number }[], size: number) => Math.min(size, ticks.reduce((s, t) => s + t.delta, 0)) }));
+vi.mock("@/composables/canon/useCanonForces", () => ({ useCanonForceData: () => forces }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => party }));
 vi.mock("@/composables/connections/useConnections", () => ({ useCampaignLinks: () => links }));
 vi.mock("@/composables/canon/useTableFacts", () => ({ useTableFacts: () => ({ facts }) }));

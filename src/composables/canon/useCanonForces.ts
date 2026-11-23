@@ -25,12 +25,6 @@ export interface CanonForceData {
   quests: CanonEntryQuest[];
 }
 
-/** A force's clock never runs past its size or below nothing; the ticks keep whatever was written. */
-export function clockFilled(ticks: readonly Pick<CanonForceTick, "delta">[], size: number): number {
-  const sum = ticks.reduce((total, t) => total + t.delta, 0);
-  return Math.min(size, Math.max(0, sum));
-}
-
 /** The tick Undo may take back: the newest one. An older tick stays, so the log never reads as a clock that skipped. */
 export function newestTick<T extends Pick<CanonForceTick, "id" | "created_at">>(ticks: readonly T[]): T | null {
   let newest: T | null = null;

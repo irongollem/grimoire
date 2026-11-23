@@ -30,7 +30,8 @@ import CanonLedgerRow from "./CanonLedgerRow.vue";
 import { computed } from "vue";
 import ForceClock from "./ForceClock.vue";
 import { FORCE_OUTCOME_ENDED, forceOutcome } from "@/lib/canon/canonClose";
-import { clockFilled, stepReached } from "@/composables/canon/useCanonForces";
+import { clockFilled } from "@/lib/canon/canonForces";
+import { stepReached } from "@/composables/canon/useCanonForces";
 import type { CanonEntry, CanonForceStep, CanonForceTick } from "@/types/canon.types";
 
 const { entry, steps, ticks, selected = false } = defineProps<{

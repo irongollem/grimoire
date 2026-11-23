@@ -1,4 +1,4 @@
-import { clockFilled } from "@/composables/canon/useCanonForces";
+import { clockFilled } from "@/lib/canon/canonForces";
 import { FORCE_OUTCOME_ENDED, forceOutcome } from "@/lib/canon/canonClose";
 import type { CanonEntry, CanonForceTick } from "@/types/canon.types";
 import type { Connection } from "@/types/connections.types";

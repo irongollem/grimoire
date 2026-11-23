@@ -1,4 +1,4 @@
-import { clockFilled } from "@/composables/canon/useCanonForces";
+import { clockFilled } from "@/lib/canon/canonForces";
 import { FORCE_OUTCOME_ENDED, forceOutcome } from "@/lib/canon/canonClose";
 import { SECRET_STATE_LABEL, secretState } from "@/lib/canon/canonSecrets";
 import { QUEST_LINKED_PARTS, type CanonClue, type CanonEntry, type CanonEntryQuest, type CanonForceTick, type QuestLinkedPart } from "@/types/canon.types";

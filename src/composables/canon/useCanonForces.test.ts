@@ -9,7 +9,6 @@ const session = vi.hoisted(() => ({ user: { id: "dm-1" } as { id: string } | nul
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => session.user }));
 
 import {
-  clockFilled,
   fetchCanonForceData,
   moveStep,
   newestTick,
@@ -37,20 +36,6 @@ const tick = (over: Partial<CanonForceTick> = {}): CanonForceTick => ({
 beforeEach(() => {
   fake.reset();
   session.user = { id: "dm-1" };
-});
-
-describe("clockFilled", () => {
-  it("is the sum of the ticks, so an undo that removes a tick moves the dial back", () => {
-    expect(clockFilled([tick({ delta: 1 }), tick({ delta: 1 }), tick({ delta: -1 })], 6)).toBe(1);
-  });
-
-  it("never runs past the clock's size, so a seventh tick on a clock of six does not draw a seventh segment", () => {
-    expect(clockFilled(Array.from({ length: 7 }, () => tick()), 6)).toBe(6);
-  });
-
-  it("never runs below nothing, so ticking back on an empty clock is not a debt", () => {
-    expect(clockFilled([tick({ delta: -2 })], 6)).toBe(0);
-  });
 });
 
 describe("newestTick", () => {

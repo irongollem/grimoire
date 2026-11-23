@@ -18,7 +18,7 @@ const links = ref([
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ get isDM() { return session.isDM; } }) }));
 vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => ({ get dmPreviewMode() { return session.preview; } }) }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({ useCanonEntries: () => { mocks.entries(); return { data: entries }; } }));
-vi.mock("@/composables/canon/useCanonForces", () => ({ clockFilled: () => 1, useCanonForceData: () => { mocks.forces(); return { data: computed(() => ({ steps: [], ticks: [], quests: links.value })) }; } }));
+vi.mock("@/composables/canon/useCanonForces", () => ({ useCanonForceData: () => { mocks.forces(); return { data: computed(() => ({ steps: [], ticks: [{ force_id: "f1", delta: 1 }], quests: links.value })) }; } }));
 vi.mock("@/composables/canon/useCanonClues", () => ({ useCanonClues: () => { mocks.clues(); return { data: ref([]) }; } }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => { mocks.party(); return { data: ref([]) }; } }));
 vi.mock("@/composables/canon/useCanonEntryQuests", () => ({
