@@ -181,7 +181,6 @@ import { useRouter } from "vue-router";
 import EntitySheetMobile from "@/components/common/entity/EntitySheetMobile.vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import NpcLoreSections from "@/components/npcs/NpcLoreSections.vue";
-import StatBlockPanel from "@/components/common/statblock/StatBlockPanel.vue";
 import TraitList from "@/components/common/statblock/TraitList.vue";
 import SpellcastingList from "@/components/common/statblock/SpellcastingList.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -215,6 +214,8 @@ import { NPC_RELATIONSHIP_LABELS, type Npc, type NpcListRow } from "@/types/npc.
 
 // Fetched when the Combat tab is first shown: it brings the tactics rules with it, which the rest of the NPC page never reads.
 const StatBlockTacticsSummary = defineAsyncComponent(() => import("@/components/common/statblock/StatBlockTacticsSummary.vue"));
+// The stat block too: only the Combat section draws it, and it is its own chunk (the bestiary and Wild Shape share it).
+const StatBlockPanel = defineAsyncComponent(() => import("@/components/common/statblock/StatBlockPanel.vue"));
 
 const { npc } = defineProps<{
   /** Paints at once from the list row; the prose waits for `full` (#999). */
