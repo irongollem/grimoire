@@ -88,6 +88,22 @@ describe("groupPlayerWorld: shared premise and revealed secrets", () => {
     expect(world.premise).toEqual([]);
   });
 
+  // Bug caught (#1258 item 13): a secret made a truth stayed under "Secrets revealed" beside the truth, so the player read
+  // the same words twice. A secret whose truth the player cannot see (or that never became one) stays listed.
+  it("leaves out a revealed secret that became a truth the player can read", () => {
+    const world = groupPlayerWorld(
+      [
+        entry({ id: "t1", knowledge: "all" }),
+        entry({ id: "s1", part: "secret", knowledge: null, became_entry_id: "t1" }),
+        entry({ id: "s2", part: "secret", knowledge: null, became_entry_id: "hidden-truth" }),
+        entry({ id: "s3", part: "secret", knowledge: null, became_entry_id: null }),
+      ],
+      [],
+    );
+    expect(world.revealed.map((e) => e.id)).toEqual(["s2", "s3"]);
+    expect(world.known.map((e) => e.id)).toEqual(["t1"]);
+  });
+
   // Bug caught (#1255): shared premise rows dropped, or listed in arrival order instead of the campaign page's kind
   // order (pitch, theme, table, line, veil) with the DM's order inside a kind.
   it("lists shared premise in kind order, then the DM's order, and never voice or look", () => {

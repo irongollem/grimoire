@@ -9,6 +9,9 @@
         </span>
         <span v-else class="text-label text-muted-foreground">no clock</span>
       </span>
+      <span v-if="who !== null && who !== entry.title" class="mt-0.5 block text-caption text-muted-foreground" data-testid="force-who">
+        <span class="font-bold text-foreground">Who</span> {{ who }}
+      </span>
       <span v-if="outcome !== null" class="mt-0.5 block text-caption font-bold text-foreground" data-testid="force-outcome">
         {{ FORCE_OUTCOME_ENDED[outcome] }}<template v-if="entry.closed_note !== null"> · {{ entry.closed_note }}</template>
       </span>
@@ -26,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-/** One force in the list (frame 06): who, what it wants, its clock dial and the step it has reached. */
+/** One force in the list (frame 06): what it is doing, the faction behind it (by its current name), what it wants, its clock dial and the step it has reached. */
 import CanonLedgerRow from "./CanonLedgerRow.vue";
 import { computed } from "vue";
 import CanonMoveButtons from "./CanonMoveButtons.vue";
@@ -36,10 +39,12 @@ import { clockFilled } from "@/lib/canon/canonForces";
 import { stepReached } from "@/composables/canon/useCanonForces";
 import type { CanonEntry, CanonForceStep, CanonForceTick } from "@/types/canon.types";
 
-const { entry, steps, ticks, selected = false, move = null } = defineProps<{
+const { entry, steps, ticks, who = null, selected = false, move = null } = defineProps<{
   entry: CanonEntry;
   steps: readonly CanonForceStep[];
   ticks: readonly CanonForceTick[];
+  /** The linked faction's name as it is now, or null when no faction is behind it. */
+  who?: string | null;
   selected?: boolean;
   /** Up and down, offered only while nothing narrows the list; `null` hides them. */
   move?: { first: boolean; last: boolean } | null;

@@ -26,6 +26,8 @@ export interface PlayerCanonEntry {
   world_day: number | null;
   /** Set on a backstory: the character whose past it is. */
   party_member_id: string | null;
+  /** On a secret: the truth it became. Absent until `get_player_canon` returns the column (#1258 item 13). */
+  became_entry_id?: string | null;
 }
 
 /** One row of `get_player_lore_passages`: a passage this player has been told. */
@@ -122,7 +124,11 @@ export function groupPlayerWorld(entries: readonly PlayerCanonEntry[], passages:
   const premise = PREMISE_ORDER.flatMap((kind) =>
     entries.filter((e) => e.part === "premise" && e.premise_kind === kind).sort((a, b) => a.sort_order - b.sort_order),
   );
-  const revealed = entries.filter((e) => e.part === "secret").sort((a, b) => a.sort_order - b.sort_order);
+  // A secret that became a truth this player can read is already under "What we know": it is not listed twice.
+  const truthIds = new Set(truths.map((e) => e.id));
+  const revealed = entries
+    .filter((e) => e.part === "secret" && !(typeof e.became_entry_id === "string" && truthIds.has(e.became_entry_id)))
+    .sort((a, b) => a.sort_order - b.sort_order);
   return {
     premise,
     revealed,

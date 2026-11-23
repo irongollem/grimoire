@@ -3,7 +3,7 @@
     <CanonRubric id="canon-backstories-heading" numeral="VIII" title="Backstories" />
     <p class="m-0 text-caption text-muted-foreground">Each character's past is told in passages. The player writes theirs and keeps adding to it; you add what they have not been told, and tell it when the story gets there.</p>
 
-    <CanonPartFind part="backstories" noun="character" :count="party.length" :arc-label="arcLabel" />
+    <CanonPartFind part="backstories" noun="character" :count="party.length" />
 
     <ul v-if="shown.length > 0" class="flex flex-col border border-border bg-card" data-testid="backstory-ledger">
       <BackstoryRow
@@ -18,12 +18,6 @@
       />
     </ul>
     <EmptyState v-else-if="party.length > 0" class="border border-dashed border-border bg-card" title="No character matches" description="Nobody here has those letters in their name." />
-    <EmptyState
-      v-else-if="arcLabel !== null"
-      class="border border-dashed border-border bg-card"
-      title="No backstories in this arc"
-      :description="`Nothing of this part is in ${arcLabel}.`"
-    />
     <EmptyState
       v-else
       class="border border-dashed border-border bg-card"
@@ -48,15 +42,13 @@ import { useCanonUiStore } from "@/stores/ui/canon";
 import type { CanonEntry, CanonLorePassage } from "@/types/canon.types";
 import type { PartyMember } from "@/types/party.types";
 
-const { party, entries, passages, selectedId = null, arcLabel = null } = defineProps<{
-  /** The characters of the page's arc: those whose backstory is in it (the whole party when none is chosen). */
+const { party, entries, passages, selectedId = null } = defineProps<{
+  /** The whole party: a character spans arcs, so no arc narrows this part. */
   party: readonly PartyMember[];
   /** The campaign's backstory entries (a character has one once it is opened). */
   entries: readonly CanonEntry[];
   passages: readonly CanonLorePassage[];
   selectedId?: string | null;
-  /** The name of the arc narrowing this part, or null. */
-  arcLabel?: string | null;
 }>();
 const emit = defineEmits<{ select: [memberId: string] }>();
 

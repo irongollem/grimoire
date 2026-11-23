@@ -57,6 +57,7 @@ import CanonSuggestions from "./CanonSuggestions.vue";
 import QuestionAnsweredRow from "./QuestionAnsweredRow.vue";
 import QuestionRow from "./QuestionRow.vue";
 import { useCreateCanonEntry, useTrashCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useLinkBecame } from "@/composables/canon/useLinkBecame";
 import { useCanonReorder } from "@/composables/canon/useCanonReorder";
 import { matchesQuery } from "@/lib/canon/canonNarrow";
 import { endsOf } from "@/lib/canon/canonOrder";
@@ -76,6 +77,7 @@ const { questions, arcLabel = null } = defineProps<{
 }>();
 
 const store = useCanonUiStore();
+const linkBecame = useLinkBecame();
 const open = computed(() => questions.filter((q) => q.closed_as === null));
 const shown = computed(() => open.value.filter((q) => matchesQuery(q.title, store.partQuery.questions)));
 const answered = computed(() => questions.filter((q) => q.closed_as !== null));
@@ -116,7 +118,9 @@ async function answerQuestion(q: CanonEntry, answer: string, kind: AnswerKind) {
       await updateAsync({ id: q.id, patch: answeredPatch(answer, created.id, new Date().toISOString()) });
     } catch {
       toast.error("The answer was saved as its own entry, but the question could not be closed.");
+      return;
     }
+    await linkBecame(q, created);
   } finally {
     saving.value = false;
   }

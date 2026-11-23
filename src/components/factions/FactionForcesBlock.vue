@@ -10,13 +10,17 @@
         <span v-if="row.wants !== null" class="text-caption text-muted-foreground"><span class="font-bold text-foreground">Wants</span> {{ row.wants }}</span>
       </li>
     </ul>
-    <RouterLink v-else to="/canon" class="self-start text-caption text-muted-foreground underline-offset-2 hover:underline" data-testid="name-a-force">Name a force</RouterLink>
+    <ForceAddForm v-if="adding" :faction-id="factionId" :sort-order="forceCount" @added="adding = false" />
+    <AppButton v-else variant="ghost" size="sm" :icon="IconAdd" icon-size="xs" label="Add a force" class="self-start" data-testid="add-a-force" @click="adding = true" />
   </section>
 </template>
 
 <script setup lang="ts">
-/** The reading half of FactionForces: the forces `about` this faction, each with what it wants and where its clock stands. */
-import { computed } from "vue";
+/** The reading half of FactionForces: the forces `about` this faction, each with what it wants and where its clock stands, and an Add a force that starts one already about it (#1258 item 16). */
+import { computed, ref } from "vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import ForceAddForm from "@/components/canon/ForceAddForm.vue";
+import { IconAdd } from "@/lib/icons";
 import { useCanonEntries } from "@/composables/canon/useCanonEntries";
 import { useCanonForceData } from "@/composables/canon/useCanonForces";
 import { useConnections } from "@/composables/connections/useConnections";
@@ -27,5 +31,8 @@ const { factionId } = defineProps<{ factionId: string }>();
 const { data: connections } = useConnections("faction", () => factionId);
 const { data: entries } = useCanonEntries();
 const { data: forceData } = useCanonForceData();
+const forceCount = computed(() => (entries.value ?? []).filter((e) => e.part === "force").length);
+// Transient UI state: whether the add form is open.
+const adding = ref(false);
 const rows = computed(() => factionForces(connections.value ?? [], entries.value ?? [], forceData.value?.ticks ?? []));
 </script>

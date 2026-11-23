@@ -296,6 +296,19 @@ describe("CanonView", () => {
       expect(mocks.confirm.mock.calls[0][0]).toContain("steps, ticks and quest links");
     });
 
+    // Bug caught (#1258 item 32): the lore delete asked "Delete this lore?", a noun that is not what the DM sees (a lore entry).
+    it("asks with the lore entry's own wording, naming its passages", async () => {
+      data.value = [{ ...truth("l1", "The founding"), part: "lore", knowledge: null }];
+      route.query = { entry: "l1" };
+      mocks.confirm.mockResolvedValue(false);
+      const w = mountView();
+      await flushPromises();
+      await w.find("[data-testid=del-lore]").trigger("click");
+      expect(mocks.confirm.mock.calls[0][0]).toContain("Delete this lore entry?");
+      expect(mocks.confirm.mock.calls[0][0]).toContain("and passages");
+      expect(mocks.confirm.mock.calls[0][1]).toMatchObject({ title: "Delete this lore entry" });
+    });
+
     it("deletes nothing when the confirm is cancelled", async () => {
       mocks.confirm.mockResolvedValue(false);
       await openAndDelete();
@@ -333,12 +346,23 @@ describe("CanonView", () => {
     expect(w.find("[data-testid=bring-in]").attributes("href")).toBe("/canon/import");
   });
 
-  // Bug caught: the prep view built but unreachable, because the Canon header never linked to it (and once under the page for a phone).
-  it("offers Tonight in the header and under the page, leading to /canon/tonight", () => {
+  // Bug caught: the prep view built but unreachable, because the Canon header never linked to it.
+  it("offers Tonight in the header and in the phone actions, leading to /canon/tonight", () => {
     const w = mountView();
     const links = w.findAll("[data-testid=tonight]");
     expect(links).toHaveLength(2);
     expect(links.map((l) => l.attributes("href"))).toEqual(["/canon/tonight", "/canon/tonight"]);
+  });
+
+  // Bug caught (#1258 item 20): Tonight and Bring in a book sat at the very bottom of the page on a phone, past every part.
+  it("puts the phone actions under the title, before the contents and every part, and only on a phone", () => {
+    const w = mountView();
+    const actions = w.get("[data-testid=canon-phone-actions]");
+    expect(actions.classes()).toContain("md:hidden");
+    expect(actions.find("[data-testid=tonight]").exists()).toBe(true);
+    expect(actions.find("[data-testid=bring-in]").exists()).toBe(true);
+    const html = w.html();
+    expect(html.indexOf("canon-phone-actions")).toBeLessThan(html.indexOf("canon-contents-stub"));
   });
 
   // Bug caught: the contents column counting kept, struck and corrected lines as "new", so the badge never reached zero.
@@ -461,18 +485,20 @@ describe("CanonView", () => {
       expect(w.findComponent({ name: "PremiseSection" }).props("entries").map((t: CanonEntry) => t.id)).toContain("p1");
     });
 
-    it("hides a character whose backstory is in another arc, and one with no backstory entry", async () => {
+    // Bug caught (#1258 item 29): the arc hiding a character whose backstory is in another arc, or who has none yet. A
+    // character spans arcs, so the Backstories part lists the whole party under any arc.
+    it("lists every character under an arc, whatever arc their backstory is in", async () => {
       party.value = [...party.value, { id: "m3", name: "Wren" }];
       const w = mountView();
       await flushPromises();
-      expect(w.findComponent({ name: "BackstoriesSection" }).props("party").map((m: { id: string }) => m.id)).toEqual(["m1"]);
+      expect(w.findComponent({ name: "BackstoriesSection" }).props("party").map((m: { id: string }) => m.id)).toEqual(["m1", "m2", "m3"]);
       party.value = party.value.slice(0, 2);
     });
 
     it("counts the contents column by what the arc shows, and 'Where to begin' by the whole canon", async () => {
       const w = mountView();
       await flushPromises();
-      expect(w.findComponent({ name: "CanonContents" }).props("counts")).toMatchObject({ truths: 1, premise: 1, backstories: 1 });
+      expect(w.findComponent({ name: "CanonContents" }).props("counts")).toMatchObject({ truths: 1, premise: 1, backstories: 2 });
       expect(w.findComponent({ name: "CanonStart" }).props("counts")).toMatchObject({ truths: 2, backstories: 2 });
     });
 

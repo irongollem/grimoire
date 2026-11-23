@@ -65,9 +65,7 @@
       </p>
     </div>
 
-    <SecretBeats :secret-id="entry.id" />
-
-    <EntryQuests :entry="entry" :links="questLinks" label="The quests that uncover it" empty="No quest is built to uncover this yet." />
+    <SecretOutlets :entry="entry" :clues="clues" />
 
     <ConnectionsSection :subject="subject" :subject-name="entry.title" />
 
@@ -86,15 +84,14 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import EntryArcPicker from "./EntryArcPicker.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
-import EntryQuests from "./EntryQuests.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
 import ClueForm from "./ClueForm.vue";
 import ClueRow from "./ClueRow.vue";
-import SecretBeats from "./SecretBeats.vue";
+import SecretOutlets from "./SecretOutlets.vue";
 import { CLUES_WANTED, SECRET_STATE_LABEL, SECRET_STATE_MARK, clueTally, secretState } from "@/lib/canon/canonSecrets";
 import { useCreateCanonClue, useCanonClues, useDeleteCanonClue, useSetClueFound, useUpdateCanonClue, type ClueKind } from "@/composables/canon/useCanonClues";
 import { useCanonEntries, useCreateCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
-import { useEntryQuestLinks } from "@/composables/canon/useEntryQuestLinks";
+import { useLinkBecame } from "@/composables/canon/useLinkBecame";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useClueWhere } from "@/composables/canon/useClueWhere";
@@ -112,7 +109,7 @@ const emit = defineEmits<{ delete: [] }>();
 const NO_ENTRIES: readonly CanonEntry[] = [];
 
 const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
-const questLinks = useEntryQuestLinks(() => entry.id);
+const linkBecame = useLinkBecame();
 
 const { data: allClues } = useCanonClues();
 const clues = computed(() => (allClues.value ?? []).filter((c) => c.secret_id === entry.id));
@@ -193,13 +190,21 @@ async function makeTruth() {
       await updateAsync({ id: entry.id, patch: { became_entry_id: truth.id } });
     } catch {
       toast.error("The truth was made, but this secret could not be pointed at it.");
+      return;
     }
+    // Every "becomes" also says so as a canon link, so the web and the Connections block show where it led.
+    await linkBecame(entry, truth);
   } finally {
     making.value = false;
   }
 }
 
-function hide() {
+/** Hiding a secret that became a truth leaves the truth known to all, so it asks first (#1258 item 13). */
+async function hide() {
+  if (entry.became_entry_id !== null) {
+    const ok = await confirm("The truth it became stays known to all. Hide the secret anyway?", { title: "Hide again", confirmLabel: "Hide the secret" });
+    if (!ok) return;
+  }
   update({ id: entry.id, patch: { revealed_at: null } });
 }
 </script>

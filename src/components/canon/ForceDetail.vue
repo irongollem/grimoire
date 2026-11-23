@@ -8,9 +8,13 @@
     <!-- From 32rem of the detail's own width two columns: who it is, its clock and its ending, then what it does. One column below that. -->
     <div class="flex flex-col gap-4 @lg:grid @lg:grid-cols-2 @lg:items-start @lg:gap-6">
       <div class="flex min-w-0 flex-col gap-4">
-        <div class="flex flex-col gap-1">
+        <div v-if="faction !== null" class="flex flex-col gap-1">
           <span class="text-eyebrow text-muted-foreground">Who</span>
-          <AppInput :key="whoRevision" v-model.lazy="who" size="body" tone="filled" aria-label="Who moves" placeholder="A faction, a person, a power…" />
+          <RouterLink :to="`/factions/${faction.id}`" class="self-start text-body font-semibold text-foreground hover:underline" data-testid="force-who">{{ faction.name }}</RouterLink>
+        </div>
+        <div class="flex flex-col gap-1">
+          <span class="text-eyebrow text-muted-foreground">What they are doing</span>
+          <AppInput :key="titleRevision" v-model.lazy="title" size="body" tone="filled" aria-label="What they are doing" placeholder="The summoning, the long march…" />
         </div>
         <div class="flex flex-col gap-1">
           <span class="text-eyebrow text-muted-foreground">Wants</span>
@@ -39,16 +43,17 @@
             <AppButton variant="outline" size="sm" label="Tick back" :disabled="outcome !== null || filled === 0" data-testid="tick-back" @click="tick(-1)" />
             <AppButton variant="primary" size="sm" label="Tick forward" :disabled="outcome !== null || filled === entry.clock_size" data-testid="tick-forward" @click="tick(1)" />
           </div>
-          <div v-if="clockIsFull" class="flex flex-col gap-2" data-testid="force-clock-full">
+          <p v-if="divergence !== null" class="text-caption text-muted-foreground" data-testid="force-divergence">{{ divergence }}</p>
+          <div v-if="clockIsFull && !ending" class="flex flex-col gap-2" data-testid="force-clock-full">
             <p class="text-body font-bold text-foreground">The clock is full. What happened?</p>
             <div class="flex flex-wrap gap-2">
-              <AppButton v-for="option in FORCE_OUTCOME_OPTIONS" :key="option.value" variant="outline" size="sm" :label="option.label" :data-testid="`force-full-${option.value}`" @click="end(option.value, '')" />
+              <AppButton v-for="option in FORCE_OUTCOME_OPTIONS" :key="option.value" variant="outline" size="sm" :label="option.label" :data-testid="`force-full-${option.value}`" @click="startEnding(option.value)" />
             </div>
           </div>
         </div>
         <div v-if="outcome === null" class="flex flex-col gap-2">
-          <ForceEndForm v-if="ending" @end="end" @cancel="ending = false" />
-          <AppButton v-else variant="outline" size="sm" label="End this force…" class="self-start" data-testid="force-end" @click="ending = true" />
+          <ForceEndForm v-if="ending" :initial="endingFrom" @end="end" @cancel="ending = false" />
+          <AppButton v-else variant="outline" size="sm" label="End this force…" class="self-start" data-testid="force-end" @click="startEnding('stopped')" />
         </div>
       </div>
       <div class="flex min-w-0 flex-col gap-4">
@@ -72,6 +77,7 @@
  * It opens beside the forces ledger (`CanonSplit`) and, from 32rem of its own width, runs in two columns.
  */
 import { computed, ref } from "vue";
+import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
@@ -84,11 +90,15 @@ import ForceQuestClocks from "./ForceQuestClocks.vue";
 import EntryArcPicker from "./EntryArcPicker.vue";
 import EntryQuests from "./EntryQuests.vue";
 import ForceSteps from "./ForceSteps.vue";
-import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
-import { clockFilled } from "@/lib/canon/canonForces";
+import { useCreateCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useCreateConnection } from "@/composables/connections/useConnections";
+import { useForceFactions } from "@/composables/canon/useForceFactions";
+import { clockFilled, clockStepsDivergence } from "@/lib/canon/canonForces";
+import { typeChoices } from "@/lib/worldLinks/connections";
+import { toast } from "@/lib/toast";
 import { useCanonForceData, useUndoForceTick, useTickForce } from "@/composables/canon/useCanonForces";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
-import { FORCE_OUTCOME_ENDED, FORCE_OUTCOME_OPTIONS, RESUME_FORCE_PATCH, endForcePatch, forceOutcome, type ForceOutcome } from "@/lib/canon/canonClose";
+import { FORCE_OUTCOME_ENDED, FORCE_OUTCOME_OPTIONS, RESUME_FORCE_PATCH, endForce, forceOutcome, type ForceOutcome } from "@/lib/canon/canonClose";
 import { IconDelete } from "@/lib/icons";
 import type { CanonEntry } from "@/types/canon.types";
 import type { WorldRef } from "@/types/connections.types";
@@ -106,11 +116,15 @@ const links = computed(() => (data.value?.quests ?? []).filter((q) => q.entry_id
 const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
 const filled = computed(() => (entry.clock_size === null ? 0 : clockFilled(ticks.value, entry.clock_size)));
 
-const { mutate: update } = useUpdateCanonEntry();
+const { mutate: update, mutateAsync: updateAsync } = useUpdateCanonEntry();
+const { mutateAsync: createEntry } = useCreateCanonEntry();
+const { mutateAsync: connect } = useCreateConnection();
+const { factionOf } = useForceFactions();
+const faction = computed(() => factionOf(entry.id));
 const { mutate: tickForce } = useTickForce();
 const { mutate: undo } = useUndoForceTick();
 
-const { text: who, revision: whoRevision } = useCommittedText(() => entry.title, (next) => update({ id: entry.id, patch: { title: next } }));
+const { text: title, revision: titleRevision } = useCommittedText(() => entry.title, (next) => update({ id: entry.id, patch: { title: next } }));
 const { text: wants, revision: wantsRevision } = useCommittedText(
   () => (entry.wants === null ? "" : entry.wants),
   (next) => update({ id: entry.id, patch: { wants: next } }),
@@ -125,11 +139,34 @@ const clockSize = computed<number | null>({
 const outcome = computed(() => forceOutcome(entry));
 const clockIsFull = computed(() => outcome.value === null && entry.clock_size !== null && filled.value === entry.clock_size);
 
-// Transient UI state: whether the End form is open.
+// The clock and the steps are not bound to each other; one quiet line says when they have drifted apart.
+const divergence = computed(() => (outcome.value === null ? clockStepsDivergence(entry.clock_size, filled.value, steps.value) : null));
+
+// Transient UI state: whether the End form is open, and the outcome the DM picked before it opened.
 const ending = ref(false);
-function end(how: ForceOutcome, why: string) {
-  update({ id: entry.id, patch: endForcePatch(how, why, new Date().toISOString()) });
-  ending.value = false;
+const endingFrom = ref<ForceOutcome>("stopped");
+function startEnding(how: ForceOutcome) {
+  endingFrom.value = how;
+  ending.value = true;
+}
+
+/** The truth the force left behind is made first, then the force closes pointing at it, then the two are tied `led_to`. */
+async function end(how: ForceOutcome, why: string, trueNow: string) {
+  try {
+    const { linkError } = await endForce(how, why, trueNow, new Date().toISOString(), {
+      createTruth: createEntry,
+      updateForce: (patch) => updateAsync({ id: entry.id, patch }),
+      linkLedTo: async (truthId, truthTitle) => {
+        const choice = typeChoices("canon", "canon").find((c) => c.key === "led_to" && c.subjectIsFrom);
+        if (!choice) throw new Error("A force cannot be linked to the truth it led to.");
+        await connect({ subject: { kind: "canon", id: entry.id }, other: { kind: "canon", id: truthId, name: truthTitle }, choice });
+      },
+    });
+    ending.value = false;
+    if (linkError !== null) toast.error(`The force ended, but it could not be linked to what is true now. ${toast.fromError(linkError)}`);
+  } catch {
+    // The mutations have already told the DM (toast); the form stays open to try again.
+  }
 }
 function resume() {
   update({ id: entry.id, patch: RESUME_FORCE_PATCH });

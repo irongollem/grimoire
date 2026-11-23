@@ -78,7 +78,7 @@
 
     <EntryQuests :entry="entry" :links="questLinks" label="The quests that turn on it" empty="No quest turns on this yet." />
 
-    <ConnectionsSection :subject="subject" :subject-name="entry.title" />
+    <ConnectionsSection :subject="subject" :subject-name="entry.title" :hide="isShownAbove" />
 
     <AppButton
       variant="destructive"
@@ -114,7 +114,7 @@ import { KNOWER_KINDS, useKnownTo } from "@/composables/canon/useKnownTo";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { IconAdd, IconClose, IconDelete } from "@/lib/icons";
 import type { CanonEntry, KnowledgeMark } from "@/types/canon.types";
-import type { WorldRef } from "@/types/connections.types";
+import type { Connection, WorldRef } from "@/types/connections.types";
 
 const { entry } = defineProps<{ entry: CanonEntry }>();
 const emit = defineEmits<{ delete: [] }>();
@@ -133,6 +133,9 @@ const { text, revision } = useCommittedText(() => entry.title, (next) => update(
 
 const pickerOpen = ref(false);
 watch(() => entry.id, () => { pickerOpen.value = false; });
+
+// Who knows it is the block above, so the Connections block does not list the same ties again (#1258 item 6).
+const isShownAbove = (c: Connection): boolean => c.source === "link" && c.type === "known_to" && c.outward;
 
 function setKnowledge(next: KnowledgeMark) {
   if (next === entry.knowledge) return;

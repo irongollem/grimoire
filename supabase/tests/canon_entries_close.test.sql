@@ -4,7 +4,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(14);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values ('12550000-0000-4000-8000-000000000011', '00000000-0000-0000-0000-000000000000',
@@ -29,6 +29,12 @@ select lives_ok(
   $$update public.canon_entries set closed_as = 'stopped', closed_at = now() where id = '12550000-0000-4000-8000-0000000000a2'$$,
   'a force is stopped');
 select lives_ok(
+  $$update public.canon_entries set became_entry_id = '12550000-0000-4000-8000-0000000000a3' where id = '12550000-0000-4000-8000-0000000000a2'$$,
+  'an ended force leaves a truth behind (#1258)');
+select throws_ok(
+  $$update public.canon_entries set became_entry_id = '12550000-0000-4000-8000-0000000000a4' where id = '12550000-0000-4000-8000-0000000000a2'$$,
+  '23514', null, 'a force becomes only a truth, never a secret');
+select lives_ok(
   $$update public.canon_entries set became_entry_id = '12550000-0000-4000-8000-0000000000a3' where id = '12550000-0000-4000-8000-0000000000a4'$$,
   'a secret becomes a truth without closing: its ending is its reveal');
 
@@ -46,7 +52,7 @@ select throws_ok(
   '23514', null, 'a reopened entry keeps no note of an ending it no longer has');
 select throws_ok(
   $$update public.canon_entries set became_entry_id = '12550000-0000-4000-8000-0000000000a4' where id = '12550000-0000-4000-8000-0000000000a3'$$,
-  '23514', null, 'only a question or a secret becomes something else');
+  '23514', null, 'a truth becomes nothing else');
 select throws_ok(
   $$update public.canon_entries set became_entry_id = '12550000-0000-4000-8000-0000000000a2' where id = '12550000-0000-4000-8000-0000000000a1'$$,
   '23514', null, 'a question becomes a truth or a secret, never a force');

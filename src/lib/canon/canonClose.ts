@@ -61,8 +61,50 @@ export function endForcePatch(outcome: ForceOutcome, note: string, now: string):
   return { closed_as: outcome, closed_at: now, closed_note: trimmed === "" ? null : trimmed };
 }
 
-/** Setting a force moving again clears all three columns together, as the table requires. */
-export const RESUME_FORCE_PATCH: CanonEntryPatch = { closed_as: null, closed_at: null, closed_note: null };
+/**
+ * Setting a force moving again clears the three columns together, as the table requires, and the pointer to the truth
+ * it became: a force that moves again has not become anything. The truth is left standing, as a reopened question's is.
+ */
+export const RESUME_FORCE_PATCH: CanonEntryPatch = { closed_as: null, closed_at: null, closed_note: null, became_entry_id: null };
+
+/** What ending a force writes, one step each, so the caller can wire real mutations and a test can wire fakes. */
+export interface EndForceWriters {
+  /** Makes the truth the force left behind. */
+  createTruth: (input: NewCanonEntry) => Promise<{ id: string }>;
+  /** Writes the closing patch on the force. */
+  updateForce: (patch: CanonEntryPatch) => Promise<void>;
+  /** Ties the force to the truth with a `led_to` link. */
+  linkLedTo: (truthId: string, title: string) => Promise<void>;
+}
+
+/**
+ * Ending a force (#1258 item 10). With no "What is true now?" line it writes the outcome and the note, as ever. With one,
+ * the truth is made first (known to all), then the force closes pointing at it, then the two are tied `led_to`: a failed
+ * truth leaves the force moving, and a failed link leaves a closed force that still points at its truth, reported back
+ * rather than thrown so the caller can say so. A blank line counts as none.
+ */
+export async function endForce(
+  outcome: ForceOutcome,
+  note: string,
+  trueNow: string,
+  now: string,
+  writers: EndForceWriters,
+): Promise<{ linkError: Error | null }> {
+  const title = trueNow.trim();
+  const patch = endForcePatch(outcome, note, now);
+  if (title === "") {
+    await writers.updateForce(patch);
+    return { linkError: null };
+  }
+  const truth = await writers.createTruth({ part: "truth", knowledge: "all", title });
+  await writers.updateForce({ ...patch, became_entry_id: truth.id });
+  try {
+    await writers.linkLedTo(truth.id, title);
+  } catch (error) {
+    return { linkError: error instanceof Error ? error : new Error(String(error)) };
+  }
+  return { linkError: null };
+}
 
 /** The force's outcome when it has ended, else null. A force's `closed_as` is never `answered`; that is the table's rule. */
 export function forceOutcome(force: Pick<CanonEntry, "closed_as">): ForceOutcome | null {

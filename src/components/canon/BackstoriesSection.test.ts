@@ -67,8 +67,10 @@ describe("BackstoriesSection search and arc (#1255 item 11)", () => {
     expect(w.findAll("[data-testid=backstory-ledger] li")).toHaveLength(1);
   });
 
-  it("says nothing of this part is in the arc when no character's backstory is", () => {
-    const w = mount(BackstoriesSection, { props: { party: [], entries: [], passages: [], arcLabel: "The guild" }, global: { stubs: { CanonRubric: true } } });
-    expect(w.text()).toContain("Nothing of this part is in The guild.");
+  // Bug caught (#1258 item 29): the part saying "Nothing of this part is in <arc>" for a party no arc narrows.
+  it("has no arc empty state: with nobody in the party it asks for a character", () => {
+    const w = mount(BackstoriesSection, { props: { party: [], entries: [], passages: [] }, global: { stubs: { CanonRubric: true } } });
+    expect(w.text()).not.toContain("Nothing of this part is in");
+    expect(w.text()).toContain("No characters yet");
   });
 });

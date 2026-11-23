@@ -18,7 +18,7 @@ Design: the canvas *Campaign Canon* (claude.ai artifact `MAukzQW1bDDG832DT4ZepT`
 | Who and what lives here | none: `campaign_peoples`, `campaign_habitats` and what hangs off them (a truth may carry a `habitat_id`) | #1255 item 31 | n/a |
 | Secrets and open questions | `secret`, `question` | story 3 | a secret once the DM reveals it; never a question |
 | Lore, told in passages | `lore` | story 5 | the passages told |
-| Backstories | `backstory`, one per character (`party_member_id`) | story 10 | their own character's, always; another's when the DM shares it; only the passages told to them |
+| Backstories | `backstory`, one per character (`party_member_id`) | story 10 | their own character's, always; another's when the DM shares it or any passage was told to them; only the passages told to them |
 | The Chronicle | none: the session's note (`notes.session_id`) | story 6 | what the DM shared |
 | What the table added | none: `story_facts` the AI table filed | story 9 | what the party knows and the DM has not struck |
 
@@ -123,9 +123,9 @@ question has a small **Arc** picker under its title (`EntryArcPicker.vue`, the o
 premise entry never has it).
 
 - **Narrowing.** The chosen arc (`useCanonUiStore().arcFilter`, part of `hasActiveFilters`, cleared by `resetFilters`)
-  narrows truths, forces, secrets, open questions, lore and backstories at once (`canonNarrow.ts`). A character whose
-  backstory entry is in another arc, or who has none yet, is hidden. The premise, How the world works, Who and what lives
-  here, the Chronicle, What the table added and Deleted are never narrowed. A narrowed part says "Showing <arc> only." in
+  narrows truths, forces, secrets, open questions and lore at once (`canonNarrow.ts`). **Backstories are not narrowed**:
+  a character spans arcs, so the part always lists the whole party (#1258 item 29; the entry's own Arc picker stays). The premise, How the world works, Who and what lives
+  here, the Chronicle, What the table added and Deleted are never narrowed. A narrowed part (not Backstories) says "Showing <arc> only." in
   one quiet line, and its empty state "Nothing of this part is in <arc>." **The contents column's counts follow the
   narrowing** (so they match the lists under it); "Where to begin" keeps reading the whole canon, because it asks whether
   the canon holds a thing at all. An entry that is open stays open when the DM moves it to another arc (the selection
@@ -170,7 +170,7 @@ What the review of the beta changed (#1255, 23 Nov 2026):
 
 ## Tonight (#1255 item 14)
 
-`/canon/tonight` (`CanonTonightView.vue`, header button **Tonight** beside Bring in a book, and under the page on a phone; a link
+`/canon/tonight` (`CanonTonightView.vue`, header button **Tonight** beside Bring in a book, and under the title on a phone; a link
 back, "The whole canon") gathers what the next session needs from the canon. It is read-only and stores nothing: every line links to
 where it is edited. A DM route like the rest of the canon (the lens fence derives it: only `/play` is the player area). All gathering
 is the pure `src/lib/canon/canonTonight.ts`; the view reads through the Canon page's own composables, so the doorbell keeps it fresh.
@@ -185,8 +185,7 @@ Five blocks, each left out when empty, in this order:
    "The clock is full" when it is.
 4. **Threads left open**: per character, the open threads of their backstory (`openThreads`) and the DM's passages not yet told to them,
    linking to `/canon?backstory=<party member id>`. A character with neither is left out.
-5. **The table added**: the count of unreviewed table facts, only above zero, linking to the Canon's `#canon-table` part (the Canon page
-   does not yet scroll to a hash).
+5. **The table added**: the count of unreviewed table facts, only above zero, linking to `/canon?section=table` (the Canon page scrolls to the part named by `?section=<part id>`, once the page has loaded).
 
 When all five are empty the page says nothing is waiting and links back to the Canon. There is no dashboard widget yet.
 
@@ -213,19 +212,26 @@ answer a new entry (a truth with a knowledge mark, or a secret) titled with the 
 fails the new entry stays and a toast says so. Answered questions fold under "Answered (n)", each linking to what it became
 (`/canon?entry=<id>`; the FK clears the pointer if that entry is deleted) with *Reopen*, which nulls all four columns. A
 revealed secret offers *Make it a truth* (known to all, with its words and notes) and then reads "Now a truth: <title>";
-the secret stays, still revealed. A part never changes, so becoming is always a new entry plus `became_entry_id`
+the secret stays, still revealed, and *Hide again* on it asks first ("The truth it became stays known to all"). Every
+"becomes" (a secret made a truth, a question answered) writes a canon `led_to` link from the old entry to the new one
+beside `became_entry_id` (`useLinkBecame`); a failed link toasts and undoes nothing. A player whose truth a secret became
+reads it once, under "What we know", not again under "Secrets revealed" (`groupPlayerWorld`, which needs
+`get_player_canon` to return `became_entry_id`). A part never changes, so becoming is always a new entry plus `became_entry_id`
 (`src/lib/canon/canonClose.ts` builds both writes). Revealed secrets sort after the ones still to find. The contents column
 and the start strip count only open questions and forces still moving (`sectionCounts`).
 
 **A secret is one thing, however many places mention it (#1255 item 21).** A quest beat can be *the* canon secret
 (`quest_beats.canon_secret_id`, a secret of the same campaign, DM-only, never in a player projection; deleting the secret
-unties the beat). A secret's page lists "Beats that uncover it" (`SecretBeats.vue`, read through `useSecretBeats` under the
-beats query root, so the `quest_beats` ring refreshes it), and revealing is one rule, `useRevealSecret` (stamp
+unties the beat). A secret's page has one block for where it comes out, **Where it comes out** (`SecretOutlets.vue`),
+grouped by quest: the beats tied to it and the clues placed at that quest's beats (read through `useSecretBeats` and
+`useBeatsByIds` under the beats query root, so the `quest_beats` ring refreshes them), each linking to the beat
+(`/quests/:id/beats/:beatId`). A quest linked by hand (`canon_entry_quests`) with neither reads "Planned, no beat yet";
+its picker says "Plan it in a quest…" and unlinks only hand links. Revealing is one rule, `useRevealSecret` (stamp
 `revealed_at`, share with every party member), used by the secret's own button and by a tied beat's prompt. An NPC's DM
 note stays a note.
 
-A secret also says which quests uncover it ("The quests that uncover it", `canon_entry_quests`; see What is moving), and the
-quest's page lists it under "The canon behind this quest" with its state.
+The hand links are the same `canon_entry_quests` rows (see What is moving), and the quest's page lists the secret under
+"The canon behind this quest" with its state.
 
 ## What is moving
 
@@ -236,6 +242,14 @@ in three DM-only tables, all under the canon query root and all ringing the door
 next, in `sort_order`; `reached_at` and `reached_session_id` stamp the step it has reached), `canon_force_ticks` (each
 move of the clock, forward or back, with a note, the open session and the world's date) and `canon_entry_quests` (the
 quests where the party meets it, once each). Players never read any of it.
+
+- **A force is who doing what** (#1258 item 16). Its title is the plan ("The summoning"), never a copy of its faction's name;
+  the faction is the `about` link, read by `useForceFactions` (one read of the campaign's force-to-faction links, joined to
+  the faction list) and shown as **Who** on the row and the detail under the faction's name as it is now. The add form
+  (`ForceAddForm`, on the canon page and as *Add a force* on a faction's page, prefilled with that faction) asks Who (a
+  faction, optional) and What they are doing (required). Forces made before this keep their titles; the row leaves Who out
+  when it equals the title. The detail shows one quiet line when the clock and the steps disagree (`clockStepsDivergence`):
+  a full clock with steps unreached, or every step reached with the clock short.
 
 - **Quests and canon tie both ways** (#1255 item 12). The links are one table for five parts, and one block draws them:
   `EntryQuests` ("Where the party meets it" on a force, "The quests that uncover it" on a secret, "turn on it" on a truth,
@@ -277,7 +291,11 @@ quests where the party meets it, once each). Players never read any of it.
   written before Accept (for suggestions) or Add force (for manual entry).
 - A force can end (`ForceDetail.vue`, `ForceEndForm.vue`): *End this force…* takes an outcome (`succeeded`, `stopped`,
   `faded`) and an optional note, writing `closed_as`, `closed_at` and `closed_note` together; a full clock that is not ended
-  asks "The clock is full. What happened?" with the same three outcomes. An ended force leaves the ledger for "No longer
+  asks "The clock is full. What happened?" with the same three outcomes, each opening the same form with it chosen. The form
+  also offers an optional **What is true now?** (#1258 item 10): filled in, it makes a truth known to all, closes the force
+  with `became_entry_id` pointing at it and ties the two with a `led_to` link (`endForce`, `canonClose.ts`: truth first, so a
+  failed truth leaves the force moving; a failed link is reported and leaves the closed force pointing at its truth). *Set it
+  moving again* clears `became_entry_id` too and leaves the truth standing. An ended force leaves the ledger for "No longer
   moving (n)", its detail opens with "Ended: …" and *Set it moving again*, and while ended its ticks, step Reached ticks and
   add-step row are off. Suggest forces and the Narrator's "forces that moved here" leave ended forces out.
 - `canon_force_step` is an MCP kind; `canon` also takes `wants` and `clock_size`. `canon` reads `closed_as`, `closed_at`,
@@ -413,21 +431,27 @@ tells that character, **Tell the party** everyone. A player may insert, update a
 their own character's backstory (`private.writes_own_backstory`); a trigger (`guard_player_passage`) tells it when
 written, lets them share it only with party members, and refuses a place, a beat or a changed author (42501). Each
 passage says whose it is: "Written by <player> · before play" or "... after session N" (N is the latest session that had
-started before it was written, `writtenWhen`) or "Your passage". **The people from this past** are the character's own connections (`ConnectionsSection`, subject
-`{ kind: "party_member" }`, each tie with its own reveal), the same list their page shows, so a person is one row that
-reads the same in both places; the NPCs this entry is `about` carry the "From Canon" marker (the entry's own ties are
-read to know which). Under it, **Places and things from this past** is the entry's own block (subject `{ kind: "canon" }`),
-less the `about` ties to people already listed above; an `about` tie to someone the character has no tie to still shows
-there. **New NPC from this backstory** asks how that person relates to the character, creates that People connection
-alongside the Canon `about` link, keeps both hidden from players, then opens the NPC (`useNewBackstoryNpc`). In the NPC's
-Connections block, the People relationship is primary and its Canon origin is a compact marker linking back to the
-source entry.
+started before it was written, `writtenWhen`) or "Your passage". **People from this past** (`BackstoryPeople.vue`, #1258 item 4) is a short read-only list, one link to the NPC's sheet
+each with the word the tie reads as: the NPCs tied to the character (their own connections, the list their page shows)
+plus any NPC this entry is `about` that the character has no tie to, each once. It is not a second editor; one **Edit on
+the character** link goes to their page, where the ties (each with its own reveal) are edited. Under the threads,
+**Places and things from this past** is the entry's own Connections block (subject `{ kind: "canon" }`), less the `about`
+ties to NPCs (listed in People) and the thread ties (listed under Threads, `isThreadTie`), so nothing is shown twice.
+**New NPC from this backstory** (#1258 item 25) opens a small inline form: a name (required) and, optionally, how that
+person relates to the character (the same typed People tie as on the character's page; none leaves the person tied to the
+backstory only). It creates the NPC hidden from players with the Canon `about` link and, when chosen, the People tie
+(`useNewBackstoryNpc`), and **stays on the backstory**: the new person appears in the list and "Open sheet" is offered. In
+the NPC's Connections block, the People relationship is primary and its Canon origin is a compact marker linking back to
+the source entry.
 
 **Threads left open** (#1255 item 13) are the questions and secrets a past raises: the open questions and unrevealed
 secrets tied to the backstory entry by a canon-to-canon link (`related_to` or `led_to`, from either end;
 `src/lib/canon/backstoryThreads.ts`). *A thread this past leaves open…* makes an open question and then ties it to the
 backstory with `related_to`, in that order; if the tie fails the question stays and a toast says it could not be tied.
-Answering the question or revealing the secret takes it off the list. The ledger row says "n open threads" when above zero.
+Answering the question or revealing the secret takes it off the open list and moves it under a collapsed **Paid off (n)**,
+each with what it became (the entry it turned into, else the closing words) and the session it closed after (read from
+`closed_at` / `revealed_at`; the entry holds no session id). Threads are left out of the entry's Connections block, which
+lists them there. The ledger row says "n open threads" when above zero.
 The backstory also lists **The quests that pay it off** (`canon_entry_quests`).
 
 The DM's side is `BackstoriesSection` (one row per party member: "played by", passages, "n not yet told"; the contents
@@ -438,8 +462,10 @@ the Backstories section.
 `LorePassageRow` carries the byline, the player's-own variant (no Tell, no place) and the
 tell target, and `usePassageList` is the add/move/remove the lore entry shares. Who may read the entry besides its
 character is the entry's own `player_visible_to` (the **Share** control in the detail): `canon_entry_seen` lets a backstory
-reach its own character always and others when shared, and a passage reaches whom it was told to. **A player's "Share with
-the party" therefore only reaches the other characters once the DM has shared the entry with them.**
+reach its own character always, others when it is shared, and any member who was told one of its passages (a passage
+reaches only whom it was told to, `get_player_lore_passages`). **A player's "Share with the party" therefore reaches the
+other characters without the DM sharing the entry:** being told a passage is enough to read the entry, and they see only
+the passages told to them.
 
 The Narrator looks a backstory up by meaning (`backstory` is in `LOOKUP_PARTS`, answered under the character's name, its
 passages read as lore's are: the DM's untold ones are the Narrator's to bring out, never to state as settled); the

@@ -63,7 +63,7 @@ describe("FactionForces", () => {
     Object.assign(session, { isDM: true, preview: false });
     Object.assign(state, { connections: [about("f1")], entries, ticks: [] });
   });
-  const mountIt = () => mount(FactionForces, { props: { factionId: "fa1" }, global: { stubs: { RouterLink: { props: ["to"], template: "<a :href=\"typeof to === 'string' ? to : to.query.entry\"><slot /></a>" } } } });
+  const mountIt = () => mount(FactionForces, { props: { factionId: "fa1" }, global: { stubs: { ForceAddForm: true, RouterLink: { props: ["to"], template: "<a :href=\"typeof to === 'string' ? to : to.query.entry\"><slot /></a>" } } } });
 
   it("lists the forces with a link to each entry", () => {
     const w = mountIt();
@@ -71,11 +71,23 @@ describe("FactionForces", () => {
     expect(w.get("a").attributes("href")).toBe("f1");
   });
 
-  it("offers to name a force when there are none", () => {
+  it("lists no force when there are none, and still offers to add one", () => {
     state.connections = [];
     const w = mountIt();
     expect(w.find("[data-testid=faction-force]").exists()).toBe(false);
-    expect(w.get("[data-testid=name-a-force]").attributes("href")).toBe("/canon");
+    expect(w.find("[data-testid=add-a-force]").exists()).toBe(true);
+  });
+
+  // Bug caught (#1258 item 16): a faction's page could only point at the canon, so a force for it was made there and the link to this faction chosen again by hand.
+  it("opens the add form already about this faction, then closes it when the force is added", async () => {
+    const w = mountIt();
+    await w.get("[data-testid=add-a-force]").trigger("click");
+    const form = w.getComponent({ name: "ForceAddForm" });
+    expect(form.props()).toMatchObject({ factionId: "fa1", sortOrder: 3 });
+    expect(w.find("[data-testid=add-a-force]").exists()).toBe(false);
+    form.vm.$emit("added", "f9");
+    await w.vm.$nextTick();
+    expect(w.find("[data-testid=add-a-force]").exists()).toBe(true);
   });
 
   // Bug caught: the DM-only canon reads running (and the block drawing) for a player, or a DM previewing the player portal.

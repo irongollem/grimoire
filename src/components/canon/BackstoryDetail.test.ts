@@ -5,7 +5,7 @@ import { canonEntry } from "@/test/canonEntry";
 import type { CanonLorePassage } from "@/types/canon.types";
 import type { PartyMember } from "@/types/party.types";
 
-const mocks = vi.hoisted(() => ({ startNpc: vi.fn(), update: vi.fn(), createEntry: vi.fn(), connect: vi.fn(), remove: vi.fn(), toastError: vi.fn() }));
+const mocks = vi.hoisted(() => ({ update: vi.fn(), createEntry: vi.fn(), connect: vi.fn(), remove: vi.fn(), toastError: vi.fn() }));
 const state = vi.hoisted(() => ({ entry: null as unknown, passages: [] as unknown[], sessions: [] as unknown[] }));
 const ties = vi.hoisted(() => ({ byKind: {} as Record<string, unknown[]> }));
 const threadData = vi.hoisted(() => ({ entries: [] as unknown[], links: [] as unknown[] }));
@@ -28,7 +28,7 @@ vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => ({ dmPreviewMode: false
 vi.mock("@/composables/canon/usePassageList", () => ({
   usePassageList: () => ({ passages: computed(() => state.passages), adding: ref(false), addPassage: vi.fn(), move: vi.fn(), removePassage: vi.fn() }),
 }));
-vi.mock("@/composables/canon/useNewBackstoryNpc", () => ({ useNewBackstoryNpc: () => ({ start: mocks.startNpc, creating: ref(false) }) }));
+vi.mock("@/composables/canon/useNewBackstoryNpc", () => ({ useNewBackstoryNpc: () => ({ start: vi.fn(), creating: ref(false), discardPending: vi.fn() }) }));
 vi.mock("@/composables/sessions/useCampaignSessions", () => ({ useCampaignSessions: () => ({ data: computed(() => state.sessions) }) }));
 
 import type { Connection } from "@/types/connections.types";
@@ -59,7 +59,7 @@ const SectionStub = {
     },
   },
 };
-const tie = (over: Partial<Connection>) => ({ row_id: "r", type: "about", other_kind: "npc", other_id: "n1", ...over }) as Connection;
+const tie = (over: Partial<Connection>) => ({ row_id: "r", source: "link", type: "about", other_kind: "npc", other_id: "n1", other_name: "Someone", outward: true, ...over }) as Connection;
 const mountDetail = () =>
   mount(BackstoryDetail, {
     props: { member },
@@ -98,14 +98,6 @@ describe("BackstoryDetail", () => {
     expect(mountDetail().find("[data-testid=backstory-tally]").text()).toBe("3 passages, 2 not yet told");
   });
 
-  it("creates the person from this backstory after choosing their relationship to the character", async () => {
-    const w = mountDetail();
-    await w.find("[data-testid=new-npc]").trigger("click");
-    await w.findAll("button").find((button) => button.text() === "friend of")!.trigger("click");
-    await w.find("[data-testid=create-npc]").trigger("click");
-    expect(mocks.startNpc).toHaveBeenCalledWith("b1", "Tansy", "m1", expect.objectContaining({ key: "friend" }));
-  });
-
   // Bug caught: the people and passages drawn (and New NPC offered) for an entry that did not exist yet.
   it("offers nothing to write into until the backstory entry exists", () => {
     state.entry = null;
@@ -114,38 +106,23 @@ describe("BackstoryDetail", () => {
     expect(w.find("[data-testid=backstory-passages]").exists()).toBe(false);
   });
 
-  // Bug caught: the people block was mounted on the canon entry, so it showed only the `about` ties and never the
-  // relationships the character's page shows.
-  it("mounts the people block on the character, and the places block on the entry", () => {
-    const sections = mountDetail().findAll("[data-testid=section]");
-    expect(sections.map((s) => `${s.attributes("data-kind")}:${s.attributes("data-id")}`)).toEqual(["party_member:m1", "canon:b1"]);
+  // Bug caught (#1258 item 4): the character's own Connections editor drawn here a second time, beside the entry's own
+  // block, so the same people were listed twice and edited in two places.
+  it("lists the people read-only and mounts one Connections block, on the entry, for places and things", () => {
+    ties.byKind = { party_member: [tie({ row_id: "pc", type: "mentor_of", other_id: "maren", other_name: "Maren" })], canon: [] };
+    const w = mountDetail();
+    expect(w.findAll("[data-testid=section]").map((s) => `${s.attributes("data-kind")}:${s.attributes("data-id")}`)).toEqual(["canon:b1"]);
+    expect(w.find("[data-testid=backstory-people-list]").text()).toContain("Maren");
   });
 
-  // Bug caught: a person tied about from the backstory AND to the character was listed in both blocks.
-  it("leaves an about tie out of the second block when that person is in the character's list", () => {
+  // Bug caught: an about tie to a person left in the places block, so the person was shown in both lists.
+  it("leaves an about tie to a person out of the places block, and keeps a place", () => {
     ties.byKind = {
-      party_member: [tie({ row_id: "pc", type: "mentor", other_id: "maren" })],
+      party_member: [],
       canon: [tie({ row_id: "a", other_id: "maren" }), tie({ row_id: "p", other_kind: "location", other_id: "mill", type: "took_place_at" })],
     };
-    const second = mountDetail().findAll("[data-testid=section]")[1]!;
+    const second = mountDetail().find("[data-testid=section]");
     expect(second.findAll("[data-testid=tie]").map((t) => t.text())).toEqual(["mill"]);
-  });
-
-  // Bug caught: hiding every about tie to a person, so someone with no tie to the character vanished from both blocks.
-  it("keeps an about tie to a person the character has no tie to", () => {
-    ties.byKind = { party_member: [], canon: [tie({ row_id: "a", other_id: "stranger" })] };
-    const second = mountDetail().findAll("[data-testid=section]")[1]!;
-    expect(second.findAll("[data-testid=tie]").map((t) => t.text())).toEqual(["stranger"]);
-  });
-
-  // Bug caught: the character's list not saying which of its people came from the backstory.
-  it("hands the first block the NPCs the backstory is about, to mark", () => {
-    ties.byKind = {
-      party_member: [tie({ row_id: "pc", type: "mentor", other_id: "maren" }), tie({ row_id: "pd", type: "friend", other_id: "harl" })],
-      canon: [tie({ row_id: "a", other_id: "maren" })],
-    };
-    const first = mountDetail().findAll("[data-testid=section]")[0]!;
-    expect(first.findAll("[data-testid=tie]").map((t) => t.attributes("data-marked"))).toEqual(["true", "false"]);
   });
 
   describe("threads left open", () => {
@@ -160,6 +137,32 @@ describe("BackstoryDetail", () => {
       ];
       threadData.links = [thread("q1"), thread("q2"), thread("s1")];
       expect(mountDetail().findAll("[data-testid=backstory-thread]").map((t) => t.text())).toEqual(["Who burned the mill?a question", "Who paida secret"]);
+    });
+
+    // Bug caught (#1258 item 5): a thread listed under Threads left open and again in the entry's Connections block.
+    it("does not list a thread again in the places and things block", () => {
+      threadData.entries = [canonEntry({ id: "q1", part: "question" }), canonEntry({ id: "q2", part: "question", closed_as: "answered", closed_at: "2026-11-01T00:00:00Z" }), canonEntry({ id: "lore1", part: "lore" })];
+      threadData.links = [thread("q1"), thread("q2"), thread("lore1")];
+      ties.byKind = { canon: [tie({ row_id: "t1", other_kind: "canon", other_id: "q1", type: "related_to" }), tie({ row_id: "t2", other_kind: "canon", other_id: "q2", type: "related_to" }), tie({ row_id: "l1", other_kind: "canon", other_id: "lore1", type: "related_to" })] };
+      const w = mountDetail();
+      expect(w.find("[data-testid=section]").findAll("[data-testid=tie]").map((t) => t.text())).toEqual(["lore1"]);
+    });
+
+    // Bug caught (#1258 item 5): a question answered or a secret revealed dropping out of the backstory with nothing kept.
+    it("keeps an answered thread under a collapsed 'Paid off (n)', with what it became and when", async () => {
+      state.sessions = [{ number: 15, started_at: "2026-10-08T18:00:00Z" }];
+      threadData.entries = [
+        canonEntry({ id: "q2", part: "question", title: "Who burned the mill?", closed_as: "answered", closed_at: "2026-11-01T00:00:00Z", closed_note: "Maren did", became_entry_id: "t9" }),
+        canonEntry({ id: "t9", part: "truth", title: "Maren burned the mill" }),
+      ];
+      threadData.links = [thread("q2")];
+      const w = mountDetail();
+      expect(w.find("[data-testid=backstory-thread]").exists()).toBe(false);
+      expect(w.find("[data-testid=paid-off-toggle]").text()).toBe("Paid off (1)");
+      expect(w.find("[data-testid=paid-off-list]").exists()).toBe(false);
+      await w.find("[data-testid=paid-off-toggle]").trigger("click");
+      expect(w.find("[data-testid=paid-off-thread]").text()).toContain("Who burned the mill?");
+      expect(w.find("[data-testid=paid-off-became]").text()).toBe('became "Maren burned the mill", after session 15');
     });
 
     async function addThread(w: ReturnType<typeof mountDetail>, words: string) {

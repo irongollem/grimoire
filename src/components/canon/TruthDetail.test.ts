@@ -44,10 +44,12 @@ const PickerStub = {
   template: `<button data-testid="pick" @click="$emit('pick', { kind: 'faction', id: 'f9', name: 'The Gilded' })">pick</button>`,
 };
 
+const ConnectionsStub = { name: "ConnectionsSection", props: ["hide"], template: "<div />" };
+
 function mountDetail(e: CanonEntry) {
   return mount(TruthDetail, {
     props: { entry: e },
-    global: { stubs: { EntryQuests: EntryQuestsStub, RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" }, ConnectionsSection: true, CanonEntryNotes: true, WorldEntityPicker: PickerStub } },
+    global: { stubs: { EntryQuests: EntryQuestsStub, RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" }, ConnectionsSection: ConnectionsStub, CanonEntryNotes: true, WorldEntityPicker: PickerStub } },
   });
 }
 
@@ -147,5 +149,14 @@ describe("TruthDetail", () => {
     expect(block.props("links")).toEqual([expect.objectContaining({ id: "l1" })]);
     expect(block.props("label")).toBe("The quests that turn on it");
     expect(block.props("empty")).toBe("No quest turns on this yet.");
+  });
+
+  // Bug caught (#1258 item 6): "who knows it" was drawn twice, once as Known to and again in the Connections block,
+  // because the block got no filter. Other ties (a place, a faction it is about) must still show.
+  it("hides the known_to ties from the Connections block, and only those", () => {
+    const hide = mountDetail(entry()).getComponent(ConnectionsStub).props("hide") as (c: Connection) => boolean;
+    expect(hide(knower())).toBe(true);
+    expect(hide(knower({ type: "about" }))).toBe(false);
+    expect(hide(knower({ outward: false }))).toBe(false);
   });
 });

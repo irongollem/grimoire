@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canonEntry } from "@/test/canonEntry";
-import type { PartyMember } from "@/types/party.types";
-import { matchesQuery, narrowToArc, partyInArc } from "./canonNarrow";
+import { matchesQuery, narrowToArc } from "./canonNarrow";
 
 describe("narrowToArc", () => {
   const entries = [
@@ -22,25 +21,14 @@ describe("narrowToArc", () => {
     expect(narrowToArc(entries, "a-none").map((e) => e.id)).toEqual(["prem"]);
   });
 
+  // Bug caught: a character's backstory hidden under an arc because its entry sits in another arc (a character spans arcs).
+  it("never narrows a backstory", () => {
+    const backstories = [canonEntry({ id: "b-in", part: "backstory", arc_id: "a1" }), canonEntry({ id: "b-out", part: "backstory", arc_id: "a2" }), canonEntry({ id: "b-none", part: "backstory", arc_id: null })];
+    expect(narrowToArc(backstories, "a1").map((e) => e.id)).toEqual(["b-in", "b-out", "b-none"]);
+  });
+
   it("shows everything with no arc chosen", () => {
     expect(narrowToArc(entries, null)).toHaveLength(5);
-  });
-});
-
-describe("partyInArc", () => {
-  const party = [{ id: "m1", name: "Tansy" }, { id: "m2", name: "Pim" }, { id: "m3", name: "Wren" }] as PartyMember[];
-  const backstories = [
-    canonEntry({ id: "b1", part: "backstory", party_member_id: "m1", arc_id: "a1" }),
-    canonEntry({ id: "b2", part: "backstory", party_member_id: "m2", arc_id: "a2" }),
-  ];
-
-  // Bug caught: a character with no backstory, or one in another arc, kept in a narrowed Backstories part.
-  it("keeps only the characters whose backstory is in the arc", () => {
-    expect(partyInArc(party, backstories, "a1").map((m) => m.id)).toEqual(["m1"]);
-  });
-
-  it("keeps the whole party with no arc chosen", () => {
-    expect(partyInArc(party, backstories, null)).toHaveLength(3);
   });
 });
 

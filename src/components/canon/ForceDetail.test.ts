@@ -1,14 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import type { CanonForceTick } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
 
-const mocks = vi.hoisted(() => ({ update: vi.fn(), tick: vi.fn(), undo: vi.fn() }));
+const mocks = vi.hoisted(() => ({ update: vi.fn(), tick: vi.fn(), undo: vi.fn(), createTruth: vi.fn(), connect: vi.fn(), faction: { current: null as { id: string; name: string } | null } }));
 const forceData = ref<{ steps: unknown[]; ticks: CanonForceTick[]; quests: unknown[] }>({ steps: [], ticks: [], quests: [] });
 
 vi.mock("@/stores/calendar", () => ({ useCalendarStore: () => ({ adapter: { formatDate: () => "" } }) }));
-vi.mock("@/composables/canon/useCanonEntries", () => ({ useUpdateCanonEntry: () => ({ mutate: mocks.update }) }));
+vi.mock("@/composables/canon/useCanonEntries", () => ({
+  useUpdateCanonEntry: () => ({ mutate: mocks.update, mutateAsync: (arg: unknown) => Promise.resolve(mocks.update(arg)) }),
+  useCreateCanonEntry: () => ({ mutateAsync: mocks.createTruth }),
+}));
+vi.mock("@/composables/connections/useConnections", () => ({ useCreateConnection: () => ({ mutateAsync: mocks.connect }) }));
+vi.mock("@/composables/canon/useForceFactions", () => ({ useForceFactions: () => ({ factionOf: () => mocks.faction.current, whoOf: () => mocks.faction.current?.name ?? null }) }));
 vi.mock("@/composables/canon/useCanonForces", async (original) => ({
   ...(await original<typeof import("@/composables/canon/useCanonForces")>()),
   useCanonForceData: () => ({ data: forceData }),
@@ -30,11 +35,12 @@ const force = (over = {}) => canonEntry({ id: "f1", campaign_id: "c1", part: "fo
 const EntryQuestsStub = { name: "EntryQuests", props: ["entry", "links", "label", "empty"], template: "<div />" };
 
 const mountIt = (entry = force()) =>
-  mount(ForceDetail, { props: { entry }, global: { stubs: { ForceSteps: true, EntryQuests: EntryQuestsStub, ConnectionsSection: true, CanonEntryNotes: true, ForceQuestClocks: true } } });
+  mount(ForceDetail, { props: { entry }, global: { stubs: { RouterLink: { props: ["to"], template: "<a :href=\"to\"><slot /></a>" }, ForceSteps: true, EntryQuests: EntryQuestsStub, ConnectionsSection: true, CanonEntryNotes: true, ForceQuestClocks: true } } });
 
 describe("ForceDetail", () => {
   beforeEach(() => {
-    for (const m of Object.values(mocks)) m.mockReset();
+    for (const m of [mocks.update, mocks.tick, mocks.undo, mocks.createTruth, mocks.connect]) m.mockReset();
+    mocks.faction.current = null;
     forceData.value = { steps: [], ticks: [], quests: [] };
   });
 
@@ -88,11 +94,11 @@ describe("ForceDetail", () => {
     expect(mocks.undo).toHaveBeenCalledWith(expect.objectContaining({ id: "new" }));
   });
 
-  it("saves who and what it wants when a field is left, and a clock size when it is chosen", async () => {
+  it("saves what they are doing and what it wants when a field is left, and a clock size when it is chosen", async () => {
     const w = mountIt();
     await w.get("textarea[aria-label='What it wants']").setValue("the river");
     expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { wants: "the river" } });
-    await w.get("input[aria-label='Who moves']").setValue("The Stain");
+    await w.get("input[aria-label='What they are doing']").setValue("The Stain");
     expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { title: "The Stain" } });
     await w.get("select[aria-label='Clock size']").setValue("8");
     expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { clock_size: 8 } });
@@ -107,11 +113,13 @@ describe("ForceDetail", () => {
   const ended = (over = {}) => force({ closed_as: "stopped", closed_at: "2026-11-23T10:00:00Z", closed_note: "Sift burned the ledger.", ...over });
 
   // Bug caught (#1255 item 9): a full clock did nothing, so the force had no way to end.
-  it("offers the outcomes when the clock is full, and choosing one ends the force", async () => {
+  it("offers the outcomes when the clock is full, and choosing one opens the end form with it chosen", async () => {
     forceData.value.ticks = Array.from({ length: 6 }, (_, i) => tick({ id: `t${i}` }));
     const w = mountIt();
     expect(w.get("[data-testid=force-clock-full]").text()).toContain("The clock is full. What happened?");
     await w.get("[data-testid=force-full-succeeded]").trigger("click");
+    await w.get("[data-testid=force-end-form]").trigger("submit");
+    await flushPromises();
     expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: expect.objectContaining({ closed_as: "succeeded", closed_note: null }) });
   });
 
@@ -134,7 +142,66 @@ describe("ForceDetail", () => {
     await buttons.find((b) => b.text() === "It faded away")!.trigger("click");
     await w.get("[data-testid=force-end-form] input").setValue("Nobody remembered it.");
     await w.get("[data-testid=force-end-form]").trigger("submit");
+    await flushPromises();
     expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: expect.objectContaining({ closed_as: "faded", closed_note: "Nobody remembered it." }) });
+    expect(mocks.createTruth).not.toHaveBeenCalled();
+  });
+
+  // Bug caught (#1258 item 10): ending a force left nothing behind: no truth, no pointer, no led_to tie.
+  it("ends with a line on what is true now by making the truth, pointing the force at it and tying them led_to", async () => {
+    mocks.createTruth.mockResolvedValue({ id: "truth1" });
+    mocks.connect.mockResolvedValue(undefined);
+    const w = mountIt();
+    await w.get("[data-testid=force-end]").trigger("click");
+    await w.get("[data-testid=force-end-form] input[aria-label='What is true now?']").setValue("The orchards are dead.");
+    await w.get("[data-testid=force-end-form]").trigger("submit");
+    await flushPromises();
+    expect(mocks.createTruth).toHaveBeenCalledWith({ part: "truth", knowledge: "all", title: "The orchards are dead." });
+    expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: expect.objectContaining({ closed_as: "stopped", became_entry_id: "truth1" }) });
+    expect(mocks.connect).toHaveBeenCalledWith({
+      subject: { kind: "canon", id: "f1" },
+      other: { kind: "canon", id: "truth1", name: "The orchards are dead." },
+      choice: expect.objectContaining({ key: "led_to", subjectIsFrom: true }),
+    });
+  });
+
+  // Bug caught: the form closed on a failed truth, so the DM's line was lost and the force still read as moving.
+  it("keeps the end form open and the force moving when the truth cannot be made", async () => {
+    mocks.createTruth.mockRejectedValue(new Error("no"));
+    const w = mountIt();
+    await w.get("[data-testid=force-end]").trigger("click");
+    await w.get("[data-testid=force-end-form] input[aria-label='What is true now?']").setValue("It is over.");
+    await w.get("[data-testid=force-end-form]").trigger("submit");
+    await flushPromises();
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(w.find("[data-testid=force-end-form]").exists()).toBe(true);
+  });
+
+  // Bug caught (#1258 item 16): the detail's Who was an editable copy of the title; it must read the faction's live name instead.
+  it("names the linked faction as Who, and shows no Who for a force with none", () => {
+    mocks.faction.current = { id: "fa1", name: "The Ferrymen (renamed)" };
+    const w = mountIt(force());
+    expect(w.get("[data-testid=force-who]").text()).toBe("The Ferrymen (renamed)");
+    mocks.faction.current = null;
+    expect(mountIt().find("[data-testid=force-who]").exists()).toBe(false);
+  });
+
+  // Bug caught (#1258 item 11): a clock and steps that disagree said nothing, in either direction.
+  it("says so when the clock is full with steps unreached, and when every step is reached with the clock short", () => {
+    forceData.value.steps = [{ id: "s1", force_id: "f1", reached_at: "t" }, { id: "s2", force_id: "f1", reached_at: null }];
+    forceData.value.ticks = Array.from({ length: 6 }, (_, i) => tick({ id: `t${i}` }));
+    expect(mountIt().get("[data-testid=force-divergence]").text()).toBe("The clock is full with 1 step unreached.");
+    forceData.value.steps = [{ id: "s1", force_id: "f1", reached_at: "t" }];
+    forceData.value.ticks = [tick({ id: "a" }), tick({ id: "b" }), tick({ id: "c" })];
+    expect(mountIt().get("[data-testid=force-divergence]").text()).toBe("Every step is reached; the clock stands at 3 of 6.");
+  });
+
+  it("says nothing when they agree, and nothing of an ended force", () => {
+    forceData.value.steps = [{ id: "s1", force_id: "f1", reached_at: "t" }, { id: "s2", force_id: "f1", reached_at: null }];
+    forceData.value.ticks = [tick({ id: "a" })];
+    expect(mountIt().find("[data-testid=force-divergence]").exists()).toBe(false);
+    forceData.value.ticks = Array.from({ length: 6 }, (_, i) => tick({ id: `t${i}` }));
+    expect(mountIt(ended()).find("[data-testid=force-divergence]").exists()).toBe(false);
   });
 
   // Bug caught: an ended force still ticked forward, moving a world it no longer drives.
@@ -148,11 +215,11 @@ describe("ForceDetail", () => {
     expect(w.find("[data-testid=force-end]").exists()).toBe(false);
   });
 
-  // Bug caught: Set it moving again left closed_note set, which the table refuses.
-  it("sets it moving again by clearing all three columns", async () => {
+  // Bug caught: Set it moving again left closed_note set, which the table refuses, or left it pointing at a truth it no longer became.
+  it("sets it moving again by clearing the three columns and the truth it became", async () => {
     const w = mountIt(ended());
     await w.get("[data-testid=force-resume]").trigger("click");
-    expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { closed_as: null, closed_at: null, closed_note: null } });
+    expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { closed_as: null, closed_at: null, closed_note: null, became_entry_id: null } });
   });
 
   it("leaves the steps frozen only for an ended force", () => {

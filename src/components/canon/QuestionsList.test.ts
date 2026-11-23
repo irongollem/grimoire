@@ -5,13 +5,14 @@ import { ref } from "vue";
 import type { CanonEntry } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
 
-const mocks = vi.hoisted(() => ({ create: vi.fn(), update: vi.fn(), updateAsync: vi.fn(), destroy: vi.fn(), confirm: vi.fn(), toastError: vi.fn() }));
+const mocks = vi.hoisted(() => ({ create: vi.fn(), update: vi.fn(), updateAsync: vi.fn(), destroy: vi.fn(), confirm: vi.fn(), toastError: vi.fn(), connect: vi.fn() }));
 vi.mock("@/lib/toast", () => ({ toast: { error: mocks.toastError } }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({
   useCreateCanonEntry: () => ({ mutateAsync: mocks.create, isPending: ref(false) }),
   useUpdateCanonEntry: () => ({ mutate: mocks.update, mutateAsync: mocks.updateAsync }),
   useTrashCanonEntry: () => ({ mutateAsync: mocks.destroy }),
 }));
+vi.mock("@/composables/connections/useConnections", () => ({ useCreateConnection: () => ({ mutateAsync: mocks.connect }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 
 vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
@@ -95,6 +96,33 @@ describe("QuestionsList", () => {
       patch: expect.objectContaining({ closed_as: "answered", closed_note: "The guild did.", became_entry_id: "new1" }),
     });
     expect(mocks.create.mock.invocationCallOrder[0]).toBeLessThan(mocks.updateAsync.mock.invocationCallOrder[0]);
+  });
+
+  // Bug caught (#1258 item 18): answering set became_entry_id but left no canon led_to link, so the answer was missing
+  // from the question's Connections and the web.
+  it("links the question to its answer with led_to", async () => {
+    mocks.create.mockResolvedValue(q("new1", "The guild did."));
+    mocks.updateAsync.mockResolvedValue(undefined);
+    const w = mountList();
+    await openAnswerForm(w, "The guild did.");
+    await w.find("[data-testid=question-answer-form]").trigger("submit");
+    await flushPromises();
+    expect(mocks.connect).toHaveBeenCalledWith(expect.objectContaining({
+      subject: { kind: "canon", id: "q1" },
+      other: expect.objectContaining({ kind: "canon", id: "new1" }),
+      choice: expect.objectContaining({ key: "led_to", subjectIsFrom: true }),
+    }));
+  });
+
+  // Bug caught: a question that could not be closed still got a link to its answer, so the two disagreed.
+  it("writes no link when the question could not be closed", async () => {
+    mocks.create.mockResolvedValue(q("new1", "x"));
+    mocks.updateAsync.mockRejectedValue(new Error("no"));
+    const w = mountList();
+    await openAnswerForm(w, "The guild did.");
+    await w.find("[data-testid=question-answer-form]").trigger("submit");
+    await flushPromises();
+    expect(mocks.connect).not.toHaveBeenCalled();
   });
 
   // Bug caught: a failed close rolled the new entry back (or threw unhandled), losing the DM's answer.

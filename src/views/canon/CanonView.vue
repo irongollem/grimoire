@@ -4,6 +4,11 @@
       <AppButton to="/canon/tonight" variant="ghost" size="md" :icon="IconMoon" label="Tonight" />
       <AppButton to="/canon/import" variant="outline" size="md" :icon="IconUpload" label="Bring in a book" />
     </template>
+    <!-- The header holds these from a tablet up; a phone's header is the page's own bar, so they sit under the title where a thumb finds them. -->
+    <div class="mb-4 flex gap-2 md:hidden" data-testid="canon-phone-actions">
+      <AppButton to="/canon/tonight" variant="outline" size="sm" :icon="IconMoon" label="Tonight" />
+      <AppButton to="/canon/import" variant="outline" size="sm" :icon="IconUpload" label="Bring in a book" />
+    </div>
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
       <CanonContents class="sticky top-0 z-10 lg:z-auto lg:shrink-0" :active="active" :counts="counts" @select="goTo" />
 
@@ -43,7 +48,7 @@
             </template>
           </CanonSplit>
           <CanonSplit close-label="Close this backstory" @close="closeEntry">
-            <BackstoriesSection :party="shownParty" :arc-label="arcLabel" :entries="backstories" :passages="allPassages ?? []" :selected-id="selectedBackstoryMember?.id ?? null" @select="selectBackstory" />
+            <BackstoriesSection :party="party" :entries="backstories" :passages="allPassages ?? []" :selected-id="selectedBackstoryMember?.id ?? null" @select="selectBackstory" />
             <template v-if="selectedBackstoryMember" #detail>
               <BackstoryDetail :key="selectedBackstoryMember.id" :member="selectedBackstoryMember" />
             </template>
@@ -51,9 +56,6 @@
           <ChronicleSection :lore="lore" :forces="forces" />
           <TableAddedSection :truths="truths" />
           <CanonDeleted />
-          <!-- The header holds Bring in a book from a tablet up; a phone's header is the page's own bar. -->
-          <AppButton to="/canon/tonight" variant="ghost" size="md" :icon="IconMoon" label="Tonight" class="self-start md:hidden" />
-          <AppButton to="/canon/import" variant="outline" size="md" :icon="IconUpload" label="Bring in a book" class="self-start md:hidden" />
         </template>
       </div>
     </div>
@@ -97,7 +99,7 @@ import TruthDetail from "@/components/canon/TruthDetail.vue";
 import TruthsSection from "@/components/canon/TruthsSection.vue";
 import WorldWorksSection from "@/components/canon/WorldWorksSection.vue";
 import LifeSection from "@/components/canon/ecology/LifeSection.vue";
-import { narrowToArc, partyInArc } from "@/lib/canon/canonNarrow";
+import { narrowToArc } from "@/lib/canon/canonNarrow";
 import { useCanonArcs } from "@/composables/canon/useCanonArcs";
 import { useCanonUiStore } from "@/stores/ui/canon";
 import { CANON_SECTIONS, sectionCounts, sectionOfPart, type CanonSectionId } from "@/lib/canon/canonParts";
@@ -145,7 +147,6 @@ const shownForces = computed(() => narrowed.value.filter((e) => e.part === "forc
 const shownSecrets = computed(() => narrowed.value.filter((e) => e.part === "secret"));
 const shownQuestions = computed(() => narrowed.value.filter((e) => e.part === "question"));
 const shownLore = computed(() => narrowed.value.filter((e) => e.part === "lore"));
-const shownParty = computed(() => partyInArc(party.value, backstories.value, ui.arcFilter));
 
 // "Where to begin" asks what the canon holds at all, so it reads the whole canon; the contents column counts what the
 // narrowed parts show, so its numbers match the lists under the arc.
@@ -157,7 +158,7 @@ const startCounts = computed(() => ({ ...sectionCounts(entries.value), backstori
 const counts = computed(() => ({
   ...sectionCounts(narrowed.value),
   // One backstory per character, opened or not: the contents column counts the characters.
-  backstories: shownParty.value.length,
+  backstories: party.value.length,
   ...elsewhere.value,
 }));
 
@@ -204,7 +205,7 @@ const { confirm } = useConfirm();
 async function removeSelected() {
   const target = selected.value;
   if (!target) return;
-  const noun = target.part === "secret" ? "secret" : target.part === "force" ? "force" : target.part === "lore" ? "lore" : "truth";
+  const noun = target.part === "secret" ? "secret" : target.part === "force" ? "force" : target.part === "lore" ? "lore entry" : "truth";
   const parts = target.part === "secret" ? " and clues" : target.part === "force" ? ", steps, ticks and quest links" : target.part === "lore" ? " and passages" : "";
   const ok = await confirm(`Delete this ${noun}? "${target.title}" and its connections${parts} go to Deleted for thirty days, where you can restore them.`, {
     title: `Delete this ${noun}`,

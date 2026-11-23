@@ -4,7 +4,7 @@ import { ref } from "vue";
 import type { CanonClue, CanonEntry } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
 
-const mocks = vi.hoisted(() => ({ update: vi.fn(), updateAsync: vi.fn(), create: vi.fn(), toastError: vi.fn(), confirm: vi.fn(), setFound: vi.fn(), destroyClue: vi.fn() }));
+const mocks = vi.hoisted(() => ({ update: vi.fn(), updateAsync: vi.fn(), create: vi.fn(), toastError: vi.fn(), confirm: vi.fn(), setFound: vi.fn(), destroyClue: vi.fn(), connect: vi.fn() }));
 const clues = ref<CanonClue[]>([]);
 const party = ref<{ id: string }[] | undefined>([]);
 const passages = ref<{ id: string; entry_id: string; title: string }[]>([]);
@@ -23,22 +23,17 @@ vi.mock("@/composables/canon/useCanonClues", () => ({
   useDeleteCanonClue: () => ({ mutateAsync: mocks.destroyClue }),
   useSetClueFound: () => mocks.setFound,
 }));
+vi.mock("@/composables/connections/useConnections", () => ({ useCreateConnection: () => ({ mutateAsync: mocks.connect }) }));
 vi.mock("@/composables/canon/useClueWhere", () => ({ useClueWhere: () => ref(() => null), useBeatOptions: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/canon/useCanonPassages", () => ({ useCanonPassages: () => ({ data: passages }) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: party }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 
-const questData = vi.hoisted(() => ({ quests: [] as unknown[] }));
-vi.mock("@/composables/canon/useCanonForces", async (orig) => ({
-  ...(await orig<typeof import("@/composables/canon/useCanonForces")>()),
-  useCanonForceData: () => ({ data: { value: { steps: [], ticks: [], quests: questData.quests } } }),
-}));
-const EntryQuestsStub = { name: "EntryQuests", props: ["entry", "links", "label", "empty"], template: "<div data-testid='entry-quests' />" };
 vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
 
 import SecretDetail from "./SecretDetail.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
-import SecretBeats from "./SecretBeats.vue";
+import SecretOutlets from "./SecretOutlets.vue";
 
 const secret = (over: Partial<CanonEntry> = {}): CanonEntry => canonEntry({ id: "s1", part: "secret", title: "Sift is the guild master's daughter.", ...over });
 const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
@@ -46,7 +41,7 @@ const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
   quest_beat_id: null, found_at: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
 });
 
-const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { EntryQuests: EntryQuestsStub, ConnectionsSection: true, SecretBeats: true, CanonEntryNotes: true, ClueForm: true, CanonSuggestions: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
+const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { ConnectionsSection: true, SecretOutlets: true, CanonEntryNotes: true, ClueForm: true, CanonSuggestions: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
 
 describe("SecretDetail", () => {
   beforeEach(() => {
@@ -57,9 +52,11 @@ describe("SecretDetail", () => {
     Object.values(mocks).forEach((m) => m.mockReset());
   });
 
-  // Bug caught (#1255 item 21): the beats list asked about another secret (or none), so a secret showed no beats or another's.
-  it("lists the beats tied to this secret", () => {
-    expect(mountDetail(secret()).getComponent(SecretBeats).props("secretId")).toBe("s1");
+  // Bug caught (#1258 item 3): the outlets block was handed another secret, or none of this secret's clues, so it could not group them.
+  it("gives the outlets block this secret and its clues", () => {
+    const block = mountDetail(secret()).getComponent(SecretOutlets);
+    expect(block.props("entry")).toMatchObject({ id: "s1" });
+    expect(block.props("clues")).toHaveLength(2);
   });
 
   // Bug caught (#1255 item 8): the secret had nowhere to write what is really going on, or the notes were bound to another entry.
@@ -95,6 +92,30 @@ describe("SecretDetail", () => {
     expect(call.id).toBe("s1");
     expect(call.patch.player_visible_to).toEqual(["pm1", "pm2"]);
     expect(Number.isNaN(Date.parse(call.patch.revealed_at))).toBe(false);
+  });
+
+  // Bug caught (#1258 item 13): Hide again on a secret that became a truth hid it silently, leaving the truth known to all
+  // beside a hidden secret. It asks first, and a "no" writes nothing.
+  it("asks before hiding a secret that became a truth, and hides nothing when refused", async () => {
+    mocks.confirm.mockResolvedValue(false);
+    const w = mountDetail(revealed({ became_entry_id: "t7" }));
+    await w.get("[data-testid=hide]").trigger("click");
+    await flushPromises();
+    expect(mocks.confirm).toHaveBeenCalledWith("The truth it became stays known to all. Hide the secret anyway?", expect.anything());
+    expect(mocks.update).not.toHaveBeenCalled();
+    mocks.confirm.mockResolvedValue(true);
+    await w.get("[data-testid=hide]").trigger("click");
+    await flushPromises();
+    expect(mocks.update).toHaveBeenCalledWith({ id: "s1", patch: { revealed_at: null } });
+  });
+
+  // Bug caught: the question was asked of every secret, so hiding one that never became a truth needed a pointless confirm.
+  it("hides a secret that never became a truth without asking", async () => {
+    const w = mountDetail(revealed());
+    await w.get("[data-testid=hide]").trigger("click");
+    await flushPromises();
+    expect(mocks.confirm).not.toHaveBeenCalled();
+    expect(mocks.update).toHaveBeenCalledWith({ id: "s1", patch: { revealed_at: null } });
   });
 
   it("offers Hide again, not Reveal, once revealed, and clears revealed_at", async () => {
@@ -168,6 +189,21 @@ describe("SecretDetail", () => {
     expect(mocks.updateAsync).toHaveBeenCalledWith({ id: "s1", patch: { became_entry_id: "t7" } });
   });
 
+  // Bug caught (#1258 item 18): the truth was pointed at but no canon led_to link was written, so the secret's
+  // Connections and the web never showed where it led.
+  it("writes a led_to link from the secret to the truth it became", async () => {
+    mocks.create.mockResolvedValue(canonEntry({ id: "t7", part: "truth", title: "Sift is the daughter." }));
+    mocks.updateAsync.mockResolvedValue(undefined);
+    const w = mountDetail(revealed());
+    await w.get("[data-testid=make-truth]").trigger("click");
+    await flushPromises();
+    expect(mocks.connect).toHaveBeenCalledWith(expect.objectContaining({
+      subject: { kind: "canon", id: "s1" },
+      other: expect.objectContaining({ kind: "canon", id: "t7" }),
+      choice: expect.objectContaining({ key: "led_to", subjectIsFrom: true }),
+    }));
+  });
+
   // Bug caught: a failed pointer deleted the truth just made, or failed silently.
   it("keeps the truth and says so when the secret cannot be pointed at it", async () => {
     mocks.create.mockResolvedValue(canonEntry({ id: "t7", part: "truth" }));
@@ -176,6 +212,7 @@ describe("SecretDetail", () => {
     await w.get("[data-testid=make-truth]").trigger("click");
     await flushPromises();
     expect(mocks.toastError).toHaveBeenCalled();
+    expect(mocks.connect).not.toHaveBeenCalled();
   });
 
   // Bug caught: the button stayed after the secret became a truth, so it could be made twice.
@@ -184,16 +221,5 @@ describe("SecretDetail", () => {
     const w = mountDetail(revealed({ became_entry_id: "t7" }));
     expect(w.find("[data-testid=make-truth]").exists()).toBe(false);
     expect(w.get("[data-testid=secret-became]").text()).toBe("Now a truth: Sift is the daughter.");
-  });
-  // Bug caught: the block showing another entry's quests (or another part's words), so a secret read as a force's "where the party meets it".
-  it("shows this secret's own quest links, in the secret's words", () => {
-    questData.quests = [
-      { id: "l1", entry_id: "s1", quest_id: "q1" },
-      { id: "l2", entry_id: "someone-else", quest_id: "q2" },
-    ];
-    const block = mountDetail(secret()).getComponent(EntryQuestsStub);
-    expect(block.props("links")).toEqual([expect.objectContaining({ id: "l1" })]);
-    expect(block.props("label")).toBe("The quests that uncover it");
-    expect(block.props("empty")).toBe("No quest is built to uncover this yet.");
   });
 });
