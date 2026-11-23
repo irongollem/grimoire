@@ -1,30 +1,32 @@
 -- #1255 item 30: the peoples of a world are rows that link a species or a bestiary creature to a share.
 --
---   1 Dana (DM)   2 Pat (a player at Dana's table)   3 Sam (a stranger, DM of another table)
+--   1 Dana (DM)   2 Pat (a player at Dana's table)   3 Sam (a stranger, DM of another table)   4 Cole (Dana's co-DM)
 -- Every refusal sits beside the same caller, or the DM, succeeding at the allowed thing.
 
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(16);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('12553000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
        'authenticated', 'authenticated', 'peoples-' || n || '@example.invalid', '', '{}'::jsonb, '{}'::jsonb
-from generate_series(1, 3) as n;
+from generate_series(1, 4) as n;
 
 insert into public.campaigns (id, user_id, name, game_system) values
   ('12553000-0000-4000-8000-0000000000c1', '12553000-0000-4000-8000-000000000001', 'Elf country', 'dnd5e-2024'),
   ('12553000-0000-4000-8000-0000000000c3', '12553000-0000-4000-8000-000000000003', 'Sam''s table', 'dnd5e-2024');
 
 insert into public.campaign_members (campaign_id, user_id, role, display_name) values
-  ('12553000-0000-4000-8000-0000000000c1', '12553000-0000-4000-8000-000000000002', 'player', 'Pat');
+  ('12553000-0000-4000-8000-0000000000c1', '12553000-0000-4000-8000-000000000002', 'player', 'Pat'),
+  ('12553000-0000-4000-8000-0000000000c1', '12553000-0000-4000-8000-000000000004', 'dm', 'Cole');
 
 insert into public.library_species (id, name, ruleset, source_document_key, source_record_key, speed) values
   ('test_1255_elf', 'Elf', '2024', 'test-1255', 'elf', '{"walk": 30}');
 insert into public.species (id, user_id, name) values
   ('12553000-0000-4000-8000-0000000000e1', '12553000-0000-4000-8000-000000000001', 'Saltborn'),
-  ('12553000-0000-4000-8000-0000000000e3', '12553000-0000-4000-8000-000000000003', 'Sam''s own people');
+  ('12553000-0000-4000-8000-0000000000e3', '12553000-0000-4000-8000-000000000003', 'Sam''s own people'),
+  ('12553000-0000-4000-8000-0000000000e4', '12553000-0000-4000-8000-000000000004', 'Cole''s own people');
 insert into public.monsters (id, user_id, name) values
   ('12553000-0000-4000-8000-0000000000f1', '12553000-0000-4000-8000-000000000001', 'Marsh goblin');
 
@@ -104,6 +106,24 @@ select throws_ok($$
   insert into public.campaign_peoples (campaign_id, library_species_id, percent)
   values ('12553000-0000-4000-8000-0000000000c1', 'test_1255_elf', 1)
 $$, '42501', null, 'a DM of another table cannot write another campaign''s peoples');
+
+-- ── A co-DM ──
+-- A species on a co-DM's own shelf is not readable by the campaign's owner (species_select reads an owner's shelf,
+-- not a co-DM's). Its share still counts, so the owner must see the row, without its name, or her total would not
+-- add up and the refusal at a hundred would have no visible cause.
+select pg_temp.as_user(1);
+update public.campaign_peoples set percent = 50 where library_species_id = 'test_1255_elf';
+select pg_temp.as_user(4);
+insert into public.campaign_peoples (campaign_id, species_id, percent, sort_order)
+values ('12553000-0000-4000-8000-0000000000c1', '12553000-0000-4000-8000-0000000000e4', 5, 3);
+select pg_temp.as_user(1);
+select is(
+  (select count(*)::int from public.campaign_peoples_named where campaign_id = '12553000-0000-4000-8000-0000000000c1'), 4,
+  'the owner sees every people of the campaign, a co-DM''s own species included');
+select is(
+  (select name from public.campaign_peoples_named
+    where campaign_id = '12553000-0000-4000-8000-0000000000c1' and record_id = '12553000-0000-4000-8000-0000000000e4'),
+  null, 'and that species comes without its name, which is not hers to read');
 
 reset role;
 select * from finish();

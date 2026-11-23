@@ -98,6 +98,9 @@ as $$
 declare
   v_total numeric;
 begin
+  -- One checker per campaign at a time: two DMs committing at the same moment each see the other's rows as not yet
+  -- there, and would both pass. The lock is released with the transaction.
+  perform pg_advisory_xact_lock(hashtextextended('campaign_peoples:' || new.campaign_id::text, 0));
   select coalesce(sum(p.percent), 0) into v_total from public.campaign_peoples p where p.campaign_id = new.campaign_id;
   if v_total > 100 then
     raise exception using errcode = '23514',
@@ -135,7 +138,9 @@ create trigger campaign_peoples_signal_delete after delete on public.campaign_pe
   referencing old table as changed for each statement execute procedure signal_campaign_change();
 
 -- The peoples by name, for the screen, the roll and the world block: one read instead of four. An invoker view, so a
--- reader sees only the rows the table's own policy gives them. A row whose record is gone has no name and is left out.
+-- reader sees only the rows the table's own policy gives them. A name may be null: a species one DM wrote on their own
+-- shelf is not readable by a co-DM, but its share still counts toward the hundred, so the row is kept and the screen
+-- says it is another DM's rather than showing a total that does not add up.
 create view public.campaign_peoples_named
 with (security_invoker = true) as
 select p.id, p.campaign_id, p.percent, p.sort_order,
@@ -147,10 +152,12 @@ select p.id, p.campaign_id, p.percent, p.sort_order,
   left join public.species s on s.id = p.species_id
   left join public.library_species ls on ls.id = p.library_species_id
   left join public.monsters m on m.id = p.monster_id
-  left join public.library_monsters lm on lm.id = p.library_monster_id
- where coalesce(s.name, ls.name, m.name, lm.name) is not null;
+  left join public.library_monsters lm on lm.id = p.library_monster_id;
 
 grant select on public.campaign_peoples_named to authenticated, service_role;
+
+-- The demo campaign copies its peoples with everything else that describes its world.
+insert into private.demo_campaign_tables (table_name, tier, copy, reason) values ('campaign_peoples', 1, true, null);
 
 comment on table public.campaign_peoples is
   'Who lives in the world, as percentages: each row links a species or a bestiary creature to its share. Rolled in code when a generator invents a person (#1255).';

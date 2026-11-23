@@ -39,6 +39,34 @@ create trigger zz_same_campaign_refs
     'party_member_id', 'party_members', 'owned',
     'became_entry_id', 'canon_entries', 'owned');
 
+-- What an entry may become: a question becomes the truth or the secret that answers it, a secret becomes a truth. A
+-- check constraint cannot read another row, so this is a trigger. Invoker: the DM writing the row reads both.
+create function private.canon_entries_become_what()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_target text;
+begin
+  if new.became_entry_id is null then return new; end if;
+  select e.part into v_target from public.canon_entries e where e.id = new.became_entry_id;
+  -- A missing row is the foreign key's to report.
+  if v_target is null then return new; end if;
+  if (new.part = 'question' and v_target not in ('truth', 'secret')) or (new.part = 'secret' and v_target <> 'truth') then
+    raise exception using errcode = '23514',
+      message = format('A %s cannot become a %s', new.part, v_target),
+      hint = 'A question becomes a truth or a secret; a secret becomes a truth.';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function private.canon_entries_become_what() from public, anon, authenticated;
+
+create trigger canon_entries_become_what
+  before insert or update of became_entry_id on public.canon_entries
+  for each row execute procedure private.canon_entries_become_what();
+
 comment on column public.canon_entries.closed_as is
   'How the entry ended: a question is answered; a force succeeded, was stopped or faded. Null while it is open (#1255).';
 comment on column public.canon_entries.became_entry_id is

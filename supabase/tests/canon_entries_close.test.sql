@@ -4,7 +4,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(12);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values ('12550000-0000-4000-8000-000000000011', '00000000-0000-0000-0000-000000000000',
@@ -47,6 +47,9 @@ select throws_ok(
 select throws_ok(
   $$update public.canon_entries set became_entry_id = '12550000-0000-4000-8000-0000000000a4' where id = '12550000-0000-4000-8000-0000000000a3'$$,
   '23514', null, 'only a question or a secret becomes something else');
+select throws_ok(
+  $$update public.canon_entries set became_entry_id = '12550000-0000-4000-8000-0000000000a2' where id = '12550000-0000-4000-8000-0000000000a1'$$,
+  '23514', null, 'a question becomes a truth or a secret, never a force');
 select throws_ok(
   $$update public.canon_entries set became_entry_id = id where id = '12550000-0000-4000-8000-0000000000a4'$$,
   '23514', null, 'an entry cannot become itself');
