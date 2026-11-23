@@ -83,9 +83,6 @@ vi.mock("@/composables/ai/useCampaignProviders", async () => {
     }),
   };
 });
-vi.mock("@/composables/ai/useProviderConfig", () => ({
-  PORTRAIT_SIZE_BY_PROVIDER: { openai: "1024x1536", gemini: "1024x1536" },
-}));
 vi.mock("@/composables/locations/useLocations", () => ({ useLocationTree: () => ({ locationOptions: ref(fixtures.locations) }) }));
 vi.mock("@/composables/items/useItemIndex", () => ({ useItemIndex: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/npcs/useNpcStarterPacks", () => ({
