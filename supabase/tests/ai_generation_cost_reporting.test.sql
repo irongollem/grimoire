@@ -59,7 +59,9 @@ select ok(
 -- rather than drag the suggested price toward zero.
 select is(
   (select count(*)::int from public.ai_generation_costs
-    where reason = 'tile_pack_generation' and estimated_cost_usd_cents is not null),
+    where reason = 'tile_pack_generation' and estimated_cost_usd_cents is not null
+      -- This test's own rows only: a seeded database holds real generations of the same reason.
+      and id::text like '91000000-0000-4000-8000-%'),
   1,
   'only rows with real usage reach the calibration average');
 

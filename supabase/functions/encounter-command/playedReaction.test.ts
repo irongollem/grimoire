@@ -23,9 +23,12 @@ describe("DiceTape", () => {
   // Bug caught: a replay that rolls fresh dice (the hit that was a hit is now a miss, so the answer plays a different turn), or fresh dice that are not appended.
   it("fails if a replay does not answer from the tape in order and then record fresh dice after it", () => {
     const first = source([8, 4]);
-    const run1 = new DiceTape().wrap(first.deps);
+    const tape1 = new DiceTape();
+    const run1 = tape1.wrap(first.deps);
     expect([run1.rollD20(), run1.rollD6()]).toEqual([8, 4]);
-    const taped: TapeEntry[] = [{ fn: "d20", sides: 20, value: 8 }, { fn: "d6", sides: 6, value: 4 }];
+    // The replay is fed what the first run recorded, not a hand-built list: a wrapper that returns the right face and forgets to record it fails here.
+    const taped = tape1.recorded();
+    expect(taped).toEqual([{ fn: "d20", sides: 20, value: 8 }, { fn: "d6", sides: 6, value: 4 }]);
     const second = source([17]);
     const tape = new DiceTape(taped);
     const run2 = tape.wrap(second.deps);
@@ -111,7 +114,7 @@ describe("askerFor", () => {
 describe("parsePendingReaction", () => {
   const good = (): PendingReaction => pendingOf(
     { type: "take_turn", instanceId: "wolf", playedMemberId: "pm-tam" },
-    playedRunOf(["pass"], [{ fn: "d20", sides: 20, value: 8 }]), OFFER, "a1",
+    playedRunOf(["pass"], [{ fn: "d20", sides: 20, value: 8 }], { players: null }), OFFER, "t1", "a1",
   );
 
   // What the column holds comes back as what was written; an empty column is "nothing waits".
@@ -135,6 +138,11 @@ describe("parsePendingReaction", () => {
     ["a taped note with no key", { ...good(), tape: [{ fn: "note", answer: null }] }],
     ["an offer of no kind", { ...good(), offer: { reactorId: "tam" } }],
     ["a batch id that is not text", { ...good(), answerBatchId: 4 }],
+    ["no batch id key at all (it is required, null for a first pause)", (({ answerBatchId: _omitted, ...rest }) => rest)(good())],
+    ["no offer id", { ...good(), offerId: undefined }],
+    ["an empty offer id", { ...good(), offerId: "" }],
+    ["no sheet snapshot", { ...good(), sheets: undefined }],
+    ["a sheet snapshot whose players are neither null nor an object", { ...good(), sheets: { players: "x" } }],
   ])("fails if a pending with %s is read as valid", (_why, value) => {
     expect(parsePendingReaction(value)).toBe("malformed");
   });

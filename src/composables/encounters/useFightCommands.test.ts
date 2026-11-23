@@ -273,7 +273,7 @@ describe("useFightCommands", () => {
       const { api } = mountComposable();
       await flushPromises();
       net.invoke.mockResolvedValue({ data: answer(20, 6, { applied: false, effects: [] }), error: null });
-      expect(await api.takeTurn("ogre")).toEqual({ turn: null, outcomes: [], provokedPlayer: [], reactionOffered: null });
+      expect(await api.takeTurn("ogre")).toEqual({ turn: null, outcomes: [], provokedPlayer: [], reactionOffered: null, reactionOfferId: null });
     });
 
     it("fails if a provoked player is not read out of the reply's effects", async () => {
@@ -292,8 +292,8 @@ describe("useFightCommands", () => {
       net.invoke.mockResolvedValue({ data: answer(20, 5), error: null });
       const { api } = mountComposable();
       await flushPromises();
-      net.invoke.mockResolvedValue({ data: answer(20, 6, { effects: [{ type: "reaction_offered", offer }] }), error: null });
-      expect(await api.takeTurn("ogre", "pm-fresco")).toEqual({ turn: null, outcomes: [], provokedPlayer: [], reactionOffered: offer });
+      net.invoke.mockResolvedValue({ data: answer(20, 6, { effects: [{ type: "reaction_offered", offer, offerId: "batch-7" }] }), error: null });
+      expect(await api.takeTurn("ogre", "pm-fresco")).toEqual({ turn: null, outcomes: [], provokedPlayer: [], reactionOffered: offer, reactionOfferId: "batch-7" });
     });
 
     it("fails if the answer is not sent alone as answer_reaction, or a second offer in its reply is dropped", async () => {
@@ -302,10 +302,12 @@ describe("useFightCommands", () => {
       const { api } = mountComposable();
       await flushPromises();
       net.invoke.mockClear();
-      net.invoke.mockResolvedValue({ data: answer(20, 6, { effects: [{ type: "reaction_offered", offer }] }), error: null });
-      const run = await api.answerReaction("pass");
-      expect(sent().map((b) => b.commands)).toEqual([[{ type: "answer_reaction", answer: "pass" }]]);
+      net.invoke.mockResolvedValue({ data: answer(20, 6, { effects: [{ type: "reaction_offered", offer, offerId: "batch-8" }] }), error: null });
+      const run = await api.answerReaction("pass", "batch-7");
+      // The offer answered is named on the wire, and the next offer's id is read from the reply.
+      expect(sent().map((b) => b.commands)).toEqual([[{ type: "answer_reaction", answer: "pass", offerId: "batch-7" }]]);
       expect(run.reactionOffered).toEqual(offer);
+      expect(run.reactionOfferId).toBe("batch-8");
     });
 
     it("fails if provoke does not send the path alone, or does not read the strikes and their rolls from the reply", async () => {

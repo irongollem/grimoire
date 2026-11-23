@@ -19,6 +19,7 @@ const run = (over: Partial<NonNullable<TurnRun["turn"]>> = {}): TurnRun => ({
   outcomes: [],
   provokedPlayer: [],
   reactionOffered: null,
+  reactionOfferId: null,
 });
 
 function setup(takeTurn: (id: string) => Promise<TurnRun>, combatant = ogre(), provided: RunnerTakeTurn | null = createRunnerTakeTurn(takeTurn, (e) => (e as Error).message)) {
@@ -132,7 +133,7 @@ describe("RunnerRunForMe", () => {
   });
 
   it("fails if a reply with no turn (a replayed batch) shows an invented one", async () => {
-    const takeTurn = vi.fn().mockResolvedValue({ turn: null, outcomes: [], provokedPlayer: [], reactionOffered: null } satisfies TurnRun);
+    const takeTurn = vi.fn().mockResolvedValue({ turn: null, outcomes: [], provokedPlayer: [], reactionOffered: null, reactionOfferId: null } satisfies TurnRun);
     const { w } = setup(takeTurn);
     await button(w).trigger("click");
     await flushPromises();

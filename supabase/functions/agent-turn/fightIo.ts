@@ -198,6 +198,8 @@ async function carryFight(admin: SupabaseClient, campaignId: string, encounterId
     .update({
       combatants_live: roster, current_round: 0, active_combatant_index: 0, is_running: false, ended_at: null, started_at: null,
       events_fired: [], lair_fired_rounds: [], applied_command_ids: [], magical_darkness: [], pending_reaction: null, version: (row.data.version as number) + 1,
+      // A cost the last fight still owed a sheet is dropped with it: settled weeks later it would undo a rest taken since (absolute values).
+      owed_writes: null,
       // A new fight on the row: its XP is given when it ends, like the first one's (`award_fight_xp`, #1021 row 27).
       xp_awarded_at: null,
     })

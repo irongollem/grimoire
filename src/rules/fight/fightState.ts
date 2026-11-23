@@ -52,9 +52,10 @@ export type FightEffect =
   | { type: "provoked_player"; moverId: string; playerId: string; step: number }
   /**
    * The creature's turn stopped at a Reaction the person at the AI table chooses (#1021): nothing of the turn was saved, and the
-   * fight waits for `answer_reaction`. The only effect of such an answer. Only the server raises it.
+   * fight waits for `answer_reaction`. The only effect of such an answer. Only the server raises it. `offerId` names this offer: the
+   * answer sends it back, and the server refuses an answer to any other (a tab that still shows an earlier offer of the same turn).
    */
-  | { type: "reaction_offered"; offer: ReactionOffer };
+  | { type: "reaction_offered"; offer: ReactionOffer; offerId: string };
 
 /** One creature's turn as the server played it: the option, in the words a narrator or the log can quote, and who chose it. */
 export interface TurnTaken {

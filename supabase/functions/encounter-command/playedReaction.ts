@@ -9,20 +9,30 @@
 // is never written half-way cannot be left in a state no rule describes.
 
 import { isReactionAnswer, type ReactionAnswer, type ReactionOffer } from "../../../src/rules/fight/reactionOffer.ts";
+import type { PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
 import type { JudgeResult } from "../_shared/typesafe.ts";
 import { FightCommandError } from "./commandError.ts";
 import { validateTakeTurnCommand, type TakeTurnCommand } from "./takeTurn.ts";
 
-/** The request type that answers a waiting Reaction. Sent alone. */
-export type AnswerReactionCommand = { type: "answer_reaction"; answer: ReactionAnswer };
+/** An offer id is the id of the batch that raised it (`PendingReaction.offerId`), so it is as long as a batch id may be. */
+export const MAX_OFFER_ID_LENGTH = 80;
+
+/**
+ * The request type that answers a waiting Reaction. Sent alone. `offerId` names the offer the person saw: a late answer from a tab that
+ * showed an earlier offer of the same turn is refused, never taken for the answer to the next one.
+ */
+export type AnswerReactionCommand = { type: "answer_reaction"; answer: ReactionAnswer; offerId: string };
 
 export function isAnswerReactionCommand(command: { type: string }): command is AnswerReactionCommand {
   return command.type === "answer_reaction";
 }
 
-/** Shape only: an answer is `cast` or `pass`. */
+/** Shape only: an answer is `cast` or `pass`, to the offer `offerId` names. */
 export function validateAnswerReactionCommand(command: Record<string, unknown>): void {
   if (!isReactionAnswer(command.answer)) throw new FightCommandError(400, "answer_reaction: answer is \"cast\" or \"pass\".");
+  if (typeof command.offerId !== "string" || command.offerId.length === 0 || command.offerId.length > MAX_OFFER_ID_LENGTH) {
+    throw new FightCommandError(400, `answer_reaction: offerId is the id of the offer answered, at most ${MAX_OFFER_ID_LENGTH} characters.`);
+  }
 }
 
 /** One thing a turn drew from outside the fight, in the order it did: a die, or a tactics-judge answer. */
@@ -43,7 +53,18 @@ export class ReactionPause extends Error {
   }
 }
 
-/** What `encounter_state.pending_reaction` holds (written and read only by `encounter-command`). */
+/**
+ * What the replay reads from the player characters' sheets (armour, spells, slots: `loadPlayerSheets`), as it stood when the turn first
+ * paused. The replay plays from this and not from the sheet as it is by then: armour put on between the pause and the answer would turn the
+ * taped hit into a miss and the person's "cast" would be spent on nothing. Hit points and conditions are not here on purpose: they are
+ * ingested live (a sheet edit of them is the person's own and must not be undone by a stale copy), and they do not change a taped die.
+ */
+export interface SheetSnapshot {
+  /** Null when the paused attempt never read the sheets (a turn cannot pause without them, so only a hand-built fixture). */
+  players: PlayerSheets | null;
+}
+
+/** What `encounter_state.pending_reaction` holds (written by `encounter-command` when it offers; cleared by it, End combat and Abandon, and `carryFight`). */
 export interface PendingReaction {
   /** The turn that paused, exactly as it was sent (with the played member). */
   command: TakeTurnCommand & { playedMemberId: string };
@@ -55,6 +76,10 @@ export interface PendingReaction {
   offer: ReactionOffer;
   /** The batch whose answer made `answers` what it is (null for the turn's first pause): a retried send of it re-offers, it does not answer the next moment. */
   answerBatchId: string | null;
+  /** The id of this offer: the id of the batch that raised it. An answer must name it (`AnswerReactionCommand.offerId`). */
+  offerId: string;
+  /** The sheet inputs the first run read, replayed from instead of re-read. */
+  sheets: SheetSnapshot;
 }
 
 /**
@@ -145,14 +170,21 @@ export interface PlayedRun {
   tape: DiceTape;
   answers: ReactionAnswer[];
   ask: (offer: ReactionOffer) => ReactionAnswer;
+  /** The sheet inputs a replay plays from (null on the turn's first run, which reads them and leaves them in `seen`). */
+  frozen: SheetSnapshot | null;
+  /** What this attempt read of the sheets, for a pause to keep. */
+  seen: SheetSnapshot;
 }
 
-export function playedRunOf(answers: readonly ReactionAnswer[], taped: readonly TapeEntry[]): PlayedRun {
-  return { tape: new DiceTape(taped), answers: [...answers], ask: askerFor(answers) };
+export function playedRunOf(answers: readonly ReactionAnswer[], taped: readonly TapeEntry[], frozen: SheetSnapshot | null = null): PlayedRun {
+  return { tape: new DiceTape(taped), answers: [...answers], ask: askerFor(answers), frozen, seen: { players: null } };
 }
 
-export function pendingOf(command: PendingReaction["command"], run: PlayedRun, offer: ReactionOffer, answerBatchId: string | null): PendingReaction {
-  return { command, answers: [...run.answers], tape: run.tape.recorded(), offer, answerBatchId };
+/** The sheet inputs a pause keeps: the ones it replayed from, else the ones it just read. */
+const sheetsOf = (run: PlayedRun): SheetSnapshot => (run.frozen !== null ? run.frozen : run.seen);
+
+export function pendingOf(command: PendingReaction["command"], run: PlayedRun, offer: ReactionOffer, offerId: string, answerBatchId: string | null): PendingReaction {
+  return { command, answers: [...run.answers], tape: run.tape.recorded(), offer, answerBatchId, offerId, sheets: structuredClone(sheetsOf(run)) };
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -175,7 +207,7 @@ function isTapeEntry(value: unknown): value is TapeEntry {
 export function parsePendingReaction(value: unknown): PendingReaction | null | "malformed" {
   if (value === null || value === undefined) return null;
   if (!isRecord(value)) return "malformed";
-  const { command, answers, tape, offer, answerBatchId } = value;
+  const { command, answers, tape, offer, answerBatchId, offerId, sheets } = value;
   if (!isRecord(command) || command.type !== "take_turn" || typeof command.playedMemberId !== "string") return "malformed";
   try {
     validateTakeTurnCommand(command);
@@ -186,5 +218,10 @@ export function parsePendingReaction(value: unknown): PendingReaction | null | "
   if (!Array.isArray(tape) || !tape.every(isTapeEntry)) return "malformed";
   if (!isRecord(offer) || (offer.kind !== "shield" && offer.kind !== "counterspell") || typeof offer.reactorId !== "string") return "malformed";
   if (answerBatchId !== null && typeof answerBatchId !== "string") return "malformed";
-  return { command: command as PendingReaction["command"], answers, tape, offer: offer as unknown as ReactionOffer, answerBatchId };
+  if (typeof offerId !== "string" || offerId.length === 0) return "malformed";
+  if (!isRecord(sheets) || (sheets.players !== null && !isRecord(sheets.players))) return "malformed";
+  return {
+    command: command as PendingReaction["command"], answers, tape, offer: offer as unknown as ReactionOffer, answerBatchId, offerId,
+    sheets: sheets as unknown as SheetSnapshot,
+  };
 }

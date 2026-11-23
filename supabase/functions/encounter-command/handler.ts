@@ -36,6 +36,7 @@ import { NO_CASTING, type PlayerSheets } from "../../../src/rules/fight/playerSh
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import { FightCommandError } from "./commandError.ts";
+import { lastCosts, owedOf, parseOwedWrites, type OwedWrites, type SpentCosts } from "./owedWrites.ts";
 import {
   isAnswerReactionCommand, parsePendingReaction, pendingOf, playedRunOf, ReactionPause, validateAnswerReactionCommand,
   type AnswerReactionCommand, type PendingReaction, type PlayedRun,
@@ -57,6 +58,7 @@ import {
 export { FightCommandError };
 export type { TakeTurnCommand };
 export type { AnswerReactionCommand, PendingReaction };
+export type { OwedWrites };
 export { ALL_RESOLVING_COMMANDS_LISTED, type ResolvingCommand, type PostedRoll, type StatBlockSources } from "./resolve.ts";
 
 export const MAX_COMMANDS = 50;
@@ -259,6 +261,11 @@ export interface FightRow {
    * nothing waits. A jsonb column: what is read back is checked by `parsePendingReaction`, never trusted.
    */
   pending_reaction: PendingReaction | null;
+  /**
+   * What the batch that answered the person's Reaction still owes their sheet (the slot, the daily use, the class resource), saved in the same update as
+   * the fight and cleared once the writes landed (`owedWrites.ts`); null when nothing is owed. Checked by `parseOwedWrites`, never trusted.
+   */
+  owed_writes: OwedWrites | null;
 }
 
 /** Everything a batch needs besides the row: the encounter's own settings and what its spawns are built from. */
@@ -288,6 +295,8 @@ export interface FightWrite {
   applied_command_ids: string[];
   /** Written only by a batch that pauses a turn (the pending Reaction) or finishes or closes one (null); left out, the column is untouched. */
   pending_reaction?: PendingReaction | null;
+  /** Written only by the batch that answers a Reaction and spent something on a sheet; left out, the column is untouched. */
+  owed_writes?: OwedWrites | null;
 }
 
 /** What only the lifecycle commands write beside the fight's state. */
@@ -366,6 +375,8 @@ export interface BatchDeps {
   writeInnateUses(memberId: string, spellRowId: string, remaining: number): Promise<void>;
   /** Writes an ally's `class_resources` after a class feature spent a use (Rage, Second Wind, Action Surge, Ki), the whole object as it now stands (absolute, so a retry lands once). */
   writeClassResources(memberId: string, resources: StoredClassResources): Promise<void>;
+  /** Takes the owed record of `batchId` off the fight row once its writes landed (a no-op when another record is there). Raises the row's version like any update. */
+  clearOwedWrites(rowId: string, batchId: string): Promise<void>;
   /** One die of any size, from the server's secure source: what a resolving command rolls with. */
   rollDie(sides: number): number;
   /**
@@ -550,7 +561,12 @@ async function attempt(
     if (players === null) {
       const memberIds = [...new Set(state.combatants.flatMap((c) => (c.type === "player" && c.party_member_id ? [c.party_member_id] : [])))];
       // A fight with no player in it has nothing to read.
-      players = memberIds.length > 0 ? await deps.loadPlayerSheets(memberIds) : { members: [], inventory: [], items: [], beasts: [], casting: NO_CASTING };
+      // A replay of a paused turn plays from the sheets the first run read (`SheetSnapshot`); the first run keeps what it reads for a pause to save.
+      if (played !== null && played.frozen !== null && played.frozen.players !== null) players = played.frozen.players;
+      else {
+        players = memberIds.length > 0 ? await deps.loadPlayerSheets(memberIds) : { members: [], inventory: [], items: [], beasts: [], casting: NO_CASTING };
+        if (played !== null) played.seen.players = players;
+      }
     }
     // `undefined` is "not asked yet" (a null map is an answer: this fight has none).
     if (map === undefined) map = await deps.loadFightMap(request.encounterId);
@@ -663,8 +679,11 @@ async function perform(effects: FightEffect[], deps: BatchDeps): Promise<string[
   return failures;
 }
 
-/** The write that takes a waiting Reaction off the row: only when one is stored (a malformed one too), so every other write keeps its shape. */
-const clearPending = (row: FightRow): { pending_reaction?: null } => (row.pending_reaction ? { pending_reaction: null } : {});
+/**
+ * The write that takes a waiting Reaction off the row: whenever the column holds anything (a malformed value too, JSON `false` and `0` included,
+ * which a truthiness test would leave behind to lock the next fight), so every other write keeps its shape.
+ */
+const clearPending = (row: FightRow): { pending_reaction?: null } => (row.pending_reaction !== null && row.pending_reaction !== undefined ? { pending_reaction: null } : {});
 
 function writeOf(state: FightState, previousIds: string[], batchId: string): FightWrite {
   return {
@@ -880,23 +899,72 @@ const waitingFor = (row: FightRow, pending: PendingReaction): string =>
 function holdsFight(request: CommandRequest, row: FightRow, pending: PendingReaction | "malformed"): BatchResult | null {
   if (pending === "malformed") throw new FightCommandError(409, "The Reaction this fight is waiting for could not be read; end or abandon the fight to clear it.");
   const only = request.commands.length === 1 ? request.commands[0] : null;
-  const offered = (): BatchResult => resultOf(false, row.version, row, row, [{ type: "reaction_offered", offer: pending.offer }], []);
+  const offered = (): BatchResult => resultOf(false, row.version, row, row, [{ type: "reaction_offered", offer: pending.offer, offerId: pending.offerId }], []);
   if (only !== null && isAnswerReactionCommand(only)) {
     // The retry of the answer that made this pause: the answer is already in, so the offer is shown again, not answered a second time.
-    return pending.answerBatchId === request.batchId ? offered() : null;
+    if (pending.answerBatchId === request.batchId) return offered();
+    // An answer to an offer the fight has moved past (a second tab that still shows the first Shield of a Multiattack) is refused, never taken for the answer
+    // to the one waiting now. Checked on every load, so a lost race that reloads a newer offer meets the same rule.
+    if (only.offerId !== pending.offerId) throw new FightCommandError(409, "That reaction was already answered; the fight is waiting on a newer one.");
+    return null;
   }
   if (only !== null && isTakeTurnCommand(only) && only.instanceId === pending.command.instanceId) return offered();
   if (only !== null && only.type === "sync_party") return resultOf(false, row.version, row, row, [], []);
   throw new FightCommandError(409, waitingFor(row, pending));
 }
 
+/** Every write of what the batches spent on the sheets: one absolute write per member or grant, so a retry lands once. */
+function costWrites(spent: SpentCosts, deps: BatchDeps): Array<{ name: string; run: () => Promise<void> }> {
+  const last = lastCosts(spent);
+  return [
+    // The slots an ally's casts used: the last cast's whole list.
+    ...last.slots.map((w) => ({ name: "ally_spell_slots", run: () => deps.writeSpellSlots(w.memberId, w.slots) })),
+    // The uses an ally's daily-limited innate spells spent: the last count.
+    ...last.innate.map((w) => ({ name: "ally_innate_uses", run: () => deps.writeInnateUses(w.memberId, w.spellRowId, w.remaining) })),
+    // The limited uses an ally's class features spent: the last whole object.
+    ...last.resources.map((w) => ({ name: "ally_class_resources", run: () => deps.writeClassResources(w.memberId, w.resources) })),
+  ];
+}
+
+/**
+ * Finishes the sheet writes an answered Reaction left owed (`owedWrites.ts`): tried again, and the record cleared only when every one landed.
+ * `cleared` says the row's version moved (the clearing is an update), so the caller reloads before it saves.
+ */
+async function settleOwed(row: FightRow, deps: BatchDeps): Promise<{ failures: string[]; cleared: boolean }> {
+  const owed = parseOwedWrites(row.owed_writes);
+  if (owed === null) return { failures: [], cleared: false };
+  if (owed === "malformed") return { failures: ["owed_writes: the saved sheet writes could not be read"], cleared: false };
+  const failures = await performAll(costWrites(owed, deps));
+  if (failures.length > 0) return { failures, cleared: false };
+  const clearing = await performAll([{ name: "owed_writes", run: () => deps.clearOwedWrites(row.id, owed.batchId) }]);
+  return { failures: clearing, cleared: clearing.length === 0 };
+}
+
 export async function runBatch(request: CommandRequest, deps: BatchDeps): Promise<BatchResult> {
+  const settleFailures: string[] = [];
+  const result = await runBatchOnce(request, deps, settleFailures);
+  return settleFailures.length === 0 ? result : { ...result, effectFailures: [...settleFailures, ...result.effectFailures] };
+}
+
+async function runBatchOnce(request: CommandRequest, deps: BatchDeps, settleFailures: string[]): Promise<BatchResult> {
   const notes = noteJudgmentsOf(deps);
+  let owedSettled = false;
   const first = request.commands[0];
   const lifecycle = request.commands.length === 1 && LIFECYCLE_TYPES.has(first.type) ? (first as LifecycleCommand) : null;
   for (let tries = 1; tries <= MAX_ATTEMPTS; tries++) {
     const loaded = await deps.loadFight(request.encounterId);
     const { row } = loaded;
+
+    // A Reaction's cost that an earlier batch could not write to the sheet is finished before anything else, even for a retry of that very batch.
+    if (row && !owedSettled) {
+      owedSettled = true;
+      const settled = await settleOwed(row, deps);
+      settleFailures.push(...settled.failures);
+      if (settled.cleared) {
+        tries -= 1;
+        continue;
+      }
+    }
 
     // The reply of an earlier send may have been lost after it was applied: answer with the state as it is.
     // Before the ended check, so a retried End combat is answered rather than refused for a fight it just ended.
@@ -934,7 +1002,7 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
       ? waiting.command
       : only !== null && isTakeTurnCommand(only) && only.playedMemberId !== undefined ? (only as PendingReaction["command"]) : null;
     const run = turn === null ? null : answering !== null && waiting !== null && waiting !== "malformed"
-      ? playedRunOf([...waiting.answers, answering.answer], waiting.tape)
+      ? playedRunOf([...waiting.answers, answering.answer], waiting.tape, waiting.sheets)
       : playedRunOf([], []);
     let outcome: Awaited<ReturnType<typeof attempt>>;
     try {
@@ -946,14 +1014,21 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
       const paused = await deps.saveFight(row.id, row.version, {
         combatants_live: row.combatants_live, current_round: row.current_round, active_combatant_index: row.active_combatant_index,
         events_fired: row.events_fired, lair_fired_rounds: row.lair_fired_rounds, applied_command_ids: row.applied_command_ids,
-        pending_reaction: pendingOf(turn, run, e.offer, answering === null ? null : request.batchId),
+        pending_reaction: pendingOf(turn, run, e.offer, request.batchId, answering === null ? null : request.batchId),
       });
       if (!paused) continue;
-      return resultOf(false, paused.version, row, row, [{ type: "reaction_offered", offer: e.offer }], []);
+      return resultOf(false, paused.version, row, row, [{ type: "reaction_offered", offer: e.offer, offerId: request.batchId }], []);
     }
     const { state, effects, rolls, spent, slotsSpent, resourcesSpent, innateSpent } = outcome;
-    // The answer that finishes the turn also takes the pending Reaction off the row.
-    const write: FightWrite = { ...writeOf(state, row.applied_command_ids, request.batchId), ...(answering === null ? {} : { pending_reaction: null }) };
+    // The answer that finishes the turn also takes the pending Reaction off the row, and records what it still owes the sheets in the same update,
+    // so a cost write that fails after the save is finished by the next batch instead of lost (`owedWrites.ts`).
+    const spentCosts: SpentCosts = { slots: slotsSpent, innate: innateSpent, resources: resourcesSpent };
+    const owed = answering === null ? null : owedOf(request.batchId, spentCosts);
+    const write: FightWrite = {
+      ...writeOf(state, row.applied_command_ids, request.batchId),
+      ...(answering === null ? {} : { pending_reaction: null }),
+      ...(owed === null ? {} : { owed_writes: owed }),
+    };
     // Most syncs find the sheets as the fight already has them (the ring was this fight's own write to a sheet
     // coming back). Saving anyway would raise the version and ring every screen for nothing, on every hit.
     if (syncOnly && sameFight(row, write)) return resultOf(false, row.version, row, row, [], []);
@@ -970,15 +1045,10 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
       effectFailures.push(...dropFailures);
       if (dropFailures.length === 0) effectFailures.push(...(await performAll([{ name: "ally_gear", run: () => deps.writeGear(spend.writes) }])));
     }
-    // The slots an ally's casts used: one absolute write per member (the last cast's whole list), so a retry lands once.
-    const lastSlots = new Map(slotsSpent.map((w) => [w.memberId, w.slots]));
-    for (const [memberId, slots] of lastSlots) effectFailures.push(...(await performAll([{ name: "ally_spell_slots", run: () => deps.writeSpellSlots(memberId, slots) }])));
-    // The uses an ally's daily-limited innate spells spent: one absolute write per grant (the last count), so a retry lands once.
-    const lastInnate = new Map(innateSpent.map((w) => [w.spellRowId, w]));
-    for (const w of lastInnate.values()) effectFailures.push(...(await performAll([{ name: "ally_innate_uses", run: () => deps.writeInnateUses(w.memberId, w.spellRowId, w.remaining) }])));
-    // The limited uses an ally's class features spent: one absolute write per member (the last whole object), so a retry lands once.
-    const lastResources = new Map(resourcesSpent.map((w) => [w.memberId, w.resources]));
-    for (const [memberId, resources] of lastResources) effectFailures.push(...(await performAll([{ name: "ally_class_resources", run: () => deps.writeClassResources(memberId, resources) }])));
+    // What the casts and class features used up on the sheets: absolute writes, so a retry lands once. An answered Reaction's are owed on the row until they land.
+    const costFailures = await performAll(costWrites(spentCosts, deps));
+    effectFailures.push(...costFailures);
+    if (owed !== null && costFailures.length === 0) effectFailures.push(...(await performAll([{ name: "owed_writes", run: () => deps.clearOwedWrites(row.id, request.batchId) }])));
     // Billed after the save, like the rolls, and only for calls that answered: a refused or failed one cost nothing we know of.
     const billed = outcome.noteTokens === null ? notes.answered.map((answer) => answer.inputTokens) : outcome.noteTokens;
     effectFailures.push(...(await performAll(billed.map((inputTokens) => ({ name: "note_judgment", run: () => deps.recordNoteJudgment(inputTokens) })))));

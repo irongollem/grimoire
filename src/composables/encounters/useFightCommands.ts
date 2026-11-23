@@ -26,6 +26,8 @@ export interface TurnRun {
   provokedPlayer: Array<{ moverId: string; playerId: string }>;
   /** The turn is paused: the played character may react (Shield, Counterspell). Nothing else came with it; answer with `answerReaction`. */
   reactionOffered: ReactionOffer | null;
+  /** The id of that offer, sent back with the answer so the server can tell which offer was answered; null exactly when there is no offer. */
+  reactionOfferId: string | null;
 }
 
 /** What the server did for a player's walk: who struck the mover on its way out, at which step of the path, and what each blow came to. */
@@ -129,13 +131,17 @@ export function useFightCommands(encounterId: Ref<string>, options: { onLost: ()
     const outcomes: ResolvedAction[] = [];
     const provokedPlayer: TurnRun["provokedPlayer"] = [];
     let reactionOffered: ReactionOffer | null = null;
+    let reactionOfferId: string | null = null;
     for (const effect of answer.effects) {
       if (effect.type === "turn_taken") turn = effect.turn;
       else if (effect.type === "resolved") outcomes.push(effect.resolved);
       else if (effect.type === "provoked_player") provokedPlayer.push({ moverId: effect.moverId, playerId: effect.playerId });
-      else if (effect.type === "reaction_offered") reactionOffered = effect.offer;
+      else if (effect.type === "reaction_offered") {
+        reactionOffered = effect.offer;
+        reactionOfferId = effect.offerId;
+      }
     }
-    return { turn, outcomes, provokedPlayer, reactionOffered };
+    return { turn, outcomes, provokedPlayer, reactionOffered, reactionOfferId };
   }
 
   /**
@@ -149,11 +155,12 @@ export function useFightCommands(encounterId: Ref<string>, options: { onLost: ()
   }
 
   /**
-   * Answers the Reaction a paused turn offered: the server replays the turn with the answer. The reply is the turn
-   * (or its next offer: a second chance in the same turn). Throws like `takeTurn`.
+   * Answers the Reaction a paused turn offered (`offerId` is the offer's own id): the server replays the turn with the answer, and
+   * refuses an answer to an offer it has moved past. The reply is the turn (or its next offer: a second chance in the same
+   * turn). Throws like `takeTurn`.
    */
-  async function answerReaction(answer: ReactionAnswer): Promise<TurnRun> {
-    return foldTurn(await lifecycle({ type: "answer_reaction", answer }));
+  async function answerReaction(answer: ReactionAnswer, offerId: string): Promise<TurnRun> {
+    return foldTurn(await lifecycle({ type: "answer_reaction", answer, offerId }));
   }
 
   /**

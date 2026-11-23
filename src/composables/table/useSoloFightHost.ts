@@ -15,23 +15,38 @@ import type { FightChange } from "@/lib/table/solo/fight/fightChange";
 import type { ReactionAnswer, ReactionOffer } from "@/rules/fight/reactionOffer";
 import { initiativeRoll } from "@/rules/initiative";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
+import { isRetryable } from "@/lib/encounters/fightWire";
 
 /** How a fight at the table ended: by itself (nobody left to fight), or by the Dungeon Master's ruling. */
 export type SoloFightEnd = "foes_out" | "you_fell" | NonNullable<FightChange["ends"]>;
 
 /**
+ * The person's answer to a Reaction did not reach the fight and will not on a retry (the server refused it: the offer was already answered,
+ * the fight ended). The server may still hold the reaction, so the creature's turn is NOT finished: the caller must not pass it.
+ * Its message is the server's own sentence.
+ */
+export class ReactionAnswerFailed extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : "The answer to your reaction was not accepted.", { cause });
+    this.name = "ReactionAnswerFailed";
+  }
+}
+
+/**
  * Plays a creature's turn to its end while the person answers the Reactions it offers (#1021). A reply that carries an offer
  * is a paused turn: the person is asked, the answer is sent, and what comes back is read the same way (a second chance in
  * the same turn), until a reply has none. Returns that last reply, or null when the offer is for someone the person does not
- * play (the server never sends one; the turn is left as nothing rather than asked of the wrong person). A failed send throws.
+ * play (the server never sends one; the turn is left as nothing rather than asked of the wrong person).
+ * An answer that could not be sent for want of a connection leaves the card up and asks again; one the server refused throws
+ * `ReactionAnswerFailed`, and the turn is not finished. A failed `start` throws as it is.
  */
 export async function playTurnAnswering(input: {
   start: () => Promise<TurnRun>;
-  answer: (answer: ReactionAnswer) => Promise<TurnRun>;
+  answer: (answer: ReactionAnswer, offerId: string) => Promise<TurnRun>;
   /** The played character's instance id, or null when there is none. */
   playedInstanceId: string | null;
   ask: (offer: ReactionOffer) => Promise<ReactionAnswer>;
-  /** The answer has been sent and has come back (or failed): the card that asked can go. */
+  /** The answer has been sent and has come back (or was refused): the card that asked can go. */
   answered: () => void;
   onLines: (lines: BoardLine[]) => void;
   nameOf: (instanceId: string) => string;
@@ -39,14 +54,26 @@ export async function playTurnAnswering(input: {
   let run = await input.start();
   while (run.reactionOffered !== null) {
     const offer = run.reactionOffered;
+    const offerId = run.reactionOfferId;
     if (offer.reactorId !== input.playedInstanceId) return null;
-    const answer = await input.ask(offer);
-    try {
-      run = await input.answer(answer);
-    } finally {
+    if (offerId === null) throw new ReactionAnswerFailed(new Error("The table offered a reaction without saying which one."));
+    for (;;) {
+      const answer = await input.ask(offer);
+      try {
+        run = await input.answer(answer, offerId);
+      } catch (error) {
+        // No connection (or the server failed): the offer is still waiting there, so the same card comes back and the person answers again.
+        if (isRetryable(error)) {
+          input.onLines([{ kind: "margin", text: "Your answer did not get through. Try again." }]);
+          continue;
+        }
+        input.answered();
+        throw new ReactionAnswerFailed(error);
+      }
       input.answered();
+      input.onLines(linesOfReaction(offer, answer, input.nameOf));
+      break;
     }
-    input.onLines(linesOfReaction(offer, answer, input.nameOf));
   }
   return run;
 }
@@ -187,7 +214,7 @@ export function useSoloFightHost(options: {
         const memberId = mine.value ? options.memberId() : undefined;
         const result = await playTurnAnswering({
           start: () => fight.takeTurn(instanceId, memberId),
-          answer: (a) => fight.answerReaction(a),
+          answer: (a, offerId) => fight.answerReaction(a, offerId),
           playedInstanceId: played.value === null ? null : played.value.instance_id,
           ask: options.onReaction,
           answered: options.onReactionAnswered,
@@ -251,6 +278,11 @@ export function useSoloFightHost(options: {
         }
         return true;
       } catch (error) {
+        if (error instanceof ReactionAnswerFailed) {
+          // The server may still hold the reaction: the creature's turn is not finished, so it is not passed (a reload offers the waiting reaction again).
+          options.onLines([{ kind: "margin", text: toast.fromError(error, "Your answer to the reaction was not accepted.") }]);
+          return false;
+        }
         // The server's own sentence says why (nothing it can do: its only foe is down; no stat block). The creature
         // passes its turn. Seen live: with the played character at 0 hit points a hound had nobody to attack, its
         // turn was left standing, and the fight never reached the player's death save. Nobody sits in the Dungeon

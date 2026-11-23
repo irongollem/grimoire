@@ -21,8 +21,8 @@ export type FightLifecycleCommand =
   /** Asks the server to play a creature's turn (#1203). Never ends the turn; the creature need not be the active one. */
   | { type: "take_turn"; instanceId: string; optionId?: string; playedMemberId?: string }
   | { type: "provoke"; moverId: string; path: Array<{ x: number; y: number }> }
-  /** The person's answer to a `reaction_offered`; sent alone, it replays the paused turn with the answer (#1021). */
-  | { type: "answer_reaction"; answer: ReactionAnswer };
+  /** The person's answer to a `reaction_offered` (`offerId` is that effect's); sent alone, it replays the paused turn with the answer (#1021). */
+  | { type: "answer_reaction"; answer: ReactionAnswer; offerId: string };
 
 /** Everything the function accepts in `commands`: a batch of fight commands, or one of these sent alone. */
 export type WireCommand = FightCommand | FightLifecycleCommand | { type: "sync_party" };

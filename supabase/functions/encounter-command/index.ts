@@ -111,7 +111,7 @@ serve(withCors(async (req: Request) => {
       async loadFight(encounterId) {
         const { data, error } = await admin
           .from("encounter_state")
-          .select("id, version, combatants_live, current_round, active_combatant_index, events_fired, lair_fired_rounds, applied_command_ids, is_running, ended_at, started_at, pending_reaction")
+          .select("id, version, combatants_live, current_round, active_combatant_index, events_fired, lair_fired_rounds, applied_command_ids, is_running, ended_at, started_at, pending_reaction, owed_writes")
           .eq("encounter_id", encounterId)
           .eq("campaign_id", campaignId)
           .maybeSingle();
@@ -162,6 +162,11 @@ serve(withCors(async (req: Request) => {
           .select("version");
         if (error) throw new Error(`encounter_state update: ${error.message}`);
         return data.length > 0 ? { version: data[0].version as number } : null;
+      },
+      async clearOwedWrites(rowId, batchId) {
+        // Only the record this batch wrote: another batch's owed writes are its own to settle. The update raises the version like any other.
+        const { error } = await admin.from("encounter_state").update({ owed_writes: null }).eq("id", rowId).eq("owed_writes->>batchId", batchId);
+        if (error) throw new Error(`encounter_state owed_writes: ${error.message}`);
       },
       async persistPartyMember(id, patch) {
         const { error } = await admin.from("party_members").update(patch).eq("id", id).eq("campaign_id", campaignId);

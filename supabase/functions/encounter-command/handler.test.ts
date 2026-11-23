@@ -59,6 +59,7 @@ function row(over: Partial<FightRow> = {}): FightRow {
     ended_at: null,
     started_at: null,
     pending_reaction: null,
+    owed_writes: null,
     ...over,
   };
 }
@@ -91,6 +92,12 @@ interface Harness {
   innateWrites: Array<{ memberId: string; spellRowId: string; remaining: number }>;
   /** The `class_resources` written to allies' sheets after their class features were used, in order. */
   resourceWrites: Array<{ memberId: string; resources: StoredClassResources }>;
+  /** Swaps what the server reads of the player characters from now on (their sheet edited between two batches). */
+  replacePlayers: (players: PlayerSheets) => void;
+  /** The next `writes` writes of an ally's spell slots fail, then the sheet is back. */
+  failSlots: (writes: number) => void;
+  /** How many times an owed record was taken off the fight row. */
+  clears: number;
   /** How many times the server threw a die. */
   dieCalls: number;
   /** The size of each die it threw, in order (20 for a d20). */
@@ -133,8 +140,10 @@ function harness(
     standIns?: string[];
     /** A drop of a thrown weapon that fails (the chat could not be written to). */
     dropFails?: boolean;
-    /** A write of an ally's spell slots that fails. */
-    slotsFail?: boolean;
+    /** A write of an ally's spell slots that fails. A number fails only that many writes, then the sheet is back. */
+    slotsFail?: boolean | number;
+    /** Taking the owed record off the fight row fails. */
+    clearFails?: boolean;
     /** A write of an ally's innate spell uses that fails. */
     innateFail?: boolean;
     /** A write of an ally's class resources that fails. */
@@ -175,6 +184,7 @@ function harness(
     slotWrites: [],
     resourceWrites: [],
     innateWrites: [],
+    clears: 0,
     dieCalls: 0,
     dieSides: [],
     playerLoads: [],
@@ -186,6 +196,12 @@ function harness(
     noteCosts: [],
     xpAwards: [],
     rosterAsks: [],
+    replacePlayers: (players) => {
+      options.players = players;
+    },
+    failSlots: (writes) => {
+      options.slotsFail = writes;
+    },
     deps: undefined as unknown as BatchDeps,
   };
   h.deps = {
@@ -222,7 +238,7 @@ function harness(
     },
     async createFight(_encounterId, first) {
       if (h.store.row) return null;
-      h.store.row = { id: "row-new", version: 1, started_at: null, pending_reaction: null, ...structuredClone(first) };
+      h.store.row = { id: "row-new", version: 1, started_at: null, pending_reaction: null, owed_writes: null, ...structuredClone(first) };
       h.log.push("create");
       return { id: "row-new", version: 1 };
     },
@@ -240,6 +256,13 @@ function harness(
       h.store.row = { ...h.store.row, ...columns, version: expected + 1 };
       h.log.push("save");
       return { version: h.store.row.version };
+    },
+    async clearOwedWrites(rowId, batchId) {
+      if (options.clearFails) throw new Error("row is unreachable");
+      const row = h.store.row;
+      if (row === null || row.id !== rowId || row.owed_writes === null || row.owed_writes.batchId !== batchId) return;
+      h.clears += 1;
+      h.store.row = { ...row, owed_writes: null, version: row.version + 1 };
     },
     async persistPartyMember(id, patch) {
       h.log.push("persist");
@@ -316,7 +339,11 @@ function harness(
       h.innateWrites.push({ memberId, spellRowId, remaining });
     },
     async writeSpellSlots(memberId, slots) {
-      if (options.slotsFail) throw new Error("sheet is down");
+      if (options.slotsFail === true) throw new Error("sheet is down");
+      if (typeof options.slotsFail === "number" && options.slotsFail > 0) {
+        options.slotsFail -= 1;
+        throw new Error("sheet is down");
+      }
       h.log.push("slots");
       h.slotWrites.push({ memberId, slots: structuredClone(slots) });
     },
@@ -5558,7 +5585,8 @@ describe("the person's own Reaction: Shield and Counterspell pause the turn", ()
     });
   const BITE_TAM = "attack:actions:Bite:tam";
   const wolfBites = (over: Record<string, unknown> = {}) => takeTurn({ playedMemberId: "pm-tam", optionId: BITE_TAM, ...over });
-  const answer = (value: unknown) => ({ type: "answer_reaction", answer: value }) as unknown as CommandRequest["commands"][number];
+  // `offerId` is the id of the batch that raised the offer answered (the turn's first pause: its take_turn batch; a later one: the answer batch before).
+  const answer = (value: unknown, offerId: unknown = "o1") => ({ type: "answer_reaction", answer: value, offerId }) as unknown as CommandRequest["commands"][number];
   const bothBites = () => ({ monsters: [monster("m-wolf", { actions: [MULTI([{ action: "Bite", count: 2 }]), bite] }), monster("m-ox")], npcs: [], companions: [] }) as StatBlockSources;
   const at = (over: { sources?: StatBlockSources; players?: PlayerSheets; dieFaces?: number[]; fight?: FightRow; judge?: (r: JudgeRequest) => JudgeResult | null; ruleset?: "2014" | "2024"; standIns?: string[] } = {}) =>
     harness(over.fight ?? tamFight(), {
@@ -5593,7 +5621,7 @@ describe("the person's own Reaction: Shield and Counterspell pause the turn", ()
   it("fails if answering cast does not replay the same d20 as a miss, spending the Reaction and the slot and clearing the pending", async () => {
     const h = at({ dieFaces: [8] });
     await runBatch(batch("t1", wolfBites()), h.deps);
-    const result = await runBatch(batch("a1", answer("cast")), h.deps);
+    const result = await runBatch(batch("a1", answer("cast", "t1")), h.deps);
     expect(result.applied).toBe(true);
     expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { optionId: BITE_TAM } });
     expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "attack", natural: 8, total: 12, targetAc: 15, hit: false, reaction: { by: "tam", spell: "Shield" } } });
@@ -5612,7 +5640,7 @@ describe("the person's own Reaction: Shield and Counterspell pause the turn", ()
   it("fails if answering pass changes the hit or the damage an unpaused turn would have dealt", async () => {
     const h = at({ dieFaces: [8, 4] });
     await runBatch(batch("t1", wolfBites()), h.deps);
-    const result = await runBatch(batch("a1", answer("pass")), h.deps);
+    const result = await runBatch(batch("a1", answer("pass", "t1")), h.deps);
     expect(result.applied).toBe(true);
     expect(hpOf(stored(h), "tam")).toBe(14);
     expect(combatantOf(stored(h), "tam").reactionUsed).not.toBe(true);
@@ -5675,14 +5703,14 @@ describe("the person's own Reaction: Shield and Counterspell pause the turn", ()
     const h = at({ sources: bothBites(), dieFaces: [8, 4, 9] });
     const multi = takeTurn({ playedMemberId: "pm-tam", optionId: "attack:actions:Multiattack:tam" });
     await runBatch(batch("t1", multi), h.deps);
-    const second = await runBatch(batch("a1", answer("pass")), h.deps);
+    const second = await runBatch(batch("a1", answer("pass", "t1")), h.deps);
     expect(offerOf(second)).toMatchObject({ kind: "shield", roll: { natural: 9, total: 13 } });
     expect(second.applied).toBe(false);
     expect(hpOf(stored(h), "tam")).toBe(20);
     expect(stored(h).applied_command_ids).toEqual([]);
     expect(pendingOf(h)).toMatchObject({ answers: ["pass"], answerBatchId: "a1", tape: [{ value: 8 }, { value: 4 }, { value: 9 }] });
     // Casting at the second moment: the first hit still lands as passed (20 -> 14), the second is a miss, one slot is spent.
-    const done = await runBatch(batch("a2", answer("cast")), h.deps);
+    const done = await runBatch(batch("a2", answer("cast", "a1")), h.deps);
     expect(done.applied).toBe(true);
     expect(hpOf(stored(h), "tam")).toBe(14);
     expect(combatantOf(stored(h), "tam").reactionUsed).toBe(true);
@@ -5695,7 +5723,7 @@ describe("the person's own Reaction: Shield and Counterspell pause the turn", ()
   it("fails if the card is offered again after the person cast Shield", async () => {
     const h = at({ sources: bothBites(), dieFaces: [8, 12, 4] });
     await runBatch(batch("t1", takeTurn({ playedMemberId: "pm-tam", optionId: "attack:actions:Multiattack:tam" })), h.deps);
-    const done = await runBatch(batch("a1", answer("cast")), h.deps);
+    const done = await runBatch(batch("a1", answer("cast", "t1")), h.deps);
     expect(offerOf(done)).toBeUndefined();
     expect(done.applied).toBe(true);
     expect(hpOf(stored(h), "tam")).toBe(14);
@@ -5755,8 +5783,8 @@ describe("the person's own Reaction: Shield and Counterspell pause the turn", ()
     it("fails if a retried answer that paused again answers the next moment as well", async () => {
       const h = at({ sources: bothBites(), dieFaces: [8, 4, 9] });
       await runBatch(batch("t1", takeTurn({ playedMemberId: "pm-tam", optionId: "attack:actions:Multiattack:tam" })), h.deps);
-      await runBatch(batch("a1", answer("pass")), h.deps);
-      const retry = await runBatch(batch("a1", answer("pass")), h.deps);
+      await runBatch(batch("a1", answer("pass", "t1")), h.deps);
+      const retry = await runBatch(batch("a1", answer("pass", "t1")), h.deps);
       expect(offerOf(retry)).toMatchObject({ roll: { natural: 9 } });
       expect(pendingOf(h)).toMatchObject({ answers: ["pass"] });
       expect(hpOf(stored(h), "tam")).toBe(20);
@@ -5798,6 +5826,168 @@ describe("the person's own Reaction: Shield and Counterspell pause the turn", ()
     expect(pendingOf(h)).toBeNull();
   });
 
+  // JSON `false`, `0` and an empty string are values too, and a truthiness test leaves them on the row: they are no pending reaction, so the next fight on the row
+  // would refuse every command. End combat and Abandon clear them like a malformed object, and so does `open` on a fight that has ended.
+  // Bug caught: a falsy malformed pending that survives the close (and the reopen) and locks the fight for good (CodeRabbit on #1261).
+  it.each([[false], [0], [""], [{ command: "x" }]])("fails if a stored pending of %j is left on the row by End combat, Abandon or a reopen", async (stored_) => {
+    for (const type of ["end_combat", "abandon"] as const) {
+      const closed = at();
+      closed.store.row = { ...closed.store.row!, pending_reaction: stored_ as never };
+      await runBatch(batch("c1", { type }), closed.deps);
+      expect(pendingOf(closed)).toBeNull();
+    }
+    const reopened = at();
+    reopened.store.row = { ...reopened.store.row!, ended_at: "2026-11-15T19:00:00.000Z", pending_reaction: stored_ as never };
+    await runBatch(batch("o1", { type: "open" }), reopened.deps);
+    expect(pendingOf(reopened)).toBeNull();
+    expect(stored(reopened).ended_at).toBeNull();
+  });
+
+  describe("each answer names the offer it answers", () => {
+    const offerIdOf = (result: { effects: Array<{ type: string }> }) => (result.effects.find((e) => e.type === "reaction_offered") as unknown as { offerId: string } | undefined)?.offerId;
+    const multi = () => takeTurn({ playedMemberId: "pm-tam", optionId: "attack:actions:Multiattack:tam" });
+
+    // A Multiattack asks twice. Two tabs show the first Shield; one passes, the fight now waits on the second. The other tab's late "cast" still names the first offer:
+    // taken for the second it would cast Shield on a hit its player never saw. It is refused (409) and the fight is untouched; the right id is accepted.
+    // Bugs caught: a late answer from a stale tab consumed as the answer to the next offer, an offer that does not say its own id.
+    it("fails if an answer to an earlier offer of the same turn is taken for the one waiting now", async () => {
+      const h = at({ sources: bothBites(), dieFaces: [8, 4, 9] });
+      const first = await runBatch(batch("t1", multi()), h.deps);
+      expect(offerIdOf(first)).toBe("t1");
+      const second = await runBatch(batch("a1", answer("pass", "t1")), h.deps);
+      expect(offerIdOf(second)).toBe("a1");
+      await expect(runBatch(batch("a2", answer("cast", "t1")), h.deps)).rejects.toMatchObject({ status: 409 });
+      expect(pendingOf(h)).toMatchObject({ answers: ["pass"], offerId: "a1" });
+      expect(hpOf(stored(h), "tam")).toBe(20);
+      expect(h.slotWrites).toEqual([]);
+      const done = await runBatch(batch("a3", answer("cast", "a1")), h.deps);
+      expect(done.applied).toBe(true);
+      expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 1, max: 2, used: 1 }] }]);
+    });
+
+    // The retried send of the answer that raised the offer shows it again whatever id it carries (it is the exact batch, not a newer answer).
+    // Bug caught: the id check run before the retry rule, so a lost reply to "a1" turns the retry into a 409 and the person is stranded.
+    it("fails if the retried batch that raised the offer is refused instead of shown the offer again", async () => {
+      const h = at({ sources: bothBites(), dieFaces: [8, 4, 9] });
+      await runBatch(batch("t1", multi()), h.deps);
+      await runBatch(batch("a1", answer("pass", "t1")), h.deps);
+      const retry = await runBatch(batch("a1", answer("pass", "t1")), h.deps);
+      expect(offerIdOf(retry)).toBe("a1");
+    });
+
+    // The answer's own save loses a race to a writer that moved the fight on to a NEWER offer (id z9): the retry reloads and must meet the id rule again.
+    // Bug caught: the offer id checked once on the first load, so an answer to an offer that was replaced mid-flight is applied to the replacement.
+    it("fails if a lost race that reloads a newer offer lets the stale answer through", async () => {
+      const h = at({ dieFaces: [8] });
+      await runBatch(batch("t1", wolfBites()), h.deps);
+      h.rival.run = rivalEdit(h, (r) => {
+        r.pending_reaction = { ...r.pending_reaction!, offerId: "z9" };
+      });
+      await expect(runBatch(batch("a1", answer("cast", "t1")), h.deps)).rejects.toMatchObject({ status: 409 });
+      expect(pendingOf(h)).toMatchObject({ offerId: "z9" });
+      expect(h.slotWrites).toEqual([]);
+    });
+
+    it.each([[null], [""], [7], ["x".repeat(81)]])("fails if an answer whose offerId is %j passes validation", (bad) => {
+      expect(() => validateRequest(batch("v", answer("cast", bad)))).toThrow(FightCommandError);
+    });
+  });
+
+  // PHB 2014 "Shield": the pause saw AC 10 (a hit by 12). Tam puts on armour while the fight waits (Dexterity 16 here: AC 13), so on the sheet as it is now 12 no longer
+  // hits and Shield would turn nothing. The replay plays from the sheet the offer was made from, so "cast" still meets AC 15 and still spends the Reaction and the slot.
+  // Bug caught: a replay that re-reads the sheet and commits a turn in which the person's "cast" was never used (CodeRabbit on #1261).
+  it("fails if the replay of a waiting turn reads a sheet edited since the offer", async () => {
+    const h = at({ dieFaces: [8] });
+    await runBatch(batch("t1", wolfBites()), h.deps);
+    const sheets = tamShield();
+    h.replacePlayers({ ...sheets, members: [{ ...sheets.members[0], dex: 16 }] });
+    const done = await runBatch(batch("a1", answer("cast", "t1")), h.deps);
+    expect(done.applied).toBe(true);
+    expect(done.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "attack", natural: 8, total: 12, targetAc: 15, hit: false, reaction: { by: "tam", spell: "Shield" } } });
+    expect(combatantOf(stored(h), "tam").reactionUsed).toBe(true);
+    expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 1, max: 2, used: 1 }] }]);
+  });
+
+  describe("the cost of the Reaction is not lost to a sheet write that fails", () => {
+    const slotCost = [{ memberId: "pm-tam", slots: [{ level: 1, max: 2, used: 1 }] }];
+    const castWithSheetDown = async () => {
+      // Three failures are the three tries one write gets; the sheet is back after them.
+      const h = at({ dieFaces: [8] });
+      await runBatch(batch("t1", wolfBites()), h.deps);
+      h.failSlots(3);
+      const result = await runBatch(batch("a1", answer("cast", "t1")), h.deps);
+      return { h, result };
+    };
+
+    // The fight is saved with Shield up and the Reaction spent, and the slot write fails on every try. The save also recorded what is still owed, so it is not forgotten:
+    // the same batch sent again (the page retries a reply it did not get) finishes the write, once, and takes the record off. A third send writes nothing more.
+    // Bugs caught: a retried batch answered as applied before the slot is ever written (the slot never spent), the record left on the row so the slot is written again and again,
+    // the record cleared although a write failed, a cost not saved in the same update as the fight.
+    it("fails if the retried answer does not finish the slot write exactly once", async () => {
+      const { h, result } = await castWithSheetDown();
+      expect(result.applied).toBe(true);
+      expect(result.effectFailures).toEqual([expect.stringContaining("ally_spell_slots")]);
+      expect(h.slotWrites).toEqual([]);
+      expect(stored(h).owed_writes).toMatchObject({ batchId: "a1", slots: slotCost });
+      expect(combatantOf(stored(h), "tam").reactionUsed).toBe(true);
+      const retry = await runBatch(batch("a1", answer("cast", "t1")), h.deps);
+      expect(retry.applied).toBe(false);
+      expect(retry.effectFailures).toEqual([]);
+      expect(h.slotWrites).toEqual(slotCost);
+      expect(stored(h).owed_writes).toBeNull();
+      await runBatch(batch("a1", answer("cast", "t1")), h.deps);
+      expect(h.slotWrites).toEqual(slotCost);
+      expect(h.clears).toBe(1);
+      expect(stored(h).applied_command_ids).toEqual(["a1"]);
+    });
+
+    // Any later command finishes it first (the DM's next batch, not only a retry), and still applies.
+    // Bug caught: the owed cost settled only for the retried batch, so a page that moved on never charges the slot.
+    it("fails if the next command of the fight does not finish what the answer owed first", async () => {
+      const { h } = await castWithSheetDown();
+      const next = await runBatch(batch("n1", { type: "adjust_hp", instanceId: "wolf", delta: -1 }), h.deps);
+      expect(next.applied).toBe(true);
+      expect(hpOf(stored(h), "wolf")).toBe(10);
+      expect(h.slotWrites).toEqual(slotCost);
+      expect(stored(h).owed_writes).toBeNull();
+    });
+
+    // The sheet is still down when the next batch comes: the record stays (nothing is cleared for a write that did not land) and the failure is said.
+    // Bug caught: a record cleared on a failed settle, which loses the cost.
+    it("fails if a settle that fails again clears the record", async () => {
+      const { h } = await castWithSheetDown();
+      h.failSlots(3);
+      const next = await runBatch(batch("n1", { type: "adjust_hp", instanceId: "wolf", delta: -1 }), h.deps);
+      expect(next.effectFailures).toEqual([expect.stringContaining("ally_spell_slots")]);
+      expect(stored(h).owed_writes).toMatchObject({ batchId: "a1" });
+      expect(next.applied).toBe(true);
+    });
+
+    // A pass owes nothing, and a cast whose write lands leaves no record behind.
+    // Bug caught: a record written for every answer, so each answered Reaction costs a second update (and a ring) for nothing.
+    it("fails if an answer whose writes landed leaves an owed record on the row", async () => {
+      const h = at({ dieFaces: [8] });
+      await runBatch(batch("t1", wolfBites()), h.deps);
+      await runBatch(batch("a1", answer("cast", "t1")), h.deps);
+      expect(h.slotWrites).toEqual(slotCost);
+      expect(stored(h).owed_writes).toBeNull();
+      expect(h.saved.at(-1)).toHaveProperty("owed_writes");
+      const passed = at({ dieFaces: [8, 4] });
+      await runBatch(batch("t1", wolfBites()), passed.deps);
+      await runBatch(batch("a1", answer("pass", "t1")), passed.deps);
+      expect(passed.saved.at(-1)).not.toHaveProperty("owed_writes");
+    });
+
+    // An ally the rules play spends a slot in an ordinary take_turn: that write keeps the old rule (after the save, a failure only reported), with nothing recorded on the row.
+    // Bug caught: every batch that spent something recording an owed cost, an extra update and ring on every ally cast.
+    it("fails if a plain ally's cast records an owed cost", async () => {
+      const h = harness(archerFight(), { sources: SOURCES, players: wizardTamSheets(), map: mapOf(), spells: [fireBolt(), fireball()], dieFaces: [2, 1, 1, 1, 1, 1, 1, 1, 1] });
+      await runBatch(batch("b", tamTurn({ optionId: BALL })), h.deps);
+      expect(h.slotWrites).toHaveLength(1);
+      expect(h.saved.at(-1)).not.toHaveProperty("owed_writes");
+    });
+  });
+
   // A turn the note judged: the judge is asked once (321 input tokens) in the paused run and its answer rides the tape, so the answer's replay does not ask again.
   // The cost row is written once, after the save that commits the turn, and never for the pause.
   // Bugs caught: a note answer bought twice (the replay asking again), billed at the pause, or billed twice (once for the pause's call, once for the tape).
@@ -5808,7 +5998,7 @@ describe("the person's own Reaction: Shield and Counterspell pause the turn", ()
     expect(pendingOf(h)).not.toBeNull();
     expect(h.noteAsks).toHaveLength(1);
     expect(h.noteCosts).toEqual([]);
-    await runBatch(batch("a1", answer("pass")), h.deps);
+    await runBatch(batch("a1", answer("pass", "t1")), h.deps);
     expect(h.noteAsks).toHaveLength(1);
     expect(h.noteCosts).toEqual([{ inputTokens: 321, savesBefore: 2 }]);
   });
@@ -5840,7 +6030,7 @@ describe("the person's own Reaction: Shield and Counterspell pause the turn", ()
       expect(offerOf(paused)).toEqual({ kind: "counterspell", reactorId: "tam", casterId: "mage", spell: "Fireball", spellLevel: 3, counterSpell: "Counterspell", castLevel: 3, spends: "slot" });
       expect(hpOf(stored(h), "tam")).toBe(20);
       expect(combatantOf(stored(h), "mage").action_used).not.toBe(true);
-      const done = await runBatch(batch("c2", answer("cast")), h.deps);
+      const done = await runBatch(batch("c2", answer("cast", "c1")), h.deps);
       expect(countLine(done)).toMatchObject({ kind: "countered", counterId: "tam", stopped: true });
       expect(hpOf(stored(h), "tam")).toBe(20);
       expect(combatantOf(stored(h), "tam").reactionUsed).toBe(true);
@@ -5854,7 +6044,7 @@ describe("the person's own Reaction: Shield and Counterspell pause the turn", ()
     it("fails if passing on Counterspell still counters, or spends her slot", async () => {
       const h = withTam(mage(), [1, 1, 1, 1, 1, 1, 1, 1, 1]);
       await runBatch(batch("c1", mageCasts()), h.deps);
-      await runBatch(batch("c2", answer("pass")), h.deps);
+      await runBatch(batch("c2", answer("pass", "c1")), h.deps);
       expect(hpOf(stored(h), "tam")).toBe(12);
       expect(combatantOf(stored(h), "tam").reactionUsed).not.toBe(true);
       expect(h.slotWrites).toEqual([]);
@@ -5871,13 +6061,13 @@ describe("the person's own Reaction: Shield and Counterspell pause the turn", ()
       const asked = await runBatch(batch("w1", mageCasts()), passed.deps);
       expect(offerOf(asked)).toMatchObject({ kind: "counterspell", reactorId: "tam" });
       expect(combatantOf(stored(passed), "warden").reactionUsed).not.toBe(true);
-      const after = await runBatch(batch("w2", answer("pass")), passed.deps);
+      const after = await runBatch(batch("w2", answer("pass", "w1")), passed.deps);
       expect(countLine(after)).toMatchObject({ counterId: "warden", stopped: true });
       expect(combatantOf(stored(passed), "warden").reactionUsed).toBe(true);
       expect(combatantOf(stored(passed), "tam").reactionUsed).not.toBe(true);
       const cast = withTam(far(mage([warden])), []);
       await runBatch(batch("w3", mageCasts()), cast.deps);
-      const counted = await runBatch(batch("w4", answer("cast")), cast.deps);
+      const counted = await runBatch(batch("w4", answer("cast", "w3")), cast.deps);
       expect(countLine(counted)).toMatchObject({ counterId: "tam" });
       expect(combatantOf(stored(cast), "warden").reactionUsed).not.toBe(true);
     });
@@ -5905,7 +6095,7 @@ describe("the person's own Reaction: Shield and Counterspell pause the turn", ()
       const h = withTam(mage(), [13], "2024");
       const paused = await runBatch(batch("s1", mageCasts()), h.deps);
       expect(offerOf(paused)).toEqual({ kind: "counterspell", reactorId: "tam", casterId: "mage", spell: "Fireball", spellLevel: 3, counterSpell: "Counterspell", castLevel: 3, spends: "slot", save: { dc: 14 } });
-      const done = await runBatch(batch("s2", answer("cast")), h.deps);
+      const done = await runBatch(batch("s2", answer("cast", "s1")), h.deps);
       expect(countLine(done)).toMatchObject({ save: { total: 13, dc: 14 }, stopped: true });
       expect(hpOf(stored(h), "tam")).toBe(20);
       expect(combatantOf(stored(h), "tam").reactionUsed).toBe(true);
