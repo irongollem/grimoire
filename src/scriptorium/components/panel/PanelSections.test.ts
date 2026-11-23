@@ -9,6 +9,7 @@ import DecorationPanelSection from "./DecorationPanelSection.vue";
 import EmbedPanelSection from "./EmbedPanelSection.vue";
 import PicturePanelSection from "./PicturePanelSection.vue";
 import PlacementFields from "./PlacementFields.vue";
+import PictureEditSection from "./PictureEditSection.vue";
 import type { PageFurnitureItem } from "@/scriptorium/types";
 
 const stubs = { ArtPickerModal: true, ImageUpload: true, EmbedRevealControl: true, AiImageBadge: true };
@@ -100,7 +101,10 @@ describe("PicturePanelSection", () => {
         props: { ...nodeProps, layer: "over", where: "Placed on page 2", nodeAttrs: null, item: item(), anchor },
         global: { stubs },
       });
-      await press(w, "Sepia");
+      const colour = w.getComponent(PictureEditSection).findAllComponents({ name: "SegmentedControl" })
+        .find((control) => (control.props("options") as { value: string }[]).some((option) => option.value === "Sepia"));
+      if (!colour) throw new Error("No Sepia colour option");
+      colour.vm.$emit("update:modelValue", "Sepia");
       const patch = w.emitted("item")?.at(-1)?.[0] as { props: Record<string, string> };
       expect(patch.props.original).toBe("a.webp");
       expect(JSON.parse(patch.props.illuminate).steps[0].type).toBe("grade");
