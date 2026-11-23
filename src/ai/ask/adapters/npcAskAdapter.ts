@@ -214,3 +214,5 @@ export function useNpcAskAdapter(): AskAdapter {
 
   return { id: "npc", quote, run };
 }
+
+export default useNpcAskAdapter;
