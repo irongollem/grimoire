@@ -185,6 +185,29 @@ function choicesOf(raw: unknown): AskChoice[] {
   return out;
 }
 
+/**
+ * Whether a `get` answer is a row of this campaign, another, or one with no campaign (a DM's own record shared by
+ * all their campaigns, which they may read anywhere).
+ *
+ * The check fails closed. A long answer is cut by `bindTools` and no longer parses as JSON, and passing it on
+ * because it "names no campaign" let a large row of another of the DM's campaigns through (#1253 audit). So a cut
+ * answer is judged by the `campaign_id` its text names (a row's columns come out in table order, and the id sits
+ * near the head, well inside the cut), and an answer whose campaign cannot be read at all is treated as another's.
+ */
+export function campaignOfAnswer(content: string, campaignId: string): "this" | "other" | "none" {
+  try {
+    const row: unknown = JSON.parse(content);
+    if (!isRecord(row)) return "other";
+    if (!("campaign_id" in row) || row.campaign_id === null) return "none";
+    return row.campaign_id === campaignId ? "this" : "other";
+  } catch {
+    const named = /"campaign_id"\s*:\s*(null|"([0-9a-f-]{36})")/i.exec(content);
+    if (!named) return "other";
+    if (named[1] === "null") return "none";
+    return named[2].toLowerCase() === campaignId.toLowerCase() ? "this" : "other";
+  }
+}
+
 export function makeAskTools(input: AskToolsInput): AskTools {
   const { campaign, reads, emit } = input;
   const own = askOwnTools(input.fiveE);
@@ -194,6 +217,7 @@ export function makeAskTools(input: AskToolsInput): AskTools {
   let ended: AskEnd | null = null;
 
   const failure = (content: string): ToolAnswer => ({ content, isError: true });
+  const campaignOf = (content: string) => campaignOfAnswer(content, campaign.id);
   const alreadyEnded = (): ToolAnswer =>
     failure(ended === "propose" ? "A proposal is already made this turn. Only one per turn." : "A question is already put to the DM this turn. Stop and wait for the answer.");
 
@@ -208,15 +232,8 @@ export function makeAskTools(input: AskToolsInput): AskTools {
     const answer = await input.callMcp(name, args);
     // `get` takes an id and no campaign, so the pinned campaign cannot narrow it: a row that belongs to another
     // campaign of the same DM is refused here, after the read and before anything of it is shown or kept.
-    if (name === "get" && !answer.isError) {
-      try {
-        const row: unknown = JSON.parse(answer.content);
-        if (isRecord(row) && typeof row.campaign_id === "string" && row.campaign_id !== campaign.id) {
-          return failure("That record is not in this campaign.");
-        }
-      } catch {
-        // An answer that is not JSON names no campaign; it is passed on as it is.
-      }
+    if (name === "get" && !answer.isError && campaignOf(answer.content) === "other") {
+      return failure("That record is not in this campaign.");
     }
     return reported(name, args, answer);
   }
