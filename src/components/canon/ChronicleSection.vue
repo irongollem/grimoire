@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 /**
- * Part VII (frame 12): what has happened, session by session. Each entry is the note linked to a session; a session with
+ * Part VIII (frame 12): what has happened, session by session. Each entry is the note linked to a session; a session with
  * none offers to write it. The almanac beside it puts lore, moving forces and sessions on one timeline.
  *
  * Sessions are shown ten at a time: each entry reads what the party learned in its own session, one read per entry, so

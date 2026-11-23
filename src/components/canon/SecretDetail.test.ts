@@ -7,6 +7,7 @@ import { canonEntry } from "@/test/canonEntry";
 const mocks = vi.hoisted(() => ({ update: vi.fn(), confirm: vi.fn(), setFound: vi.fn(), destroyClue: vi.fn() }));
 const clues = ref<CanonClue[]>([]);
 const party = ref<{ id: string }[] | undefined>([]);
+const passages = ref<{ id: string; entry_id: string; title: string }[]>([]);
 
 vi.mock("@/composables/canon/useCanonEntries", () => ({ useUpdateCanonEntry: () => ({ mutate: mocks.update }) }));
 vi.mock("@/composables/canon/useCanonClues", () => ({
@@ -17,6 +18,7 @@ vi.mock("@/composables/canon/useCanonClues", () => ({
   useSetClueFound: () => mocks.setFound,
 }));
 vi.mock("@/composables/canon/useClueWhere", () => ({ useClueWhere: () => ref(() => null), useBeatOptions: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/canon/useCanonPassages", () => ({ useCanonPassages: () => ({ data: passages }) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: party }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 
@@ -28,13 +30,24 @@ const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
   quest_beat_id: null, found_at: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
 });
 
-const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { ConnectionsSection: true, ClueForm: true, CanonSuggestions: true } } });
+const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { ConnectionsSection: true, ClueForm: true, CanonSuggestions: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
 
 describe("SecretDetail", () => {
   beforeEach(() => {
     clues.value = [clue(), clue({ id: "k2", title: "A carving" })];
     party.value = [{ id: "pm1" }, { id: "pm2" }];
+    passages.value = [];
     Object.values(mocks).forEach((m) => m.mockReset());
+  });
+
+  // Bug caught (#1255 item 5): a clue that is a lore passage read "Not placed anywhere yet", as if it were unplaced.
+  it("names the lore passage a clue is, and not as lying nowhere", () => {
+    passages.value = [{ id: "g1", entry_id: "l1", title: "What was under the chapel" }];
+    clues.value = [clue({ passage_id: "g1" }), clue({ id: "k2", title: "A carving" })];
+    const rows = mountDetail(secret()).findAll("[data-testid=clue-row]");
+    expect(rows[0].find("[data-testid=clue-passage]").text()).toBe("A lore passage: What was under the chapel");
+    expect(rows[0].find("[data-testid=clue-nowhere]").exists()).toBe(false);
+    expect(rows[1].find("[data-testid=clue-nowhere]").exists()).toBe(true);
   });
 
   it("writes nothing when the DM cancels the reveal, so a stray click never shows the party a secret", async () => {
@@ -104,7 +117,7 @@ describe("SecretDetail", () => {
 
   it("saves the statement through the committed-text rule: a blank statement writes nothing", async () => {
     const w = mountDetail(secret());
-    await w.find("input[aria-label='The secret']").setValue("  ");
+    await w.find("textarea[aria-label='The secret']").setValue("  ");
     await flushPromises();
     expect(mocks.update).not.toHaveBeenCalled();
   });

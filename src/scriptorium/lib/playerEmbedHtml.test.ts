@@ -149,6 +149,8 @@ describe("playerCanonHtml", () => {
       latestAt: "x",
     }],
     backstories: [],
+    premise: [],
+    revealed: [],
   };
 
   it("prints a truth the player has, and lore with only the passages they were told", () => {

@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { computed, ref } from "vue";
 import type { CanonClue, CanonEntry, CanonLorePassage } from "@/types/canon.types";
-import { canonEntry } from "@/test/canonEntry";
 
 const mocks = vi.hoisted(() => ({ tell: vi.fn(), takeBack: vi.fn(), update: vi.fn(), confirm: vi.fn() }));
 const clues = ref<CanonClue[]>([]);
@@ -28,7 +27,7 @@ const passage = (over: Partial<CanonLorePassage> = {}): CanonLorePassage => ({
 const mountRow = (p: CanonLorePassage, first = false, extra: Record<string, unknown> = {}) =>
   mount(LorePassageRow, {
     props: { passage: p, index: first ? 0 : 1, first, canMoveUp: !first, canMoveDown: true, ...extra },
-    global: { stubs: { RichTextEditor: true, WherePicker: { name: "WherePicker", emits: ["choose"], template: "<button data-testid='choose' @click=\"$emit('choose', { kind: 'npc', id: 'n1' })\" />" }, CanonRef: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } },
+    global: { stubs: { RichTextEditor: true, WherePicker: { name: "WherePicker", emits: ["choose"], template: "<button data-testid='choose' @click=\"$emit('choose', { kind: 'npc', id: 'n1' })\" />" }, CanonRef: true, PassageClues: { name: "PassageClues", props: ["passage", "canAdd"], template: "<div />" }, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } },
   });
 
 describe("LorePassageRow", () => {
@@ -83,11 +82,13 @@ describe("LorePassageRow", () => {
     expect(mocks.update).toHaveBeenCalledWith({ id: "g1", patch: { location_id: null, npc_id: "n1", quest_beat_id: null } });
   });
 
-  it("says which secret it is also a clue to, with a link to it", () => {
-    entries.value = [canonEntry({ id: "s1", part: "secret", title: "The Stain is a wound in the dream" })];
-    clues.value = [{ id: "k1", secret_id: "s1", passage_id: "g1" } as CanonClue, { id: "k2", secret_id: "s9", passage_id: "other" } as CanonClue];
-    const w = mountRow(passage());
-    expect(w.findAll("[data-testid=passage-clue-to]").map((a) => a.text())).toEqual(["The Stain is a wound in the dream"]);
+  // Bug caught: the first passage is told with the entry, never by itself, so a clue made of it would never be found;
+  // and a player's own passage is not the DM's to plant a clue in.
+  it("lets only a later DM passage be made a clue", () => {
+    const canAdd = (w: ReturnType<typeof mountRow>) => w.findComponent({ name: "PassageClues" }).props("canAdd");
+    expect(canAdd(mountRow(passage()))).toBe(true);
+    expect(canAdd(mountRow(passage({ sort_order: 0 }), true))).toBe(false);
+    expect(canAdd(mountRow(passage(), false, { playersOwn: true }))).toBe(false);
   });
 
   describe("in a backstory (frame 14)", () => {

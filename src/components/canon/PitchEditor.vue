@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-2" data-testid="pitch-editor">
+  <div :id="`canon-entry-${entry.id}`" class="flex flex-col gap-2" data-testid="pitch-editor">
     <RichTextEditor
       v-model="draft.body"
       size="sm"

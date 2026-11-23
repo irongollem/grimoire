@@ -105,3 +105,54 @@ describe("AppInput v-model", () => {
     expect(input.attributes("data-field-tone")).toBe("muted");
   });
 });
+
+describe("AppInput wrap", () => {
+  function mountWrap() {
+    const state = ref("");
+    let updates = 0;
+    const wrapper = mount(AppInput, {
+      props: {
+        modelValue: "",
+        modelModifiers: { lazy: true },
+        wrap: true,
+        "onUpdate:modelValue": (v: unknown) => {
+          updates += 1;
+          state.value = v as string;
+        },
+      },
+    });
+    return { wrapper, state, updates: () => updates };
+  }
+
+  it("a plain field stays a one-line <input>", () => {
+    // Bug: wrap leaking into every field and turning them all into textareas.
+    const wrapper = mount(AppInput, { props: { modelValue: "x" } });
+    expect(wrapper.find("input").exists()).toBe(true);
+    expect(wrapper.find("textarea").exists()).toBe(false);
+  });
+
+  it("Enter commits a lazy sentence once and adds no line break", async () => {
+    // Bug: Enter inserting a newline into a statement, or never committing.
+    const { wrapper, state, updates } = mountWrap();
+    const area = wrapper.get("textarea");
+    (area.element as HTMLTextAreaElement).value = "Debts outlive the people who owe them";
+    await area.trigger("input");
+    expect(updates()).toBe(0);
+    const enter = new KeyboardEvent("keydown", { key: "Enter", cancelable: true, bubbles: true });
+    area.element.dispatchEvent(enter);
+    await nextTick();
+    expect(enter.defaultPrevented).toBe(true);
+    expect(state.value).toBe("Debts outlive the people who owe them");
+    expect(updates()).toBe(1);
+  });
+
+  it("pasted line breaks are committed as single spaces", async () => {
+    // Bug: a pasted paragraph carrying raw newlines into a one-paragraph statement.
+    const { wrapper, state } = mountWrap();
+    const area = wrapper.get("textarea");
+    (area.element as HTMLTextAreaElement).value = "First\r\n\nsecond\n  third";
+    await area.trigger("input");
+    await area.trigger("change");
+    expect(state.value).toBe("First second third");
+  });
+});

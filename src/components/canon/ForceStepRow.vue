@@ -1,12 +1,14 @@
 <template>
-  <li class="flex min-w-0 flex-col gap-1.5 border border-border bg-muted/40 px-3 py-2 sm:flex-row sm:items-center sm:gap-3" :data-reached="reached" data-testid="force-step">
-    <span class="w-14 shrink-0 text-label" :class="state === 'now' ? 'font-bold text-primary' : 'text-muted-foreground'" data-testid="force-step-state">{{ STATE_LABEL[state] }}</span>
-    <AppInput :key="revision" v-model.lazy="text" size="body" tone="filled" class="min-w-0 flex-1" aria-label="The step" placeholder="What the force does next…" />
-    <span class="flex shrink-0 items-center gap-1">
-      <AppCheckbox :model-value="reached" label="Reached" label-role="label" @update:model-value="(v: boolean) => emit('reach', v)" />
-      <AppButton variant="ghost" size="icon-sm" :icon="IconChevronUp" aria-label="Move this step earlier" :disabled="first" @click="emit('move', -1)" />
-      <AppButton variant="ghost" size="icon-sm" :icon="IconChevronDown" aria-label="Move this step later" :disabled="last" @click="emit('move', 1)" />
-      <AppButton variant="ghost" size="icon-sm" :icon="IconClose" aria-label="Remove this step" @click="emit('remove')" />
+  <li class="flex min-w-0 flex-col gap-1.5 border border-border bg-muted/40 px-3 py-2" :data-reached="reached" data-testid="force-step">
+    <AppInput :key="revision" v-model.lazy="text" wrap size="body" tone="filled" aria-label="The step" placeholder="What the force does next…" />
+    <span class="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <span class="text-label" :class="state === 'now' ? 'font-bold text-primary' : 'text-muted-foreground'" data-testid="force-step-state">{{ STATE_LABEL[state] }}</span>
+      <span class="ml-auto flex shrink-0 items-center gap-1">
+        <AppCheckbox :model-value="reached" label="Reached" label-role="label" @update:model-value="(v: boolean) => emit('reach', v)" />
+        <AppButton variant="ghost" size="icon-sm" :icon="IconChevronUp" aria-label="Move this step earlier" :disabled="first" @click="emit('move', -1)" />
+        <AppButton variant="ghost" size="icon-sm" :icon="IconChevronDown" aria-label="Move this step later" :disabled="last" @click="emit('move', 1)" />
+        <AppButton variant="ghost" size="icon-sm" :icon="IconClose" aria-label="Remove this step" @click="emit('remove')" />
+      </span>
     </span>
   </li>
 </template>

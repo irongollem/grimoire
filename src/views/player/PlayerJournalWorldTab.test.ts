@@ -56,7 +56,7 @@ const lore = (passages: PlayerLorePassage[]): PlayerLore => ({
   passages,
   latestAt: "2026-11-09T00:00:00Z",
 });
-const world = (over: Partial<PlayerWorld>): PlayerWorld => ({ onlyMine: [], known: [], lore: [], backstories: [], ...over });
+const world = (over: Partial<PlayerWorld>): PlayerWorld => ({ onlyMine: [], known: [], lore: [], backstories: [], premise: [], revealed: [], ...over });
 
 beforeEach(() => {
   state.readAt = new Map();
@@ -144,6 +144,30 @@ describe("PlayerJournalWorldTab", () => {
     state.world = world({});
     mount(PlayerJournalWorldTab);
     expect(state.noteReads).toBe(1);
+  });
+
+  // Bug caught (#1255): the tab never rendered revealed secrets, and a world holding only one fell into the empty state.
+  it("shows a revealed secret, and not the empty state when it is all there is", () => {
+    state.world = world({ revealed: [{ ...truth("s", "The duke is a lich", "all"), part: "secret", knowledge: null }] });
+    const w = mount(PlayerJournalWorldTab);
+    expect(w.find("[aria-labelledby='world-revealed']").text()).toContain("The duke is a lich");
+    expect(w.text()).not.toContain("has not told you anything of the world yet");
+  });
+
+  // Bug caught (#1255): a shared premise never shown; a line read as a veil (or unlabelled) so the player could not
+  // tell what the table never plays.
+  it("shows the shared pitch and says in words whether an entry is a line or a veil", () => {
+    const prem = (id: string, title: string, kind: "pitch" | "line" | "veil", body: string | null = null): PlayerCanonEntry => ({
+      ...truth(id, title, "all"), part: "premise", premise_kind: kind, knowledge: null, body,
+    });
+    state.world = world({ premise: [prem("p", "A drowned kingdom", "pitch", "Dark tide rising"), prem("l", "Harm to children", "line"), prem("v", "Torture", "veil")] });
+    const w = mount(PlayerJournalWorldTab);
+    const text = w.find("[aria-labelledby='world-campaign']").text();
+    expect(text).toContain("A drowned kingdom");
+    expect(text).toContain("Dark tide rising");
+    expect(text.indexOf("Harm to children")).toBeLessThan(text.indexOf("Line: never in the story"));
+    expect(text.indexOf("Line: never in the story")).toBeLessThan(text.indexOf("Torture"));
+    expect(text).toContain("Veil: happens off screen");
   });
 
   it("says nothing is told yet rather than showing empty sections", () => {

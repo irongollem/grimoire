@@ -8,6 +8,24 @@
     <p class="font-fell text-muted-foreground italic">Your DM has not told you anything of the world yet.</p>
   </div>
   <div v-else class="space-y-6">
+    <section v-if="world.premise.length" aria-labelledby="world-campaign" class="space-y-4">
+      <h2 id="world-campaign" class="text-label text-muted-foreground mb-2">The campaign</h2>
+      <div v-for="entry in pitches" :key="entry.id">
+        <p class="text-body text-foreground">{{ entry.title }}</p>
+        <RichTextViewer v-if="entry.body" :content="entry.body" class="mt-1" />
+      </div>
+      <div v-for="group in premiseGroups" :key="group.label">
+        <h3 class="text-label text-muted-foreground mb-1">{{ group.label }}</h3>
+        <ul class="rounded-lg border border-border bg-card divide-y divide-border">
+          <li v-for="entry in group.entries" :key="entry.id" class="px-4 py-3">
+            <p class="text-body text-foreground">{{ entry.title }}</p>
+            <p v-if="premiseWord(entry)" class="text-caption text-muted-foreground/70 italic mt-0.5">{{ premiseWord(entry) }}</p>
+            <RichTextViewer v-if="entry.body" :content="entry.body" class="mt-1" />
+          </li>
+        </ul>
+      </div>
+    </section>
+
     <section v-if="world.onlyMine.length" aria-labelledby="world-mine">
       <h2 id="world-mine" class="text-label text-muted-foreground mb-2">Only you know</h2>
       <ul class="rounded-lg border border-border bg-card divide-y divide-border">
@@ -22,6 +40,16 @@
       <h2 id="world-known" class="text-label text-muted-foreground mb-2">What we know</h2>
       <ul class="rounded-lg border border-border bg-card divide-y divide-border">
         <li v-for="truth in world.known" :key="truth.id" class="px-4 py-3 text-body text-foreground">{{ truth.title }}</li>
+      </ul>
+    </section>
+
+    <section v-if="world.revealed.length" aria-labelledby="world-revealed">
+      <h2 id="world-revealed" class="text-label text-muted-foreground mb-2">Secrets revealed</h2>
+      <ul class="rounded-lg border border-border bg-card divide-y divide-border">
+        <li v-for="secret in world.revealed" :key="secret.id" class="px-4 py-3">
+          <p class="text-body text-foreground">{{ secret.title }}</p>
+          <RichTextViewer v-if="secret.body" :content="secret.body" class="mt-1" />
+        </li>
       </ul>
     </section>
 
@@ -120,14 +148,34 @@ import { usePlayerVisibleNotes } from "@/composables/notes/useNotes";
 import { usePlayerSessions } from "@/composables/sessions/usePlayerSessions";
 import { useCalendarStore } from "@/stores/calendar";
 import type { Note } from "@/types/notes.types";
-import { usePlayerCanon, isPassageNew, type PlayerLore } from "@/composables/canon/usePlayerCanon";
+import { usePlayerCanon, isPassageNew, type PlayerCanonEntry, type PlayerLore } from "@/composables/canon/usePlayerCanon";
 import { useMarkRead, useReadItems } from "@/composables/player/useReadItems";
 import { useLowArt } from "@/composables/useLowArt";
 
 const { world: worldRef, isLoading, error } = usePlayerCanon();
 // A failed read says so (the query itself reports it to Sentry); it never reads as "nothing told yet".
-const world = computed(() => worldRef.value ?? { onlyMine: [], known: [], lore: [], backstories: [] });
-const hasAnything = computed(() => world.value.onlyMine.length + world.value.known.length + world.value.lore.length + chronicle.value.length > 0);
+const world = computed(() => worldRef.value ?? { onlyMine: [], known: [], lore: [], backstories: [], premise: [], revealed: [] });
+const hasAnything = computed(
+  () =>
+    world.value.onlyMine.length + world.value.known.length + world.value.lore.length + world.value.premise.length + world.value.revealed.length + chronicle.value.length > 0,
+);
+
+const pitches = computed(() => world.value.premise.filter((e) => e.premise_kind === "pitch"));
+/** Themes, table notes, then lines and veils together; a line or veil says which it is in words, not colour. */
+const premiseGroups = computed(() =>
+  [
+    { label: "Themes", kinds: ["theme"] },
+    { label: "At the table", kinds: ["table"] },
+    { label: "Lines and veils", kinds: ["line", "veil"] },
+  ]
+    .map(({ label, kinds }) => ({ label, entries: world.value.premise.filter((e) => e.premise_kind !== null && kinds.includes(e.premise_kind)) }))
+    .filter((g) => g.entries.length > 0),
+);
+function premiseWord(entry: PlayerCanonEntry): string | null {
+  if (entry.premise_kind === "line") return "Line: never in the story";
+  if (entry.premise_kind === "veil") return "Veil: happens off screen";
+  return null;
+}
 
 // The Chronicle: shared notes linked to a session. The read is the same RPC DM Notes uses, so secret blocks never
 // arrive and a DM previewing a member sees exactly that member's notes.

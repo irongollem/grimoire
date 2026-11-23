@@ -8,7 +8,7 @@
           {{ SECRET_STATE_LABEL[state] }}
         </span>
       </span>
-      <AppInput :key="revision" v-model.lazy="text" size="body" tone="filled" aria-label="The secret" placeholder="What the world is keeping back…" />
+      <AppInput :key="revision" v-model.lazy="text" wrap size="body" tone="filled" aria-label="The secret" placeholder="What the world is keeping back…" />
     </div>
 
     <div class="flex flex-col gap-2">
@@ -19,6 +19,7 @@
           :key="clue.id"
           :clue="clue"
           :where="whereOf(clue)"
+          :passage="passageOf(clue)"
           @found="(found) => setFound(clue, found)"
           @rename="(title) => updateClue({ id: clue.id, patch: { title } })"
           @remove="removeClue(clue)"
@@ -71,6 +72,7 @@ import { CLUES_WANTED, SECRET_STATE_LABEL, SECRET_STATE_MARK, clueTally, secretS
 import { useCreateCanonClue, useCanonClues, useDeleteCanonClue, useSetClueFound, useUpdateCanonClue, type ClueKind } from "@/composables/canon/useCanonClues";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
+import { useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useClueWhere } from "@/composables/canon/useClueWhere";
 import { useParty } from "@/composables/party/useParty";
 import { useConfirm } from "@/composables/useConfirm";
@@ -90,6 +92,12 @@ const { data: allClues } = useCanonClues();
 const clues = computed(() => (allClues.value ?? []).filter((c) => c.secret_id === entry.id));
 const state = computed(() => secretState(entry, clues.value));
 const whereOf = useClueWhere();
+// A clue that is a lore passage names the passage, with a link to its entry.
+const { data: allPassages } = useCanonPassages();
+function passageOf(clue: CanonClue) {
+  const passage = clue.passage_id === null ? undefined : (allPassages.value ?? []).find((p) => p.id === clue.passage_id);
+  return passage ? { title: passage.title, entryId: passage.entry_id } : null;
+}
 
 const { mutate: update } = useUpdateCanonEntry();
 const { mutate: updateClue } = useUpdateCanonClue();

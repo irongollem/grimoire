@@ -21,6 +21,9 @@
 
     <CanonAddRow placeholder="A new secret, as one statement…" input-label="A new secret" label="Add secret" :create="addSecret" />
 
+    <!-- Below a desktop the open secret's detail opens here, right under the ledger, not past the open questions. -->
+    <slot />
+
     <QuestionsList :questions="questions" class="mt-4" />
   </section>
 </template>

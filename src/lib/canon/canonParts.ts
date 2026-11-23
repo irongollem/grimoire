@@ -1,4 +1,4 @@
-import { KNOWLEDGE_MARKS, type CanonEntry, type KnowledgeMark } from "@/types/canon.types";
+import { KNOWLEDGE_MARKS, type CanonEntry, type CanonPart, type KnowledgeMark } from "@/types/canon.types";
 
 /**
  * The parts of the Canon page, in the order the contents column lists them. Story 2 draws Premise and tone and
@@ -25,6 +25,13 @@ export const CANON_SECTIONS = [
 export const TABLE_SECTION_HINT = "Filled by the Narrator as it invents. Keep, edit or strike each line.";
 
 export type CanonSectionId = (typeof CANON_SECTIONS)[number]["id"];
+
+/** The page section an entry of this part sits in: where a link to one entry (`?entry=<id>`) lands. */
+export function sectionOfPart(part: CanonPart): CanonSectionId {
+  const section = CANON_SECTIONS.find((s) => (s.parts as readonly string[]).includes(part));
+  if (!section) throw new Error(`No canon section holds the part "${part}"`);
+  return section.id;
+}
 
 /** How many entries each part holds, for the contents column. */
 export function sectionCounts(entries: readonly CanonEntry[]): Record<CanonSectionId, number> {

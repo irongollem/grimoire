@@ -1,8 +1,9 @@
 <template>
-  <li class="flex min-w-0 flex-col gap-1.5 border-b border-border px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-3" data-testid="question-row">
+  <li :id="`canon-entry-${entry.id}`" class="flex min-w-0 flex-col gap-1.5 border-b border-border px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-3" data-testid="question-row">
     <AppInput
       :key="revision"
       v-model.lazy="text"
+      wrap
       size="body"
       tone="filled"
       class="min-w-0 flex-1"

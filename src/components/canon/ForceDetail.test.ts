@@ -73,7 +73,7 @@ describe("ForceDetail", () => {
 
   it("saves who and what it wants when a field is left, and a clock size when it is chosen", async () => {
     const w = mountIt();
-    await w.get("input[aria-label='What it wants']").setValue("the river");
+    await w.get("textarea[aria-label='What it wants']").setValue("the river");
     expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { wants: "the river" } });
     await w.get("input[aria-label='Who moves']").setValue("The Stain");
     expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { title: "The Stain" } });

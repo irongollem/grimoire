@@ -1,10 +1,11 @@
 <template>
   <nav aria-label="Parts of the canon" data-testid="canon-contents">
     <!-- A phone: one row of chips that scrolls sideways. -->
-    <div class="-mx-4 flex gap-1.5 overflow-x-auto border-b border-border px-4 py-2.5 lg:hidden">
+    <div ref="chips" class="-mx-4 flex gap-1.5 overflow-x-auto border-b border-border bg-background/95 px-4 py-2.5 backdrop-blur-sm lg:hidden">
       <AppButton
         v-for="section in CANON_SECTIONS"
         :key="section.id"
+        :data-part="section.id"
         variant="chip"
         size="sm"
         class="shrink-0"
@@ -44,13 +45,27 @@
 </template>
 
 <script setup lang="ts">
-/** The parts of the canon: a column on a desktop, a row of chips on a phone. Choosing one scrolls the page to it. */
+/**
+ * The parts of the canon: a column on a desktop, a row of chips on a phone. Choosing one scrolls the page to it, and
+ * the page moves the highlight as it scrolls (#1255), so the phone's row stays on screen and keeps the chip in sight.
+ */
+import { nextTick, useTemplateRef, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CANON_SECTIONS, TABLE_SECTION_HINT, type CanonSectionId } from "@/lib/canon/canonParts";
 
-const { counts } = defineProps<{ active: CanonSectionId; counts: Record<CanonSectionId, number> }>();
+const { active, counts } = defineProps<{ active: CanonSectionId; counts: Record<CanonSectionId, number> }>();
 const emit = defineEmits<{ select: [id: CanonSectionId] }>();
 
 /** A part's number; what the table added counts the lines still to review, so it reads "4 new". */
+// The row itself is moved, never `scrollIntoView`: that would also scroll the page the DM is reading.
+const chips = useTemplateRef<HTMLElement>("chips");
+watch(() => active, async (id) => {
+  await nextTick();
+  const row = chips.value;
+  const chip = row?.querySelector<HTMLElement>(`[data-part="${id}"]`);
+  if (!row || !chip || typeof row.scrollTo !== "function") return;
+  row.scrollTo({ left: chip.offsetLeft - (row.clientWidth - chip.offsetWidth) / 2, behavior: "smooth" });
+});
+
 const countText = (id: CanonSectionId) => (id === "table" ? `${counts.table} new` : String(counts[id]));
 </script>

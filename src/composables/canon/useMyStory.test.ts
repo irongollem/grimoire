@@ -42,7 +42,7 @@ describe("useMyStory: Add to my story", () => {
     setActivePinia(createPinia());
     fake.reset();
     useCampaignStore().activeCampaignId = "c1";
-    world.value = { onlyMine: [], known: [], lore: [], backstories: [] };
+    world.value = { onlyMine: [], known: [], lore: [], backstories: [], premise: [], revealed: [] };
     fake.onRpc("open_backstory", () => "entry-new");
   });
 

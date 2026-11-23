@@ -6,7 +6,7 @@
     </div>
     <div class="flex flex-col gap-1">
       <span class="text-eyebrow text-muted-foreground">Wants</span>
-      <AppInput :key="wantsRevision" v-model.lazy="wants" size="body" tone="filled" aria-label="What it wants" placeholder="What it wants, in one line…" />
+      <AppInput :key="wantsRevision" v-model.lazy="wants" wrap size="body" tone="filled" aria-label="What it wants" placeholder="What it wants, in one line…" />
     </div>
 
     <div class="flex flex-col gap-2">

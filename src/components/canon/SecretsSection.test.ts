@@ -37,4 +37,16 @@ describe("SecretsSection", () => {
     expect((input.element as HTMLInputElement).value).toBe("The Stain is a wound.");
     expect(w.emitted("select")).toBeUndefined();
   });
+
+  // Bug caught: below a desktop the open secret's detail rendered after the whole section, past the open questions, so tapping a secret seemed to do nothing.
+  it("renders slot content before the open questions list", () => {
+    const w = mount(SecretsSection, {
+      props: { secrets: [], questions: [] },
+      slots: { default: "<div data-testid='inline'>detail</div>" },
+      global: { stubs: { QuestionsList: { template: "<div data-testid='questions' />" } } },
+    });
+    const html = w.html();
+    expect(html).toContain("data-testid=\"inline\"");
+    expect(html.indexOf("data-testid=\"inline\"")).toBeLessThan(html.indexOf("data-testid=\"questions\""));
+  });
 });

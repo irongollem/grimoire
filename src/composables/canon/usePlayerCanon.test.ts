@@ -70,6 +70,37 @@ describe("groupPlayerWorld", () => {
   });
 });
 
+describe("groupPlayerWorld: shared premise and revealed secrets", () => {
+  // Bug caught (#1255): the grouping dropped every secret row, so a secret the DM revealed ("shows on every player's
+  // screen") never reached any player.
+  it("lists a revealed secret and drops an entry of any other unknown part", () => {
+    const world = groupPlayerWorld(
+      [
+        entry({ id: "s2", part: "secret", knowledge: null, sort_order: 2 }),
+        entry({ id: "s1", part: "secret", knowledge: null, sort_order: 1 }),
+        entry({ id: "odd", part: "mystery", knowledge: null }),
+      ],
+      [],
+    );
+    expect(world.revealed.map((e) => e.id)).toEqual(["s1", "s2"]);
+    expect(world.known).toEqual([]);
+    expect(world.onlyMine).toEqual([]);
+    expect(world.premise).toEqual([]);
+  });
+
+  // Bug caught (#1255): shared premise rows dropped, or listed in arrival order instead of the campaign page's kind
+  // order (pitch, theme, table, line, veil) with the DM's order inside a kind.
+  it("lists shared premise in kind order, then the DM's order, and never voice or look", () => {
+    const p = (id: string, premise_kind: PlayerCanonEntry["premise_kind"], sort_order = 0) =>
+      entry({ id, part: "premise", premise_kind, knowledge: null, sort_order });
+    const world = groupPlayerWorld(
+      [p("veil", "veil"), p("t2", "theme", 2), p("voice", "voice"), p("line", "line"), p("t1", "theme", 1), p("pitch", "pitch"), p("table", "table"), p("look", "look")],
+      [],
+    );
+    expect(world.premise.map((e) => e.id)).toEqual(["pitch", "t1", "t2", "table", "line", "veil"]);
+  });
+});
+
 describe("groupPlayerWorld: backstories", () => {
   const backstory = entry({ id: "b1", part: "backstory", knowledge: null, party_member_id: "m1" });
 

@@ -104,7 +104,7 @@ describe("TruthDetail", () => {
 
   it("saves edited words once, and a blank edit puts the old words back instead of saving nothing", async () => {
     const w = mountDetail(entry());
-    const input = w.find("input[aria-label='The truth']");
+    const input = w.find("textarea[aria-label='The truth']");
     await input.setValue("The river gives back, changed.");
     await input.trigger("change");
     expect(mocks.update).toHaveBeenCalledWith({ id: "t1", patch: { title: "The river gives back, changed." } });
@@ -113,6 +113,6 @@ describe("TruthDetail", () => {
     await input.trigger("change");
     expect(mocks.update).not.toHaveBeenCalled();
     // The field is remade on a revert, so look it up again.
-    expect((w.find("input[aria-label='The truth']").element as HTMLInputElement).value).toBe("The river gives back.");
+    expect((w.find("textarea[aria-label='The truth']").element as HTMLInputElement).value).toBe("The river gives back.");
   });
 });

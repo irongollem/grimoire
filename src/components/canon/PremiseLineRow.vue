@@ -1,5 +1,5 @@
 <template>
-  <li class="flex min-w-0 items-center gap-2 border-b border-border px-3 py-1.5 last:border-b-0" :data-kind="entry.premise_kind">
+  <li :id="`canon-entry-${entry.id}`" class="flex min-w-0 items-center gap-2 border-b border-border px-3 py-1.5 last:border-b-0" :data-kind="entry.premise_kind">
     <span
       v-if="note"
       class="shrink-0 border px-1.5 py-px text-label font-bold uppercase"
@@ -10,6 +10,7 @@
     <AppInput
       :key="revision"
       v-model.lazy="text"
+      wrap
       size="body"
       :aria-label="label"
       :class="textClass"
@@ -28,7 +29,7 @@
 /**
  * One line of the premise (a theme, how it plays at the table, a line or a veil). It saves when the field is left;
  * players may be shown it through the reveal control, and a line and a veil read differently by word and by
- * type (struck through versus faded), never by colour alone.
+ * type (an upright line against an italic, faded veil), never by colour alone.
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -55,7 +56,6 @@ const note = computed(() => {
 });
 
 const textClass = computed(() => {
-  if (entry.premise_kind === "line") return "line-through";
   if (entry.premise_kind === "veil") return "italic text-muted-foreground";
   return "";
 });

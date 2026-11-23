@@ -21,6 +21,11 @@ Design: the canvas *Campaign Canon* (claude.ai artifact `MAukzQW1bDDG832DT4ZepT`
 | The Chronicle | none: the session's note (`notes.session_id`) | story 6 | what the DM shared |
 | What the table added | none: `story_facts` the AI table filed | story 9 | what the party knows and the DM has not struck |
 
+The player's journal draws every row `get_player_canon` returns (`groupPlayerWorld`): the shared premise under "The
+campaign" (pitch, themes, at the table, lines and veils, each line or veil saying which it is in words), the truths,
+"Secrets revealed", the lore and the Chronicle. Until #1255 it drew only truths and lore, so a revealed secret and a
+shared pitch reached nobody.
+
 `private.canon_entry_seen(entry, member)` is the one audience rule: `get_player_canon` and the players' world web
 (`private.player_world_ties`) both use it, so a player's journal and their web never disagree. It is total (an absent
 entry or member is false, never NULL). The world's name stays `campaigns.setting`; nothing else of the canon may live on
@@ -55,9 +60,27 @@ Chronicler's `{settingPrompt}` placeholder is filled with it.
 `/canon` (`src/views/canon/CanonView.vue`, components in `src/components/canon/`, data in `src/composables/canon/`),
 after Notes in the nav. `?entry=<id>` selects and scrolls to an entry; search results and the world web link there.
 Premise and tone and the truths autosave; the World field moved here from Campaign settings' Details tab.
-The contents column lists the parts I to VII, then, set apart below a rule, "✦ What the table added" with its count of
-unreviewed lines as "n new" and the hint "Filled by the Narrator as it invents." (`canonParts.ts`, the only place a part
+The contents column lists the parts I to VIII, then, set apart below a rule, "✦ What the table added" with its count of
+unreviewed lines as "n new" and the hint "Filled by the Narrator as it invents. Keep, edit or strike each line." (`canonParts.ts`, the only place a part
 is added). The header's **Bring in a book** (a button under the page on a phone) opens `/canon/import`.
+
+What the review of the beta changed (#1255, 23 Nov 2026):
+
+- **The contents column follows the scroll** (`useCanonScrollSpy.ts`): the part whose heading last passed the reading
+  line is the one highlighted, the last part at the very end of the page. A part chosen in the contents, or landed on
+  from a link, is held until the DM scrolls by hand, so the smooth scroll to it does not flash every part on the way.
+  On a phone the row of chips stays on screen and keeps the current chip centred.
+- **A statement wraps.** A truth, a secret, a clue, a question, a theme, a line, a force's wants and its steps are
+  `AppInput wrap` (a one-row textarea that grows): still one paragraph, saved when left, Enter finishes it.
+- **A row lays out by its own width**, not the viewport: a force's step and a clue put their text on a line of its own
+  with the tick and buttons beneath, because the detail pane is narrow at any screen size.
+- **A Line is upright text, a Veil italic**; neither is struck through (a struck line read as a deleted one).
+- **`?entry=<id>` lands on every part.** A premise entry or an open question has no detail pane, so its row is scrolled
+  to and ringed for two seconds (`sectionOfPart` in `canonParts.ts` names the part to highlight).
+- **Below a desktop a selected entry's detail opens directly under its ledger** and is scrolled into view; the secret's
+  opens above the open questions (a slot in `SecretsSection`).
+- The World field's element id is `canon-world-name`: `canon-world` is part V's, and sharing it sent "How the world
+  works" to the top of the page.
 
 ## Secrets, clues and open questions
 
@@ -138,7 +161,11 @@ passage, autosaved. The entry's sharing (`AudienceRevealControl`) tells its firs
 sets `told_at`, `told_session_id` (the open session) and `player_visible_to` (every party member); **Take back** asks
 first and clears all three. It may come out at one place, person or beat (`WherePicker.vue`, shared with the clue form;
 the other two columns are cleared on a move), and shows "Also a clue to" any secret whose clue points at it
-(`canon_clues.passage_id`; telling it the first time marks those clues found, in the database). Passages are added,
+(`canon_clues.passage_id`; telling it the first time marks those clues found, in the database). **Make it a clue to a
+secret…** in the passage's margin (`PassageClues.vue`, #1255) files that clue: named by the passage's heading, lying
+nowhere of its own, and already found when the passage had been told (`passageClue`, since the database only finds a
+passage's clues at the moment it is told). The × beside a secret deletes the clue and leaves the passage. An entry's
+first passage and a player's own backstory passage cannot be made a clue. Passages are added,
 reordered (renumbered from position) and removed in the entry. Lore detail takes the page's side column at a desktop, so
 a passage's margin sits under its text; below a desktop it opens under the part.
 
@@ -246,7 +273,7 @@ The Narrator (`agent-turn`, see agent-runtime.md "The canon at the table") carri
 
 Session notes are canon, because they are what happened. A note linked to a session (`notes.session_id`) **is** that session's chronicle entry, kept as a note row so the Chronicler, the read-aloud, the pictures that land in a note and the players' reads keep working on one row; it is read on the Canon page's Chronicle and left out of the DM's `/notes` list. `notes.category` is gone (production held 50 notes, session 21, general 13, lore 12, a few others). Lore moves to the canon as lore entries, but nothing moves by itself: the maintainer used lore and session notes for player characters' backgrounds, so every lore note and every session note not linked to a session sits on a one-time list (`note_sorting`, "Sort your notes" on the Notes page, see campaign-notes-calendar.md) that the DM works through, sending each to a lore entry, a session, a character's backstory, their own note on a character, or keeping it a note.
 
-### The Chronicle page (Part VII, frame 12)
+### The Chronicle page (Part VIII, frame 12)
 
 `ChronicleSection` lists the campaign's **sessions**, newest first or from the start (`SegmentedControl`, state in
 `useCanonUiStore`), each with the note linked to it (`chronicleItems` in `canonChronicle.ts`; its newest when several are

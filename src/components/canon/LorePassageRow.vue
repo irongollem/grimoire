@@ -41,17 +41,7 @@
         <WherePicker v-if="choosing" v-model:kind="whereKind" nowhere-label="Nowhere" @choose="setWhere" />
       </template>
 
-      <template v-if="clueTo.length > 0">
-        <span class="text-eyebrow text-muted-foreground">Also a clue to</span>
-        <RouterLink
-          v-for="secret in clueTo"
-          :key="secret.id"
-          :to="{ path: '/canon', query: { entry: secret.id } }"
-          class="text-body underline-offset-2 hover:underline"
-          data-testid="passage-clue-to"
-        >{{ secret.title }}</RouterLink>
-      </template>
-
+      <PassageClues :passage="passage" :can-add="!first && !playersOwn" />
       <AppButton variant="ghost" size="xs" :icon="IconDelete" icon-size="xs" label="Remove passage" class="self-start" @click="remove" />
     </div>
   </li>
@@ -61,19 +51,17 @@
 /**
  * One passage of a lore entry (frame 04b): a heading and rich text that save themselves, then what is told of it. The
  * first passage is told with the entry and is never offered to Tell; a later one shows who it was told to and a
- * Take back (which asks first), where it comes out, and any secret it is also a clue to. In a backstory (frame 14) it
+ * Take back (which asks first), where it comes out, and the secrets it is also a clue to (`PassageClues`). In a backstory (frame 14) it
  * also says whose words it is, a player's own offers no Tell or place, and the DM's tells its character first.
  */
 import { computed, reactive, ref, watch } from "vue";
-import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import CanonRef from "./CanonRef.vue";
+import PassageClues from "./PassageClues.vue";
 import WherePicker, { type Where, type WhereTarget } from "./WherePicker.vue";
-import { useCanonClues } from "@/composables/canon/useCanonClues";
-import { useCanonEntries } from "@/composables/canon/useCanonEntries";
 import { passageWhere, wherePatch } from "@/composables/canon/useCanonPassages";
 import { updateCanonPassage, useTellPassage, useUpdateCanonPassage } from "@/composables/canon/useCanonPassageEdits";
 import { useClueWhere } from "@/composables/canon/useClueWhere";
@@ -144,13 +132,6 @@ function setWhere(target: WhereTarget | null) {
   update({ id: passage.id, patch: wherePatch(target) });
   choosing.value = false;
 }
-
-const { data: clues } = useCanonClues();
-const { data: entries } = useCanonEntries();
-const clueTo = computed(() => {
-  const ids = new Set((clues.value ?? []).filter((c) => c.passage_id === passage.id).map((c) => c.secret_id));
-  return (entries.value ?? []).filter((e) => e.part === "secret" && ids.has(e.id));
-});
 
 async function remove() {
   const ok = await confirm(`Remove this passage? "${draft.title || "Untitled passage"}" is deleted.`, { title: "Remove this passage", confirmLabel: "Remove" });

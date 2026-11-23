@@ -23,6 +23,11 @@ export type NewCanonClue = {
   sort_order?: number;
   /** Set when the clue came from an accepted AI suggestion. */
   ai_provenance?: AiProvenance | null;
+  /** The lore passage this clue is (`passageClue`): such a clue lies nowhere of its own. */
+  passage_id?: string;
+  /** Only for a clue made from a passage that was already told: it is filed found, at that time. */
+  found_at?: string;
+  found_session_id?: string | null;
 } & ({ location_id?: string; npc_id?: never; quest_beat_id?: never } | { npc_id?: string; location_id?: never; quest_beat_id?: never } | { quest_beat_id?: string; location_id?: never; npc_id?: never });
 
 export type CanonCluePatch = Partial<Pick<CanonClue, "title" | "sort_order" | "location_id" | "npc_id" | "quest_beat_id" | "found_at" | "found_session_id">>;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clueTally, secretState } from "./canonSecrets";
+import { clueTally, passageClue, secretState } from "./canonSecrets";
 import type { CanonClue, CanonEntry } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
 
@@ -34,5 +34,26 @@ describe("clueTally", () => {
 
   it("says so when a secret has no clues at all, rather than '0 of 0'", () => {
     expect(clueTally([])).toBe("No clues yet");
+  });
+});
+
+describe("passageClue", () => {
+  const passage = { id: "g1", title: "  What was under the chapel ", told_at: null, told_session_id: null };
+
+  it("files the clue under the passage's heading, pointing at the passage and lying nowhere of its own", () => {
+    expect(passageClue(passage, "s1", 2)).toEqual({ secret_id: "s1", passage_id: "g1", title: "What was under the chapel", sort_order: 2 });
+  });
+
+  // Bug caught: a passage with no heading filed a clue with an empty title, which the secret lists as a blank row.
+  it("names a clue from an untitled passage", () => {
+    expect(passageClue({ ...passage, title: " " }, "s1", 0).title).toBe("A lore passage");
+  });
+
+  // Bug caught: the database finds a passage's clues only at the moment it is told, so a passage the party had already
+  // heard became a clue that stayed "not found" for good.
+  it("files the clue already found when the passage was told before it became a clue", () => {
+    const told = passageClue({ ...passage, told_at: "2026-11-02T10:00:00Z", told_session_id: "ses1" }, "s1", 0);
+    expect(told.found_at).toBe("2026-11-02T10:00:00Z");
+    expect(told.found_session_id).toBe("ses1");
   });
 });

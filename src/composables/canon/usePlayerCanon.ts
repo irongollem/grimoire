@@ -67,7 +67,14 @@ export interface PlayerWorld {
   lore: PlayerLore[];
   /** The backstories this player reads: their own character's, and any the DM shared. */
   backstories: PlayerBackstory[];
+  /** The premise entries the DM shared (never voice or look), in kind order, then the DM's order within a kind. */
+  premise: PlayerCanonEntry[];
+  /** Secrets the DM has revealed to this player, in the DM's order. */
+  revealed: PlayerCanonEntry[];
 }
+
+/** The order the campaign page reads its premise in; voice and look are never shared with a player. */
+const PREMISE_ORDER = ["pitch", "theme", "table", "line", "veil"] as const;
 
 /**
  * A passage is New when it was told after the player last opened its entry. A player who has never opened the entry
@@ -112,7 +119,13 @@ export function groupPlayerWorld(entries: readonly PlayerCanonEntry[], passages:
     const dmTimes = told.flatMap((p) => (p.by_dm && p.told_at !== null ? [p.told_at] : [])).sort();
     return [{ entry, memberId: entry.party_member_id, passages: told, latestDmAt: dmTimes.at(-1) ?? null }];
   });
+  const premise = PREMISE_ORDER.flatMap((kind) =>
+    entries.filter((e) => e.part === "premise" && e.premise_kind === kind).sort((a, b) => a.sort_order - b.sort_order),
+  );
+  const revealed = entries.filter((e) => e.part === "secret").sort((a, b) => a.sort_order - b.sort_order);
   return {
+    premise,
+    revealed,
     onlyMine: truths.filter((e) => e.knowledge === "some"),
     known: truths.filter((e) => e.knowledge === "all"),
     lore,

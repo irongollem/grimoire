@@ -4,10 +4,10 @@
       <AppButton to="/canon/import" variant="outline" size="md" :icon="IconUpload" label="Bring in a book" />
     </template>
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
-      <CanonContents class="lg:sticky lg:top-0 lg:shrink-0" :active="active" :counts="counts" @select="goTo" />
+      <CanonContents class="sticky top-0 z-10 lg:z-auto lg:shrink-0" :active="active" :counts="counts" @select="goTo" />
 
       <div
-        class="@container flex min-w-0 flex-1 flex-col gap-8"
+        class="@container flex min-w-0 flex-1 flex-col gap-8 max-lg:[&_#canon-inline-detail]:scroll-mt-16 max-lg:[&_section]:scroll-mt-16"
         :class="selectedBackstoryMember ? 'max-w-5xl [&>:not(.canon-backstories)]:max-w-3xl' : 'max-w-3xl'"
       >
         <ListSkeleton v-if="isLoading || campaign === null" variant="rows" :count="4" />
@@ -16,14 +16,24 @@
           <PremiseSection :campaign="campaign" :entries="entries" />
           <TruthsSection :truths="truths" :selected-id="selected?.id ?? null" @select="select" />
           <!-- Below a desktop there is no side column: the selected truth opens under its part. -->
-          <TruthDetail v-if="selectedTruth && !wide" :key="selectedTruth.id" :entry="selectedTruth" @delete="removeSelected" />
+          <div v-if="selectedTruth && !wide" id="canon-inline-detail">
+            <TruthDetail :key="selectedTruth.id" :entry="selectedTruth" @delete="removeSelected" />
+          </div>
           <ForcesSection :forces="forces" :selected-id="selectedForce?.id ?? null" @select="select" />
-          <ForceDetail v-if="selectedForce && !wide" :key="selectedForce.id" :entry="selectedForce" @delete="removeSelected" />
-          <SecretsSection :secrets="secrets" :questions="questions" :selected-id="selectedSecret?.id ?? null" @select="select" />
-          <SecretDetail v-if="selectedSecret && !wide" :key="selectedSecret.id" :entry="selectedSecret" @delete="removeSelected" />
+          <div v-if="selectedForce && !wide" id="canon-inline-detail">
+            <ForceDetail :key="selectedForce.id" :entry="selectedForce" @delete="removeSelected" />
+          </div>
+          <SecretsSection :secrets="secrets" :questions="questions" :selected-id="selectedSecret?.id ?? null" @select="select">
+            <!-- In the part's slot, so it opens under the ledger and not past the open questions. -->
+            <div v-if="selectedSecret && !wide" id="canon-inline-detail">
+              <SecretDetail :key="selectedSecret.id" :entry="selectedSecret" @delete="removeSelected" />
+            </div>
+          </SecretsSection>
           <WorldWorksSection />
           <LoreSection :lore="lore" :selected-id="selectedLore?.id ?? null" @select="select" />
-          <LoreDetail v-if="selectedLore && !wide" :key="selectedLore.id" :entry="selectedLore" @delete="removeSelected" />
+          <div v-if="selectedLore && !wide" id="canon-inline-detail">
+            <LoreDetail :key="selectedLore.id" :entry="selectedLore" @delete="removeSelected" />
+          </div>
           <div
             class="canon-backstories grid min-w-0 items-start gap-4"
             :class="selectedBackstoryMember ? '@4xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] @4xl:gap-6' : ''"
@@ -54,7 +64,7 @@
  * contents column. `?entry=<id>` is the link to one entry (search results and the world web point there), and also the
  * page's own selection, so a reload or a shared link keeps the truth or secret that is open.
  */
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
@@ -74,10 +84,11 @@ import SecretsSection from "@/components/canon/SecretsSection.vue";
 import TruthDetail from "@/components/canon/TruthDetail.vue";
 import TruthsSection from "@/components/canon/TruthsSection.vue";
 import WorldWorksSection from "@/components/canon/WorldWorksSection.vue";
-import { CANON_SECTIONS, sectionCounts, type CanonSectionId } from "@/lib/canon/canonParts";
+import { CANON_SECTIONS, sectionCounts, sectionOfPart, type CanonSectionId } from "@/lib/canon/canonParts";
 import { unreviewedCount } from "@/lib/canon/canonTableFacts";
 import { useCanonEntries, useDeleteCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
+import { useCanonScrollSpy } from "@/composables/canon/useCanonScrollSpy";
 import { useChronicle } from "@/composables/canon/useChronicle";
 import { useParty } from "@/composables/party/useParty";
 import { useTableFacts } from "@/composables/canon/useTableFacts";
@@ -85,6 +96,7 @@ import { IconUpload } from "@/lib/icons";
 import { useAbove } from "@/composables/useBreakpoint";
 import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
+import { prefersReducedMotion } from "@/lib/motion";
 
 const route = useRoute();
 const router = useRouter();
@@ -132,8 +144,12 @@ const selectedBackstoryMember = computed(() => {
   return id === null ? null : party.value.find((m) => m.id === id) ?? null;
 });
 
+// A tap below a desktop opens the detail under its part, which can be off screen: bring it into view once it is there.
+let tapped = false;
+
 function select(id: string) {
-  scrolledTo = id; // the DM is already looking at it: no scroll
+  scrolledTo = id; // the DM is already looking at it: no scroll to the row
+  tapped = true;
   void router.replace({ query: { ...route.query, entry: id, backstory: undefined } });
 }
 function selectBackstory(memberId: string) {
@@ -164,23 +180,59 @@ async function removeSelected() {
 
 const active = ref<CanonSectionId>(CANON_SECTIONS[0].id);
 
+// The highlight follows the scroll, and stays on a part chosen here until the DM scrolls by hand again.
+const { hold } = useCanonScrollSpy(CANON_SECTIONS.map((s) => s.id), active, (id) => `canon-${id}`);
+
 function goTo(id: CanonSectionId) {
+  hold();
   active.value = id;
   document.getElementById(`canon-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-watch([selected, isLoading], async ([truth]) => {
-  if (!truth || truth.id === scrolledTo) return;
-  scrolledTo = truth.id;
-  active.value = truth.part === "secret" ? "secrets" : truth.part === "force" ? "moving" : truth.part === "lore" ? "lore" : "truths";
+// The premise and the questions have no detail pane: a landed-on row is marked for a moment instead.
+const LANDED = ["ring-1", "ring-primary"];
+const LANDED_MS = 2000;
+let landedTimer: ReturnType<typeof setTimeout> | undefined;
+let landedEl: HTMLElement | null = null;
+function clearLanded() {
+  clearTimeout(landedTimer);
+  landedEl?.classList.remove(...LANDED);
+  landedEl = null;
+}
+onBeforeUnmount(clearLanded);
+
+watch([entryParam, entries, isLoading], async ([id]) => {
+  const target = entries.value.find((e) => e.id === id);
+  // A backstory is opened by its own watcher below.
+  if (!target || target.part === "backstory" || target.id === scrolledTo) return;
+  scrolledTo = target.id;
+  hold();
+  active.value = sectionOfPart(target.part);
   await nextTick();
-  document.getElementById(`canon-entry-${truth.id}`)?.scrollIntoView({ block: "center" });
+  const row = document.getElementById(`canon-entry-${target.id}`);
+  row?.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  if (row && (target.part === "premise" || target.part === "question")) {
+    clearLanded();
+    landedEl = row;
+    row.classList.add(...LANDED);
+    landedTimer = setTimeout(clearLanded, LANDED_MS);
+  }
 }, { immediate: true });
+
+watch(() => selected.value?.id, async (id) => {
+  if (!id || !tapped) return;
+  tapped = false;
+  await nextTick();
+  // Only a phone renders this wrapper (the side column shows the detail at lg and up), so nothing scrolls there.
+  const detail = document.getElementById("canon-inline-detail");
+  if (typeof detail?.scrollIntoView === "function") detail.scrollIntoView({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+});
 
 watch(
   () => campaign.value && !isLoading.value && !isError.value ? selectedBackstoryMember.value?.id : undefined,
   async (memberId) => {
     if (!memberId) return;
+    hold();
     active.value = "backstories";
     await nextTick();
     document.getElementById("canon-backstories")?.scrollIntoView({ block: "start" });

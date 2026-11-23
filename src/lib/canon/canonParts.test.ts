@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CANON_SECTIONS, plainTextToTiptap, sectionCounts } from "./canonParts";
+import { CANON_SECTIONS, plainTextToTiptap, sectionCounts, sectionOfPart } from "./canonParts";
 import type { CanonEntry } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
 
@@ -51,5 +51,20 @@ describe("sectionCounts", () => {
     expect(ids.slice(-4)).toEqual(["lore", "backstories", "chronicle", "table"]);
     expect(CANON_SECTIONS.find((s) => s.id === "chronicle")?.parts).toEqual([]);
     expect(CANON_SECTIONS.find((s) => s.id === "table")?.parts).toEqual([]);
+  });
+});
+
+describe("sectionOfPart", () => {
+  // Bug caught: a search hit on an open question landed on the Truths part (the old ternary's fallback), so the contents column and the scroll pointed at the wrong section.
+  it.each([
+    ["question", "secrets"],
+    ["secret", "secrets"],
+    ["premise", "premise"],
+    ["force", "moving"],
+    ["backstory", "backstories"],
+    ["truth", "truths"],
+    ["lore", "lore"],
+  ] as const)("puts a %s entry in the %s part", (part, section) => {
+    expect(sectionOfPart(part)).toBe(section);
   });
 });

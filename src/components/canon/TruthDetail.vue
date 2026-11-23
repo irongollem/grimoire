@@ -5,6 +5,7 @@
       <AppInput
         :key="revision"
         v-model.lazy="text"
+        wrap
         size="body"
         tone="filled"
         aria-label="The truth"

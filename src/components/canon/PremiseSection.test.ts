@@ -47,7 +47,7 @@ describe("PremiseSection", () => {
 
   it("files each entry under its own kind: a line is not listed among the themes", () => {
     const w = mountSection([entry({ id: "1", premise_kind: "theme", title: "Sweet spoils" }), entry({ id: "3", premise_kind: "line", title: "No harm to children" })]);
-    const values = (id: string) => w.findAll(`[data-testid=${id}] input`).map((i) => (i.element as HTMLInputElement).value);
+    const values = (id: string) => w.findAll(`[data-testid=${id}] textarea`).map((i) => (i.element as HTMLTextAreaElement).value);
     expect(values("premise-theme")).toContain("Sweet spoils");
     expect(values("premise-theme")).not.toContain("No harm to children");
     expect(values("premise-line-veil")).toContain("No harm to children");

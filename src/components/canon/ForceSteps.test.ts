@@ -62,7 +62,7 @@ describe("ForceSteps", () => {
   });
 
   it("renames a step when its field is left", async () => {
-    await mountIt().findAll("input[aria-label='The step']")[2].setValue("Bell-Note forgets its name.");
+    await mountIt().findAll("textarea[aria-label='The step']")[2].setValue("Bell-Note forgets its name.");
     expect(mocks.update).toHaveBeenCalledWith({ id: "c", patch: { title: "Bell-Note forgets its name." } });
   });
 

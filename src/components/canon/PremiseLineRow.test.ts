@@ -23,23 +23,23 @@ describe("PremiseLineRow", () => {
 
   it("saves the new words once the field is left", async () => {
     const w = mountRow();
-    await w.find("input").setValue("Kindness is courage.");
-    await w.find("input").trigger("change");
+    await w.find("textarea").setValue("Kindness is courage.");
+    await w.find("textarea").trigger("change");
     expect(mocks.update).toHaveBeenCalledWith({ id: "e1", patch: { title: "Kindness is courage." } });
   });
 
   it("puts the old words back on a blank edit and saves nothing, so a slip of the keys never blanks a theme", async () => {
     const w = mountRow();
-    await w.find("input").setValue("   ");
-    await w.find("input").trigger("change");
+    await w.find("textarea").setValue("   ");
+    await w.find("textarea").trigger("change");
     expect(mocks.update).not.toHaveBeenCalled();
-    expect((w.find("input").element as HTMLInputElement).value).toBe("What is sweet can spoil.");
+    expect((w.find("textarea").element as HTMLTextAreaElement).value).toBe("What is sweet can spoil.");
   });
 
   it("saves nothing for an edit that leaves the words as they were", async () => {
     const w = mountRow();
-    await w.find("input").setValue("  What is sweet can spoil.  ");
-    await w.find("input").trigger("change");
+    await w.find("textarea").setValue("  What is sweet can spoil.  ");
+    await w.find("textarea").trigger("change");
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
@@ -55,5 +55,17 @@ describe("PremiseLineRow", () => {
     await mountRow().find("button[aria-label='Delete this entry']").trigger("click");
     await flushPromises();
     expect(mocks.destroy).toHaveBeenCalledWith("e1");
+  });
+
+  it("a Line reads upright, not struck through like a deleted entry", () => {
+    // Bug: line-through made "No harm to children" read as a removed row.
+    const line = canonEntry({ id: "l1", part: "premise", premise_kind: "line", title: "No harm to children" });
+    const w = mount(PremiseLineRow, { props: { entry: line, label: "Line" }, global: { stubs: { AudienceRevealControl: true } } });
+    expect(w.find("textarea").classes()).not.toContain("line-through");
+    expect(w.find("textarea").classes()).not.toContain("italic");
+  });
+
+  it("carries the id a deep link scrolls to", () => {
+    expect(mountRow().find("li").attributes("id")).toBe("canon-entry-e1");
   });
 });

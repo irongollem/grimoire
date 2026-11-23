@@ -1,8 +1,8 @@
 <template>
   <div class="flex flex-col gap-1">
-    <label for="canon-world" class="text-eyebrow text-muted-foreground">The world</label>
+    <label for="canon-world-name" class="text-eyebrow text-muted-foreground">The world</label>
     <AppInput
-      id="canon-world"
+      id="canon-world-name"
       v-model.lazy="world"
       list="canon-world-names"
       tone="filled"

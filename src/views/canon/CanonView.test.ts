@@ -5,7 +5,8 @@ import type { CanonEntry } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
 
 const route = reactive<{ query: Record<string, string> }>({ query: {} });
-const mocks = vi.hoisted(() => ({ replace: vi.fn(), scroll: vi.fn(), wide: { value: true }, destroy: vi.fn(), confirm: vi.fn() }));
+const mocks = vi.hoisted(() => ({ replace: vi.fn(), scroll: vi.fn(), destroy: vi.fn(), confirm: vi.fn() }));
+const wide = ref(true);
 const data = ref<CanonEntry[]>([]);
 const tableFacts = ref<unknown[]>([]);
 const party = ref([{ id: "m1", name: "Tansy" }, { id: "m2", name: "Pim" }]);
@@ -20,7 +21,7 @@ vi.mock("@/composables/canon/useCanonPassages", () => ({ useCanonPassages: () =>
 vi.mock("@/composables/canon/useChronicle", () => ({ useChronicle: () => ({ written: ref(3) }) }));
 vi.mock("@/composables/canon/useTableFacts", () => ({ useTableFacts: () => ({ facts: { data: tableFacts } }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
-vi.mock("@/composables/useBreakpoint", () => ({ useAbove: () => mocks.wide }));
+vi.mock("@/composables/useBreakpoint", () => ({ useAbove: () => wide }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaign: { id: "c1" } }) }));
 
 import CanonView from "./CanonView.vue";
@@ -65,7 +66,7 @@ describe("CanonView", () => {
     mocks.destroy.mockReset();
     mocks.confirm.mockReset();
     mocks.scroll.mockReset();
-    mocks.wide.value = true;
+    wide.value = true;
     Element.prototype.scrollIntoView = mocks.scroll;
   });
 
@@ -161,7 +162,7 @@ describe("CanonView", () => {
   it("shows the selected truth once, in the side column on a desktop and under its part on a phone", async () => {
     route.query = { entry: "t1" };
     expect(mountView().findAll("[data-testid=detail]")).toHaveLength(1);
-    mocks.wide.value = false;
+    wide.value = false;
     expect(mountView().findAll("[data-testid=detail]")).toHaveLength(1);
   });
 
@@ -238,5 +239,68 @@ describe("CanonView", () => {
   it("counts one backstory per character, opened or not", () => {
     const counts = mountView().findComponent({ name: "CanonContents" }).props("counts") as Record<string, number>;
     expect(counts.backstories).toBe(2);
+  });
+
+  // Bug caught: a search hit on an open question or a premise entry opened the page with nothing scrolled to or marked,
+  // because the page only resolved truth, force, secret and lore.
+  describe("landing on an entry with no detail pane", () => {
+    const rowStub = { props: ["entries", "questions"], template: "<section><i v-for='e in (entries ?? questions)' :id=\"'canon-entry-' + e.id\" :key='e.id' /></section>" };
+    function mountLanding() {
+      const w = mount(CanonView, {
+        attachTo: document.body,
+        global: { stubs: { PremiseSection: rowStub, SecretsSection: rowStub, TruthsSection: true, ForcesSection: true, WorldWorksSection: true, LoreSection: true, ChronicleSection: true, TableAddedSection: true, AppButton: true, CanonContents: true, BackstoriesSection: true } },
+      });
+      mounted.push(w);
+      return w;
+    }
+
+    it("sets Secrets active and scrolls to the open question named by ?entry", async () => {
+      data.value = [canonEntry({ id: "q1", campaign_id: "c1", part: "question", title: "Who burned the mill?" })];
+      route.query = { entry: "q1" };
+      const w = mountLanding();
+      await flushPromises();
+      expect(w.findComponent({ name: "CanonContents" }).props("active")).toBe("secrets");
+      expect(mocks.scroll).toHaveBeenCalledTimes(1);
+      expect(mocks.scroll.mock.contexts[0]).toBe(document.getElementById("canon-entry-q1"));
+    });
+
+    it("sets Premise active, scrolls to a theme entry and marks it for a moment", async () => {
+      vi.useFakeTimers();
+      try {
+        data.value = [canonEntry({ id: "p1", campaign_id: "c1", part: "premise", premise_kind: "theme", title: "Dread" })];
+        route.query = { entry: "p1" };
+        const w = mountLanding();
+        await flushPromises();
+        const row = document.getElementById("canon-entry-p1")!;
+        expect(w.findComponent({ name: "CanonContents" }).props("active")).toBe("premise");
+        expect(mocks.scroll.mock.contexts[0]).toBe(row);
+        expect(row.classList.contains("ring-primary")).toBe(true);
+        vi.advanceTimersByTime(2500);
+        expect(row.classList.contains("ring-primary")).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  // Bug caught: below a desktop a tapped row opened its detail under the part, off screen, and nothing brought it into view.
+  describe("a tapped row on a phone", () => {
+    it("scrolls the opened inline detail into view", async () => {
+      wide.value = false;
+      const w = mountView();
+      await w.find("#canon-entry-t1").trigger("click");
+      route.query = { entry: "t1" };
+      await flushPromises();
+      expect(mocks.scroll).toHaveBeenCalledTimes(1);
+      expect(mocks.scroll.mock.contexts[0]).toBe(document.getElementById("canon-inline-detail"));
+    });
+
+    it("does not scroll at desktop width, where the side column already shows it", async () => {
+      const w = mountView();
+      await w.find("#canon-entry-t1").trigger("click");
+      route.query = { entry: "t1" };
+      await flushPromises();
+      expect(mocks.scroll).not.toHaveBeenCalled();
+    });
   });
 });

@@ -488,7 +488,7 @@ const { world: playerWorld } = usePlayerCanon();
 const worldCount = computed(() => {
   const w = playerWorld.value;
   const chronicle = (notesRaw.value ?? []).filter((n) => n.session_id !== null).length;
-  return (w ? w.onlyMine.length + w.known.length + w.lore.length : 0) + chronicle;
+  return (w ? w.onlyMine.length + w.known.length + w.lore.length + w.premise.length + w.revealed.length : 0) + chronicle;
 });
 
 const questGroups = computed<[string, Quest[]][]>(() => [
