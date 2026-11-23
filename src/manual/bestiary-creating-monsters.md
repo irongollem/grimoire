@@ -4,10 +4,14 @@ section: Encounters & Bestiary
 section_order: 5
 order: 1
 summary: Build a full D&D 5e stat block by hand, or generate one with AI.
-keywords: monster, create, stat block, builder, custom, cr, hp, ac, actions, legendary, lair, spellcasting, generator, ai, scope, duplicate, copy
+keywords: monster, create, new monster, stat block, builder, custom, customize, edit, cr, hp, ac, actions, legendary, lair, spellcasting, generator, ai, scope, duplicate, copy, portrait, cutout, tags, scriptorium, how it fights, tactics
 ---
 
-The Monster Builder is a full D&D 5e stat block editor: everything from ability scores to legendary actions, with roll buttons wired up for the Encounter Runner. Open it by clicking **New Monster** in the Bestiary toolbar (**Compendium → Bestiary**, `/monsters`), or by opening any existing custom monster and clicking **Edit**.
+Use the Monster Builder to write your own creature, or to tweak an existing one. It is a full D&D 5e stat block editor, from ability scores to legendary actions, with roll buttons wired up for the Encounter Runner. Open it by clicking **New Monster** in the Bestiary toolbar (**Compendium → Bestiary**), or by opening any custom monster and clicking **Edit**.
+
+## How do I start from an existing monster?
+
+Open a shared (SRD or sourcebook) monster and click **Customize** to get your own editable copy. For one of your own monsters, use **Duplicate** (see below). Either way you can then change anything.
 
 ## Key ideas
 
@@ -25,10 +29,12 @@ The Monster Builder is a full D&D 5e stat block editor: everything from ability 
 - **Size**: Tiny through Gargantuan.
 - **Alignment**.
 - **Source**: freeform attribution text.
-- **Scope**: a two-option control: **General: all campaigns**, or **Campaign: *{active campaign name}***.
+- **Scope**: a two-option control: **General · all campaigns**, or **Campaign · *{campaign name}***.
 - **Habitat**: freeform text describing where the creature lives.
 - **Lair Location**: an optional link to an Atlas location; pick it from the combobox to mark that place as this monster's lair.
-- **Portrait**: upload an image and set its focal point.
+- **Portrait**: upload an image and set its focal point. A **Picture** / **Cutout** switch lets you also keep a transparent cutout of the creature (used for tokens and minis).
+- **Tags**: free tags under the portrait, handy for finding monsters later.
+- **Description**: rich-text lore, habitat and flavour at the bottom of the page.
 
 ## Combat statistics
 
@@ -82,7 +88,7 @@ Enable the Spellcasting section to set a spellcasting ability (INT, WIS, or CHA)
 ## Generating a monster with AI
 
 1. Click **Generate**, in the Bestiary toolbar or inside the Monster Builder itself.
-2. Describe the creature you want in the **Concept** field.
+2. In the **Monster Generator** panel, describe the creature you want. Optionally set a **Challenge Rating**, **Monster Type** and **Size**. Leave **Generate portrait art** on if you want a picture too.
 3. Grimoire returns a full stat block you can save as-is or keep editing.
 
 This needs the active campaign's AI switched on (Campaign Settings) and enough credits to cover the cost. With AI off, only **New Blank Monster** is offered.
@@ -92,7 +98,7 @@ When it's available, the button shows its cost in credits before you confirm, or
 ## Duplicating and copying a monster
 
 - **Duplicate** (on the monster's own page) makes an independent copy in the same campaign.
-- **Copy to campaign…** (from the monster's own overflow menu, or from the Bestiary list's bulk action bar after selecting several monsters) copies the monster into another campaign you DM.
+- **Send to…** on a monster's page opens a small menu with **Send to Scriptorium** (turns the stat block into a book page you can print) and **Copy to campaign…** (copies the monster into another campaign you DM). You can also copy several at once: click **Select** in the Bestiary toolbar, tick monsters, and use the bulk action bar.
 
 ## Tips
 

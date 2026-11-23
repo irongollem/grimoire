@@ -3,26 +3,29 @@ title: Gallery
 section: Publishing
 section_order: 14
 order: 5
-summary: Every image you've generated or uploaded, collected in one searchable place.
-keywords: gallery, image, generation, portrait, scene, map, prompt, filter, kind
+summary: Every picture painted by AI in the current campaign, collected in one searchable place.
+keywords: gallery, images, pictures, art, generated, ai pictures, portrait, scene, map, prompt, search, filter, kind, tab, remove, find a picture, lost picture, lightbox
 ---
 
-The Gallery collects every AI-generated image across your account (NPC portraits, monster art, scenes, maps, item art, and more) into one searchable place, automatically, with no extra step on your part. Find it in the sidebar under **Compendium → Publish → Gallery** (route `/gallery`). Unlike the rest of the Publish group, Gallery works fine on a phone: it's just a list of images.
+The **Gallery** is where every picture the AI has painted for your current campaign ends up: NPC portraits, monster art, item and spell art, maps, places, factions, deities and more. You do nothing to get a picture in there: it is filed the moment it is made. Use it to find a picture again, see the words that made it, or jump back to the thing it belongs to.
 
-## Key ideas
+Open **Gallery** under **Publish** in the sidebar. It needs a campaign, and it shows the pictures of the campaign you have open. It works on a phone too.
 
-Every image is tagged with a **kind** describing what generated it: Chronicle, Party (group portraits), NPCs, Heroes (party member portraits), Species, Monsters, Items, Spells, Factions, Locations, Maps, Traps, Puzzles, Pantheons, and Loot. Only kinds you actually have images for show up as tabs.
+## Finding a picture
 
-## Browsing
+- The tabs across the top filter by kind. **All** shows everything, and each tab shows how many pictures it holds. A kind only gets a tab once you have a picture of that kind. Kinds include Chronicle, Party, NPCs, Heroes, Species, Monsters, Items, Spells, Factions, Locations, Maps, Traps, Puzzles, Pantheons, Deities, Features, Lore, Loot, and Monster and NPC Cutouts.
+- **Search prompts…** filters by the words that were used to paint the picture.
+- Your tab and search are remembered when you leave the page and come back. Press **Clear** (shown while a filter is on) to reset them.
+- Each card shows its kind in the corner, and the prompt and how long ago it was made along the bottom.
+- Click a picture to see it large.
 
-- **Tabs** across the top filter by kind (each shows a count); an **All** tab shows everything.
-- **Search** filters by the prompt text used to generate the image.
-- Your search and selected tab are remembered as you navigate away and back. Click **Clear** to reset them.
-- **Open source** (shown on kinds tied to an entity: NPCs, Monsters, Items, Spells, Factions, Locations, Maps) jumps straight to that NPC, monster, or other entity. Kinds with no single owning entity (Chronicle, Party, Loot, Traps, Puzzles, Pantheons) open in a lightbox instead.
+## Going to the thing a picture belongs to
 
-## Removing an image
+Hover a card (on a phone, tap it) to show two buttons in its top-right corner. **Open source** opens the NPC, monster, item, spell, faction, place, deity or dungeon feature the picture belongs to. It is only shown for kinds that have a page to open. Chronicle, Party, Heroes, Species, Traps, Puzzles, Pantheons, Lore and Loot pictures have no single page to jump to, so you only get the large view.
 
-**Remove from gallery** only removes the gallery record: it does not delete the art from the entity it's attached to. There is currently no way to delete the art itself from the Gallery; do that from the entity's own editor.
+## Removing a picture from the Gallery
+
+The second button, **Remove from gallery**, asks you to confirm and then takes the record out of the Gallery. The picture stays on the NPC, monster or place it belongs to. To change or delete the art itself, go to that thing's own editor.
 
 ## Related
 

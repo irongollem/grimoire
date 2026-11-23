@@ -4,7 +4,7 @@ section: Quests
 section_order: 3
 order: 2
 summary: "Running a quest from its drawer: putting the party on a beat, taking routes, managing threads, and handling payoff and sites live at the table."
-keywords: run, drawer, where it can go, take, advance, undo, thread, held payoff, dispatch, session, improvise, site, party here, hotkeys
+keywords: run, running a quest, play a quest, table, drawer, where it can go, take, advance, undo, thread, held payoff, dispatch, session, improvise, something else happened, site, party here, clock, hotkeys
 ---
 
 There's no separate screen for running a quest. You run it from the same page you build it on: select the beat the party is standing on and the drawer shows what you need to read, what to say and where the story can go next. **Run** a quest means selecting the party's beat: a live quest on the Dashboard or the session rail takes you straight to it, and **Run** on the phone sheet does the same. Open the drawer wide from its tab for the rest of the beat, and fold it back with the tab, **Esc** or a click outside.
@@ -41,7 +41,7 @@ With the party on a beat, click **Take** on a route under **Where it can go** an
 2. **Also opens**: every parallel route off the beat, ticked by default; each one spawns its own thread right along with this move. Untick to prepare the layer without opening it yet.
 3. **Payoff from this route**: every consequence on the chosen route, ticked to fire now and unticked to **hold** it for later; every loot row, ticked to drop to chat with the move and unticked to keep it in Held payoff until you dispatch it.
 
-The footer previews the plan (which thread letters stay live, how many consequences fire, how many loot rows stay held) before you click **Advance**. If another device moved the same thread first, you'll see "The session moved on another device. Reopen to advance." rather than a silent overwrite. When exactly one route is open, **Alt+→** takes it.
+On a phone the dialog is two steps: pick the route and press **Continue**, then review the payoff and press **Advance**. The footer previews the plan (which thread letters stay live, how many consequences fire, how many loot rows stay held) before you click **Advance**. If another device moved the same thread first, you'll see "The session moved on another device. Reopen to advance." rather than a silent overwrite. When exactly one route is open, **Alt+→** takes it.
 
 **Undo** takes back the newest move on the quest, whole. It's in the flow's toolbar, as is **⌘Z** / **Ctrl+Z**. It works on what you played here and on what you marked on the flow afterwards, and it hides again whatever the move showed to players. There is no Previous button and no jumping: to move the party to any beat, select it and tick **Party here**.
 

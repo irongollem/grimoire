@@ -4,17 +4,17 @@ section: Running the Table
 section_order: 1
 order: 0
 summary: The campaign's home screen: a board of widgets that rearranges itself between prep and the table, and that you can rearrange yourself.
-keywords: dashboard, home, widgets, customize, layout, prep, at the table, session, widget catalog, reset
+keywords: dashboard, home, home screen, widgets, customize, rearrange, layout, add widget, remove widget, prep, at the table, session, widget catalog, reset, weather, party, quests, initiative, dice roller
 ---
 
-The Dashboard is where Grimoire lands you. It's a grid of cards ("widgets") summarising the parts of your campaign you check most (quests in progress, party HP, what still needs prepping, what happened last session), and it is the first thing you see when you open the app (**Campaign → Dashboard** in the sidebar, or just `/`).
+Use the Dashboard as your home screen and your cheat sheet at the table. It is where Grimoire lands you. It's a grid of cards ("widgets") summarising the parts of your campaign you check most (quests in progress, party HP, what still needs prepping, what happened last session), and it is the first thing you see when you open the app (**Campaign → Dashboard** in the sidebar, or just `/`).
 
 ## Key ideas
 
 | Term | Meaning |
 | --- | --- |
 | Surface | Which of two boards you're looking at: **Prep** (what needs work before the table sits down) or **At the table** (what matters while you're running it). The dashboard switches automatically when you start or end a session, and you can override it manually. |
-| Widget | One card on the board: Party, Quests, Recent NPCs, a dice roller, and so on. Over 30 exist; only a handful show by default. |
+| Widget | One card on the board: Party, Quests, Recent NPCs, a dice roller, and so on. Over 30 exist; only a handful show by default. Some hide themselves until they have something to show. |
 | Layout | Your personal arrangement of widgets: which ones you've added, their size, and their order. Saved per campaign, so it follows you between devices. |
 | Customize mode | The editing state where you can add, remove, resize and reorder widgets. |
 
@@ -52,7 +52,7 @@ Click **Reset to default** (next to the widget picker, while customizing). Your 
 
 **Prep** ships with: **Needs prep**, **Quests**, **Next session**, **Unidentified**, **Party**, **Pinned notes**, **Campaign stats**.
 
-**At the table** ships with: **Live encounter**, **Party**, **Quests**, **Session**, **Unidentified**, **Recent NPCs**, **Pinned notes**, **Campaign stats**.
+**At the table** ships with: **Live encounter**, **Party**, **Quests**, **Session**, **Unidentified**, **Recent NPCs**, **Pinned notes**, **Campaign stats**. Live encounter, Recent NPCs and Pinned notes show nothing until there is something to show.
 
 ## The full widget catalog
 
@@ -60,21 +60,21 @@ Everything else lives on the shelf: add it from **Add a widget…** if you want 
 
 | Widget | What it shows |
 | --- | --- |
-| Needs prep | Quests and encounters not ready to run, plus undelivered loot |
-| Quests | One row per active and in-play quest, merged from every stage |
+| Needs prep | Quest beats that are not ready to run |
+| Quests | Every quest, one row each, most urgent first |
 | Next session | Countdown to your table's next agreed session date |
-| Unidentified | Party items still awaiting identification |
+| Unidentified | Party loot still waiting to be identified |
 | Party | HP, AC, conditions and passive scores for the roster, with online presence dots |
-| Recent NPCs | Up to 10 NPCs you've visited recently, in visit order |
-| Pinned notes | Your pinned campaign notes (up to 4) |
-| Live encounter | A banner for whichever encounter is currently running combat |
+| Recent NPCs *(self-hiding)* | Up to 10 NPCs you've visited recently, in visit order |
+| Pinned notes *(self-hiding)* | Your pinned campaign notes (up to 4) |
+| Live encounter *(self-hiding)* | A banner for whichever encounter is currently running combat |
 | Campaign stats | Row of campaign totals with links, no card chrome |
-| Session | In-world game day and current location, with a sync-to-party control |
+| Session | The in-world game day and the party's current location |
 | DM screen card *(configurable)* | One reference table from the DM Screen, your choice |
 | Roll a table *(configurable)* | Rolls one of your saved roll tables in place |
 | Conditions | All 16 conditions, rules text one tap away |
 | Monster quick-pull | A random monster by CR band and creature type, for improvising |
-| Quest triggers due | Scheduled quest consequences about to fire |
+| Quest consequences due | Delayed calendar events and broadcasts from your quests that are about to fire |
 | Players wrote *(self-hiding)* | Shared player journal entries you haven't read yet |
 | Initiative *(self-hiding)* | Round, current turn and every combatant's HP, while combat runs |
 | Encounters needing prep | Encounters missing combatants, a location or a reward |
@@ -86,12 +86,13 @@ Everything else lives on the shelf: add it from **Add a widget…** if you want 
 | Recent quest activity | The beat-by-beat feed of what's happened in your quests |
 | Deities *(self-hiding)* | Your pantheon's domains, alignment and symbols |
 | Rule tracker *(configurable)* | A homebrew rule's stateful tracker (Sanity, Corruption, etc.), live for the party |
-| Jump to… | Global search, embedded as a card |
-| Quick create | Five links to blank NPC/quest/note/encounter/location forms |
+| Jump to… | Search notes, NPCs, monsters, spells and items without leaving the board |
+| Quick create | Start a new NPC, quest, note, encounter or location |
 | Upcoming events | The next few in-world calendar events, with countdowns |
-| Unclaimed loot | Loot you've prepared but not dropped, and loot the party hasn't claimed |
+| Weather | Today's sky where the party is, with the moons and a five-day outlook |
+| Unclaimed loot | Quest rewards computed but never handed out |
 | Downtime queue | Pending downtime draws awaiting your resolution |
-| Table vitals | Spell slots, class resources and concentration across the party |
+| Table vitals *(self-hiding)* | Spell slots, class resources and concentration across the party |
 | Death saves *(self-hiding)* | Anyone at 0 HP, until they stabilize or die |
 | Dice roller | Seven standard dice plus a free expression field, with advantage/disadvantage |
 | Sessions | Your next session, what happened last time, sessions still missing notes, and a quick line into the session's notes |

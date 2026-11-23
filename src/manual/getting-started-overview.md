@@ -4,10 +4,10 @@ section: Getting Started
 section_order: 0
 order: 0
 summary: What Grimoire is, how it's organized, and where to go first.
-keywords: overview, introduction, grimoire, what is, new dm, start, nav, navigation
+keywords: overview, introduction, grimoire, what is, new dm, getting started, start, begin, nav, navigation, sidebar, tutorial, first steps, player portal, tour
 ---
 
-Grimoire is a full-stack campaign manager for Dungeons & Dragons 5e. It gives you, the Dungeon Master, one place to build your world, prep sessions, run live combat, and hand your players a real, role-appropriate view of the campaign that updates as you play. You're reading this manual inside the app itself: **Compendium → Reliquary**, **DM Manual** tab. Most screens also carry a small ⓘ icon next to their title that jumps straight to the matching page here.
+Grimoire is a campaign manager for Dungeons & Dragons 5e (and, with the Generic game system, for other tabletop games too). It gives you, the Dungeon Master, one place to build your world, prep sessions, run live combat, and hand your players a view of the campaign that updates as you play. You're reading this manual inside the app itself: **Compendium → Reliquary**, **DM Manual** tab. The Familiar, an assistant beside the search box, answers questions from this manual: see [Ask your Familiar](#ask-your-familiar). Most screens also carry a small ⓘ icon next to their title that jumps straight to the matching page here.
 
 ## Key ideas
 
@@ -25,16 +25,16 @@ The sidebar (or, on a phone/tablet, the bottom bar's **More** sheet) is organize
 
 | Group | What belongs there |
 | --- | --- |
-| **Campaign** | The story you're authoring and the things you reach for at the table: Dashboard, Notes, Quests, Calendar, NPCs, Atlas, Encounters, Soundboard, Party, Factions, Pantheon, Workshop, Interlude, Sessions, and Settings. |
+| **Campaign** | The story you're authoring and the things you reach for at the table: Dashboard, Notes, Canon, Quests, Calendar, NPCs, Atlas, Encounters, Soundboard, Table (when the AI table is open to you), Party, Factions, Pantheon, Web, Workshop, Interlude, Sessions, and Settings. |
 | **Compendium** | The 5e material a campaign draws on: Reliquary (DM screen, rules, this manual), Bestiary, Spellbook, Item Vault, Character Codex, Dungeon Craft, and Hall of Heroes. Not gated to a campaign: you can browse it before picking one. |
-| **Publish** | Tools that turn campaign data into something outside the app: Gallery, Scriptorium, Character Sheet, Card Forge, The Mint, Simulacrum, and Cartographer. The Illuminator picture editor lives inside the Scriptorium. Everything except Gallery is desktop-only (A4/letter output isn't practical on a phone). |
+| **Publish** | Tools that turn campaign data into something outside the app: Gallery, Scriptorium, Character Sheet, Card Forge, The Mint, Simulacrum, Book Nook, and Cartographer. The Illuminator picture editor lives inside the Scriptorium. Everything except Gallery is desktop-only (A4/letter output isn't practical on a phone). |
 
 Workshop and Interlude only appear once you've switched their optional rule on for the active campaign (**Campaign Settings → Rules**): that's not a bug if you don't see them yet.
 
 ## Your first hour
 
 1. **Create a campaign**: name it, pick a world setting and a ruleset (2014 or 2024 rules), and choose a calendar. See [Creating Your First Campaign](#creating-your-first-campaign).
-2. **Seed your world**: Atlas and Factions both have a **Populate from Setting** button that drops in iconic locations, NPCs, and organisations for your chosen setting in one click.
+2. **Seed your world**: **Canon**, under *How the world works*, has a **Populate** panel that drops in iconic locations, NPCs, and organisations for your chosen setting in one click.
 3. **Invite your players**: generate a link from **Campaign Settings → Members & Invites**. See [Inviting Players](#inviting-players).
 4. **Turn on AI generation if you want it**: platform credits work out of the box on every plan, or, on Pro, bring your own OpenAI/Gemini key instead. See [AI Generation & Credits](#ai-generation-credits).
 5. **Already have an adventure written up?** Import it (a PDF, page photos, or pasted text) instead of typing everything by hand. See [Importing an Adventure](#importing-an-adventure).

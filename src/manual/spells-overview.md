@@ -4,10 +4,10 @@ section: Spells
 section_order: 6
 order: 0
 summary: Browsing, sourcing, and scoping your campaign's spell compendium.
-keywords: spell, spells, spellbook, overview, browse, filter, source, library, scope, campaign, generate, known by, cast by
+keywords: spell, spells, spellbook, compendium, overview, browse, search, filter, school, level, class, source, sourcebook, library, scope, campaign, generate, known by, cast by, reference spell, copy, scriptorium
 ---
 
-The **Spellbook** (`/spells`, **Spellbook** in the Compendium group of the sidebar) is your campaign's spell compendium: published spells alongside anything you write yourself. Every spell here can be assigned to classes, linked from items, cast by NPCs, and learned by player characters.
+Use the **Spellbook** to look spells up and to write your own. It is your campaign's spell compendium (**Compendium → Spellbook** in the sidebar): published spells alongside anything you write yourself. Every spell here can be assigned to classes, linked from items, cast by NPCs, and learned by player characters.
 
 ## Key ideas
 
@@ -22,17 +22,17 @@ The **Spellbook** (`/spells`, **Spellbook** in the Compendium group of the sideb
 
 The list is paginated (50 per page). Use the toolbar to narrow it:
 
-- **Search box**: matches by name.
-- **Level row**: Cantrip (labelled **C**) through 9th, or **All**.
-- **School filter**: the eight schools of magic.
-- **Class filter**: Barbarian, Bard, Cleric, Druid, Fighter, Paladin, Ranger, Rogue, Sorcerer, Warlock, Wizard, and any custom classes.
-- **Source filter**: narrows to one sourcebook, or **Custom** for spells with no source.
+- **Search by name…** box.
+- **Level** dropdown: all levels, Cantrip through 9th.
+- **School** dropdown (**All Schools**): the eight schools of magic.
+- **Class** dropdown (**All Classes**): Barbarian, Bard, Cleric, Druid, Fighter, Paladin, Ranger, Rogue, Sorcerer, Warlock, Wizard, and any custom classes.
+- **Source** dropdown (**All Sources**): narrows to one sourcebook, or **Custom** for spells with no source.
 
 Click **Clear** (visible only once a filter is active) to reset all of them at once. Your filters persist while you navigate away and come back within the same session.
 
 ## Choosing which sources appear
 
-Click the **library icon** button in the toolbar to open **Spell Sources**. This lists every published sourcebook your admin has seeded into Grimoire's shared spell library, each with a running count of how many spells it holds. Check a source to make its spells appear in your Spellbook **instantly**: there is nothing to download or import, and unchecking a source hides its spells again without deleting anything. This choice is per campaign.
+Click the book button in the toolbar to open **Spell Sources**. This lists every published sourcebook your admin has seeded into Grimoire's shared spell library, each with a running count of how many spells it holds. Check a source to make its spells appear in your Spellbook **instantly**: there is nothing to download or import, and unchecking a source hides its spells again without deleting anything. This choice is per campaign.
 
 The panel also links to **Licenses & attribution** (Reliquary → Licenses tab), which credits every publisher whose content you've enabled.
 
@@ -44,7 +44,7 @@ See **[Creating Custom Spells](#creating-custom-spells)** for the full editor wa
 
 ## Bulk actions
 
-Click **Select** to turn the grid into a multi-select surface: a checkbox appears on every card. With spells selected, a bar above the grid lets you:
+Click **Select** (it becomes **Done**) to turn the grid into a multi-select surface: a checkbox appears on every card. With spells selected, a bar above the grid lets you:
 
 - **Move** the selection to the active campaign or back to "all campaigns" (general).
 - **Copy to campaign…**: duplicate the selected spells into a different campaign, picked from a list that excludes any campaign a selected spell is already in. The copy is a second, independent row you can freely diverge from the original.
@@ -60,7 +60,7 @@ Click a spell to open its **read view**: a compact stat-block summary (level, sc
 
 ## Editing a spell
 
-DMs see an **Edit** button on any spell they own (players, and a DM in DM Preview mode, never see it at all). Opening a **shared/library spell** shows only art controls and the note "Reference spell: art only": there is no clone-to-customize path for spells the way there is for items; if you want your own editable version, use **New Spell** and rebuild it.
+DMs see an **Edit** button on any spell they own (players, and a DM in DM Preview mode, never see it at all). Opening a **shared spell from a book** shows only art controls and the note "Reference spell: art only", and its button reads **Done**. There is no clone-to-customize path for spells the way there is for monsters and items; if you want your own editable version, use **New Spell** and rebuild it.
 
 From the editor, **Send to Scriptorium** formats the spell as a publishable document, and (for your own spells) **Copy to campaign…** duplicates it into another campaign you run.
 
@@ -75,11 +75,11 @@ Each player's own **Spells** tab in the Player Portal adapts to their character'
 | Known (e.g. Sorcerer, Bard, Warlock) | Known [Class] · Innate · All [Class] Spells |
 | Non-caster | Innate · All Spells |
 
-Castable spell rows carry roll buttons: an **Atk** badge rolls a spell attack and posts it to chat, a **DC** badge announces the saving throw the target must make, and the **Cast** button rolls any damage or healing dice automatically. See **[Spell Damage & Save Effects](#spell-damage-save-effects)** for how to make sure those buttons actually roll dice.
+Castable spell rows carry roll buttons: an **Atk** badge rolls a spell attack and posts it to chat, a **DC** badge announces the saving throw the target must make, and the **Cast** button rolls any damage or healing dice automatically. Some book spells show **Roll by hand** instead. See **[Spell Damage & Save Effects](#spell-damage-save-effects)** for when a spell rolls dice by itself.
 
 ## Tips
 
-> A spell you import or generate has no mechanical effect until its Mechanics block is filled in: see Spell Damage & Save Effects.
+> A spell you write yourself has no mechanical effect until its Mechanics block is filled in: see Spell Damage & Save Effects.
 
 - Scope, once saved, never moves on its own: editing an existing spell keeps it in whatever scope it was created with, even a general one.
 - Only your own custom spells count toward any AI credit usage; shared/library spells are free to browse and enable.

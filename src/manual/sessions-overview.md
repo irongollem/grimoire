@@ -4,10 +4,10 @@ section: Running the Table
 section_order: 1
 order: 1
 summary: Start a session when the table sits down, and end it when they leave: what changes while it runs, how sessions are numbered, and the Sessions log that remembers every evening.
-keywords: session, play, prep, live, broadcast, reveal, announce, start, end, encounter, soundboard, perform, quest drawer, log, number, history, learned, recap
+keywords: session, sessions, start session, end session, go live, continue session, play, prep, live, broadcast, reveal, announce, start, end, encounter, soundboard, perform, quest drawer, log, session log, number, history, learned, recap, merge sessions, past session, still playing
 ---
 
-Grimoire has two halves. Most of the time you are **preparing**: writing NPCs, drawing the map, laying out a quest. That is just the app; it needs no mode and no switch.
+Use sessions to tell Grimoire when your table is playing, so reveals reach your players and the evening is remembered in a log. Grimoire has two halves. Most of the time you are **preparing**: writing NPCs, drawing the map, laying out a quest. That is just the app; it needs no mode and no switch.
 
 When your players sit down, you **start a session**. The control is the **Start session** button in the sidebar under the Grimoire title (on a phone or tablet it is in the top bar, and also in the **All sections** sheet).
 
@@ -91,7 +91,7 @@ Two ways to correct it:
 
 ### Learned outside any session
 
-Anything shared before Grimoire kept the log has no session. **Learned outside any session** (open it from the log's summary line) lists each of these with a suggested session, and a bulk **Put them in** to move several at once. Whatever you leave there shows to your players under **Before the log**. Moments from before the log are dated by when the NPC or place was created, which may not be the evening your players actually met it, so treat the suggestions as a starting point.
+Anything shared before Grimoire kept the log has no session. **Learned outside any session** (open it with **Sort them**, beside the log's summary line) lists each of these with a suggested session, and a bulk **Put them in** picker with **Move** to move several at once (**Follow suggestions** accepts every suggestion). Whatever you leave there shows to your players under **Before the log**. Moments from before the log are dated by when the NPC or place was created, which may not be the evening your players actually met it, so treat the suggestions as a starting point.
 
 ### The Sessions widget on the dashboard
 

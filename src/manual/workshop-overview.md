@@ -4,10 +4,10 @@ section: Workshop
 section_order: 8
 order: 0
 summary: How crafting disciplines, recipes, and player discovery work in the Workshop.
-keywords: crafting, workshop, recipe, discipline, dc, player, discovery, reveal, import, starter, optional rule
+keywords: crafting, workshop, craft, recipe, recipes, discipline, dc, player, discovery, reveal, import, starter recipes, optional rule, experiment, invent, quality, ingredients, alchemy, smithing, new recipe
 ---
 
-The **Workshop** (**Workshop** in the sidebar's Campaign group, `/crafting`) is Grimoire's crafting system. As DM you create recipes; players roll against them from their own Crafting page. Each recipe belongs to one **discipline** that determines the tool used and the ability score rolled.
+Use the **Workshop** to let your players craft items from what they carry. It is Grimoire's crafting system (**Campaign → Workshop** in the sidebar). As DM you create recipes with **New Recipe**; players roll against them from their own Crafting page. Each recipe belongs to one **discipline** that determines the tool used and the ability score rolled.
 
 Workshop only appears in the sidebar while the **Crafting** optional rule is enabled for the active campaign (it's on by default). To check or change it, go to **Campaign → Settings → Rules** and toggle **Crafting**.
 
@@ -69,7 +69,7 @@ Recipes use **tag-based ingredients** by default: any item in the player's inven
 
 By default every recipe (including imported starter recipes) is **hidden from players**. You control who sees it:
 
-- The audience control on each recipe card (an eye-style icon and a label: **Hidden**, a player count, or **All players**) opens a picker of party members: check who should see this recipe.
+- The audience control on each recipe card (an eye-style icon and a label: **Hidden**, a player count, or **Whole party**) opens a picker of party members: check who should see this recipe.
 - **Reveal All** (top right, shown only once players have joined the campaign) sets every recipe visible to every current player in one click.
 
 Players only see recipes revealed to them. A hidden recipe shows no DC or ingredient requirements to them at all.

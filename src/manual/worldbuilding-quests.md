@@ -4,7 +4,7 @@ section: Quests
 section_order: 3
 order: 0
 summary: The list of every quest in your campaign: finding, filtering and creating one, and the quest drawer that describes it as a whole.
-keywords: quest, quests, quest log, kanban, list, quest drawer, objectives, clocks, payoffs, consequences, premise, mark, undo, generator, board lane, sub-quest
+keywords: quest, quests, quest log, kanban, list, quest board, quest drawer, objectives, goals, clocks, payoffs, consequences, rewards, premise, mark, undo, generator, board lane, sub-quest, due date, deadline, filter, new quest, prep gaps, loot pending, levels, milestone
 ---
 
 A quest in Grimoire is not a checklist: it's a small story flow you build once and then run at the table, made of **beats** (things that happen) and **objectives** (what the party is trying to achieve). This page covers the quest list, creating a quest, and the quest drawer that describes a quest as a whole. Find it under **Campaign → Quests** in the sidebar (`/quests`).
@@ -64,7 +64,7 @@ With nothing selected, the **quest drawer** holds the quest as a whole, top to b
 - **Notes**: yours alone. The premise, goals, themes and prep that belong to the whole quest and no single scene. Each beat shows them folded, so you can read them without leaving it.
 - **Objectives**, at the foot, covered below.
 
-Open it wide for the rest: the **Board lane** (the same status the kanban board uses: Undiscovered, Active, Completed, Failed), the **Giver** and **Location** (an NPC and a place), **Part of** (makes this a sub-quest of another, with no depth limit), **Worth** (with the Experience Points rule on: the XP the quest is worth, shared equally by the party's characters the first time it is completed), **Tags**, **Clocks**, **Payoffs** (the quest's own rules, covered below) and **Threads**, once the quest holds one.
+Open it wide for the rest: the **Board lane** (the same status the kanban board uses: Undiscovered, Active, Completed, Failed), the **Giver** and **Location** (an NPC and a place), **Part of** (makes this a sub-quest of another, with no depth limit), **Worth** (with the Experience Points rule on: the XP the quest is worth, shared equally by the party's characters the first time it is completed), **Tags**, your private **DM notes**, the **Sub-quests** list (**Add** starts a new one under this quest), any **Party Notes** the players have shared, a **Calendar** section for events tied to the quest, **Clocks**, **Payoffs** (the quest's own rules, covered below) and **Threads**, once the quest holds one. If you are the campaign's owner there is also a box, **The campaign begins with this quest**: tick it on the prologue and the AI table's first sitting starts at this quest's opening beat. A campaign has one beginning, so ticking it elsewhere moves it.
 
 The beat the story begins at is set on the beat itself: select a beat and tick **Entry**. A quest has one entry, so ticking it on another beat moves it. Grimoire sets it to the first beat you write.
 

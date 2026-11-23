@@ -4,10 +4,10 @@ section: Running the Table
 section_order: 1
 order: 2
 summary: Free-form notes for session recaps, lore, and secrets: pin them, tag them, and share exactly the ones your players should see.
-keywords: notes, campaign notes, mention, mentioned in, backlinks, session log, lore, secrets, pin, tags, share, chronicler, session recap
+keywords: notes, campaign notes, new note, write a note, mention, @mention, mentioned in, backlinks, session log, lore, secrets, dm only, pin, tags, search notes, sort, share, share with players, hidden, chronicler, session recap, scene illustration
 ---
 
-Campaign Notes is your free-form space for anything that doesn't have a dedicated home elsewhere: session recaps, lore you haven't turned into a Quest or Faction yet, secrets you're not ready to reveal, or planning scratch-space. Find it under **Campaign → Notes** in the sidebar (`/notes`).
+Use Campaign Notes to write things down and decide who may read them. It is your free-form space for anything that doesn't have a dedicated home elsewhere: session recaps, lore you haven't turned into a Quest or Faction yet, secrets you're not ready to reveal, or planning scratch-space. Find it under **Campaign → Notes** in the sidebar (`/notes`).
 
 ## Key ideas
 

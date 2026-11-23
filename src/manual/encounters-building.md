@@ -4,10 +4,10 @@ section: Encounters & Bestiary
 section_order: 5
 order: 3
 summary: Design encounters with combatants, factions, events, loot, traps, pre-placed tokens, and difficulty analysis.
-keywords: encounter, builder, combatant, faction, event, loot, trap, difficulty, xp, cr, boss, legendary, lair, token, battlefield, generator, ai
+keywords: encounter, builder, new encounter, combatant, roster, faction, event, loot, trap, difficulty, xp, cr, boss, legendary, lair, token, battlefield, setup, generator, ai, mark done, finished, reopen, run encounter
 ---
 
-The Encounter Builder is where you design a fight before you run it: who's in it, what happens automatically, what it's worth in loot, and how hard it actually is. Everything you set here carries straight into the live Encounter Runner. Find it at **Campaign → Encounters** in the sidebar (`/encounters`).
+Use the Encounter Builder to prepare a fight before you run it: who's in it, what happens automatically, what it's worth in loot, and how hard it actually is. Everything you set here carries straight into the live Encounter Runner. Find it at **Campaign → Encounters** in the sidebar (`/encounters`).
 
 ## Key ideas
 
@@ -21,7 +21,7 @@ The Encounter Builder is where you design a fight before you run it: who's in it
 
 ## Creating an encounter
 
-Click **New Encounter** on the Encounters list, or **Generate** for an AI-drafted one (see below). A new encounter opens straight into the editor; an existing one opens on its read-only sheet: click **Edit** to change it.
+Click **New Encounter** on the Encounters list, or **Generate** for an AI-drafted one (see below). A new encounter opens straight into the editor; an existing one opens on its read-only sheet: click **Edit** to change it. The sheet's other buttons are **Run Encounter** (open the [Encounter Runner](#encounter-runner); a live fight shows **Resume**, **Restart** and **Stop** instead), **Mark Done** (it becomes **Reopen** once finished) and **Delete**; **All Encounters** goes back to the list.
 
 ### Details
 
@@ -127,7 +127,7 @@ Nothing. The builder is entirely DM-side; nothing here reaches a player until yo
 
 > A monster or trap picker here only shows creatures/traps scoped to General or your active campaign: the same rule as the Bestiary list. A combatant already on the roster still resolves correctly even if you later re-scope its source monster elsewhere.
 
-- The Encounters list can filter to a specific quest or show only active (unfinished) encounters: use the filter and the **Active**/**All** toggle if your list is getting long.
+- The Encounters list has a **Search encounters…** box, a quest filter (**All quests**, **Unassigned**, or one quest) and an **Active**/**All** toggle that hides or shows encounters you marked done: use them if your list is getting long.
 - The AI generator's Difficulty control doesn't offer "Legendary": that label can only appear on the calculated difficulty badge once the roster is actually built.
 
 ## Related

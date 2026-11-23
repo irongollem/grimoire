@@ -4,7 +4,7 @@ section: Publishing
 section_order: 14
 order: 4
 summary: Edit and paint on the pictures in your books: edges, colour, vignette, texture, focus, paint layers and brushes, a picture painted from words, and optional AI actions, all kept as settings over the original.
-keywords: illuminator, describe it, paint, painting, brush, layers, smudge, eraser, generate picture, ai picture, image, picture, effect, colour grading, vignette, depth of field, focus, brush, mask, edge, torn paper, texture, before and after, reset, scriptorium, ai, cut out, watercolour
+keywords: illuminator, grade, wash, paper wash, crop, trim, resize picture, colour grading, sepia, moonlit, tool rail, describe it, paint, painting, brush, layers, smudge, eraser, generate picture, ai picture, image, picture, effect, colour grading, vignette, depth of field, focus, brush, mask, edge, torn paper, texture, before and after, reset, scriptorium, ai, cut out, watercolour
 ---
 
 The **Illuminator** is the picture editor inside the [Scriptorium](#scriptorium-document-publisher). You use it on a picture in your book, without leaving the book. It has no page of its own in the sidebar.
@@ -18,12 +18,13 @@ Select a picture on the page. The panel beside the page shows **Edit picture** w
 - **Edges**: Torn paper, Torn (classic), Faded or Straight, with the sides you want to tear and sliders for the tear.
 - **Colour**: a preset, plus **Warmth** and **Contrast**.
 - **Vignette**.
+- **Paper wash**: **Paint a paper wash** (see Wash below).
 
 Press **More tools: open the Illuminator** for everything else. The Illuminator opens over the book. **Done, back to page N** returns you to the same page with your edits in place. **Cancel** drops the session.
 
 You can edit a picture in the text and a picture placed on the page in the same way. Any picture stored in Grimoire can be edited: one you uploaded, a portrait, a place's art or a library picture. A picture linked from another website cannot.
 
-Press **Crop** beside **Edit picture** to trim the picture. Drag the box or its handles, or choose a shape: Free, 1:1, 4:3, 3:2, 16:9, or Page for a picture placed on the page. The picture on the page and in the PDF takes the new shape.
+Press **Crop** beside **Edit picture…** to open the Illuminator straight on the Crop tool. See Crop below.
 
 Under **Paper**, choose **Printed into the paper** to let the paper's colour and grain show through the picture, as if it were printed on the page, or **On top** to show it as it is.
 
@@ -38,7 +39,43 @@ Under **Paper**, choose **Printed into the paper** to let the paper's colour and
 
 ## Tools
 
-Choose a tool from the rail on the left. Its controls are on the right.
+Choose a tool from the rail on the left. Its controls are on the right. The rail has two groups. **Paint** holds Brush, Smudge, Eraser and Pick colour. **Picture** holds Crop, Edges, Grade, Vignette, Texture, Wash and Focus. Each tile shows its key in the corner (see the keys below), and hovering names it. A tool called **Text** is greyed out and marked as coming later. The Illuminator opens on the tool you used last.
+
+| Tool | Key |
+| --- | --- |
+| Brush, Smudge, Eraser, Pick colour | B, S, E, I |
+| Crop, Edges, Grade | C, R, G |
+| Vignette, Texture, Wash, Focus | V, T, W, F |
+
+**P** shows the before-and-after slider. It is switched off while Crop and Focus are active.
+
+### Crop
+
+Trims the picture to the part you want to keep. Every other edit then works on the part you keep, and the picture on the page and in the PDF takes the new shape. The original is never cut.
+
+1. Choose **Crop** in the rail, or press **Crop** in the panel beside the page.
+2. Drag the box, or its handles, over the part you want to keep.
+3. To lock the box to a shape, choose one under **Shape**: **Free**, **1:1**, **4:3**, **3:2** or **16:9**. A picture placed on the page also has **Page**, which matches the shape of the page so the picture fills it. A picture in the text has no Page shape.
+4. The panel tells you what you keep, for example "Keeping 80% across and 60% down." It reads "Keeping the whole picture." when nothing is cut.
+5. **Reset crop** puts the whole picture back.
+
+### Grade
+
+Colour grading for the picture: the mood of its colours, not the colour you paint with. Its panel is headed **Colour grading** and has a switch to turn it on or off.
+
+- **Presets**: **Sepia**, **Moonlit**, **Vivid** and **Ink sketch**. A preset sets the sliders for you, and you can adjust them afterwards.
+- Sliders: **Brightness**, **Contrast**, **Saturation**, **Temp** (warm or cool) and **Hue**.
+- **Reset** puts the sliders back to neutral.
+
+### Wash
+
+Paints the page's own paper over part of the picture, so the picture runs to the edge of the page and the text sits on a brushed patch of paper. Where the brush went, the picture is erased and the paper shows through, with a dry-brush edge where the painting shows faintly through. It shows on screen and in the PDF.
+
+1. Choose **Wash** in the rail, or find **Paper wash** in the panel beside the page.
+2. Press **Paint a paper wash**.
+3. Under **Paper comes in from**, choose the side: **Left**, **Right**, **Top** or **Bottom**.
+4. Set **How far it reaches**, **Brush (fine to broad)** and **Edge (wet to dry)**.
+5. Press **Paint it again** for a different brushing with the same settings. **Remove the wash** takes it away.
 
 ### Edges
 
@@ -47,10 +84,6 @@ A torn, rough or faded edge. Choose a style and which sides it touches (Top, Rig
 - **Torn paper**: an irregular torn outline with paper fibres and a soft lift shadow. Sliders: **Roughness**, **Tear depth**, **Fibres** and **Lift shadow**.
 - **Torn (classic)**: the layered torn fade the Illuminator has always had, with its own sliders for each side.
 - **Faded** and **Straight**.
-
-### Colour
-
-Pick a preset or move the sliders: **Brightness**, **Contrast**, **Saturation**, **Temp** (warm or cool) and **Hue**. **Reset** puts them back.
 
 ### Vignette
 

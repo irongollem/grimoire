@@ -4,10 +4,10 @@ section: Publishing
 section_order: 14
 order: 2
 summary: Print physical trading-card-style cards for NPCs, monsters, items, spells, loot, and Interlude activities.
-keywords: card forge, card, print, image, png, save card, mtg, tarot, npc, monster, item, spell, duplex, library, inked, modern, loot deck, deck back
+keywords: card forge, cards, print cards, make cards, flashcards, handout cards, card sheet, card, print, image, png, save card, mtg, tarot, npc, monster, item, spell, duplex, library, inked, modern, loot deck, deck back
 ---
 
-**Card Forge** generates print-ready sheets of cards for your campaign entities. Find it in the sidebar under **Compendium → Publish → Card Forge** (route `/forge`; desktop only).
+**Card Forge** generates print-ready sheets of cards for your campaign entities. Find it in the sidebar under **Publish → Card Forge**. It is desktop only.
 
 ## Key ideas
 

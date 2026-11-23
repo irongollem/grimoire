@@ -3,11 +3,11 @@ title: "Reliquary: Overview"
 section: Reliquary
 section_order: 12
 order: 0
-summary: The DM's rules reference, house rules workbench, and this manual, in one five-tab screen.
-keywords: reliquary, rules, dm screen, compendium, custom rules, manual, licenses, dice roller
+summary: The five tabs of the Rules Reliquary: a DM screen, the SRD text, your house rules, this manual and the licences.
+keywords: reliquary, rules reliquary, rules, look up a rule, where are the rules, srd, dm screen, compendium, custom rules, manual, licenses
 ---
 
-The **Reliquary** (**Compendium → Reliquary** in the sidebar, `/rules`) is where the game's rules live: a quick-reference screen, the full SRD text, your own house rules, this manual, and the licence attributions for everything Grimoire hosts. It also includes a built-in dice roller. Players get a matching, read-only version in their own portal.
+The **Reliquary** (**Compendium → Reliquary** in the sidebar, `/rules`) is where the game's rules live: a quick-reference screen, the full SRD text, your own house rules, this manual, and the licence attributions for everything Grimoire hosts. Players get a matching, read-only version in their own portal. The page is titled **Rules Reliquary**.
 
 ## Key ideas
 

@@ -4,7 +4,7 @@ section: World Building
 section_order: 2
 order: 0
 summary: Chart your world as a tree of places, from a whole plane down to a single room, with maps, pins and per-player visibility at every level.
-keywords: atlas, locations, map, hierarchy, world, region, city, town, dungeon, pin, tree, scale rail, measure, distance, travel time, route
+keywords: atlas, locations, places, map, hierarchy, world, region, city, town, dungeon, pin, tree, scale rail, measure, distance, travel time, route, road, roads, journey, set out, travel, party position, rations, explored, cleared, looted, loot, reveal, populate
 ---
 
 The Atlas is Grimoire's location system: every place in your world, nested as deep as you like, each with its own description, art, map and player-visibility rules. Find it under **Campaign → Atlas** in the sidebar (`/locations`). A location that can hold rooms and a floor plan (a building, dungeon, store, tavern, inn or wilds) is called a **site**; running one at the table has its own page, [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon).
@@ -40,7 +40,7 @@ Beside the name, each button does one job:
 
 ## Creating a location
 
-1. Click **New Location** (Atlas list page) or the inline "add a child" box in a place's own Parent/Child panel.
+1. Click **New Location** (Atlas list page) or the **Add child…** box in a place's own Details.
 2. Set **Type**: one of 19 options (World, Plane, Continent, Region, Country, City, Town, Village, District, Building, Store, Tavern, Inn, Wilds, Room, Grounds, Dungeon, Wilderness, Other).
 3. Pick a **Parent Location**, or leave it top-level.
 4. Add a **Description** (rich text) and a **Player Summary**: a short plain-text line always shown to players who can see this place, even before you share the full description.
@@ -89,6 +89,41 @@ Click the reveal control (the eye icon) beside any place, in the tree row or the
 
 The **Player Summary** (written in Details) is always shown to anyone who can see the place at all, regardless of the toggles above. Reveal is the only place these switches live.
 
+## What the Overview holds
+
+Below the description, a place's **Overview** gathers what the place is carrying right now. Only the parts that apply to the place show.
+
+- **Progress**: three buttons, **Explored**, **Cleared** and **Looted**. A press marks the place; press it again to take it back. Quests can react to these marks, and a place you walk the party into is marked Explored for you.
+- **Loot**: what is waiting in the place. **Add loot** prepares an entry, and a drop sends it to the party's chat.
+- **Prepared Here**: traps, dungeon features, roll tables and loot you have placed at this place.
+- **Roads from here**: see the next section.
+- **People in the Area**, **Encounters Here** and **Currently Here** (the party members standing there).
+- **Canon here**: clues and passages of your campaign canon that belong to the place, with a **Found** tick and a **Tell the party** button. See [Canon](#canon).
+- **Connections**: every tie the place has to people, factions, deities and items, with **Add connection** and **In the web**. See [World Web](#world-web).
+- A place with rooms also gets **Sort Into Rooms**, a quick way to move people and encounters that were put on the whole site into the room they actually live in.
+
+## Roads and journeys
+
+A road joins two places and says how far it is, the way a book writes "Neverwinter, 50 mi by the High Road". Roads need no map. Open a place that is not a room and find **Roads from here**.
+
+1. Press **Add a road**.
+2. In **Where does it lead?**, pick the other place.
+3. Type **How far** and choose the unit (miles or km). Give it **Its name** if you like ("the coast road").
+4. Choose **The going** (A road, A track, A river or The sea) and **The ground** it crosses, which slows the party if it is hard going.
+5. If you have roll tables in Dungeon Craft, **Its encounter table** says what may be met on the way.
+6. Press **Add road**.
+
+A road shows on both of its places. When both ends are pinned on one map with a scale, the form offers the map's straight-line distance with **Use it**, but the figure you type is the one that is kept. A road cannot be edited: remove it with the bin icon and add it again.
+
+**From where the party stands.** When the party's place is joined to this one by roads, the Overview says how far it is, the places the way passes and how long it takes: "145 mi from Luskan, where the party is, by way of Neverwinter". With no road between them it measures a straight line on the map both lie on, when that map has a scale. You can pick the **Slow**, **Normal** or **Fast** pace and how the party travels (on foot, mounted, by sled, ship or air). Then:
+
+- **Add to calendar** opens a travel event already filled in, as it does after measuring a route.
+- **Set out** makes the journey in one go. In the **Set out for** dialog, untick anyone staying behind under **Who goes**, and press **Set out**: the travellers move to the place, the campaign's party place follows, and the calendar date moves on by the days the trip takes. A message afterwards has **Undo**.
+- If the optional rule **Rations on the Road** is on, the dialog also shows the food the trip eats, and on a slow pace you can tick **Forage on the way**.
+- If the roads have encounter tables, **Roll on** buttons under "On the road" roll one for a stop on the way. Whether anything happens is your call.
+
+Players see **Roads from here** read-only on places they can see, and only to places they can see too.
+
 ## Stores, taverns and inns
 
 These three types get an **Inventory** section: add items from your Vault with quantities and optional prices, and restock directly from the place in the Atlas without opening its Details. Link a **Proprietor** NPC to put a face on the vendor: it's used as the sender name on in-chat vendor offers.
@@ -99,11 +134,11 @@ These three types get an **Inventory** section: add items from your Vault with q
 
 ## Related Locations
 
-A place can link to others that aren't parent/child: trade routes, tunnels, two connected dungeons in different regions. Manage these from the location's own Parent/Child panel; they render as chips labelled "Related Locations." An interior space (room or grounds) shows **Ways out** instead: see the Sites page.
+A place can link to others that aren't parent/child: trade routes, tunnels, two connected dungeons in different regions. Add them in the **Related** row of the place's Details; they show on the Overview as **Related Locations**. An interior space (room or grounds) shows **Ways out** instead: see the Sites page.
 
 ## Reparenting and reordering
 
-Drag a location to a new parent from its own editor's parent picker, or use the inline **create a child** box, which can also re-parent an existing location by picking it from the search results. Sibling order can be set explicitly (drag-to-reorder, most visible inside a site's Rooms panel); unordered siblings sort by tier, then name.
+Drag a location to a new parent from its own editor's parent picker, or use the **Add child…** box, which can also re-parent an existing location by picking it from the search results. Sibling order can be set explicitly (drag-to-reorder, most visible inside a site's Rooms panel); unordered siblings sort by tier, then name.
 
 ## What your players see
 

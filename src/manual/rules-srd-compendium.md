@@ -4,18 +4,18 @@ section: Reliquary
 section_order: 12
 order: 4
 summary: Browse or search the WotC SRD ruleset, synced for both the 2014 and 2024 editions, without leaving the table.
-keywords: compendium, srd, rules, search, browse, 2014, 2024, ruleset
+keywords: compendium, srd, rules, rules text, look up a rule, search rules, browse, 2014, 2024, ruleset, grapple, conditions, reference
 ---
 
-The **Compendium** tab in the Reliquary (**Compendium → Reliquary**, `/rules` → Compendium) contains the WotC SRD text (genuinely SRD, not the broader mix of publishers the rest of Grimoire's shared content draws on), browsable or searchable without leaving the app. It's synced for both the 2014 and 2024 editions and scoped to whichever ruleset your active campaign uses.
+The **Compendium** tab in the Reliquary (**Compendium → Reliquary**, then the **Compendium** tab) contains the WotC SRD text (genuinely SRD, not the broader mix of publishers the rest of Grimoire's shared content draws on), browsable or searchable without leaving the app. It's synced for both the 2014 and 2024 editions and scoped to whichever ruleset your active campaign uses.
 
 ## Browsing
 
-The left panel shows a tree of root rules with their sub-rules nested underneath. Click any entry to read its full text in the main panel.
+The left panel shows a tree of root rules with their sub-rules nested underneath. Click any entry to read its full text in the main panel. Until you pick one, the panel says "Select a rule from the list."
 
 ## Searching
 
-Start typing in the search box to flatten the tree into a filtered list: it matches against both rule names and their body text, so you can find a rule by a keyword buried in its description, not just its title.
+Start typing in **Search rules…** to flatten the tree into a filtered list: it matches against both rule names and their body text, so you can find a rule by a keyword buried in its description, not just its title. If nothing matches, the list says **No matches.** **Clear** resets the search, and the search is kept when you leave the Reliquary and come back.
 
 This is your primary rules reference during play: the actual SRD text, not a summary. For your own campaign-specific rulings and house rules, use the **Custom Rules** tab; for a compact table-style cheat sheet, use the **DM Screen** tab.
 

@@ -4,8 +4,10 @@ section: Item Vault
 section_order: 7
 order: 3
 summary: How quivers, pouches, and backpacks work as containers for inventory items.
-keywords: container, quiver, pouch, backpack, bag, extradimensional, holding
+keywords: container, containers, quiver, pouch, backpack, bag, bag of holding, extradimensional, weight, carry weight, stow, ammo, add container
 ---
+
+Use containers to organise a character's inventory (a quiver for arrows, a pouch for components) and to make carry weight and ammunition behave the way you want.
 
 ## What makes an item a container?
 
@@ -24,7 +26,7 @@ Ranged attacks check where an ammo stack is carried when choosing which one to c
 
 | Item | Notes |
 |---|---|
-| Quiver | Holds up to 20 arrows. Tagged `container`. |
+| Quiver | Tagged `container`. |
 | Component Pouch | For spell components. Tagged `container`. |
 | Backpack | General storage. Tagged `container`. |
 | Bag of Holding | Tagged `container`. Carried weight is **not** waived by default: add the `extradimensional` tag yourself to zero out its contents' weight (see [Item Tags Overview](#item-tags-overview)). |

@@ -4,15 +4,17 @@ section: Workshop
 section_order: 8
 order: 1
 summary: How recipes match ingredients by tag, and when to use exact items instead.
-keywords: crafting, recipe, ingredient, tag, workshop, cook, smith, brew, alchemy, herbalism, wood, ore, cloth, parchment, forgery
+keywords: crafting, recipe, recipes, ingredient, ingredients, tag, tags, workshop, exact item, and logic, cook, smith, brew, alchemy, herbalism, wood, ore, cloth, parchment, forgery
 ---
+
+Use this page when you write a recipe and want to choose how its ingredients are matched.
 
 ## Two ways to specify an ingredient
 
 Each ingredient slot in a recipe is either:
 
-- **Tag-based**: accepts any item whose tags include the required tag(s). Flexible and setting-agnostic.
-- **Exact item**: requires a specific vault item. Use this when the ingredient has no meaningful equivalent (e.g. a named magical component). Select it from the item picker in the recipe editor.
+- **Tag-based**: accepts any item whose tags include the required tag(s). Flexible and setting-agnostic. In the recipe editor, type the tags into **Add by tag(s)…** and click **Add tag**.
+- **Exact item**: requires a specific vault item. Use this when the ingredient has no meaningful equivalent (e.g. a named magical component). Pick it in the editor's **Add specific item…** box.
 
 The pre-loaded starter recipes use tags throughout because a specific vault item picked for one campaign might not exist in another. Your own recipes can freely mix both approaches.
 

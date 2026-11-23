@@ -4,10 +4,10 @@ section: Running the Table
 section_order: 1
 order: 5
 summary: The deck, a grid of sound pads docked under every page, for music, ambience and effects at the table, with lanes, takes, Hush, a mixer and Launchpad support.
-keywords: soundboard, deck, pad, lane, take, sound, music, ambient, scene, spotify, playlist, page, mixer, hush, launchpad, midi, controller, volume, trim, effects, cast, chromecast, carplay
+keywords: soundboard, deck, pad, lane, take, sound, sound effects, music, ambient, ambience, scene, spotify, playlist, page, mixer, volume, hush, launchpad, midi, controller, trim, effects, filter, cast, chromecast, carplay, bluetooth, direct output, stutter, upload audio, add sound, board settings, share music
 ---
 
-The Soundboard is an instrument you play at the table. Its **deck** is one grid of pads, docked at the bottom of every page, so the rain, the tavern song and the door slam are always one tap away, whatever you are looking at. You build the deck on the **Soundboard** page (**Campaign → Soundboard** in the sidebar, `/soundboard`).
+Use the Soundboard to play music, ambience and effects at the table without leaving the page you are on. It is an instrument you play at the table. Its **deck** is one grid of pads, docked at the bottom of every page, so the rain, the tavern song and the door slam are always one tap away, whatever you are looking at. You build the deck on the **Soundboard** page (**Campaign → Soundboard** in the sidebar, `/soundboard`).
 
 ## The deck
 
@@ -114,7 +114,11 @@ Sounds from different sources arrive at wildly different levels. **Trim**, in a 
 
 ### The mixer and effects
 
-The **mixer** (in the deck, and as a drawer on the Soundboard page) has a master fader plus one each for Music, Ambience and Effects. Pulling Ambience down quiets every ambient layer at once without touching your music. The wand beside the master fader puts the whole mix through a filter: through a door, through a wall, distant, underwater, cave or sewer. To put one pad's sound through a filter instead (a voice behind the door, the rest of the room clear), open the pad's settings in Full: **Effect** sits under the fades, and holds for the rest of the session.
+The **mixer** (in the deck, and as a drawer on the Soundboard page) has a master fader plus one each for Music, Ambience and Effects. Pulling Ambience down quiets every ambient layer at once without touching your music. The button beside the master fader puts the whole mix through a filter: **Off**, **Door**, **Wall**, **Distant**, **Water**, **Cave** or **Sewer**. Each of the Music, Ambience and Effects faders has the same button, so "the music is through a door" while the effects stay clear. To put one pad's sound through a filter instead (a voice behind the door, the rest of the room clear), open the pad's settings in Full: **Effect** sits under the fades, and holds for the rest of the session.
+
+### Output, sharing and triggers
+
+At the foot of the mixer, **Output** switches between **Mixer** (faders, fades and effects) and **Direct (car)**, which sends sound straight to the device. Use Direct if audio stutters over CarPlay or Bluetooth: it has no effects, and on an iPhone no faders. Switching stops what is playing. The line under it, **Triggers on · Sharing on**, opens **Board settings**, where you choose **Let encounters and locations pick audio**, **Share music with remote players**, and the same direct-output switch.
 
 ## Simple and Full
 
@@ -136,11 +140,11 @@ The deck has two modes, set behind the settings pip in its header. **Simple** is
 
 ## On a phone
 
-On a phone the deck is a bottom sheet above the navigation bar. Folded, it shows four pads and Hush. Open it for the whole deck, four lanes at a time: swipe sideways for lanes 5 to 8. Tools and the big buttons sit at the bottom, in thumb reach. A pad plays when your finger lifts, or once you hold it still, so a scroll that starts on a pad plays nothing.
+On a phone the deck is a bottom sheet above the navigation bar. Folded, it shows four pads and Hush. A page picker shows the current page's name; tap it to open **Pages**, where you can switch, rename or delete pages. Open it for the whole deck, four lanes at a time: swipe sideways for lanes 5 to 8. Tools and the big buttons sit at the bottom, in thumb reach. A pad plays when your finger lifts, or once you hold it still, so a scroll that starts on a pad plays nothing.
 
 ## Controllers
 
-You can play the deck from a **Launchpad** (Mini MK3, X or Pro MK3). Open **Board settings** on the Soundboard page and connect it. The grid shows eight rows of the page you are on, and the lights show which pads are ready, playing, looping and fading. On models that sense how hard you hit, a harder hit can play louder.
+You can play the deck from a **Launchpad** (Mini MK3, X or Pro MK3). Open **Board settings** (from the mixer, on any page) and connect it. The grid shows eight rows of the page you are on, and the lights show which pads are ready, playing, looping and fading. On models that sense how hard you hit, a harder hit can play louder.
 
 On a **Launchpad X** the buttons do what their labels say:
 
@@ -174,7 +178,7 @@ To play the music on a Google Home or Chromecast speaker, open the **mixer** and
 
 ## What your players see
 
-The Soundboard itself is entirely DM-only. What players *can* get, if you choose to share it, is a read-only stream of whatever music playlist is currently playing: switch on sharing in Board settings, and each player who presses **Join audio** on their own device hears the same track, roughly in sync. It's off by default and resets every session; ambient scenes and one-shot effects are never shared this way, since they would land differently on every device.
+The Soundboard itself is entirely DM-only. What players *can* get, if you choose to share it, is a read-only stream of whatever music playlist is currently playing: tick **Share music with remote players** in Board settings, and each player who presses **Join audio** on their own device hears the same track, roughly in sync. It's off by default and resets every session; ambient scenes and one-shot effects are never shared this way, since they would land differently on every device.
 
 ## Tips
 

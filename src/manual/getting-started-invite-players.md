@@ -4,10 +4,10 @@ section: Getting Started
 section_order: 0
 order: 3
 summary: Generate invite links, manage members, and preview the player portal.
-keywords: invite, player, join, link, token, membership, role, access, preview, co-dm, co-DM, stand-in, take my chair
+keywords: invite, invite link, player, join, add players, share link, link, token, membership, members, role, access, remove player, kick, assign character, preview, co-dm, co-DM, stand-in, take my chair, hand over character, look after
 ---
 
-Players join your campaign through a one-click link you generate: there's no separate "player account setup" step. Open **Campaign Settings → Members & Invites**, which holds both the member list and the invite-link manager on one tab.
+This page is for getting people to your table: how to invite a player, who can do what once they are in, and how to remove or replace them. Players join your campaign through a one-click link you generate: there's no separate "player account setup" step. Open **Campaign Settings → Members & Invites**, which holds both the member list and the invite-link manager on one tab.
 
 ## Key ideas
 
@@ -16,14 +16,16 @@ Players join your campaign through a one-click link you generate: there's no sep
 | **Invite link** | A one-time-generated URL (`/join/<token>`) that adds whoever opens it to your campaign as a player. |
 | **Member** | Anyone (DM or player) attached to the campaign, tracked in the member list. |
 | **Character assignment** | Linking a player's account to one party member (character sheet) so they see and control it in the Player Portal. |
+| **Co-DM** | A player you let run the campaign beside you, or in your place for an evening. |
 | **DM Preview Mode** | Browsing the Player Portal as if you were a specific player, without a second account. |
 
 ## Generating an invite link
 
 1. In the **New Invite Link** panel, optionally fill in:
-   - **Label**: a note only you see, e.g. "For Alice."
-   - **Expires**: a date/time after which the link stops working.
-   - **Max uses**: how many times the link can be used before it's spent.
+   - **Label (optional)**: a note only you see, e.g. "For Alice."
+   - **Expires (optional)**: a date/time after which the link stops working.
+   - **Max uses (optional)**: how many times the link can be used before it's spent.
+   - **Joins as** (campaign owner only): **Player** or **Co-DM**.
 2. Click **Generate Link**.
 3. Find the new link in the list below, and click **Copy** next to its URL (it changes to "Copied!" for a couple of seconds) to copy the join URL to your clipboard.
 4. Send it to your player through any channel: Discord, WhatsApp, email, whatever you already use.
@@ -53,7 +55,7 @@ joiner's list.
 
 ## Assigning a character
 
-After a player joins, find their row on the **Members & Invites** tab and use the **Assign character…** combobox to link them to a party member (character sheet). Only characters not already assigned to someone else appear in the list. Players can also create their own character from the Player Portal instead, if you'd rather they build it themselves.
+After a player joins, find their row on the **Members & Invites** tab and use the **Assign character…** combobox to link them to a party member (character sheet). Only characters not already assigned to someone else appear in the list. Players can also create their own character from the Player Portal instead, if you'd rather they build it themselves. When a player brings a character with new homebrew content, the **Members & Invites** tab label shows a count of characters waiting for your approval.
 
 ## Removing a player
 
@@ -69,11 +71,15 @@ A co-DM runs the campaign exactly as you would: sessions, encounters, quests, ch
 
 A player who becomes co-DM keeps their character; it sits out while they run the game. When you're back, click **Back to player** on their row, or they can click **Hand back the chair** themselves. Anything they wrote stays in the campaign and becomes yours, even if they later delete their account.
 
+## Handing a character to someone for an evening
+
+If a player can't make it, the DM (or the campaign owner) can ask another player to look after their character for the session. On the absent player's row, click **Hand over…** and pick who looks after them. The helper plays the character but cannot level them up or rebuild them. When the evening ends the character goes back by itself; use **Take back** on the row to end it sooner. Players can also ask for this themselves: see [Looking After Someone's Character](#looking-after-someone-s-character).
+
 ## Presence and DM Preview Mode
 
 A green (online) or grey (offline) dot on each member's avatar shows who's currently connected: handy for checking who's at the table before you start.
 
-To see exactly what a specific player sees, click the eye icon (**Preview player portal as this character**) next to that character's name in the **Party Tracker**. This drops you into DM Preview Mode: a banner reading **DM Preview, viewing as: …** appears at the top of the player layout, with a dropdown to switch which character you're previewing and an **Exit Preview** button to leave.
+To see exactly what a specific player sees, click the eye icon (**Preview player portal as this character**) next to that character's name in the **Party Tracker**. This drops you into DM Preview Mode: a banner reading **Previewing as:** appears at the top of the player layout, with a dropdown to switch which character you're previewing and an **Exit Preview** button to leave.
 
 ## What your players see
 

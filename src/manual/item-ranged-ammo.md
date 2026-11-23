@@ -4,8 +4,10 @@ section: Item Vault
 section_order: 7
 order: 2
 summary: How bows, crossbows, slings, and firearms are linked to the right ammo stacks automatically.
-keywords: ranged, bow, crossbow, arrow, bolt, ammo, ammunition, sling, blowgun, firearm, bullet, needle, dart, weapon property
+keywords: ranged, ranged weapons, ammo tags, bow, crossbow, arrow, bolt, ammo, ammunition, sling, blowgun, firearm, bullet, needle, dart, weapon property
 ---
+
+Use this page to understand why an attack button is greyed out, or to set up an unusual ranged weapon so it uses the right ammo.
 
 ## How it works
 
@@ -56,7 +58,7 @@ Built-in library items already carry the right tags. For custom ammo, add the ta
 | `bullet` | Sling Bullets (20), Stones (20) |
 | `needle` | Blowgun Needles (50) |
 | `dart` | Dart |
-| `firearm-bullet` | Firearm Bullets (10), Black Powder Cartridge |
+| `firearm-bullet` | Bullets, Firearm (10), Bullet, Firearm Silvered |
 
 ## Quantity vs. charges
 

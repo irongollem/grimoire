@@ -4,10 +4,10 @@ section: Getting Started
 section_order: 0
 order: 4
 summary: How AI generation is switched on, paid for, and configured per campaign.
-keywords: ai, credits, byok, api key, generation, cost, billing, openai, gemini, local mode
+keywords: ai, ai assistant, credits, out of credits, not enough credits, buy credits, top up, byok, bring your own key, api key, generation, generate, cost, price, billing, openai, gemini, local mode, free, pro, turn off ai
 ---
 
-Grimoire can generate NPCs, monsters, items, spells, quests, puzzles, and more with AI, plus narrative and scene art for the Chronicler. **Every plan can use it.** Turn the campaign's AI Assistant on and every **Generate with AI** button you'll find around the app runs for real, billed to credits (Free the same as Pro). Each one shows its credit cost before you confirm, and offers a **Buy credits** link if your balance is short instead of failing outright. Where AI is switched on, and where the Pro extras (BYOK, provider choice, the setting prompt) live, is **Campaign Settings → AI Assistant**.
+This page explains what AI generation costs, how to switch it on or off, and what to do when your credits run low. Grimoire can generate NPCs, monsters, items, spells, quests, puzzles, and more with AI, plus narrative and scene art for the Chronicler. **Every plan can use it.** Turn the campaign's AI Assistant on and every **Generate with AI** button you'll find around the app runs for real, billed to credits (Free the same as Pro). Each one shows its credit cost before you confirm, and offers a **Buy credits** link if your balance is short instead of failing outright. Where AI is switched on, and where the Pro extras (BYOK, provider choice, the setting prompt) live, is **Campaign Settings → AI Assistant**.
 
 ## Key ideas
 
@@ -42,7 +42,7 @@ Your balance and the credit packs available to purchase are on the **Billing** p
 You never have to leave what you're doing to top up. Click any **Generate** button when your balance is too low (or the **Get credits** link next to the red cost) and a **Not enough credits** window opens right there:
 
 1. It tells you what the generation costs and what your balance is.
-2. **On Free**, it first suggests **Pro**, which includes a batch of credits every month and removes the Free limits. Tick the withdrawal-right checkbox and click **Subscribe** (monthly, or the yearly link below it).
+2. **On Free**, it first suggests **Pro**, which includes a batch of credits every month and removes the Free limits. Tick the withdrawal-right checkbox and click the **Subscribe** button with the monthly price (or the yearly link below it).
 3. **Buy a credit pack**: tick its checkbox and click a pack. On Pro this is the only option shown.
 4. Checkout opens in Stripe. When you've paid, it brings you straight back to the page you were on, with a confirmation message. Your generator's settings are not kept across checkout, so you may need to fill them in again.
 
@@ -80,9 +80,14 @@ Pro only, and only once the **AI Assistant** toggle is on:
 - **Your AI Usage**: your total generations and credits spent, shown for platform-credit campaigns (BYOK calls are billed by your provider, not tracked here).
 - **Chronicler Promotion**: an opt-in checkbox letting Grimoire feature your campaign's AI-generated Chronicler scene illustrations in its own gallery or marketing. Off by default; your campaign name, notes, and player data are never shared either way.
 
+## Other places that spend credits
+
+- **The Familiar** gives every account five free questions a day, and after that an answer costs what it used. Anything it makes for you is quoted first and costs nothing until you confirm. See [Ask your Familiar](#ask-your-familiar).
+- **Importing an adventure** with AI shows an estimate before it starts. See [Importing an Adventure](#importing-an-adventure).
+
 ## What your players see
 
-Nothing here: AI configuration is entirely DM-only. Players see the *results* (an NPC's portrait, a generated item) exactly like any other campaign content, with no indication of how it was paid for.
+Nothing here: AI configuration is entirely DM-only. AI features are not available at all on a young player's account, even at a table where you have switched AI on: see [Young Players' Accounts](#young-players-accounts). Players see the *results* (an NPC's portrait, a generated item) exactly like any other campaign content, with no indication of how it was paid for.
 
 ## Tips
 

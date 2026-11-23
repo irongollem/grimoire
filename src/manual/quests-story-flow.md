@@ -4,7 +4,7 @@ section: Quests
 section_order: 3
 order: 1
 summary: How beats, routes, threads and payoff fit together, with a worked example, and how to build and mark the story on the quest's flow.
-keywords: story flow, beat, route, objective, thread, parallel, gate, payoff, converge, check, attachment, placement, site, canvas, drawer, label, note, and also, secret, rumored, revealed, take this route, party here, failed, entry, bookmark, undo
+keywords: story flow, flow canvas, add beat, new beat, fork, branch, choice, beat, route, objective, thread, parallel, gate, payoff, converge, check, attachment, placement, site, canvas, drawer, label, note, and also, secret, rumored, revealed, take this route, party here, failed, entry, bookmark, undo
 ---
 
 Grimoire builds a quest as a **story flow**: a web of **beats** connected by **routes**, walked by one or more **threads**. It's built on a visual canvas where you drag connections between boxes, but the ideas behind it map directly onto how you already think about a quest. This page explains the model with a worked example, then covers the quest's page, where you build it: the flow in the middle and a drawer on its right.
@@ -36,7 +36,7 @@ That's the whole shape: beats are the scenes, objectives are the scoreboard, and
 
 ## Adding beats
 
-Click **+ Beat** to open the new-beat dialog, fill in a **title** and pick a **kind** (Neutral, Combat, Social, Explore, or Discovery: a presentation hint, not a rule), then **Create beat**. If a beat is already selected, the new beat follows it, and the dialog asks about the route there: **They choose one** or **And also**, and what the party does. **And also** is greyed out until the selected beat already has a choice route, because an "and also" route can never be the only way out of a beat: its thread would have nowhere to go. **Add route** in a beat's prep opens the same dialog. To fit the whole flow on screen or jump to the party's beat, use the two small buttons in the flow's top-right corner.
+Click **Beat** (the plus button in the flow's toolbar) to open the new-beat dialog, fill in a **title** and pick a **kind** (Neutral, Combat, Social, Explore, or Discovery: a presentation hint, not a rule), then **Create beat**. If a beat is already selected, the new beat follows it, and the dialog asks about the route there: **They choose one** or **And also**, and what the party does (when you choose **And also**, the button reads **Open thread**). **And also** is greyed out until the selected beat already has a choice route, because an "and also" route can never be the only way out of a beat: its thread would have nowhere to go. **Add route** in a beat's prep opens the same dialog. To fit the whole flow on screen or jump to the party's beat, use the two small buttons in the flow's top-right corner.
 
 Drag a connection from one beat to another on the canvas to link two existing beats with a plain choice route.
 
@@ -67,7 +67,7 @@ A route says what the party does and what it costs. Click one on the canvas to e
 - **Kind**: **Choice** (the party takes one of several ways) or **And also** (it happens next to the main route and opens its own thread). **And also** is off until the beat already has a choice route. Its label names the thread it opens.
 - **Gate**: with no conditions the route is always open (the default, and what most routes should stay, since the fork is usually already decided at the table). **Add condition** to gate it. Each condition is an objective plus the statuses that satisfy it, ticked from **Not yet raised**, **Open**, **Completed** and **Failed** (up to three, since all four would mean no condition at all). Ticking several lets you say "unless her trust is broken" as Not yet raised, Open or Completed. With two or more conditions a switch appears: **All of these** (every condition must hold) or **Any of these** (one is enough). A line under the conditions reads the gate back in plain words. An objective can be a condition only once per route.
 - Anything the route does when taken.
-- **Save route** / **Delete route**.
+- A route saves itself as you type; **Delete route** removes it.
 - **Take this route**, to mark that the party took it (see Marking what happened, below).
 
 A closed route (its gate condition isn't met) shows greyed out on the canvas, and in a beat's **Where it can go** it says why ("needs “Rescue the merchant” completed and “Learn who took her” failed") and can't be chosen. Marking is the deliberate override: **Take this route**, or **Party here** on a beat, records what the table decided even where the story flow's gates say otherwise.

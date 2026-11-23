@@ -24,7 +24,7 @@ Press **Add relative**. The dialog is called **Add a relative**.
 1. Under "<name> is the...", choose the relation: **Parent of**, **Child of**, **Spouse of**, **Former spouse of**, **Sibling of** or **Relative of**.
 2. Under **Who**, search your NPCs and characters, or press **+ New NPC "name"** to create the person on the spot.
 3. For a parent link, choose **Parent**, **Father** or **Mother**, and tick **Adoptive** if it applies. When the person has a spouse, a checkbox offers to make the child the spouse's too.
-4. Add a **Note** if you like, for example "born the winter the river froze".
+4. Add a **Note** if you like, for example "born the winter the river froze". With AI on for the campaign, the dialog also offers **Draft a child with AI** (or parent, spouse or sibling, to match the relation), which opens the [NPC Generator](#npc-generator) with the family tie already filled in.
 5. Press the save button. Its label follows the relation: **Add child**, **Add parent**, **Add spouse**, **Add former spouse**, **Add sibling** or **Add relative**.
 
 Grimoire checks the link as you go. It will not let someone become their own ancestor, and it tells you when a link looks the wrong way round and offers to swap it (**Keep it anyway** is there if you meant it).

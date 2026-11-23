@@ -30,7 +30,7 @@ Click **Exit Preview** in the banner, or just open any DM page: leaving the Play
 
 A few DM-side surfaces link you directly into a single screen of the portal for one character, without the amber banner, and without switching into full preview:
 
-- The Dashboard's **Cursed Items** widget links a carried cursed item straight to that character's Inventory tab.
+- The Dashboard's **Cursed items** widget links a carried cursed item straight to that character's Inventory tab.
 - Starting a **Level Up** for a character from the party view opens the wizard the same way.
 
 These land you on that one screen for that one character, but you haven't adopted their whole session the way full preview does. Full Preview Mode (above) is the only way to browse the *entire* portal as a player.

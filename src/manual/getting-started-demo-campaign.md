@@ -4,7 +4,7 @@ section: Getting Started
 section_order: 0
 order: 6
 summary: Load a ready-made campaign to see every part of Grimoire with real content in it, then reset or remove it.
-keywords: demo, sample, example, tutorial, try, explore, reset, sugarwell, kind country
+keywords: demo, demo campaign, sample, example, tutorial, try, explore, try it out, reset, remove demo, delete demo, sugarwell, kind country
 ---
 
 Grimoire is easier to understand with something in it. The demo campaign is a ready-made campaign you can load into your own account: **Sugarwell**, a side-trip from the campaign *Late in the Kind Country*, set up with NPCs, a quest with its story flow, a mapped site, and music on the soundboard. It's a real campaign in your account, not a read-only preview. Open anything, change anything, run a session in it.
