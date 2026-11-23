@@ -11,9 +11,11 @@
 //               rolling summary. The hold is taken first (`holdAsk`) and settled by `run`.
 
 import type { AskEvent, AskTurnBody } from "../_shared/agent/askContract.ts";
-import { ASK_REFUSALS } from "../_shared/agent/askContract.ts";
+import { ASK_OFF_TOPIC_MESSAGE, ASK_REFUSALS } from "../_shared/agent/askContract.ts";
 import { parseAskBody } from "../_shared/agent/askBody.ts";
-import { freeLeftToday, reserveFor, settleAnswer } from "../_shared/agent/askBilling.ts";
+import { reserveFor, settleAnswer, settleEarlierRoutes, spendOwedRoutes } from "../_shared/agent/askBilling.ts";
+import { checkOutput } from "../_shared/agent/askOutput.ts";
+import { checkScope, earlierFrom, isShortFollowUp, type ScopeEarlier } from "../_shared/agent/askScope.ts";
 import { ASK_HEADINGS, askState, askSystem } from "../_shared/agent/askPrompt.ts";
 import { createReadLog, seedReadLog } from "../_shared/agent/askReads.ts";
 import { makeAskTools } from "../_shared/agent/askTools.ts";
@@ -33,7 +35,7 @@ import { gameSystemEdition } from "../_shared/gameSystem.ts";
 import { creditsForUsd, usdForSteps } from "../_shared/agent/metering.ts";
 import { runTurn } from "../_shared/agent/turn.ts";
 import { historyFrom, systemWithSummary, type StoredTurn } from "../_shared/agent/transcript.ts";
-import { AgentProviderError } from "../_shared/agent/types.ts";
+import { AgentProviderError, type AgentBlock } from "../_shared/agent/types.ts";
 import type { CreditLogFields } from "../_shared/credits.ts";
 import { jsonError } from "../_shared/pipeline/respond.ts";
 
@@ -69,17 +71,25 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
     }
   }
 
-  // Own-key use is never counted, so its usage is never read. For the rest, an account whose usage cannot be read
-  // is refused: a charged answer must never be free because a read failed.
-  let freeLeft = 0;
-  if (!provider.isByok) {
+  // Is this about the campaign? Before the settlement and the hold, so a refusal costs the DM nothing and counts as
+  // nothing (and consumes no earlier route). It fails open: the standing instructions and the output check still guard.
+  let earlierTurn: ScopeEarlier | null = null;
+  if (existing !== null && isShortFollowUp(body.message)) {
     try {
-      freeLeft = freeLeftToday(await deps.loadUsage(userId), deps.today());
+      earlierTurn = earlierFrom(await deps.loadTurns(existing.id, existing.summary_through_seq));
     } catch (error) {
-      console.error("ask-turn: reading the day's usage failed:", error);
-      return { kind: "refused", refusal: { status: 503, error: ASK_MESSAGES.noMetering } };
+      console.error("ask-turn: reading the turn before for the scope check failed:", error);
     }
   }
+  const scope = await checkScope({ message: body.message, earlier: earlierTurn, judgeScope: (request) => deps.judgeScope(request) });
+  if (scope.kind === "off_topic") return { kind: "refused", refusal: { status: 422, error: ASK_REFUSALS.offTopic } };
+
+  // Earlier routed turns are settled first: each is free if the DM ran a generator after it, else metered as an answer
+  // (`settle_ask_routes`, which also says how many free answers are left). Own-key use is never counted, so an own-key
+  // account never calls it and none of its routes exist. A settlement that fails is logged and owes nothing now.
+  const earlier = await settleEarlierRoutes({ userId, isByok: provider.isByok, settleRoutes: (id) => deps.settleRoutes(id) });
+  const freeLeft = earlier.freeLeft;
+  const owed = earlier.credits;
 
   const fiveE = gameSystemEdition(campaign.game_system) !== undefined;
 
@@ -87,6 +97,8 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
     const emit = safeEmit(send);
     // Settled whatever the outcome (success, failure, conflict, abort): released once, then the ledger lines written.
     await deps.settle(userId, reservationIds, async (ledger) => {
+      // The routes were consumed by settlement, so what they came to is spent first, whatever happens to this turn.
+      spendOwedRoutes(ledger, owed);
       try {
         const session = existing ?? await deps.createSession({ userId, campaignId: campaign.id, provider: provider.provider, model: provider.model });
         emit({ type: "session", sessionId: session.id });
@@ -128,6 +140,27 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
           },
         });
 
+        // The last guard: an answer that is code is withheld. The words may already have streamed, so the browser is
+        // told to take them back (`withheld`); what is stored is the sentence, so the next turn does not see code
+        // either. The turn still counts and is metered: the tokens were spent.
+        let withheld = false;
+        const added = result.added.map((message) => {
+          if (message.role !== "assistant") return message;
+          const said = message.blocks.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("\n");
+          if (!checkOutput(said).withheld) return message;
+          withheld = true;
+          // The sentence takes the first text block's place, so a call that followed the words still follows them.
+          let placed = false;
+          const blocks = message.blocks.flatMap<AgentBlock>((b) => {
+            if (b.type !== "text") return [b];
+            if (placed) return [];
+            placed = true;
+            return [{ ...b, text: ASK_OFF_TOPIC_MESSAGE }];
+          });
+          return { ...message, blocks };
+        });
+        const kept = withheld ? { ...result, added } : result;
+
         const billed = [...result.steps, ...result.toolSteps.map((t) => t.usage)];
         // Stopped before the first model call: nothing to save, and nothing that counts as an answer.
         if (result.steps.length === 0) {
@@ -150,7 +183,7 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
           sessionId: session.id,
           userId,
           lastSeq: lastSeqLoaded,
-          result,
+          result: kept,
           credits: accrued,
           logName: "ask-turn",
         });
@@ -160,10 +193,20 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
           emit({ type: "error", message: saved.kind === "conflict" ? ASK_MESSAGES.conflict : ASK_MESSAGES.notSaved });
           return;
         }
+        // A routed turn is pending until the DM runs the generator (see askBilling.ts). Only a kept turn is written, and
+        // never for an own key. Failing to write it costs the platform one routed turn, never the DM or the answer.
+        const proposal = tools.proposal();
+        if (proposal !== null && !provider.isByok) {
+          try {
+            await deps.recordRoute(userId, { proposalId: proposal.proposalId, sessionId: session.id, credits: accrued });
+          } catch (error) {
+            console.error("ask-turn: recording the routed turn failed:", error);
+          }
+        }
         // `saved.due` is not used: the session's own accrual is bookkeeping, and billing is `charge_ask_answer`'s.
         const settlement = await settleAnswer({
           userId,
-          routed: tools.proposal() !== null,
+          routed: proposal !== null,
           isByok: provider.isByok,
           accrued,
           freeLeft,
@@ -171,6 +214,7 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
           log,
           chargeAnswer: (id, credits) => deps.chargeAnswer(id, credits),
         });
+        if (withheld) emit({ type: "error", message: ASK_OFF_TOPIC_MESSAGE, withheld: true });
         emit({ type: "done", end: result.end, routed: settlement.routed, free: settlement.free, credits: settlement.credits, freeLeft: settlement.freeLeft });
 
         // After `done`, never before: the DM must not wait for housekeeping. An abort is the DM leaving.
@@ -199,7 +243,7 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
     });
   };
 
-  return { kind: "ready", reserve: reserveFor({ freeLeft, isByok: provider.isByok }), run };
+  return { kind: "ready", reserve: reserveFor({ freeLeft, owed, isByok: provider.isByok }), run };
 }
 
 /**

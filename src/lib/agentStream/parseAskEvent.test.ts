@@ -3,6 +3,15 @@ import { parseAskEvent, parseAskProposal } from "./parseAskEvent";
 
 const proposal = { proposalId: "p1", generator: "npc", concept: "a baker", inputs: { name: "Mara" } };
 
+describe("parseAskEvent: error", () => {
+  // Bug caught: a withheld answer's flag dropped in parsing, leaving the code it had streamed on screen.
+  it("carries `withheld` only when it is literally true", () => {
+    expect(parseAskEvent({ type: "error", message: "No.", withheld: true })).toEqual({ type: "error", message: "No.", withheld: true });
+    expect(parseAskEvent({ type: "error", message: "No.", withheld: "yes" })).toEqual({ type: "error", message: "No." });
+    expect(parseAskEvent({ type: "error", message: "No." })).toEqual({ type: "error", message: "No." });
+  });
+});
+
 describe("parseAskEvent", () => {
   // Bug caught: an unknown or newer event type reaching the panel as if it were trusted.
   it("skips an event type it does not know", () => {

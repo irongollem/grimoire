@@ -23,7 +23,7 @@ The design is the canvas *Ask Grimoire* (claude.ai artifact `FK4DhWkHuZjcHW6VNdB
 
 ## The conversation (`src/composables/ask/useAskConversation.ts`)
 
-Posts `AskTurnBody` to `ask-turn` (`askTransport.ts`) with the page the DM is on (`askContext.ts`: the route and, on a record's page, the record), reads the stream with the shared SSE reader (`src/lib/agentStream/readEventStream.ts`, also the table's) and validates every event (`parseAskEvent.ts`; a malformed or unknown one is skipped). The guards it holds, each tested: a proposal runs once per `proposalId` whatever is pressed or re-rendered; a retry runs once per press; a cancelled card cannot be confirmed; a late result never lands in a newer conversation; the allowance refusal (`ask_allowance_spent`) shows the upsell.
+Posts `AskTurnBody` to `ask-turn` (`askTransport.ts`) with the page the DM is on (`askContext.ts`: the route and, on a record's page, the record), reads the stream with the shared SSE reader (`src/lib/agentStream/readEventStream.ts`, also the table's) and validates every event (`parseAskEvent.ts`; a malformed or unknown one is skipped). The guards it holds, each tested: a proposal runs once per `proposalId` whatever is pressed or re-rendered; a retry runs once per press; a cancelled card cannot be confirmed; a late result never lands in a newer conversation; the allowance refusal (`ask_allowance_spent`) shows the upsell; the off-topic refusal (`ask_off_topic`, 422) shows its one sentence and no upsell; a withheld answer (`error` with `withheld`) takes back the words it had streamed for that turn and leaves earlier turns alone.
 
 ## Generators (`src/ai/ask/`)
 
@@ -51,4 +51,4 @@ The registry (`useAskAdapters.ts`) finds adapter and screen files by name, and a
 
 - A run through a live model end to end in the local stack has not been done; every piece is tested against fakes.
 - Tools that work inside an open editor (text enhance, the Illuminator, brush tips, a sculpted miniature) are not offered.
-- Routing cost is measured (`ask_routing` ledger lines) but no separate fee is decided; the maintainer's rule is that it stays inside the generator's price for launch.
+- A routed turn is free only when the DM runs the generator it proposed; the next Ask turn settles it (see agent-runtime.md, "Pricing"). The scope threshold has not been measured against a live judge: run `askScope.fixtures.ts` through TypeSafe and move `ASK_SCOPE_THRESHOLD` with it.

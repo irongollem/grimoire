@@ -7,6 +7,7 @@ import type { AskRecordType } from "./askContract.ts";
 import type { GateCampaign, GateDeps, GateMessages, GateSession, Refusal } from "./conversation/gates.ts";
 import type { StoredTurn, TurnRow } from "./transcript.ts";
 import type { AgentTool, AgentUsage, CallTool } from "./types.ts";
+import type { JudgeRequest, JudgeResult } from "../typesafe.ts";
 import type { JobLedger } from "../pipeline/creditHold.ts";
 
 // Limits of one turn. An answer is a few reads and a few sentences; the DM waits on it.
@@ -51,11 +52,20 @@ export interface AskSessionRow extends GateSession {
   summary_through_seq: number;
 }
 
-/** The day's usage of one account, as `ask_usage` has it. */
-export interface AskUsage {
-  /** The UTC date the count is for, `YYYY-MM-DD`. */
-  day: string;
-  free_used: number;
+/** What `settle_ask_routes` decided at admission. */
+export interface AskRouteSettlement {
+  /** Whole credits owed for routed turns the DM never ran a generator after; spent on the ledger as `ask_answer`. */
+  credits: number;
+  /** Free answers left today, after those routes were settled. */
+  freeLeft: number;
+}
+
+/** A routed turn, waiting to be confirmed by a generation or metered as an answer at the next admission. */
+export interface AskPendingRoute {
+  proposalId: string;
+  sessionId: string;
+  /** The turn's exact measured credits. */
+  credits: number;
 }
 
 /** What `charge_ask_answer` decided. */
@@ -80,10 +90,18 @@ export interface AskRecordLookup {
 }
 
 export interface AskTurnDeps extends GateDeps<AskCampaignRow, AskSessionRow> {
-  /** The UTC date now, `YYYY-MM-DD`: a dependency so a test can cross midnight. */
-  today(): string;
-  /** The account's row in `ask_usage`; null when it has never asked. */
-  loadUsage(userId: string): Promise<AskUsage | null>;
+  /**
+   * `settle_ask_routes`: confirms each open routed turn against a generation charged after it, meters the rest as
+   * answers, and says what is owed and how many free answers are left. Never called for an own-key account.
+   */
+  settleRoutes(userId: string): Promise<AskRouteSettlement>;
+  /**
+   * One TypeSafe judgement for the scope check, with the platform's key and a short timeout (`ASK_SCOPE_TIMEOUT_MS`).
+   * Null when there is no judging key; a throw (a timeout, a failure) is read as "could not judge" and the turn goes on.
+   */
+  judgeScope(request: JudgeRequest): Promise<JudgeResult | null>;
+  /** Writes a routed turn as pending (`ask_pending_routes`), after the turn was saved. */
+  recordRoute(userId: string, route: AskPendingRoute): Promise<void>;
   createSession(input: { userId: string; campaignId: string; provider: string; model: string }): Promise<AskSessionRow>;
   /** The stored rows in reach of a turn (`turnsInReach.ts`). */
   loadTurns(sessionId: string, summaryThroughSeq: number): Promise<StoredTurn[]>;

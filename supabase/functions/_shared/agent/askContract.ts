@@ -250,10 +250,23 @@ export type AskEvent =
    * Otherwise `free` says whether it used a free answer, `credits` what it charged, `freeLeft` what is left today.
    */
   | { type: "done"; end: AskTurnEnd; routed: boolean; free: boolean; credits: number; freeLeft: number }
-  | { type: "error"; message: string };
+  /**
+   * `withheld`: the answer already streamed as `text` is replaced by `message` (the output check refused it), so the
+   * panel drops the words it showed for this turn. Any other error leaves them.
+   */
+  | { type: "error"; message: string; withheld?: true };
 
 /** Refusal codes the panel branches on (JSON before the stream opens). */
 export const ASK_REFUSALS = {
   /** No free answers left today and not a whole credit to spend: the panel shows the upsell. */
   allowanceSpent: "ask_allowance_spent",
+  /** The message is not about the DM's campaign (HTTP 422, before the stream, nothing charged, nothing counted). */
+  offTopic: "ask_off_topic",
 } as const;
+
+/**
+ * The one sentence Ask gives for anything outside the campaign: the 422 refusal's, a withheld answer's, and what the
+ * panel shows for the code. One text so the three cannot drift.
+ */
+export const ASK_OFF_TOPIC_MESSAGE =
+  "Ask helps with this campaign: its people, places, story and table. That one is outside what I can help with.";

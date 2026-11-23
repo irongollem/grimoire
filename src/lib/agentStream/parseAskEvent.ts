@@ -134,7 +134,12 @@ export function parseAskEvent(raw: unknown): AskEvent | null {
       return { type: "done", end: end as AskTurnEnd, routed, free, credits, freeLeft };
     }
     case "error":
-      return { type: "error", message: typeof raw.message === "string" && raw.message !== "" ? raw.message : "That did not work. Try again." };
+      return {
+        type: "error",
+        message: typeof raw.message === "string" && raw.message !== "" ? raw.message : "That did not work. Try again.",
+        // Only a literal true: anything else leaves what was shown where it is.
+        ...(raw.withheld === true ? { withheld: true as const } : {}),
+      };
     default:
       return null;
   }
