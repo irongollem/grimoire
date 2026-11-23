@@ -37,6 +37,7 @@ import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
 import type { AgentLine, AgentTool, AgentUsage, CallTool, DmRoll } from "../_shared/agent/types.ts";
 import type { JobLedger } from "../_shared/pipeline/creditHold.ts";
 import type { TextScreenIo } from "./campaignTextScreen.ts";
+import type { Refusal } from "../_shared/agent/conversation/gates.ts";
 
 // Limits of one turn. The player waits on a turn, and a model that loops on tools can spend a lot without saying
 // anything, so each limit has its own reason.
@@ -53,11 +54,7 @@ export const TOKEN_BUDGET = 60_000;
 /** Held before the turn so an account with no credits is refused before any model call (`withCreditHold`); the real charge is metered. */
 export const RESERVE_CREDITS = 1;
 
-/** A refusal before the stream opened: an ordinary JSON response. */
-export interface Refusal {
-  status: number;
-  error: string;
-}
+export type { Refusal } from "../_shared/agent/conversation/gates.ts";
 
 /** What the browser hears. It never carries a tool's input or result: those can hold DM-only material. */
 export type AgentEvent =
@@ -118,6 +115,11 @@ export interface SessionRow {
   id: string;
   user_id: string;
   campaign_id: string;
+  /**
+   * `agent_sessions.kind`. `sessionRow()` always reads it; it is optional only so an in-memory fixture that never
+   * set one reads as the table's own conversation (the column's default), as the gate reads it.
+   */
+  kind?: string;
   summary: string | null;
   summary_through_seq: number;
   /** Where the party is; null until the narrator first calls go_to. */

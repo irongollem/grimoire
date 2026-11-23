@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { listTools } from "../mcp/tools";
 import { ENTITY_TYPES } from "../mcp/registry";
-import { agentToolsFrom, bindTools, SOLO_TABLE_TOOLS, TABLE_REFUSED_TYPES } from "./mcpTools";
+import { agentToolsFrom, ASK_OWN_TOOLS, ASK_TOOLS, bindTools, SOLO_TABLE_TOOLS, TABLE_REFUSED_TYPES } from "./mcpTools";
 
 describe("agentToolsFrom", () => {
   const tools = [
@@ -149,5 +149,45 @@ describe("the table's tool schemas (#1226)", () => {
     const search = agentToolsFrom(listTools(), SOLO_TABLE_TOOLS, TABLE_REFUSED_TYPES).find((t) => t.name === "search")!;
     const items = ((search.inputSchema.properties as Record<string, { items: { enum: string[] } }>).types).items.enum;
     expect(items).toEqual(ENTITY_TYPES.filter((t) => !TABLE_REFUSED_TYPES.has(t)));
+  });
+});
+
+/** Tools only the table has (its own writes and its narrator's voice), by the names the model is shown. */
+const TABLE_ONLY_TOOLS = [
+  "go_to", "record", "hazard", "roll_table", "introduce", "canon_lookup", "start_fight", "fight_change", "speak", "act",
+  "pass_days", "hand_over", "hit_points", "travel", "show", "quest_route", "pressure", "keep_talking",
+];
+
+describe("ASK_TOOLS and the table's tools are two configurations that never share a tool (#1253)", () => {
+  it("holds exactly the four readers: no roll, no create or update, no table tool", () => {
+    expect([...ASK_TOOLS].sort()).toEqual(["campaign_overview", "get", "list", "search"]);
+    for (const name of ["roll", "create", "update", ...TABLE_ONLY_TOOLS]) expect(ASK_TOOLS.has(name)).toBe(false);
+  });
+
+  it("names only tools the MCP layer really has, so a rename cannot silently shrink Ask's hands", () => {
+    const real = new Set(listTools().map((t) => t.name));
+    for (const name of ASK_TOOLS) expect(real.has(name)).toBe(true);
+    expect(agentToolsFrom(listTools(), ASK_TOOLS).map((t) => t.name).sort()).toEqual([...ASK_TOOLS].sort());
+  });
+
+  it("gives the table none of Ask's own tools, and gives Ask's own tools no MCP name", () => {
+    for (const name of ASK_OWN_TOOLS) expect(SOLO_TABLE_TOOLS.has(name)).toBe(false);
+    for (const name of ASK_OWN_TOOLS) expect(ASK_TOOLS.has(name)).toBe(false);
+    expect([...ASK_OWN_TOOLS].sort()).toEqual(["ask_choice", "find", "offer_ideas", "propose"]);
+  });
+
+  it("refuses, without calling anything, every tool that belongs to the other configuration", async () => {
+    const call = vi.fn(async () => ({ ok: true }));
+    const asTable = bindTools(call, SOLO_TABLE_TOOLS);
+    for (const name of ASK_OWN_TOOLS) expect((await asTable(name, {})).isError).toBe(true);
+    const asAsk = bindTools(call, ASK_TOOLS);
+    for (const name of ["roll", "create", "update", ...TABLE_ONLY_TOOLS]) expect((await asAsk(name, {})).isError).toBe(true);
+    expect(call).not.toHaveBeenCalled();
+  });
+
+  it("lets Ask read canon, which the table's fence refuses: the DM is the audience", async () => {
+    const call = vi.fn(async () => ({ title: "the Stain's maker" }));
+    expect((await bindTools(call, ASK_TOOLS)("get", { type: "canon", id: "x" })).isError).toBe(false);
+    expect((await bindTools(call, SOLO_TABLE_TOOLS, undefined, {}, { refused: TABLE_REFUSED_TYPES, allTypes: ENTITY_TYPES })("get", { type: "canon", id: "x" })).isError).toBe(true);
   });
 });

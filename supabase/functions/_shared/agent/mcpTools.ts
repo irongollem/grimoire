@@ -16,6 +16,16 @@ interface McpToolDef {
  */
 export const SOLO_TABLE_TOOLS: ReadonlySet<string> = new Set(["roll", "search", "get", "list", "campaign_overview"]);
 
+/**
+ * What Ask Grimoire reads with (#1253): the same four readers, and nothing that rolls or writes. The DM is the audience,
+ * so there is no canon fence (`TABLE_REFUSED_TYPES` is the table's, not Ask's): a DM may read their own prep and
+ * secrets. Ask never writes through these; what it proposes the browser runs, after the DM confirms.
+ */
+export const ASK_TOOLS: ReadonlySet<string> = new Set(["search", "get", "list", "campaign_overview"]);
+
+/** Ask's own tools, which are not MCP tools (`askTools.ts` answers them). Named here so the two families can be held apart by test. */
+export const ASK_OWN_TOOLS: ReadonlySet<string> = new Set(["find", "ask_choice", "offer_ideas", "propose"]);
+
 /** The schema with every `enum` that lists a refused value cut down to the rest, at any depth. */
 function withoutRefused(node: unknown, refused: ReadonlySet<string>): unknown {
   if (Array.isArray(node)) return node.map((n) => withoutRefused(n, refused));

@@ -33,6 +33,8 @@ export interface TurnInput {
    * The stored message keeps only `user`, so the history carries no stale copies of it.
    */
   state?: string;
+  /** The two headings `state` and the message are set under. The table's by default; each caller names its own. */
+  headings?: StateHeadings;
   /** The roll this message answered, kept on the stored message for the page. */
   roll?: PlayerRolled;
   tools: AgentTool[];
@@ -100,9 +102,17 @@ const REASONS: Record<"step_limit" | "budget" | "aborted", string> = {
   aborted: "the turn was stopped",
 };
 
-/** The state and the player's message as one text, each under its own heading so neither is read as the other. */
-export function withState(state: string, user: string): string {
-  return `# The table right now\n\nThe server's account of where things stand as of this message. It replaces any earlier one.\n\n${state}\n\n# The player's message\n\n${user}`;
+export interface StateHeadings {
+  state: string;
+  user: string;
+}
+
+/** The table's: the narrator reads the scene and the player's move. */
+export const TABLE_HEADINGS: StateHeadings = { state: "The table right now", user: "The player's message" };
+
+/** The state and the message as one text, each under its own heading so neither is read as the other. */
+export function withState(state: string, user: string, headings: StateHeadings = TABLE_HEADINGS): string {
+  return `# ${headings.state}\n\nThe server's account of where things stand as of this message. It replaces any earlier one.\n\n${state}\n\n# ${headings.user}\n\n${user}`;
 }
 
 export async function runTurn(input: TurnInput): Promise<TurnResult> {
@@ -117,7 +127,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
   const sent = (): AgentMessage[] =>
     input.state === undefined
       ? added
-      : [{ role: "user", blocks: [{ ...added[0].blocks[0], type: "text", text: withState(input.state, input.user) }] }, ...added.slice(1)];
+      : [{ role: "user", blocks: [{ ...added[0].blocks[0], type: "text", text: withState(input.state, input.user, input.headings) }] }, ...added.slice(1)];
   const steps: AgentUsage[] = [];
   const toolSteps: { index: number; usage: AgentUsage }[] = [];
 

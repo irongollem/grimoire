@@ -7,7 +7,9 @@ import { shownText, speakerIdsOf } from "../_shared/agent/conduct.ts";
 import { followersOf } from "../_shared/agent/pursuit.ts";
 import { creditsForUsd, usdForSteps } from "../_shared/agent/metering.ts";
 import { harvestFacts, handsLine, type HandsChange } from "../_shared/agent/hands.ts";
-import { rowsFor, type StoredTurn, type TurnRow } from "../_shared/agent/transcript.ts";
+import type { StoredTurn, TurnRow } from "../_shared/agent/transcript.ts";
+import { foldIntoSummary } from "../_shared/agent/conversation/foldSummary.ts";
+import { round6, saveTurn } from "../_shared/agent/conversation/turnStore.ts";
 import { pressureShown } from "../_shared/agent/quests.ts";
 import { fightIsTold, fightRecordText, type FightState } from "../_shared/agent/fight.ts";
 import { askOf } from "../_shared/agent/playerRoll.ts";
@@ -17,7 +19,7 @@ import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
 import { totalTokens, type runTurn } from "../_shared/agent/turn.ts";
 import type { CreditLogFields } from "../_shared/credits.ts";
 import type { makeTurnTools } from "./turnTools.ts";
-import { applyKeptQuestMoves, foldIntoSummary, round6, safely } from "./turnSupport.ts";
+import { applyKeptQuestMoves, safely } from "./turnSupport.ts";
 import { discardFiled, type TurnEffects, type TurnScope } from "./turnScope.ts";
 import type { TurnContext } from "./turnContext.ts";
 import { MESSAGES, type SessionRow } from "./turnTypes.ts";
@@ -61,15 +63,6 @@ export async function keepTurn(scope: TurnScope, fx: TurnEffects, session: Sessi
   // own-key zero row), which the hold writes after the release.
   const logWithoutCharge = async () => ledger.charge("agent_turn", { cost: 0, isByok: provider.isByok, log: logFields });
 
-  const rows = rowsFor({
-    sessionId: session.id,
-    userId,
-    lastSeq: lastSeqLoaded,
-    added: result.added,
-    steps,
-    toolSteps: result.toolSteps,
-  });
-
   // What the turn wrote is screened before it is kept. A turn the screen refuses is treated like one that
   // could not be saved: nothing of it is stored, put on record or billed, and the page takes back what it
   // had begun to show. An outage of the screen does not stop play (the same stance as for what is sent in).
@@ -93,22 +86,24 @@ export async function keepTurn(scope: TurnScope, fx: TurnEffects, session: Sessi
   }
 
   // Save first, then charge: a turn that was not kept is not billed.
-  let saved: { due: number } | "conflict" | "failed";
-  try {
-    saved = await deps.appendTurns(session.id, lastSeqLoaded, rows, accrued);
-  } catch (error) {
-    console.error("agent-turn: saving the turn failed:", error);
-    saved = "failed";
-  }
-  if (saved === "conflict" || saved === "failed") {
+  const saved = await saveTurn({
+    appendTurns: (sessionId, afterSeq, rows, credits) => deps.appendTurns(sessionId, afterSeq, rows, credits),
+    sessionId: session.id,
+    userId,
+    lastSeq: lastSeqLoaded,
+    result,
+    credits: accrued,
+    logName: "agent-turn",
+  });
+  if (saved.kind !== "kept") {
     await discardFiled(scope, fx);
     await safely(logWithoutCharge);
-    emit({ type: "error", message: saved === "conflict" ? MESSAGES.conflict : MESSAGES.notSaved });
+    emit({ type: "error", message: saved.kind === "conflict" ? MESSAGES.conflict : MESSAGES.notSaved });
     return;
   }
 
   fx.kept = true;
-  const { due } = saved;
+  const { due, rows } = saved;
   await safely(async () => ledger.charge("agent_turn", { cost: due, isByok: provider.isByok, log: logFields }));
   await carryOutKeptTurn(scope, fx, session, ctx, ran, { due, tokens, rows });
 }
@@ -301,7 +296,7 @@ async function carryOutKeptTurn(
       ...stored,
       ...rows.map((r) => ({ seq: r.seq, role: r.role, blocks: r.blocks })),
     ];
-    await foldIntoSummary({ deps, ledger, session, storedNow, callModel, isByok: provider.isByok, price, calibration });
+    await foldIntoSummary({ saveSummary: (input) => deps.saveSummary(input), ledger, session, storedNow, callModel, isByok: provider.isByok, price, calibration, reason: "agent_turn", billed: true, logName: "agent-turn" });
   }
 }
 

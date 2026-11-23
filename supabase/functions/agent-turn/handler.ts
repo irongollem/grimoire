@@ -26,6 +26,7 @@ import { narrationGate, type NarrationGate } from "./narration.ts";
 import { AFTERMATH_TEXT, foeLineText, helperTurnText, OPENING_TEXT, playerText } from "./turnBody.ts";
 import { safely } from "./turnSupport.ts";
 import { AgentProviderError } from "../_shared/agent/types.ts";
+import { safeEmit } from "../_shared/agent/conversation/stream.ts";
 import { admitTurn } from "./admitTurn.ts";
 import { openSitting } from "./turnSitting.ts";
 import { readTurnContext } from "./turnContext.ts";
@@ -56,13 +57,7 @@ export async function beginTurn(input: {
 
   const run = async (send: (event: AgentEvent) => void, signal: AbortSignal | undefined, reservationIds: string[]): Promise<void> => {
     // A listener that throws (a closed stream) must not cost the player the turn that is already paid for.
-    const emit = (event: AgentEvent) => {
-      try {
-        send(event);
-      } catch {
-        // ignored on purpose
-      }
-    };
+    const emit = safeEmit(send);
     // Settled whatever the outcome (success, failure, conflict, abort): released once, then the ledger lines written.
     await deps.settle(userId, reservationIds, async (ledger) => {
       const scope: TurnScope = { ...admitted, userId, deps, ledger, emit, signal };
