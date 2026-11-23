@@ -21,6 +21,7 @@
         <template v-else>No steps yet</template>
       </span>
     </span>
+    <CanonMoveButtons v-if="move" :label="entry.title" :first="move.first" :last="move.last" @move="(d) => emit('move', d)" />
   </CanonLedgerRow>
 </template>
 
@@ -28,19 +29,22 @@
 /** One force in the list (frame 06): who, what it wants, its clock dial and the step it has reached. */
 import CanonLedgerRow from "./CanonLedgerRow.vue";
 import { computed } from "vue";
+import CanonMoveButtons from "./CanonMoveButtons.vue";
 import ForceClock from "./ForceClock.vue";
 import { FORCE_OUTCOME_ENDED, forceOutcome } from "@/lib/canon/canonClose";
 import { clockFilled } from "@/lib/canon/canonForces";
 import { stepReached } from "@/composables/canon/useCanonForces";
 import type { CanonEntry, CanonForceStep, CanonForceTick } from "@/types/canon.types";
 
-const { entry, steps, ticks, selected = false } = defineProps<{
+const { entry, steps, ticks, selected = false, move = null } = defineProps<{
   entry: CanonEntry;
   steps: readonly CanonForceStep[];
   ticks: readonly CanonForceTick[];
   selected?: boolean;
+  /** Up and down, offered only while nothing narrows the list; `null` hides them. */
+  move?: { first: boolean; last: boolean } | null;
 }>();
-const emit = defineEmits<{ select: [] }>();
+const emit = defineEmits<{ select: []; move: [direction: -1 | 1] }>();
 
 const reached = computed(() => stepReached(steps));
 const outcome = computed(() => forceOutcome(entry));

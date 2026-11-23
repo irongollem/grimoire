@@ -49,7 +49,7 @@ export type NewCanonEntry =
  * DM never sends it, and the database marks an AI-written entry edited when its words change
  * (`private.canon_entries_mark_edited`).
  */
-export type CanonEntryPatch = Partial<Pick<CanonEntry, "title" | "body" | "knowledge" | "player_visible_to" | "sort_order" | "ai_provenance" | "revealed_at" | "wants" | "clock_size" | "image_url" | "lore_kind" | "world_year" | "world_month" | "world_day" | "closed_as" | "closed_at" | "closed_note" | "became_entry_id">>;
+export type CanonEntryPatch = Partial<Pick<CanonEntry, "title" | "body" | "knowledge" | "player_visible_to" | "sort_order" | "ai_provenance" | "revealed_at" | "wants" | "clock_size" | "image_url" | "lore_kind" | "world_year" | "world_month" | "world_day" | "closed_as" | "closed_at" | "closed_note" | "became_entry_id" | "arc_id">>;
 
 export async function createCanonEntry(campaignId: string, input: NewCanonEntry): Promise<CanonEntry> {
   const user = getCurrentUser();

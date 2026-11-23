@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi, onTestFinished } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
 import { flushPromises, mount } from "@vue/test-utils";
 import { reactive, ref } from "vue";
 import type { CanonEntry } from "@/types/canon.types";
@@ -24,6 +25,9 @@ vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks
 vi.mock("@/composables/useBreakpoint", () => ({ useAbove: () => wide }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaign: { id: "c1" } }) }));
 
+vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
+
+import { useCanonUiStore } from "@/stores/ui/canon";
 import CanonView from "./CanonView.vue";
 
 const truth = (id: string, title: string): CanonEntry => canonEntry({ id, campaign_id: "c1", part: "truth", knowledge: "all", title });
@@ -49,13 +53,14 @@ const mounted: { unmount: () => void }[] = [];
 function mountView() {
   const w = mount(CanonView, {
     attachTo: document.body,
-    global: { stubs: { PremiseSection: true, ForcesSection: true, ForceDetail: ForceDetailStub, SecretsSection: true, WorldWorksSection: true, LifeSection: true, LoreSection: true, ChronicleSection: true, TableAddedSection: true, CanonDeleted: true, AppButton: { template: '<a :data-testid="label === \'Tonight\' ? \'tonight\' : \'bring-in\'" :href="to"><slot /></a>', props: ['to', 'label'] }, LoreDetail: LoreDetailStub, SecretDetail: SecretDetailStub, TruthDetail: TruthDetailStub, TruthsSection: TruthsStub, CanonContents: true, BackstoriesSection: true, BackstoryDetail: BackstoryDetailStub } },
+    global: { stubs: { CanonArcs: true, PremiseSection: true, ForcesSection: true, ForceDetail: ForceDetailStub, SecretsSection: true, WorldWorksSection: true, LifeSection: true, LoreSection: true, ChronicleSection: true, TableAddedSection: true, CanonDeleted: true, AppButton: { template: '<a :data-testid="label === \'Tonight\' ? \'tonight\' : \'bring-in\'" :href="to"><slot /></a>', props: ['to', 'label'] }, LoreDetail: LoreDetailStub, SecretDetail: SecretDetailStub, TruthDetail: TruthDetailStub, TruthsSection: TruthsStub, CanonContents: true, BackstoriesSection: true, BackstoryDetail: BackstoryDetailStub } },
   });
   mounted.push(w);
   return w;
 }
 
 describe("CanonView", () => {
+  beforeEach(() => setActivePinia(createPinia()));
   // Attached to the document (the scroll looks the row up by id), so each one is taken down again.
   afterEach(() => mounted.splice(0).forEach((w) => w.unmount()));
 
@@ -187,7 +192,7 @@ describe("CanonView", () => {
       const loreStub = { name: "LoreSection", props: ["lore"], emits: ["select"], template: "<section><i id='tap-lore' @click=\"$emit('select', 'l1')\" /></section>" };
       const w = mount(CanonView, {
         attachTo: document.body,
-        global: { stubs: { PremiseSection: true, ForcesSection: true, SecretsSection: true, WorldWorksSection: true, LifeSection: true, LoreSection: loreStub, LoreDetail: LoreDetailStub, ChronicleSection: true, TableAddedSection: true, CanonDeleted: true, TruthsSection: true, CanonContents: true, BackstoriesSection: true, AppButton: true } },
+        global: { stubs: { CanonArcs: true, PremiseSection: true, ForcesSection: true, SecretsSection: true, WorldWorksSection: true, LifeSection: true, LoreSection: loreStub, LoreDetail: LoreDetailStub, ChronicleSection: true, TableAddedSection: true, CanonDeleted: true, TruthsSection: true, CanonContents: true, BackstoriesSection: true, AppButton: true } },
       });
       mounted.push(w);
       await w.find("#tap-lore").trigger("click");
@@ -358,7 +363,7 @@ describe("CanonView", () => {
     function mountLanding() {
       const w = mount(CanonView, {
         attachTo: document.body,
-        global: { stubs: { PremiseSection: rowStub, SecretsSection: rowStub, TruthsSection: true, ForcesSection: true, WorldWorksSection: true, LifeSection: true, LoreSection: true, ChronicleSection: true, TableAddedSection: true, CanonDeleted: true, AppButton: true, CanonContents: true, BackstoriesSection: true } },
+        global: { stubs: { CanonArcs: true, PremiseSection: rowStub, SecretsSection: rowStub, TruthsSection: true, ForcesSection: true, WorldWorksSection: true, LifeSection: true, LoreSection: true, ChronicleSection: true, TableAddedSection: true, CanonDeleted: true, AppButton: true, CanonContents: true, BackstoriesSection: true } },
       });
       mounted.push(w);
       return w;
@@ -432,6 +437,50 @@ describe("CanonView", () => {
       route.query = { entry: "t1" };
       await flushPromises();
       expect(mocks.scroll).not.toHaveBeenCalled();
+    });
+  });
+
+  // Bug caught (#1255 item 11): the arc filter narrowing only some parts, or narrowing the premise, which belongs to no arc.
+  describe("narrowed to an arc", () => {
+    const inArc = (e: CanonEntry): CanonEntry => ({ ...e, arc_id: "a1" });
+    beforeEach(() => {
+      data.value = [
+        inArc(truth("t1", "The river gives back.")),
+        truth("t2", "The Stain is a wound."),
+        canonEntry({ id: "p1", campaign_id: "c1", part: "premise", premise_kind: "theme", title: "Rot" }),
+        inArc(canonEntry({ id: "b1", campaign_id: "c1", part: "backstory", party_member_id: "m1" })),
+        canonEntry({ id: "b2", campaign_id: "c1", part: "backstory", party_member_id: "m2", arc_id: "a2" }),
+      ];
+      useCanonUiStore().arcFilter = "a1";
+    });
+
+    it("shows only the arc's truths, and still the whole premise", async () => {
+      const w = mountView();
+      await flushPromises();
+      expect(w.findComponent({ name: "TruthsSection" }).props("truths").map((t: CanonEntry) => t.id)).toEqual(["t1"]);
+      expect(w.findComponent({ name: "PremiseSection" }).props("entries").map((t: CanonEntry) => t.id)).toContain("p1");
+    });
+
+    it("hides a character whose backstory is in another arc, and one with no backstory entry", async () => {
+      party.value = [...party.value, { id: "m3", name: "Wren" }];
+      const w = mountView();
+      await flushPromises();
+      expect(w.findComponent({ name: "BackstoriesSection" }).props("party").map((m: { id: string }) => m.id)).toEqual(["m1"]);
+      party.value = party.value.slice(0, 2);
+    });
+
+    it("counts the contents column by what the arc shows, and 'Where to begin' by the whole canon", async () => {
+      const w = mountView();
+      await flushPromises();
+      expect(w.findComponent({ name: "CanonContents" }).props("counts")).toMatchObject({ truths: 1, premise: 1, backstories: 1 });
+      expect(w.findComponent({ name: "CanonStart" }).props("counts")).toMatchObject({ truths: 2, backstories: 2 });
+    });
+
+    it("keeps a truth open when the DM moves it to another arc, instead of closing it under them", async () => {
+      route.query = { entry: "t2" };
+      const w = mountView();
+      await flushPromises();
+      expect(w.find("[data-testid=detail]").text()).toBe("The Stain is a wound.");
     });
   });
 });

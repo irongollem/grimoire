@@ -14,20 +14,21 @@
         <ListSkeleton v-if="isLoading || campaign === null" variant="rows" :count="4" />
         <p v-else-if="isError" role="alert" class="text-body text-destructive">Could not load the canon.</p>
         <template v-else>
-          <CanonStart :counts="counts" :has-pitch="hasPitch" @go="goTo" />
+          <CanonArcs />
+          <CanonStart :counts="startCounts" :has-pitch="hasPitch" @go="goTo" />
           <PremiseSection :campaign="campaign" :entries="entries" />
-          <TruthsSection :truths="truths" :selected-id="selected?.id ?? null" @select="select" />
+          <TruthsSection :truths="shownTruths" :arc-label="arcLabel" :selected-id="selected?.id ?? null" @select="select" />
           <!-- Below a desktop there is no side column: the selected truth opens under its part. -->
           <div v-if="selectedTruth && !wide" id="canon-inline-detail">
             <TruthDetail :key="selectedTruth.id" :entry="selectedTruth" @delete="removeSelected" />
           </div>
           <CanonSplit close-label="Close this force" @close="closeEntry">
-            <ForcesSection :forces="forces" :selected-id="selectedForce?.id ?? null" @select="select" />
+            <ForcesSection :forces="shownForces" :arc-label="arcLabel" :selected-id="selectedForce?.id ?? null" @select="select" />
             <template v-if="selectedForce" #detail>
               <ForceDetail :key="selectedForce.id" :entry="selectedForce" @delete="removeSelected" />
             </template>
           </CanonSplit>
-          <SecretsSection :secrets="secrets" :questions="questions" :selected-id="selectedSecret?.id ?? null" @select="select">
+          <SecretsSection :secrets="shownSecrets" :questions="shownQuestions" :arc-label="arcLabel" :selected-id="selectedSecret?.id ?? null" @select="select">
             <!-- In the part's slot, so it opens under the ledger and not past the open questions. -->
             <div v-if="selectedSecret && !wide" id="canon-inline-detail">
               <SecretDetail :key="selectedSecret.id" :entry="selectedSecret" @delete="removeSelected" />
@@ -36,13 +37,13 @@
           <WorldWorksSection />
           <LifeSection />
           <CanonSplit close-label="Close this lore entry" @close="closeEntry">
-            <LoreSection :lore="lore" :selected-id="selectedLore?.id ?? null" @select="select" />
+            <LoreSection :lore="shownLore" :arc-label="arcLabel" :selected-id="selectedLore?.id ?? null" @select="select" />
             <template v-if="selectedLore" #detail>
               <LoreDetail :key="selectedLore.id" :entry="selectedLore" @delete="removeSelected" />
             </template>
           </CanonSplit>
           <CanonSplit close-label="Close this backstory" @close="closeEntry">
-            <BackstoriesSection :party="party" :entries="backstories" :passages="allPassages ?? []" :selected-id="selectedBackstoryMember?.id ?? null" @select="selectBackstory" />
+            <BackstoriesSection :party="shownParty" :arc-label="arcLabel" :entries="backstories" :passages="allPassages ?? []" :selected-id="selectedBackstoryMember?.id ?? null" @select="selectBackstory" />
             <template v-if="selectedBackstoryMember" #detail>
               <BackstoryDetail :key="selectedBackstoryMember.id" :member="selectedBackstoryMember" />
             </template>
@@ -78,6 +79,7 @@ import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import BackstoriesSection from "@/components/canon/BackstoriesSection.vue";
 import BackstoryDetail from "@/components/canon/BackstoryDetail.vue";
+import CanonArcs from "@/components/canon/CanonArcs.vue";
 import CanonSplit from "@/components/canon/CanonSplit.vue";
 import ChronicleSection from "@/components/canon/ChronicleSection.vue";
 import TableAddedSection from "@/components/canon/TableAddedSection.vue";
@@ -95,6 +97,9 @@ import TruthDetail from "@/components/canon/TruthDetail.vue";
 import TruthsSection from "@/components/canon/TruthsSection.vue";
 import WorldWorksSection from "@/components/canon/WorldWorksSection.vue";
 import LifeSection from "@/components/canon/ecology/LifeSection.vue";
+import { narrowToArc, partyInArc } from "@/lib/canon/canonNarrow";
+import { useCanonArcs } from "@/composables/canon/useCanonArcs";
+import { useCanonUiStore } from "@/stores/ui/canon";
 import { CANON_SECTIONS, sectionCounts, sectionOfPart, type CanonSectionId } from "@/lib/canon/canonParts";
 import { unreviewedCount } from "@/lib/canon/canonTableFacts";
 import { useCanonEntries, useTrashCanonEntry } from "@/composables/canon/useCanonEntries";
@@ -120,7 +125,6 @@ const truths = computed(() => entries.value.filter((e) => e.part === "truth"));
 const forces = computed(() => entries.value.filter((e) => e.part === "force"));
 const secrets = computed(() => entries.value.filter((e) => e.part === "secret"));
 const lore = computed(() => entries.value.filter((e) => e.part === "lore"));
-const questions = computed(() => entries.value.filter((e) => e.part === "question"));
 const backstories = computed(() => entries.value.filter((e) => e.part === "backstory"));
 const hasPitch = computed(() => entries.value.some((e) => e.part === "premise" && e.premise_kind === "pitch"));
 const { data: partyData } = useParty();
@@ -129,12 +133,32 @@ const { data: allPassages } = useCanonPassages();
 // The Chronicle counts the sessions with a chronicle entry written; What the table added, the lines still to review.
 const { written } = useChronicle();
 const tableRecord = useTableFacts();
-const counts = computed(() => ({
-  ...sectionCounts(entries.value),
-  // One backstory per character, opened or not: the contents column counts the characters.
-  backstories: party.value.length,
+
+// The arc the page is narrowed to (CanonArcs holds the control). The selection below reads the whole lists, so an entry
+// the DM just moved to another arc stays open instead of vanishing under them.
+const ui = useCanonUiStore();
+const { data: arcs } = useCanonArcs();
+const arcLabel = computed(() => (ui.arcFilter === null ? null : (arcs.value?.find((a) => a.id === ui.arcFilter)?.name ?? "this arc")));
+const narrowed = computed(() => narrowToArc(entries.value, ui.arcFilter));
+const shownTruths = computed(() => narrowed.value.filter((e) => e.part === "truth"));
+const shownForces = computed(() => narrowed.value.filter((e) => e.part === "force"));
+const shownSecrets = computed(() => narrowed.value.filter((e) => e.part === "secret"));
+const shownQuestions = computed(() => narrowed.value.filter((e) => e.part === "question"));
+const shownLore = computed(() => narrowed.value.filter((e) => e.part === "lore"));
+const shownParty = computed(() => partyInArc(party.value, backstories.value, ui.arcFilter));
+
+// "Where to begin" asks what the canon holds at all, so it reads the whole canon; the contents column counts what the
+// narrowed parts show, so its numbers match the lists under the arc.
+const elsewhere = computed(() => ({
   chronicle: written.value,
   table: unreviewedCount(tableRecord.facts.data.value ?? []),
+}));
+const startCounts = computed(() => ({ ...sectionCounts(entries.value), backstories: party.value.length, ...elsewhere.value }));
+const counts = computed(() => ({
+  ...sectionCounts(narrowed.value),
+  // One backstory per character, opened or not: the contents column counts the characters.
+  backstories: shownParty.value.length,
+  ...elsewhere.value,
 }));
 
 // Opening `?entry=<id>` brings that truth into view, once per id and only after the list has loaded.

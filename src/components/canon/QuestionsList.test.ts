@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import type { CanonEntry } from "@/types/canon.types";
@@ -13,6 +14,8 @@ vi.mock("@/composables/canon/useCanonEntries", () => ({
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 
+vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
+
 import QuestionsList from "./QuestionsList.vue";
 
 const q = (id: string, title: string): CanonEntry => canonEntry({ id, part: "question", title });
@@ -22,6 +25,7 @@ const mountList = (rows: CanonEntry[] = [q("q1", "Who made the Stain?")]) =>
 const submitButton = (w: ReturnType<typeof mountList>) => w.find("button[type=submit]");
 
 describe("QuestionsList", () => {
+  beforeEach(() => setActivePinia(createPinia()));
   beforeEach(() => Object.values(mocks).forEach((m) => m.mockReset()));
 
   it("marks every question as one nobody settles by invention", () => {
@@ -139,5 +143,28 @@ describe("QuestionsList", () => {
     const w = mountList([answered()]);
     await w.get("[data-testid=reopen-question]").trigger("click");
     expect(mocks.update).toHaveBeenCalledWith({ id: "q9", patch: { closed_as: null, closed_at: null, closed_note: null, became_entry_id: null } });
+  });
+});
+
+describe("QuestionsList find and order (#1255 item 11)", () => {
+  beforeEach(() => { setActivePinia(createPinia()); Object.values(mocks).forEach((m) => m.mockReset()); mocks.updateAsync.mockResolvedValue(undefined); });
+  const many = () => ["a", "b", "c", "d", "e", "f"].map((t, i) => canonEntry({ id: `q${i}`, part: "question", title: `Why ${t}?`, sort_order: i }));
+  const mountMany = (props: Record<string, unknown> = {}) => mount(QuestionsList, { props: { questions: many(), ...props }, global: { stubs: { CanonSuggestions: true } } });
+
+  it("moves an open question up by swapping its place with the one before it", async () => {
+    await mountMany().find("button[aria-label='Move Why c? up']").trigger("click");
+    await flushPromises();
+    expect(mocks.updateAsync.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["q2", 1], ["q1", 2]]);
+  });
+
+  // Bug caught: moving inside a list a search has cut, where "up" would swap with a row that is not on screen.
+  it("hides the move buttons while a search narrows the list, and narrows by title", async () => {
+    const w = mountMany();
+    expect(w.find("[data-testid=move-buttons]").exists()).toBe(true);
+    await w.find("input[type=search]").setValue("why");
+    expect(w.findAll("li")).toHaveLength(6); // still several rows, so a move would be possible if it were offered
+    expect(w.find("[data-testid=move-buttons]").exists()).toBe(false);
+    await w.find("input[type=search]").setValue("why d");
+    expect(w.findAll("li")).toHaveLength(1);
   });
 });

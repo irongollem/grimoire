@@ -1,6 +1,6 @@
 import { mount, RouterLinkStub } from "@vue/test-utils";
 import { sourceLabel } from "@/lib/library/sourceLabel";
-import { ref } from "vue";
+import { defineComponent, h, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import EncounterGeneratorPanel from "./EncounterGeneratorPanel.vue";
 import type { EncounterAiResult } from "@/ai/types";
@@ -20,6 +20,8 @@ const partyRows = ref<{ id: string }[]>([]);
 // was the one generator panel missing this pre-check (only a post-create
 // catch existed) before the useGenerationGate extraction.
 const canCreateEncounter = ref(true);
+const partyPlace = ref<string | null>(null);
+const habitatState = ref<{ name: string; life: unknown[] } | null>(null);
 
 vi.mock("@/composables/library/useSourceTitles", () => ({
   useSourceTitles: () => ({
@@ -36,7 +38,9 @@ vi.mock("@/stores/campaign", () => ({
     get isAiEnabled() {
       return isAiEnabled.value;
     },
-    activeCampaign: { text_provider: "openai" },
+    get activeCampaign() {
+      return { text_provider: "openai", current_location_id: partyPlace.value };
+    },
   }),
 }));
 vi.mock("@/composables/encounters/useEncounters", () => ({
@@ -73,10 +77,20 @@ vi.mock("@/ai/useEncounterGeneration", () => ({
   }),
 }));
 
+// The Where block owns its reads; the panel only holds the place and the habitat it reports.
+const EncounterWhereStub = defineComponent({
+  props: { placeId: { type: String as () => string | null, default: null } },
+  emits: ["update:placeId", "habitat"],
+  setup(_p, { emit }) {
+    emit("habitat", habitatState.value);
+    return () => h("div", { "data-testid": "where-stub" });
+  },
+});
+
 function mountPanel() {
   return mount(EncounterGeneratorPanel, {
     global: {
-      stubs: { RouterLink: RouterLinkStub, EntityCombobox: true, PaywallModal: true },
+      stubs: { RouterLink: RouterLinkStub, EntityCombobox: true, PaywallModal: true, EncounterWhere: EncounterWhereStub },
     },
   });
 }
@@ -226,5 +240,47 @@ describe("EncounterGeneratorPanel: generating and creating", () => {
     await Promise.resolve();
     expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
     expect(wrapper.text()).not.toContain("quota_exceeded");
+  });
+});
+
+describe("EncounterGeneratorPanel: what lives where the party is", () => {
+  beforeEach(() => {
+    mocks.generate.mockReset().mockResolvedValue(undefined);
+    isAiEnabled.value = true;
+    canCreateEncounter.value = true;
+    requireCredits.mockReset().mockReturnValue(true);
+    partyPlace.value = null;
+    habitatState.value = null;
+    generated.value = null;
+  });
+
+  const generateNow = async () => {
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue("A fight at the ford.");
+    await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+    return wrapper;
+  };
+
+  // Bug: the Where choice started empty, so the DM had to pick the place the party is standing in.
+  it("starts the Where choice on the party's place", () => {
+    partyPlace.value = "town";
+    const wrapper = mountPanel();
+    expect(wrapper.findComponent(EncounterWhereStub).props("placeId")).toBe("town");
+  });
+
+  // Bug: a place in a habitat generated as if it were nowhere, so the roll never reached the model.
+  it("passes the rolled creature's constraint to the generator", async () => {
+    habitatState.value = { name: "Salt marsh", life: [{ id: "a", habitatId: "h", recordId: "eel", fromLibrary: true, name: "Marsh eel", percent: 100, readable: true }] };
+    await generateNow();
+    expect(mocks.generate).toHaveBeenCalledWith("A fight at the ford.", {
+      difficulty: "auto",
+      constraints: ["Build this encounter around Marsh eel: it is what lives in Salt marsh. Other creatures may join it."],
+    });
+  });
+
+  // Bug: with no habitat the panel still sent an empty constraints list (or a stale one), changing today's behaviour.
+  it("sends no constraints when the place is in no habitat", async () => {
+    await generateNow();
+    expect(mocks.generate).toHaveBeenCalledWith("A fight at the ford.", { difficulty: "auto" });
   });
 });

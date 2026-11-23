@@ -5,13 +5,16 @@
       <p class="text-caption text-muted-foreground">Questions you keep open on purpose. Nobody, the Narrator included, settles them by invention.</p>
     </div>
     <CanonSuggestions mode="questions" :entries="open" />
-    <ul v-if="open.length > 0" class="flex flex-col border border-border bg-card">
+    <CanonPartFind part="questions" noun="question" :count="open.length" :arc-label="arcLabel" />
+    <ul v-if="shown.length > 0" class="flex flex-col border border-border bg-card">
       <QuestionRow
-        v-for="q in open"
+        v-for="q in shown"
         :key="q.id"
         :entry="q"
         :answering="answeringId === q.id"
         :saving="saving"
+        :move="canReorder ? endsOf(shown, q.id) : null"
+        @move="(direction) => reorder(shown, q.id, direction)"
         @rename="(title) => rename(q, title)"
         @remove="remove(q)"
         @start-answer="answeringId = q.id"
@@ -19,6 +22,8 @@
         @answer="(answer, kind) => answerQuestion(q, answer, kind)"
       />
     </ul>
+    <p v-else-if="open.length > 0" class="m-0 text-caption text-muted-foreground" data-testid="no-question-match">No open question has those words in it.</p>
+    <p v-else-if="arcLabel !== null && questions.length === 0" class="m-0 text-caption text-muted-foreground" data-testid="no-question-in-arc">Nothing of this part is in {{ arcLabel }}.</p>
     <CanonAddRow placeholder="A new open question…" input-label="A new open question" label="Add question" :create="add" />
 
     <div v-if="answered.length > 0" class="flex flex-col gap-2" data-testid="answered-questions">
@@ -47,10 +52,15 @@
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import CanonAddRow from "./CanonAddRow.vue";
+import CanonPartFind from "./CanonPartFind.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
 import QuestionAnsweredRow from "./QuestionAnsweredRow.vue";
 import QuestionRow from "./QuestionRow.vue";
 import { useCreateCanonEntry, useTrashCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useCanonReorder } from "@/composables/canon/useCanonReorder";
+import { matchesQuery } from "@/lib/canon/canonNarrow";
+import { endsOf } from "@/lib/canon/canonOrder";
+import { useCanonUiStore } from "@/stores/ui/canon";
 import { useConfirm } from "@/composables/useConfirm";
 import { REOPEN_QUESTION_PATCH, answerEntry, answeredPatch, type AnswerKind } from "@/lib/canon/canonClose";
 import { IconChevronDown, IconChevronRight } from "@/lib/icons";
@@ -58,10 +68,20 @@ import { drawerTransition } from "@/lib/motion";
 import { toast } from "@/lib/toast";
 import type { CanonEntry } from "@/types/canon.types";
 
-const { questions } = defineProps<{ questions: readonly CanonEntry[] }>();
+const { questions, arcLabel = null } = defineProps<{
+  /** The questions of the page's arc (all of them when none is chosen). */
+  questions: readonly CanonEntry[];
+  /** The name of the arc narrowing this part, or null. */
+  arcLabel?: string | null;
+}>();
 
+const store = useCanonUiStore();
 const open = computed(() => questions.filter((q) => q.closed_as === null));
+const shown = computed(() => open.value.filter((q) => matchesQuery(q.title, store.partQuery.questions)));
 const answered = computed(() => questions.filter((q) => q.closed_as !== null));
+// Moving inside a narrowed list would be ambiguous, so the buttons wait for the whole list.
+const canReorder = computed(() => arcLabel === null && store.partQuery.questions.trim() === "");
+const reorder = useCanonReorder();
 
 const { mutateAsync: create } = useCreateCanonEntry();
 const { mutate: update, mutateAsync: updateAsync } = useUpdateCanonEntry();

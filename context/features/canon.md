@@ -39,6 +39,11 @@ the `campaigns` row, which every member reads (#1228).
   clues). RLS: the campaign's DMs read and write; players read only `get_player_canon`, which never returns the reveal
   list and withholds secret blocks in the body. It rings the campaign doorbell (`canon_entries` → `CANON_KEY`,
   `CONNECTIONS_KEY`).
+- `canon_arcs` (`20261123154815_canon_story_tools.sql`, #1255 item 11): the story's arcs, each a `name` (1 to 80
+  characters) and one line of `summary`, in the DM's `sort_order`; DM-only, rings the doorbell (`canon_arcs` →
+  `CANON_KEY`). `canon_entries.arc_id` names the arc an entry belongs to (`on delete set null`, so deleting an arc leaves
+  its entries in no arc; never set on a premise entry, 23514). Read by `useCanonArcs` under `[CANON_KEY, "arcs",
+  campaignId]`.
 - `canon_entry_quests` (`20261123135952_canon_entry_quests.sql`, #1255 items 12 and 13): which quests a canon entry matters
   in, once each per (entry, quest) (23505). It began as `canon_force_quests` ("where the party meets it") and was renamed and
   widened, never copied: a force, a secret, a truth, lore or a backstory may be tied to a quest, a premise entry or an
@@ -107,6 +112,34 @@ canon's lines and veils. The Narrator reads both. The Canon line shows only wher
 The contents column lists the parts I to IX, then, set apart below a rule, "✦ What the table added" with its count of
 unreviewed lines as "n new" and the hint "Filled by the Narrator as it invents. Keep, edit or strike each line." (`canonParts.ts`, the only place a part
 is added). The header's **Bring in a book** (a button under the page on a phone) opens `/canon/import`.
+
+**Arcs, narrowing, search and order (#1255 item 11).** An arc is the one grouping, so there are no free tags: it stays a
+story tool and not a filing system. At the top of the page body, above "Where to begin", `CanonArcs.vue` holds a quiet
+bar: **Show** (Everything, or one arc; a native select, since the DM made a short list) with a **Clear** button while an
+arc is chosen, and **Arcs…**, which opens an inline panel to add an arc (a name and one line), rename it, edit its line,
+put it in order and delete it ("Delete this arc? Its entries stay, in no arc."). With no arcs the bar shows only
+**Arcs…** and "Group the canon by the story it belongs to." Each truth, force, secret, lore entry, backstory and open
+question has a small **Arc** picker under its title (`EntryArcPicker.vue`, the one component, shown once an arc exists; a
+premise entry never has it).
+
+- **Narrowing.** The chosen arc (`useCanonUiStore().arcFilter`, part of `hasActiveFilters`, cleared by `resetFilters`)
+  narrows truths, forces, secrets, open questions, lore and backstories at once (`canonNarrow.ts`). A character whose
+  backstory entry is in another arc, or who has none yet, is hidden. The premise, How the world works, Who and what lives
+  here, the Chronicle, What the table added and Deleted are never narrowed. A narrowed part says "Showing <arc> only." in
+  one quiet line, and its empty state "Nothing of this part is in <arc>." **The contents column's counts follow the
+  narrowing** (so they match the lists under it); "Where to begin" keeps reading the whole canon, because it asks whether
+  the canon holds a thing at all. An entry that is open stays open when the DM moves it to another arc (the selection
+  reads the whole list). The Force log tells only of the forces on screen. A deleted arc lets go of the filter by itself.
+- **Search.** Each of those six parts has a small search of its own (`CanonPartFind.vue`, "Find a truth…"), matching the
+  title (a backstory's character name). The query lives in the store (`partQuery`; it filters the list on the page). The
+  field appears only past five entries, or while a query is set so it can always be cleared. Clearing the arc does not
+  clear searches; `resetFilters` clears both.
+- **Order.** Truths, forces, secrets, open questions and premise lines have up and down buttons (`CanonMoveButtons.vue`,
+  rule in `canonOrder.ts`): the move swaps the two rows' `sort_order`, or renumbers the list from position when places
+  collide, writing only the rows whose place changed (`useCanonReorder`). A force moves among the moving ones, a secret
+  among those in its own state (the ledger draws the revealed last), a premise line among its own kind. Buttons are
+  hidden, not disabled, while a search or an arc narrows the list, and for a list of one. Lore is shown by its date in the
+  world, so it has no manual order.
 
 What the review of the beta changed (#1255, 23 Nov 2026):
 
@@ -311,8 +344,23 @@ shares would pass 100.", a place already placed, 23505, as "That place is alread
 reader may not read keeps its row under a placeholder name and is never rolled, so the shares still add up.
 `useCampaignHabitats.ts` reads the three tables and writes them, all scoped to the campaign and under `CANON_KEY`.
 
-The world block tells every other generator the result (see "The world block"). Nothing rolls a habitat's creatures
-yet: `rollLife` is the roll an encounter or a wandering creature will use.
+The world block tells every other generator the result (see "The world block").
+
+**Rolled for an encounter.** `habitatForPlace` (`habitats.ts`) says which habitat a place lies in: its own, else the one
+of the nearest place it lies inside that is covered (the rule `tablesForPlaces` uses for encounter tables), with that
+covered place as `throughPlaceId`. The encounter generator has a **Where** choice (`EncounterWhere.vue`, the party's
+place, `campaigns.current_location_id`, until the DM picks or clears it). When that place lies in a habitat with a
+creature at a share, one quiet line gives the habitat and its shares ("Salt marsh: Marsh eel 40%, Giant frog 20%,
+anything else 40%"), and each generation rolls once with `rollLife` through `lifeConstraints`: a rolled creature becomes
+"Build this encounter around X: it is what lives in <habitat>. Other creatures may join it.", and a roll on "anything
+else" becomes "The creatures are not <listed>: something this country rarely sees." The roll is a constraint beside the
+DM's concept and never over it, a creature the reader cannot read is never named, and no place or a place in no habitat
+sends nothing. The lines travel as `constraints` on `generate` (`useEncounterGeneration`): appended to the Constraints
+block on the browser (BYOK) path and sent as `constraints` in the body to `generate-encounter`.
+
+**On the place.** The DM's place page shows `PlaceHabitat.vue` beside the canon placed here: "Lies in <habitat>" (with
+", through <place>" when the habitat is inherited), its shares line, and a link to `/canon?section=life`. Nothing renders
+for a place in no habitat, and it is never mounted on a player surface.
 
 ## Lore, told in passages
 

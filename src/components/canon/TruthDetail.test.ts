@@ -23,6 +23,8 @@ vi.mock("@/composables/canon/useCanonForces", async (orig) => ({
   useCanonForceData: () => ({ data: { value: { steps: [], ticks: [], quests: questData.quests } } }),
 }));
 const EntryQuestsStub = { name: "EntryQuests", props: ["entry", "links", "label", "empty"], template: "<div data-testid='entry-quests' />" };
+vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
+
 import TruthDetail from "./TruthDetail.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
 

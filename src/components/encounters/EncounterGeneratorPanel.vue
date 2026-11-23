@@ -24,6 +24,7 @@
           block
         />
       </div>
+      <EncounterWhere v-model:place-id="where" @habitat="(h) => (habitat = h)" />
     </template>
 
     <template v-if="result" #results>
@@ -158,6 +159,9 @@ import { IconAdd, IconCheckCircle, IconWarning } from "@/lib/icons";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCreateEncounter } from "@/composables/encounters/useEncounters";
 import { useEncounterGeneration } from "@/ai/useEncounterGeneration";
+import EncounterWhere from "./EncounterWhere.vue";
+import { useCampaignStore } from "@/stores/campaign";
+import { lifeConstraints, type EncounterHabitat } from "@/lib/canon/habitats";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
@@ -226,6 +230,16 @@ const textCreditCost = computed(
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("encounters");
 
 const concept = ref("");
+// The party's place until the DM picks another (or clears it): the party may move while this panel stays mounted.
+const campaign = useCampaignStore();
+const picked = ref<string | null | undefined>(undefined);
+const where = computed<string | null>({
+  get: () => (picked.value !== undefined ? picked.value : (campaign.activeCampaign?.current_location_id ?? null)),
+  set: (id) => {
+    picked.value = id;
+  },
+});
+const habitat = ref<EncounterHabitat | null>(null);
 const difficulty = ref<EncounterDifficultyOption>("auto");
 
 const creating = ref(false);
@@ -302,7 +316,9 @@ async function runGenerate() {
   genConcept.value = concept.value.trim();
   clearCompleted();
   createdEncounterId.value = null;
-  await generate(concept.value.trim(), { difficulty: difficulty.value });
+  // Rolled once per generation, in code, at the habitat's shares; a constraint beside the concept, never over it.
+  const constraints = habitat.value === null ? [] : lifeConstraints(habitat.value.name, habitat.value.life);
+  await generate(concept.value.trim(), { difficulty: difficulty.value, ...(constraints.length > 0 ? { constraints } : {}) });
 }
 
 /** Builds the encounter's Tiptap-JSON description from the AI's flavor text,

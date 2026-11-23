@@ -9,6 +9,7 @@
         </span>
       </span>
       <AppInput :key="revision" v-model.lazy="text" wrap size="body" tone="filled" aria-label="The secret" placeholder="What the world is keeping back…" />
+      <EntryArcPicker :entry="entry" />
     </div>
 
     <CanonEntryNotes
@@ -83,6 +84,7 @@ import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
+import EntryArcPicker from "./EntryArcPicker.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
 import EntryQuests from "./EntryQuests.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";

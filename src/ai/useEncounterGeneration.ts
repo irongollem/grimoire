@@ -39,6 +39,8 @@ registerAiGenerator({
 export interface EncounterGenerationOptions {
   /** "auto" | "easy" | "medium" | "hard" | "deadly" — the server/model resolves "auto". */
   difficulty: string;
+  /** Lines the DM's world adds to the brief (what lives in the place the party is in), sent as constraints beside the difficulty. */
+  constraints?: string[];
 }
 
 export function useEncounterGeneration() {
@@ -85,6 +87,7 @@ export function useEncounterGeneration() {
         campaign_id: campaignId,
         prompt: userPrompt,
         difficulty: options.difficulty,
+        ...(options.constraints?.length ? { constraints: options.constraints } : {}),
       },
     });
 
@@ -119,7 +122,7 @@ export function useEncounterGeneration() {
     // alone; this is a deliberate parity gap with the server path, not an
     // oversight.
     const userContent =
-      `${wrapUserInput(userPrompt)}\n\nConstraints:\n` + `Difficulty: ${options.difficulty}`;
+      `${wrapUserInput(userPrompt)}\n\nConstraints:\n` + [`Difficulty: ${options.difficulty}`, ...(options.constraints ?? [])].join("\n");
 
     const { content, usage: textUsage } = await textProvider.complete(systemContent, userContent);
 

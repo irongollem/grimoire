@@ -16,6 +16,8 @@ vi.mock("@/composables/canon/useCanonForces", async (original) => ({
   useUndoForceTick: () => ({ mutate: mocks.undo }),
 }));
 
+vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
+
 import ForceDetail from "./ForceDetail.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
 

@@ -13,6 +13,8 @@
 
     <ListSkeleton v-if="entry === null" variant="rows" :count="2" />
     <template v-else>
+      <EntryArcPicker :entry="entry" />
+
       <div class="flex flex-col gap-1">
         <AudienceRevealControl :visible-to="entry.player_visible_to" :name="member.name" @change="setAudience" />
         <p class="text-caption text-muted-foreground">{{ member.name }}'s player always reads their own backstory. Sharing it lets the characters you choose read the passages told to them.</p>
@@ -86,6 +88,7 @@ import ConnectionsSection from "@/components/connections/ConnectionsSection.vue"
 import TypeChoiceChips from "@/components/connections/TypeChoiceChips.vue";
 import BackstoryBeforePlay from "./BackstoryBeforePlay.vue";
 import BackstoryThreads from "./BackstoryThreads.vue";
+import EntryArcPicker from "./EntryArcPicker.vue";
 import EntryQuests from "./EntryQuests.vue";
 import LorePassageRow from "./LorePassageRow.vue";
 import { isPlayersPassage, passageByline } from "@/lib/canon/canonBackstory";

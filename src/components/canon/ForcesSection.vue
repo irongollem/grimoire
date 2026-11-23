@@ -5,6 +5,8 @@
 
     <CanonSuggestions mode="forces" :entries="forces" />
 
+    <CanonPartFind part="forces" noun="force" :count="forces.length" :arc-label="arcLabel" />
+
     <!-- By the section's own width, not the viewport: beside the page-body ledger of an open force the log drops under the list. -->
     <div class="flex flex-col gap-4 @2xl:flex-row @2xl:items-start">
       <div class="flex min-w-0 flex-1 flex-col gap-3">
@@ -16,9 +18,23 @@
             :steps="stepsOf(force.id)"
             :ticks="ticksOf(force.id)"
             :selected="force.id === selectedId"
+            :move="canReorder ? endsOf(moving, force.id) : null"
             @select="emit('select', force.id)"
+            @move="(direction) => reorder(moving, force.id, direction)"
           />
         </ul>
+        <EmptyState
+          v-else-if="forces.length > 0 && ended.length === 0"
+          class="border border-dashed border-border bg-card"
+          title="No force matches"
+          description="Nothing here has those words in it."
+        />
+        <EmptyState
+          v-else-if="forces.length === 0 && arcLabel !== null"
+          class="border border-dashed border-border bg-card"
+          title="Nothing is moving in this arc"
+          :description="`Nothing of this part is in ${arcLabel}.`"
+        />
         <EmptyState
           v-else-if="ended.length === 0"
           class="border border-dashed border-border bg-card"
@@ -52,7 +68,7 @@
           </Transition>
         </div>
       </div>
-      <ForceLog v-if="forces.length > 0" class="@2xl:w-64 @2xl:shrink-0" :ticks="data?.ticks ?? []" :force-name="nameOf" @undo="undo" />
+      <ForceLog v-if="forces.length > 0" class="@2xl:w-64 @2xl:shrink-0" :ticks="logTicks" :force-name="nameOf" @undo="undo" />
     </div>
 
     <form class="flex flex-col gap-2" @submit.prevent="addForce">
@@ -87,11 +103,16 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import CanonPartFind from "./CanonPartFind.vue";
 import CanonRubric from "./CanonRubric.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
 import ForceLog from "./ForceLog.vue";
 import ForceRow from "./ForceRow.vue";
 import { useCreateCanonEntryInCampaign } from "@/composables/canon/useCanonEntries";
+import { useCanonReorder } from "@/composables/canon/useCanonReorder";
+import { matchesQuery } from "@/lib/canon/canonNarrow";
+import { endsOf } from "@/lib/canon/canonOrder";
+import { useCanonUiStore } from "@/stores/ui/canon";
 import { useCanonForceData, useUndoForceTick } from "@/composables/canon/useCanonForces";
 import { useCreateConnectionInCampaign } from "@/composables/connections/useConnections";
 import { useCampaignStore } from "@/stores/campaign";
@@ -102,12 +123,23 @@ import { toast } from "@/lib/toast";
 import { typeChoices } from "@/lib/worldLinks/connections";
 import type { CanonEntry, CanonForceStep, CanonForceTick } from "@/types/canon.types";
 
-const { forces, selectedId = null } = defineProps<{ forces: readonly CanonEntry[]; selectedId?: string | null }>();
+const { forces, selectedId = null, arcLabel = null } = defineProps<{
+  /** The forces of the page's arc (every force when none is chosen). */
+  forces: readonly CanonEntry[];
+  selectedId?: string | null;
+  /** The name of the arc narrowing this part, or null. */
+  arcLabel?: string | null;
+}>();
 const emit = defineEmits<{ select: [id: string] }>();
 
 // A force that has ended leaves the ledger and waits under "No longer moving"; its detail opens as any other.
-const moving = computed(() => forces.filter((f) => f.closed_as === null));
-const ended = computed(() => forces.filter((f) => f.closed_as !== null));
+const store = useCanonUiStore();
+const found = computed(() => forces.filter((f) => matchesQuery(f.title, store.partQuery.forces)));
+const moving = computed(() => found.value.filter((f) => f.closed_as === null));
+const ended = computed(() => found.value.filter((f) => f.closed_as !== null));
+// Moving inside a narrowed list would be ambiguous, so the buttons wait for the whole list.
+const canReorder = computed(() => arcLabel === null && store.partQuery.forces.trim() === "");
+const reorder = useCanonReorder();
 // Transient UI state: whether the ended forces are showing.
 const showEnded = ref(false);
 
@@ -124,6 +156,9 @@ function groupBy<T>(rows: readonly T[], key: (row: T) => string): Map<string, T[
   for (const row of rows) map.set(key(row), [...(map.get(key(row)) ?? []), row]);
   return map;
 }
+
+// Under an arc the log tells only of the forces on screen, not of ones it would have to call "gone".
+const logTicks = computed(() => (data.value?.ticks ?? []).filter((t) => arcLabel === null || forces.some((f) => f.id === t.force_id)));
 
 const { mutate: undo } = useUndoForceTick();
 const nameOf = (forceId: string) => forces.find((f) => f.id === forceId)?.title ?? "A force that is gone";

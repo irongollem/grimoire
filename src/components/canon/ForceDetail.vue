@@ -16,6 +16,7 @@
           <span class="text-eyebrow text-muted-foreground">Wants</span>
           <AppInput :key="wantsRevision" v-model.lazy="wants" wrap size="body" tone="filled" aria-label="What it wants" placeholder="What it wants, in one line…" />
         </div>
+        <EntryArcPicker :entry="entry" />
         <CanonEntryNotes
           :key="entry.id"
           :entry="entry"
@@ -80,6 +81,7 @@ import ForceClock from "./ForceClock.vue";
 import ForceEndForm from "./ForceEndForm.vue";
 import ForceLog from "./ForceLog.vue";
 import ForceQuestClocks from "./ForceQuestClocks.vue";
+import EntryArcPicker from "./EntryArcPicker.vue";
 import EntryQuests from "./EntryQuests.vue";
 import ForceSteps from "./ForceSteps.vue";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";

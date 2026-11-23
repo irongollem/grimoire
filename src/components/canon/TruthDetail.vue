@@ -11,6 +11,7 @@
         aria-label="The truth"
         placeholder="What is true in this world…"
       />
+      <EntryArcPicker :entry="entry" />
       <!-- The story record cannot be opened at one fact, so the line leads to the page. -->
       <p v-if="entry.from_fact_id" class="m-0 text-caption text-muted-foreground" data-testid="truth-from-table">
         <AppButton to="/table/story" variant="link" size="inline" label="First said at the table." />
@@ -102,6 +103,7 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import WorldEntityPicker from "@/components/common/entity/WorldEntityPicker.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
+import EntryArcPicker from "./EntryArcPicker.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
 import EntryQuests from "./EntryQuests.vue";
 import CanonRef from "./CanonRef.vue";

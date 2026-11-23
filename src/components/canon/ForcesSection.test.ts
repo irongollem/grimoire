@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { canonEntry } from "@/test/canonEntry";
 
-const mocks = vi.hoisted(() => ({ create: vi.fn(), undo: vi.fn(), connect: vi.fn(), campaignId: "campaign-1" }));
+const mocks = vi.hoisted(() => ({ create: vi.fn(), undo: vi.fn(), connect: vi.fn(), reorder: vi.fn(), campaignId: "campaign-1" }));
 vi.mock("@/stores/calendar", () => ({ useCalendarStore: () => ({ adapter: { formatDate: () => "" } }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ get activeCampaignId() { return mocks.campaignId; } }) }));
-vi.mock("@/composables/canon/useCanonEntries", () => ({ useCreateCanonEntryInCampaign: () => ({ mutateAsync: mocks.create }) }));
+vi.mock("@/composables/canon/useCanonEntries", () => ({ useCreateCanonEntryInCampaign: () => ({ mutateAsync: mocks.create }), useUpdateCanonEntry: () => ({ mutateAsync: mocks.reorder }) }));
 vi.mock("@/composables/factions/useFactions", () => ({ useAllFactions: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/connections/useConnections", () => ({ useCreateConnectionInCampaign: () => ({ mutateAsync: mocks.connect }) }));
 vi.mock("@/composables/canon/useCanonForces", async (original) => ({
@@ -30,6 +31,7 @@ const forces = [canonEntry({ id: "f1", part: "force", title: "The Stain spreads"
 const mountIt = (rows = forces) => mount(ForcesSection, { props: { forces: rows }, global: { stubs: { CanonSuggestions: true, EntityCombobox: true } } });
 
 describe("ForcesSection", () => {
+  beforeEach(() => setActivePinia(createPinia()));
   beforeEach(() => { mocks.create.mockReset(); mocks.undo.mockReset(); mocks.connect.mockReset(); mocks.campaignId = "campaign-1"; });
 
   it("shows each force with its own clock and its own reached step, never another force's", () => {
@@ -46,6 +48,20 @@ describe("ForcesSection", () => {
     expect(log.get("[data-testid=force-tick-force]").text()).toBe("The Stain spreads");
     await log.get("button").trigger("click");
     expect(mocks.undo).toHaveBeenCalledWith(expect.objectContaining({ id: "t1" }));
+  });
+
+  const mountArc = (rows: typeof forces, arcLabel: string | null) => mount(ForcesSection, { props: { forces: rows, arcLabel }, global: { stubs: { CanonSuggestions: true, EntityCombobox: true } } });
+
+  // Bug caught (#1255 item 11): under an arc the log still told of other arcs' forces, naming them "a force that is gone".
+  it("under an arc the log tells only of the forces on screen", () => {
+    expect(mountArc([forces[1]], "The guild").text()).not.toContain("A force that is gone");
+    expect(mountArc([forces[0]], "The guild").get("[data-testid=force-tick-force]").text()).toBe("The Stain spreads");
+  });
+
+  // Bug caught: moving inside a narrowed list, where "up" would swap with a row that is not on screen.
+  it("offers the move buttons only while no arc narrows the list", () => {
+    expect(mountArc(forces, null).find("[data-testid=move-buttons]").exists()).toBe(true);
+    expect(mountArc(forces, "The guild").find("[data-testid=move-buttons]").exists()).toBe(false);
   });
 
   it("says nothing is moving when there are no forces", () => {

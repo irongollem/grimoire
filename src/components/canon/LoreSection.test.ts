@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import type { CanonLorePassage } from "@/types/canon.types";
@@ -21,6 +22,7 @@ const mountIt = (entries = [lore("a", "Undated tale", null), lore("b", "Late", 4
   mount(LoreSection, { props: { lore: entries }, global: { stubs: { CanonSuggestions: true, LoreRow: false, FocalImage: true } } });
 
 describe("LoreSection", () => {
+  beforeEach(() => setActivePinia(createPinia()));
   beforeEach(() => {
     mocks.create.mockReset();
     passages.value = [];
@@ -65,5 +67,21 @@ describe("LoreSection", () => {
     await flushPromises();
     expect((input.element as HTMLInputElement).value).toBe("The Fall");
     expect(w.emitted("select")).toBeUndefined();
+  });
+});
+
+describe("LoreSection search (#1255 item 11)", () => {
+  beforeEach(() => setActivePinia(createPinia()));
+  const many = () => ["Flood", "Mill", "Guild", "Moon", "Fall", "Oath"].map((t, i) => lore(`l${i}`, t, i));
+
+  it("narrows by title past five entries, and offers no manual order (lore reads by its date)", async () => {
+    const w = mountIt(many());
+    await w.find("input[type=search]").setValue("oat");
+    expect(w.findAll("[data-testid=lore-ledger] li")).toHaveLength(1);
+    expect(mountIt(many()).find("[data-testid=move-buttons]").exists()).toBe(false);
+  });
+
+  it("with five or fewer there is no search field", () => {
+    expect(mountIt().find("input[type=search]").exists()).toBe(false);
   });
 });

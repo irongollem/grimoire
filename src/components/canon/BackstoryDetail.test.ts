@@ -32,6 +32,8 @@ vi.mock("@/composables/canon/useNewBackstoryNpc", () => ({ useNewBackstoryNpc: (
 vi.mock("@/composables/sessions/useCampaignSessions", () => ({ useCampaignSessions: () => ({ data: computed(() => state.sessions) }) }));
 
 import type { Connection } from "@/types/connections.types";
+vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
+
 import BackstoryDetail from "./BackstoryDetail.vue";
 
 const member = { id: "m1", name: "Tansy", player_name: "Lotte", owner_user_id: "lotte", player_description: null } as unknown as PartyMember;

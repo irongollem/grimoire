@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import { canonEntry } from "@/test/canonEntry";
 import type { CanonLorePassage } from "@/types/canon.types";
@@ -13,6 +14,7 @@ const member = (id: string, name: string, player: string | null): PartyMember =>
 const passage = (entry_id: string, told_at: string | null, id: string): CanonLorePassage => ({ id, entry_id, told_at }) as unknown as CanonLorePassage;
 
 describe("BackstoriesSection", () => {
+  beforeEach(() => setActivePinia(createPinia()));
   const props = {
     party: [member("m1", "Tansy", "Lotte"), member("m2", "Pim", null)],
     entries: [canonEntry({ id: "b1", part: "backstory", party_member_id: "m1" }), canonEntry({ id: "b2", part: "backstory", party_member_id: "m2" })],
@@ -50,5 +52,23 @@ describe("BackstoriesSection", () => {
     const w = mount(BackstoriesSection, { props, global: { stubs: { CanonRubric: true } } });
     await w.findAll("li button")[1]?.trigger("click");
     expect(w.emitted("select")).toEqual([["m2"]]);
+  });
+});
+
+describe("BackstoriesSection search and arc (#1255 item 11)", () => {
+  beforeEach(() => setActivePinia(createPinia()));
+  const names = ["Tansy", "Pim", "Wren", "Sift", "Oro", "Bex"];
+  const party = names.map((n, i) => member(`m${i}`, n, null));
+
+  // Bug caught: the search matching the player's name or nothing, so a character could not be found by their own name.
+  it("finds a character by name", async () => {
+    const w = mount(BackstoriesSection, { props: { party, entries: [], passages: [] }, global: { stubs: { CanonRubric: true } } });
+    await w.find("input[type=search]").setValue("wre");
+    expect(w.findAll("[data-testid=backstory-ledger] li")).toHaveLength(1);
+  });
+
+  it("says nothing of this part is in the arc when no character's backstory is", () => {
+    const w = mount(BackstoriesSection, { props: { party: [], entries: [], passages: [], arcLabel: "The guild" }, global: { stubs: { CanonRubric: true } } });
+    expect(w.text()).toContain("Nothing of this part is in The guild.");
   });
 });

@@ -6,6 +6,7 @@
         <span class="text-label font-bold text-foreground" data-testid="lore-told">Told {{ tally.told }} of {{ tally.total }}</span>
       </span>
       <AppInput :key="revision" v-model.lazy="text" size="body" tone="filled" aria-label="The title" placeholder="What the world remembers…" />
+      <EntryArcPicker :entry="entry" />
     </div>
 
     <EntityImageBlock
@@ -74,6 +75,7 @@ import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
+import EntryArcPicker from "./EntryArcPicker.vue";
 import EntryQuests from "./EntryQuests.vue";
 import LorePassageRow from "./LorePassageRow.vue";
 import WorldDateField from "./WorldDateField.vue";

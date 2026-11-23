@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia, setActivePinia } from "pinia";
+import { canonEntry } from "@/test/canonEntry";
+import type { CanonEntry } from "@/types/canon.types";
 
 const { fake } = await vi.hoisted(async () => {
   const { createSupabaseFake } = await import("@/test/supabaseFake");
@@ -51,5 +53,36 @@ describe("PremiseLines add row", () => {
     await flushPromises();
     expect(boxValue(w)).toBe("Kindness is courage.");
     expect(fake.rows("canon_entries")).toEqual([]);
+  });
+});
+
+describe("PremiseLines order (#1255 item 11)", () => {
+  beforeEach(() => fake.reset());
+  const row = (id: string, kind: "line" | "veil", sort_order: number) => canonEntry({ id, part: "premise", premise_kind: kind, title: id, sort_order });
+  const RowStub = { props: ["entry", "move"], emits: ["move"], template: `<li :data-id="entry.id" :data-move="JSON.stringify(move)"><button @click="$emit('move', 1)">down</button></li>` };
+  const mountKinds = (entries: CanonEntry[]) => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    useCampaignStore().activeCampaignId = "c1";
+    return mount(PremiseLines, {
+      props: { title: "Lines and veils", itemLabel: "Line", placeholder: "…", kinds: ["line", "veil"], entries },
+      global: { plugins: [pinia, VueQueryPlugin], stubs: { PremiseLineRow: RowStub } },
+    });
+  };
+
+  // Bug caught: a line moved past a veil (or swapped with it), so the two kinds' order tangled.
+  it("moves a line only among the lines, leaving the veil between them where it is", async () => {
+    const entries = [row("a", "line", 0), row("v", "veil", 1), row("b", "line", 2)];
+    fake.seed("canon_entries", entries as never);
+    const w = mountKinds(entries);
+    await w.find("[data-id=a] button").trigger("click");
+    await flushPromises();
+    expect(Object.fromEntries(fake.rows("canon_entries").map((r) => [r.id, r.sort_order]))).toEqual({ a: 2, v: 1, b: 0 });
+  });
+
+  it("gives a lone veil no buttons: it has nowhere to go", () => {
+    const w = mountKinds([row("a", "line", 0), row("v", "veil", 1), row("b", "line", 2)]);
+    expect(w.find("[data-id=v]").attributes("data-move")).toBe("null");
+    expect(w.find("[data-id=a]").attributes("data-move")).toBe(JSON.stringify({ first: true, last: false }));
   });
 });

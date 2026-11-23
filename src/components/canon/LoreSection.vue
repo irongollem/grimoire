@@ -2,9 +2,11 @@
   <section id="canon-lore" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-lore-heading">
     <CanonRubric id="canon-lore-heading" numeral="VII" title="Lore" />
 
-    <ul v-if="ordered.length > 0" class="flex flex-col border border-border bg-card" data-testid="lore-ledger">
+    <CanonPartFind part="lore" noun="lore entry" article="a" :count="lore.length" :arc-label="arcLabel" />
+
+    <ul v-if="shown.length > 0" class="flex flex-col border border-border bg-card" data-testid="lore-ledger">
       <LoreRow
-        v-for="entry in ordered"
+        v-for="entry in shown"
         :key="entry.id"
         :entry="entry"
         :tally="tallyOf(entry.id)"
@@ -13,6 +15,13 @@
         @select="emit('select', entry.id)"
       />
     </ul>
+    <EmptyState v-else-if="lore.length > 0" class="border border-dashed border-border bg-card" title="No lore matches" description="Nothing here has those words in it." />
+    <EmptyState
+      v-else-if="arcLabel !== null"
+      class="border border-dashed border-border bg-card"
+      title="No lore in this arc"
+      :description="`Nothing of this part is in ${arcLabel}.`"
+    />
     <EmptyState
       v-else
       class="border border-dashed border-border bg-card"
@@ -41,19 +50,31 @@ import { computed, ref } from "vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import CanonAddRow from "./CanonAddRow.vue";
+import CanonPartFind from "./CanonPartFind.vue";
 import CanonRubric from "./CanonRubric.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
 import LoreRow from "./LoreRow.vue";
+import { matchesQuery } from "@/lib/canon/canonNarrow";
+import { useCanonUiStore } from "@/stores/ui/canon";
 import { LORE_KIND_OPTIONS, entryDate, sortLore, worldDateLabel } from "@/lib/canon/canonLore";
 import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { passagesOf, toldTally, useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useCalendarStore } from "@/stores/calendar";
 import type { CanonEntry, LoreKind } from "@/types/canon.types";
 
-const { lore, selectedId = null } = defineProps<{ lore: readonly CanonEntry[]; selectedId?: string | null }>();
+const { lore, selectedId = null, arcLabel = null } = defineProps<{
+  /** The lore of the page's arc (all of it when none is chosen). */
+  lore: readonly CanonEntry[];
+  selectedId?: string | null;
+  /** The name of the arc narrowing this part, or null. */
+  arcLabel?: string | null;
+}>();
 const emit = defineEmits<{ select: [id: string] }>();
 
 const ordered = computed(() => sortLore(lore));
+const store = useCanonUiStore();
+// Lore reads by its date in the world, so it has a search and no manual order.
+const shown = computed(() => ordered.value.filter((e) => matchesQuery(e.title, store.partQuery.lore)));
 const { data: passages } = useCanonPassages();
 const tallyOf = (id: string) => toldTally(passagesOf(passages.value ?? [], id));
 const calendar = useCalendarStore();

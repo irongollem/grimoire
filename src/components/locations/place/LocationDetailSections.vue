@@ -218,6 +218,9 @@
     <!-- Clues placed at this place (#1226), DM only. -->
     <CanonHere :key="`canon-${location.id}`" kind="location" :id="location.id" />
 
+    <!-- The habitat this place lies in and what lives there (#1255 item 31), DM only. -->
+    <PlaceHabitat :key="`habitat-${location.id}`" :place-id="location.id" />
+
     <!-- Connections (#1084): after Members, before Mentioned in. A long list of residents is one line
          here that points at People in the Area. Keyed by place like the backlinks below. -->
     <ConnectionsSection :key="`connections-${location.id}`" :subject="{ kind: 'location', id: location.id }" :subject-name="location.name" />
@@ -234,6 +237,7 @@ import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
 import CanonHere from "@/components/canon/CanonHere.vue";
+import PlaceHabitat from "@/components/canon/ecology/PlaceHabitat.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import LocationDoors from "@/components/locations/place/LocationDoors.vue";

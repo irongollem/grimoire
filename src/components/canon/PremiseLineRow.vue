@@ -21,6 +21,7 @@
       :name="entry.title"
       @change="(next) => update({ id: entry.id, patch: { player_visible_to: next } })"
     />
+    <CanonMoveButtons v-if="move" :label="entry.title" :first="move.first" :last="move.last" @move="(d) => emit('move', d)" />
     <AppButton variant="ghost" size="icon-sm" :icon="IconDelete" aria-label="Delete this entry" @click="remove" />
   </li>
 </template>
@@ -34,6 +35,7 @@
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import CanonMoveButtons from "./CanonMoveButtons.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import { useTrashCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
@@ -41,7 +43,13 @@ import { useConfirm } from "@/composables/useConfirm";
 import { IconDelete } from "@/lib/icons";
 import type { CanonEntry } from "@/types/canon.types";
 
-const { entry, label } = defineProps<{ entry: CanonEntry; label: string }>();
+const { entry, label, move = null } = defineProps<{
+  entry: CanonEntry;
+  label: string;
+  /** Up and down within its kind; `null` hides them. */
+  move?: { first: boolean; last: boolean } | null;
+}>();
+const emit = defineEmits<{ move: [direction: -1 | 1] }>();
 
 const { mutate: update } = useUpdateCanonEntry();
 const { mutate: destroy } = useTrashCanonEntry();
