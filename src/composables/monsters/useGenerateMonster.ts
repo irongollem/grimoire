@@ -31,6 +31,8 @@ export interface GenerateMonsterOutcome {
    * saved either way, so a caller can say so and offer to paint it again (Ask Grimoire does).
    */
   picture: "none" | "saved" | "failed";
+  /** The saved picture's URL when `picture` is "saved", so a caller can show it (Ask's result card). */
+  pictureUrl: string | null;
 }
 
 export function useGenerateMonster() {
@@ -57,13 +59,13 @@ export function useGenerateMonster() {
     options: MonsterGenerationOptions & { nameOverride?: string } = {},
   ): Promise<GenerateMonsterOutcome> {
     if (isAnyAiGenerating.value) {
-      return { id: null, error: "Another AI generation is already in progress.", name: null, picture: "none" };
+      return { id: null, error: "Another AI generation is already in progress.", name: null, picture: "none", pictureUrl: null };
     }
 
     const { nameOverride, ...generationOptions } = options;
     const result = await generate(concept, generationOptions);
     if (!result) {
-      return { id: null, error: genError.value ?? "Monster generation failed.", name: null, picture: "none" };
+      return { id: null, error: genError.value ?? "Monster generation failed.", name: null, picture: "none", pictureUrl: null };
     }
 
     const name = nameOverride ?? result.name;
@@ -90,7 +92,7 @@ export function useGenerateMonster() {
     });
 
     const asked = generationOptions.generateImage !== false;
-    return { id: created.id, error: null, name, picture: !asked ? "none" : result.image_url ? "saved" : "failed" };
+    return { id: created.id, error: null, name, picture: !asked ? "none" : result.image_url ? "saved" : "failed", pictureUrl: result.image_url ?? null };
   }
 
   return { generateAndCreateMonster };

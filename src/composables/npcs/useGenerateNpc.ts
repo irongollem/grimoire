@@ -29,7 +29,8 @@ import { getNpcTemplate } from "@/data/npcTemplates";
 import { getCalendarAdapter } from "@/settings/index";
 import { generatedBirthFromAge } from "@/lib/npcGenerator/generatedBirth";
 import { kinInsertFor, parsePersonKey, personKey } from "@/lib/kinship/keys";
-import { kinPromptLine, type GeneratorKinRelation, type PromptPerson } from "@/lib/npcGenerator/kinPrompt";
+import { GENERATOR_KIN_RELATIONS, kinPromptLine, type GeneratorKinRelation, type PromptPerson } from "@/lib/npcGenerator/kinPrompt";
+import type { KinOffer } from "@/lib/npcGenerator/kinOffers";
 import { npcStarterStatTemplate } from "@/lib/npcGenerator/starterStats";
 import { npcStarterInventory, type NpcStarterInventoryPack } from "@/lib/npcGenerator/inventorySets";
 import { itemRefColumns } from "@/lib/itemRef";
@@ -58,6 +59,11 @@ export interface NpcGenerateForm {
   related_pc_id: string | null;
   /** The other parent when the new NPC is a child. */
   second_parent: PersonKey | null;
+  /**
+   * The rest of the family the DM ticked (`kinOffers`: a new parent's other children, a new sibling's parents...),
+   * each written as its own kin link. Only a family tie offers them, so they are ignored without `related_npc_kin`.
+   */
+  also_kin: readonly KinOffer[];
 }
 
 /** The rows the generation context names things from, read by the caller (a panel reads them only while open). */
@@ -94,6 +100,12 @@ export function buildNpcAiContext(
   const kinPeople = kinPromptPeople(form, sources);
   if (form.related_npc_kin && kinPeople.length > 0) {
     constraints.push(kinPromptLine(form.related_npc_kin, kinPeople, sources.todayYear));
+    // The rest of the family the DM ticked, so a new parent is old enough for every child, not only the first.
+    for (const relation of GENERATOR_KIN_RELATIONS) {
+      if (relation === form.related_npc_kin) continue;
+      const others = promptPeople(form.also_kin.filter((o) => o.relation === relation).map((o) => o.key), sources);
+      if (others.length > 0) constraints.push(kinPromptLine(relation, others, sources.todayYear));
+    }
   } else if (form.related_pc_id || form.related_npc_id) {
     // A bond with a party member (Ask can name one; the page's picker only lists NPCs for a bond).
     const other = form.related_pc_id
@@ -114,13 +126,21 @@ export function buildNpcAiContext(
   return constraints.join("\n");
 }
 
-/** The family tie's other ends: the associate, then the second parent, as the prompt names them. */
+/**
+ * The family tie's other ends: the associate, then the second parent, then the ticked rest of the family who share
+ * the tie (a parent's other children), as the prompt names them.
+ */
 function kinPromptPeople(form: NpcGenerateForm, sources: NpcContextSources): PromptPerson[] {
-  const people: PromptPerson[] = [];
   const keys: PersonKey[] = [];
   if (form.related_pc_id) keys.push(personKey("pc", form.related_pc_id));
   else if (form.related_npc_id) keys.push(personKey("npc", form.related_npc_id));
   if (form.related_npc_kin === "child" && form.second_parent) keys.push(form.second_parent);
+  keys.push(...form.also_kin.filter((o) => o.relation === form.related_npc_kin).map((o) => o.key));
+  return promptPeople(keys, sources);
+}
+
+function promptPeople(keys: readonly PersonKey[], sources: NpcContextSources): PromptPerson[] {
+  const people: PromptPerson[] = [];
   for (const key of keys) {
     const { type, id } = parsePersonKey(key);
     const row = (type === "npc" ? sources.npcs : sources.party).find((p) => p.id === id);
@@ -162,6 +182,8 @@ export interface GenerateNpcOutcome {
   error: string | null;
   stage: "prepare" | "generate" | "saved";
   portrait: PictureState;
+  /** The saved portrait's URL when `portrait` is "saved", so a caller can show it (Ask's result card). */
+  portraitUrl: string | null;
   disguisePortrait: PictureState;
   /** Ties the DM chose that could not be written; the NPC is saved anyway. */
   linkErrors: string[];
@@ -171,7 +193,7 @@ export interface GenerateNpcOutcome {
 
 function noOutcome(stage: "prepare" | "generate", error: string | null): GenerateNpcOutcome {
   return {
-    id: null, name: null, error, stage, portrait: "none", disguisePortrait: "none", linkErrors: [], inventoryError: null,
+    id: null, name: null, error, stage, portrait: "none", portraitUrl: null, disguisePortrait: "none", linkErrors: [], inventoryError: null,
   };
 }
 
@@ -243,11 +265,14 @@ export function useGenerateNpc() {
       else if (form.related_npc_id) others.push(personKey("npc", form.related_npc_id));
       if (form.related_npc_kin === "child" && form.second_parent) others.push(form.second_parent);
       // The second parent can end up naming the associate (the DM picks it, then changes the associate), and a
-      // pair holds one link: write each person once.
+      // pair holds one link: write each person once, the named tie before the ticked rest of the family.
       const self = personKey("npc", npcId);
-      for (const other of new Set(others.filter((o) => o !== self))) {
+      const ties = new Map<PersonKey, GeneratorKinRelation>();
+      for (const other of others) if (other !== self && !ties.has(other)) ties.set(other, form.related_npc_kin);
+      for (const offer of form.also_kin) if (offer.key !== self && !ties.has(offer.key)) ties.set(offer.key, offer.relation);
+      for (const [other, relation] of ties) {
         try {
-          await createKinLink({ input: kinInsertFor(subject, form.related_npc_kin, other), campaignId });
+          await createKinLink({ input: kinInsertFor(subject, relation, other), campaignId });
         } catch (error: unknown) {
           errors.push(`family tie: ${toast.fromError(error)}`);
         }
@@ -385,6 +410,7 @@ export function useGenerateNpc() {
       error: null,
       stage: "saved",
       portrait: pictureState(request.generateImage, result.portrait_url),
+      portraitUrl: result.portrait_url ?? null,
       // The alter ego's picture is painted from the true one, so no portrait means none of the two was asked of the model.
       disguisePortrait: pictureState(request.generateImage && request.generateAlterEgo, result.disguise_portrait_url),
       linkErrors,

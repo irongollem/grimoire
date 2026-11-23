@@ -20,10 +20,10 @@
  */
 import { computed, ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
-import type { AskAdapter, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
+import type { AskAdapter, AskChoices, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
 import { askFlag, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
-import { askLinkLines, conceptBlock, failedRun, picturePart, readAskLinks, resolveAskLinks, spent } from "@/ai/ask/adapters/askAdapterKit";
+import { askChoice, askLinkLines, chosenAskLinks, conceptBlock, failedRun, picturePart, readAskLinks, resolveAskLinks, spent } from "@/ai/ask/adapters/askAdapterKit";
 import { useAskLinkRecords } from "@/ai/ask/adapters/askLinkRecords";
 import type { AskLink } from "@edge-shared/agent/askLinks";
 import { useCampaignStore } from "@/stores/campaign";
@@ -79,18 +79,22 @@ export function useFactionAskAdapter(): AskAdapter {
     };
   }
 
-  function quote(proposal: AskProposal): AskQuote {
+  function quote(proposal: AskProposal, choices?: AskChoices): AskQuote {
     const read = understand(proposal);
     const priced = quoteFaction({ image: read.image });
+
+    // The two ties to a record that already exists are each a yes or no; a leader named only as text writes nothing.
+    const leaderChoice = askChoice(choices, "leader_npc_id", true);
+    const headquartersChoice = askChoice(choices, "headquarters_id", true);
 
     const lines: AskQuoteLine[] = [];
     if (read.factionType) lines.push({ label: "Type", value: read.factionType, credits: null });
     if (read.alignment) lines.push({ label: "Alignment", value: read.alignment, credits: null });
-    if (read.leader) lines.push({ label: "Leader", value: `${read.leader.name}, from your NPCs`, credits: null });
+    if (read.leader) lines.push({ label: "Leader", value: `${read.leader.name}, from your NPCs`, credits: null, choice: leaderChoice });
     else if (read.leaderName) lines.push({ label: "Leader", value: `${read.leaderName}, named only`, credits: null });
-    if (read.headquarters) lines.push({ label: "Headquarters", value: `${read.headquarters.name}, from your Atlas`, credits: null });
+    if (read.headquarters) lines.push({ label: "Headquarters", value: `${read.headquarters.name}, from your Atlas`, credits: null, choice: headquartersChoice });
     else if (read.headquartersName) lines.push({ label: "Headquarters", value: `${read.headquartersName}, named only`, credits: null });
-    lines.push(...askLinkLines(read.links));
+    lines.push(...askLinkLines(read.links, choices));
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Emblem", value: "None", credits: null });
@@ -105,11 +109,14 @@ export function useFactionAskAdapter(): AskAdapter {
     return { lines, total: priced.total, byok: priced.byok, block };
   }
 
-  async function run(proposal: AskProposal): Promise<AskRunResult> {
+  async function run(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult> {
     // The state may have moved since the DM read the quote: the same gates, again, before anything is spent.
-    const current = quote(proposal);
+    const current = quote(proposal, choices);
     if (current.block) return failedRun("Faction", current.block.message);
     const read = understand(proposal);
+    // A tie at no is written as if the proposal had not named it: no leader or headquarters row, only the typed name.
+    const leader = askChoice(choices, "leader_npc_id", true).on ? read.leader : null;
+    const headquarters = askChoice(choices, "headquarters_id", true).on ? read.headquarters : null;
 
     let outcome;
     try {
@@ -117,11 +124,11 @@ export function useFactionAskAdapter(): AskAdapter {
         faction_type: read.factionType ?? undefined,
         alignment: read.alignment ?? undefined,
         // The page words a picked leader as "Name (occupation)"; a name only is as the DM said it.
-        leader_name: read.leader ? (read.leader.occupation ? `${read.leader.name} (${read.leader.occupation})` : read.leader.name) : read.leaderName ?? undefined,
-        headquarters_name: read.headquarters ? read.headquarters.name : read.headquartersName ?? undefined,
-        leaderNpcId: read.leader?.id ?? null,
-        headquartersLocationId: read.headquarters?.id ?? null,
-        links: read.links,
+        leader_name: leader ? (leader.occupation ? `${leader.name} (${leader.occupation})` : leader.name) : read.leaderName ?? undefined,
+        headquarters_name: headquarters ? headquarters.name : read.headquartersName ?? undefined,
+        leaderNpcId: leader?.id ?? null,
+        headquartersLocationId: headquarters?.id ?? null,
+        links: chosenAskLinks(read.links, choices),
         // Explicit either way: left out, the generator paints an emblem.
         generateImage: read.image,
       });
@@ -159,7 +166,7 @@ export function useFactionAskAdapter(): AskAdapter {
     if (otherErrors.length) {
       parts.push({ label: "Connections", ok: false, credits: 0, error: `Some connections could not be added: ${otherErrors.join("; ")}` });
     }
-    return { record: { type: "faction", id, name: outcome.name }, route: `/factions/${id}`, parts };
+    return { record: { type: "faction", id, name: outcome.name }, route: `/factions/${id}`, parts, picture: outcome.picture === "saved" && outcome.pictureUrl !== null ? outcome.pictureUrl : undefined };
   }
 
   return { id: "faction", quote, run };

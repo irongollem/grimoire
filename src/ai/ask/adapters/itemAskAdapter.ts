@@ -11,10 +11,10 @@
  */
 import { ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
-import type { AskAdapter, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
+import type { AskAdapter, AskChoices, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
 import { askFlag, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
-import { askLinkLines, conceptBlock, failedRun, matchKey, picturePart, readAskLinks, resolveAskLinks, spent } from "@/ai/ask/adapters/askAdapterKit";
+import { askLinkLines, chosenAskLinks, conceptBlock, failedRun, matchKey, picturePart, readAskLinks, resolveAskLinks, spent } from "@/ai/ask/adapters/askAdapterKit";
 import { useAskLinkRecords } from "@/ai/ask/adapters/askLinkRecords";
 import type { AskLink } from "@edge-shared/agent/askLinks";
 import { useMissingPortrait } from "@/ai/useMissingPortrait";
@@ -54,7 +54,7 @@ export function useItemAskAdapter(): AskAdapter {
     };
   }
 
-  function quote(proposal: AskProposal): AskQuote {
+  function quote(proposal: AskProposal, choices?: AskChoices): AskQuote {
     const read = understand(proposal);
     const priced = quoteItem({ image: read.image });
 
@@ -62,7 +62,7 @@ export function useItemAskAdapter(): AskAdapter {
     if (read.itemType) lines.push({ label: "Type", value: ITEM_TYPE_LABELS[read.itemType], credits: null });
     if (read.rarity) lines.push({ label: "Rarity", value: ITEM_RARITY_LABELS[read.rarity], credits: null });
     if (read.cursed) lines.push({ label: "Curse", value: "Cursed, the AI chooses the curse", credits: null });
-    lines.push(...askLinkLines(read.links));
+    lines.push(...askLinkLines(read.links, choices));
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
@@ -72,9 +72,9 @@ export function useItemAskAdapter(): AskAdapter {
     return { lines, total: priced.total, byok: priced.byok, block };
   }
 
-  async function run(proposal: AskProposal): Promise<AskRunResult> {
+  async function run(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult> {
     // The state may have moved since the DM read the quote: the same gates, again, before anything is spent.
-    const current = quote(proposal);
+    const current = quote(proposal, choices);
     if (current.block) return failedRun("Item", current.block.message);
     const read = understand(proposal);
 
@@ -86,7 +86,7 @@ export function useItemAskAdapter(): AskAdapter {
         cursed: read.cursed || undefined,
         // Explicit either way: left out, the generator paints a picture.
         generateImage: read.image,
-        links: read.links,
+        links: chosenAskLinks(read.links, choices),
       });
     } catch (e) {
       const message = isQuotaExceeded(e)
@@ -111,7 +111,7 @@ export function useItemAskAdapter(): AskAdapter {
     if (outcome.linkErrors.length) {
       parts.push({ label: "Connections", ok: false, credits: 0, error: `Some connections could not be added: ${outcome.linkErrors.join("; ")}` });
     }
-    return { record: { type: "item", id, name }, route: `/vault/${id}`, parts };
+    return { record: { type: "item", id, name }, route: `/vault/${id}`, parts, picture: outcome.picture === "saved" && outcome.pictureUrl !== null ? outcome.pictureUrl : undefined };
   }
 
   return { id: "item", quote, run };

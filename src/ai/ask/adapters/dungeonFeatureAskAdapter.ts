@@ -82,7 +82,7 @@ export function useDungeonFeatureAskAdapter(): AskAdapter {
       const credits = spent(current.lines.find((l) => l.label === "Picture"));
       parts.push(picturePart({ saved: outcome.picture === "saved", credits, noun: "feature" }));
     }
-    return { record: { type: "other", id: outcome.id, name: outcome.name }, route: `/dungeon-features/${outcome.id}`, parts };
+    return { record: { type: "other", id: outcome.id, name: outcome.name }, route: `/dungeon-features/${outcome.id}`, parts, picture: outcome.picture === "saved" && outcome.pictureUrl !== null ? outcome.pictureUrl : undefined };
   }
 
   return { id: "dungeon_feature", quote, run };

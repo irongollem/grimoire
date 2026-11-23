@@ -1,6 +1,16 @@
 <template>
   <section class="flex flex-col gap-2 border border-border bg-card px-3 py-2.5" :aria-label="`${item.name} result`" data-testid="ask-result">
     <h3 class="text-body font-bold text-foreground">{{ item.review ? "Suggestions are ready" : `${item.name} is ready` }}</h3>
+    <!-- What was painted, so the DM sees the face without leaving the page they asked from; marked as AI like every picture. -->
+    <div v-if="picture" class="relative w-full max-w-60 self-start">
+      <img
+        :src="picture"
+        :alt="`${item.name}, as painted`"
+        class="aspect-square w-full border border-border object-cover"
+        data-testid="ask-result-picture"
+      />
+      <AiImageBadge :src="picture" />
+    </div>
     <ul class="flex flex-col gap-1.5">
       <li v-for="(part, i) in item.parts" :key="`${part.label}:${i}`" class="flex flex-col gap-1">
         <div class="flex items-start gap-2 text-body">
@@ -38,6 +48,7 @@ import { useRouter } from "vue-router";
 import { IconCheck, IconClose } from "@/lib/icons";
 import type { AskItem, ResultPart } from "@/composables/ask/useAskConversation";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
 
 const { item } = defineProps<{ item: Extract<AskItem, { kind: "result" }> }>();
 const emit = defineEmits<{ retry: [index: number]; leave: [index: number] }>();
@@ -49,6 +60,12 @@ async function openInPage(route: string, open: () => void) {
   await router.push(route);
   open();
 }
+
+/** A repainted part's picture replaces the first one: the newest is the one now on the record. */
+const picture = computed(() => {
+  const repainted = [...item.parts].reverse().find((part) => part.ok && part.picture);
+  return repainted?.picture ?? item.picture ?? null;
+});
 
 const openLabel = computed(() => (item.review ? "Review suggestions" : `Open ${item.noun}`));
 

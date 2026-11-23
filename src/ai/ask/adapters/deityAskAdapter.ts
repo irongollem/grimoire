@@ -12,10 +12,10 @@
  */
 import { computed, ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
-import type { AskAdapter, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
+import type { AskAdapter, AskChoices, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
 import { askFlag, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
-import { askLinkLines, conceptBlock, failedRun, matchOption, picturePart, readAskLinks, resolveAskLinks, saveFailure, spent } from "@/ai/ask/adapters/askAdapterKit";
+import { askChoice, askLinkLines, chosenAskLinks, conceptBlock, failedRun, matchOption, picturePart, readAskLinks, resolveAskLinks, saveFailure, spent } from "@/ai/ask/adapters/askAdapterKit";
 import { useAskLinkRecords } from "@/ai/ask/adapters/askLinkRecords";
 import type { AskLink } from "@edge-shared/agent/askLinks";
 import { useCampaignStore } from "@/stores/campaign";
@@ -65,15 +65,16 @@ export function useDeityAskAdapter(): AskAdapter {
     };
   }
 
-  function quote(proposal: AskProposal): AskQuote {
+  function quote(proposal: AskProposal, choices?: AskChoices): AskQuote {
     const read = understand(proposal);
     const priced = quoteDeity({ image: read.image });
 
     const lines: AskQuoteLine[] = [];
-    if (read.pantheon) lines.push({ label: "Pantheon", value: read.pantheon.name, credits: null });
+    // The pantheon is an existing record the deity would join: a yes or no.
+    if (read.pantheon) lines.push({ label: "Pantheon", value: read.pantheon.name, credits: null, choice: askChoice(choices, "pantheon_id", true) });
     if (read.alignment) lines.push({ label: "Alignment", value: read.alignment, credits: null });
     if (read.domain) lines.push({ label: "Domain", value: read.domain, credits: null });
-    lines.push(...askLinkLines(read.links));
+    lines.push(...askLinkLines(read.links, choices));
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
@@ -85,22 +86,24 @@ export function useDeityAskAdapter(): AskAdapter {
     return { lines, total: priced.total, byok: priced.byok, block };
   }
 
-  async function run(proposal: AskProposal): Promise<AskRunResult> {
+  async function run(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult> {
     // The state may have moved since the DM read the quote: the same gates, again, before anything is spent.
-    const current = quote(proposal);
+    const current = quote(proposal, choices);
     if (current.block) return failedRun("Deity text", current.block.message);
     const read = understand(proposal);
+    // A pantheon at no is left out as if the proposal had not named it.
+    const pantheon = askChoice(choices, "pantheon_id", true).on ? read.pantheon : null;
 
     let outcome;
     try {
       outcome = await generateAndCreateDeity(read.concept, {
-        pantheon: read.pantheon ?? undefined,
+        pantheon: pantheon ?? undefined,
         deities: deities.value,
         alignment: read.alignment ?? undefined,
         primaryDomain: read.domain ?? undefined,
         // Explicit either way: left out, the generator paints a picture.
         generateImage: read.image,
-        links: read.links,
+        links: chosenAskLinks(read.links, choices),
       });
     } catch (e) {
       return failedRun("Deity text", saveFailure(e, "deities", "The deity could not be saved."));
@@ -120,7 +123,7 @@ export function useDeityAskAdapter(): AskAdapter {
         ? { label: "Picture", ok: true, credits: spent(current.lines.find((l) => l.label === "Picture")) }
         : picturePart({ saved: false, credits: 0, noun: "deity" }));
     }
-    return { record: { type: "deity", id, name }, route: `/deities/${id}`, parts };
+    return { record: { type: "deity", id, name }, route: `/deities/${id}`, parts, picture: outcome.picture === "saved" && outcome.pictureUrl !== null ? outcome.pictureUrl : undefined };
   }
 
   return { id: "deity", quote, run };

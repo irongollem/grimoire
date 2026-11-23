@@ -17,6 +17,8 @@ const state = vi.hoisted(() => ({
   party: undefined as { id: string; name: string; born_year?: number | null }[] | undefined,
   /** `kind:id` to name for the records the ties name; undefined while "reading". */
   linkNames: new Map<string, string>() as Map<string, string> | undefined,
+  /** The campaign's kin links; undefined while "reading". */
+  kinLinks: [] as { kind: string; from_npc_id: string | null; from_party_member_id: string | null; to_npc_id: string | null; to_party_member_id: string | null }[] | undefined,
 }));
 
 vi.mock("@/stores/campaign", () => ({
@@ -57,6 +59,9 @@ vi.mock("@/ai/ask/adapters/askLinkRecords", () => ({
     failed: computed(() => false),
   }),
 }));
+vi.mock("@/composables/kinship/useKinLinks", () => ({
+  useKinLinks: () => ({ data: { get value() { return state.kinLinks; } } }),
+}));
 vi.mock("@/ai/useMissingPortrait", () => ({
   useMissingPortrait: () => ({ paint: mocks.paint, cost: ref(10), error: ref(null) }),
 }));
@@ -88,6 +93,7 @@ describe("useNpcAskAdapter", () => {
     state.factions = [{ id: "f1", name: "Guild" }];
     state.npcs = [{ id: "n-smuggler", name: "Perf Smuggler", born_year: 1450 }, { id: "n-odo", name: "Odo", born_year: 1440 }];
     state.party = [{ id: "pc-thorne", name: "Thorne" }];
+    state.kinLinks = [];
     state.linkNames = new Map();
     mocks.generateAndCreateNpc.mockResolvedValue(saved());
   });
@@ -334,5 +340,72 @@ describe("useNpcAskAdapter", () => {
       state.npcs = undefined;
       expect(useNpcAskAdapter().quote(proposal({ related_npc_id: UUID_N, relation: "friend" })).block?.reason).toBe("missing");
     });
+
+    it("waits for the family before offering the rest of it", () => {
+      state.kinLinks = undefined;
+      expect(useNpcAskAdapter().quote(proposal({ related_npc_id: UUID_N, relation: "parent" })).block?.reason).toBe("missing");
+    });
+  });
+
+  describe("a yes or no on everything that changes a record that exists", () => {
+    const request = () => mocks.generateAndCreateNpc.mock.calls[0][0];
+    // Odo is the parent of Perf and of Nella, so a new parent of Perf is offered Nella.
+    beforeEach(() => {
+      state.npcs = [...(state.npcs ?? []), { id: "n-nella", name: "Nella", born_year: 1460 }];
+      state.kinLinks = [
+        { kind: "parent", from_npc_id: "n-odo", from_party_member_id: null, to_npc_id: "n-smuggler", to_party_member_id: null },
+        { kind: "parent", from_npc_id: "n-odo", from_party_member_id: null, to_npc_id: "n-nella", to_party_member_id: null },
+      ];
+      mocks.generateAndCreateNpc.mockResolvedValue(saved());
+    });
+    const asParent = () => proposal({ related_npc_id: "n-smuggler", relation: "parent", location_id: "l1", faction_id: "f1" });
+
+    it("offers a new parent the relative's sibling at no, and writes nothing for them unticked", async () => {
+      const adapter = useNpcAskAdapter();
+      const line = adapter.quote(asParent()).lines.find((l) => l.value === "Nella");
+      expect(line).toMatchObject({ label: "Also parent of", choice: { key: "kin:parent:npc:n-nella", on: false } });
+      await adapter.run(asParent());
+      expect(request().form.also_kin).toEqual([]);
+    });
+
+    it("writes the sibling once the DM ticks them, and tells the model their age", async () => {
+      await useNpcAskAdapter().run(asParent(), { "kin:parent:npc:n-nella": true });
+      expect(request().form.also_kin).toEqual([{ key: "npc:n-nella", relation: "parent" }]);
+      expect(request().context).toContain("Nella (born 1460");
+    });
+
+    it("starts what the proposal named at yes, and a line set to no reaches the workflow as not named", async () => {
+      const adapter = useNpcAskAdapter();
+      const lines = adapter.quote(asParent()).lines;
+      expect(lines.find((l) => l.label === "Lives in")?.choice).toEqual({ key: "location", on: true });
+      expect(lines.find((l) => l.label === "Faction")?.choice).toEqual({ key: "faction", on: true });
+      await adapter.run(asParent(), { location: false, faction: false });
+      expect(request().form).toMatchObject({ location_id: null, faction_id: null, related_npc_id: "n-smuggler", related_npc_kin: "parent" });
+    });
+
+    it("drops the family with the relative: no tie, no other parent, no offered sibling", async () => {
+      const adapter = useNpcAskAdapter();
+      const choices = { related: false, "kin:parent:npc:n-nella": true };
+      expect(adapter.quote(asParent(), choices).lines.some((l) => l.value === "Nella")).toBe(false);
+      await adapter.run(asParent(), choices);
+      expect(request().form).toMatchObject({ related_npc_id: null, related_npc_kin: null, also_kin: [] });
+    });
+
+    it("never writes a generic tie the DM set to no", async () => {
+      state.linkNames = new Map([["deity:11111111-1111-4111-8111-111111111111", "Auril"]]);
+      const withTie = proposal({ links: [{ kind: "deity", id: "11111111-1111-4111-8111-111111111111", relation: "worships" }] });
+      const adapter = useNpcAskAdapter();
+      const key = adapter.quote(withTie).lines.find((l) => l.value === "Auril")?.choice?.key;
+      expect(key).toBeDefined();
+      await adapter.run(withTie, { [key as string]: false });
+      expect(request().links).toEqual([]);
+    });
+  });
+
+  it("puts a saved portrait on the result so the chat can show it, and none when it failed", async () => {
+    mocks.generateAndCreateNpc.mockResolvedValue(saved({ portrait: "saved", portraitUrl: "https://img/mira.webp" }));
+    expect((await useNpcAskAdapter().run(proposal({ portrait: true }))).picture).toBe("https://img/mira.webp");
+    mocks.generateAndCreateNpc.mockResolvedValue(saved({ portrait: "failed", portraitUrl: null }));
+    expect((await useNpcAskAdapter().run(proposal({ portrait: true }))).picture).toBeUndefined();
   });
 });

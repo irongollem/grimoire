@@ -84,7 +84,7 @@ export function useTrapAskAdapter(): AskAdapter {
       const credits = spent(current.lines.find((l) => l.label === "Picture"));
       parts.push(picturePart({ saved: outcome.picture === "saved", credits, noun: "trap" }));
     }
-    return { record: { type: "other", id: outcome.id, name: outcome.name }, route: `/traps/${outcome.id}`, parts };
+    return { record: { type: "other", id: outcome.id, name: outcome.name }, route: `/traps/${outcome.id}`, parts, picture: outcome.picture === "saved" && outcome.pictureUrl !== null ? outcome.pictureUrl : undefined };
   }
 
   return { id: "trap", quote, run };

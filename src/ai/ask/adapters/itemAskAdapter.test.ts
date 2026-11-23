@@ -152,4 +152,30 @@ describe("useItemAskAdapter", () => {
     expect(thrown.record).toBeNull();
     expect(thrown.parts[0]).toMatchObject({ ok: false, error: "save failed" });
   });
+
+  // Bug caught: a painted item was saved but never reached the result card, so the DM could not see it in the chat.
+  it("puts a saved picture's URL on the result so the chat can show it, and leaves it unset when the picture failed", async () => {
+    mocks.generateAndCreateItem.mockResolvedValueOnce(saved({ picture: "saved", pictureUrl: "https://img/item.webp" }));
+    expect((await useItemAskAdapter().run(proposal({ image: true }))).picture).toBe("https://img/item.webp");
+    mocks.generateAndCreateItem.mockResolvedValueOnce(saved({ picture: "failed", pictureUrl: null }));
+    expect((await useItemAskAdapter().run(proposal({ image: true }))).picture).toBeUndefined();
+  });
+
+  describe("yes or no on ties", () => {
+    const BRENNA = "00000000-0000-4000-8000-0000000000c1";
+    const links = [{ kind: "npc", id: BRENNA, relation: "carried_by" }];
+    // Bug caught: a tie the DM unticked on the quote was still written, because run ignored the answers.
+    it("a tie at no never reaches the workflow's links, and unanswered it does", async () => {
+      state.linkNames = new Map([[`npc:${BRENNA}`, "Brenna"]]);
+      const adapter = useItemAskAdapter();
+      const line = adapter.quote(proposal({ links })).lines.find((l) => l.value === "Brenna");
+      expect(line?.choice).toMatchObject({ on: true });
+      await adapter.run(proposal({ links }));
+      expect(mocks.generateAndCreateItem.mock.calls[0][1].links).toHaveLength(1);
+      const key = line!.choice!.key;
+      expect(adapter.quote(proposal({ links }), { [key]: false }).lines.find((l) => l.value === "Brenna")?.choice?.on).toBe(false);
+      await adapter.run(proposal({ links }), { [key]: false });
+      expect(mocks.generateAndCreateItem.mock.calls[1][1].links).toEqual([]);
+    });
+  });
 });

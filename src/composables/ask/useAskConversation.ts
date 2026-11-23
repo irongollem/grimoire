@@ -33,7 +33,19 @@ export type AskItem =
   | { kind: "ask"; id: number; question: string; choices: AskChoice[]; answered: boolean }
   | { kind: "read"; id: number; records: AskRecordRef[] }
   | { kind: "ideas"; id: number; ideas: AskIdea[]; handedOff: number[] }
-  | { kind: "proposal"; id: number; proposal: AskProposal; state: "quote" | "cancelled" | "running" | "done" | "failed" }
+  | {
+      kind: "proposal";
+      id: number;
+      proposal: AskProposal;
+      state: "quote" | "cancelled" | "running" | "done" | "failed";
+      /** The DM's yes or no to each line that would change an existing record; read by the quote and the run. */
+      choices: Record<string, boolean>;
+      /**
+       * Where the finished run landed: a run never holds up the conversation, so its result (or its failure) is added
+       * at the bottom when it ends, and the proposal's own place links to it.
+       */
+      landedAt?: number;
+    }
   | { kind: "confirmed"; id: number; text: string }
   | {
       kind: "result";
@@ -45,6 +57,8 @@ export type AskItem =
       route: string | null;
       /** A result that lives in the page's own panel: opened there after navigating to `route`. */
       open?: () => void;
+      /** The picture the run made, shown on the card. */
+      picture?: string;
       parts: ResultPart[];
     }
   | { kind: "upsell"; id: number }
@@ -208,7 +222,7 @@ export function useAskConversation(deps: AskConversationDeps) {
             const generator = askGenerator(event.proposal.generator);
             if (reply && generator) reply.who = `${generator.noun} generator`;
             reply = null;
-            push({ kind: "proposal", proposal: event.proposal, state: "quote" });
+            push({ kind: "proposal", proposal: event.proposal, state: "quote", choices: {} });
             break;
           }
           case "done":
@@ -271,6 +285,7 @@ export function useAskConversation(deps: AskConversationDeps) {
     push({
       kind: "proposal",
       state: "quote",
+      choices: {},
       proposal: { proposalId: crypto.randomUUID(), generator: idea.handoff.generator, concept: idea.handoff.concept, inputs: idea.handoff.inputs },
     });
   }
@@ -279,6 +294,13 @@ export function useAskConversation(deps: AskConversationDeps) {
     const item = find(itemId, "proposal");
     if (item?.state !== "quote") return;
     item.proposal = { ...item.proposal, inputs };
+  }
+
+  /** A yes or no on a line of the quote. Only while it is a quote: a running or finished one has already been decided. */
+  function decide(itemId: number, key: string, on: boolean) {
+    const item = find(itemId, "proposal");
+    if (item?.state !== "quote") return;
+    item.choices = { ...item.choices, [key]: on };
   }
 
   function cancel(itemId: number) {
@@ -290,10 +312,12 @@ export function useAskConversation(deps: AskConversationDeps) {
     const item = find(itemId, "proposal");
     if (item?.state !== "quote") return;
     const { proposal } = item;
+    // The answers as they stand at the press: a change after it cannot reach a run already under way.
+    const choices = { ...item.choices };
     const generator = askGenerator(proposal.generator);
     const adapter = deps.adapters.adapterFor(proposal.generator);
     if (!generator || !adapter) return;
-    const quote = adapter.quote(proposal);
+    const quote = adapter.quote(proposal, choices);
     // The button is disabled in these states; the guard is for a press that races a re-quote.
     if (quote.block !== null) return;
     const price = quote.byok ? "your own key" : quote.total === null ? null : creditsText(quote.total);
@@ -306,18 +330,18 @@ export function useAskConversation(deps: AskConversationDeps) {
     const mine = epoch;
     let result: AskRunResult;
     try {
-      result = await adapter.run(proposal);
+      result = await adapter.run(proposal, choices);
     } catch {
       item.state = "failed";
       // Whether it ran is unknown, so the id stays in `ran`: it is never run a second time on a guess.
-      if (mine === epoch) push({ kind: "error", message: "That did not finish. Check the list before asking again." });
+      if (mine === epoch) item.landedAt = push({ kind: "error", message: "That did not finish. Check the list before asking again." }).id;
       return;
     }
     item.state = "done";
     const name = result.record?.name ?? generator.action;
     const review = generator.ending === "review";
     if (mine === epoch) {
-      push({ kind: "result", name, noun: generator.noun, review, record: result.record, route: result.route, ...(result.open ? { open: result.open } : {}), parts: result.parts.map((p) => ({ ...p })) });
+      item.landedAt = push({ kind: "result", name, noun: generator.noun, review, record: result.record, route: result.route, ...(result.open ? { open: result.open } : {}), ...(result.picture ? { picture: result.picture } : {}), parts: result.parts.map((p) => ({ ...p })) }).id;
     }
     deps.onFinished?.({ name, noun: generator.noun, review, route: result.route, ...(result.open ? { open: result.open } : {}), credits: partsCredits(result.parts), startedAt });
   }
@@ -345,5 +369,5 @@ export function useAskConversation(deps: AskConversationDeps) {
     if (part) part.left = true;
   }
 
-  return { items, running, freeLeft, send, choose, newConversation, handOff, adjust, cancel, confirm, retryPart, leavePart };
+  return { items, running, freeLeft, send, choose, newConversation, handOff, adjust, decide, cancel, confirm, retryPart, leavePart };
 }

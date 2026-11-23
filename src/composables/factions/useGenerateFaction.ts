@@ -46,6 +46,8 @@ export interface GenerateFactionOutcome {
   name: string | null;
   /** `none` when no emblem was asked for, `failed` when asked for and not painted (the faction is saved either way). */
   picture: "none" | "saved" | "failed";
+  /** The saved picture's URL when `picture` is "saved", so a caller can show it (Ask's result card). */
+  pictureUrl: string | null;
   leader: LinkState;
   headquarters: LinkState;
   /** One sentence per tie that could not be added. */
@@ -71,7 +73,7 @@ export function useGenerateFaction() {
 
   async function generateAndCreateFaction(concept: string, options: GenerateFactionOptions = {}): Promise<GenerateFactionOutcome> {
     const nothing = (error: string): GenerateFactionOutcome => (
-      { id: null, error, name: null, picture: "none", leader: "none", headquarters: "none", linkErrors: [] }
+      { id: null, error, name: null, picture: "none", pictureUrl: null, leader: "none", headquarters: "none", linkErrors: [] }
     );
     if (isAnyAiGenerating.value) return nothing("Another AI generation is already in progress.");
 
@@ -116,6 +118,7 @@ export function useGenerateFaction() {
       error: null,
       name: result.name,
       picture: !asked ? "none" : result.image_url ? "saved" : "failed",
+      pictureUrl: result.image_url ?? null,
       leader: !leaderNpcId ? "none" : leader.status === "fulfilled" ? "saved" : "failed",
       headquarters: !headquartersLocationId ? "none" : headquarters.status === "fulfilled" ? "saved" : "failed",
       linkErrors,

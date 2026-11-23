@@ -198,4 +198,46 @@ describe("useFactionAskAdapter", () => {
     mocks.generateAndCreateFaction.mockRejectedValueOnce({ message: "quota_exceeded" });
     expect((await useFactionAskAdapter().run(proposal())).parts[0].error).toContain("limit of factions");
   });
+
+  // Bug caught: a painted faction was saved but never reached the result card, so the DM could not see it in the chat.
+  it("puts a saved picture's URL on the result so the chat can show it, and leaves it unset when the picture failed", async () => {
+    mocks.generateAndCreateFaction.mockResolvedValueOnce(saved({ picture: "saved", pictureUrl: "https://img/faction.webp" }));
+    expect((await useFactionAskAdapter().run(proposal({ image: true }))).picture).toBe("https://img/faction.webp");
+    mocks.generateAndCreateFaction.mockResolvedValueOnce(saved({ picture: "failed", pictureUrl: null }));
+    expect((await useFactionAskAdapter().run(proposal({ image: true }))).picture).toBeUndefined();
+  });
+
+  describe("yes or no on ties to existing records", () => {
+    // Bug caught: unticking the leader or headquarters on the quote still seated or based them.
+    it("lines carry their field as the key; at no the workflow gets null ids for that field only, the typed name stays", async () => {
+      const adapter = useFactionAskAdapter();
+      const inputs = { leader_npc_id: "n1", headquarters_id: "l1" };
+      const lines = adapter.quote(proposal(inputs)).lines;
+      expect(lines.find((l) => l.label === "Leader")?.choice).toEqual({ key: "leader_npc_id", on: true });
+      expect(lines.find((l) => l.label === "Headquarters")?.choice).toEqual({ key: "headquarters_id", on: true });
+      await adapter.run(proposal(inputs));
+      expect(mocks.generateAndCreateFaction.mock.calls[0][1]).toMatchObject({ leaderNpcId: "n1", headquartersLocationId: "l1" });
+      await adapter.run(proposal({ ...inputs, leader_name: "Mara the Red" }), { leader_npc_id: false });
+      expect(mocks.generateAndCreateFaction.mock.calls[1][1]).toMatchObject({ leaderNpcId: null, leader_name: "Mara the Red", headquartersLocationId: "l1" });
+      await adapter.run(proposal(inputs), { headquarters_id: false });
+      expect(mocks.generateAndCreateFaction.mock.calls[2][1]).toMatchObject({ leaderNpcId: "n1", headquartersLocationId: null });
+    });
+
+    // Bug caught: a leader named only as text got a checkbox, though it ties to no record.
+    it("a leader or headquarters named only as text has no choice", () => {
+      const lines = useFactionAskAdapter().quote(proposal({ leader_name: "Odo", headquarters_name: "Nowhere Hall" })).lines;
+      expect(lines.filter((l) => l.label === "Leader" || l.label === "Headquarters").map((l) => l.choice)).toEqual([undefined, undefined]);
+    });
+
+    // Bug caught: a tie the DM unticked was still written, because run read the unfiltered list.
+    it("a tie at no never reaches the workflow's links", async () => {
+      const AURIL = "00000000-0000-4000-8000-0000000000a1";
+      state.linkNames = new Map([[`deity:${AURIL}`, "Auril"]]);
+      const links = [{ kind: "deity", id: AURIL, relation: "serves" }];
+      const adapter = useFactionAskAdapter();
+      const key = adapter.quote(proposal({ links })).lines.find((l) => l.value === "Auril")!.choice!.key;
+      await adapter.run(proposal({ links }), { [key]: false });
+      expect(mocks.generateAndCreateFaction.mock.calls[0][1].links).toEqual([]);
+    });
+  });
 });

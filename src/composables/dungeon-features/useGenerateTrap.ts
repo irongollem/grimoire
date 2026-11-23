@@ -22,6 +22,8 @@ export interface GenerateTrapOutcome {
   error: string | null;
   /** `none` when not asked for, `failed` when asked for and not painted: the row is saved either way. */
   picture: "none" | "saved" | "failed";
+  /** The saved picture's URL when `picture` is "saved", so a caller can show it (Ask's result card). */
+  pictureUrl: string | null;
 }
 
 export function useGenerateTrap() {
@@ -74,15 +76,15 @@ export function useGenerateTrap() {
   async function generateAndCreateTrap(concept: string, options: TrapGenerationOptions = {}): Promise<GenerateTrapOutcome> {
     // Checked up front: `generate` returns null on this without touching its error, which would read stale.
     if (isAnyAiGenerating.value) {
-      return { id: null, name: null, error: "Another AI generation is already in progress.", picture: "none" };
+      return { id: null, name: null, error: "Another AI generation is already in progress.", picture: "none", pictureUrl: null };
     }
     const result = await generate(concept, options);
     if (!result) {
-      return { id: null, name: null, error: genError.value ?? "Trap generation failed.", picture: "none" };
+      return { id: null, name: null, error: genError.value ?? "Trap generation failed.", picture: "none", pictureUrl: null };
     }
     const trap = await saveGeneratedTrap(result, concept);
     const asked = options.generateImage !== false;
-    return { id: trap.id, name: result.name, error: null, picture: !asked ? "none" : result.image_url ? "saved" : "failed" };
+    return { id: trap.id, name: result.name, error: null, picture: !asked ? "none" : result.image_url ? "saved" : "failed", pictureUrl: result.image_url ?? null };
   }
 
   return { saveGeneratedTrap, generateAndCreateTrap };

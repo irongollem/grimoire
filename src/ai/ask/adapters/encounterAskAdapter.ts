@@ -15,8 +15,8 @@
  */
 import { computed, ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
-import type { AskAdapter, AskQuote, AskQuoteLine, AskRunResult } from "@/lib/ask/askAdapter";
-import { conceptBlock, failedRun, spent } from "@/ai/ask/adapters/askAdapterKit";
+import type { AskAdapter, AskChoices, AskQuote, AskQuoteLine, AskRunResult } from "@/lib/ask/askAdapter";
+import { askChoice, conceptBlock, failedRun, spent } from "@/ai/ask/adapters/askAdapterKit";
 import { askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
@@ -47,12 +47,12 @@ export function useEncounterAskAdapter(): AskAdapter {
     };
   }
 
-  function quote(proposal: AskProposal): AskQuote {
+  function quote(proposal: AskProposal, choices?: AskChoices): AskQuote {
     const read = understand(proposal);
     const priced = quoteEncounter();
 
     const lines: AskQuoteLine[] = [{ label: "Difficulty", value: read.difficulty, credits: null }];
-    if (read.location) lines.push({ label: "In", value: read.location.name, credits: null });
+    if (read.location) lines.push({ label: "In", value: read.location.name, credits: null, choice: askChoice(choices, "location_id", true) });
     lines.push(...priced.lines);
 
     let block = blockFor({ total: priced.total, byok: priced.byok, fiveE: true });
@@ -61,15 +61,17 @@ export function useEncounterAskAdapter(): AskAdapter {
     return { lines, total: priced.total, byok: priced.byok, block };
   }
 
-  async function run(proposal: AskProposal): Promise<AskRunResult> {
+  async function run(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult> {
     // The state may have moved since the DM read the quote: the same gates, again, before anything is spent.
-    const current = quote(proposal);
+    const current = quote(proposal, choices);
     if (current.block) return failedRun("Encounter", current.block.message);
     const read = understand(proposal);
+    // A place at no leaves the encounter unanchored, as if the proposal had not named one.
+    const location = askChoice(choices, "location_id", true).on ? read.location : null;
 
     let outcome;
     try {
-      outcome = await generateAndCreateEncounter(read.concept, { difficulty: read.difficulty, locationId: read.location?.id ?? null });
+      outcome = await generateAndCreateEncounter(read.concept, { difficulty: read.difficulty, locationId: location?.id ?? null });
     } catch (e) {
       const message = isQuotaExceeded(e)
         ? "You have reached your limit of encounters on this plan."

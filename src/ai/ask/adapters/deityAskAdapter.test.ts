@@ -186,4 +186,37 @@ describe("useDeityAskAdapter", () => {
     mocks.generateAndCreateDeity.mockRejectedValueOnce({ message: "quota_exceeded" });
     expect((await useDeityAskAdapter().run(proposal())).parts[0].error).toContain("limit of deities");
   });
+
+  // Bug caught: a painted deity was saved but never reached the result card, so the DM could not see it in the chat.
+  it("puts a saved picture's URL on the result so the chat can show it, and leaves it unset when the picture failed", async () => {
+    mocks.generateAndCreateDeity.mockResolvedValueOnce(saved({ picture: "saved", pictureUrl: "https://img/deity.webp" }));
+    expect((await useDeityAskAdapter().run(proposal({ image: true }))).picture).toBe("https://img/deity.webp");
+    mocks.generateAndCreateDeity.mockResolvedValueOnce(saved({ picture: "failed", pictureUrl: null }));
+    expect((await useDeityAskAdapter().run(proposal({ image: true }))).picture).toBeUndefined();
+  });
+
+  describe("yes or no on ties to existing records", () => {
+    const GUILD = "00000000-0000-4000-8000-0000000000d1";
+    // Bug caught: unticking the pantheon on the quote still filed the deity in it.
+    it("the pantheon line carries a choice keyed pantheon_id; at no the workflow gets no pantheon, unanswered it does", async () => {
+      const adapter = useDeityAskAdapter();
+      expect(adapter.quote(proposal({ pantheon_id: "pan1" })).lines.find((l) => l.label === "Pantheon")?.choice).toEqual({ key: "pantheon_id", on: true });
+      await adapter.run(proposal({ pantheon_id: "pan1" }));
+      expect(mocks.generateAndCreateDeity.mock.calls[0][1].pantheon).toMatchObject({ id: "pan1" });
+      expect(adapter.quote(proposal({ pantheon_id: "pan1" }), { pantheon_id: false }).lines.find((l) => l.label === "Pantheon")?.choice?.on).toBe(false);
+      await adapter.run(proposal({ pantheon_id: "pan1" }), { pantheon_id: false });
+      expect(mocks.generateAndCreateDeity.mock.calls[1][1].pantheon).toBeUndefined();
+    });
+
+    // Bug caught: a tie the DM unticked was still written, because run read the unfiltered list.
+    it("a tie at no never reaches the workflow's links", async () => {
+      const word = typeChoices("deity", "faction")[0]!.word.replaceAll(" ", "_");
+      const links = [{ kind: "faction", id: GUILD, relation: word }];
+      state.linkNames = new Map([[`faction:${GUILD}`, "The Guild"]]);
+      const adapter = useDeityAskAdapter();
+      const key = adapter.quote(proposal({ links })).lines.find((l) => l.value === "The Guild")!.choice!.key;
+      await adapter.run(proposal({ links }), { [key]: false });
+      expect(mocks.generateAndCreateDeity.mock.calls[0][1].links).toEqual([]);
+    });
+  });
 });

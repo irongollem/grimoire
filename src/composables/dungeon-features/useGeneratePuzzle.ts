@@ -21,6 +21,8 @@ export interface GeneratePuzzleOutcome {
   error: string | null;
   /** `none` when not asked for, `failed` when asked for and not painted: the row is saved either way. */
   picture: "none" | "saved" | "failed";
+  /** The saved picture's URL when `picture` is "saved", so a caller can show it (Ask's result card). */
+  pictureUrl: string | null;
 }
 
 export function useGeneratePuzzle() {
@@ -61,15 +63,15 @@ export function useGeneratePuzzle() {
   async function generateAndCreatePuzzle(concept: string, options: PuzzleGenerationOptions = {}): Promise<GeneratePuzzleOutcome> {
     // Checked up front: `generate` returns null on this without touching its error, which would read stale.
     if (isAnyAiGenerating.value) {
-      return { id: null, name: null, error: "Another AI generation is already in progress.", picture: "none" };
+      return { id: null, name: null, error: "Another AI generation is already in progress.", picture: "none", pictureUrl: null };
     }
     const result = await generate(concept, options);
     if (!result) {
-      return { id: null, name: null, error: genError.value ?? "Puzzle generation failed.", picture: "none" };
+      return { id: null, name: null, error: genError.value ?? "Puzzle generation failed.", picture: "none", pictureUrl: null };
     }
     const puzzle = await saveGeneratedPuzzle(result);
     const asked = options.generateImage !== false;
-    return { id: puzzle.id, name: result.name, error: null, picture: !asked ? "none" : result.image_url ? "saved" : "failed" };
+    return { id: puzzle.id, name: result.name, error: null, picture: !asked ? "none" : result.image_url ? "saved" : "failed", pictureUrl: result.image_url ?? null };
   }
 
   return { saveGeneratedPuzzle, generateAndCreatePuzzle };

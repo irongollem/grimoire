@@ -26,6 +26,8 @@ export interface GenerateDungeonFeatureOutcome {
   error: string | null;
   /** `none` when not asked for, `failed` when asked for and not painted: the row is saved either way. */
   picture: "none" | "saved" | "failed";
+  /** The saved picture's URL when `picture` is "saved", so a caller can show it (Ask's result card). */
+  pictureUrl: string | null;
 }
 
 function prose(text: string | null): string | null {
@@ -83,15 +85,15 @@ export function useGenerateDungeonFeature() {
   ): Promise<GenerateDungeonFeatureOutcome> {
     // Checked up front: `generate` returns null on this without touching its error, which would read stale.
     if (isAnyAiGenerating.value) {
-      return { id: null, name: null, error: "Another AI generation is already in progress.", picture: "none" };
+      return { id: null, name: null, error: "Another AI generation is already in progress.", picture: "none", pictureUrl: null };
     }
     const result = await generate(concept, options);
     if (!result) {
-      return { id: null, name: null, error: genError.value ?? "Feature generation failed.", picture: "none" };
+      return { id: null, name: null, error: genError.value ?? "Feature generation failed.", picture: "none", pictureUrl: null };
     }
     const feature = await saveGeneratedFeature(result, concept);
     const asked = options.generateImage !== false;
-    return { id: feature.id, name: result.name, error: null, picture: !asked ? "none" : result.image_url ? "saved" : "failed" };
+    return { id: feature.id, name: result.name, error: null, picture: !asked ? "none" : result.image_url ? "saved" : "failed", pictureUrl: result.image_url ?? null };
   }
 
   return { saveGeneratedFeature, generateAndCreateFeature };

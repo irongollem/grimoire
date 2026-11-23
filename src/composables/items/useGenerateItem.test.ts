@@ -34,7 +34,7 @@ describe("useGenerateItem", () => {
     const outcome = await useGenerateItem().generateAndCreateItem("a storm staff", { generateImage: true });
     expect(mocks.generate).toHaveBeenCalledWith("a storm staff", { generateImage: true });
     expect(mocks.create).toHaveBeenCalledWith({ name: "Stormbone Staff", campaign_id: "c1" });
-    expect(outcome).toEqual({ id: "i1", error: null, name: "Stormbone Staff", picture: "saved", linkErrors: [] });
+    expect(outcome).toEqual({ id: "i1", error: null, name: "Stormbone Staff", picture: "saved", pictureUrl: "https://img/i.webp", linkErrors: [] });
   });
 
   it("says the item is saved with a picture that failed, so a caller can offer to paint it again", async () => {
