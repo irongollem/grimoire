@@ -36,6 +36,7 @@ vi.mock("@/composables/canon/useCanonForces", async (orig) => ({
 const EntryQuestsStub = { name: "EntryQuests", props: ["entry", "links", "label", "empty"], template: "<div data-testid='entry-quests' />" };
 import SecretDetail from "./SecretDetail.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
+import SecretBeats from "./SecretBeats.vue";
 
 const secret = (over: Partial<CanonEntry> = {}): CanonEntry => canonEntry({ id: "s1", part: "secret", title: "Sift is the guild master's daughter.", ...over });
 const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
@@ -43,7 +44,7 @@ const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
   quest_beat_id: null, found_at: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
 });
 
-const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { EntryQuests: EntryQuestsStub, ConnectionsSection: true, CanonEntryNotes: true, ClueForm: true, CanonSuggestions: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
+const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { EntryQuests: EntryQuestsStub, ConnectionsSection: true, SecretBeats: true, CanonEntryNotes: true, ClueForm: true, CanonSuggestions: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
 
 describe("SecretDetail", () => {
   beforeEach(() => {
@@ -52,6 +53,11 @@ describe("SecretDetail", () => {
     passages.value = [];
     entries.value = [];
     Object.values(mocks).forEach((m) => m.mockReset());
+  });
+
+  // Bug caught (#1255 item 21): the beats list asked about another secret (or none), so a secret showed no beats or another's.
+  it("lists the beats tied to this secret", () => {
+    expect(mountDetail(secret()).getComponent(SecretBeats).props("secretId")).toBe("s1");
   });
 
   // Bug caught (#1255 item 8): the secret had nowhere to write what is really going on, or the notes were bound to another entry.

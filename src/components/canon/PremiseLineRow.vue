@@ -35,7 +35,7 @@ import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
-import { useDeleteCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useTrashCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { useConfirm } from "@/composables/useConfirm";
 import { IconDelete } from "@/lib/icons";
@@ -44,7 +44,7 @@ import type { CanonEntry } from "@/types/canon.types";
 const { entry, label } = defineProps<{ entry: CanonEntry; label: string }>();
 
 const { mutate: update } = useUpdateCanonEntry();
-const { mutate: destroy } = useDeleteCanonEntry();
+const { mutate: destroy } = useTrashCanonEntry();
 const { confirm } = useConfirm();
 
 const { text, revision } = useCommittedText(() => entry.title, (title) => update({ id: entry.id, patch: { title } }));
@@ -61,7 +61,7 @@ const textClass = computed(() => {
 });
 
 async function remove() {
-  const ok = await confirm(`Delete "${entry.title}"?`, { title: "Delete this entry", confirmLabel: "Delete" });
+  const ok = await confirm(`Delete "${entry.title}"? It goes to Deleted for thirty days, where you can restore it.`, { title: "Delete this entry", confirmLabel: "Delete" });
   if (ok) destroy(entry.id);
 }
 </script>

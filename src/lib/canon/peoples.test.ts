@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { peoplesLine } from "@edge-shared/worldBlock.ts";
-import { peoplesProblem, peoplesTotal, rollPeople, type People } from "./peoples";
+import { rollPeople, type People } from "./peoples";
+import { sharesTotal } from "./shares";
 
 const people = (name: string, percent: number, over: Partial<People> = {}): People => ({
   id: `p-${name}`, kind: "species", recordId: `lib_${name}`, fromLibrary: true, name, readable: true, percent, ...over,
@@ -57,32 +58,7 @@ describe("rollPeople", () => {
   });
 });
 
-describe("peoplesProblem", () => {
-  it("is null for a list the table accepts, including one that sums below 100", () => {
-    expect(peoplesProblem(world)).toBeNull();
-    expect(peoplesProblem([])).toBeNull();
-  });
-
-  // Bug caught: a total past 100 saved, and the database refused it at commit with an error the DM never saw explained.
-  it("names a total past 100, and accepts exactly 100", () => {
-    expect(peoplesProblem([people("Elf", 80), people("Human", 30)])).toContain("110%");
-    expect(peoplesProblem([people("Elf", 80), people("Human", 20)])).toBeNull();
-    expect(peoplesProblem([people("Elf", 60), people("Human", 40.5)])).toContain("100.5%");
-  });
-
-  it("names a share outside 0 to 100, and a cleared field (NaN)", () => {
-    expect(peoplesProblem([people("Elf", -1)])).toContain("between 0 and 100");
-    expect(peoplesProblem([people("Elf", 101)])).toContain("between 0 and 100");
-    expect(peoplesProblem([people("Elf", Number.NaN)])).toContain("between 0 and 100");
-  });
-});
-
-describe("peoplesTotal and peoplesLine", () => {
-  // Bug caught: 0.1 + 0.2 style float noise showed as "Adds up to 30.000000000000004%".
-  it("totals without float noise", () => {
-    expect(peoplesTotal([people("A", 0.1), people("B", 0.2)])).toBe(0.3);
-  });
-
+describe("peoplesLine", () => {
   it("writes the shares largest first with the remainder as anyone else", () => {
     expect(peoplesLine([people("Human", 15), people("Elf", 80)])).toBe("Elf 80%, Human 15%, anyone else 5%");
     expect(peoplesLine([])).toBe("");
@@ -94,7 +70,7 @@ describe("a people this reader cannot name", () => {
   // or dropped from the total so the shares no longer added up.
   it("still counts toward the total but is never rolled: its share is anyone else", () => {
     const list = [people("A people another DM listed", 60, { readable: false }), people("Elf", 30)];
-    expect(peoplesTotal(list)).toBe(90);
+    expect(sharesTotal(list)).toBe(90);
     expect(rollPeople(list, () => 0.3)).toBeNull();
     expect(rollPeople(list, () => 0.7)?.name).toBe("Elf");
   });

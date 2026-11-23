@@ -9,7 +9,7 @@ vi.mock("@/lib/toast", () => ({ toast: { error: mocks.toastError } }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({
   useCreateCanonEntry: () => ({ mutateAsync: mocks.create, isPending: ref(false) }),
   useUpdateCanonEntry: () => ({ mutate: mocks.update, mutateAsync: mocks.updateAsync }),
-  useDeleteCanonEntry: () => ({ mutateAsync: mocks.destroy }),
+  useTrashCanonEntry: () => ({ mutateAsync: mocks.destroy }),
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 

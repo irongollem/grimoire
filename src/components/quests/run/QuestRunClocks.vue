@@ -7,6 +7,11 @@
         <span class="min-w-0 flex-1">
           <span class="block truncate text-caption text-foreground">{{ clock.label }}</span>
           <span class="block text-caption text-muted-foreground">{{ clockProgressLabel(clock.filled, clock.segments) }}</span>
+          <RouterLink
+            v-if="clock.moves_force_id !== null"
+            :to="`/canon?entry=${clock.moves_force_id}`"
+            class="block truncate text-caption text-muted-foreground hover:underline"
+          >Moves {{ forceName(clock.moves_force_id) }}</RouterLink>
         </span>
         <AppButton
           variant="subtle"
@@ -35,10 +40,11 @@
 /**
  * The run cockpit's clocks (#1011): each clock's dial with Tick and Untick. A
  * tick that fills a clock fires its rules server-side, so the toast says so.
- * Renders nothing for a quest without clocks.
+ * A clock that moves a force says so under its dial (#1255 item 20). Renders nothing for a quest without clocks.
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import { useCanonEntries } from "@/composables/canon/useCanonEntries";
 import { useToast } from "@/composables/useToast";
 import { useQuestClocks, useTickQuestClock } from "@/composables/quests/useQuestClocks";
 import { IconAdd, IconMinus } from "@/lib/icons";
@@ -51,6 +57,11 @@ const { data } = useQuestClocks(computed(() => questId));
 const clocks = computed(() => data.value ?? []);
 const { mutateAsync: tickClock, isPending: ticking } = useTickQuestClock();
 const toast = useToast();
+
+// A clock that moves a force names it. Ticking is the same call as any clock's: the database ticks the force, never this client.
+const { data: entries } = useCanonEntries();
+const forceTitles = computed(() => new Map((entries.value ?? []).map((e) => [e.id, e.title])));
+const forceName = (id: string) => forceTitles.value.get(id) ?? "a force";
 
 async function tick(clock: QuestClock, step: 1 | -1) {
   try {

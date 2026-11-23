@@ -53,6 +53,7 @@
       <div class="flex min-w-0 flex-col gap-4">
         <ForceSteps :force="entry" :steps="steps" :frozen="outcome !== null" />
         <EntryQuests :entry="entry" :links="links" label="Where the party meets it" empty="In no quest yet: the party has not crossed its path." />
+        <ForceQuestClocks :entry="entry" />
         <ForceLog :ticks="ticks" @undo="undo" />
       </div>
     </div>
@@ -78,6 +79,7 @@ import CanonEntryNotes from "./CanonEntryNotes.vue";
 import ForceClock from "./ForceClock.vue";
 import ForceEndForm from "./ForceEndForm.vue";
 import ForceLog from "./ForceLog.vue";
+import ForceQuestClocks from "./ForceQuestClocks.vue";
 import EntryQuests from "./EntryQuests.vue";
 import ForceSteps from "./ForceSteps.vue";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";

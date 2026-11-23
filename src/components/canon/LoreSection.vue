@@ -1,6 +1,6 @@
 <template>
   <section id="canon-lore" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-lore-heading">
-    <CanonRubric id="canon-lore-heading" numeral="VI" title="Lore" />
+    <CanonRubric id="canon-lore-heading" numeral="VII" title="Lore" />
 
     <ul v-if="ordered.length > 0" class="flex flex-col border border-border bg-card" data-testid="lore-ledger">
       <LoreRow
@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 /**
- * Part VI (frames 04 and 04b): the lore entries by date in the world, the undated after them, each with its kind, its
+ * Part VII (frames 04 and 04b): the lore entries by date in the world, the undated after them, each with its kind, its
  * date and how much of it has been told. A new entry is started from a title (and a kind); "Draft a lore entry" drafts
  * one from that same title and kind.
  */

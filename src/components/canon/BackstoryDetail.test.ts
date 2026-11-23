@@ -20,7 +20,7 @@ vi.mock("@/composables/canon/useBackstory", () => ({ useBackstoryEntry: () => ({
 vi.mock("@/composables/canon/useCanonEntries", () => ({
   useUpdateCanonEntry: () => ({ mutate: mocks.update }),
   useCreateCanonEntry: () => ({ mutateAsync: mocks.createEntry }),
-  useDeleteCanonEntry: () => ({ mutateAsync: mocks.remove, mutate: mocks.remove }),
+  useTrashCanonEntry: () => ({ mutateAsync: mocks.remove, mutate: mocks.remove }),
   useCanonEntries: () => ({ data: computed(() => threadData.entries) }),
 }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ isDM: true }) }));

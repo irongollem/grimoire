@@ -7,7 +7,7 @@ import { canonEntry } from "@/test/canonEntry";
 const mocks = vi.hoisted(() => ({ destroy: vi.fn(), confirm: vi.fn(), save: vi.fn() }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({
   useUpdateCanonEntry: () => ({ mutate: vi.fn() }),
-  useDeleteCanonEntry: () => ({ mutate: mocks.destroy }),
+  useTrashCanonEntry: () => ({ mutate: mocks.destroy }),
   updateCanonEntry: mocks.save,
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));

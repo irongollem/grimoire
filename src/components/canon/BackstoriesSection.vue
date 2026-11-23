@@ -1,6 +1,6 @@
 <template>
   <section id="canon-backstories" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-backstories-heading">
-    <CanonRubric id="canon-backstories-heading" numeral="VII" title="Backstories" />
+    <CanonRubric id="canon-backstories-heading" numeral="VIII" title="Backstories" />
     <p class="m-0 text-caption text-muted-foreground">Each character's past is told in passages. The player writes theirs and keeps adding to it; you add what they have not been told, and tell it when the story gets there.</p>
 
     <ul v-if="party.length > 0" class="flex flex-col border border-border bg-card" data-testid="backstory-ledger">
@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-/** Part VII (frame 14): one row per party member, with how many passages their past holds, how many are still untold and how many threads it leaves open. */
+/** Part VIII (frame 14): one row per party member, with how many passages their past holds, how many are still untold and how many threads it leaves open. */
 import { computed } from "vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import BackstoryRow from "./BackstoryRow.vue";

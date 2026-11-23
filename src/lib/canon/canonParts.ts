@@ -12,12 +12,15 @@ export const CANON_SECTIONS = [
   { id: "secrets", numeral: "IV", label: "Secrets and questions", short: "Secrets", parts: ["secret", "question"], counted: true },
   // The world's own clock, calendar and coins are campaign columns, not entries: no part, so no count.
   { id: "world", numeral: "V", label: "How the world works", short: "World", parts: [], counted: false },
-  { id: "lore", numeral: "VI", label: "Lore", short: "Lore", parts: ["lore"], counted: true },
+  // Who and what lives in it: the peoples (campaign_peoples) and the habitats, none of them canon entries; a truth that
+  // belongs to a habitat is still a truth and counted under Truths.
+  { id: "life", numeral: "VI", label: "Who and what lives here", short: "Life", parts: [], counted: false },
+  { id: "lore", numeral: "VII", label: "Lore", short: "Lore", parts: ["lore"], counted: true },
   // A backstory is one per character (frame 14): the page counts the characters, not the entries opened so far.
-  { id: "backstories", numeral: "VII", label: "Backstories", short: "Backstories", parts: ["backstory"], counted: true },
+  { id: "backstories", numeral: "VIII", label: "Backstories", short: "Backstories", parts: ["backstory"], counted: true },
   // The Chronicle is the sessions' notes, not canon entries: no part, and its count (the sessions with a chronicle
   // entry written) is added by the page. What the table added is the Narrator's, set apart below a rule (frame 03).
-  { id: "chronicle", numeral: "VIII", label: "Chronicle", short: "Chronicle", parts: [], counted: true },
+  { id: "chronicle", numeral: "IX", label: "Chronicle", short: "Chronicle", parts: [], counted: true },
   { id: "table", numeral: "✦", label: "What the table added", short: "Table", parts: [], counted: true },
 ] as const;
 

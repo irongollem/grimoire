@@ -15,6 +15,7 @@ Design: the canvas *Campaign Canon* (claude.ai artifact `MAukzQW1bDDG832DT4ZepT`
 | Truths | `truth`, with `knowledge`: `all`, `some`, `secret` | story 2 | known to all; known to some when it is `known_to` their character, or a faction their character is in; never a secret truth |
 | What is moving | `force` | story 4 | never |
 | How the world works | none: columns of `campaigns` (calendar, today's date, climate, coins) | story 5 | n/a |
+| Who and what lives here | none: `campaign_peoples`, `campaign_habitats` and what hangs off them (a truth may carry a `habitat_id`) | #1255 item 31 | n/a |
 | Secrets and open questions | `secret`, `question` | story 3 | a secret once the DM reveals it; never a question |
 | Lore, told in passages | `lore` | story 5 | the passages told |
 | Backstories | `backstory`, one per character (`party_member_id`) | story 10 | their own character's, always; another's when the DM shares it; only the passages told to them |
@@ -51,6 +52,15 @@ the `campaigns` row, which every member reads (#1228).
   (23503); the shares of a campaign may not pass 100, checked at commit by a deferred constraint trigger (23514). The
   view `campaign_peoples_named` (invoker) gives `kind`, `record_id`, `from_library` and the record's `name`, and leaves out
   a row whose record is gone. DMs read and write; it rings the doorbell (`campaign_peoples` → `CANON_KEY`).
+- `campaign_habitats`, `campaign_habitat_places`, `campaign_habitat_life` (`20261123154815_canon_story_tools.sql` section 5,
+  #1255 item 31): the ecology. A habitat is a kind of country (`name` 1 to 80 characters, a rich-text `description`,
+  `sort_order`); `campaign_habitat_places` ties it to the Atlas places it covers, a place in at most one habitat (23505);
+  `campaign_habitat_life` is what lives there as shares, exactly one of `monster_id` (the DM's creature) or
+  `library_monster_id` (a shared book's; a missing id is 23503), a creature once per habitat (23505), the shares of a
+  habitat not passing 100, checked at commit (23514). The view `campaign_habitat_life_named` (invoker) adds the
+  creature's `name`, null for one this reader may not read, and keeps the row so totals add up. `canon_entries.habitat_id`
+  (a truth only, 23514 otherwise) is a truth that belongs to a habitat. DM-only; all ring the doorbell under
+  `CANON_KEY`.
 - The world web's seventh kind, `canon` (`from_/to_canon_entry_id` on `world_links`; pairs `canon_person`,
   `canon_faction`, `canon_location`, `canon_deity`, `canon_item`, `canon_canon` in
   `supabase/functions/_shared/worldLinkCatalogue.ts`). A canon entry is always the `from` end. "Known to some" is
@@ -69,6 +79,11 @@ load it with `loadWorldBlock` (`worldBlockLoad.ts`); the browser's local-key pat
 Chronicler's `{settingPrompt}` placeholder is filled with it. It also carries `## Peoples of the world` (who lives
 there, as shares, largest first, with "do not default to humans"; see "How the world works"), left out when the DM
 listed none. Both loaders read the names and shares from `campaign_peoples_named` in the same round trip as the canon rows.
+It also carries `## Life of the world` (`habitatsLines`: one line per habitat, "Salt marsh (the Marsh, Saltmere's edge):
+Marsh eel 40%, Giant frog 20%, anything else 40%", with "When a creature turns up somewhere, choose it at these odds for
+the country it is in."), left out when no habitat has a place or a creature. Both loaders read `campaign_habitats`, the
+places (with each place's name) and `campaign_habitat_life_named` in the same `Promise.all`; a creature with no readable
+name is left out of its line, so its share falls under "anything else". `habitatsForBlock` joins the three reads, once for both loaders.
 
 Canon text takes @mentions (pitch, lore and backstory passages, notes on a truth, secret or force; not a player's own
 passage), but a stored mention is `{ id, entityType }` with no name, on purpose (#932). The plain-text walkers emit only
@@ -89,7 +104,7 @@ Under "Lines and veils" one quiet line reads the violence and horror dial back (
 `src/lib/campaign/tableViolence.ts`, shared with Campaign settings) and links to Campaign settings, where it stays: it is
 how the AI table plays, not a fact about the world. Settings' dial says in turn that what must never happen is set in the
 canon's lines and veils. The Narrator reads both. The Canon line shows only where the AI table is open (`useTableAccess`).
-The contents column lists the parts I to VIII, then, set apart below a rule, "✦ What the table added" with its count of
+The contents column lists the parts I to IX, then, set apart below a rule, "✦ What the table added" with its count of
 unreviewed lines as "n new" and the hint "Filled by the Narrator as it invents. Keep, edit or strike each line." (`canonParts.ts`, the only place a part
 is added). The header's **Bring in a book** (a button under the page on a phone) opens `/canon/import`.
 
@@ -169,6 +184,13 @@ the secret stays, still revealed. A part never changes, so becoming is always a 
 (`src/lib/canon/canonClose.ts` builds both writes). Revealed secrets sort after the ones still to find. The contents column
 and the start strip count only open questions and forces still moving (`sectionCounts`).
 
+**A secret is one thing, however many places mention it (#1255 item 21).** A quest beat can be *the* canon secret
+(`quest_beats.canon_secret_id`, a secret of the same campaign, DM-only, never in a player projection; deleting the secret
+unties the beat). A secret's page lists "Beats that uncover it" (`SecretBeats.vue`, read through `useSecretBeats` under the
+beats query root, so the `quest_beats` ring refreshes it), and revealing is one rule, `useRevealSecret` (stamp
+`revealed_at`, share with every party member), used by the secret's own button and by a tied beat's prompt. An NPC's DM
+note stays a note.
+
 A secret also says which quests uncover it ("The quests that uncover it", `canon_entry_quests`; see What is moving), and the
 quest's page lists it under "The canon behind this quest" with its state.
 
@@ -193,6 +215,12 @@ quests where the party meets it, once each). Players never read any of it.
   and its clock or ending, or a quiet *Name a force* link to `/canon`. Both are DM-only: the canon tables are DM-only reads,
   so in the player lens or a DM's preview of the player portal the gate component mounts nothing and none of the reads run.
 
+- **A quest clock can move a force** (#1255 item 20). A quest's clock may be set to *Moves a force* (`quest_clocks.moves_force_id`,
+  a force of the same campaign, nulled if the force is deleted; the clock editor's picker offers forces still moving, plus
+  the one already set). Whenever that clock's fill changes, the database writes a `canon_force_ticks` row with the same
+  delta and the note "Quest clock: <label>" (a force that has ended is not ticked), so the client never writes it. The force
+  lists them as **Moved by quest clocks** (`ForceQuestClocks`, label, quest, "n of m"), and the run cockpit's clock says
+  "Moves <force>". The force's clock stays the world's; the quest's stays the scene's.
 - **The clock is the sum of the ticks**, shown clamped to 0..size and never stored, so an undo that deletes a tick moves
   the dial back. Tick forward and Tick back each write a tick (`delta` 1 or -1, an optional note); both disable at the
   clock's ends. **Undo** is on the newest tick only and deletes it.
@@ -225,7 +253,7 @@ quests where the party meets it, once each). Players never read any of it.
 
 ## How the world works
 
-Part V (frame 11), numbered before Lore. Not entries: the campaign's own columns, moved out of Campaign settings so the
+Part V (frame 11), numbered before Who and what lives here and Lore. Not entries: the campaign's own columns, moved out of Campaign settings so the
 world is written in one place and nothing is kept in both. **How it keeps time** (`campaigns.calendar_id`, with the
 custom calendar editor and the "Populate from <setting>" panel that hangs off the saved calendar), **where it is now**
 (`current_year`, `current_month`, `current_day`, entered through the calendar adapter's months), **its weather**
@@ -235,7 +263,9 @@ as each is changed; the custom calendar saves after a pause and not while the ed
 their explicit Save because removing a coin converts what players hold. Settings lost the Currency tab (a
 `?tab=currency` link falls back to Details) and Details lost calendar, year, climate and Populate.
 
-**Who lives in it** (`campaign_peoples`, `WorldPeoples.vue`, `useCampaignPeoples.ts`, #1255 item 30): the peoples of the
+**Who lives in it**, now under Peoples in Part VI, "Who and what lives here" (below). It was a block of this part until
+#1255 item 31 moved it, so both halves of "who and what lives here" are read together; nothing about it changed.
+(`campaign_peoples`, `WorldPeoples.vue`, `useCampaignPeoples.ts`, #1255 item 30): the peoples of the
 world as shares of its population, so a world where elves are 80% generates elf NPCs 80% of the time. A people is never
 free text: it is a species or a creature the campaign already has (maintainer, 23 Nov 2026), so a goblin country is as
 much a people as an elven one. Each row shows the record's name, the word "species" or "creature", a share field that
@@ -252,9 +282,41 @@ that lands on "anyone else" asks for a people not on the list; and a species the
 species select lists the peoples first, then the campaign's other species. Every other generator is told the shares
 through the world block (`peoplesLine`, shared with the client from `_shared/worldBlock.ts`).
 
+## Who and what lives here (Part VI, #1255 item 31)
+
+After How the world works, before Lore (short label "Life"). Not entries, so it has no count in the contents column;
+`LifeSection.vue` (`src/components/canon/ecology/`) holds two blocks. **Peoples** is `WorldPeoples.vue`, moved here from
+How the world works with no change (see above). **Habitats** is the new half: a short list of the world's kinds of
+country, each with a description, the Atlas places it covers and the creatures that live there.
+
+The list (`HabitatsPanel.vue`) shows each habitat's name, its places as plain words and a one-line summary of what lives
+there ("Marsh eel 40%, Giant frog 20%, anything else 40%", `sharesLine`), with up and down to reorder (the DM's order is
+the world block's) and an add row, "A new kind of country...", which opens the new habitat. The selected habitat's editor
+(`HabitatEditor.vue`) is below: the name (saved when left, never blank), the description (`RichTextEditor`, secrets
+allowed, autosaved), **The places it covers** (`HabitatPlaces.vue`: the picker is the Atlas tree and leaves out every place
+already in a habitat, a line saying which habitat holds those; a place covers the places inside it unless one is another
+habitat's), **What lives here** (`HabitatLife.vue`), **Notes on the living world** (`HabitatNotes.vue`: the truths whose
+`habitat_id` is this habitat, each linking to `/canon?entry=<id>`, and an add row making a truth known to all with the
+habitat set, so a note is listed in Truths too and its mark is changed there) and **Delete this habitat** (asks first;
+places and life go with it, the notes stay as truths with no habitat).
+
+**The shares rule** is one for the peoples and for a habitat's life: `src/lib/canon/shares.ts` (`sharesTotal`,
+`sharesProblem`, `sharesRest`, `rollShare`), the one list-of-shares component `ShareList.vue` (rows, the running total
+"Adds up to 60%. The other 40% is anything else.", the problem sentence, a share saving when its field is left and never
+while the total would pass 100), and `sharesLine` in `_shared/worldBlock.ts` for the words. `peoples.ts` and `habitats.ts`
+only add their own types and name the roll (`rollPeople`, `rollLife`). A creature is never typed: it is picked from the
+bestiary index the encounter picker reads (`useMonsterIndex`, loaded when the picker first opens), with a "New creature"
+link to `/monsters/new`; the table keeps a creature once per habitat and the shares to 100 (23514 is shown as "These
+shares would pass 100.", a place already placed, 23505, as "That place is already in another habitat."). A creature this
+reader may not read keeps its row under a placeholder name and is never rolled, so the shares still add up.
+`useCampaignHabitats.ts` reads the three tables and writes them, all scoped to the campaign and under `CANON_KEY`.
+
+The world block tells every other generator the result (see "The world block"). Nothing rolls a habitat's creatures
+yet: `rollLife` is the roll an encounter or a wandering creature will use.
+
 ## Lore, told in passages
 
-Part VI (frames 04 and 04b, which supersedes 04's DM-only secret block). A lore entry is a `canon_entries` row with
+Part VII (frames 04 and 04b, which supersedes 04's DM-only secret block). A lore entry is a `canon_entries` row with
 `part = 'lore'`, a `lore_kind` (history, legend, culture, magic, place, faith, other), a date in the world
 (`world_year`, optional `world_month` and `world_day`: a month needs a year and a day needs a month, entered and shown
 through the campaign's calendar adapter, `WorldDateField.vue`) and a picture (`image_url`: upload, or **Paint with AI**
@@ -284,7 +346,7 @@ entry with text (`CanonSuggestions mode="lore"`, `useAcceptLore.ts`; the DM's ow
 function). Nothing is written before Accept, and a split asks before it replaces the entry's passages; it writes the
 new ones before it removes the old.
 
-## Backstories, written together (Part VII, frame 14; story 10)
+## Backstories, written together (Part VIII, frame 14; story 10)
 
 A character's backstory is a piece of the canon told in passages, and the two writers are the character's player and the
 DM. **Its opening is not copied:** the character's own Backstory field (`party_members.player_description`, the "About"
@@ -368,6 +430,12 @@ The document import left Campaign settings for the Canon page: the header action
 Campaign settings and `?tab=import` falls back to Details; every link to it (the compact quest paste) points at the new
 route, and `CanonImportView.test.ts` fails if a `/campaign/settings?tab=import` link comes back. See document-import.md.
 
+## Deleted entries (#1255 item 17)
+
+Deleting an entry on the page moves it to **Deleted (n)**, a quiet disclosure at the very bottom of the Canon page (`CanonDeleted`, absent when empty), for thirty days. Its clues, steps, ticks, passages, quest ties and world links are kept with it as a snapshot in `canon_trash` (DM-only; `trash_canon_entry`, `restore_canon_entry`, migration `20261123154815`; purged by `purge-canon-trash`). A deleted entry is simply not in `canon_entries`, so no reader of canon has to leave it out. Each row says what it was, when it was deleted and how many days are left, with **Restore** and **Delete for good** (asks first). A delete also toasts with Undo.
+
+Restore puts everything back **as the restoring DM** (rows come back owned by them), re-points what pointed at the entry, queues the entry's embedding again (a delete dropped the vector) and opens it by `/canon?entry=<id>`. It does not undo anything else: a reference to something deleted meanwhile is emptied, a quest tie to a deleted quest is dropped, and a backstory comes back only while its character has none (otherwise the server answers 23505 in words: delete the new one first). Deletes made by MCP or other server paths are still permanent. The list is read under a `CANON_KEY` query, so `canon_trash` ringing the doorbell refreshes it.
+
 ## Embedding on write
 
 An entry is embedded for the by-meaning lookup on every write that changes its words: `createCanonEntry` and an
@@ -392,7 +460,7 @@ The Narrator (`agent-turn`, see agent-runtime.md "The canon at the table") carri
 
 Session notes are canon, because they are what happened. A note linked to a session (`notes.session_id`) **is** that session's chronicle entry, kept as a note row so the Chronicler, the read-aloud, the pictures that land in a note and the players' reads keep working on one row; it is read on the Canon page's Chronicle and left out of the DM's `/notes` list. `notes.category` is gone (production held 50 notes, session 21, general 13, lore 12, a few others). Lore moves to the canon as lore entries, but nothing moves by itself: the maintainer used lore and session notes for player characters' backgrounds, so every lore note and every session note not linked to a session sits on a one-time list (`note_sorting`, "Sort your notes" on the Notes page, see campaign-notes-calendar.md) that the DM works through, sending each to a lore entry, a session, a character's backstory, their own note on a character, or keeping it a note.
 
-### The Chronicle page (Part VIII, frame 12)
+### The Chronicle page (Part IX, frame 12)
 
 `ChronicleSection` lists the campaign's **sessions**, newest first or from the start (`SegmentedControl`, state in
 `useCanonUiStore`), each with the note linked to it (`chronicleItems` in `canonChronicle.ts`; its newest when several are

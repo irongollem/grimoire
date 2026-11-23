@@ -34,6 +34,38 @@ describe("fetchWorldBlock", () => {
     expect(text).not.toContain("Orc");
   });
 
+  // Bug: a habitat's creatures were read for every campaign, a creature this reader cannot name reached a generator as
+  // "null", or a place without a name was written into the line.
+  it("tells the section this campaign's habitats with their places and creatures, leaving out a creature it cannot name", async () => {
+    fake.seed("campaign_habitats", [
+      { id: "h1", campaign_id: "c1", name: "Salt marsh", sort_order: 0 },
+      { id: "h2", campaign_id: "c2", name: "Elsewhere desert", sort_order: 0 },
+    ]);
+    fake.seed("campaign_habitat_places", [
+      { habitat_id: "h1", campaign_id: "c1", location: { name: "the Marsh" } },
+      { habitat_id: "h2", campaign_id: "c2", location: { name: "the Dunes" } },
+    ]);
+    fake.seed("campaign_habitat_life_named", [
+      { habitat_id: "h1", campaign_id: "c1", name: "Marsh eel", percent: 40, sort_order: 1 },
+      { habitat_id: "h1", campaign_id: "c1", name: null, percent: 30, sort_order: 2 },
+      { habitat_id: "h2", campaign_id: "c2", name: "Scorpion", percent: 90, sort_order: 1 },
+    ]);
+    const text = worldBlockText(await fetchWorldBlock("c1"));
+    expect(text).toContain("## Life of the world\nSalt marsh (the Marsh): Marsh eel 40%, anything else 60%\n");
+    expect(text).not.toContain("Scorpion");
+    expect(text).not.toContain("null");
+  });
+
+  it("adds no Life of the world section when no habitat is described", async () => {
+    expect(worldBlockText(await fetchWorldBlock("c1"))).not.toContain("Life of the world");
+  });
+
+  // Bug: a failed habitat read was treated as "no ecology".
+  it("throws when the habitats cannot be read", async () => {
+    fake.failNext("campaign_habitat_life_named", { message: "boom" });
+    await expect(fetchWorldBlock("c1")).rejects.toMatchObject({ message: "boom" });
+  });
+
   // Bug: a failed peoples read was treated as "no peoples", and the generators silently went back to humans.
   it("throws when the peoples cannot be read", async () => {
     fake.failNext("campaign_peoples_named", { message: "boom" });

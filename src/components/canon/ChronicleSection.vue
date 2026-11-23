@@ -1,7 +1,7 @@
 <template>
   <section id="canon-chronicle" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-chronicle-heading">
     <div class="flex flex-wrap items-center gap-3">
-      <CanonRubric id="canon-chronicle-heading" class="min-w-0 flex-1" numeral="VIII" title="Chronicle" />
+      <CanonRubric id="canon-chronicle-heading" class="min-w-0 flex-1" numeral="IX" title="Chronicle" />
       <SegmentedControl v-model="ui.chronicleOrder" :options="ORDER_OPTIONS" size="sm" aria-label="Order" />
     </div>
     <p class="m-0 text-caption text-muted-foreground">What has happened, session by session. A session's notes are its chronicle entry; nothing is written twice.</p>
@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 /**
- * Part VIII (frame 12): what has happened, session by session. Each entry is the note linked to a session; a session with
+ * Part IX (frame 12): what has happened, session by session. Each entry is the note linked to a session; a session with
  * none offers to write it. The almanac beside it puts lore, moving forces and sessions on one timeline.
  *
  * Sessions are shown ten at a time: each entry reads what the party learned in its own session, one read per entry, so

@@ -27,7 +27,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
-import { useDeleteCanonEntry, useUpdateCanonEntry, updateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useTrashCanonEntry, useUpdateCanonEntry, updateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import { useAutosave } from "@/composables/useAutosave";
 import { useConfirm } from "@/composables/useConfirm";
@@ -42,7 +42,7 @@ interface PitchDraft { body: string | null }
 
 const draft = reactive<PitchDraft>({ body: entry.body });
 const { mutate: update } = useUpdateCanonEntry();
-const { mutate: destroy } = useDeleteCanonEntry();
+const { mutate: destroy } = useTrashCanonEntry();
 const { confirm } = useConfirm();
 
 const { status, saveError, dirty, reset, hold } = useAutosave<PitchDraft>({
@@ -58,7 +58,7 @@ watch(() => entry.body, (next) => {
 });
 
 async function remove() {
-  const ok = await confirm("Remove the pitch? Its words are deleted.", { title: "Remove the pitch", confirmLabel: "Remove" });
+  const ok = await confirm("Delete the pitch? It goes to Deleted for thirty days, where you can restore it.", { title: "Delete the pitch", confirmLabel: "Delete" });
   if (!ok) return;
   await hold();
   destroy(entry.id);

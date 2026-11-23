@@ -7,7 +7,7 @@ import { canonEntry } from "@/test/canonEntry";
 vi.mock("@/composables/canon/useCanonEntries", () => ({
   useCreateCanonEntry: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: { value: false } }),
   useUpdateCanonEntry: () => ({ mutate: vi.fn() }),
-  useDeleteCanonEntry: () => ({ mutate: vi.fn() }),
+  useTrashCanonEntry: () => ({ mutate: vi.fn() }),
   createCanonEntry: vi.fn(),
   updateCanonEntry: vi.fn(),
 }));

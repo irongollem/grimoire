@@ -9,9 +9,10 @@ vi.mock("@/composables/party/useParty", () => ({
   useParty: () => ({ data: { value: [{ id: "m1", name: "Brannigan" }, { id: "m2", name: "Edda" }, { id: "m3", name: "Corin" }] } }),
 }));
 vi.mock("@/composables/quests/useSetBeatVisibility", () => ({ useSetBeatVisibility: () => mocks.setVisibility }));
+vi.mock("./QuestBeatRevealSecret.vue", () => ({ default: { props: ["secretId"], template: "<div data-testid='offer' :data-secret='secretId' />" } }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: mocks.toastError, fromError: String }) }));
 
-const beat = { id: "b1", quest_id: "q1", visibility: "hidden", visible_to: null, updated_at: "t0" } as QuestBeat;
+const beat = { id: "b1", quest_id: "q1", visibility: "hidden", visible_to: null, canon_secret_id: null, updated_at: "t0" } as QuestBeat;
 const dot = (wrapper: ReturnType<typeof mount>, step: string) =>
   wrapper.findAll("button").find((b) => b.attributes("aria-label") === step)!;
 
@@ -35,6 +36,37 @@ describe("QuestBeatVisibilityControl", () => {
     mocks.setVisibility.mockResolvedValue(undefined);
     await dot(mount(QuestBeatVisibilityControl, { props: { beat } }), "revealed").trigger("click");
     expect(mocks.setVisibility).toHaveBeenCalledWith(expect.objectContaining({ id: "b1", updated_at: "t0" }), "revealed");
+  });
+
+  // Fails if revealing a beat tied to a canon secret stops offering the second reveal.
+  it("offers to reveal the tied canon secret once the beat is revealed", async () => {
+    mocks.setVisibility.mockResolvedValue(undefined);
+    const wrapper = mount(QuestBeatVisibilityControl, { props: { beat: { ...beat, canon_secret_id: "s1" } } });
+    await dot(wrapper, "revealed").trigger("click");
+    await Promise.resolve(); await Promise.resolve();
+    expect(wrapper.find("[data-testid=offer]").attributes("data-secret")).toBe("s1");
+  });
+
+  // Fails if the offer appears for a beat with no canon secret, or on a step short of revealed.
+  it("offers nothing for an untied beat, or for a step short of revealed", async () => {
+    mocks.setVisibility.mockResolvedValue(undefined);
+    const untied = mount(QuestBeatVisibilityControl, { props: { beat } });
+    await dot(untied, "revealed").trigger("click");
+    await Promise.resolve(); await Promise.resolve();
+    expect(untied.find("[data-testid=offer]").exists()).toBe(false);
+    const tied = mount(QuestBeatVisibilityControl, { props: { beat: { ...beat, canon_secret_id: "s1" } } });
+    await dot(tied, "rumored").trigger("click");
+    await Promise.resolve(); await Promise.resolve();
+    expect(tied.find("[data-testid=offer]").exists()).toBe(false);
+  });
+
+  // Fails if a refused beat write still offers the secret, revealing it for a beat that stayed hidden.
+  it("offers nothing when the beat write fails", async () => {
+    mocks.setVisibility.mockRejectedValue(new Error("nope"));
+    const wrapper = mount(QuestBeatVisibilityControl, { props: { beat: { ...beat, canon_secret_id: "s1" } } });
+    await dot(wrapper, "revealed").trigger("click");
+    await Promise.resolve(); await Promise.resolve();
+    expect(wrapper.find("[data-testid=offer]").exists()).toBe(false);
   });
 
   // Fails if the floor is not handed to the circles, letting a beat the party reached be hidden again.

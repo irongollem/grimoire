@@ -133,7 +133,7 @@ describe("WorldPeoples", () => {
 
   it("shows the running total and what is left for anyone else", () => {
     const w = mountIt();
-    expect(w.get("[data-testid=peoples-total]").text()).toBe("Adds up to 90%. The other 10% is anyone else.");
+    expect(w.get("[data-testid=share-total]").text()).toBe("Adds up to 90%. The other 10% is anyone else.");
   });
 
   // Bug: remove only hid the row, and the people stayed in the table.

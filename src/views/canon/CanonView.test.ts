@@ -14,7 +14,7 @@ const party = ref([{ id: "m1", name: "Tansy" }, { id: "m2", name: "Pim" }]);
 vi.mock("vue-router", () => ({ useRoute: () => route, useRouter: () => ({ replace: mocks.replace }) }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({
   useCanonEntries: () => ({ data, isLoading: ref(false), isError: ref(false) }),
-  useDeleteCanonEntry: () => ({ mutateAsync: mocks.destroy }),
+  useTrashCanonEntry: () => ({ mutateAsync: mocks.destroy }),
 }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: party }) }));
 vi.mock("@/composables/canon/useCanonPassages", () => ({ useCanonPassages: () => ({ data: ref([]) }) }));
@@ -49,7 +49,7 @@ const mounted: { unmount: () => void }[] = [];
 function mountView() {
   const w = mount(CanonView, {
     attachTo: document.body,
-    global: { stubs: { PremiseSection: true, ForcesSection: true, ForceDetail: ForceDetailStub, SecretsSection: true, WorldWorksSection: true, LoreSection: true, ChronicleSection: true, TableAddedSection: true, AppButton: { template: '<a :data-testid="label === \'Tonight\' ? \'tonight\' : \'bring-in\'" :href="to"><slot /></a>', props: ['to', 'label'] }, LoreDetail: LoreDetailStub, SecretDetail: SecretDetailStub, TruthDetail: TruthDetailStub, TruthsSection: TruthsStub, CanonContents: true, BackstoriesSection: true, BackstoryDetail: BackstoryDetailStub } },
+    global: { stubs: { PremiseSection: true, ForcesSection: true, ForceDetail: ForceDetailStub, SecretsSection: true, WorldWorksSection: true, LifeSection: true, LoreSection: true, ChronicleSection: true, TableAddedSection: true, CanonDeleted: true, AppButton: { template: '<a :data-testid="label === \'Tonight\' ? \'tonight\' : \'bring-in\'" :href="to"><slot /></a>', props: ['to', 'label'] }, LoreDetail: LoreDetailStub, SecretDetail: SecretDetailStub, TruthDetail: TruthDetailStub, TruthsSection: TruthsStub, CanonContents: true, BackstoriesSection: true, BackstoryDetail: BackstoryDetailStub } },
   });
   mounted.push(w);
   return w;
@@ -187,7 +187,7 @@ describe("CanonView", () => {
       const loreStub = { name: "LoreSection", props: ["lore"], emits: ["select"], template: "<section><i id='tap-lore' @click=\"$emit('select', 'l1')\" /></section>" };
       const w = mount(CanonView, {
         attachTo: document.body,
-        global: { stubs: { PremiseSection: true, ForcesSection: true, SecretsSection: true, WorldWorksSection: true, LoreSection: loreStub, LoreDetail: LoreDetailStub, ChronicleSection: true, TableAddedSection: true, TruthsSection: true, CanonContents: true, BackstoriesSection: true, AppButton: true } },
+        global: { stubs: { PremiseSection: true, ForcesSection: true, SecretsSection: true, WorldWorksSection: true, LifeSection: true, LoreSection: loreStub, LoreDetail: LoreDetailStub, ChronicleSection: true, TableAddedSection: true, CanonDeleted: true, TruthsSection: true, CanonContents: true, BackstoriesSection: true, AppButton: true } },
       });
       mounted.push(w);
       await w.find("#tap-lore").trigger("click");
@@ -310,8 +310,16 @@ describe("CanonView", () => {
       mocks.destroy.mockResolvedValue(undefined);
       await openAndDelete();
       expect(mocks.destroy).toHaveBeenCalledWith("t1");
+      // Bug caught: the confirm still said "removed" after the delete became a move to the Deleted list.
+      expect(mocks.confirm.mock.calls[0][0]).toContain("Deleted for thirty days");
       expect(mocks.replace).toHaveBeenCalledWith({ query: { entry: undefined } });
     });
+  });
+
+  // Bug caught (#1255 item 17): a delete was permanent because the Deleted list, where Restore lives, was never on the page.
+  it("mounts the Deleted list under what the table added", () => {
+    const w = mountView();
+    expect(w.findComponent({ name: "CanonDeleted" }).exists()).toBe(true);
   });
 
   // Bug caught: the importer left Campaign settings with no way in from the Canon page, so a DM could not bring a book in at all.
@@ -350,7 +358,7 @@ describe("CanonView", () => {
     function mountLanding() {
       const w = mount(CanonView, {
         attachTo: document.body,
-        global: { stubs: { PremiseSection: rowStub, SecretsSection: rowStub, TruthsSection: true, ForcesSection: true, WorldWorksSection: true, LoreSection: true, ChronicleSection: true, TableAddedSection: true, AppButton: true, CanonContents: true, BackstoriesSection: true } },
+        global: { stubs: { PremiseSection: rowStub, SecretsSection: rowStub, TruthsSection: true, ForcesSection: true, WorldWorksSection: true, LifeSection: true, LoreSection: true, ChronicleSection: true, TableAddedSection: true, CanonDeleted: true, AppButton: true, CanonContents: true, BackstoriesSection: true } },
       });
       mounted.push(w);
       return w;

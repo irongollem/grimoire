@@ -34,6 +34,7 @@
             </div>
           </SecretsSection>
           <WorldWorksSection />
+          <LifeSection />
           <CanonSplit close-label="Close this lore entry" @close="closeEntry">
             <LoreSection :lore="lore" :selected-id="selectedLore?.id ?? null" @select="select" />
             <template v-if="selectedLore" #detail>
@@ -48,6 +49,7 @@
           </CanonSplit>
           <ChronicleSection :lore="lore" :forces="forces" />
           <TableAddedSection :truths="truths" />
+          <CanonDeleted />
           <!-- The header holds Bring in a book from a tablet up; a phone's header is the page's own bar. -->
           <AppButton to="/canon/tonight" variant="ghost" size="md" :icon="IconMoon" label="Tonight" class="self-start md:hidden" />
           <AppButton to="/canon/import" variant="outline" size="md" :icon="IconUpload" label="Bring in a book" class="self-start md:hidden" />
@@ -79,6 +81,7 @@ import BackstoryDetail from "@/components/canon/BackstoryDetail.vue";
 import CanonSplit from "@/components/canon/CanonSplit.vue";
 import ChronicleSection from "@/components/canon/ChronicleSection.vue";
 import TableAddedSection from "@/components/canon/TableAddedSection.vue";
+import CanonDeleted from "@/components/canon/CanonDeleted.vue";
 import CanonStart from "@/components/canon/CanonStart.vue";
 import CanonContents from "@/components/canon/CanonContents.vue";
 import ForceDetail from "@/components/canon/ForceDetail.vue";
@@ -91,9 +94,10 @@ import SecretsSection from "@/components/canon/SecretsSection.vue";
 import TruthDetail from "@/components/canon/TruthDetail.vue";
 import TruthsSection from "@/components/canon/TruthsSection.vue";
 import WorldWorksSection from "@/components/canon/WorldWorksSection.vue";
+import LifeSection from "@/components/canon/ecology/LifeSection.vue";
 import { CANON_SECTIONS, sectionCounts, sectionOfPart, type CanonSectionId } from "@/lib/canon/canonParts";
 import { unreviewedCount } from "@/lib/canon/canonTableFacts";
-import { useCanonEntries, useDeleteCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useCanonEntries, useTrashCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useCanonScrollSpy } from "@/composables/canon/useCanonScrollSpy";
 import { useChronicle } from "@/composables/canon/useChronicle";
@@ -170,7 +174,7 @@ function selectBackstory(memberId: string) {
   void router.replace({ query: { ...route.query, backstory: memberId, entry: undefined } });
 }
 
-const { mutateAsync: destroy } = useDeleteCanonEntry();
+const { mutateAsync: destroy } = useTrashCanonEntry();
 const { confirm } = useConfirm();
 
 async function removeSelected() {
@@ -178,7 +182,7 @@ async function removeSelected() {
   if (!target) return;
   const noun = target.part === "secret" ? "secret" : target.part === "force" ? "force" : target.part === "lore" ? "lore" : "truth";
   const parts = target.part === "secret" ? " and clues" : target.part === "force" ? ", steps, ticks and quest links" : target.part === "lore" ? " and passages" : "";
-  const ok = await confirm(`Delete this ${noun}? "${target.title}" and its connections${parts} are removed.`, {
+  const ok = await confirm(`Delete this ${noun}? "${target.title}" and its connections${parts} go to Deleted for thirty days, where you can restore them.`, {
     title: `Delete this ${noun}`,
     confirmLabel: "Delete",
   });

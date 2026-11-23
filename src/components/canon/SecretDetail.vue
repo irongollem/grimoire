@@ -64,6 +64,8 @@
       </p>
     </div>
 
+    <SecretBeats :secret-id="entry.id" />
+
     <EntryQuests :entry="entry" :links="questLinks" label="The quests that uncover it" empty="No quest is built to uncover this yet." />
 
     <ConnectionsSection :subject="subject" :subject-name="entry.title" />
@@ -86,6 +88,7 @@ import EntryQuests from "./EntryQuests.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
 import ClueForm from "./ClueForm.vue";
 import ClueRow from "./ClueRow.vue";
+import SecretBeats from "./SecretBeats.vue";
 import { CLUES_WANTED, SECRET_STATE_LABEL, SECRET_STATE_MARK, clueTally, secretState } from "@/lib/canon/canonSecrets";
 import { useCreateCanonClue, useCanonClues, useDeleteCanonClue, useSetClueFound, useUpdateCanonClue, type ClueKind } from "@/composables/canon/useCanonClues";
 import { useCanonEntries, useCreateCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
@@ -93,7 +96,7 @@ import { useEntryQuestLinks } from "@/composables/canon/useEntryQuestLinks";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useClueWhere } from "@/composables/canon/useClueWhere";
-import { useParty } from "@/composables/party/useParty";
+import { useRevealSecret } from "@/composables/canon/useRevealSecret";
 import { useConfirm } from "@/composables/useConfirm";
 import { IconAdd, IconDelete } from "@/lib/icons";
 import { toast } from "@/lib/toast";
@@ -129,7 +132,7 @@ const { mutate: updateClue } = useUpdateCanonClue();
 const { mutateAsync: createClue, isPending: creating } = useCreateCanonClue();
 const { mutateAsync: destroyClue } = useDeleteCanonClue();
 const setFound = useSetClueFound();
-const { data: party } = useParty();
+const { ready: partyReady, revealSecret } = useRevealSecret();
 const { confirm } = useConfirm();
 
 const { text, revision } = useCommittedText(() => entry.title, (next) => update({ id: entry.id, patch: { title: next } }));
@@ -161,15 +164,14 @@ async function removeClue(clue: CanonClue) {
 
 async function reveal() {
   // Revealing to a party that has not loaded yet would share it with nobody, silently: wait for it.
-  const members = party.value;
-  if (!members) return;
+  if (!partyReady.value) return;
   const ok = await confirm(`Reveal this secret to the party? "${entry.title}" shows on every player's screen.`, {
     title: "Reveal to the party",
     confirmLabel: "Reveal",
     danger: false,
   });
   if (!ok) return;
-  update({ id: entry.id, patch: { revealed_at: new Date().toISOString(), player_visible_to: members.map((m) => m.id) } });
+  revealSecret(entry.id);
 }
 
 const making = ref(false);

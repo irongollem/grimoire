@@ -6,6 +6,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { toast } from "@/lib/toast";
 import { fetchCanonEntries } from "@/lib/canon/canonEntries";
 import { queueCanonEmbedding } from "@/lib/canon/queueCanonEmbedding";
+import { restoreCanonEntry, restoreErrorMessage } from "@/composables/canon/useCanonTrash";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import type { CanonEntry, KnowledgeMark, LoreKind, PremiseKind } from "@/types/canon.types";
 
@@ -35,6 +36,8 @@ export type NewCanonEntry =
       ai_provenance?: AiProvenance | null;
       /** The table fact this truth was made from; the database lets one fact make one truth. */
       from_fact_id?: string | null;
+      /** The habitat this truth belongs to, a note on the living world (the Life part). */
+      habitat_id?: string | null;
     }
   | { part: "force"; title: string; wants?: string | null; clock_size?: number | null; sort_order?: number; ai_provenance?: AiProvenance | null }
   | { part: "secret"; title: string; sort_order?: number; ai_provenance?: AiProvenance | null }
@@ -74,9 +77,15 @@ export async function updateCanonEntry(id: string, patch: CanonEntryPatch): Prom
   if (EMBEDDED_COLUMNS.some((column) => column in patch)) queueCanonEmbedding(id);
 }
 
-export async function deleteCanonEntry(id: string): Promise<void> {
-  const { error } = await supabase.from("canon_entries").delete().eq("id", id);
+/**
+ * Delete an entry the way the page does: it goes to the Deleted list for thirty days with everything hanging off it
+ * (`trash_canon_entry`, #1255 item 17). Answers the trash row's id, which Restore takes.
+ */
+export async function trashCanonEntry(id: string): Promise<string> {
+  const { data, error } = await supabase.rpc("trash_canon_entry", { p_entry_id: id });
   if (error) throw error;
+  if (typeof data !== "string") throw new Error("trash_canon_entry answered without a trash row");
+  return data;
 }
 
 /** Every canon entry of the active campaign, in the DM's order. Refreshed by the doorbell (`canon_entries`). */
@@ -126,11 +135,23 @@ export function useUpdateCanonEntry() {
   });
 }
 
-export function useDeleteCanonEntry() {
+export function useTrashCanonEntry() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => deleteCanonEntry(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [CANON_KEY] }),
+    mutationFn: (id: string) => trashCanonEntry(id),
+    onSuccess: (trashId) => {
+      void qc.invalidateQueries({ queryKey: [CANON_KEY] });
+      toast.info("Moved to Deleted for thirty days.", undefined, {
+        action: {
+          label: "Undo",
+          run: () => {
+            restoreCanonEntry(trashId)
+              .then(() => qc.invalidateQueries({ queryKey: [CANON_KEY] }))
+              .catch((e: unknown) => toast.error(restoreErrorMessage(e)));
+          },
+        },
+      });
+    },
     onError: (e) => toast.error(toast.fromError(e)),
   });
 }

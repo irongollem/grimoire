@@ -29,7 +29,10 @@
       class="rounded-md border border-tone-caution/40 bg-tone-caution/5 p-2"
     />
 
-    <label class="block space-y-1 text-caption font-semibold text-foreground">
+    <!-- A beat that is a canon secret reads the secret's words, so they live in one place; its own lead is kept, untouched. -->
+    <QuestBeatCanonSecret :canon-secret-id="beat.canon_secret_id" @tie="tie" />
+
+    <label v-if="beat.canon_secret_id === null" class="block space-y-1 text-caption font-semibold text-foreground">
       DM lead
       <RichTextEditor v-model="draft.dm_content" placeholder="What should the DM know first?" :entity-mention-items="entityMentionItems" />
     </label>
@@ -73,6 +76,7 @@ import { computed, reactive, ref, watch } from "vue";
 import CanonHere from "@/components/canon/CanonHere.vue";
 import { useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
 import { useAutosave } from "@/composables/useAutosave";
+import { toast } from "@/lib/toast";
 import { applyBeatFill, questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "@/lib/quests/beatDraft";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
@@ -82,6 +86,7 @@ import type { QuestBeat } from "@/types/quest.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import QuestBeatCanonSecret from "@/components/quests/inspector/QuestBeatCanonSecret.vue";
 import QuestBeatFillBar from "@/components/quests/inspector/QuestBeatFillBar.vue";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
@@ -148,6 +153,22 @@ function applyFill({ fill, provenance, overwrite }: QuestBeatFilled & { overwrit
     read_aloud: fill.readAloud && (overwrite || !hasText(draft.read_aloud)) ? toTiptapJson(fill.readAloud) : undefined,
     dm_content: fill.dmContent && (overwrite || !hasText(draft.dm_content)) ? toTiptapJson(fill.dmContent) : undefined,
   }, provenance);
+}
+
+// Tying is one deliberate write of its own column; the autosaved draft never carries it, so neither overwrites the other.
+async function tie(secretId: string | null) {
+  try {
+    const saved = await updateBeat.mutateAsync({
+      id: beat.id,
+      questId: beat.quest_id,
+      update: { canon_secret_id: secretId },
+      expectedUpdatedAt: version.value,
+    });
+    version.value = saved.updated_at;
+    emit("saved", saved);
+  } catch (caught) {
+    toast.error(toast.fromError(caught));
+  }
 }
 
 function reloadSavedBeat() {

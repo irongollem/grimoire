@@ -19,7 +19,7 @@ vi.mock("./systemPrompts", () => ({
 vi.mock("@/composables/ai/useAiCredits", () => ({ logUsage: (...a: unknown[]) => logUsage(...a) }));
 
 const usage = { provider: "openai", model: "m", input_tokens: 1, output_tokens: 1 };
-const noWorld: WorldBlock = { world: null, pitch: null, themes: [], table: [], voice: null, look: null, lines: [], veils: [], truths: [], peoples: null };
+const noWorld: WorldBlock = { world: null, pitch: null, themes: [], table: [], voice: null, look: null, lines: [], veils: [], truths: [], peoples: null, habitats: null };
 const base = { campaignId: "c1", world: noWorld, ruleset: "2024" as const, prompt: "He was sad.", constraints: ["Context: note"] };
 
 // Local mode is decided by textRunsOnLocalKey: chosen AND a key that decrypted.

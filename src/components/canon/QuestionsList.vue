@@ -50,7 +50,7 @@ import CanonAddRow from "./CanonAddRow.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
 import QuestionAnsweredRow from "./QuestionAnsweredRow.vue";
 import QuestionRow from "./QuestionRow.vue";
-import { useCreateCanonEntry, useDeleteCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useCreateCanonEntry, useTrashCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useConfirm } from "@/composables/useConfirm";
 import { REOPEN_QUESTION_PATCH, answerEntry, answeredPatch, type AnswerKind } from "@/lib/canon/canonClose";
 import { IconChevronDown, IconChevronRight } from "@/lib/icons";
@@ -65,7 +65,7 @@ const answered = computed(() => questions.filter((q) => q.closed_as !== null));
 
 const { mutateAsync: create } = useCreateCanonEntry();
 const { mutate: update, mutateAsync: updateAsync } = useUpdateCanonEntry();
-const { mutateAsync: destroy } = useDeleteCanonEntry();
+const { mutateAsync: destroy } = useTrashCanonEntry();
 const { confirm } = useConfirm();
 
 // Transient UI state: which row has its answer form open, and whether the answered drawer is open.
@@ -107,7 +107,7 @@ function reopen(q: CanonEntry) {
 }
 
 async function remove(q: CanonEntry) {
-  if (!(await confirm(`Remove this question? "${q.title}" is deleted.`, { title: "Remove this question", confirmLabel: "Remove" }))) return;
+  if (!(await confirm(`Delete this question? "${q.title}" goes to Deleted for thirty days, where you can restore it.`, { title: "Delete this question", confirmLabel: "Delete" }))) return;
   try {
     await destroy(q.id);
   } catch {

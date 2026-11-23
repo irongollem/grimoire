@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  habitatsForBlock,
+  habitatsLines,
   worldBlockFromRows,
   worldBlockText,
   worldImageSetting,
@@ -7,7 +9,7 @@ import {
 } from "./worldBlock";
 
 /** The block for a campaign that has said nothing of its peoples, unless a test says otherwise. */
-const build = (setting: string | null, rows: CanonRowForBlock[], peoples: readonly { name: string; percent: number }[] = []) => worldBlockFromRows(setting, rows, peoples);
+const build = (setting: string | null, rows: CanonRowForBlock[], peoples: readonly { name: string; percent: number }[] = []) => worldBlockFromRows(setting, rows, peoples, []);
 
 let order = 0;
 const row = (over: Partial<CanonRowForBlock>): CanonRowForBlock => ({
@@ -178,9 +180,51 @@ describe("mentions in canon text", () => {
       premise("pitch", "", mentioning("The bell was sold by ", " to the ferryman.")),
       premise("theme", "Debt", mentioning("Owed to ", ".")),
     ];
-    const text = worldBlockText(worldBlockFromRows("Sothery", rows, [], nameOf));
+    const text = worldBlockText(worldBlockFromRows("Sothery", rows, [], [], nameOf));
     expect(text).toContain("The bell was sold by Maren Voss to the ferryman.");
     expect(text).toContain("Debt: Owed to Maren Voss.");
-    expect(worldBlockText(worldBlockFromRows("Sothery", rows, []))).toContain("The bell was sold by  to the ferryman.");
+    expect(worldBlockText(worldBlockFromRows("Sothery", rows, [], []))).toContain("The bell was sold by  to the ferryman.");
+  });
+});
+
+describe("the life of the world", () => {
+  const marsh = { name: "Salt marsh", places: ["the Marsh", "Saltmere's edge"], life: [{ name: "Marsh eel", percent: 40 }, { name: "Giant frog", percent: 20 }] };
+  const withHabitats = (list: Parameters<typeof habitatsLines>[0]) => worldBlockText(worldBlockFromRows(null, [], [], list));
+
+  // Bug: a habitat's places and shares never reached the generators, so a bog gave the same monsters as a desert.
+  it("tells every generator what lives where, each habitat with its places and its creatures at their shares", () => {
+    expect(withHabitats([marsh])).toContain(
+      "## Life of the world\nSalt marsh (the Marsh, Saltmere's edge): Marsh eel 40%, Giant frog 20%, anything else 40%\nWhen a creature turns up somewhere, choose it at these odds for the country it is in.",
+    );
+  });
+
+  // Bug: an empty ecology still wrote a heading and an instruction about odds that name nothing.
+  it("adds nothing for an empty ecology, nor for a habitat with no place and no creature", () => {
+    expect(withHabitats([])).toBe("");
+    expect(withHabitats([{ name: "Barren", places: [], life: [] }])).toBe("");
+    expect(worldBlockFromRows(null, [], [], []).habitats).toBeNull();
+  });
+
+  it("says a habitat that has creatures but no place, and one that has a place but no creature", () => {
+    expect(habitatsLines([{ name: "Hills", places: [], life: [{ name: "Goat", percent: 100 }] }, { name: "Fen", places: ["Mere"], life: [] }])).toBe(
+      "Hills: Goat 100%\nFen (Mere)",
+    );
+  });
+
+  // Bug: the join took every habitat's creatures for each habitat, or kept a place the reader may not read as "undefined".
+  it("joins each habitat only to its own places and creatures, and leaves out a place that cannot be read", () => {
+    const joined = habitatsForBlock({
+      habitats: [{ id: "h1", name: "Marsh" }, { id: "h2", name: "Hills" }],
+      places: [
+        { habitat_id: "h1", location: { name: "Mere" } },
+        { habitat_id: "h1", location: null },
+        { habitat_id: "h2", location: { name: "Tor" } },
+      ],
+      life: [{ habitat_id: "h1", name: "Eel", percent: 50 }, { habitat_id: "h2", name: "Goat", percent: 10 }],
+    });
+    expect(joined).toEqual([
+      { name: "Marsh", places: ["Mere"], life: [{ habitat_id: "h1", name: "Eel", percent: 50 }] },
+      { name: "Hills", places: ["Tor"], life: [{ habitat_id: "h2", name: "Goat", percent: 10 }] },
+    ]);
   });
 });

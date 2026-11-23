@@ -28,7 +28,7 @@ const force = (over = {}) => canonEntry({ id: "f1", campaign_id: "c1", part: "fo
 const EntryQuestsStub = { name: "EntryQuests", props: ["entry", "links", "label", "empty"], template: "<div />" };
 
 const mountIt = (entry = force()) =>
-  mount(ForceDetail, { props: { entry }, global: { stubs: { ForceSteps: true, EntryQuests: EntryQuestsStub, ConnectionsSection: true, CanonEntryNotes: true } } });
+  mount(ForceDetail, { props: { entry }, global: { stubs: { ForceSteps: true, EntryQuests: EntryQuestsStub, ConnectionsSection: true, CanonEntryNotes: true, ForceQuestClocks: true } } });
 
 describe("ForceDetail", () => {
   beforeEach(() => {
@@ -48,6 +48,11 @@ describe("ForceDetail", () => {
     const notes = mountIt().getComponent(CanonEntryNotes);
     expect(notes.props("entry")).toMatchObject({ id: "f1" });
     expect(notes.props("help")).toBe("Never shown to players.");
+  });
+
+  // Bug caught (#1255 item 20): the force showed nothing of the quest clocks that move it, or listed them for another force.
+  it("mounts the quest clocks block for this force", () => {
+    expect(mountIt().getComponent({ name: "ForceQuestClocks" }).props("entry")).toMatchObject({ id: "f1" });
   });
 
   it("ticks forward by one with the note typed beside it, then empties the note", async () => {
