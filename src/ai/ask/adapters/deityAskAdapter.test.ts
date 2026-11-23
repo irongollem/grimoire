@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 
 const mocks = vi.hoisted(() => ({ generateAndCreateDeity: vi.fn() }));
-const state = vi.hoisted(() => ({ aiEnabled: true, canCreate: true, affordable: true, pantheons: undefined as unknown, deities: undefined as unknown }));
+const state = vi.hoisted(() => ({ aiEnabled: true, canCreate: true, affordable: true, pantheons: undefined as unknown, deities: undefined as unknown, linkNames: new Map<string, string>() as Map<string, string> | undefined }));
 
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
@@ -26,10 +26,18 @@ vi.mock("@/composables/deities/useDeities", () => ({
   useAllPantheons: () => ({ data: { get value() { return state.pantheons; } } }),
   useAllDeities: () => ({ data: { get value() { return state.deities; } } }),
 }));
+vi.mock("@/ai/ask/adapters/askLinkRecords", () => ({
+  useAskLinkRecords: (wanted: () => readonly unknown[]) => ({
+    names: computed(() => state.linkNames),
+    loading: computed(() => wanted().length > 0 && state.linkNames === undefined),
+    failed: computed(() => false),
+  }),
+}));
 vi.mock("@/composables/deities/useGenerateDeity", () => ({
   useGenerateDeity: () => ({ generateAndCreateDeity: mocks.generateAndCreateDeity }),
 }));
 
+const { typeChoices } = await import("@/lib/worldLinks/connections");
 const { useDeityAskAdapter } = await import("./deityAskAdapter");
 const { useDeityQuote } = await import("@/composables/ai/quotes/deityQuote");
 
@@ -37,7 +45,7 @@ const proposal = (inputs: Record<string, unknown> = {}, concept = "A weary godde
   proposalId: "p1", generator: "deity", concept, inputs,
 });
 const saved = (over: Record<string, unknown> = {}) => ({
-  deity: { id: "d1", name: "Vesper", campaignId: "c1", notesFailure: null }, error: null, picture: "none", ...over,
+  deity: { id: "d1", name: "Vesper", campaignId: "c1", notesFailure: null, linkErrors: [] }, error: null, picture: "none", ...over,
 });
 
 describe("useDeityAskAdapter", () => {
@@ -47,7 +55,55 @@ describe("useDeityAskAdapter", () => {
       aiEnabled: true, canCreate: true, affordable: true,
       pantheons: [{ id: "pan1", name: "The Hollow Court" }], deities: [{ pantheon_id: "pan1", name: "Orrin", portfolio: "frost" }],
     });
+    state.linkNames = new Map();
     mocks.generateAndCreateDeity.mockResolvedValue(saved());
+  });
+
+  describe("links", () => {
+    const GUILD = "00000000-0000-4000-8000-0000000000a1";
+    const TEMPLE = "00000000-0000-4000-8000-0000000000a2";
+    const word = (to: "faction" | "location") => typeChoices("deity", to)[0]!.word.replaceAll(" ", "_");
+    const links = [
+      { kind: "faction", id: GUILD, relation: word("faction") },
+      { kind: "location", id: TEMPLE, relation: word("location") },
+    ];
+    beforeEach(() => {
+      state.linkNames = new Map([[`faction:${GUILD}`, "The Guild"], [`location:${TEMPLE}`, "The Temple"]]);
+    });
+
+    it("names each tie on the quote and hands the page's own pending ties to the workflow", async () => {
+      const adapter = useDeityAskAdapter();
+      const quote = adapter.quote(proposal({ links }));
+      expect(quote.lines.filter((l) => l.value === "The Guild" || l.value === "The Temple")).toHaveLength(2);
+      await adapter.run(proposal({ links }));
+      const request = mocks.generateAndCreateDeity.mock.calls[0][1];
+      expect(request.links.map((l: { kind: string; id: string; name: string }) => [l.kind, l.id, l.name])).toEqual([
+        ["faction", GUILD, "The Guild"], ["location", TEMPLE, "The Temple"],
+      ]);
+    });
+
+    // Bug caught: a link to a record that is not this campaign's was tied anyway.
+    it("ignores a tie whose record is not in this campaign", async () => {
+      state.linkNames = new Map([[`faction:${GUILD}`, "The Guild"]]);
+      await useDeityAskAdapter().run(proposal({ links }));
+      expect(mocks.generateAndCreateDeity.mock.calls[0][1].links).toHaveLength(1);
+    });
+
+    // Bug caught: run before the records were read made the deity with no ties, silently.
+    it("waits for the records the ties name, and run makes nothing meanwhile", async () => {
+      state.linkNames = undefined;
+      const adapter = useDeityAskAdapter();
+      expect(adapter.quote(proposal({ links })).block).toMatchObject({ reason: "missing", message: "Still reading the records it is tied to." });
+      await adapter.run(proposal({ links }));
+      expect(mocks.generateAndCreateDeity).not.toHaveBeenCalled();
+    });
+
+    it("shows a failed tie as its own part, with the deity still saved", async () => {
+      mocks.generateAndCreateDeity.mockResolvedValue(saved({ deity: { id: "d1", name: "Vesper", campaignId: "c1", notesFailure: null, linkErrors: ["The Guild: denied"] } }));
+      const result = await useDeityAskAdapter().run(proposal({ links }));
+      expect(result.record).toMatchObject({ id: "d1" });
+      expect(result.parts).toContainEqual(expect.objectContaining({ label: "Connections", ok: false }));
+    });
   });
 
   it("quotes the same price the page shows, with the picture counted only when asked", () => {
@@ -91,6 +147,7 @@ describe("useDeityAskAdapter", () => {
       alignment: "Neutral Good",
       primaryDomain: "Trickery",
       generateImage: false,
+      links: [],
     });
   });
 
@@ -115,7 +172,7 @@ describe("useDeityAskAdapter", () => {
   });
 
   it("a failed secrets note is its own part and the deity stays saved", async () => {
-    mocks.generateAndCreateDeity.mockResolvedValue(saved({ deity: { id: "d1", name: "Vesper", campaignId: "c1", notesFailure: new Error("rls") } }));
+    mocks.generateAndCreateDeity.mockResolvedValue(saved({ deity: { id: "d1", name: "Vesper", campaignId: "c1", notesFailure: new Error("rls"), linkErrors: [] } }));
     const result = await useDeityAskAdapter().run(proposal());
     expect(result.record?.id).toBe("d1");
     expect(result.parts.map((p) => [p.label, p.ok])).toEqual([["Deity text", true], ["DM notes", false]]);

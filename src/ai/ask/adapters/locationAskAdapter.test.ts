@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 
 const mocks = vi.hoisted(() => ({ generateAndCreateLocation: vi.fn() }));
@@ -7,6 +7,8 @@ const state = vi.hoisted(() => ({
   aiEnabled: true, canCreate: true, affordable: true,
   places: undefined as { id: string; name: string }[] | undefined,
   npcs: undefined as { id: string; name: string }[] | undefined,
+  /** `kind:id` to name for the records the ties name; undefined while "reading". */
+  linkNames: new Map<string, string>() as Map<string, string> | undefined,
 }));
 
 vi.mock("@/stores/campaign", () => ({
@@ -27,6 +29,13 @@ vi.mock("@/composables/locations/useLocations", () => ({
   useAllLocations: () => ({ data: { get value() { return state.places; } } }),
 }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: { get value() { return state.npcs; } } }) }));
+vi.mock("@/ai/ask/adapters/askLinkRecords", () => ({
+  useAskLinkRecords: (wanted: () => readonly unknown[]) => ({
+    names: computed(() => state.linkNames),
+    loading: computed(() => wanted().length > 0 && state.linkNames === undefined),
+    failed: computed(() => false),
+  }),
+}));
 vi.mock("@/composables/locations/useGenerateLocation", () => ({
   useGenerateLocation: () => ({ generateAndCreateLocation: mocks.generateAndCreateLocation }),
 }));
@@ -37,12 +46,52 @@ const { useLocationQuote } = await import("@/composables/ai/quotes/locationQuote
 const proposal = (inputs: Record<string, unknown> = {}, concept = "A crumbling dwarven forge district"): AskProposal => ({
   proposalId: "p1", generator: "location", concept, inputs,
 });
-const saved = (over: Record<string, unknown> = {}) => ({ id: "l1", name: "Forgeholm", error: null, picture: "none", map: "none", ...over });
+const saved = (over: Record<string, unknown> = {}) => ({ id: "l1", name: "Forgeholm", error: null, picture: "none", map: "none", linkErrors: [], ...over });
 
 describe("useLocationAskAdapter", () => {
   beforeEach(() => {
     mocks.generateAndCreateLocation.mockReset().mockResolvedValue(saved());
-    Object.assign(state, { aiEnabled: true, canCreate: true, affordable: true, places: [{ id: "p1", name: "Thornkeep" }], npcs: [{ id: "n1", name: "Brenna" }] });
+    Object.assign(state, { aiEnabled: true, canCreate: true, affordable: true, places: [{ id: "p1", name: "Thornkeep" }], npcs: [{ id: "n1", name: "Brenna" }], linkNames: new Map() });
+  });
+
+  describe("links", () => {
+    const RED_HAND = "00000000-0000-4000-8000-0000000000b1";
+    const links = [{ kind: "faction", id: RED_HAND, relation: "controlled_by" }];
+    beforeEach(() => {
+      state.linkNames = new Map([[`faction:${RED_HAND}`, "The Red Hand"]]);
+    });
+
+    it("names the tie on the quote and hands the pending tie to the workflow", async () => {
+      const adapter = useLocationAskAdapter();
+      expect(adapter.quote(proposal({ links })).lines.some((l) => l.value === "The Red Hand")).toBe(true);
+      await adapter.run(proposal({ links }));
+      const given = mocks.generateAndCreateLocation.mock.calls[0][1].links;
+      expect(given).toHaveLength(1);
+      expect(given[0]).toMatchObject({ kind: "faction", id: RED_HAND, name: "The Red Hand" });
+    });
+
+    // Bug caught: a tie to a record that is not this campaign's was written anyway.
+    it("ignores a tie whose record is not in this campaign", async () => {
+      state.linkNames = new Map();
+      await useLocationAskAdapter().run(proposal({ links }));
+      expect(mocks.generateAndCreateLocation.mock.calls[0][1].links).toEqual([]);
+    });
+
+    // Bug caught: run before the records were read made the place with no ties, silently.
+    it("waits for the records the ties name, and run makes nothing meanwhile", async () => {
+      state.linkNames = undefined;
+      const adapter = useLocationAskAdapter();
+      expect(adapter.quote(proposal({ links })).block).toMatchObject({ reason: "missing" });
+      await adapter.run(proposal({ links }));
+      expect(mocks.generateAndCreateLocation).not.toHaveBeenCalled();
+    });
+
+    it("shows a failed tie as its own part, with the place still saved", async () => {
+      mocks.generateAndCreateLocation.mockResolvedValue(saved({ linkErrors: ["The Red Hand: denied"] }));
+      const result = await useLocationAskAdapter().run(proposal({ links }));
+      expect(result.record).toMatchObject({ id: "l1" });
+      expect(result.parts).toContainEqual(expect.objectContaining({ label: "Connections", ok: false }));
+    });
   });
 
   it("quotes the same price the page shows, with the picture counted only when asked and never a map", () => {
@@ -85,11 +134,11 @@ describe("useLocationAskAdapter", () => {
   it("files the place under a parent of this campaign, and ignores a parent id that is not one", async () => {
     await useLocationAskAdapter().run(proposal({ parent_id: "p1", location_type: "City" }));
     expect(mocks.generateAndCreateLocation.mock.calls[0][1]).toEqual({
-      locationType: "city", parent: { id: "p1", name: "Thornkeep" }, keeperNpcId: null, generateImage: false, generateMap: false,
+      locationType: "city", parent: { id: "p1", name: "Thornkeep" }, keeperNpcId: null, generateImage: false, generateMap: false, links: [],
     });
     await useLocationAskAdapter().run(proposal({ parent_id: "someone-elses-place", location_type: "lair of doom", system_prompt: "x" }));
     expect(mocks.generateAndCreateLocation.mock.calls[1][1]).toEqual({
-      locationType: undefined, parent: null, keeperNpcId: null, generateImage: false, generateMap: false,
+      locationType: undefined, parent: null, keeperNpcId: null, generateImage: false, generateMap: false, links: [],
     });
   });
 

@@ -6,6 +6,8 @@
  * pantheon is given by id (`pantheon_id`, as the page's picker holds it) and looked up in this campaign's own
  * pantheons: an id that matches none is not understood, so the deity joins no pantheon rather than another campaign's. The deity's secrets note can fail on its own; the deity is saved and that is its own part. The
  * picture cannot be painted again from Ask (it is not one of the kinds `useMissingPortrait` knows), so a failed
+ * Every other tie goes through `links` (a faction that serves them, a holy place, a relic), read and written as the
+ * NPC adapter does; a failed tie is a "Connections" part and the deity stays. A failed
  * picture is said plainly and the deity's own page can paint it.
  */
 import { computed, ref } from "vue";
@@ -13,7 +15,9 @@ import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
 import { askFlag, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
-import { conceptBlock, failedRun, matchOption, picturePart, saveFailure, spent } from "@/ai/ask/adapters/askAdapterKit";
+import { askLinkLines, conceptBlock, failedRun, matchOption, picturePart, readAskLinks, resolveAskLinks, saveFailure, spent } from "@/ai/ask/adapters/askAdapterKit";
+import { useAskLinkRecords } from "@/ai/ask/adapters/askLinkRecords";
+import type { AskLink } from "@edge-shared/agent/askLinks";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllDeities, useAllPantheons } from "@/composables/deities/useDeities";
 import { useDeityQuote } from "@/composables/ai/quotes/deityQuote";
@@ -36,12 +40,23 @@ export function useDeityAskAdapter(): AskAdapter {
   const { data: deities } = useAllDeities(() => lookupsWanted.value);
   const lookupsLoading = computed(() => lookupsWanted.value && (pantheons.value === undefined || deities.value === undefined));
 
+  // The records the ties name, read only once a proposal has some.
+  const wantedLinks = ref<AskLink[]>([]);
+  const linkRecords = useAskLinkRecords(() => wantedLinks.value);
+
   function understand(proposal: AskProposal) {
     const inputs = readAskInputs("deity", proposal.inputs);
     const pantheonId = askString(inputs, "pantheon_id");
     if (pantheonId !== null) lookupsWanted.value = true;
     const pantheon = pantheonId === null ? null : pantheons.value?.find((p) => p.id === pantheonId) ?? null;
+    const askedLinks = readAskLinks("deity", proposal.inputs);
+    // Set only on a change, so reading a quote never re-triggers itself.
+    if (askedLinks.map((l) => `${l.kind}:${l.id}:${l.relation}`).join() !== wantedLinks.value.map((l) => `${l.kind}:${l.id}:${l.relation}`).join()) {
+      wantedLinks.value = askedLinks;
+    }
+    const links = linkRecords.names.value ? resolveAskLinks("deity", askedLinks, linkRecords.names.value) : [];
     return {
+      links,
       pantheon,
       alignment: matchOption(askString(inputs, "alignment"), ALIGNMENTS),
       domain: matchOption(askString(inputs, "domain"), DOMAINS),
@@ -58,6 +73,7 @@ export function useDeityAskAdapter(): AskAdapter {
     if (read.pantheon) lines.push({ label: "Pantheon", value: read.pantheon.name, credits: null });
     if (read.alignment) lines.push({ label: "Alignment", value: read.alignment, credits: null });
     if (read.domain) lines.push({ label: "Domain", value: read.domain, credits: null });
+    lines.push(...askLinkLines(read.links));
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
@@ -65,6 +81,7 @@ export function useDeityAskAdapter(): AskAdapter {
     let block = blockFor({ total: priced.total, byok: priced.byok });
     if (!block) block = conceptBlock(read.concept, "deity");
     if (!block && lookupsLoading.value) block = { reason: "missing", message: "Still reading this campaign's pantheons." };
+    if (!block && linkRecords.loading.value) block = { reason: "missing", message: "Still reading the records it is tied to." };
     return { lines, total: priced.total, byok: priced.byok, block };
   }
 
@@ -83,16 +100,20 @@ export function useDeityAskAdapter(): AskAdapter {
         primaryDomain: read.domain ?? undefined,
         // Explicit either way: left out, the generator paints a picture.
         generateImage: read.image,
+        links: read.links,
       });
     } catch (e) {
       return failedRun("Deity text", saveFailure(e, "deities", "The deity could not be saved."));
     }
     if (!outcome.deity) return failedRun("Deity text", outcome.error ?? "Deity generation failed.");
 
-    const { id, name, notesFailure } = outcome.deity;
+    const { id, name, notesFailure, linkErrors } = outcome.deity;
     const parts: AskRunPart[] = [{ label: "Deity text", ok: true, credits: spent(current.lines.find((l) => l.label === "Deity text")) }];
     if (notesFailure) {
       parts.push({ label: "DM notes", ok: false, credits: 0, error: "The deity is saved, but its DM notes were not." });
+    }
+    if (linkErrors.length) {
+      parts.push({ label: "Connections", ok: false, credits: 0, error: `Some connections could not be added: ${linkErrors.join("; ")}` });
     }
     if (read.image) {
       parts.push(outcome.picture === "saved"

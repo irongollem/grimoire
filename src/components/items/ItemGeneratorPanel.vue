@@ -39,6 +39,8 @@
           </AppSelect>
         </div>
       </div>
+      <!-- Its owner, the place it lies in, the faction that guards it: every tie is made here. -->
+      <GeneratorLinksField v-model="links" subject-kind="item" noun="this item" class="mt-2" />
     </template>
 
     <template #extra>
@@ -58,6 +60,9 @@ import { useCampaignStore } from "@/stores/campaign";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
+import GeneratorLinksField from "@/components/generators/GeneratorLinksField.vue";
+import { useToast } from "@/composables/useToast";
+import type { GeneratorLink } from "@/lib/worldLinks/generatorLinks";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useItemQuote } from "@/composables/ai/quotes/itemQuote";
 import { useGenerateItem } from "@/composables/items/useGenerateItem";
@@ -78,11 +83,13 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 
+const toast = useToast();
 const { requireCredits } = useOutOfCredits();
 const quoteItem = useItemQuote();
 
 const concept = ref("");
 const constraints = reactive({ item_type: "", rarity: "" });
+const links = ref<GeneratorLink[]>([]);
 const generateImage = ref(true);
 const generateCursed = ref(false);
 
@@ -95,13 +102,15 @@ async function generateAndCreate() {
   genConcept.value = concept.value.trim();
   clearCompleted();
 
-  const { id } = await generateAndCreateItem(concept.value.trim(), {
+  const { id, linkErrors } = await generateAndCreateItem(concept.value.trim(), {
+    links: links.value,
     item_type: constraints.item_type || undefined,
     rarity: constraints.rarity || undefined,
     cursed: generateCursed.value || undefined,
     generateImage: generateImage.value,
   });
   if (!id) return;
+  if (linkErrors.length) toast.error(`Item created, but some connections could not be added: ${linkErrors.join("; ")}`);
 
   if (itemsUi.itemGeneratorOpen) {
     itemsUi.itemGeneratorOpen = false;

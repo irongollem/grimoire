@@ -31,6 +31,16 @@
             placeholder="Search locations…"
           />
         </div>
+        <div>
+          <label class="block text-caption text-muted-foreground mb-1">Kept by</label>
+          <EntityCombobox
+            v-model="keeperNpcId"
+            :options="npcs ?? []"
+            placeholder="Search NPCs…"
+          />
+        </div>
+        <!-- Every other tie (a faction that holds it, a god worshipped there, an item kept there) has no field above. -->
+        <GeneratorLinksField v-model="links" subject-kind="location" noun="this place" />
       </div>
     </template>
 
@@ -57,6 +67,9 @@ import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue"
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import GeneratorLinksField from "@/components/generators/GeneratorLinksField.vue";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import type { GeneratorLink } from "@/lib/worldLinks/generatorLinks";
 import { useLocationGeneration } from "@/ai/useLocationGeneration";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { LocationType } from "@/types/location.types";
@@ -73,6 +86,8 @@ const campaign = useCampaignStore();
 const { generateAndCreateLocation } = useGenerateLocation();
 // Mounted on every DM page — only fetch the parent-location tree once the panel opens.
 const { locationOptions } = useLocationTree(() => generatorsUi.locationGeneratorOpen);
+// The keeper is picked from the campaign's NPCs, read only while the panel is open like the tree above.
+const { data: npcs } = useNpcs(() => generatorsUi.locationGeneratorOpen);
 // The shared generation state `useGenerateLocation` drives underneath; this panel reads it for its own loading UI.
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted } = useLocationGeneration();
 
@@ -87,6 +102,9 @@ const concept          = ref("");
 const constraints      = reactive({ location_type: "" });
 const parentLocationId = ref("");
 const parentLocation   = computed(() => locationOptions.value.find((l) => l.id === parentLocationId.value) ?? null);
+const keeperNpcId      = ref("");
+// Ties to existing records beyond the parent and the keeper, written once the place is saved.
+const links            = ref<GeneratorLink[]>([]);
 const generateImage    = ref(true);
 const generateMap      = ref(false);
 
@@ -108,6 +126,8 @@ async function generateAndCreate() {
     outcome = await generateAndCreateLocation(concept.value.trim(), {
       locationType:  (constraints.location_type as LocationType) || undefined,
       parent:        parentLocation.value,
+      keeperNpcId:   keeperNpcId.value || null,
+      links:         links.value,
       generateImage: generateImage.value,
       generateMap:   generateMap.value,
     });
@@ -117,6 +137,7 @@ async function generateAndCreate() {
     return;
   }
   if (!outcome.id) return;
+  if (outcome.linkErrors.length) toast.error(`Place created, but some connections could not be added: ${outcome.linkErrors.join("; ")}`);
 
   completedEntityId.value = outcome.id;
   generatorsUi.locationGeneratorOpen = false;

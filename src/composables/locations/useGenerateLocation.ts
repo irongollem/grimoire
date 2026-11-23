@@ -11,14 +11,19 @@ import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
 import { useLocationGeneration } from "@/ai/useLocationGeneration";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
+import { useCampaignStore } from "@/stores/campaign";
+import { useApplyGeneratorLinks } from "@/composables/worldLinks/useApplyGeneratorLinks";
+import { linksContextLine, type GeneratorLink } from "@/lib/worldLinks/generatorLinks";
 import type { LocationType } from "@/types/location.types";
 
 export interface GenerateLocationOptions {
   locationType?: LocationType;
   /** A place of this campaign the new one sits inside. */
   parent?: { id: string; name: string } | null;
-  /** An NPC of this campaign who keeps the place (`locations.npc_owner_id`). The page offers no picker; Ask can name one. */
+  /** An NPC of this campaign who keeps the place (`locations.npc_owner_id`). The page picks one, and so can Ask. */
   keeperNpcId?: string | null;
+  /** Ties to existing records ("held by the Red Hand"), written after the place is saved; a failure is a `linkErrors` entry. */
+  links?: readonly GeneratorLink[];
   generateImage?: boolean;
   generateMap?: boolean;
 }
@@ -32,24 +37,33 @@ export interface GenerateLocationOutcome {
   /** `none` when no scene was asked for, `failed` when asked for and not painted (the place is saved either way). */
   picture: "none" | "saved" | "failed";
   map: "none" | "saved" | "failed";
+  /** One sentence per tie that could not be written; the place is saved either way. */
+  linkErrors: string[];
 }
 
 export function useGenerateLocation() {
   const { mutateAsync: createLocation } = useCreateLocation();
   const { logImageGeneration } = useImageGenerationLog();
   const { generate, error: genError } = useLocationGeneration();
+  const { applyGeneratorLinks } = useApplyGeneratorLinks();
+  const campaign = useCampaignStore();
 
   async function generateAndCreateLocation(concept: string, options: GenerateLocationOptions = {}): Promise<GenerateLocationOutcome> {
     if (isAnyAiGenerating.value) {
-      return { id: null, error: "Another AI generation is already in progress.", name: null, picture: "none", map: "none" };
+      return { id: null, error: "Another AI generation is already in progress.", name: null, picture: "none", map: "none", linkErrors: [] };
     }
-    const result = await generate(concept, {
+    // The campaign the run started in: a run that outlives the DM's navigation still ties into it.
+    const campaignId = campaign.activeCampaignId;
+    const links = options.links ?? [];
+    // The ties go to the model in the prompt, so the place it writes agrees with them.
+    const ties = linksContextLine(links);
+    const result = await generate(ties ? `${concept}\n\n${ties}` : concept, {
       location_type: options.locationType,
       parent_name: options.parent?.name || undefined,
       generateImage: options.generateImage,
       generateMap: options.generateMap,
     });
-    if (!result) return { id: null, error: genError.value ?? "Location generation failed.", name: null, picture: "none", map: "none" };
+    if (!result) return { id: null, error: genError.value ?? "Location generation failed.", name: null, picture: "none", map: "none", linkErrors: [] };
 
     const location = await createLocation({
       name:                  result.name,
@@ -85,6 +99,10 @@ export function useGenerateLocation() {
       void logImageGeneration({ kind: "map", imageUrl: result.map_url, prompt: concept, targetId: location.id, targetColumn: "map_url" });
     }
 
+    const linkErrors = campaignId
+      ? await applyGeneratorLinks({ kind: "location", id: location.id }, links, campaignId)
+      : links.map((link) => `${link.name}: no campaign is open`);
+
     const sceneAsked = options.generateImage !== false;
     return {
       id: location.id,
@@ -92,6 +110,7 @@ export function useGenerateLocation() {
       name: result.name,
       picture: !sceneAsked ? "none" : result.image_url ? "saved" : "failed",
       map: !options.generateMap ? "none" : result.map_url ? "saved" : "failed",
+      linkErrors,
     };
   }
 

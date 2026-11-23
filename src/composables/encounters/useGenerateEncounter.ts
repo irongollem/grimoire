@@ -71,7 +71,7 @@ export function useGenerateEncounter() {
     result: EncounterAiResult,
     combatants: CombatantDef[],
     unmatched: EncounterCombatantAiResult[],
-    /** The place of this campaign the fight happens in (the Atlas lists it there). The page offers no picker; Ask can name one. */
+    /** The place of this campaign the fight happens in (the Atlas lists it there). The page's place picker and Ask both name one. */
     locationId: string | null = null,
   ): Promise<Encounter> {
     // Never build an encounter against a party that has not arrived: it would start without them.
