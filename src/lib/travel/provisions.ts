@@ -1,4 +1,4 @@
-import { daysWithoutFoodAllowed, hungerExhaustion } from "@/rules/rations";
+import { hungerExhaustion } from "@/rules/rations";
 import { MAX_EXHAUSTION } from "@/rules/conditions";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { RulesetKey } from "@/types/ruleset.types";
