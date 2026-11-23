@@ -1,8 +1,12 @@
 // What an Ask answer costs and who pays (#1253), the maintainer's decision of 23 Nov 2026 in rules:
 //
-//   - A turn that ends at a proposal is routed. It is not charged and does not count against the day's free answers:
-//     its cost is inside the price of the generator it chose. Its measured cost is still written, as a free ledger
-//     line (`ask_routing`), so what routing costs can be measured.
+//   - A turn that ends at a proposal is routed. It is not charged when it ends: it is written as pending
+//     (`ask_pending_routes`) with its exact credits. It is free only when the DM runs the generator: at their next
+//     Ask turn `settle_ask_routes` confirms each route against a generation charged after it (its routing is inside
+//     that generator's price), and meters every other one as an answer (a free answer if one is left, else whole
+//     credits, the fraction carried). "We're offering a tool to work with your campaign, not to ideate": without
+//     this a proposal was an unlimited free answer. Its measured cost is still written as a free ledger line
+//     (`ask_routing`), so what routing costs can be measured.
 //   - Any other turn is an answer. The first five a day are free per account; after that an answer is charged from
 //     its measured tokens in whole credits, the fraction carried to the next answer. `charge_ask_answer` decides
 //     which, under a row lock, so two answers finishing together cannot both take the last free one.
@@ -12,20 +16,43 @@
 // can be held. Pure: the database comes in as functions.
 
 import { FREE_ASKS_PER_DAY } from "./askContract.ts";
-import type { AskCharge, AskUsage } from "./askTypes.ts";
+import type { AskCharge, AskRouteSettlement } from "./askTypes.ts";
 import { ASK_RESERVE_CREDITS } from "./askTypes.ts";
 import type { CreditLogFields } from "../credits.ts";
 import type { JobLedger } from "../pipeline/creditHold.ts";
 
-/** Free answers left today. A count from an earlier UTC day is the day before's: the allowance came back. */
-export function freeLeftToday(usage: AskUsage | null, today: string): number {
-  if (usage === null || usage.day !== today) return FREE_ASKS_PER_DAY;
-  return Math.max(0, FREE_ASKS_PER_DAY - usage.free_used);
+/**
+ * Settles the account's earlier routed turns at admission. An own-key account never calls it (its routes are never
+ * written). A failure is logged and answers as if nothing was owed: the routes stay open for next time, and the DM is
+ * never blocked on bookkeeping. The free answers are then assumed all left, which is only the hold's precheck:
+ * `charge_ask_answer` still decides, under its lock, whether the answer is free.
+ */
+export async function settleEarlierRoutes(input: {
+  userId: string;
+  isByok: boolean;
+  settleRoutes(userId: string): Promise<AskRouteSettlement>;
+}): Promise<AskRouteSettlement> {
+  if (input.isByok) return { credits: 0, freeLeft: 0 };
+  try {
+    return await input.settleRoutes(input.userId);
+  } catch (error) {
+    console.error("ask-turn: settling earlier routed turns failed:", error);
+    return { credits: 0, freeLeft: FREE_ASKS_PER_DAY };
+  }
 }
 
-/** What to hold before the turn: nothing while a free answer is left (or with an own key), else one credit. */
-export function reserveFor(input: { freeLeft: number; isByok: boolean }): number {
-  return input.isByok || input.freeLeft > 0 ? 0 : ASK_RESERVE_CREDITS;
+/** Spends the credits settlement said were owed, through the hold's ledger. Nothing when none are. */
+export function spendOwedRoutes(ledger: JobLedger, owed: number): void {
+  if (owed > 0) ledger.charge("ask_answer", { cost: owed, isByok: false, log: {} });
+}
+
+/**
+ * What to hold before the turn: the whole credits settlement says are owed, plus one for this answer when no free
+ * one is left. Nothing for an own key, whose routes are never written and so are never owed.
+ */
+export function reserveFor(input: { freeLeft: number; owed: number; isByok: boolean }): number {
+  if (input.isByok) return 0;
+  return input.owed + (input.freeLeft > 0 ? 0 : ASK_RESERVE_CREDITS);
 }
 
 export interface AskSettlement {

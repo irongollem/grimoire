@@ -8,6 +8,7 @@
  */
 import { ref } from "vue";
 import {
+  ASK_OFF_TOPIC_MESSAGE,
   ASK_REFUSALS,
   askGenerator,
   type AskChoice,
@@ -78,8 +79,19 @@ export interface AskConversationDeps {
 
 const NOT_ANSWERED = "Grimoire could not answer that. Try again.";
 
-function refusalMessage(body: unknown): string {
-  if (typeof body === "object" && body !== null && "error" in body && typeof body.error === "string" && body.error !== "") return body.error;
+/** What a refusal's own code means, for the codes that come without a sentence. */
+const REFUSAL_CODES: Readonly<Record<string, string>> = {
+  rate_limited: "That was a lot of questions at once. Wait a moment and ask again.",
+};
+
+/**
+ * A refusal before the stream: `{error: "refused", message}` carries a sentence for a person, and a code alone
+ * (`rate_limited`) is the page's to word. A code is never shown as it is.
+ */
+export function refusalMessage(body: unknown): string {
+  if (typeof body !== "object" || body === null) return NOT_ANSWERED;
+  if ("message" in body && typeof body.message === "string" && body.message.trim() !== "") return body.message;
+  if ("error" in body && typeof body.error === "string") return REFUSAL_CODES[body.error] ?? NOT_ANSWERED;
   return NOT_ANSWERED;
 }
 
@@ -122,6 +134,8 @@ export function useAskConversation(deps: AskConversationDeps) {
     const mine = controller;
     running.value = true;
     let reply: ReplyItem | null = null;
+    /** Every paragraph this turn wrote, so a withheld answer can take back all of them. */
+    const written = new Set<number>();
     try {
       const response = await transport(body, mine.signal);
       if (!response.ok) {
@@ -133,6 +147,9 @@ export function useAskConversation(deps: AskConversationDeps) {
         }
         if (typeof parsed === "object" && parsed !== null && "error" in parsed && parsed.error === ASK_REFUSALS.allowanceSpent) {
           push({ kind: "upsell" });
+        } else if (typeof parsed === "object" && parsed !== null && "error" in parsed && parsed.error === ASK_REFUSALS.offTopic) {
+          // The server sends the code; the sentence is the contract's, so it reads the same wherever it is shown.
+          push({ kind: "error", message: ASK_OFF_TOPIC_MESSAGE });
         } else {
           push({ kind: "error", message: refusalMessage(parsed) });
         }
@@ -140,7 +157,10 @@ export function useAskConversation(deps: AskConversationDeps) {
       }
       for await (const event of readEventStream(response, parseAskEvent)) {
         if (event.type === "text") {
-          if (reply === null) reply = push({ kind: "reply", text: "", who: null }) as ReplyItem;
+          if (reply === null) {
+            reply = push({ kind: "reply", text: "", who: null }) as ReplyItem;
+            written.add(reply.id);
+          }
           reply.text += event.delta;
           continue;
         }
@@ -171,6 +191,9 @@ export function useAskConversation(deps: AskConversationDeps) {
             freeLeft.value = event.freeLeft;
             break;
           case "error":
+            // A withheld answer was already streamed: what it showed is taken back, so the sentence stands alone.
+            if (event.withheld === true) items.value = items.value.filter((i) => !written.has(i.id));
+            reply = null;
             push({ kind: "error", message: event.message });
             break;
           case "tool_start":

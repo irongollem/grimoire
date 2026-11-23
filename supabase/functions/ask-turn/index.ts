@@ -10,6 +10,8 @@ import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { retrieveCampaignHits } from "../_shared/campaignRetrieval.ts";
 import { recordFreeGeneration, type CreditLogFields } from "../_shared/credits.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
+import { judge, JEV_MODEL, judgingKey } from "../_shared/typesafe.ts";
+import { ASK_SCOPE_TIMEOUT_MS } from "../_shared/agent/askScope.ts";
 import { EmbeddingProviderConfigError, resolveEmbeddingProvider, toVectorLiteral } from "../_shared/embeddings.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
@@ -140,12 +142,37 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
       }
     },
 
-    today: () => new Date().toISOString().slice(0, 10),
+    async judgeScope(request) {
+      // Only a platform key judges: the DM's words go to a third party. The campaign's AI switch is already on here.
+      const key = judgingKey(true, (await fetchPlatformKeys(admin, ["typesafe"])).typesafe);
+      if (key === null) return null;
+      const result = await judge(request, { apiKey: key, timeoutMs: ASK_SCOPE_TIMEOUT_MS });
+      // Platform-paid, like the narration and rerank checks: the tokens were spent whatever the verdict. A failure to
+      // log costs a ledger row, never the judgement.
+      try {
+        await freeLine("entity_judgment", { model: JEV_MODEL, provider: "typesafe", input_tokens: result.inputTokens });
+      } catch (error) {
+        console.error("ask-turn: logging the scope check failed:", error);
+      }
+      return result;
+    },
 
-    async loadUsage(userId) {
-      const { data, error } = await admin.from("ask_usage").select("day, free_used").eq("user_id", userId).maybeSingle();
+    async settleRoutes(userId) {
+      const { data, error } = await admin.rpc("settle_ask_routes", { p_user_id: userId, p_free_per_day: FREE_ASKS_PER_DAY });
       if (error) throw error;
-      return data ? { day: String(data.day), free_used: Number(data.free_used) } : null;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row || typeof row.credits !== "number" || typeof row.free_left !== "number") throw new Error("settle_ask_routes answered nothing");
+      return { credits: row.credits, freeLeft: row.free_left };
+    },
+
+    async recordRoute(userId, route) {
+      const { error } = await admin.from("ask_pending_routes").insert({
+        proposal_id: route.proposalId,
+        user_id: userId,
+        session_id: route.sessionId,
+        credits: route.credits,
+      });
+      if (error) throw error;
     },
 
     async createSession({ userId, campaignId, provider, model }) {
