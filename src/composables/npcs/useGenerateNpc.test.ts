@@ -3,6 +3,8 @@ import { ref } from "vue";
 import type { GenerateNpcRequest, NpcGenerateForm } from "./useGenerateNpc";
 import { kinInsertFor, personKey } from "@/lib/kinship/keys";
 import { ASSOCIATE_CHOICES, DEFAULT_ASSOCIATE } from "@/lib/npcGenerator/associate";
+import { typeChoices } from "@/lib/worldLinks/connections";
+import type { GeneratorLink } from "@/lib/worldLinks/generatorLinks";
 
 const mocks = vi.hoisted(() => ({
   createNpc: vi.fn(),
@@ -48,7 +50,7 @@ const form: NpcGenerateForm = {
 };
 const request = (over: Partial<GenerateNpcRequest> = {}): GenerateNpcRequest => ({
   concept: "A baker", prompt: "A baker", context: "", generateAlterEgo: false, generateImage: true,
-  form, locationId: null, inventoryItems: [], associate: null, ...over,
+  form, locationId: null, inventoryItems: [], associate: null, links: [], ...over,
 });
 const generated = (over: Record<string, unknown> = {}) => ({
   name: "Mira", race: "human", alignment: "neutral", age: "30", occupation: "baker", appearance: "", personality: "",
@@ -169,6 +171,38 @@ describe("useGenerateNpc ties an Ask-made NPC into the campaign", () => {
     const outcome = await useGenerateNpc().generateAndCreateNpc(request({ form: { ...form, related_npc_id: "gone" }, associate: null }));
     expect(outcome.linkErrors).toEqual(["the selected associate is no longer in this campaign"]);
     expect(mocks.createConnection).not.toHaveBeenCalled();
+  });
+
+  describe("links", () => {
+    const worships = typeChoices("npc", "deity").find((c) => c.key === "worships")!;
+    const worksAt = typeChoices("npc", "location").find((c) => c.key === "works_at")!;
+    const auril: GeneratorLink = { kind: "deity", id: "d1", name: "Auril", choice: worships };
+    const docks: GeneratorLink = { kind: "location", id: "l1", name: "The Docks", choice: worksAt };
+
+    // Bug caught: ties chosen in the panel's "Tie it to…" field never reached the saved NPC.
+    it("writes each tie to the saved NPC, in the campaign the run started in", async () => {
+      const outcome = await useGenerateNpc().generateAndCreateNpc(request({ links: [auril, docks] }));
+      expect(outcome.linkErrors).toEqual([]);
+      expect(mocks.createConnection.mock.calls.map(([arg]) => arg)).toEqual([
+        { input: { subject: { kind: "npc", id: "npc-1" }, other: { kind: "deity", id: "d1", name: "Auril" }, choice: worships }, campaignId: "c1" },
+        { input: { subject: { kind: "npc", id: "npc-1" }, other: { kind: "location", id: "l1", name: "The Docks" }, choice: worksAt }, campaignId: "c1" },
+      ]);
+    });
+
+    // Bug caught: a failed tie threw out of the workflow and the page lost the NPC it had just saved.
+    it("reports a failed tie in the outcome and keeps the NPC and the other ties", async () => {
+      mocks.createConnection.mockRejectedValueOnce(new Error("denied"));
+      const outcome = await useGenerateNpc().generateAndCreateNpc(request({ links: [auril, docks] }));
+      expect(outcome.id).toBe("npc-1");
+      expect(outcome.linkErrors).toEqual(["Auril: boom"]);
+      expect(mocks.createConnection).toHaveBeenCalledTimes(2);
+    });
+
+    it("gives the model one line for the ties, so the NPC it writes agrees with them", () => {
+      const sources = { locations: [], factions: [], npcs: [], party: [], todayYear: 1495 };
+      expect(buildNpcAiContext(form, null, [], sources, [auril, docks])).toContain("Ties: worships Auril; works at The Docks");
+      expect(buildNpcAiContext(form, null, [], sources)).not.toContain("Ties");
+    });
   });
 
   it("seats the NPC in the faction under the role the form carries", async () => {

@@ -107,7 +107,7 @@ const {
   error: genError,
   completedEntityId: completedNpcId,
 } = useNpcGeneration();
-const { generateAndCreateNpc, applyNpcLinks } = useGenerateNpc();
+const { generateAndCreateNpc, applyNpcLinks, applyGeneratorLinks } = useGenerateNpc();
 // This panel is mounted on every DM page (DefaultLayout) so background
 // generation survives navigation, but its dropdown data is only read while the
 // panel is open. Gate the fetches on that so a closed panel costs no egress.
@@ -149,7 +149,7 @@ function aiContext(selectedLocationId: string | null, items: readonly ItemIndexE
     npcs: npcs.value ?? [],
     party: party.value ?? [],
     todayYear: campaign.todayYear,
-  });
+  }, quickForm.links);
 }
 
 function mentionedItems(): ItemIndexEntry[] {
@@ -194,6 +194,7 @@ async function runGenerateAndCreate() {
       locationId,
       inventoryItems,
       associate,
+      links: formAtStart.links,
     });
   } catch (e) {
     if (gateQuotaError(e)) return;
@@ -234,6 +235,7 @@ const quickForm = reactive<QuickForm>({
   related_npc_kin: null,
   related_pc_id: null,
   second_parent: null,
+  links: [],
 });
 
 // "Add relative" opens the generator with the family tie already filled in:
@@ -315,7 +317,10 @@ async function runQuickCreate() {
   };
 
   const created = await createNpc(payload);
-  const linkErrors = await applyNpcLinks(created.id, formAtStart, campaignId, associateNpc);
+  const linkErrors = [
+    ...await applyNpcLinks(created.id, formAtStart, campaignId, associateNpc),
+    ...await applyGeneratorLinks({ kind: "npc", id: created.id }, formAtStart.links, campaignId),
+  ];
   if (linkErrors.length) toast.error(`NPC created, but some connections could not be added: ${linkErrors.join("; ")}`);
   if (campaign.activeCampaignId === campaignId) {
     npcsUi.npcGeneratorOpen = false;

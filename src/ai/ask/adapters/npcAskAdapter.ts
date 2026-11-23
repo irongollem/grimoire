@@ -18,13 +18,20 @@
  * link or the world link, and the related people reach the model's context with their birth years. A related person
  * named with no word is a contact, the page's own default tie.
  *
+ * Every other tie goes through `links` (a list of `{kind, id, relation}`): a god they worship, a place they work at, a
+ * faction they are allied with, an item they seek, a character they are bonded to. The records are looked up in this
+ * campaign (`useAskLinkRecords`), a record that is not there is ignored, and the ties are written by the same
+ * `applyGeneratorLinks` the page's "Tie it to…" field uses.
+ *
  * A failed picture never costs the NPC: the row and its text are saved first, the portrait is its own part, and it
  * carries `retry`, which paints the saved NPC once with the page's own paint flow.
  */
 import { computed, ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
-import { conceptBlock, failedRun, picturePart, spent } from "@/ai/ask/adapters/askAdapterKit";
+import { askLinkLines, conceptBlock, failedRun, picturePart, readAskLinks, resolveAskLinks, spent } from "@/ai/ask/adapters/askAdapterKit";
+import { useAskLinkRecords } from "@/ai/ask/adapters/askLinkRecords";
+import type { AskLink } from "@edge-shared/agent/askLinks";
 import { askFlag, askInteger, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
 import { useMissingPortrait } from "@/ai/useMissingPortrait";
@@ -64,6 +71,10 @@ export function useNpcAskAdapter(): AskAdapter {
   const { data: party } = useParty(() => peopleWanted.value);
   const peopleLoading = computed(() => peopleWanted.value && (npcs.value === undefined || party.value === undefined));
 
+  // The records the ties name, read only once a proposal has some.
+  const wantedLinks = ref<AskLink[]>([]);
+  const linkRecords = useAskLinkRecords(() => wantedLinks.value);
+
   /** What Ask understood of the proposal, with ids only when they name a row this campaign has. */
   function understand(proposal: AskProposal) {
     const inputs = readAskInputs("npc", proposal.inputs);
@@ -86,7 +97,14 @@ export function useNpcAskAdapter(): AskAdapter {
     const secondParent = relation?.kind === "kin" && relation.kin === "child" && secondParentId !== null
       ? npcs.value?.find((n) => n.id === secondParentId) ?? null
       : null;
+    const askedLinks = readAskLinks("npc", proposal.inputs);
+    // Set only on a change, so reading a quote never re-triggers itself.
+    if (askedLinks.map((l) => `${l.kind}:${l.id}:${l.relation}`).join() !== wantedLinks.value.map((l) => `${l.kind}:${l.id}:${l.relation}`).join()) {
+      wantedLinks.value = askedLinks;
+    }
+    const links = linkRecords.names.value ? resolveAskLinks("npc", askedLinks, linkRecords.names.value) : [];
     return {
+      links,
       related,
       relation,
       secondParent,
@@ -117,6 +135,7 @@ export function useNpcAskAdapter(): AskAdapter {
     if (read.faction) lines.push({ label: "Faction", value: read.factionRole ? `${read.faction.name}, as ${read.factionRole}` : read.faction.name, credits: null });
     if (read.related && read.relation) lines.push({ label: read.relation.label, value: read.related.row.name, credits: null });
     if (read.secondParent) lines.push({ label: "Other parent", value: read.secondParent.name, credits: null });
+    lines.push(...askLinkLines(read.links));
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.portrait) lines.push({ label: "Portrait", value: "None", credits: null });
@@ -125,6 +144,9 @@ export function useNpcAskAdapter(): AskAdapter {
     block = block ?? conceptBlock(read.concept, "NPC");
     if (!block && lookupsLoading.value) {
       block = { reason: "missing", message: "Still reading this campaign's places and factions." };
+    }
+    if (!block && linkRecords.loading.value) {
+      block = { reason: "missing", message: "Still reading the records it is tied to." };
     }
     if (!block && peopleLoading.value) {
       block = { reason: "missing", message: "Still reading this campaign's people." };
@@ -168,7 +190,7 @@ export function useNpcAskAdapter(): AskAdapter {
         npcs: [read.related?.kind === "npc" ? read.related.row : null, read.secondParent].filter((row) => row !== null),
         party: read.related?.kind === "pc" ? [read.related.row] : [],
         todayYear: campaign.todayYear,
-      }),
+      }, read.links),
     ].filter((line) => line !== "").join("\n");
 
     const textCredits = spent(current.lines.find((l) => l.label === "NPC text"));
@@ -187,6 +209,7 @@ export function useNpcAskAdapter(): AskAdapter {
         inventoryItems: [],
         // The workflow writes a bond only when it is told who the associate is, in this campaign.
         associate: read.related && read.relation?.kind === "tie" ? { id: read.related.row.id, name: read.related.row.name } : null,
+        links: read.links,
       });
     } catch (e) {
       // A quota race on the create, or a save that failed: the generated text is lost, so say so plainly.

@@ -26,6 +26,9 @@ function readOne(schema: AskInputSchema, value: unknown): AskInputValue | undefi
     }
     case "boolean":
       return typeof value === "boolean" ? value : undefined;
+    case "links":
+      // A list of ties, not a plain value: read by `readAskLinks` (askAdapterKit), which resolves each in this campaign.
+      return undefined;
   }
 }
 

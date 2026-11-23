@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
-import { conceptBlock, failedRun, matchKey, matchOption, picturePart, sameWord, saveFailure, spent } from "./askAdapterKit";
+import { askLinkLines, conceptBlock, failedRun, matchKey, matchOption, picturePart, readAskLinks, resolveAskLinks, sameWord, saveFailure, spent } from "./askAdapterKit";
 
 const isQuotaExceeded = vi.hoisted(() => vi.fn((e: unknown) => e instanceof Error && e.message === "quota"));
 vi.mock("@/lib/quotaError", () => ({ isQuotaExceeded }));
@@ -77,5 +77,40 @@ describe("picturePart", () => {
   it("charges a retry at its own price once it is known", async () => {
     const part = picturePart({ saved: false, credits: 4, noun: "item", retry: { credits: 2, paint: async () => "u", error: () => null } });
     expect(await part.retry?.run()).toMatchObject({ ok: true, credits: 2 });
+  });
+});
+
+describe("links", () => {
+  const A = "00000000-0000-4000-8000-0000000000a1";
+  const read = (links: unknown) => readAskLinks("npc", { links });
+
+  it("reads a tie whose kind, id and relation the contract and catalogue allow, the relation as the catalogue's word", () => {
+    expect(read([{ kind: "deity", id: A, relation: "Worships" }])).toEqual([{ kind: "deity", id: A, relation: "worships" }]);
+  });
+
+  // Bug caught: the browser trusted the server's check, so an Adjust edit or stale proposal could carry any tie.
+  it("skips a malformed entry, a kind the generator lacks, a non-uuid id, a kin word and a relation of another pair", () => {
+    expect(read([
+      "worships", { kind: "quest", id: A, relation: "seeks" }, { kind: "deity", id: "Auril", relation: "worships" },
+      { kind: "npc", id: A, relation: "parent_of" }, { kind: "item", id: A, relation: "worships" },
+    ])).toEqual([]);
+    expect(read("worships Auril")).toEqual([]);
+  });
+
+  it("keeps one tie per record and word, and at most eight", () => {
+    expect(read([{ kind: "deity", id: A, relation: "worships" }, { kind: "deity", id: A, relation: "worships" }])).toHaveLength(1);
+    const many = Array.from({ length: 12 }, (_, i) => ({ kind: "deity", id: `00000000-0000-4000-8000-0000000001${String(i).padStart(2, "0")}`, relation: "worships" }));
+    expect(read(many)).toHaveLength(8);
+  });
+
+  it("reads nothing for a generator that takes no ties", () => {
+    expect(readAskLinks("monster", { links: [{ kind: "deity", id: A, relation: "worships" }] })).toEqual([]);
+  });
+
+  it("resolves a tie to the catalogue's choice, in its stored direction, only for records found in this campaign", () => {
+    const links = [{ kind: "npc" as const, id: A, relation: "apprentice_of" }, { kind: "deity" as const, id: A, relation: "worships" }];
+    const resolved = resolveAskLinks("npc", links, new Map([[`npc:${A}`, "Brenna"]]));
+    expect(resolved).toMatchObject([{ kind: "npc", id: A, name: "Brenna", choice: { key: "mentor_of", subjectIsFrom: false } }]);
+    expect(askLinkLines(resolved)).toEqual([{ label: "Apprentice of", value: "Brenna", credits: null }]);
   });
 });

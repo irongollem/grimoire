@@ -41,7 +41,8 @@
 /**
  * Adjust on a quote card: the generator's own options as editable fields (a toggle for yes or no, chips for a fixed
  * set, a field for words and numbers). Every edit emits the whole new `inputs`, and the card re-quotes from it.
- * `*_id` options are left out: they name a record the model resolved, and typing an id by hand helps nobody.
+ * `*_id` options are left out: they name a record the model resolved, and typing an id by hand helps nobody. So is a
+ * `links` option (a list of ties to records, each with an id): a text field would overwrite the list with a string.
  */
 import { computed } from "vue";
 import type { AskGenerator, AskInputSchema } from "@edge-shared/agent/askContract";
@@ -52,7 +53,7 @@ import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 const { generator, inputs } = defineProps<{ generator: AskGenerator; inputs: Record<string, unknown> }>();
 const emit = defineEmits<{ update: [inputs: Record<string, unknown>] }>();
 
-const fields = computed<[string, AskInputSchema][]>(() => Object.entries(generator.inputs).filter(([key]) => !key.endsWith("_id")));
+const fields = computed<[string, AskInputSchema][]>(() => Object.entries(generator.inputs).filter(([key, schema]) => !key.endsWith("_id") && schema.type !== "links"));
 
 const label = (key: string) => key.replace(/_/g, " ");
 

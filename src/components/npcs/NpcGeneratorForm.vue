@@ -200,6 +200,14 @@
         @update:model-value="onSecondParent($event)"
       />
     </div>
+
+    <!-- Every other tie (a god, a place, a faction, an item, a character) has no field of its own above. -->
+    <GeneratorLinksField
+      :model-value="quickForm.links"
+      subject-kind="npc"
+      noun="this NPC"
+      @update:model-value="patchForm('links', $event)"
+    />
   </div>
 
   <!-- Alter ego toggle -->
@@ -278,6 +286,7 @@ import { useLocationTree } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import GeneratorLinksField from "@/components/generators/GeneratorLinksField.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import MentionTextarea from "@/components/common/controls/MentionTextarea.vue";
@@ -296,11 +305,15 @@ import {
 import type { PersonKey } from "@/types/kinship.types";
 import type { Location } from "@/types/location.types";
 import type { NpcGenerateForm } from "@/composables/npcs/useGenerateNpc";
+import type { GeneratorLink } from "@/lib/worldLinks/generatorLinks";
 
 type LocationOption = Location & { depth: number };
 
 /** What the form edits: the fields `useGenerateNpc` reads, so the page and Ask Grimoire describe an NPC the same way. */
-export type QuickForm = NpcGenerateForm;
+export type QuickForm = NpcGenerateForm & {
+  /** Ties to existing records beyond the associate and kin fields, kept until the NPC is saved (`GeneratorLinksField`). */
+  links: GeneratorLink[];
+};
 
 const {
   concept,

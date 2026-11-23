@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 
 const mocks = vi.hoisted(() => ({
@@ -15,6 +15,8 @@ const state = vi.hoisted(() => ({
   factions: undefined as { id: string; name: string }[] | undefined,
   npcs: undefined as { id: string; name: string; born_year?: number | null }[] | undefined,
   party: undefined as { id: string; name: string; born_year?: number | null }[] | undefined,
+  /** `kind:id` to name for the records the ties name; undefined while "reading". */
+  linkNames: new Map<string, string>() as Map<string, string> | undefined,
 }));
 
 vi.mock("@/stores/campaign", () => ({
@@ -48,6 +50,13 @@ vi.mock("@/composables/npcs/useNpcs", () => ({
 vi.mock("@/composables/party/useParty", () => ({
   useParty: () => ({ data: { get value() { return state.party; } } }),
 }));
+vi.mock("@/ai/ask/adapters/askLinkRecords", () => ({
+  useAskLinkRecords: (wanted: () => readonly unknown[]) => ({
+    names: computed(() => state.linkNames),
+    loading: computed(() => wanted().length > 0 && state.linkNames === undefined),
+    failed: computed(() => false),
+  }),
+}));
 vi.mock("@/ai/useMissingPortrait", () => ({
   useMissingPortrait: () => ({ paint: mocks.paint, cost: ref(10), error: ref(null) }),
 }));
@@ -79,7 +88,61 @@ describe("useNpcAskAdapter", () => {
     state.factions = [{ id: "f1", name: "Guild" }];
     state.npcs = [{ id: "n-smuggler", name: "Perf Smuggler", born_year: 1450 }, { id: "n-odo", name: "Odo", born_year: 1440 }];
     state.party = [{ id: "pc-thorne", name: "Thorne" }];
+    state.linkNames = new Map();
     mocks.generateAndCreateNpc.mockResolvedValue(saved());
+  });
+
+  describe("links", () => {
+    const AURIL = "00000000-0000-4000-8000-0000000000a1";
+    const DOCKS = "00000000-0000-4000-8000-0000000000a2";
+    const links = [
+      { kind: "deity", id: AURIL, relation: "worships" },
+      { kind: "location", id: DOCKS, relation: "works_at" },
+    ];
+    beforeEach(() => {
+      state.linkNames = new Map([[`deity:${AURIL}`, "Auril"], [`location:${DOCKS}`, "The Docks"]]);
+    });
+
+    it("names each tie on the quote and hands the page's own pending ties to the workflow", async () => {
+      const adapter = useNpcAskAdapter();
+      const quote = adapter.quote(proposal({ links }));
+      expect(quote.lines.filter((l) => ["Worships", "Works at"].includes(l.label)).map((l) => [l.label, l.value])).toEqual([["Worships", "Auril"], ["Works at", "The Docks"]]);
+      await adapter.run(proposal({ links }));
+      const request = mocks.generateAndCreateNpc.mock.calls[0][0];
+      expect(request.links.map((l: { kind: string; id: string; name: string; choice: { key: string; subjectIsFrom: boolean } }) => [l.kind, l.id, l.name, l.choice.key, l.choice.subjectIsFrom])).toEqual([
+        ["deity", AURIL, "Auril", "worships", true],
+        ["location", DOCKS, "The Docks", "works_at", true],
+      ]);
+      expect(request.context).toContain("Ties: worships Auril; works at The Docks");
+    });
+
+    // Bug caught: a link to a record that is not this campaign's was tied anyway.
+    it("ignores a tie whose record is not in this campaign", async () => {
+      state.linkNames = new Map([[`deity:${AURIL}`, "Auril"]]);
+      await useNpcAskAdapter().run(proposal({ links }));
+      expect(mocks.generateAndCreateNpc.mock.calls[0][0].links).toHaveLength(1);
+    });
+
+    // Bug caught: run before the records were read made the NPC with no ties, silently.
+    it("waits for the records the ties name, and run makes nothing meanwhile", async () => {
+      state.linkNames = undefined;
+      const adapter = useNpcAskAdapter();
+      expect(adapter.quote(proposal({ links })).block?.reason).toBe("missing");
+      await adapter.run(proposal({ links }));
+      expect(mocks.generateAndCreateNpc).not.toHaveBeenCalled();
+    });
+
+    it("never lets a relation the catalogue lacks for the pair reach the workflow", async () => {
+      await useNpcAskAdapter().run(proposal({ links: [{ kind: "item", id: AURIL, relation: "worships" }, { kind: "deity", id: AURIL, relation: "parent_of" }] }));
+      expect(mocks.generateAndCreateNpc.mock.calls[0][0].links).toEqual([]);
+    });
+
+    it("shows a failed tie as its own part, with the NPC still saved", async () => {
+      mocks.generateAndCreateNpc.mockResolvedValue(saved({ linkErrors: ["Auril: denied"] }));
+      const result = await useNpcAskAdapter().run(proposal({ links }));
+      expect(result.record).toMatchObject({ id: "npc-1" });
+      expect(result.parts).toContainEqual(expect.objectContaining({ label: "Connections", ok: false }));
+    });
   });
 
   it("quotes the same price the page shows for an NPC with a portrait", () => {
