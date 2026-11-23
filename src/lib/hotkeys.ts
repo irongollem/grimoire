@@ -100,8 +100,10 @@ const ARROW_DISPLAY: Record<string, string> = {
   arrowright: "→",
 };
 
-function displayKey(key: string): string {
+function displayKey(key: string, isMac: boolean): string {
   if (key === "space") return "Space";
+  // The Mac's own key cap is the return arrow; elsewhere the key is labelled Enter.
+  if (key === "enter") return isMac ? "↵" : "Enter";
   if (key === "escape") return "Esc";
   const arrow = ARROW_DISPLAY[key];
   if (arrow) return arrow;
@@ -115,7 +117,7 @@ function displayKey(key: string): string {
  */
 export function formatCombo(combo: string, isMac: boolean): string {
   const parsed = parseCombo(combo);
-  const key = displayKey(parsed.key);
+  const key = displayKey(parsed.key, isMac);
 
   if (isMac) {
     let out = "";

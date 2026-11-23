@@ -51,6 +51,9 @@
 
     <CampaignChat />
 
+    <!-- Ask Grimoire: mounted the first time it is opened, then kept, so a run started in it outlives the panel. -->
+    <AskPanel v-if="canAsk && ask.everOpened" />
+
     <!-- Asked once per load, and only of a DM: a session left running for days
          is still broadcasting reveals at players who are not at the table. -->
     <StaleSessionPrompt v-if="isDm" />
@@ -111,6 +114,8 @@ import DmBottomNav from "@/components/layout/DmBottomNav.vue";
 import StaleSessionPrompt from "@/components/layout/StaleSessionPrompt.vue";
 import DmCampaignGate from "@/components/campaign/DmCampaignGate.vue";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
+import { useAskUiStore } from "@/stores/ui/ask";
+import { useHotkeys } from "@/composables/useHotkeys";
 import AiGenerationBadge from "@/components/common/ai/AiGenerationBadge.vue";
 import SoundDeck from "@/components/soundboard/deck/SoundDeck.vue";
 import DmScratchpad from "@/components/notes/DmScratchpad.vue";
@@ -137,6 +142,7 @@ import { safeQuestReturnTo } from "@/lib/quests/navigation";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useBackgroundIndexing } from "@/composables/ai/useBackgroundIndexing";
 import { provideSecretDisclosures } from "@/composables/npcs/useCampaignSecrets";
+import { useCanAsk } from "@/composables/ask/useCanAsk";
 
 // Async, and it must stay async: statically importing the generator panels
 // dragged them — plus their forms, template data and PaywallModal — into the
@@ -170,6 +176,23 @@ onScopeDispose(cancelBackground);
 const route = useRoute();
 const auth = useAuthStore();
 const isDm = computed(() => auth.currentRole === "dm");
+const canAsk = useCanAsk();
+
+// Ask Grimoire (#1253). The panel is loaded the first time it is opened; the key that opens it is always there.
+const ask = useAskUiStore();
+const AskPanel = defineAsyncComponent(() => import("@/components/ask/AskPanel.vue"));
+useHotkeys(
+  [
+    {
+      combo: "mod+j",
+      description: "Ask Grimoire",
+      // Like mod+k, it pulls focus from wherever it is, including another field.
+      allowInTextEntry: true,
+      handler: () => ask.openPanel(),
+    },
+  ],
+  { layer: "global", enabled: canAsk },
+);
 // Fills the campaign's search index behind the DM's back, once per session.
 useBackgroundIndexing(isDm);
 // Labels a [secret] block an NPC memory disclosed, in every viewer on screen (#1053).

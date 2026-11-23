@@ -31,8 +31,12 @@
     <CampaignSwitcher />
 
     <!-- Global search -->
-    <div class="px-3 py-2 border-b border-border">
-      <GlobalSearch />
+    <div class="flex items-center gap-1.5 px-3 py-2 border-b border-border">
+      <div class="min-w-0 flex-1">
+        <GlobalSearch />
+      </div>
+      <!-- Ask Grimoire (DM only): mod+j opens it the way mod+k opens the search. -->
+      <AskButton v-if="canAsk" />
     </div>
 
     <!-- Navigation -->
@@ -228,12 +232,15 @@ import NavItem from "./NavItem.vue";
 import CampaignSwitcher from "./CampaignSwitcher.vue";
 import DmScratchpadToggle from "@/components/notes/DmScratchpadToggle.vue";
 import GlobalSearch from "./GlobalSearch.vue";
+import AskButton from "@/components/ask/AskButton.vue";
+import { useCanAsk } from "@/composables/ask/useCanAsk";
 import DiceRoller from "@/components/common/dice/DiceRoller.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
 import SessionRail from "./SessionRail.vue";
 import ModeToggle from "./ModeToggle.vue";
 
 const auth = useAuthStore();
+const canAsk = useCanAsk();
 const { open: tableOpen } = useTableAccess();
 const router = useRouter();
 const { canInstall, hasNativePrompt, install } = usePwaInstall();
