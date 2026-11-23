@@ -1,19 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { FREE_ASKS_PER_DAY } from "./askContract.ts";
-import { reserveFor, settleAnswer, settleEarlierRoutes, spendOwedRoutes } from "./askBilling.ts";
+import { reserveFor, settleAnswer, settleEarlierRoutes } from "./askBilling.ts";
 import type { JobLedger } from "../pipeline/creditHold.ts";
 
 describe("reserveFor", () => {
   it("holds nothing while a free answer is left, and one credit once none is", () => {
-    expect(reserveFor({ freeLeft: 1, owed: 0, isByok: false })).toBe(0);
-    expect(reserveFor({ freeLeft: 0, owed: 0, isByok: false })).toBe(1);
-  });
-  it("adds the credits owed for earlier routed turns, whether or not a free answer is left", () => {
-    expect(reserveFor({ freeLeft: 2, owed: 3, isByok: false })).toBe(3);
-    expect(reserveFor({ freeLeft: 0, owed: 3, isByok: false })).toBe(4);
+    expect(reserveFor({ freeLeft: 1, isByok: false })).toBe(0);
+    expect(reserveFor({ freeLeft: 0, isByok: false })).toBe(1);
   });
   it("holds nothing for an own key, whatever the day's count", () => {
-    expect(reserveFor({ freeLeft: 0, owed: 0, isByok: true })).toBe(0);
+    expect(reserveFor({ freeLeft: 0, isByok: true })).toBe(0);
   });
 });
 
@@ -85,15 +81,5 @@ describe("settleAnswer", () => {
     quiet.mockRestore();
     expect(lines).toEqual([{ kind: "free", reason: "ask_answer" }]);
     expect(out).toMatchObject({ credits: 0, free: true });
-  });
-});
-
-describe("spendOwedRoutes", () => {
-  it("spends the whole credits owed as an ask_answer line, and writes nothing when none are owed", () => {
-    const { l, lines } = ledger();
-    spendOwedRoutes(l, 0);
-    expect(lines).toEqual([]);
-    spendOwedRoutes(l, 3);
-    expect(lines).toEqual([{ kind: "charge", reason: "ask_answer", cost: 3, isByok: false }]);
   });
 });

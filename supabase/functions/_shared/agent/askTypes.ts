@@ -125,8 +125,12 @@ export interface AskTurnDeps extends GateDeps<AskCampaignRow, AskSessionRow> {
   callMcp(campaignId: string): CallTool;
   /** Search by meaning over the campaign; null when it is not available right now (no embedding provider, rate limited). */
   find(campaign: AskCampaignRow, query: string): Promise<AskFound[] | null>;
-  /** A record of THIS campaign by kind and id, or null: an id from the browser or the model is never trusted. */
-  loadRecord(campaignId: string, type: AskRecordType, id: string): Promise<AskRecordLookup | null>;
+  /**
+   * A record this campaign sees, by kind and id, or null: an id from the browser or the model is never trusted. For a
+   * kind with a personal library (`ASK_RECORD_TABLES[type].library`) that includes the caller's and the campaign
+   * owner's rows set to all campaigns, as the campaign's own lists do (`campaignScopeFilter`).
+   */
+  loadRecord(campaign: AskCampaignRow, type: AskRecordType, id: string): Promise<AskRecordLookup | null>;
   newId(): string;
 }
 

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { ref } from "vue";
 import { ASK_OFF_TOPIC_MESSAGE, type AskEvent, type AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskRunResult } from "@/lib/ask/askAdapter";
 import { refusalMessage, useAskConversation, type AskConversationDeps } from "./useAskConversation";
@@ -17,14 +18,15 @@ const okResult: AskRunResult = {
   parts: [{ label: "NPC", ok: true, credits: 4 }],
 };
 
-function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapter["run"] } = {}) {
+function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapter["run"]; campaignId?: () => string | null } = {}) {
   const responses = [...(over.responses ?? [])];
   const transport = vi.fn(async () => responses.shift() ?? sse([done]));
   const run = vi.fn(over.run ?? (async () => okResult));
   const adapter: AskAdapter = { id: "npc", quote: () => over.quote ?? readyQuote, run };
   const onFinished = vi.fn();
   const deps: AskConversationDeps = {
-    campaignId: () => "c1",
+    campaignId: over.campaignId ?? (() => "c1"),
+    campaignName: () => "Kind Country",
     context: () => ({ route: "/dashboard" }),
     adapters: { adapterFor: (id) => (id === "npc" ? adapter : undefined), screenFor: () => undefined },
     routePath: () => "/dashboard",
@@ -215,7 +217,7 @@ describe("useAskConversation: the quote", () => {
   it("reports a finished run with its route and the credits its parts cost", async () => {
     const { convo, card, onFinished } = await withProposal();
     await convo.confirm(card.id);
-    expect(onFinished).toHaveBeenCalledWith({ name: "Mara", noun: "NPC", review: false, route: "/npcs/n1", credits: 4, startedAt: "/dashboard" });
+    expect(onFinished).toHaveBeenCalledWith({ name: "Mara", noun: "NPC", review: false, route: "/npcs/n1", credits: 4, campaign: "Kind Country", startedAt: "/dashboard" });
     expect(convo.items.value.map((i) => i.kind)).toContain("result");
   });
 
@@ -347,5 +349,39 @@ describe("refusalMessage", () => {
   it("words a known code and never shows an unknown one", () => {
     expect(refusalMessage({ error: "rate_limited" })).toContain("Wait a moment");
     expect(refusalMessage({ error: "some_new_code" })).not.toContain("some_new_code");
+  });
+});
+
+describe("useAskConversation: campaign, allowance and withheld proposals", () => {
+  // Bug caught: a switch of campaign keeping the old session and thread, so the next turn sent campaign A's session
+  // with campaign B and a quote made in A ran in B.
+  it("starts a new conversation when the campaign changes", async () => {
+    const campaign = ref<string | null>("c1");
+    const { convo, transport } = setup({
+      campaignId: () => campaign.value,
+      responses: [sse([{ type: "session", sessionId: "s1" }, done]), sse([done])],
+    });
+    await convo.send("hello");
+    campaign.value = "c2";
+    await Promise.resolve();
+    expect(convo.items.value).toEqual([]);
+    await convo.send("again");
+    expect(transport).toHaveBeenLastCalledWith(expect.not.objectContaining({ sessionId: expect.anything() }), expect.anything());
+  });
+
+  // Bug caught: "0 of 5 free questions left" after New conversation, because an own-key turn's streamed 0 was kept.
+  it("forgets the streamed allowance on a new conversation", async () => {
+    const { convo } = setup({ responses: [sse([{ ...done, freeLeft: 0 }])] });
+    await convo.send("hello");
+    expect(convo.freeLeft.value).toBe(0);
+    convo.newConversation();
+    expect(convo.freeLeft.value).toBeNull();
+  });
+
+  // Bug caught: a withheld answer leaving its proposal card on screen, where the DM could still confirm it.
+  it("takes back a proposal the same turn pushed when the answer is withheld", async () => {
+    const { convo } = setup({ responses: [sse([{ type: "propose", proposal }, { type: "error", message: "Withheld.", withheld: true }])] });
+    await convo.send("make me a baker");
+    expect(convo.items.value.map((i) => i.kind)).toEqual(["user", "error"]);
   });
 });

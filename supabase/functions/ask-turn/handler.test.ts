@@ -125,7 +125,7 @@ function harness(): Harness {
     mcpTools: ["search", "get", "list", "campaign_overview"].map((name) => ({ name, description: name, inputSchema: {} })),
     callMcp: () => async (name) => ({ content: JSON.stringify(name === "search" ? { hits: [{ type: "npc", id: NPC, name: "Harl" }] } : {}), isError: false }),
     find: async () => [],
-    loadRecord: async (campaignId, _type, id) => (campaignId === CAMPAIGN && h.records.has(id) ? { name: h.records.get(id)! } : null),
+    loadRecord: async (campaign, _type, id) => (campaign.id === CAMPAIGN && h.records.has(id) ? { name: h.records.get(id)! } : null),
     newId: () => "proposal-1",
   };
   return h;
@@ -246,6 +246,19 @@ describe("the output check", () => {
     expect(h.charges).toEqual([0.6]);
   });
 
+  // Bug caught: a withheld turn that also proposed kept its route, so the server billed it as a routed turn (and the
+  // card stayed runnable) though the DM was told the answer was refused.
+  it("records no route for a withheld turn that proposed, and meters it as an answer", async () => {
+    const h = harness();
+    const proposing = call("c1", "propose", { generator: "npc", concept: "a" });
+    h.steps.push({ ...proposing, blocks: [{ type: "text", text: code }, ...proposing.blocks] });
+    await ask(h);
+    expect(h.events).toContainEqual({ type: "error", message: ASK_OFF_TOPIC_MESSAGE, withheld: true });
+    expect(h.pending).toEqual([]);
+    expect(done(h)).toMatchObject({ routed: false });
+    expect(h.charges).toHaveLength(1);
+  });
+
   it("leaves an ordinary answer alone", async () => {
     const h = harness();
     h.steps.push(say("Harl runs the mill."));
@@ -338,7 +351,7 @@ describe("an answer", () => {
     h.steps.push(say("x"));
     const loadRecord = vi.spyOn(h.deps, "loadRecord");
     await ask(h, { body: { campaignId: CAMPAIGN, message: "who is this?", context: { route: "/npcs/x", record: { type: "npc", id: NPC } } } });
-    expect(loadRecord).toHaveBeenCalledWith(CAMPAIGN, "npc", NPC);
+    expect(loadRecord).toHaveBeenCalledWith(expect.objectContaining({ id: CAMPAIGN }), "npc", NPC);
     expect(JSON.stringify(h.requests[0].messages)).not.toContain(NPC);
   });
 
@@ -422,13 +435,14 @@ describe("earlier routed turns, settled at admission", () => {
     expect(h.pending).toEqual([]);
   });
 
-  it("meters a route nothing was generated after, and spends what is owed on the ledger through the hold", async () => {
+  // Bug caught: what earlier routes owed spent under this turn's hold, after settlement had already removed them, so a
+  // refused hold lost the debt. Settlement charges it itself (`settle_ask_routes`, pgTAP); the turn holds only its own.
+  it("meters a route nothing was generated after, and holds only this answer's credit, not what the route owed", async () => {
     const h = harness();
     h.usage = { day: TODAY, free_used: 5 };
     await routedThenAsk(h, false);
-    // The 5 credits owed raise the hold beyond the one credit the new answer needs.
-    expect(h.holds.at(-1)).toBe(5 + 1);
-    expect(h.ledger.filter((l) => l.reason === "ask_answer").map((l) => l.cost)).toContain(5);
+    expect(h.holds.at(-1)).toBe(1);
+    expect(h.ledger.filter((l) => l.reason === "ask_answer").map((l) => l.cost)).not.toContain(5);
   });
 
   it("meters an ungenerated route as a free answer while the day has some left, and holds nothing", async () => {
@@ -450,7 +464,7 @@ describe("earlier routed turns, settled at admission", () => {
     expect(types(h)).toContain("done");
   });
 
-  it("refuses with the upsell when the owed credits cannot be held", async () => {
+  it("refuses with the upsell when the answer's credit cannot be held", async () => {
     const h = harness();
     h.usage = { day: TODAY, free_used: 5 };
     h.steps.push(call("c1", "propose", { generator: "npc", concept: "a" }, 5000));

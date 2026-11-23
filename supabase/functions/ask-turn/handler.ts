@@ -13,7 +13,7 @@
 import type { AskEvent, AskTurnBody } from "../_shared/agent/askContract.ts";
 import { ASK_OFF_TOPIC_MESSAGE, ASK_REFUSALS } from "../_shared/agent/askContract.ts";
 import { parseAskBody } from "../_shared/agent/askBody.ts";
-import { reserveFor, settleAnswer, settleEarlierRoutes, spendOwedRoutes } from "../_shared/agent/askBilling.ts";
+import { reserveFor, settleAnswer, settleEarlierRoutes } from "../_shared/agent/askBilling.ts";
 import { checkOutput } from "../_shared/agent/askOutput.ts";
 import { checkScope, earlierFrom, isShortFollowUp, type ScopeEarlier } from "../_shared/agent/askScope.ts";
 import { ASK_HEADINGS, askState, askSystem } from "../_shared/agent/askPrompt.ts";
@@ -65,7 +65,7 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
   let recordName: string | null = null;
   if (body.context?.record !== undefined) {
     try {
-      const found = await deps.loadRecord(campaign.id, body.context.record.type, body.context.record.id);
+      const found = await deps.loadRecord(campaign, body.context.record.type, body.context.record.id);
       recordName = found === null ? null : found.name;
     } catch (error) {
       console.error("ask-turn: reading the record the DM had open failed:", error);
@@ -86,11 +86,10 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
   if (scope.kind === "off_topic") return { kind: "refused", refusal: { status: 422, error: ASK_REFUSALS.offTopic } };
 
   // Earlier routed turns are settled first: each is free if the DM ran a generator after it, else metered as an answer
-  // (`settle_ask_routes`, which also says how many free answers are left). Own-key use is never counted, so an own-key
-  // account never calls it and none of its routes exist. A settlement that fails is logged and owes nothing now.
-  const earlier = await settleEarlierRoutes({ userId, isByok: provider.isByok, settleRoutes: (id) => deps.settleRoutes(id) });
-  const freeLeft = earlier.freeLeft;
-  const owed = earlier.credits;
+  // and charged (`settle_ask_routes` charges it itself, and says how many free answers are left). Own-key use is never
+  // counted, so an own-key account never calls it and none of its routes exist. A settlement that fails is logged, and
+  // its routes stay open for the next turn.
+  const { freeLeft } = await settleEarlierRoutes({ userId, isByok: provider.isByok, settleRoutes: (id) => deps.settleRoutes(id) });
 
   const fiveE = gameSystemEdition(campaign.game_system) !== undefined;
 
@@ -98,8 +97,6 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
     const emit = safeEmit(send);
     // Settled whatever the outcome (success, failure, conflict, abort): released once, then the ledger lines written.
     await deps.settle(userId, reservationIds, async (ledger) => {
-      // The routes were consumed by settlement, so what they came to is spent first, whatever happens to this turn.
-      spendOwedRoutes(ledger, owed);
       try {
         const session = existing ?? await deps.createSession({ userId, campaignId: campaign.id, provider: provider.provider, model: provider.model });
         emit({ type: "session", sessionId: session.id });
@@ -117,7 +114,7 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
           mcpTools: deps.mcpTools,
           callMcp: deps.callMcp(campaign.id),
           find: (query) => deps.find(campaign, query),
-          loadRecord: (type, id) => deps.loadRecord(campaign.id, type, id),
+          loadRecord: (type, id) => deps.loadRecord(campaign, type, id),
           newId: () => deps.newId(),
           reads,
           emit,
@@ -197,7 +194,8 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
         }
         // A routed turn is pending until the DM runs the generator (see askBilling.ts). Only a kept turn is written, and
         // never for an own key. Failing to write it costs the platform one routed turn, never the DM or the answer.
-        const proposal = tools.proposal();
+        // A withheld turn is refused whole: its proposal is taken back with its words, so it is no route either.
+        const proposal = withheld ? null : tools.proposal();
         if (proposal !== null && !provider.isByok) {
           try {
             await deps.recordRoute(userId, { proposalId: proposal.proposalId, sessionId: session.id, credits: accrued });
@@ -245,7 +243,7 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
     });
   };
 
-  return { kind: "ready", reserve: reserveFor({ freeLeft, owed, isByok: provider.isByok }), run };
+  return { kind: "ready", reserve: reserveFor({ freeLeft, isByok: provider.isByok }), run };
 }
 
 /**

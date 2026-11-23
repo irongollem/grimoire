@@ -19,6 +19,13 @@ values ('credit_calibration', jsonb_build_object(
   'payment_fee_fixed_eur', 0.25, 'target_margin', 2.0))
 on conflict (key) do update set value = excluded.value;
 
+-- The hints average every charge in the ledger, so the test starts from an empty one (rolled back at the end): a
+-- local stack that has run a real generation would otherwise fail on rows that are not this test's. The ledger is
+-- append-only by trigger, so the triggers are off for this one delete, inside the transaction the test rolls back.
+set local session_replication_role = replica;
+delete from public.ai_credit_ledger;
+set local session_replication_role = origin;
+
 -- 25 portraits at 1024x1536: 0.353c text + 2.390c image-in + 21.072c out
 -- = 23.8154c each. One render, one charge.
 insert into public.ai_credit_ledger

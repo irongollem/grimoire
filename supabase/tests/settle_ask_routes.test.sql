@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(13);
 
 -- Ask Grimoire (#1253): a routed turn is free only when the DM ran the generator. settle_ask_routes confirms a route
 -- against a generation charged after it (one route per charge) and meters every other one by its tokens.
@@ -54,9 +54,9 @@ select is(
   (select row(credits, free_left)::text from public.settle_ask_routes('12530000-0000-4000-8000-0000000001a1', 5)),
   row(0, 0)::text, 'one route confirmed and one metered at 0.6 owes no whole credit yet'
 );
-select is(
-  (select confirmed_by from public.ask_pending_routes where proposal_id = '12530000-0000-4000-8000-0000000001d1'),
-  '12530000-0000-4000-8000-0000000001e1'::uuid, 'the oldest route is confirmed by the generation run after it'
+select is_empty(
+  $$ select 1 from public.ai_credit_ledger where user_id = '12530000-0000-4000-8000-0000000001a1' and reason = 'ask_answer' and created_at = now() $$,
+  'nothing is charged while what is owed is under a whole credit'
 );
 select is_empty(
   $$ select 1 from public.ask_pending_routes where proposal_id = '12530000-0000-4000-8000-0000000001d2' $$,
@@ -66,9 +66,10 @@ select is(
   (select carry from public.ask_usage where user_id = '12530000-0000-4000-8000-0000000001a1'),
   0.6::numeric, 'the settled route is metered by its tokens, not counted as a whole credit'
 );
-select isnt_empty(
-  $$ select 1 from public.ask_pending_routes where proposal_id = '12530000-0000-4000-8000-0000000001d1' and confirmed_at is not null $$,
-  'a confirmed route is kept as the record of what confirmed it'
+-- Bug caught: confirmed routes kept for ever, so every settlement walks an account's whole history.
+select is_empty(
+  $$ select 1 from public.ask_pending_routes where proposal_id = '12530000-0000-4000-8000-0000000001d1' $$,
+  'a confirmed route is removed once no open route is older than the charge that confirmed it'
 );
 
 -- A route made a minute ago with nothing charged yet: its generator may still be painting, so it is left open, not
@@ -89,6 +90,27 @@ update public.ask_pending_routes set created_at = now() - interval '11 minutes' 
 select is(
   (select credits from public.settle_ask_routes('12530000-0000-4000-8000-0000000001a1', 5)),
   1, 'unconfirmed routes add up on the meter: 0.6 and 0.5 charge one credit'
+);
+-- Bug caught: the owed credit returned for the turn to spend later, under a hold that could be refused after the
+-- routes were already deleted, so the debt was never written.
+select is(
+  (select sum(delta) from public.ai_credit_ledger
+   where user_id = '12530000-0000-4000-8000-0000000001a1' and reason = 'ask_answer' and created_at = now()),
+  -1::numeric, 'settlement charges what the routes owe itself, in the same transaction that removes them'
+);
+
+-- Bug caught: a confirmed route removed while an older open route could still match its charge, which would let one
+-- generation confirm two routes.
+insert into public.ai_credit_ledger (id, user_id, delta, reason, created_at)
+values ('12530000-0000-4000-8000-0000000001e3', '12530000-0000-4000-8000-0000000001a1', -1, 'npc_text', now() - interval '1 minute');
+insert into public.ask_pending_routes (proposal_id, user_id, session_id, credits, created_at, confirmed_at, confirmed_by)
+values
+  ('12530000-0000-4000-8000-0000000001d4', '12530000-0000-4000-8000-0000000001a1', '12530000-0000-4000-8000-0000000001c1', 0.4, now() - interval '3 minutes', null, null),
+  ('12530000-0000-4000-8000-0000000001d5', '12530000-0000-4000-8000-0000000001a1', '12530000-0000-4000-8000-0000000001c1', 0.4, now() - interval '2 minutes', now(), '12530000-0000-4000-8000-0000000001e3');
+select * from public.settle_ask_routes('12530000-0000-4000-8000-0000000001a1', 5);
+select isnt_empty(
+  $$ select 1 from public.ask_pending_routes where proposal_id = '12530000-0000-4000-8000-0000000001d5' $$,
+  'a confirmed route is kept while an open route older than its charge remains'
 );
 
 select * from finish();

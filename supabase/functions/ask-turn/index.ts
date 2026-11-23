@@ -30,7 +30,7 @@ import { FREE_ASKS_PER_DAY, type AskEvent, type AskRecordType } from "../_shared
 import type { AskCampaignRow, AskFound, AskSessionRow, AskTurnDeps } from "../_shared/agent/askTypes.ts";
 import type { CampaignSearchKind } from "../_shared/campaignSearch.ts";
 import { beginAsk, holdAsk } from "./handler.ts";
-import { ASK_RECORD_TABLES } from "./recordTables.ts";
+import { ASK_RECORD_TABLES, askRecordScope } from "./recordTables.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -238,9 +238,14 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
 
     // As the caller: what they may read is the database's to decide. The campaign filter is in the query, so an id
     // from another campaign (or no row at all) is "not found" either way.
-    async loadRecord(campaignId, type, id) {
+    async loadRecord(campaign, type, id) {
       const source = ASK_RECORD_TABLES[type];
-      const { data, error } = await supabase.from(source.table).select(`id, ${source.nameColumn}`).eq("id", id).eq("campaign_id", campaignId).maybeSingle();
+      const { data, error } = await supabase
+        .from(source.table)
+        .select(`id, ${source.nameColumn}`)
+        .eq("id", id)
+        .or(askRecordScope(type, campaign, user.id))
+        .maybeSingle();
       if (error) throw error;
       if (!data) return null;
       const name = (data as unknown as Record<string, unknown>)[source.nameColumn];

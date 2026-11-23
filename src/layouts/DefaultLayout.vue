@@ -51,8 +51,9 @@
 
     <CampaignChat />
 
-    <!-- Ask Grimoire: mounted the first time it is opened, then kept, so a run started in it outlives the panel. -->
-    <AskPanel v-if="canAsk && ask.everOpened" />
+    <!-- Ask Grimoire: mounted the first time it is opened, then kept, so a run started in it outlives the panel,
+         and its notice, even when the DM loses the right to ask meanwhile (the panel is then closed, not unmounted). -->
+    <AskPanel v-if="ask.everOpened" />
 
     <!-- Asked once per load, and only of a DM: a session left running for days
          is still broadcasting reveals at players who are not at the table. -->
@@ -181,6 +182,10 @@ const canAsk = useCanAsk();
 // Ask Grimoire (#1253). The panel is loaded the first time it is opened; the key that opens it is always there.
 const ask = useAskUiStore();
 const AskPanel = defineAsyncComponent(() => import("@/components/ask/AskPanel.vue"));
+// Losing the right to ask (a campaign with AI off, another role) shuts the panel; it stays mounted for a run in flight.
+watch(canAsk, (allowed) => {
+  if (!allowed) ask.closePanel();
+});
 useHotkeys(
   [
     {

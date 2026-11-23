@@ -231,10 +231,11 @@ describe("useNpcAskAdapter", () => {
     expect(retried.ok).toBe(true);
   });
 
+  // Bug caught: a saved, charged true portrait reported as costing nothing when only the alter ego's picture failed.
   it("does not call the portrait done while the alter ego's picture is missing, and offers no repaint of the saved one", async () => {
     mocks.generateAndCreateNpc.mockResolvedValue(saved({ portrait: "saved", disguisePortrait: "failed" }));
     const result = await useNpcAskAdapter().run(proposal({ portrait: true, alter_ego: true }));
-    expect(result.parts[1]).toMatchObject({ label: "Portrait", ok: false, credits: 0 });
+    expect(result.parts[1]).toMatchObject({ label: "Portrait", ok: false, credits: 10 });
     expect(result.parts[1].retry).toBeUndefined();
   });
 
@@ -288,6 +289,12 @@ describe("useNpcAskAdapter", () => {
     it("puts a party member on the PC field, with the second parent only for a child", async () => {
       await useNpcAskAdapter().run(proposal({ related_pc_id: "pc-thorne", relation: "child", second_parent_id: "n-odo" }));
       expect(request().form).toMatchObject({ related_pc_id: "pc-thorne", related_npc_id: null, related_npc_kin: "child", second_parent: "npc:n-odo" });
+    });
+
+    // Bug caught: a party member named as the other parent dropped because only NPCs were searched.
+    it("finds the second parent among the party, as a character", async () => {
+      await useNpcAskAdapter().run(proposal({ related_npc_id: UUID_N, relation: "child", second_parent_id: "pc-thorne" }));
+      expect(request().form.second_parent).toBe("pc:pc-thorne");
     });
 
     it("ignores a second parent when the NPC is not a child", async () => {

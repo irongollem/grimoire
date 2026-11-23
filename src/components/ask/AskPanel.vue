@@ -62,12 +62,13 @@ const convo = useAskConversation({
   campaignId: () => campaign.activeCampaignId,
   context: () => askContextFor({ path: route.path, query: route.query }),
   adapters,
+  campaignName: () => campaign.activeCampaign?.name ?? "this campaign",
   routePath: () => route.fullPath,
   onFinished: ({ startedAt, ...finished }) => {
     // Generation goes on with the panel shut. The DM is told by the dot, and by a slip if they are not looking at
     // the place it started from; when they are looking at the panel it is already in the thread.
     if (!ui.open) ui.markUnread();
-    if (!ui.open || route.fullPath !== startedAt) notice.value = { ...finished, campaign: campaign.activeCampaign?.name ?? "this campaign" };
+    if (!ui.open || route.fullPath !== startedAt) notice.value = finished;
   },
 });
 

@@ -92,16 +92,20 @@ export function useNpcAskAdapter(): AskAdapter {
     const relatedNpcId = askString(inputs, "related_npc_id");
     const relatedPcId = askString(inputs, "related_pc_id");
     const secondParentId = askString(inputs, "second_parent_id");
-    if (relatedNpcId !== null || relatedPcId !== null) peopleWanted.value = true;
+    if (relatedNpcId !== null || relatedPcId !== null || secondParentId !== null) peopleWanted.value = true;
     const relatedNpc = relatedNpcId === null ? null : npcs.value?.find((n) => n.id === relatedNpcId) ?? null;
     const relatedPc = relatedPcId === null ? null : party.value?.find((p) => p.id === relatedPcId) ?? null;
     // A character beats an NPC when both are named, as the page's own kin code does.
     const related = relatedPc ? { kind: "pc" as const, row: relatedPc } : relatedNpc ? { kind: "npc" as const, row: relatedNpc } : null;
     const relation = related === null ? null : npcRelation(askString(inputs, "relation")) ?? DEFAULT_RELATION;
     // The other parent exists only for a child, and is one of this campaign's NPCs (or characters).
-    const secondParent = relation?.kind === "kin" && relation.kin === "child" && secondParentId !== null
-      ? npcs.value?.find((n) => n.id === secondParentId) ?? null
-      : null;
+    // Looked up among the NPCs, then the party: the page's own field takes either, as a person key.
+    let secondParent: { kind: "npc" | "pc"; row: { id: string; name: string } } | null = null;
+    if (relation?.kind === "kin" && relation.kin === "child" && secondParentId !== null) {
+      const npc = npcs.value?.find((n) => n.id === secondParentId);
+      const pc = npc ? undefined : party.value?.find((p) => p.id === secondParentId);
+      secondParent = npc ? { kind: "npc", row: npc } : pc ? { kind: "pc", row: pc } : null;
+    }
     const askedLinks = readAskLinks("npc", proposal.inputs);
     // Set only on a change, so reading a quote never re-triggers itself.
     if (askedLinks.map((l) => `${l.kind}:${l.id}:${l.relation}`).join() !== wantedLinks.value.map((l) => `${l.kind}:${l.id}:${l.relation}`).join()) {
@@ -112,7 +116,7 @@ export function useNpcAskAdapter(): AskAdapter {
     const offers: { offer: KinOffer; name: string }[] = [];
     if (related && relation?.kind === "kin") {
       const relatedKey = personKey(related.kind, related.row.id);
-      const exclude = secondParent ? [personKey("npc", secondParent.id)] : [];
+      const exclude = secondParent ? [personKey(secondParent.kind, secondParent.row.id)] : [];
       for (const offer of kinOffers(kinLinks.value ?? [], relatedKey, relation.kin, exclude)) {
         const { type, id } = parsePersonKey(offer.key);
         const row = type === "npc" ? npcs.value?.find((n) => n.id === id) : party.value?.find((p) => p.id === id);
@@ -172,7 +176,7 @@ export function useNpcAskAdapter(): AskAdapter {
     }
     if (read.related && read.relation) lines.push({ label: read.relation.label, value: read.related.row.name, credits: null, choice: askChoice(choices, "related", true) });
     const relatedOn = read.related !== null && askChoice(choices, "related", true).on;
-    if (read.secondParent && relatedOn) lines.push({ label: "Other parent", value: read.secondParent.name, credits: null, choice: askChoice(choices, "second_parent", true) });
+    if (read.secondParent && relatedOn) lines.push({ label: "Other parent", value: read.secondParent.row.name, credits: null, choice: askChoice(choices, "second_parent", true) });
     if (relatedOn) {
       for (const { offer, name } of read.offers) {
         lines.push({ label: `Also ${GENERATOR_KIN_LABELS[offer.relation].toLowerCase()}`, value: name, credits: null, choice: askChoice(choices, kinOfferKey(offer), false) });
@@ -219,7 +223,7 @@ export function useNpcAskAdapter(): AskAdapter {
       related_npc_tie: chosen.related && read.relation?.kind === "tie" ? read.relation.choice : DEFAULT_ASSOCIATE,
       related_npc_kin: chosen.related && read.relation?.kind === "kin" ? read.relation.kin : null,
       related_pc_id: chosen.related?.kind === "pc" ? chosen.related.row.id : null,
-      second_parent: chosen.secondParent ? personKey("npc", chosen.secondParent.id) : null,
+      second_parent: chosen.secondParent ? personKey(chosen.secondParent.kind, chosen.secondParent.row.id) : null,
       also_kin: chosen.alsoKin,
     };
     // The schema's age and role have no field on the page's form; the model reads them as constraint lines.
@@ -234,11 +238,12 @@ export function useNpcAskAdapter(): AskAdapter {
         factions: chosen.faction ? [chosen.faction] : [],
         npcs: [
           chosen.related?.kind === "npc" ? chosen.related.row : null,
-          chosen.secondParent,
+          chosen.secondParent?.kind === "npc" ? chosen.secondParent.row : null,
           ...chosen.alsoKin.map((o) => personRow(o, "npc")),
         ].filter((row) => row !== null),
         party: [
           chosen.related?.kind === "pc" ? chosen.related.row : null,
+          chosen.secondParent?.kind === "pc" ? chosen.secondParent.row : null,
           ...chosen.alsoKin.map((o) => personRow(o, "pc")),
         ].filter((row) => row !== null),
         todayYear: campaign.todayYear,
@@ -247,6 +252,8 @@ export function useNpcAskAdapter(): AskAdapter {
 
     const textCredits = spent(current.lines.find((l) => l.label === "NPC text"));
     const portraitCredits = spent(current.lines.find((l) => l.label === "Portrait"));
+    // What the true portrait alone cost, for a run where only the alter ego's picture failed.
+    const truePortraitCredits = spent(quoteFor({ portrait: true, alterEgo: false }).lines.find((l) => l.label === "Portrait"));
 
     let outcome;
     try {
@@ -278,7 +285,7 @@ export function useNpcAskAdapter(): AskAdapter {
     const id = outcome.id;
     const name = outcome.name;
     const parts: AskRunPart[] = [{ label: "NPC text", ok: true, credits: textCredits }];
-    if (read.portrait) parts.push(portraitPart(outcome.portrait, outcome.disguisePortrait, read.alterEgo, portraitCredits, id, `${name}. ${read.concept}`));
+    if (read.portrait) parts.push(portraitPart(outcome.portrait, outcome.disguisePortrait, read.alterEgo, portraitCredits, truePortraitCredits, id, `${name}. ${read.concept}`));
     if (outcome.linkErrors.length) {
       parts.push({ label: "Connections", ok: false, credits: 0, error: `Some connections could not be added: ${outcome.linkErrors.join("; ")}` });
     }
@@ -299,13 +306,14 @@ export function useNpcAskAdapter(): AskAdapter {
     disguise: "none" | "saved" | "failed",
     alterEgo: boolean,
     credits: number,
+    truePortraitCredits: number,
     npcId: string,
     paintContext: string,
   ): AskRunPart {
     if (portrait === "saved" && (!alterEgo || disguise === "saved")) return { label: "Portrait", ok: true, credits };
     if (portrait === "saved") {
       // The true portrait is saved; only the alter ego's picture is missing, and the paint flow repaints the true one.
-      return { label: "Portrait", ok: false, credits: 0, error: "The alter ego's picture could not be painted. The NPC is saved with their portrait." };
+      return { label: "Portrait", ok: false, credits: truePortraitCredits, error: "The alter ego's picture could not be painted. The NPC is saved with their portrait." };
     }
     return picturePart({
       label: "Portrait",
