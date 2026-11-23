@@ -23,6 +23,7 @@ import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { callText, resolveTextProvider, NO_TEXT_PROVIDER_MESSAGE, type TextResult } from "../_shared/textGen.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText, worldImageSetting } from "../_shared/worldBlock.ts";
+import { lookReferenceBlobs } from "../_shared/lookReferenceBlobs.ts";
 import { serveUser } from "../_shared/pipeline/serveUser.ts";
 import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
@@ -191,6 +192,8 @@ serve(serveUser(async ({ user, req, report }) => {
                 subject: String(locationData.image_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS),
               }),
               size: "1024x1024", quality: imageQuality, boostStyle: true,
+              // The scene follows the look; the map below deliberately gets no references (top-down cartography).
+              styleReferences: await lookReferenceBlobs(world.lookReferences),
             })
           : Promise.resolve(null),
         generate_map

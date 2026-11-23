@@ -9,6 +9,7 @@
       class="w-full resize-y border border-border bg-card p-2 text-body text-foreground placeholder:text-muted-foreground"
       :placeholder="placeholder"
     />
+    <slot />
     <div class="flex flex-wrap items-center gap-2">
       <p class="flex-1 text-caption text-muted-foreground">{{ help }}</p>
       <AutosaveStatus :status="status" :error="saveError" />
@@ -47,23 +48,43 @@ interface TextDraft { text: string }
 const draft = reactive<TextDraft>({ text: entry?.title ?? "" });
 // Once the first save has created the row, later saves update it; the entry prop catches up with the next read.
 let savedId: string | null = entry?.id ?? null;
+// One creation at a time: a picture added while the first words are being saved must not make a second entry.
+let creating: Promise<string> | null = null;
+
+/** The entry's id, creating the entry (with what is typed now) when none exists yet. */
+function ensureEntry(): Promise<string> {
+  if (savedId !== null) return Promise.resolve(savedId);
+  creating ??= createCanonEntry(campaignId, { part: "premise", premise_kind: kind, title: draft.text })
+    .then(async (created) => {
+      savedId = created.id;
+      await qc.invalidateQueries({ queryKey: [CANON_KEY] });
+      return created.id;
+    })
+    .finally(() => { creating = null; });
+  return creating;
+}
 
 const { status, saveError, dirty, reset } = useAutosave<TextDraft>({
   draft,
   initial: () => ({ text: entry?.title ?? "" }),
   equal: (a, b) => a.text === b.text,
   save: async (snapshot) => {
-    if (savedId === null) {
-      savedId = (await createCanonEntry(campaignId, { part: "premise", premise_kind: kind, title: snapshot.text })).id;
-    } else {
-      await updateCanonEntry(savedId, { title: snapshot.text });
-    }
+    // The save that makes the entry has already written the typed words; any other save writes its own.
+    const makesIt = savedId === null && creating === null;
+    const id = await ensureEntry();
+    if (!makesIt || draft.text !== snapshot.text) await updateCanonEntry(id, { title: snapshot.text });
     await qc.invalidateQueries({ queryKey: [CANON_KEY] });
   },
   // Nothing is written for an empty box that was never saved.
   canSave: () => savedId !== null || draft.text.trim() !== "",
   errorMessage: "Could not save",
 });
+
+/** The words, from outside (the AI's description of the pictures): set in the box, then saved like typing. */
+function setText(text: string) {
+  draft.text = text;
+}
+defineExpose({ ensureEntry, setText, text: () => draft.text });
 
 watch(() => entry, (next) => {
   if (next) savedId = next.id;

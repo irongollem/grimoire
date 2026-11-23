@@ -11,6 +11,8 @@ import { buildEntityImagePrompt, buildImagePromptAuthorSystem } from "./imagePro
 import { buildCampaignContext, b64ToBlob, wrapUserInput } from "./utils";
 import { fetchWorldBlock } from "./worldBlock";
 import { worldImageSetting } from "@edge-shared/worldBlock.ts";
+import { withStyleReferenceSentence } from "@edge-shared/styleReferences.ts";
+import { fetchLookReferences } from "./lookReferences";
 import { startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { useImageGenerationLog, type ImageGenKind } from "@/composables/ai/useImageGenerationLog";
@@ -192,7 +194,10 @@ export function useEntityImageGeneration(bucketId: BucketId) {
       setting: worldImageSetting(world),
       subject,
     });
-    const { b64, usage: imageUsage } = await imageProvider.generate(imagePrompt, IMAGE_SIZE);
+    const styleReferences = await fetchLookReferences(world.lookReferences);
+    const { b64, usage: imageUsage } = styleReferences.length > 0 && imageProvider.edit
+      ? await imageProvider.edit(styleReferences, withStyleReferenceSentence(imagePrompt, styleReferences.length), IMAGE_SIZE)
+      : await imageProvider.generate(imagePrompt, IMAGE_SIZE);
     logUsage({ reason: "entity_image", imageUsage });
 
     const prov = buildAiProvenance(options.kind, imageUsage.provider, imageUsage.model);

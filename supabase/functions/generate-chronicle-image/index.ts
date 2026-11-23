@@ -23,6 +23,7 @@ import { registerImageProvenance } from "../_shared/provenance/register.ts";
 import { hasLikenessAcknowledgement } from "../_shared/provenance/likeness-gate.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldImageSetting } from "../_shared/worldBlock.ts";
+import { lookReferenceBlobs } from "../_shared/lookReferenceBlobs.ts";
 
 // Keep browser-supplied composition inputs bounded before req.json()/atob hold
 // both the encoded and decoded copies in the Edge isolate.
@@ -152,6 +153,8 @@ async function runGeneration(args: {
   size: string;
   quality: string | null;
   portrait_urls: string[];
+  /** The look's style pictures (#1252), empty for a map. */
+  look_reference_urls: string[];
   isByok: boolean;
   cost: number;
   reservationIds: string[];
@@ -159,7 +162,7 @@ async function runGeneration(args: {
   source_image_b64: string | null;
   report: (err: unknown) => void;
 }) {
-  const { jobId, userId, provider, model, apiKey, moderationKey, prompt, size, quality, portrait_urls, isByok, cost, reservationIds, purpose, source_image_b64, report } = args;
+  const { jobId, userId, provider, model, apiKey, moderationKey, prompt, size, quality, portrait_urls, look_reference_urls, isByok, cost, reservationIds, purpose, source_image_b64, report } = args;
 
   // Once the picture is stored it is charged, and nothing after that may call the job failed (the hand-wired worker
   // marked a delivered image failed when completeImageJob or the release threw, #1234).
@@ -188,10 +191,12 @@ async function runGeneration(args: {
         portraitBlobs.push(new Blob([bytes], { type: "image/png" }));
       }
 
+      const styleReferences = await lookReferenceBlobs(look_reference_urls);
       const { b64, contentType, usage } = await generateImage({
         provider, model, apiKey, prompt, size, quality, boostStyle: PURPOSE_CONFIG[purpose].boostStyle && imageBoostFor(purpose),
         screening: { apiKey: moderationKey, admin, userId, generationType: purpose },
         sourceImages: portraitBlobs.length > 0 ? portraitBlobs : undefined,
+        styleReferences,
       });
 
       // provider/model here mirror what the ledger logs: usage.provider is the actual responding provider, model is
@@ -316,7 +321,10 @@ serve(serveUser(async ({ user, req, report }) => {
     : wholeCredits(await fetchCreditCost(admin, config.creditType) * sizeMultiplier(size) * img.imageMultiplier);
   const quality = await resolveImageQuality(admin, config.creditType, img);
 
-  const setting = worldImageSetting(await loadWorldBlock(admin, campaign.id));
+  const world = await loadWorldBlock(admin, campaign.id);
+  const setting = worldImageSetting(world);
+  // A map is top-down cartography: the look's pictures would paint it as a scene.
+  const lookReferenceUrls = purpose === "location_map" ? [] : world.lookReferences;
 
   const { data: imageBaseRow, error: imageBaseError } = await admin
     .from("ai_system_prompts").select("content")
@@ -375,7 +383,7 @@ serve(serveUser(async ({ user, req, report }) => {
     // past response. Deno Deploy's EdgeRuntime keeps the isolate alive for waitUntil.
     const run = runGeneration({
       jobId, userId: user.id, provider: img.provider, model, apiKey: img.apiKey, moderationKey: img.moderationKey,
-      prompt, size, quality, portrait_urls, isByok, cost: imageCost,
+      prompt, size, quality, portrait_urls, look_reference_urls: lookReferenceUrls, isByok, cost: imageCost,
       reservationIds: hold.handOff(), purpose, source_image_b64, report,
     });
     try {

@@ -29,6 +29,7 @@ import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText, worldImageSetting } from "../_shared/worldBlock.ts";
+import { lookReferenceBlobs } from "../_shared/lookReferenceBlobs.ts";
 import { serveUser } from "../_shared/pipeline/serveUser.ts";
 import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
@@ -231,6 +232,7 @@ serve(serveUser(async ({ user, req, report }) => {
     let imgResultProvider: string | null = null;
 
     if (img && shouldGenerateImage && npcData.true_portrait_prompt) {
+      const lookRefs = await lookReferenceBlobs(world.lookReferences);
       const imagePrompt = buildLabelledImagePrompt({
         base: imageBasePrompt,
         setting: worldImageSetting(world),
@@ -247,6 +249,7 @@ serve(serveUser(async ({ user, req, report }) => {
           size: portraitSize,
           quality: portraitQuality,
           boostStyle: "portrait",
+          styleReferences: lookRefs,
         });
         totalImageCount++;
         imgResultProvider = usage.provider;
@@ -291,6 +294,7 @@ serve(serveUser(async ({ user, req, report }) => {
             quality: portraitQuality,
             boostStyle: "portrait",
             sourceImages: [seedBlob],
+            styleReferences: lookRefs,
           });
           totalImageCount++;
           imgResultProvider = usage.provider;

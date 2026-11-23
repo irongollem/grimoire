@@ -24,6 +24,7 @@ import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText, worldImageSetting } from "../_shared/worldBlock.ts";
+import { lookReferenceBlobs } from "../_shared/lookReferenceBlobs.ts";
 import { serveUser } from "../_shared/pipeline/serveUser.ts";
 import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
@@ -198,6 +199,7 @@ serve(serveUser(async ({ user, req, report }) => {
           provider: img!.provider, model: img!.model, apiKey: img!.apiKey,
           screening: { apiKey: img!.moderationKey, admin, userId: user.id, generationType: "trap_image" },
           prompt: finalPrompt, size: "1024x1536", quality: trapImageQuality!, boostStyle: true, sourceImages,
+          styleReferences: await lookReferenceBlobs(world.lookReferences),
         });
         // The picture was made, so it is charged even if marking it fails below.
         hold.charge("entity_image", {

@@ -20,6 +20,8 @@ import { buildAiProvenance } from "@/ai/provenance";
 import { markGeneratedImageB64 } from "@edge-shared/provenance/mark.ts";
 import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
 import { blobToBase64 } from "@/lib/blobToBase64";
+import { withStyleReferenceSentence } from "@edge-shared/styleReferences.ts";
+import { fetchLookReferences } from "@/ai/lookReferences";
 
 export type ImagePurpose =
   | "chronicler" | "group_portrait" | "npc_portrait" | "npc_disguise"
@@ -198,18 +200,23 @@ async function runLocal(request: ImageGenerationRequest): Promise<string> {
     })),
   ]);
   if (request.sourceImage) references.push(request.sourceImage);
-  const setting = worldImageSetting(requireWorld(request.world));
-  const prompt = config.scene
+  const world = requireWorld(request.world);
+  const setting = worldImageSetting(world);
+  // A map is top-down cartography: the look's pictures would paint it as a scene.
+  const styleReferences = request.purpose === "location_map" ? [] : await fetchLookReferences(world.lookReferences);
+  const basePrompt = config.scene
     ? buildScenePrompt(request.subject, request.textDescriptions ?? [], setting, base)
     : request.purpose === "location_map"
       ? request.subject
     : buildEntityImagePrompt(request.purpose, { base, setting, subject: request.subject });
+  const prompt = withStyleReferenceSentence(basePrompt, styleReferences.length);
   const provider = await getImageProvider({
     imageProvider: request.imageProvider,
     apiKey: request.imageApiKey,
   });
-  const { b64, usage } = references.some(Boolean) && provider.edit
-    ? await provider.edit(references.filter((entry): entry is Blob => !!entry), prompt, request.size ?? config.size)
+  const sources = [...references.filter((entry): entry is Blob => !!entry), ...styleReferences];
+  const { b64, usage } = sources.length > 0 && provider.edit
+    ? await provider.edit(sources, prompt, request.size ?? config.size)
     : await provider.generate(prompt, request.size ?? config.size);
   const markedB64 = await markLocalResult(request.purpose, b64, usage);
   const { url, userId } = await uploadLocalResult(request.purpose, markedB64);

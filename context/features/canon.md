@@ -208,6 +208,26 @@ nobody left is set aside rather than offered). Nothing is written until the DM a
 `ai_provenance`. An AI-written entry is marked edited by the database the first time its words change
 (`private.canon_entries_mark_edited`), whoever changes them.
 
+## The look, shown (#1252)
+
+A look is often easier to show than to put into words. The Look field in Part I takes up to four pictures
+(`canon_entries.reference_images`, migration `20261123064323`: at most four, and only on the look premise entry, both
+held by checks). The browser stores each at 512 px on its longest side as WebP in `asset-images` (style carries at that
+size, and every picture is billed as image input on every render), after the likeness notice, since a picture may show
+a real person. **Describe from the pictures** calls `describe-look` (server path only, DM-gated, likeness backstop,
+`canon_look_description` at 1 credit, prompt row `canon_look`), which reads them through `callDocument` and returns one
+paragraph about how they are painted, never who or what they show; nothing is written server side. The text lands in
+the field and autosaves; replacing existing text asks first, as the other canon suggestions do.
+
+The pictures travel with the world block (`WorldBlock.lookReferences`), so every generator that paints from the look
+also hands them to the image model as style references: `generate-entity-image`, `generate-npc`, `generate-location`'s
+scene, `generate-trap`, `generate-chronicle-image`, and the two local-key paths. A map never gets them (top-down
+cartography), and neither do the tools that edit a given picture. `generateImage`'s `styleReferences` puts them after
+any source images and adds the one sentence that names them as style only (`_shared/styleReferences.ts`). On OpenAI
+they send the render to the edits endpoint, which cannot take `moderation: "low"`; so when the pictures were the only
+reason for the edit and OpenAI refuses, the render is retried once as a plain generation without them, inside the same
+screening row. The server fetches them only through the SSRF guard.
+
 ## Taking a book apart (story 7)
 
 The document import reads two more kinds, `canon` and `deities`, and takes a Scriptorium book as a source, so a campaign

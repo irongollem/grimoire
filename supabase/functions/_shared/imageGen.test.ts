@@ -312,3 +312,111 @@ describe("generateImage — edit mask", () => {
     await expect(generateImage({ ...edit, provider: "gemini", mask: new Blob(["m"]) })).rejects.toThrow(/mask/);
   });
 });
+
+describe("generateImage — look style references (#1252)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const style = () => [new Blob(["s1"], { type: "image/webp" }), new Blob(["s2"], { type: "image/webp" })];
+  const REFUSED = () => ({
+    ok: false, status: 400,
+    json: () => ({ error: { message: "rejected", code: "moderation_blocked" } }),
+  });
+  const imageCalls = (calls: Array<{ url: string; body: unknown }>) => calls.filter((c) => c.url.includes("/images/"));
+
+  it("sends a plain generation, with no style sentence, when there are no style references", async () => {
+    // Bug: the sentence appended unconditionally tells the model about images it was not given.
+    const { admin } = fakeAdmin();
+    const calls = stubFetch(OK_IMAGE);
+    await generateImage(opts("openai", admin));
+    const [call] = imageCalls(calls);
+    expect(call.url).toContain("/images/generations");
+    expect((call.body as { prompt: string }).prompt).toBe("a dwarven cleric");
+  });
+
+  it("names the style pictures in the prompt and sends them on the edits endpoint", async () => {
+    // Bug: references attached but unexplained, so the model copies their subjects.
+    const { admin } = fakeAdmin();
+    const calls = stubFetch(OK_IMAGE);
+    await generateImage({ ...opts("openai", admin), styleReferences: style() });
+    const [call] = imageCalls(calls);
+    expect(call.url).toContain("/images/edits");
+    const form = call.body as FormData;
+    expect(form.getAll("image[]")).toHaveLength(2);
+    expect(String(form.get("prompt"))).toMatch(/last 2 images are style references only/);
+  });
+
+  it("puts style pictures after the sources and counts only them in the sentence", async () => {
+    // Bug: sentence says "last 3 images" when only the final two are style.
+    const { admin } = fakeAdmin();
+    const calls = stubFetch(OK_IMAGE);
+    await generateImage({ ...opts("openai", admin), sourceImages: [new Blob(["src"], { type: "image/png" })], styleReferences: style() });
+    const form = imageCalls(calls)[0].body as FormData;
+    const names = form.getAll("image[]").map((f) => (f as File).name);
+    expect(names).toEqual(["ref_0.png", "ref_1.webp", "ref_2.webp"]);
+    expect(String(form.get("prompt"))).toMatch(/last 2 images/);
+  });
+
+  it("retries once as a plain generation without the pictures when only they sent it to the edits endpoint", async () => {
+    // Bug: edits cannot take moderation: low, so a style-only edit refused a prompt a generation would allow.
+    const { admin, updates } = fakeAdmin();
+    let n = 0;
+    const calls = stubFetch(() => (n++ === 0 ? REFUSED() : OK_IMAGE()));
+    await generateImage({ ...opts("openai", admin), styleReferences: style() });
+    const [first, second] = imageCalls(calls);
+    expect(first.url).toContain("/images/edits");
+    expect(second.url).toContain("/images/generations");
+    expect(second.body).toMatchObject({ moderation: "low", prompt: "a dwarven cleric" });
+    expect(updates).toEqual([{ id: "row-1", patch: { provider_outcome: "rendered" } }]);
+  });
+
+  it("does not drop the sources of a real edit when it is refused", async () => {
+    // Bug: retrying a genuine edit without its pictures paints something else.
+    const { admin } = fakeAdmin();
+    const calls = stubFetch(REFUSED);
+    const error = await generateImage({
+      ...opts("openai", admin), sourceImages: [new Blob(["src"], { type: "image/png" })], styleReferences: style(),
+    }).catch((e) => e);
+    expect(isProviderRefusal(error)).toBe(true);
+    expect(imageCalls(calls)).toHaveLength(1);
+  });
+
+  it("does not retry an outage, and a refusal of the retry is still logged as refused", async () => {
+    // Bug: retrying every failure would double-bill an outage; a second refusal must reach the log.
+    const outage = fakeAdmin();
+    const outageCalls = stubFetch(() => ({ ok: false, status: 500, json: () => ({ error: { message: "x", code: "server_error" } }) }));
+    await generateImage({ ...opts("openai", outage.admin), styleReferences: style() }).catch(() => undefined);
+    expect(imageCalls(outageCalls)).toHaveLength(1);
+
+    const refused = fakeAdmin();
+    const refusedCalls = stubFetch(REFUSED);
+    await generateImage({ ...opts("openai", refused.admin), styleReferences: style() }).catch(() => undefined);
+    expect(imageCalls(refusedCalls)).toHaveLength(2);
+    expect(refused.updates[0].patch.provider_outcome).toBe("refused");
+  });
+
+  it("hands Gemini the pictures inline after the prompt, with the sentence", async () => {
+    const { admin } = fakeAdmin();
+    const calls = stubFetch(() => ({ ok: true, json: () => ({ candidates: [{ content: { parts: [{ inlineData: { data: "aGk=", mimeType: "image/png" } }] } }] }) }));
+    await generateImage({ ...opts("gemini", admin), styleReferences: style() });
+    const parts = (calls.find((c) => c.url.includes("generativelanguage"))!.body as { contents: Array<{ parts: Array<{ text?: string; inline_data?: unknown }> }> }).contents[0].parts;
+    expect(parts).toHaveLength(3);
+    expect(parts[0].text).toMatch(/style references only/);
+  });
+
+  it("does not retry a Gemini refusal, which takes the pictures inline either way", async () => {
+    // Bug: the retry dropped the look pictures on a provider whose moderation does not depend on them.
+    const { admin } = fakeAdmin();
+    const calls = stubFetch(() => ({ ok: true, json: () => ({ promptFeedback: { blockReason: "SAFETY" }, candidates: [] }) }));
+    await generateImage({ ...opts("gemini", admin), styleReferences: style() }).catch(() => undefined);
+    expect(calls.filter((c) => c.url.includes("generativelanguage"))).toHaveLength(1);
+  });
+
+  it("caps style references at four", async () => {
+    // Bug: an unbounded list bills every extra picture as image input.
+    const { admin } = fakeAdmin();
+    const calls = stubFetch(OK_IMAGE);
+    const six = Array.from({ length: 6 }, () => new Blob(["s"], { type: "image/webp" }));
+    await generateImage({ ...opts("openai", admin), styleReferences: six });
+    expect((imageCalls(calls)[0].body as FormData).getAll("image[]")).toHaveLength(4);
+  });
+});

@@ -12,6 +12,7 @@ import {
   type ScreeningContext,
 } from "./moderation.ts";
 import { nearestGeminiAspect } from "./geminiAspect.ts";
+import { capStyleReferences, withStyleReferenceSentence } from "./styleReferences.ts";
 import { chooseImageProvider, keysPresent, type ImageProviderKey } from "./providerChoice.ts";
 
 export type { ImageProviderKey } from "./providerChoice.ts";
@@ -297,6 +298,13 @@ export async function generateImage(opts: {
    */
   boostStyle?: boolean | "portrait";
   sourceImages?: Blob[];
+  /**
+   * The campaign look's style pictures (#1252), appended after `sourceImages` and named in the prompt as style
+   * only. Distinct from `sourceImages` because they are not part of the picture being edited: when they are the
+   * ONLY reason a render goes to OpenAI's edits endpoint (no sources, no mask), a refusal is retried once as a
+   * plain generation without them. Pass none for a map, which is top-down cartography.
+   */
+  styleReferences?: Blob[];
   /** OpenAI output background. Ignored by providers that do not expose it. */
   background?: "transparent" | "opaque" | "auto";
   /**
@@ -316,16 +324,34 @@ export async function generateImage(opts: {
   screening?: Omit<ScreeningContext, "imageProvider">;
 }): Promise<ImageGenResult> {
   const { provider, model, apiKey, prompt, size, quality, boostStyle, sourceImages, background, mask, screening } = opts;
+  const styleRefs = capStyleReferences(opts.styleReferences ?? []);
 
-  const dispatch = () => {
+  const render = (styled: Blob[]) => {
+    const images = [...(sourceImages ?? []), ...styled];
+    const text = withStyleReferenceSentence(prompt, styled.length);
     switch (provider) {
       case "gemini": {
         if (mask) throw new Error("Gemini cannot take an edit mask");
         const booster = boostStyle === "portrait" ? GEMINI_PORTRAIT_BOOSTER : boostStyle ? GEMINI_STYLE_BOOSTER : null;
-        const geminiPrompt = booster ? `${prompt} — ${booster}` : prompt;
-        return geminiGenerate(apiKey, model, geminiPrompt, size, quality, sourceImages);
+        const geminiPrompt = booster ? `${text} — ${booster}` : text;
+        return geminiGenerate(apiKey, model, geminiPrompt, size, quality, images);
       }
-      default:       return openaiGenerate(apiKey, model, prompt, size, quality, sourceImages, background, mask); // openai
+      default:       return openaiGenerate(apiKey, model, text, size, quality, images, background, mask); // openai
+    }
+  };
+
+  const dispatch = async () => {
+    try {
+      return await render(styleRefs);
+    } catch (e) {
+      // The edits endpoint cannot take `moderation: "low"`, so a call sent there ONLY for its style pictures is
+      // moderated harder than the same prompt as a generation. If it is refused, paint the prompt without them
+      // rather than fail a picture the look would never have blocked. A real edit (sources or mask) is left alone:
+      // dropping its images would change what is painted. Retried inside screening, so the log still has one row
+      // per prompt and its outcome is what the DM finally got.
+      const onlyBecauseOfStyle = styleRefs.length > 0 && !(sourceImages?.length) && !mask;
+      if (provider === "openai" && onlyBecauseOfStyle && isProviderRefusal(e)) return render([]);
+      throw e;
     }
   };
 

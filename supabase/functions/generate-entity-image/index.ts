@@ -23,6 +23,7 @@ import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { callText, resolveTextProvider, NO_TEXT_PROVIDER_MESSAGE } from "../_shared/textGen.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText, worldImageSetting } from "../_shared/worldBlock.ts";
+import { lookReferenceBlobs } from "../_shared/lookReferenceBlobs.ts";
 import { serveUser } from "../_shared/pipeline/serveUser.ts";
 import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
@@ -165,6 +166,7 @@ serve(serveUser(async ({ user, req, report }) => {
         screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "entity_image" },
         prompt: imagePrompt, size: ENTITY_IMAGE_SIZE, quality,
         boostStyle: imageBoostFor(kind),
+        styleReferences: await lookReferenceBlobs(world.lookReferences),
       });
     } catch (e) {
       // A prompt the screen refused is the DM's to reword, not a provider

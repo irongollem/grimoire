@@ -20,6 +20,7 @@ export function canonEntry(over: Partial<CanonEntry> = {}): CanonEntry {
     wants: null,
     clock_size: null,
     image_url: null,
+    reference_images: [],
     lore_kind: null,
     world_year: null,
     world_month: null,

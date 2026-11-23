@@ -14,6 +14,7 @@ const row = (over: Partial<CanonRowForBlock>): CanonRowForBlock => ({
   title: "",
   body: null,
   sort_order: order++,
+  reference_images: [],
   ...over,
 });
 const premise = (premise_kind: string, title: string, body: string | null = null) =>
@@ -21,6 +22,14 @@ const premise = (premise_kind: string, title: string, body: string | null = null
 const truth = (knowledge: string, title: string) => row({ part: "truth", knowledge, title });
 
 describe("worldBlockFromRows", () => {
+  it("takes the look's pictures as its style references, and no other entry's", () => {
+    const block = worldBlockFromRows(null, [
+      row({ part: "premise", premise_kind: "pitch", title: "Open", reference_images: ["https://x/pitch.webp"] }),
+      row({ part: "premise", premise_kind: "look", title: "Gouache", reference_images: ["https://x/a.webp", "https://x/b.webp"] }),
+    ]);
+    expect(block.lookReferences).toEqual(["https://x/a.webp", "https://x/b.webp"]);
+  });
+
   it("never lets a secret or a some-know truth reach a generator", () => {
     const block = worldBlockFromRows("Sothery", [
       truth("all", "The sun is a door"),

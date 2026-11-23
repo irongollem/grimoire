@@ -53,6 +53,8 @@ export interface CanonEntry {
   /** How many ticks fill a force's clock (2 to 12); null is no clock. Set only when `part` is `force`. */
   clock_size: number | null;
   image_url: string | null;
+  /** Up to four style reference pictures, on the Look premise entry only (#1252); empty everywhere else. */
+  reference_images: string[];
   /** What a piece of lore is. Set only when `part` is `lore`. */
   lore_kind: LoreKind | null;
   /** When it happened in the world, in the campaign's calendar. A month needs a year and a day needs a month. */

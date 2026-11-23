@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
 import type { Campaign } from "@/types/campaign.types";
 import type { CanonEntry } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
@@ -11,6 +12,12 @@ vi.mock("@/composables/canon/useCanonEntries", () => ({
   createCanonEntry: vi.fn(),
   updateCanonEntry: vi.fn(),
 }));
+// The look's pictures and AI button have their own test; here it is the same plain field as the voice.
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ isAiEnabled: false }) }));
+vi.mock("@/composables/ai/useLikenessGate", () => ({ useLikenessGate: () => ({ ensureLikenessAck: async () => true }) }));
+vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
+vi.mock("@/composables/ai/useGenerationGate", () => ({ useGenerationGate: () => ({ canSpend: () => true }) }));
+vi.mock("@/composables/ai/useCampaignProviders", () => ({ useCampaignProviders: () => ({ textCredits: (n: number) => n, textIsByok: { value: false } }) }));
 vi.mock("@tanstack/vue-query", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/vue-query")>()),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
@@ -30,6 +37,8 @@ function mountSection(entries: CanonEntry[]) {
 }
 
 describe("PremiseSection", () => {
+  beforeEach(() => setActivePinia(createPinia()));
+
   it("gives voice and look no reveal control, because players never read them", () => {
     const w = mountSection([entry({ id: "v", premise_kind: "voice", title: "Dry" }), entry({ id: "l", premise_kind: "look", title: "Gouache" })]);
     expect(w.find("[data-testid=premise-voice] [data-testid=reveal]").exists()).toBe(false);
