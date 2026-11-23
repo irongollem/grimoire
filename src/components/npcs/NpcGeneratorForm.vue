@@ -279,7 +279,7 @@ import { useLocationTree } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
-import { useCampaignStore } from "@/stores/campaign";
+import { useCampaignPeoples } from "@/composables/canon/useCampaignPeoples";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
@@ -492,9 +492,8 @@ const ALIGNMENTS = [
 const { locationOptions } = useLocationTree();
 const { data: factions } = useAllFactions();
 const { data: npcs } = useNpcs();
-const campaignStore = useCampaignStore();
 const { data: campaignSpecies } = useCampaignSpecies();
-const peoples = computed(() => campaignStore.activeCampaign?.peoples ?? []);
+const { peoples } = useCampaignPeoples();
 /** The world's peoples in the DM's order, then the campaign's species not already listed. */
 const speciesOptions = computed(() => {
   const names = peoples.value.map((p) => p.name);

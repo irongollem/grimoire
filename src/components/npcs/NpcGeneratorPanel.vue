@@ -68,6 +68,7 @@ import { kinInsertFor, parsePersonKey, personKey } from "@/lib/kinship/keys";
 import { isGeneratorKin, kinPromptLine, parseKinQueryKey, type PromptPerson } from "@/lib/npcGenerator/kinPrompt";
 import type { PersonKey } from "@/types/kinship.types";
 import { useCampaignStore } from "@/stores/campaign";
+import { useCampaignPeoples } from "@/composables/canon/useCampaignPeoples";
 import { generatedBirthFromAge } from "@/lib/npcGenerator/generatedBirth";
 import { getCalendarAdapter } from "@/settings/index";
 import { useNpcGeneration, toTiptapJson } from "@/ai/useNpcGeneration";
@@ -117,6 +118,7 @@ const route = useRoute();
 const { mutateAsync: createNpc, isPending: isCreating } = useCreateNpcInCampaign();
 const { logImageGeneration } = useImageGenerationLog();
 const campaign = useCampaignStore();
+const { peoples } = useCampaignPeoples();
 const {
   isGenerating,
   error: genError,
@@ -204,24 +206,30 @@ function kinPromptPeople(): PromptPerson[] {
 
 /**
  * Who the new person is: the species the DM picked, else one rolled from the world's peoples (once per generation, so
- * the prompt and the saved NPC agree). `constraint` is the prompt line; a roll that lands on "anyone else" has no name
- * and asks for a people the list does not hold. With no peoples set the species is left to the generator.
+ * the prompt and the saved NPC agree). `constraints` are the prompt lines; a roll that lands on "anyone else" has no
+ * name and asks for a people the list does not hold. A rolled creature is a people of the world, not an opponent, and
+ * the prompt says so. With no peoples set the species is left to the generator. The `race` column stays free text, so
+ * a rolled people's name is what is saved.
  */
-interface RaceChoice { race: string; constraint: string | null }
+interface RaceChoice { race: string; constraints: string[] }
 function chooseRace(picked: string): RaceChoice {
-  if (picked) return { race: picked, constraint: `Race: ${picked}` };
-  const peoples = campaign.activeCampaign?.peoples ?? [];
-  if (peoples.length === 0) return { race: "", constraint: null };
-  const rolled = rollPeople(peoples);
-  if (rolled) return { race: rolled, constraint: `Race: ${rolled}` };
-  return { race: "", constraint: `Race: not one of ${peoples.map((p) => p.name).join(", ")}; a people this world rarely sees` };
+  if (picked) return { race: picked, constraints: [`Race: ${picked}`] };
+  const list = peoples.value;
+  if (list.length === 0) return { race: "", constraints: [] };
+  const rolled = rollPeople(list);
+  if (rolled) {
+    const constraints = [`Race: ${rolled.name}`];
+    if (rolled.kind === "creature") constraints.push(`This person is a ${rolled.name}, one of the world's peoples, not a monster to fight.`);
+    return { race: rolled.name, constraints };
+  }
+  return { race: "", constraints: [`Race: not one of ${list.map((p) => p.name).join(", ")}; a people this world rarely sees`] };
 }
 
-function buildAiContext(selectedLocationId: string | null, items: readonly ItemIndexEntry[], raceConstraint: string | null): string {
+function buildAiContext(selectedLocationId: string | null, items: readonly ItemIndexEntry[], raceConstraints: readonly string[]): string {
   const constraints: string[] = [];
   const location = locationOptions.value.find((loc) => loc.id === selectedLocationId);
   if (quickForm.name.trim()) constraints.push(`Name: ${quickForm.name.trim()}`);
-  if (raceConstraint) constraints.push(raceConstraint);
+  constraints.push(...raceConstraints);
   if (quickForm.alignment) constraints.push(`Alignment: ${quickForm.alignment}`);
   if (quickForm.relationship) constraints.push(`Party relationship: ${quickForm.relationship}`);
   if (location) constraints.push(`Location: ${location.name}`);
@@ -311,7 +319,7 @@ async function runGenerateAndCreate() {
   const prompt = replaceItemTokens(concept.value.trim(), inventoryItems);
   const formAtStart = { ...quickForm };
   const raceChoice = chooseRace(formAtStart.race);
-  const context = buildAiContext(locationId, inventoryItems, raceChoice.constraint);
+  const context = buildAiContext(locationId, inventoryItems, raceChoice.constraints);
   const generateAlterEgoAtStart = generateAlterEgo.value;
   const generateImageAtStart = generateImage.value;
   const associateNpc = formAtStart.related_npc_id

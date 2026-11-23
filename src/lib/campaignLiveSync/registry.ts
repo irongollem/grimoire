@@ -325,6 +325,8 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["canon_force_steps", [CANON_KEY]],
   ["canon_force_ticks", [CANON_KEY]],
   ["canon_force_quests", [CANON_KEY]],
+  // Who lives in the world (#1255 item 30): DM-only rows, read by name through campaign_peoples_named under the canon root.
+  ["campaign_peoples", [CANON_KEY]],
   ["canon_lore_passages", [CANON_KEY]],
   // The record (#1021). A member re-reads through RLS, which shows only what the party knows.
   ["story_facts", [STORY_RECORD_KEY]],

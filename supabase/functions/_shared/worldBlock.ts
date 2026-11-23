@@ -26,27 +26,10 @@ export interface WorldBlock {
   peoples: string | null;
 }
 
-/** One people of the world and its share of the population, as `campaigns.peoples` stores it. */
+/** One people of the world and its share of the population, as `campaign_peoples_named` reads it. */
 export interface People {
   name: string;
   percent: number;
-}
-
-/**
- * Reads `campaigns.peoples` defensively: anything but an array of `{ name, percent }` with a non-blank name and a
- * finite percent above zero is dropped, so an unexpected shape yields an empty list and never a throw.
- */
-export function parsePeoples(raw: unknown): People[] {
-  if (!Array.isArray(raw)) return [];
-  const out: People[] = [];
-  for (const item of raw) {
-    if (typeof item !== "object" || item === null) continue;
-    const { name, percent } = item as { name?: unknown; percent?: unknown };
-    if (typeof name !== "string" || name.trim() === "") continue;
-    if (typeof percent !== "number" || !Number.isFinite(percent) || percent < 0) continue;
-    out.push({ name: name.trim(), percent });
-  }
-  return out;
 }
 
 const roundShare = (n: number): number => Math.round(n * 100) / 100;
@@ -74,6 +57,9 @@ export interface CanonRowForBlock {
   body: string | null;
   sort_order: number;
 }
+
+/** What the block reads of `campaign_peoples_named`, in the DM's order, for both loaders. */
+export const WORLD_BLOCK_PEOPLES_COLUMNS = "name, percent";
 
 /** Columns the block reads, for both the server and the client loader. */
 export const WORLD_BLOCK_CANON_COLUMNS = "part, premise_kind, knowledge, title, body, sort_order";
@@ -103,7 +89,7 @@ export function premiseEntryText(kind: string | null, titleRaw: string, bodyRaw:
 
 const entryText = (row: CanonRowForBlock): string => premiseEntryText(row.part === "premise" ? row.premise_kind : null, row.title, row.body);
 
-export function worldBlockFromRows(setting: string | null, rows: CanonRowForBlock[], peoples: unknown): WorldBlock {
+export function worldBlockFromRows(setting: string | null, rows: CanonRowForBlock[], peoples: readonly People[]): WorldBlock {
   const ordered = [...rows].sort((a, b) => a.sort_order - b.sort_order);
   const ofKind = (kind: string): string[] =>
     ordered
@@ -128,7 +114,7 @@ export function worldBlockFromRows(setting: string | null, rows: CanonRowForBloc
       .filter((r) => r.part === "truth" && r.knowledge === "all")
       .map(entryText)
       .filter((t) => t.length > 0),
-    peoples: peoplesLine(parsePeoples(peoples)) || null,
+    peoples: peoplesLine(peoples) || null,
   };
 }
 

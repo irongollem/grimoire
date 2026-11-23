@@ -7,7 +7,7 @@ import {
 } from "./worldBlock";
 
 /** The block for a campaign that has said nothing of its peoples, unless a test says otherwise. */
-const build = (setting: string | null, rows: CanonRowForBlock[], peoples: unknown = []) => worldBlockFromRows(setting, rows, peoples);
+const build = (setting: string | null, rows: CanonRowForBlock[], peoples: readonly { name: string; percent: number }[] = []) => worldBlockFromRows(setting, rows, peoples);
 
 let order = 0;
 const row = (over: Partial<CanonRowForBlock>): CanonRowForBlock => ({
@@ -119,15 +119,12 @@ describe("the peoples of the world", () => {
     expect(text).toContain("choose who they are at these odds; do not default to humans.");
   });
 
-  // Bug caught: a row the table never allowed (or an old shape) threw in the loader and took every generator down with it.
-  it.each([[[]], [null], ["elves"], [{ Elf: 80 }], [[{ name: "  ", percent: 50 }, { name: "Elf", percent: "80" }, 7, null]]])(
-    "adds nothing for an empty or malformed list (%j)",
-    (peoples) => {
-      const block = build(null, [], peoples);
-      expect(block.peoples).toBeNull();
-      expect(worldBlockText(block)).toBe("");
-    },
-  );
+  // Bug caught: an empty list (a campaign that never said) added an empty section, or a "100% anyone else" line.
+  it("adds nothing when no peoples are listed", () => {
+    const block = build(null, [], []);
+    expect(block.peoples).toBeNull();
+    expect(worldBlockText(block)).toBe("");
+  });
 
   it("says 100% without an anyone-else and leaves a share of zero out", () => {
     expect(build(null, [], [{ name: "Elf", percent: 100 }, { name: "Orc", percent: 0 }]).peoples).toBe("Elf 100%");

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { peoplesLine, peoplesProblem, peoplesTotal, rollPeople } from "./peoples";
+import { peoplesLine } from "@edge-shared/worldBlock.ts";
+import { peoplesProblem, peoplesTotal, rollPeople, type People } from "./peoples";
 
-const world = [{ name: "Elf", percent: 80 }, { name: "Human", percent: 15 }];
+const people = (name: string, percent: number, over: Partial<People> = {}): People => ({
+  id: `p-${name}`, kind: "species", recordId: `lib_${name}`, fromLibrary: true, name, percent, ...over,
+});
+const world = [people("Elf", 80), people("Human", 15)];
 
 /** A small seeded generator (mulberry32), so the distribution test never flakes. */
 function seeded(seed: number): () => number {
@@ -17,14 +21,14 @@ function seeded(seed: number): () => number {
 describe("rollPeople", () => {
   // Bug caught: a roll that ignores the shares (uniform pick, or always the first) breaks "80% elves generates elves 80% of the time".
   it("picks the people whose share the roll lands in, and nobody past the listed total", () => {
-    expect(rollPeople(world, () => 0.5)).toBe("Elf");
-    expect(rollPeople(world, () => 0.9)).toBe("Human");
+    expect(rollPeople(world, () => 0.5)?.name).toBe("Elf");
+    expect(rollPeople(world, () => 0.9)?.name).toBe("Human");
     expect(rollPeople(world, () => 0.97)).toBeNull();
   });
 
   // Bug caught: the boundary read as <= gave the earlier people one extra point of the roll.
   it("hands the exact edge to the next people", () => {
-    expect(rollPeople(world, () => 0.8)).toBe("Human");
+    expect(rollPeople(world, () => 0.8)?.name).toBe("Human");
     expect(rollPeople(world, () => 0.95)).toBeNull();
   });
 
@@ -32,7 +36,7 @@ describe("rollPeople", () => {
     const random = seeded(1255);
     const counts = new Map<string | null, number>();
     for (let i = 0; i < 10_000; i++) {
-      const who = rollPeople(world, random);
+      const who = rollPeople(world, random)?.name ?? null;
       counts.set(who, (counts.get(who) ?? 0) + 1);
     }
     expect(Math.abs((counts.get("Elf") ?? 0) / 100 - 80)).toBeLessThan(2);
@@ -42,10 +46,10 @@ describe("rollPeople", () => {
 
   // Bug caught: a zero share still took the roll at its edge (a 0-width slot picked on a tie).
   it("never picks a people at zero percent", () => {
-    const list = [{ name: "Orc", percent: 0 }, { name: "Elf", percent: 50 }];
-    expect(rollPeople(list, () => 0)).toBe("Elf");
+    const list = [people("Orc", 0), people("Elf", 50)];
+    expect(rollPeople(list, () => 0)?.name).toBe("Elf");
     const random = seeded(7);
-    for (let i = 0; i < 2000; i++) expect(rollPeople(list, random)).not.toBe("Orc");
+    for (let i = 0; i < 2000; i++) expect(rollPeople(list, random)?.name).not.toBe("Orc");
   });
 
   it("is null for an empty list", () => {
@@ -59,32 +63,28 @@ describe("peoplesProblem", () => {
     expect(peoplesProblem([])).toBeNull();
   });
 
-  // Bug caught: a duplicate compared case-sensitively, so "elf" and "Elf " reached the table and were refused there.
-  it("names a duplicate whatever its case or spacing", () => {
-    expect(peoplesProblem([{ name: "Elf", percent: 10 }, { name: " elf ", percent: 10 }])).toContain("listed twice");
-  });
-
-  // Bug caught: a total past 100 saved, and the database refused it with an error the DM never saw explained.
+  // Bug caught: a total past 100 saved, and the database refused it at commit with an error the DM never saw explained.
   it("names a total past 100, and accepts exactly 100", () => {
-    expect(peoplesProblem([{ name: "Elf", percent: 80 }, { name: "Human", percent: 30 }])).toContain("110%");
-    expect(peoplesProblem([{ name: "Elf", percent: 80 }, { name: "Human", percent: 20 }])).toBeNull();
+    expect(peoplesProblem([people("Elf", 80), people("Human", 30)])).toContain("110%");
+    expect(peoplesProblem([people("Elf", 80), people("Human", 20)])).toBeNull();
+    expect(peoplesProblem([people("Elf", 60), people("Human", 40.5)])).toContain("100.5%");
   });
 
-  it("names a blank name and a share outside 0 to 100", () => {
-    expect(peoplesProblem([{ name: "  ", percent: 10 }])).toContain("needs a name");
-    expect(peoplesProblem([{ name: "Elf", percent: -1 }])).toContain("between 0 and 100");
-    expect(peoplesProblem([{ name: "Elf", percent: 101 }])).toContain("between 0 and 100");
+  it("names a share outside 0 to 100, and a cleared field (NaN)", () => {
+    expect(peoplesProblem([people("Elf", -1)])).toContain("between 0 and 100");
+    expect(peoplesProblem([people("Elf", 101)])).toContain("between 0 and 100");
+    expect(peoplesProblem([people("Elf", Number.NaN)])).toContain("between 0 and 100");
   });
 });
 
 describe("peoplesTotal and peoplesLine", () => {
   // Bug caught: 0.1 + 0.2 style float noise showed as "Adds up to 30.000000000000004%".
   it("totals without float noise", () => {
-    expect(peoplesTotal([{ name: "A", percent: 0.1 }, { name: "B", percent: 0.2 }])).toBe(0.3);
+    expect(peoplesTotal([people("A", 0.1), people("B", 0.2)])).toBe(0.3);
   });
 
   it("writes the shares largest first with the remainder as anyone else", () => {
-    expect(peoplesLine([{ name: "Human", percent: 15 }, { name: "Elf", percent: 80 }])).toBe("Elf 80%, Human 15%, anyone else 5%");
+    expect(peoplesLine([people("Human", 15), people("Elf", 80)])).toBe("Elf 80%, Human 15%, anyone else 5%");
     expect(peoplesLine([])).toBe("");
   });
 });

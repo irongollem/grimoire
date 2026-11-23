@@ -38,6 +38,13 @@ the `campaigns` row, which every member reads (#1228).
   clues). RLS: the campaign's DMs read and write; players read only `get_player_canon`, which never returns the reveal
   list and withholds secret blocks in the body. It rings the campaign doorbell (`canon_entries` → `CANON_KEY`,
   `CONNECTIONS_KEY`).
+- `campaign_peoples` (`20261123124451_campaign_peoples.sql`, #1255 item 30): who lives in the world, one row per people
+  with its `percent` share. A people is a record the campaign already has, never typed: exactly one of `species_id`
+  (a DM-written species), `library_species_id` (a shared book's), `monster_id` (a DM-written creature) or
+  `library_monster_id` (a shared book's). One row per people per campaign; a library id that names nothing is refused
+  (23503); the shares of a campaign may not pass 100, checked at commit by a deferred constraint trigger (23514). The
+  view `campaign_peoples_named` (invoker) gives `kind`, `record_id`, `from_library` and the record's `name`, and leaves out
+  a row whose record is gone. DMs read and write; it rings the doorbell (`campaign_peoples` → `CANON_KEY`).
 - The world web's seventh kind, `canon` (`from_/to_canon_entry_id` on `world_links`; pairs `canon_person`,
   `canon_faction`, `canon_location`, `canon_deity`, `canon_item`, `canon_canon` in
   `supabase/functions/_shared/worldLinkCatalogue.ts`). A canon entry is always the `from` end. "Known to some" is
@@ -55,7 +62,7 @@ load it with `loadWorldBlock` (`worldBlockLoad.ts`); the browser's local-key pat
 (`src/ai/worldBlock.ts`), and only when a local key will run the generation (`captureImageGenerationContext`). The
 Chronicler's `{settingPrompt}` placeholder is filled with it. It also carries `## Peoples of the world` (who lives
 there, as shares, largest first, with "do not default to humans"; see "How the world works"), left out when the DM
-listed none.
+listed none. Both loaders read the names and shares from `campaign_peoples_named` in the same round trip as the canon rows.
 
 ## The page
 
@@ -163,16 +170,22 @@ as each is changed; the custom calendar saves after a pause and not while the ed
 their explicit Save because removing a coin converts what players hold. Settings lost the Currency tab (a
 `?tab=currency` link falls back to Details) and Details lost calendar, year, climate and Populate.
 
-**Who lives in it** (`campaigns.peoples`, `WorldPeoples.vue`, #1255 item 30): the peoples of the world as shares of its
-population, `[{ name, percent }]` in the DM's order, so a world where elves are 80% generates elf NPCs 80% of the time.
-The table refuses a blank or repeated name, a share outside 0 to 100 and a total past 100 (`campaigns_peoples_valid`);
-the screen says the same first (`peoplesProblem`, `src/lib/canon/peoples.ts`) and autosaves only a list with no
-problem. A total below 100 leaves the rest as "anyone else", a people the DM did not list; empty means not said. The NPC
-generator, with its species left blank, rolls once per generation with `rollPeople` (a quick create too): the rolled
-name goes into the prompt as `Race: <name>` and onto the saved NPC, a roll that lands on "anyone else" asks for a
-people not on the list, and a species the DM picked is never rolled over. The species select lists the peoples first,
-then the campaign's other species. Every other generator is told the shares through the world block (`peoplesLine`,
-shared with the client from `_shared/worldBlock.ts`).
+**Who lives in it** (`campaign_peoples`, `WorldPeoples.vue`, `useCampaignPeoples.ts`, #1255 item 30): the peoples of the
+world as shares of its population, so a world where elves are 80% generates elf NPCs 80% of the time. A people is never
+free text: it is a species or a creature the campaign already has (maintainer, 23 Nov 2026), so a goblin country is as
+much a people as an elven one. Each row shows the record's name, the word "species" or "creature", a share field that
+saves when left, and remove. Two pickers add a people at 0%: "Add a species..." over `useCampaignSpecies` and "Add a
+creature..." over the bestiary index the encounter picker uses (`useMonsterIndex`, read when the picker is first
+opened), each leaving out what is already listed; two links, "New species" (`/species/new`) and "New creature"
+(`/monsters/new`), make a record to add. The total may not pass 100: the screen names it and does not save
+(`peoplesProblem`, `src/lib/canon/peoples.ts`), and the table refuses it at commit (23514, shown as "These shares would
+pass 100%." with the list re-read). A total below 100 leaves the rest as "anyone else", a people the DM did not list;
+empty means not said. The NPC generator, with its species left blank, rolls once per generation with `rollPeople` (a
+quick create too): the rolled people's name goes into the prompt as `Race: <name>` and onto the saved NPC (`npcs.race`
+stays free text); a rolled creature adds a line that it is one of the world's peoples, not a monster to fight; a roll
+that lands on "anyone else" asks for a people not on the list; and a species the DM picked is never rolled over. The
+species select lists the peoples first, then the campaign's other species. Every other generator is told the shares
+through the world block (`peoplesLine`, shared with the client from `_shared/worldBlock.ts`).
 
 ## Lore, told in passages
 

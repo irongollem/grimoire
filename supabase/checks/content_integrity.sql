@@ -65,6 +65,12 @@ select check_name, cnt from (
   select 'discovered_monsters.library_monster_id -> library_monsters' as check_name,
     (select count(*) from discovered_monsters d where d.library_monster_id is not null
        and not exists (select 1 from library_monsters s where s.id = d.library_monster_id)) as cnt
+  union all select 'campaign_peoples.library_monster_id -> library_monsters',
+    (select count(*) from campaign_peoples p where p.library_monster_id is not null
+       and not exists (select 1 from library_monsters s where s.id = p.library_monster_id))
+  union all select 'campaign_peoples.library_species_id -> library_species',
+    (select count(*) from campaign_peoples p where p.library_species_id is not null
+       and not exists (select 1 from library_species s where s.id = p.library_species_id))
   union all select 'pinned_forms.library_monster_id -> library_monsters',
     (select count(*) from pinned_forms p where p.library_monster_id is not null
        and not exists (select 1 from library_monsters s where s.id = p.library_monster_id))
