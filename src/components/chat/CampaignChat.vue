@@ -51,6 +51,7 @@
       v-if="!appUi.chatOpen && !hideTab"
       type="button"
       class="chat-no-print fixed right-[env(safe-area-inset-right)] z-40 flex flex-col items-center gap-1.5 px-2 py-3 rounded-l-xl border border-r-0 border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shadow-lg select-none"
+      :class="askOpen ? 'md:right-104' : ''"
       :style="{ top: tabTop + 'px', touchAction: 'none' }"
       title="Open chat"
       @pointerdown="onTabPointerDown"
@@ -116,6 +117,7 @@ import { railTransition } from "@/lib/motion";
 import { loadReadMarker, resolveChatUnread, saveReadMarker, type ReadMarker } from "@/components/chat/chatUnread";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
+import { useAskUiStore } from "@/stores/ui/ask";
 import { useCampaignMessages, loadChatHistory } from "@/composables/campaign/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
@@ -208,6 +210,9 @@ onUnmounted(() => {
 });
 
 const appUi = useAppUiStore();
+// The tab sits on the right edge; with Ask Grimoire's column open there (md and up) it moves to that column's edge.
+const askUi = useAskUiStore();
+const askOpen = computed(() => askUi.open);
 const auth = useAuthStore();
 const campaign = useCampaignStore();
 const { messages, unreadMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, askCharacterReply, sendRoll, claimItemDrop, grabItemDrop, chooseLootRoll, resolveLootRoll, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =

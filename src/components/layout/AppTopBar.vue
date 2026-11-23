@@ -26,6 +26,9 @@
       @click="searchOpen = true"
     />
 
+    <!-- Ask Grimoire sits beside the search at every width (DM only). -->
+    <AskButton v-if="canAskHere" size="icon-sm" />
+
     <!-- The session control. One implementation at both widths now: it used to
          be a segmented pair at md+ and a separate single-word pill on phones,
          which meant two components rendering the same state and drifting. The
@@ -71,6 +74,7 @@
 
         <!-- Results -->
         <div class="flex-1 overflow-y-auto bg-card">
+          <AskSearchRow v-if="canAsk" :query="mobileQuery" padding="px-4" touch @ask="askFromSearch" />
           <div v-if="mobileQuery.trim().length < 2" class="px-4 py-8 text-center text-body text-muted-foreground">
             Type at least 2 characters to search
           </div>
@@ -119,6 +123,10 @@ import type { AppInputHandle } from "@/components/common/controls/fieldVariants"
 import DmScratchpadToggle from "@/components/notes/DmScratchpadToggle.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import SearchResultList from "./SearchResultList.vue";
+import AskButton from "@/components/ask/AskButton.vue";
+import { useCanAsk } from "@/composables/ask/useCanAsk";
+import AskSearchRow from "@/components/ask/AskSearchRow.vue";
+import { useAskUiStore } from "@/stores/ui/ask";
 import SessionControl from "./SessionControl.vue";
 import { failedGroupsMessage, useGlobalSearch } from "@/composables/useGlobalSearch";
 
@@ -129,6 +137,7 @@ const isDm = computed(() => auth.currentRole === "dm");
 const pageTitle = computed(() => (route.meta.title as string | undefined) ?? "Grimoire");
 
 const searchOpen = ref(false);
+const askUi = useAskUiStore();
 const mobileQuery = ref("");
 const mobileInputRef = ref<AppInputHandle | null>(null);
 
@@ -143,6 +152,15 @@ const showMobileResults = computed(
 );
 const failedGroups = computed(() => data.value?.failedGroups ?? []);
 const failedMessage = computed(() => failedGroupsMessage(failedGroups.value));
+
+/** Ask is a DM tool, offered once the query is long enough to be a question. */
+const canAskHere = useCanAsk();
+const canAsk = computed(() => canAskHere.value && mobileQuery.value.trim().length >= 2);
+
+function askFromSearch() {
+  askUi.openPanel(mobileQuery.value);
+  searchOpen.value = false;
+}
 
 watch(searchOpen, async (val) => {
   if (val) {

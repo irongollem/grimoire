@@ -140,6 +140,11 @@ describe("matchesCombo", () => {
 });
 
 describe("formatCombo", () => {
+  it("draws Enter as the Mac's return arrow and as a word elsewhere, never the raw key name 'enter'", () => {
+    expect(formatCombo("mod+enter", true)).toBe("⌘↵");
+    expect(formatCombo("mod+enter", false)).toBe("Ctrl+Enter");
+  });
+
   it("formats a bare key the same on both platforms", () => {
     expect(formatCombo("k", true)).toBe("K");
     expect(formatCombo("k", false)).toBe("K");
