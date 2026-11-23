@@ -81,6 +81,29 @@ describe("PremiseLook", () => {
     expect((w.find("textarea").element as HTMLTextAreaElement).value).toBe("Candlelit oils");
   });
 
+  // Bug caught: the credit was spent by the describe call before the DM was asked, so Cancel lost it.
+  it("makes no describe call when the replace question is declined", async () => {
+    mocks.confirm.mockResolvedValue(false);
+    const w = mountLook(look({ title: "Candlelit oils", reference_images: ["a.webp"] }));
+    await button(w)!.trigger("click");
+    await flushPromises();
+    expect(mocks.describe).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: words typed while the describe call ran were overwritten without asking.
+  it("asks again, and keeps the typed words when declined, if the look changed during the call", async () => {
+    let finish: (v: string) => void = () => {};
+    mocks.describe.mockReturnValue(new Promise<string>((r) => { finish = r; }));
+    mocks.confirm.mockResolvedValue(false);
+    const w = mountLook(look({ reference_images: ["a.webp"] }));
+    await button(w)!.trigger("click");
+    await w.find("textarea").setValue("Typed meanwhile");
+    finish("Storybook gouache");
+    await flushPromises();
+    expect(mocks.confirm).toHaveBeenCalledOnce();
+    expect((w.find("textarea").element as HTMLTextAreaElement).value).toBe("Typed meanwhile");
+  });
+
   it("fills an empty look without asking, and the words save", async () => {
     const w = mountLook(look({ reference_images: ["a.webp"] }));
     await button(w)!.trigger("click");

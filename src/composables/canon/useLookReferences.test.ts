@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 
 const mocks = vi.hoisted(() => ({
   ack: vi.fn(),
@@ -79,5 +79,34 @@ describe("useLookReferences", () => {
     const r = setup(["a", "b", "c"]);
     await r.remove("b");
     expect(r.persist).toHaveBeenCalledWith(["a", "c"]);
+  });
+
+  // Bug caught: a second add while one was uploading counted the same room and could write five URLs.
+  it("does nothing when add is called while another add is running", async () => {
+    let release: (u: string) => void = () => {};
+    mocks.upload.mockReset();
+    mocks.upload.mockImplementationOnce(() => new Promise<string>((r) => { release = r; }));
+    const r = setup(["a", "b", "c"]);
+    const first = r.add([png()]);
+    await vi.waitFor(() => expect(r.busy.value).toBe(true));
+    await r.add([png()]);
+    expect(mocks.upload).toHaveBeenCalledOnce();
+    release("https://cdn/x.webp");
+    await first;
+    expect(r.persist).toHaveBeenCalledOnce();
+  });
+
+  // Bug caught: a refetch between quick removals put a removed picture back, because only add() held the watch off.
+  it("keeps the optimistic list when saved changes while a removal is being written", async () => {
+    const saved = ref<string[]>(["a", "b", "c"]);
+    let release: () => void = () => {};
+    const persist = vi.fn((_urls: string[]) => new Promise<void>((r) => { release = r; }));
+    const r = useLookReferences(() => saved.value, persist);
+    const removing = r.remove("a");
+    saved.value = ["a", "b", "c"];
+    await nextTick();
+    expect(r.images.value).toEqual(["b", "c"]);
+    release();
+    await removing;
   });
 });

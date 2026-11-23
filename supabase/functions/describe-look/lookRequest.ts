@@ -6,13 +6,17 @@
  * to the database: the client puts the text in the Look field, where the DM edits it.
  */
 import { AI_PROMPT_LIMIT_LONG, wrapUserInput } from "../_shared/ai-prompt.ts";
+import { acceptedImageType, MAX_STYLE_IMAGE_BYTES } from "../_shared/fetchImage.ts";
+import { STYLE_REFERENCE_LIMIT } from "../_shared/styleReferences.ts";
 import type { DocumentExtractionOutcome, DocumentUsage } from "../_shared/documentGen.ts";
 
-export const MAX_LOOK_IMAGES = 4;
+/** The server has one picture limit: the same one every generator caps its style references at. */
+export const MAX_LOOK_IMAGES = STYLE_REFERENCE_LIMIT;
 /** A look is one short paragraph an image model paints from; anything longer is the model rambling. */
 export const MAX_LOOK_CHARS = 1200;
 /** One picture, in bytes, before it is sent to the provider as input tokens. */
-export const MAX_LOOK_IMAGE_BYTES = 8 * 1024 * 1024;
+export const MAX_LOOK_IMAGE_BYTES = MAX_STYLE_IMAGE_BYTES;
+export { acceptedImageType };
 
 export interface Refusal {
   status: number;
@@ -72,14 +76,6 @@ export async function preflight(
     return refuse(403, "likeness_acknowledgement_required", "Confirm the likeness notice first, then try again.");
   }
   return { ok: true, request: { campaignId: body.campaign_id, images: urls, currentLook } };
-}
-
-const IMAGE_TYPES: Record<string, string> = { "image/png": "image/png", "image/jpeg": "image/jpeg", "image/webp": "image/webp" };
-
-/** The bare media type when it is one the providers read (png, jpeg, webp), else null. Parameters are ignored. */
-export function acceptedImageType(contentType: string | null): string | null {
-  const bare = (contentType ?? "").split(";")[0].trim().toLowerCase();
-  return Object.hasOwn(IMAGE_TYPES, bare) ? IMAGE_TYPES[bare] : null;
 }
 
 export const LOOK_SCHEMA = {

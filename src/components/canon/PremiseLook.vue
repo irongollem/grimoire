@@ -34,7 +34,7 @@
           >
             <IconAddImage class="size-5" aria-hidden="true" />
             <span>{{ busy ? "Adding…" : "Add pictures" }}</span>
-            <input type="file" accept="image/*" multiple class="sr-only" data-testid="look-file" @change="onPick" />
+            <input type="file" accept="image/*" multiple class="sr-only" data-testid="look-file" :disabled="busy" @change="onPick" />
           </label>
         </li>
       </ul>
@@ -108,6 +108,7 @@ function onPick(event: Event) {
 }
 function onDrop(event: DragEvent) {
   dragging.value = false;
+  if (busy.value) return;
   void add([...(event.dataTransfer?.files ?? [])]);
 }
 
@@ -119,11 +120,22 @@ const cost = computed(() => textCredits(costOf("canon_look_description")));
 
 async function describeFromPictures() {
   if (!canSpend(cost.value, textIsByok.value)) return;
-  const old = field.value?.text() ?? "";
-  const look = await describe(campaign.id, images.value, old);
+  // Ask before the call: a refusal afterwards would have spent the credit for nothing.
+  const before = field.value?.text() ?? "";
+  if (before.trim() !== "") {
+    const ok = await confirm("Describing the pictures replaces the look you wrote.", {
+      title: "Replace the look?",
+      confirmLabel: "Describe",
+      danger: false,
+    });
+    if (!ok) return;
+  }
+  const look = await describe(campaign.id, images.value, before);
   if (look === null) return;
-  if (old.trim() !== "") {
-    const ok = await confirm(`This will replace “${old.trim()}” with “${look}”; are you sure?`, {
+  // The DM may have typed while the call ran; that is theirs to keep or lose.
+  const now = field.value?.text() ?? "";
+  if (now !== before && now.trim() !== "") {
+    const ok = await confirm(`You changed the look while it was described. Replace “${now.trim()}” with “${look}”?`, {
       title: "Replace the look?",
       confirmLabel: "Replace",
       danger: false,

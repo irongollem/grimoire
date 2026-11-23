@@ -26,6 +26,7 @@ import { attemptCharge, attemptsRemaining, canAttempt } from "../../../src/carto
 import { isStalled, stalledBefore } from "../../../src/cartographer/generationLiveness.ts";
 import { chunk, listAllFilePaths, type StorageEntry } from "../_shared/storage-purge.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
+import { base64FromBytes as encodeBase64 } from "../_shared/base64.ts";
 
 const MAX_NORMALIZED_B64 = 512_000;
 
@@ -46,15 +47,6 @@ function decodeBase64(value: string): Uint8Array {
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
-}
-
-function encodeBase64(bytes: Uint8Array): string {
-  let binary = "";
-  // Chunked: String.fromCharCode(...bytes) on a whole tile overflows the stack.
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(binary);
 }
 
 /** The same server-controlled claim `_shared/requireAdmin.ts` checks — checked

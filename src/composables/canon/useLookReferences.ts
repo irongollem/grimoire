@@ -21,23 +21,30 @@ export function useLookReferences(saved: () => readonly string[], persist: (urls
   const busy = ref(false);
   // Writes go one after another, so two quick removals cannot land out of order.
   let chain: Promise<void> = Promise.resolve();
+  // A refetch landing between quick removals would put a removed picture back, so it waits for every write.
+  let pendingWrites = 0;
 
   watch(saved, (next) => {
-    if (!busy.value) images.value = [...next];
+    if (!busy.value && pendingWrites === 0) images.value = [...next];
   });
 
   function write(next: string[]): Promise<void> {
     const before = images.value;
     images.value = next;
+    pendingWrites += 1;
     const run = chain.then(() => persist(next)).catch((e: unknown) => {
       images.value = before;
       toast.error(e instanceof Error ? e.message : "Could not save the pictures.");
+    }).finally(() => {
+      pendingWrites -= 1;
     });
     chain = run;
     return run;
   }
 
   async function add(files: readonly File[]): Promise<void> {
+    // Two adds at once would both count the same room and could write more than the table holds.
+    if (busy.value) return;
     const pictures = files.filter((f) => f.type.startsWith("image/"));
     if (pictures.length === 0) return;
     const room = MAX_LOOK_PICTURES - images.value.length;

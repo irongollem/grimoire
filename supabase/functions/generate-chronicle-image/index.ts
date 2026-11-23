@@ -47,29 +47,33 @@ type ImagePurpose =
   | "monster" | "item" | "spell" | "faction" | "location" | "location_map"
   | "trap" | "puzzle" | "party_member" | "species" | "dungeon_feature" | "deity";
 
+// takesLook: a map is top-down cartography, so the look's pictures would paint it as a scene. `deity` and
+// `dungeon_feature` take the look's style on purpose: an emblem and a feature are painted in the campaign's hand.
 const PURPOSE_CONFIG: Record<ImagePurpose, {
   kind: ImageJobKind;
   bucket: string;
   prefix: string;
   creditType: "chronicle_image" | "entity_image" | "map_style_generation";
   boostStyle: boolean;
+  /** Whether the campaign Look's style pictures go to the image model beside the written look (#1252). */
+  takesLook: boolean;
 }> = {
-  chronicler:     { kind: "chronicler",     bucket: "chronicle",       prefix: "scene",    creditType: "chronicle_image",    boostStyle: true },
-  group_portrait: { kind: "group_portrait", bucket: "chronicle",       prefix: "group",    creditType: "chronicle_image",    boostStyle: true },
-  npc_portrait:   { kind: "npc_portrait",   bucket: "npc-portraits",   prefix: "npc",      creditType: "entity_image",       boostStyle: true },
-  npc_disguise:   { kind: "npc_disguise",   bucket: "npc-portraits",   prefix: "disguise", creditType: "entity_image",       boostStyle: true },
-  monster:        { kind: "monster",        bucket: "monster-images",  prefix: "monster",  creditType: "entity_image",       boostStyle: true },
-  item:           { kind: "item",           bucket: "item-images",     prefix: "item",     creditType: "entity_image",       boostStyle: true },
-  spell:          { kind: "spell",          bucket: "spell-images",    prefix: "spell",    creditType: "entity_image",       boostStyle: true },
-  faction:        { kind: "faction",        bucket: "faction-images",  prefix: "faction",  creditType: "entity_image",       boostStyle: true },
-  location:       { kind: "location",       bucket: "location-images", prefix: "location", creditType: "entity_image",       boostStyle: true },
-  location_map:   { kind: "location_map",   bucket: "location-images", prefix: "map",      creditType: "entity_image",       boostStyle: false },
-  trap:           { kind: "trap",           bucket: "trap-images",     prefix: "trap",     creditType: "entity_image",       boostStyle: true },
-  puzzle:         { kind: "puzzle",         bucket: "puzzle-images",   prefix: "puzzle",   creditType: "entity_image",       boostStyle: true },
-  party_member:   { kind: "party_member",   bucket: "chronicle",       prefix: "party",    creditType: "entity_image",       boostStyle: true },
-  species:        { kind: "species",        bucket: "species-images",  prefix: "species",  creditType: "entity_image",       boostStyle: true },
-  dungeon_feature: { kind: "dungeon_feature", bucket: "dungeon-feature-images", prefix: "feature", creditType: "entity_image", boostStyle: true },
-  deity:          { kind: "deity",          bucket: "pantheon-emblems", prefix: "deity",   creditType: "entity_image",       boostStyle: true },
+  chronicler:     { kind: "chronicler",     bucket: "chronicle",       prefix: "scene",    creditType: "chronicle_image",    boostStyle: true, takesLook: true },
+  group_portrait: { kind: "group_portrait", bucket: "chronicle",       prefix: "group",    creditType: "chronicle_image",    boostStyle: true, takesLook: true },
+  npc_portrait:   { kind: "npc_portrait",   bucket: "npc-portraits",   prefix: "npc",      creditType: "entity_image",       boostStyle: true, takesLook: true },
+  npc_disguise:   { kind: "npc_disguise",   bucket: "npc-portraits",   prefix: "disguise", creditType: "entity_image",       boostStyle: true, takesLook: true },
+  monster:        { kind: "monster",        bucket: "monster-images",  prefix: "monster",  creditType: "entity_image",       boostStyle: true, takesLook: true },
+  item:           { kind: "item",           bucket: "item-images",     prefix: "item",     creditType: "entity_image",       boostStyle: true, takesLook: true },
+  spell:          { kind: "spell",          bucket: "spell-images",    prefix: "spell",    creditType: "entity_image",       boostStyle: true, takesLook: true },
+  faction:        { kind: "faction",        bucket: "faction-images",  prefix: "faction",  creditType: "entity_image",       boostStyle: true, takesLook: true },
+  location:       { kind: "location",       bucket: "location-images", prefix: "location", creditType: "entity_image",       boostStyle: true, takesLook: true },
+  location_map:   { kind: "location_map",   bucket: "location-images", prefix: "map",      creditType: "entity_image",       boostStyle: false, takesLook: false },
+  trap:           { kind: "trap",           bucket: "trap-images",     prefix: "trap",     creditType: "entity_image",       boostStyle: true, takesLook: true },
+  puzzle:         { kind: "puzzle",         bucket: "puzzle-images",   prefix: "puzzle",   creditType: "entity_image",       boostStyle: true, takesLook: true },
+  party_member:   { kind: "party_member",   bucket: "chronicle",       prefix: "party",    creditType: "entity_image",       boostStyle: true, takesLook: true },
+  species:        { kind: "species",        bucket: "species-images",  prefix: "species",  creditType: "entity_image",       boostStyle: true, takesLook: true },
+  dungeon_feature: { kind: "dungeon_feature", bucket: "dungeon-feature-images", prefix: "feature", creditType: "entity_image", boostStyle: true, takesLook: true },
+  deity:          { kind: "deity",          bucket: "pantheon-emblems", prefix: "deity",   creditType: "entity_image",       boostStyle: true, takesLook: true },
 };
 
 function buildScenePrompt(sceneText: string, textDescriptions: string[], setting: string, imageBasePrompt: string): string {
@@ -323,8 +327,7 @@ serve(serveUser(async ({ user, req, report }) => {
 
   const world = await loadWorldBlock(admin, campaign.id);
   const setting = worldImageSetting(world);
-  // A map is top-down cartography: the look's pictures would paint it as a scene.
-  const lookReferenceUrls = purpose === "location_map" ? [] : world.lookReferences;
+  const lookReferenceUrls = config.takesLook ? world.lookReferences : [];
 
   const { data: imageBaseRow, error: imageBaseError } = await admin
     .from("ai_system_prompts").select("content")

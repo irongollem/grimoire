@@ -45,6 +45,7 @@
  * claim ever needs to unwind a status change, because nothing upstream of the
  * claim ever makes one.
  */
+import { base64FromBytes } from "../_shared/base64.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { PDFDocument } from "pdf-lib";
@@ -224,19 +225,6 @@ function mimeFromPath(path: string): string {
   }
 }
 
-// btoa on a chunked binary string, never on the whole buffer at once — spreading
-// a multi-megabyte Uint8Array into String.fromCharCode(...bytes) blows the call
-// stack. btoa never introduces line breaks, so this also satisfies the "base64,
-// no newlines" requirement on DocumentPart.data for free.
-function toBase64(bytes: Uint8Array): string {
-  const CHUNK = 0x8000;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-  }
-  return btoa(binary);
-}
-
 /**
  * Every storage key this function touches must sit under the caller's own
  * `{userId}/` prefix — checked here, in code, before anything is opened or
@@ -318,7 +306,7 @@ async function downloadSource(sourceKind: string, paths: string[]): Promise<Down
         throw new SourceValidationError("The uploaded PDF could not be read.");
       }
     }
-    parts.push({ mimeType, data: toBase64(bytes) });
+    parts.push({ mimeType, data: base64FromBytes(bytes) });
   }
 
   return { parts, pageCount: sourceKind === "pdf" ? pdfPageCount : paths.length };

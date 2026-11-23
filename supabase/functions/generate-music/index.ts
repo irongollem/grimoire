@@ -41,6 +41,7 @@ import {
   type LyriaImage,
 } from "../_shared/lyria.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
+import { base64FromBytes as bytesToBase64 } from "../_shared/base64.ts";
 
 /**
  * Music generation, now two AI steps in one durable job (25 Sep 2026): a text
@@ -155,20 +156,6 @@ async function finalizeMusicJob(job: GenerationJob): Promise<void> {
 
 const MAX_LYRIA_IMAGE_BYTES = 10 * 1024 * 1024;
 
-/**
- * Base64-encode bytes in chunks. Spreading a large Uint8Array straight into
- * `String.fromCharCode` overflows the call stack, so this builds the string
- * 32KB at a time instead.
- */
-function bytesToBase64(bytes: Uint8Array): string {
-  const CHUNK_SIZE = 0x8000;
-  let binary = "";
-  for (let offset = 0; offset < bytes.length; offset += CHUNK_SIZE) {
-    const chunk = bytes.subarray(offset, offset + CHUNK_SIZE);
-    binary += String.fromCharCode(...chunk);
-  }
-  return btoa(binary);
-}
 
 /**
  * Fetch and validate one Lyria image input. The URL was already checked with

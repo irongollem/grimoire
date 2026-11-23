@@ -8,6 +8,7 @@
 // Kept deliberately transport-agnostic so a future in-app agent can reuse it.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { base64FromBytes } from "../base64.ts";
 import {
   CREATABLE_TYPES,
   describeCreatableFields,
@@ -233,16 +234,6 @@ export function resolveImageColumn(def: EntityDef, which: unknown): { which: str
     throw new Error(`Unknown image "${requested}" for ${def.label}. Available: ${keys.join(", ")}.`);
   }
   return { which: requested, column };
-}
-
-/** Base64-encode bytes in chunks (avoids the arg-count limit of `btoa(String.fromCharCode(...))`). */
-function base64FromBytes(bytes: Uint8Array): string {
-  let binary = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
 }
 
 /**

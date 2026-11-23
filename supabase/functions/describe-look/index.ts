@@ -10,20 +10,15 @@ import { INJECTION_GUARD_SUFFIX } from "../_shared/ai-prompt.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider } from "../_shared/textGen.ts";
 import { callDocument, type DocumentPart, UnsupportedDocumentProviderError } from "../_shared/documentGen.ts";
+import { base64FromBytes } from "../_shared/base64.ts";
+import { fetchGuardedImage } from "../_shared/fetchImage.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { hasLikenessAcknowledgement } from "../_shared/provenance/likeness-gate.ts";
 import { serveUser } from "../_shared/pipeline/serveUser.ts";
 import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { type BaseCampaign, loadAiCampaign } from "../_shared/pipeline/aiCampaign.ts";
 import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
-import {
-  acceptedImageType,
-  LOOK_SCHEMA,
-  lookInstruction,
-  MAX_LOOK_IMAGE_BYTES,
-  preflight,
-  shapeOutcome,
-} from "./lookRequest.ts";
+import { LOOK_SCHEMA, lookInstruction, preflight, shapeOutcome } from "./lookRequest.ts";
 
 /**
  * "Describe the look from pictures" (#1252): the DM shows up to four pictures and the model writes the campaign's Look
@@ -47,22 +42,10 @@ interface LookCampaign extends BaseCampaign {
   text_provider: string | null;
 }
 
-// btoa on a chunked binary string, never on the whole buffer at once: spreading a large array overflows the stack.
-function toBase64(bytes: Uint8Array): string {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(binary);
-}
-
-/** Fetches one already-guarded URL. Redirects are refused: a storage URL that redirects is not one of ours. */
+/** Fetches one already-guarded URL as a document part. See fetchGuardedImage for what is refused. */
 async function fetchPart(url: string): Promise<DocumentPart | null> {
-  const res = await fetch(url, { redirect: "error" });
-  if (!res.ok) return null;
-  const mimeType = acceptedImageType(res.headers.get("content-type"));
-  if (!mimeType) return null;
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  if (bytes.length === 0 || bytes.length > MAX_LOOK_IMAGE_BYTES) return null;
-  return { mimeType, data: toBase64(bytes) };
+  const image = await fetchGuardedImage(url);
+  return image ? { mimeType: image.mimeType, data: base64FromBytes(image.bytes) } : null;
 }
 
 serve(serveUser(async ({ user, req, report }) => {
@@ -110,15 +93,16 @@ serve(serveUser(async ({ user, req, report }) => {
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
   // Fetched before the hold: a picture that cannot be read costs the DM nothing and is named, not skipped.
-  const parts: DocumentPart[] = [];
-  for (const [index, url] of images.entries()) {
-    let part: DocumentPart | null;
+  const fetched = await Promise.all(images.map(async (url) => {
     try {
-      part = await fetchPart(url);
+      return await fetchPart(url);
     } catch (e) {
       console.error("describe-look image fetch failed:", e);
-      part = null;
+      return null;
     }
+  }));
+  const parts: DocumentPart[] = [];
+  for (const [index, part] of fetched.entries()) {
     if (!part) {
       return jsonError(400, "unreadable_image", `Picture ${index + 1} could not be read. Use a PNG, JPEG or WebP under 8 MB.`);
     }
