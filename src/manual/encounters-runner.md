@@ -4,10 +4,10 @@ section: Encounters & Bestiary
 section_order: 5
 order: 4
 summary: Run live combat with initiative tracking, HP management, conditions, AI complications, and player sync.
-keywords: encounter, runner, combat, initiative, hp, conditions, turn, round, live, sync, player, wildshape, complication, reinforcements, ai, hazard, lair, legendary, ammo, thrown
+keywords: encounter, runner, combat, fight, initiative, hp, conditions, turn, round, live, go live, sync, player, wildshape, complication, twist, reinforcements, ai, autopilot, run this turn for me, hazard, lair, legendary, ammo, thrown, table screen, abandon, end combat
 ---
 
-The Encounter Runner is the full-screen live combat tracker: initiative order, HP, conditions, rollable stat blocks, and real-time sync to your players' own screens, all in one place. Open it from an encounter's page by clicking **Run Encounter** (or, once combat has already started, the top bar shows **Restart**/**Stop**/**Resume** instead) (`/encounters/:id/run`).
+Use the Encounter Runner when the fight starts. It is the full-screen live combat tracker: initiative order, HP, conditions, rollable stat blocks, and real-time sync to your players' own screens, all in one place. Open it from an encounter's page by clicking **Run Encounter** (or, once combat has already started, the top bar shows **Restart**/**Stop**/**Resume** instead) (`/encounters/:id/run`).
 
 ## Key ideas
 
@@ -71,6 +71,8 @@ On a monster or NPC with actions, **Run this turn for me** (above its action lis
 A creature that has a way out uses it when it breaks, before it runs or gives up. A night hag with Etherealness steps into the Ethereal Plane and is out of the fight; a green hag with Invisible Passage turns Invisible. A creature that has already used up its way out falls back to running or yielding as usual.
 
 Under the button you see what it did, one line on why it chose that, and a line for each roll (hit or miss, damage, a save made or failed). The result stays for that creature until you run it again, even if you close the panel and open it later.
+
+**Autopilot** does this for every creature in turn. Tick **Autopilot** in the runner's top bar (on a phone and on the Play screen it is in **Combat tools**) and the app plays each creature's turn and passes it on after a short pause. It stops at a player's turn, at a creature it cannot play, when a turn could not be run (the reason shows on that creature's panel) and when a creature walks out of a player's reach, so you can settle that opportunity attack first. It stops by itself when you leave the runner or untick it. The switch is remembered on this device.
 
 - A creature that is badly hurt flees. If a way off the map is within reach (a **Way in or out** zone, or the edge of open country) it leaves by it and is gone from the fight: it is not counted as slain and drops no loot.
 - A monster's note, set on the monster form under **How it fights**, can rule turns out when AI is on for the campaign. The result then says "Its note ruled out" and names the turns it skipped. Without a note, or with AI off, the app uses its rules alone.

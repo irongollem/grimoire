@@ -4,10 +4,10 @@ section: NPC Tracker
 section_order: 4
 order: 3
 summary: Group NPCs into playlists and export the whole set to the Card Forge in one click.
-keywords: npc, sets, playlist, group, card forge, export
+keywords: npc, npcs, sets, set, playlist, group, cast, session cast, card forge, export, print cards, new set, collection
 ---
 
-An NPC Set is a named playlist of NPCs (the cast for a session, a faction's leadership, the residents of one tavern) that you can manage and print together instead of hunting each one down individually. Open it from the NPC Tracker's **Sets** header button, or at `/npcs/sets`.
+An NPC Set is a named playlist of NPCs (the cast for a session, a faction's leadership, the residents of one tavern) that you can manage and print together instead of hunting each one down individually. Open it from the NPC Tracker's **Sets** header button. The **NPCs** button at the top of the Sets page takes you back to the roster.
 
 ## Key ideas
 
@@ -15,9 +15,9 @@ A set only stores references to NPCs: nothing about the NPC itself is duplicated
 
 ## Creating a set
 
-1. Click **New Set**.
+1. Click **New Set** (or **Create your first set** when you have none).
 2. Enter a **Name** (required) and optional **Notes**.
-3. Search and check NPCs in the picker below: the running count reads "N selected."
+3. Search with **Search NPCs…** and tick NPCs in the picker below: the running count reads "N selected."
 4. Click **Create set**.
 
 ## Editing a set

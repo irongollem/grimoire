@@ -4,23 +4,23 @@ section: Characters
 section_order: 11
 order: 2
 summary: Add custom species (with subraces, spells, and shapeshifter disguise) and backgrounds, including 2024 PHB ability scores and origin feats.
-keywords: species, race, subrace, variant, background, proficiency, trait, shapeshifter, disguise, ability score increase, origin feat, tool proficiency
+keywords: species, race, subrace, lineage, variant, background, proficiency, trait, shapeshifter, disguise, ability score increase, origin feat, tool proficiency, homebrew, sources, library, clone, open5e, spell grants
 ---
 
 ## Species
 
-The **Species** tab (**Character Codex → Species**) stores all playable races for your campaign. Core species (Dwarf, Elf, Halfling, and the rest) come from a shared library maintained by Grimoire; add homebrew species yourself.
+The **Species** tab (**Character Codex → Species**) lists all playable races for your campaign. Core species (Dwarf, Elf, Halfling, and the rest) come from a shared library maintained by Grimoire: switch books on and off with the library icon (see [Character Codex: Overview](#character-codex-overview)), and add homebrew species yourself. A library species is read-only; open it and press **Clone to customize** to get your own copy to edit. Your own species can be duplicated into another campaign with **Copy to campaign…**, and the **Select** button on the list lets you do that for several at once. Each of your own species also has a private **DM notes** box.
 
 ### Creating a species
 
-Click **New Species**. Fields, left to right:
+Click **New Species**. A new species opens as a form with **Create** at the top; an existing one has **Cancel** and **Save**. Fields, left to right:
 
 - **Name**: the large text field at the top.
 - **Portrait**: with focal-point control.
 - **Tags**: freeform, for filtering.
-- **Shapeshifter**: check this to let characters of this species use the disguise system (see below).
+- **Shapeshifter (player can polymorph)**: check this to let characters of this species use the disguise system (see below).
 - **Scope**: this campaign, or general/all campaigns.
-- **Size**: Tiny, Small, Medium, or Large.
+- **Size**: Tiny, Small, Medium or Large, or None.
 - **Source**: attribution (e.g. "PHB 2024", "Homebrew").
 - **Avg. Height** / **Avg. Weight**: free text (e.g. "5 ft 9 in (175 cm)").
 - **Natural Armor AC**: a fixed AC for species with an innate armor trait (Tortle, Lizardfolk); leave blank otherwise.
@@ -41,7 +41,7 @@ The draft follows your campaign's ruleset. A 2014 species carries its own abilit
 
 ### Importing species
 
-Click **Import from Open5e** in the toolbar. Pick a source and import. The importer deduplicates by identity: existing entries are updated, new ones inserted, and your own art and edits on existing species are preserved.
+Click **Import Open5e** in the toolbar and search for a race with **Search races…**, then import the one you want. The importer deduplicates by identity: existing entries are updated, new ones inserted, and your own art and edits on existing species are preserved. For whole books, use the **Species Sources** list instead.
 
 ### The Shapeshifter flag
 
@@ -77,9 +77,9 @@ With AI turned on for your campaign, click **Generate** on the Backgrounds tab a
 
 The draft follows your campaign's ruleset. A 2014 background gets two skills, tools or languages, starting equipment and a signature feature. A 2024 background gets two skills, one tool, starting equipment, an origin feat and an ability score trio. Skills, tools and languages are always checked against the standard lists. It is grounded in your campaign setting, costs credits (the cost is shown on the button), and needs AI enabled in Campaign Settings. Backgrounds are text only, so there is no portrait option.
 
-### Importing backgrounds
+### Choosing background books
 
-Click **Import from Open5e**. A source picker (multi-select) lets you choose which sourcebooks to pull in: leave everything unchecked to import from all of them. Import is incremental and reports how many entries were inserted vs. updated; your own edits to existing backgrounds are never overwritten by a re-sync.
+Backgrounds come from the books you switch on. Click the library icon at the top right of the Backgrounds tab to open **Background Sources** and tick the books you want; their backgrounds appear in this campaign at once, each naming its book. A background from a book is read-only: write your own to change one. The tab's source filter narrows the list to one book.
 
 ## What your players see
 

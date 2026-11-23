@@ -3,11 +3,11 @@ title: Bestiary: Overview
 section: Encounters & Bestiary
 section_order: 5
 order: 0
-summary: How the monster compendium works, what's in it, and how to control what players know about a creature.
-keywords: bestiary, monsters, compendium, srd, library, open5e, custom, filter, source, scope, reveal, visibility
+summary: Browse, filter and customize monsters, choose which sourcebooks appear, and control what your players know about a creature.
+keywords: bestiary, monsters, creatures, stat block, compendium, srd, library, open5e, custom, customize, filter, search, source, sourcebook, scope, reveal, share, visibility, hide, select, copy, grid, list
 ---
 
-The Bestiary is your monster compendium: every stat block available to your campaign, from the built-in SRD library to content from other published sourcebooks to monsters you've written yourself. It's also where you decide which creatures your players have actually met, separately from what exists in your notes. Find it at **Compendium → Bestiary** in the sidebar (`/monsters`).
+The Bestiary is your monster compendium: every stat block available to your campaign, from the built-in SRD library to content from other published sourcebooks to monsters you've written yourself. Use it to find a creature fast, make your own version of one, and decide which creatures your players have actually met. Find it at **Compendium → Bestiary** in the sidebar.
 
 ## Key ideas
 
@@ -16,17 +16,23 @@ The Bestiary is your monster compendium: every stat block available to your camp
 | **SRD monsters** | ~322 creatures from the 5.1 Systems Reference Document, built into Grimoire. Always available, read-only. |
 | **Library monsters** | Monsters from other published sourcebooks (Kobold Press, EN Publishing, and more) that Grimoire already has seeded. You choose which sourcebooks are visible per campaign: nothing to import or download. |
 | **Custom monsters** | Monsters you create yourself in the Monster Builder. |
-| **Scope** | Whether a custom monster is visible in every campaign you run ("General") or only the one it's scoped to ("Campaign"). Set per monster on its own page. |
+| **Scope** | Whether a custom monster is visible in every campaign you run (**General · all campaigns**) or only one (**Campaign · its name**). Set per monster on its own page. |
+| **Customize** | Makes your own editable copy of a shared monster. |
 | **Reveal** | Whether a player's Bestiary tab shows a creature at all, and whether it shows the full stat block or just a name and picture. |
 
 ## Browsing and filtering
 
 The bestiary list combines all three sources into one searchable grid.
 
-1. Type in the search box to filter by name.
-2. Use the **source filter** dropdown to narrow the list to **All sources**, **Custom**, or one specific enabled sourcebook.
-3. Use the **type filter** dropdown to narrow by creature type (Beast, Dragon, Undead, and the rest of the 14 standard D&D types).
-4. Switching your active campaign changes what you see: the SRD and enabled library monsters, plus your own custom monsters that are either General or scoped to that campaign.
+1. Type in the **Search monsters…** box to filter by name.
+2. Use the source dropdown to narrow the list to **All sources**, **Custom** (monsters you made), **This campaign** (monsters scoped to the active campaign), or one specific enabled sourcebook.
+3. Use the type dropdown to narrow by creature type (Beast, Dragon, Undead, and the rest of the standard D&D types).
+4. Click **Clear** to drop all filters. Your filters are remembered while you move around the app.
+5. Switch between a grid of cards and a compact list with the layout toggle at the right of the toolbar.
+
+On a phone, the filter button opens **Filter Monsters**, the three-dot button holds **Monster Sources**, **Generate** and **Select monsters**, and active filters show as chips you can tap to remove.
+
+Switching your active campaign changes what you see: the SRD and enabled library monsters, plus your own custom monsters that are either General or scoped to that campaign.
 
 ## Choosing which sourcebooks appear
 
@@ -45,6 +51,10 @@ Every monster card, and the monster's own page, carries a reveal control (the bu
 
 This is the manual, outside-combat way to reveal a monster. During a live encounter, cycling a combatant's reveal state does the same thing automatically: see [Monster Discovery](#monster-discovery).
 
+## How do I make my own version of a shared monster?
+
+Open the shared monster and click **Customize** ("Customize it to make your own editable copy."). You get an independent copy you can edit freely. The original stays untouched. A monster you made yourself can also be copied with **Duplicate**: see [Creating Custom Monsters](#creating-custom-monsters).
+
 ## Selecting and copying multiple monsters
 
 Click **Select** (desktop) or **Select monsters** (mobile overflow menu) to enter multi-select mode, then use the bulk action bar to copy the selected monsters into another campaign you DM. To duplicate or copy a single monster, open it and use the actions on its own page: see [Creating Custom Monsters](#creating-custom-monsters).
@@ -57,7 +67,8 @@ Players never see your full Bestiary. Their **Bestiary tab** in the Player Porta
 
 > If a monster you expect to see is missing, check both the **source filter** and whether its sourcebook is still enabled under Monster Sources: a disabled source disappears from the list entirely, not just from search.
 
-- Shared monsters (SRD or library) have no Edit button; you can't modify them directly. Create a custom monster, or duplicate a shared entry from its own page, to make your own version.
+- Shared monsters (SRD or library) can't be edited directly. Click **Customize** on one, or start with **New Monster**, to make your own version.
+- With no custom monsters yet, the list offers **Add your first monster**.
 - A monster's scope only changes who can *find* it going forward. If you later re-scope a monster to a different campaign, encounters, quests, and loot tables that already reference it keep working: it just drops out of pickers for campaigns it's no longer scoped to.
 
 ## Related

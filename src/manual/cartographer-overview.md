@@ -4,26 +4,31 @@ section: Cartographer
 section_order: 10
 order: 0
 summary: Draw dungeon maps with tile packs, publish them to Atlas sites, and reuse the same editor full screen from a site's Edit map button.
-keywords: cartographer, dungeon map, tile map, floor, wall, door, water, grate, sluice, decal, stairs, shadow, object, annotation, publish, atlas, map editor, space, structure
+keywords: cartographer, dungeon map, battle map, tile map, map editor, draw a map, floor, wall, angled wall, freehand wall, door, water, grate, sluice, decal, stairs, shadow, light, torch, object, prop, annotation, label, publish, atlas, tools, keyboard shortcuts, undo, zoom
 ---
 
-**Cartographer** is Grimoire's tile-based map editor. Draw rooms cell by cell, place walls and doors, stamp furniture and objects, annotate areas, and export the result as a polished image, or publish it into an Atlas site, where Grimoire reads the rooms and doors straight out of your drawing.
+Use the **Cartographer** to draw a dungeon or any room-and-corridor map yourself. It is Grimoire's tile-based map editor. Draw rooms cell by cell, place walls and doors, stamp furniture and objects, annotate areas, and export the result as a polished image, or publish it into an Atlas site, where Grimoire reads the rooms and doors straight out of your drawing.
 
 Find it two ways: **Compendium → Dungeon Craft**, the **Cartographer** tab (works on phone and desktop); or **Publish → Cartographer** in the sidebar (desktop only) at `/cartographer`. Both open the same list of maps. Maps are independent of campaigns: any map can be published to any Atlas site, and you can have as many as you need.
 
 ## Getting started
 
-1. From the map list, click **New Map**.
-2. Pick a tile set from the two small squares at the foot of the tool rail (click one to open the sets as a grid of pictures; hover a picture for its name): only sets with complete art appear here; which ones that is can change as Grimoire's built-in packs get illustrated, or as you upload/generate your own (see [Cartographer: Tile Packs](#cartographer-tile-packs)). Incomplete slots draw as flat procedural placeholders rather than blocking you.
-3. Select the **Tiles** tool in the rail on the left and paint your rooms by clicking and dragging.
-4. Add walls with the **Wall** tool, and doors with the **Door** tool.
+1. From the map list, click **New Map**. A start screen asks **Where does this map come from?** with three choices:
+   - **Draw it**: floors, walls and doors painted on a grid. Set the **Size in squares** and the **Tile set**, then click **Start drawing**.
+   - **Bring a map**: a scan, a render or a moving map you already have (drop a file, or choose one). Name it, line up its grid, say whether it becomes **A new battlefield in the Atlas** or **The picture of a place I pick**, and click **Add map**.
+   - **Map a place**: pick an Atlas place that has rooms but no map yet and draw its map.
+
+   Maps you opened lately also show under **Recent maps**.
+2. In the editor, pick a tile set from the two small squares at the foot of the tool rail (click one to open the sets as a grid of pictures; hover a picture for its name): only sets with complete art appear here; which ones that is can change as Grimoire's built-in packs get illustrated, or as you upload/generate your own (see [Cartographer: Tile Packs](#cartographer-tile-packs)). Incomplete slots draw as flat procedural placeholders rather than blocking you.
+3. Pick the **Brush** (`B`) in the tool rail on the left and paint your rooms by clicking and dragging; it draws smooth rooms with their own walls. (**One tile** paints single square cells; **Rectangle** fills a room in one drag.)
+4. Add more walls with the **Wall** tool, and doors with the **Door** tool.
 5. That's it: the map saves itself a moment after each change, and the bar says **Saved**.
 
 ## The canvas
 
 The canvas is infinite: there's no fixed map size, so there's no "how big should this be?" decision to make up front.
 
-While you edit, the map gets the whole screen: the app's sidebar steps aside and one slim bar runs along the top with the map's name, the light, the map's settings, undo and redo, the save state, and the **Map** menu (style, publish, download, delete). The tools are an icon rail down the left edge (hover for the name and key). At its foot sit two overlapping squares, like Photoshop's two colours: the top one is the tile set you paint with, the one behind it is a second set. **X**, or a click on the small X in the corner of the pair, swaps the two, the way Photoshop's X swaps its colours. Each map remembers its own second set. The active tool and its options float in a slip at the top left of the map, and the Spaces and Place panels open over its right edge. On a phone the rail lies along the bottom and the panels open as sheets.
+While you edit, the map gets the whole screen: the app's sidebar steps aside and one slim bar runs along the top with the map's name, undo and redo, the save state, a menu for the map's light (**Day**, **Dim**, **Dark**) and settings, and the **Map** menu (**Style it with AI…**, **Review changes to the site**, **Download a picture**, **Export for another VTT (.dd2vtt)**, **Delete map**). The tools are an icon rail down the left edge (hover for the name and key). At its foot sit two overlapping squares, like Photoshop's two colours: the top one is the tile set you paint with, the one behind it is a second set. **X**, or a click on the small X in the corner of the pair, swaps the two, the way Photoshop's X swaps its colours. Each map remembers its own second set. The active tool and its options float in a slip at the top left of the map, and the Spaces and Place panels open over its right edge. On a phone the rail lies along the bottom and the panels open as sheets.
 
 | Action | Input |
 | --- | --- |
@@ -39,24 +44,30 @@ The status bar along the bottom shows your cursor's cell coordinates, zoom level
 
 | Tool | Key | What it does |
 | --- | --- | --- |
-| Brush | `V` | Drag to paint a round room with its own smooth wall. A stroke that starts inside a room grows it; one on empty ground makes a new room. Hold Alt to carve floor out. `[` and `]` shrink and grow the brush. |
-| Tiles | `B` | Paints floor cells with a random variant from the active pack. |
-| Eraser | `E` | Removes floor, walls, and objects from a cell. |
-| Wall | `W` | Click a cell edge to place a wall; drag along multiple edges for a run. Shift+click a cell walls all 4 of its edges. The tool's options, at the top left of the map, pick what it places: **Wall**, **Grate**, **Sluice** or **Decal** (see Walls, grates and decals below). |
-| Door | `D` | Click a wall edge to add a door; click an existing door to toggle open/closed (the door swings on its hinge); right-click removes it, leaving the wall. |
-| Water | `H` | Paints water (or whatever the pack's liquid is) over the floor; a cell with no floor gets one. Hold **Alt** to erase the water and keep the floor. |
-| Rock | `S` | Fills a cell with a thick, full-cell wall mass (battlement stone, mountain rock), different from the thin edge-based Wall tool. |
-| Place | `O` | Puts down objects from the tile set (chests, statues, braziers, stairs up and down, rubble, debris) and props from the library (tables, beds, coffins). Pick from the pictures in the Place panel. See Place below. Turn a stair with `Q` and `E` to choose which side you climb or descend from. |
+| Select | `V` | The default tool. Click a prop, a light, a wall or a cell to pick it; drag to move it; drag on empty ground to box-pick. Nothing paints by accident. |
+| Pan | `H` | Drag to move the map. Middle-mouse or right-click drag pans from any tool too. |
+| Brush | `B` | Drag to paint a round room with its own smooth wall. A stroke that starts inside a room grows it; one on empty ground makes a new room. Hold Alt to carve floor out. `[` and `]` shrink and grow the brush. Press `B` again with the Brush in hand to switch its perimeter walls on or off. |
+| One tile | `I` | Paints single floor cells with a random variant from the active pack. |
 | Rectangle | `R` | Drag to fill a rectangle of floor. Hold **Shift** to also wrap walls around the perimeter: the fastest way to make a room. |
+| Room | `M` | Click a centre, drag to size. Three shapes (Circle, Octagon, Hex) fill floor and wrap walls around the perimeter. |
 | Line | `L` | Drag to draw a straight run of floor. |
 | Fill | `F` | Flood-fills a contiguous floor region. |
+| Water | `A` | Paints water (or whatever the pack's liquid is) over the floor; a cell with no floor gets one. Hold **Alt** to erase the water and keep the floor. |
+| Rock | `S` | Fills a cell with a thick, full-cell wall mass (battlement stone, mountain rock), different from the thin edge-based Wall tool. |
+| Wall | `W` | Click a cell edge to place a wall; drag along multiple edges for a run. Shift+click a cell walls all 4 of its edges. The tool's options, at the top left of the map, pick what it places: **Wall**, **Grate**, **Sluice** or **Decal** (see Walls, grates and decals below). |
+| Door | `D` | Click a wall edge to add a door; click an existing door to toggle open/closed (the door swings on its hinge); right-click removes it, leaving the wall. |
 | Wrap | `J` | One shot: walls every edge of the selected floor region that faces empty space. |
+| Angled wall | `N` | A wall run at any angle: click to start, click to add points (a point snaps to the end of a wall already drawn), click the first point to close a ring, Enter or a double-click to finish, Esc to throw the run away. Choose whether the new wall is visible or hidden, and its kind, in the options slip. |
+| Freehand | `P` | Drag along a wall in a picture; on release the line is fitted to a few smooth nodes you can move with Select. |
+| Place | `O` | Puts down objects from the tile set (chests, statues, braziers, stairs up and down, rubble, debris) and props from the library (tables, beds, coffins). Pick from the pictures in the Place panel. See Place below. Turn a stair with `Q` and `E` to choose which side you climb or descend from. |
+| Light | `U` | Sets down a light by hand: choose its colour, **Bright ft** and dim reach, and whether it flickers or pulses (see Motion). Select a placed light to change it. |
 | Label | `T` | Labels a cell with a short text note: also what names a room Grimoire finds (see below). |
-| Room | `M` | Click a centre, drag to size. Three shapes: Circle, Octagon, Hex, fills floor and auto-wraps walls around the perimeter. |
 | Link | `K` | Click a cell, then pick a trap, feature, encounter, or note to attach to it from the options at the top left. |
-| Pan | (drag, badge **RMB**) | Middle-mouse or right-click drag pans from any tool. |
+| Eraser | `E` | Removes floor, walls, and objects from a cell. |
 
-The rail groups the tools: **Look** (Select, Pan), **Floor** (Brush, Tiles, Rectangle, Line, Room, Fill, Water, Rock), **Walls** (Wall, Door, Wrap), **Things** (Place), **Notes** (Label, Link) and the Eraser. Label and Link annotate what the drawing *means* rather than adding pixels.
+Other keys: `X` swaps the two tile sets, `C` centres the map, `G` shows or hides the grid, the Photoshop and Figma zoom keys work (**Ctrl/Cmd** with `+`, `-`, `0` and `1`, or **Shift** `1` to fit and **Shift** `0` for 100%), and **Space** (hold) turns any tool into a hand.
+
+The rail groups the tools: **Select** (Select, Pan), **Draw** (Brush, Rectangle, Room, Line, Fill, One tile), **Walls** (Wall, Door, Wrap, Angled wall, Freehand), **Things** (Place, Light), **Terrain** (Water, Rock), **Notes** (Label, Link) and **Erase**. Label and Link annotate what the drawing *means* rather than adding pixels.
 
 ## Walls, grates and decals
 
@@ -111,7 +122,7 @@ Maps drawn with the older brush, which had no walls of its own, are converted th
 
 ## Rooms are found on the Zoning tab
 
-You don't declare rooms: Grimoire finds them from your walls. On a site's **Zoning** tab (`3`) the list shows every enclosed floor region it detects, cut wherever a wall, closed door, or open door/arch sits. Pick **Zone** (`Z`) and click a room to name it, bind it to a place in your Atlas, or trace a zone over it. `D` places a door, `F` fills a region and `E` erases; on the Drawing tab those letters are the Drawing's own tools.
+You don't declare rooms: Grimoire finds them from your walls. On a site's **Zoning** tab (`3`) the list shows every enclosed floor region it detects, cut wherever a wall, closed door, or open door/arch sits. Pick **Zone** and click a room to name it, bind it to a place in your Atlas, or trace a zone over it. `D` places a door, `F` is **Assign** (give a region to a place) and `E` is **Erase**; on the Drawing tab those letters are the Drawing's own tools.
 
 Nothing here writes to your Atlas until you publish. Grimoire also tracks how many regions have changed since your last publish and shows it as a caution in the status bar once you've published at least once.
 

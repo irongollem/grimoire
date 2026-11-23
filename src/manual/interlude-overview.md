@@ -4,10 +4,10 @@ section: The Interlude
 section_order: 13
 order: 0
 summary: What the downtime deck is, how a draw flows from grant to resolution, and why it is built this way.
-keywords: interlude, downtime, draw, credit, carouse, craft, deck, card back, prepped, vignette, outcome, grant, resolve
+keywords: interlude, downtime, between sessions, downtime activities, grant downtime, give draws, credits, stack the deck, awaiting you, resolve a draw, draw, credit, carouse, craft, deck, card back, prepped, vignette, outcome, grant, resolve
 ---
 
-The Interlude is Grimoire's **downtime system**. It turns the quiet weeks between sessions into something a player actually opens the app to do, and it makes the results **real campaign content** rather than a line in a chat log. Find it in the sidebar under **Campaign → Interlude** (route `/downtime`); players reach the same system from the **Interlude** tab of their portal.
+The Interlude is Grimoire's **downtime system**. It turns the quiet weeks between sessions into something a player actually opens the app to do, and it makes the results **real campaign content** rather than a line in a chat log. Find it in the sidebar under **Campaign → Interlude**. The page is titled **The Interlude**. Players reach the same system from the **Interlude** tab of their portal.
 
 It's a campaign-toggleable optional rule (like Crafting), on by default. If you don't see it, switch it on in **Campaign Settings → Rules → The Interlude**: turning it off hides it from your sidebar and from every player's portal.
 
@@ -30,7 +30,7 @@ The whole system is one loop:
 
 ### 1. Grant downtime
 
-Downtime is **a gift you give, not a meter that fills**: there is deliberately no automatic tie to long rests or the calendar. When the story says there's a lull, click **Grant downtime** (on the Interlude board or on a row in the Party Tracker) and hand out credits to one character or the whole party, with an optional reason.
+Downtime is **a gift you give, not a meter that fills**: there is deliberately no automatic tie to long rests or the calendar. When the story says there's a lull, open **The Interlude** (the Party widget on your dashboard also has a **Grant downtime →** link to it). The **Grant downtime** section lists every character. Press **Grant downtime** beside one, set how many **Draws** (1 to 10), add a **Reason** if you like (for example "The party winters in Neverwinter"), and press **Grant**. To give everyone draws, grant to each character in turn.
 
 **One credit = one draw.**
 
@@ -40,10 +40,10 @@ In the player portal's **Interlude** tab, the player sees their draw balance and
 
 ### 3. You resolve it
 
-Every pending draw across the whole party appears on your **Interlude board**. Each shows what the deck dealt, a title and vignette you can rewrite freely, and a checklist of proposed consequences.
+Every pending draw across the whole party appears under **Awaiting you** on your Interlude board. Narrow the list with the **Status** and character filters (**Clear** resets them). Each draw shows what the deck dealt, a title and vignette you can rewrite freely, and a checklist under **Proposed consequences**. Resolved draws are kept under **Resolved**.
 
-- **Draft**: optional AI assist that writes the vignette and proposed consequences for you (1 credit), grounded against your campaign's real NPCs, locations, and shops when it can find a match. It replaces what the deck dealt but travels the same resolve path: you can still edit everything before confirming.
-- **Resolve**: creates the outcome and the linked entity.
+- **Draft**: optional AI assist (shown when AI is on for the campaign) that writes the vignette and proposed consequences for you (1 credit), grounded against your campaign's real NPCs, locations, and shops when it can find a match. It replaces what the deck dealt but travels the same resolve path: you can still edit everything before confirming.
+- **Resolve**: creates the outcome and the linked entity. A draw can be in one of three states: **Awaiting the DM**, **Resolved** or **Cancelled**.
 - **Cancel draw (refunds the credit)**: voids the draw and returns the credit to the character.
 
 ### 4. Consequences are proposed, never imposed
@@ -55,23 +55,23 @@ An outcome *proposes*; you dispose. Nothing touches a character sheet until you 
 
 ## Stacking the deck
 
-The back of every card can be **prepped**. In **Stack the deck** on the Interlude board, you slot a real NPC, item, or note onto a specific archetype:
+The back of every card can be **prepped**. In **Stack the deck** on the Interlude board, pick an activity, choose a **Type** (NPC, Item or Note), search for the one you want, and press **Prep** to slot it onto that activity:
 
 > *"The next underworld contact any rogue meets is **Vesh**, the crime boss I've been planning."*
 
 **Prepped backs are dealt first, in order. When the pile runs dry, the deck falls back to a random system seed.**
 
-A prepped back can be **one-shot** (Vesh appears once, then is consumed) or **recurring** (never consumed). This is what lets the same deck serve two very different DMs: one who plots six sessions ahead, and one who preps nothing and still gets genuine, keepable content out of every draw.
+A prepped back is **one-shot** by default (Vesh appears once, then is consumed). Tick **Recurring** and it is **always** what they find there, never consumed. **Remove** takes one off the pile. This is what lets the same deck serve two very different DMs: one who plots six sessions ahead, and one who preps nothing and still gets genuine, keepable content out of every draw.
 
 ## What your players see
 
-Players never see your board, prepped backs, or the credit-granting UI. In their **Interlude** tab (bottom nav, hidden along with yours if the rule is off) they see only:
+Players never see your board, prepped backs, or the credit-granting UI. In their **Interlude** tab (hidden along with yours if the rule is off) they see only:
 
 - Their current draw balance for their active character.
-- The hand of activity cards they can spend a draw on.
-- A history of their own resolved outcomes: the vignette and, once you've ticked "share", the linked entity.
+- The **Activity board**: the hand of activity cards they can spend a draw on.
+- **What happened**: a history of their own resolved outcomes: the vignette and, once you've ticked "share", the linked entity.
 
-A spent draw turns the card face-down immediately (a real 3D flip, not an instant swap), gets a confirming toast, and moves into a "pending, with your DM" list above the deck, so a tap never looks like it did nothing.
+A spent draw turns the card face-down immediately (a real 3D flip, not an instant swap), gets a confirming toast, and moves into an **In your DM's hands** list above the deck, so a tap never looks like it did nothing.
 
 ## Tips
 
@@ -80,10 +80,9 @@ A spent draw turns the card face-down immediately (a real 3D flip, not an instan
 - **Everything is editable.** A seeded NPC is an ordinary NPC the moment it's created: nothing marks it as generated.
 - **Seeded content is private by default.** A new contact or note is hidden from players until you choose to share it.
 - **Item consequences never auto-add to inventory.** Minting an item catalog row is not the same as giving it to a character: hand it over yourself, or drop it via the [Item Vault](#vault-overview).
-- Outcomes can be printed as cards: Card Forge's **NPCs**/**Monsters**/**Items**/**Spells**/**Interlude** source tabs include an **Interlude** source specifically for downtime activity cards and their prepped backs, with a shared deck back you choose. See [Card Forge: Card Printer](#card-forge-card-printer).
+- The downtime activity cards and their prepped backs can be printed: Card Forge has an **Interlude** source tab for them, with a shared deck back you choose. See [Card Forge: Card Printer](#card-forge-card-printer).
 
 ## Related
 
-- [Party Tracker](#party-tracker): where **Grant downtime** also lives, alongside the rest of your party's live state.
 - [Card Forge: Card Printer](#card-forge-card-printer): print the deck, including Interlude cards.
 - [Campaign Settings](#campaign-settings): switch The Interlude and other optional rules on or off.

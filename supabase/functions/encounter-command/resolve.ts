@@ -45,7 +45,7 @@ import { creatureKindOf, kindAllowed, kindLimitOf, kindPhrase } from "../../../s
 import { spellEntryFor } from "../../../src/rules/fight/spells/spellEntry.ts";
 import { CONDITIONS } from "../../../src/rules/conditions.ts";
 import { boonEntryFor, isBoonSpell, reactionBoonFor, type BoonPlan } from "../../../src/rules/fight/spells/boonEntry.ts";
-import { reactionCastPlan, reactionTurnsHit, reactsByRules, type WhoPlays } from "../../../src/rules/fight/spells/reactionCast.ts";
+import { reactionCastPlan, reactionTurnsHit, reactsByRules, type ReactionCast, type WhoPlays } from "../../../src/rules/fight/spells/reactionCast.ts";
 import { counterEntryFor } from "../../../src/rules/fight/spells/counterEntry.ts";
 import { isHostileTo } from "../../../src/rules/fight/sides.ts";
 import { saveRollMode } from "../../../src/rules/combat/savingThrow.ts";
@@ -58,6 +58,7 @@ import { takesTurnsInFight } from "../../../src/rules/fight/standing.ts";
 import { limitAvailability } from "../../../src/rules/encounterTurn.ts";
 import { combatantFootprint } from "../../../src/lib/battlemap/tokenFootprint.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
+import { reactionSpendOf, type ReactionAnswer, type ReactionOffer } from "../../../src/rules/fight/reactionOffer.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { coverBetween, distanceFeet, type Box, type Cover } from "../../../src/rules/fight/terrain/sight.ts";
 import { isOnBoard } from "../../../src/rules/fight/terrain/options/scene.ts";
@@ -451,6 +452,19 @@ export interface ResolveEnv {
   playedMemberId?: string;
   /** The campaign's stand-ins, read by the server once per request (#1021 row 26); never taken from the request. */
   standIns: ReadonlySet<string>;
+  /**
+   * The person's own choice at a Reaction (#1021 "React card"): asked when the character they play (`playedMemberId`) could cast Shield or
+   * Counterspell. Answers `cast` or `pass`, or throws `ReactionPause` when the person has not answered yet (`playedReaction.ts`). Present
+   * only in a `take_turn` or `answer_reaction` that names the played member; left out, no player's Reaction is ever the person's to choose
+   * and the DM's own fight behaves exactly as it always has.
+   */
+  askPlayed?: (offer: ReactionOffer) => ReactionAnswer;
+  /**
+   * The played character's block, made from their sheet (`allyStatBlock`), read ONLY to see whether they list Shield or Counterspell and what
+   * a cast would cost. Kept apart from `sources.allies` on purpose: a block there makes every rules decision (their defences, their options,
+   * an opportunity attack) treat them as a creature the rules play, and the person's character is never that.
+   */
+  playedBlock?: MonsterStatBlock;
 }
 
 /** Who the rules play in this env: one rule (`playerPlayedByRules`) for the turn, the opportunity attack and the Reaction. */
@@ -558,7 +572,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     factionOf: (id) => holder.state.combatants.find((x) => x.instance_id === id)?.faction_id ?? null,
     // Positions are read from the fight as it stands now: an earlier command in the batch may have moved a creature.
     coverFor: (attacker, target) => coverOf(env.map, holder.state, ctx.live(attacker), ctx.live(target)),
-    reactToHit: (target, roll) => shieldReaction(target, roll),
+    reactToHit: (target, roll, by) => shieldReaction(target, roll, by),
     apply(cmd) {
       const result = applyFightCommand(holder.state, cmd, env.fightDeps);
       holder.state = result.state;
@@ -568,19 +582,34 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
   };
 
   /**
+   * APP CONVENTION (#1021 "React card"): the character the person plays is the one Reaction the rules never take. When the request can ask
+   * the person (`askPlayed`), that character's Shield and Counterspell are offered to them under the conditions a creature the rules play meets.
+   * A bystander never reacts.
+   */
+  const isPlayedReactor = (c: RunCombatant): boolean =>
+    env.askPlayed !== undefined && env.playedMemberId !== undefined && c.type === "player" && c.party_member_id === env.playedMemberId && c.bystander !== true;
+  /** The block a Reaction is read from: the played character's own (`playedBlock`), anyone else's as they always were. */
+  const reactorBlock = (c: RunCombatant): MonsterStatBlock | null => (isPlayedReactor(c) ? (env.playedBlock === undefined ? null : env.playedBlock) : statBlockOf(c, env.sources));
+
+  /**
    * RULE shield (PHB 2014 and 2024 "Shield": a Reaction taken "when you are hit by an attack", +5 AC until the start of your next turn, the
    * triggering attack included): a creature the rules play (`reactsByRules`) that lists Shield, has its Reaction and a slot or use left, and
    * would turn this hit into a miss (`reactionTurnsHit`), casts it. The Reaction, the slot (an ally's written to its sheet as `cast_spell`
    * does), the deed and the condition are applied to the fight; the answer is the armour class to decide the roll against again.
    * Magic Missile's half of the trigger ("or targeted by the magic missile spell") is not built: only a hit by an attack roll is one.
+   * The character the person plays (`isPlayedReactor`) meets the same conditions, but the cast is theirs to choose: the offer is put to
+   * `env.askPlayed` once everything above says Shield would turn this hit, and a "pass" is no reaction at all.
    */
-  const shieldReaction = async (target: RunCombatant, roll: { natural: number; total: number; armorClass: number }): Promise<{ spell: string; armorClass: number } | null> => {
+  const shieldReaction = async (
+    target: RunCombatant, roll: { natural: number; total: number; armorClass: number }, by: { attackerId: string; attack: string },
+  ): Promise<{ spell: string; armorClass: number } | null> => {
     const me = ctx.live(target);
-    if (!reactsByRules(me, whoPlaysIn(env))) return null;
+    const played = isPlayedReactor(me);
+    if (!played && !reactsByRules(me, whoPlaysIn(env))) return null;
     if (me.hp <= 0 || isIncapacitated(me.conditions) || me.reactionUsed === true || cannotReactWhileSurprised(me, state.ruleset)) return null;
     // A Shield already up counts in the armour class the roll was made against; a second would add nothing.
     if (me.conditions.some((c) => c.name.toLowerCase() === "shield")) return null;
-    const block = statBlockOf(me, env.sources);
+    const block = reactorBlock(me);
     // Read nothing for a creature that does not list the spell: most hits land on creatures that never cast it.
     if (block === null || castableBy(block, "Shield") === null) return null;
     const chosen = pickSpellRecord("Shield", await env.spells("Shield"), state.ruleset);
@@ -590,6 +619,12 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     const boon = reactionBoonFor(chosen.record, plan.castLevel);
     const bonus = boon === null ? undefined : boon.grants.ac;
     if (boon === null || bonus === undefined || !reactionTurnsHit(roll, bonus)) return null;
+    // The person's own character: the choice is theirs (a "pass" leaves the hit as it was rolled and the Reaction unspent).
+    if (played && (env.askPlayed as NonNullable<typeof env.askPlayed>)({
+      kind: "shield", reactorId: me.instance_id, attackerId: by.attackerId, attack: by.attack,
+      roll: { natural: roll.natural, total: roll.total }, armorClass: roll.armorClass, shieldedArmorClass: roll.armorClass + bonus,
+      spell: chosen.record.name, castLevel: plan.castLevel, spends: reactionSpendOf(plan.how),
+    }) === "pass") return null;
     step({ type: "set_reaction_used", instanceId: me.instance_id, used: true });
     if (plan.useKey !== null && plan.limit !== null) step({ type: "use_action", instanceId: me.instance_id, action: plan.useKey, limit: plan.limit });
     step({ type: "show_deed", instanceId: me.instance_id, deed: { cast: 1 } });
@@ -637,7 +672,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
    * 2014 casts at the lowest slot no lower than the spell when it has one (no check), else at 3rd level with the check; 2024 at the lowest
    * slot of 3rd level or higher. The counterer's Reaction, slot and deed are spent whether or not the spell stops. Null: not countered.
    */
-  const counterReaction = async (caster: RunCombatant, castLevel: number): Promise<{
+  const counterReaction = async (caster: RunCombatant, castLevel: number, castSpellName: string): Promise<{
     counterId: string; counterSpell: string; check?: { total: number; dc: number }; save?: { total: number; dc: number }; stopped: boolean;
   } | null> => {
     if (castLevel <= 0) return null;
@@ -645,9 +680,9 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     const from = boxOf(caster);
     const candidates = live.filter((c) => {
       if (c.instance_id === caster.instance_id || !isHostileTo(c, caster, env.factions)) return false;
-      if (!reactsByRules(c, whoPlaysIn(env))) return false;
+      if (!isPlayedReactor(c) && !reactsByRules(c, whoPlaysIn(env))) return false;
       if (c.hp <= 0 || isIncapacitated(c.conditions) || c.reactionUsed === true || cannotReactWhileSurprised(c, state.ruleset)) return false;
-      const block = statBlockOf(c, env.sources);
+      const block = reactorBlock(c);
       return block !== null && castableBy(block, "Counterspell") !== null;
     });
     if (candidates.length === 0 || from === null) return null;
@@ -666,11 +701,17 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
       if (env.map !== null && coverBetween(at, from, env.map.occluders, []) === "total") return [];
       return [{ c, feet }];
     }).sort((a, b) => a.feet - b.feet || initiativeOf(b.c) - initiativeOf(a.c) || turnOrder(a.c) - turnOrder(b.c));
+    // The person's own character is asked first, before any creature the rules play: their choice comes ahead of the nearest counterer's.
+    const askedFirst = [...reached.filter(({ c }) => isPlayedReactor(c)), ...reached.filter(({ c }) => !isPlayedReactor(c))];
 
-    for (const { c } of reached) {
-      const block = statBlockOf(c, env.sources) as MonsterStatBlock;
+    /**
+     * What it takes for `c` to counter this cast, or null when it will not: the plan (the slot it casts with), and the check (2014, a slot
+     * lower than the spell) or the save (2024) the edition makes. Nothing is spent or rolled here.
+     */
+    const counterPlanOf = (c: RunCombatant): { plan: ReactionCast; check: { modifier: number; dc: number } | null; saveDc: number | null; casterBonus: number | null } | null => {
+      const block = reactorBlock(c) as MonsterStatBlock;
       const listed = castableBy(block, "Counterspell");
-      if (listed === null) continue;
+      if (listed === null) return null;
       // The edition is the record's own; one with none named is the fight's.
       const edition = counter.ruleset === null ? state.ruleset : counter.ruleset;
       // 2014: a slot no lower than the spell is automatic; else the 3rd-level slot and the check. 2024: the lowest slot of 3rd level or higher.
@@ -683,26 +724,33 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
         else if (plan !== null && plan.castLevel < castLevel) {
           const modifier = spellcastingModifierOf(block, listed.ability);
           // A creature whose block names no spellcasting ability cannot make the check, so it does not spend its Reaction on a long shot.
-          if (modifier === null) continue;
+          if (modifier === null) return null;
           check = { modifier, dc: 10 + castLevel };
         }
       } else {
         saveDc = listed.saveDc;
         // A counter whose save DC the block does not give cannot be forced on the caster.
-        if (saveDc === null) continue;
+        if (saveDc === null) return null;
       }
-      if (plan === null) continue;
+      if (plan === null) return null;
       let casterBonus: number | null = null;
       if (saveDc !== null) {
         try {
           casterBonus = saveBonusOf(caster, "con", env);
         } catch (e) {
-          if (e instanceof ActionRefused) continue;
+          if (e instanceof ActionRefused) return null;
           throw e;
         }
-        if (casterBonus === null) continue;
+        if (casterBonus === null) return null;
       }
+      return { plan, check, saveDc, casterBonus };
+    };
 
+    /** `c` counters: its Reaction, slot and deed are spent whether or not the spell stops, then the check or save is rolled. */
+    const counterWith = async (c: RunCombatant, p: NonNullable<ReturnType<typeof counterPlanOf>>): Promise<{
+      counterId: string; counterSpell: string; check?: { total: number; dc: number }; save?: { total: number; dc: number }; stopped: boolean;
+    }> => {
+      const { plan, check, saveDc, casterBonus } = p;
       step({ type: "set_reaction_used", instanceId: c.instance_id, used: true });
       if (plan.useKey !== null && plan.limit !== null) step({ type: "use_action", instanceId: c.instance_id, action: plan.useKey, limit: plan.limit });
       step({ type: "show_deed", instanceId: c.instance_id, deed: { cast: 1 } });
@@ -725,6 +773,18 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
       }
       // Automatic (2014): a slot no lower than the spell.
       return { counterId: c.instance_id, counterSpell: chosen.record.name, stopped: true };
+    };
+
+    for (const { c } of askedFirst) {
+      const p = counterPlanOf(c);
+      if (p === null) continue;
+      // The person's own character: the choice is theirs, and a "pass" falls through to the creatures the rules play.
+      if (isPlayedReactor(c) && (env.askPlayed as NonNullable<typeof env.askPlayed>)({
+        kind: "counterspell", reactorId: c.instance_id, casterId: caster.instance_id, spell: castSpellName, spellLevel: castLevel,
+        counterSpell: chosen.record.name, castLevel: p.plan.castLevel, spends: reactionSpendOf(p.plan.how),
+        ...(p.check === null ? {} : { check: { dc: p.check.dc } }), ...(p.saveDc === null ? {} : { save: { dc: p.saveDc } }),
+      }) === "pass") continue;
+      return counterWith(c, p);
     }
     return null;
   };
@@ -961,7 +1021,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
 
     // A hostile creature the rules play may answer the cast with a Reaction (Counterspell). Asked after everything that can be refused and
     // before anything is spent, so a refused cast is never countered.
-    const countered = await counterReaction(caster, castLevel);
+    const countered = await counterReaction(caster, castLevel, record.name);
     const stopped = countered !== null && countered.stopped;
     if (countered !== null) {
       collected.push({

@@ -5,6 +5,7 @@ import type { DefenseApplied } from "../combat/typedDamage.ts";
 import type { DyingOutcome } from "../dying.ts";
 import type { EncounterTurnEvent, EncounterTurnState } from "../encounterTurn.ts";
 import type { TurnOptionKind } from "./terrain/options/types.ts";
+import type { ReactionOffer } from "./reactionOffer.ts";
 
 /**
  * Everything a fight holds that a server must also hold to advance it: the
@@ -48,7 +49,13 @@ export type FightEffect =
    * A player character may strike a mover the server plays as it leaves their reach. The server never rolls a player's
    * dice and does not spend their Reaction: the browser offers the attack and spends the Reaction if it is taken. Only the server raises it.
    */
-  | { type: "provoked_player"; moverId: string; playerId: string; step: number };
+  | { type: "provoked_player"; moverId: string; playerId: string; step: number }
+  /**
+   * The creature's turn stopped at a Reaction the person at the AI table chooses (#1021): nothing of the turn was saved, and the
+   * fight waits for `answer_reaction`. The only effect of such an answer. Only the server raises it. `offerId` names this offer: the
+   * answer sends it back, and the server refuses an answer to any other (a tab that still shows an earlier offer of the same turn).
+   */
+  | { type: "reaction_offered"; offer: ReactionOffer; offerId: string };
 
 /** One creature's turn as the server played it: the option, in the words a narrator or the log can quote, and who chose it. */
 export interface TurnTaken {
@@ -96,7 +103,7 @@ export interface TurnTaken {
 
 /** The reducer's events, told apart from the effects a fight adds. */
 export function isTurnEvent(effect: FightEffect): effect is EncounterTurnEvent {
-  return effect.type !== "broadcast" && effect.type !== "spawned" && effect.type !== "resolved" && effect.type !== "turn_taken" && effect.type !== "opportunity" && effect.type !== "provoked_player";
+  return effect.type !== "broadcast" && effect.type !== "spawned" && effect.type !== "resolved" && effect.type !== "turn_taken" && effect.type !== "opportunity" && effect.type !== "provoked_player" && effect.type !== "reaction_offered";
 }
 
 /** One damage part after the target's defenses: what was rolled, what was taken, and which defense changed it. */

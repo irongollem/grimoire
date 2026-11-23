@@ -4,10 +4,10 @@ section: World Building
 section_order: 2
 order: 3
 summary: Catalogue the gods of your world, their domains, symbols and lore, grouped into pantheons and shared with the party as clerics need them.
-keywords: pantheon, deity, deities, god, gods, domain, cleric, symbol, alignment, worship, religion
+keywords: pantheon, deity, deities, god, gods, goddess, domain, cleric, symbol, holy symbol, alignment, worship, worshippers, religion, divine, portfolio, epithet, titles, connections, patron deity, populate
 ---
 
-Pantheons and deities are Grimoire's two thin, sibling world-building modules for divine lore: the gods your clerics pray to, the domains they grant, and the pantheons that group them. Find them under **Campaign → Pantheon** in the sidebar, which opens the **deity** list (`/deities`); the pantheon list sits one click away at its own **Pantheons** button.
+Pantheons and deities are Grimoire's two thin, sibling world-building modules for divine lore: the gods your clerics pray to, the domains they grant, and the pantheons that group them. Find them under **Campaign → Pantheon** in the sidebar, which opens the **deity** list (`/deities`); the pantheon list sits one click away at its own **Pantheons** button. A deity opens as a read-only sheet: press **Edit** to change it and **View** to go back. Its **DM notes** and its **Connections** sit below the lore.
 
 ## Key ideas
 
@@ -33,7 +33,7 @@ Pantheons and deities are Grimoire's two thin, sibling world-building modules fo
 3. Pick a **Pantheon** (optional) and an **Alignment**.
 4. Add a **Symbol Description** (prose, for when you don't have symbol art).
 5. Set who it's **Visible to Players**, and add **Tags**.
-6. On the right: **Name**, **Titles & Epithets** (e.g. "The Morninglord, Lord of Dawn"), any **Alternate Names** the deity is known by in different cultures, the **Cleric Domains** it grants (click to toggle any number of the standard domains), a **Portfolio** line (what it governs: war, harvest, death…), **Lore & Description** (rich text, player-facing once revealed). Hidden truths and true motivations go in the deity's **DM notes** box on its page, not in this form: it is private, saved as you type, and never shared, even when the deity itself is revealed. See [DM Notes and the Scratchpad](#dm-notes-and-the-scratchpad).
+6. On the right: **Name**, **Titles & Epithets** (e.g. "The Morninglord, Lord of Dawn"), any **Alternate Names** the deity is known by in different cultures, the **Cleric Domains** it grants (click to toggle any number of the standard domains), a **Portfolio** line (what it governs: war, harvest, death…), **Lore & Description** (rich text, player-facing once revealed). Press **Create Deity** to save a new one, or **Save Changes** on an existing one. Hidden truths and true motivations go in the deity's **DM notes** box on its page, not in this form: it is private, saved as you type, and never shared, even when the deity itself is revealed. See [DM Notes and the Scratchpad](#dm-notes-and-the-scratchpad).
 
 ## Generating with AI
 
@@ -57,13 +57,13 @@ The deity grid filters by free-text search (name, titles, portfolio, alternate n
 
 Each deity and pantheon has its own reveal control (the grid card's overlay icon on deities, the row's inline icon on pantheons): pick specific party members or share with everyone. **Reveal All** on the deity list shares every deity in the campaign with the whole party in one click, since a pantheon is usually common knowledge rather than something worth revealing name by name.
 
-## Worshipping factions
+## Who worships, serves or opposes a deity
 
-A deity's own page has a **Worshipping Factions** section: add any faction from your campaign to record who prays to this god. This is the only place that link is authored; see [Factions](#factions) for the faction side of it.
+The **Connections** section on a deity's sheet lists everything tied to the god: factions that worship, serve or oppose them, the places that are their holy sites, items that are their relics, and the people and characters whose patron they are. Press **Add connection**, search for the faction (or anything else), and choose the kind of tie, for example Worships. A faction's own page shows the same tie from its side, so you only enter it once. **In the web** opens the [World Web](#world-web) focused on the deity. See [Factions](#factions).
 
 ## Populate from Setting
 
-**Populate Setting** on the deity list seeds pantheons and deities appropriate to your campaign's calendar (Faerûn alone seeds around a dozen pantheons and over a hundred deities). The import is idempotent (re-running repairs a campaign rather than duplicating anything) and content it seeds this way doesn't count against your plan's quota.
+**Populate Setting** at the top of the deity list seeds pantheons and deities appropriate to your campaign's calendar (Faerûn alone seeds around a dozen pantheons and over a hundred deities). The import is idempotent (re-running repairs a campaign rather than duplicating anything) and content it seeds this way doesn't count against your plan's quota.
 
 ## What your players see
 

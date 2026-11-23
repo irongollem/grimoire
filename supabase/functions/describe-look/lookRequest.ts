@@ -6,7 +6,7 @@
  * to the database: the client puts the text in the Look field, where the DM edits it.
  */
 import { AI_PROMPT_LIMIT_LONG, wrapUserInput } from "../_shared/ai-prompt.ts";
-import { acceptedImageType, MAX_STYLE_IMAGE_BYTES } from "../_shared/fetchImage.ts";
+import { acceptedImageType } from "../_shared/fetchImage.ts";
 import { STYLE_REFERENCE_LIMIT } from "../_shared/styleReferences.ts";
 import type { DocumentExtractionOutcome, DocumentUsage } from "../_shared/documentGen.ts";
 
@@ -14,8 +14,6 @@ import type { DocumentExtractionOutcome, DocumentUsage } from "../_shared/docume
 export const MAX_LOOK_IMAGES = STYLE_REFERENCE_LIMIT;
 /** A look is one short paragraph an image model paints from; anything longer is the model rambling. */
 export const MAX_LOOK_CHARS = 1200;
-/** One picture, in bytes, before it is sent to the provider as input tokens. */
-export const MAX_LOOK_IMAGE_BYTES = MAX_STYLE_IMAGE_BYTES;
 export { acceptedImageType };
 
 export interface Refusal {

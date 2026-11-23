@@ -1,7 +1,8 @@
 // Holding back narration that only repeats the characters (#1021). `handler.ts` hands every loop event to the gate.
 //
-// Before any line has been shown this turn the narrator's text streams as it always did. From the first shown line on,
-// each model step's text is held, and when the step ends it is judged sentence by sentence against the lines shown so
+// Before any line has been shown this turn the narrator's text streams as it always did, unless the campaign has
+// secrets: a leak cannot be unshown, so then every step's text is held from the start and judged for one. From the
+// first shown line on, each model step's text is held, and when the step ends it is judged sentence by sentence against the lines shown so
 // far, and only the sentences that add something are shown. Everything the browser hears from then on goes through one queue, so a step's text is
 // settled before any line or tool event a later step produces: the page keeps the order the story happened in.
 //
@@ -38,8 +39,10 @@ export function narrationGate(input: {
   emit: (event: AgentEvent) => void;
   /** A step's narration as the player was shown it, once it is whole: in its place among the lines, for a voice. */
   onNarration?: (text: string) => void;
+  /** The campaign's secrets as statements, known before the turn streams. With any, all narrator text is judged. */
+  secrets: readonly string[];
 }): NarrationGate {
-  const { judge, emit } = input;
+  const { judge, emit, secrets } = input;
   const narrated = (text: string): void => {
     if (text.trim() !== "") input.onNarration?.(text.trim());
   };
@@ -87,7 +90,15 @@ export function narrationGate(input: {
     // The lines as they stand now: later steps add to the array while this judgment is waiting its turn.
     const seen = [...lines];
     enqueue(async () => {
-      record.shown = await withinLimit(narrationKept({ lines: seen, narration: text, judge }), text);
+      const kept = narrationKept({
+        lines: seen,
+        narration: text,
+        judge,
+        secrets,
+        // The count only: what a secret says never goes into a log.
+        onLeak: (dropped) => console.warn(`agent-turn: the narration check dropped ${dropped} sentence(s) that stated a secret.`),
+      });
+      record.shown = await withinLimit(kept, text);
       if (record.shown !== "") emit({ type: "text", delta: record.shown });
       narrated(record.shown);
     });
@@ -112,7 +123,7 @@ export function narrationGate(input: {
     switch (event.type) {
       case "text":
         stepText += event.delta;
-        if (lines.length > 0) stepHeld = true;
+        if (lines.length > 0 || secrets.length > 0) stepHeld = true;
         else enqueue(() => emit({ type: "text", delta: event.delta }));
         break;
       case "step":

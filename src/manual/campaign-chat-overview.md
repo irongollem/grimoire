@@ -4,10 +4,10 @@ section: Running the Table
 section_order: 1
 order: 3
 summary: The always-available side panel for messages, dice rolls, and item/currency drops, and the one place reveals and session announcements land for players.
-keywords: chat, campaign chat, drop, claim, grab, dice, roll, whisper, vendor offer, player offer, loot chest, persona
+keywords: chat, campaign chat, message, talk, drop, claim, grab, loot, need greed, dice, roll, whisper, private message, hidden roll, secret roll, vendor offer, shop, player offer, loot chest, persona, speak as npc, mention, clear chat, delete messages
 ---
 
-Campaign Chat is a floating panel available from anywhere in the app (a tab on the right edge on desktop, a slide-up sheet on mobile) for in-session messages and mechanical drops, not just talk. It has no page of its own; open it with the chat tab (desktop) or the chat icon in the top bar (mobile, and in the Player Portal).
+Use Campaign Chat for table talk, rolling dice where everyone can see, whispering to one player, and handing out loot. It is a floating panel available from anywhere in the app (a tab on the right edge on desktop, a slide-up sheet on mobile) for in-session messages and mechanical drops, not just talk. It has no page of its own; open it with the chat tab (desktop) or the chat icon in the top bar (mobile, and in the Player Portal).
 
 ## Key ideas
 
@@ -22,12 +22,14 @@ Campaign Chat is a floating panel available from anywhere in the app (a tab on t
 
 Beyond plain text, chat carries structured drops and offers players can act on directly from the message:
 
-- **Item drops**: a player clicks **Grab** (or **Grab 1** / **Grab All** on a stacked drop) or **To Stash** to pull the item into their inventory.
+- **Item drops**: a player clicks **Grab** (or **Grab 1** / **Grab All** on a stacked drop) or **To Stash** to put it in the party stash instead. As DM you can also pick **To NPC…** on a drop to give it to one of your NPCs.
 - **Currency drops**: a player clicks **Add to Purse** to pull the coin into their inventory.
 - **Vendor offers** (you offer an item for sale): a player clicks **Pay** to buy it and receive it in one click.
 - **Player offers** (a player offers one of their own items for sale to the table): another player clicks **Buy**, or you click **Accept (DM)**.
 - **Loot chests**: a shared pool of rolled rewards; each player clicks **Claim** on an item until the chest reads "Chest is empty."
 - **Dice rolls**: click the dice icon to open the roller. Results post publicly by default.
+- **Loot rolls**: when you drop an item to the table you are asked how it is shared: **Roll Need or Greed** (everyone picks **Need**, **Greed** or **Pass**, the highest roll takes it, and you can press **End roll** early), **Free to grab** (first come, first served), or **Give to…** (straight into one character's pack). If everyone passes, it becomes free to grab.
+- **@mentions**: type **@** in the message box to mention a party member, an NPC or the whole party (**@party**).
 
 ## Sending a whisper or a hidden roll
 

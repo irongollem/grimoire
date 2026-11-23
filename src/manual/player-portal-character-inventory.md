@@ -4,7 +4,7 @@ section: Player Portal
 section_order: 15
 order: 2
 summary: What a player's own Character, Inventory, and Spellbook tabs show, and the Champions and Level-Up surfaces around them.
-keywords: character sheet, inventory, paper doll, coin purse, containers, spells, prepared, known, level up, champions, wild shape, hide, custom attacks
+keywords: character sheet, my character, lore, about, personality, my characters, copy to my pool, retire, character menu, make my doll, redraw, ask my dm, character sheet, inventory, paper doll, coin purse, containers, spells, prepared, known, level up, champions, wild shape, hide, custom attacks
 ---
 
 The **Character** tab is the player's full sheet, one tab along from **Hearth** (their home, see [Player Portal: Overview](#player-portal-overview)), with **Spellbook** and **Inventory** close by in the nav bar. This page covers everything a player manages about their own character: nothing here needs your intervention to work, but it's worth knowing what it looks like when a player asks you about it.
@@ -21,27 +21,29 @@ The **Character** tab is the player's full sheet, one tab along from **Hearth** 
 
 Always visible at the top: portrait, name, class/subclass/level/species/background, an HP bar (colour-coded green → amber → red → grey at 0, with current/max/temp HP), AC, active condition badges, a tappable ability-score table with save-proficiency indicators, any custom trackers you've shared (Bardic Inspiration, Ki points…), and shapeshifter appearance controls if the character is one.
 
-Below that, four tabs:
+Below that, a row of tabs: **Skills**, **Features**, **Combat**, **Lore**, and **Wild Shape** for druids. (A fixed **Inventory** tab also appears when the sheet is opened from the party page.) The tabs are:
 
 - **Skills**: every skill, tappable to roll with advantage/disadvantage auto-applied from conditions. **Long-press (touch) or right-click (desktop)** any roll button (skill, ability, save, or attack) to force Normal/Advantage/Disadvantage for that one roll; it combines with any condition-imposed mode (opposing sources cancel to normal, per 5e RAW).
 - **Features**: class features, racial traits, and feats, with expandable descriptions.
 - **Combat**: attack actions (to-hit + damage), the weapon list, and action/bonus action/reaction economy. Also has:
-  - The **Hide** button: rolls Dexterity (Stealth) and marks the character **Hidden**; a live indicator flips to **Reveal**. Attacking auto-clears Hidden.
+  - The **Hide** button: rolls Dexterity (Stealth) and marks the character **Hidden**; the button then reads **Hidden** with a note, and attacking clears it.
   - **Custom Attacks**: player-added attack buttons for anything equipment doesn't cover, added/edited/deleted inline.
+- **Lore**: **About** (the player's own description of the character, tap to edit), **Identity**, **Personality** and **Background**.
 - **Wild Shape** *(Druids only)*: follows the campaign's edition. Usage pips (2 uses under 2014 rules; 2, 3 or 4 by level under 2024), the CR cap and movement limits for the druid's level and circle, a form picker, and active-form HP/AC tracking while shapeshifted. Under 2014 rules the picker holds beasts the party has discovered (or you've pinned), and a Circle of the Moon druid can spend a spell slot to heal their beast form. Under 2024 rules the druid keeps their own hit points and gains temporary HP, chooses their **Known Forms** here (replacing one per long rest), and from level 5 can trade spell slots and uses with **Wild Resurgence**.
 
-Two buttons sit above the tabs: **My Characters** (opens Champions, below) and **Export Sheet** (a printable version, see below).
+Two buttons sit above the tabs: **My Characters** (opens Champions, below) and **Export Sheet** (a printable version, see below). A **⋯** menu beside them holds **Ask someone to look after {name}** (see [Looking After Someone's Character](#looking-after-someone-s-character)) and **Retire…**.
 
 ## Champions ("My Characters")
 
 Lists every party member row the player has created in this campaign: useful for "my wizard died, now I play a rogue" continuity. Each card shows portrait, name, species/class/subclass/level, and:
 
-- **Set Active**: switches which character the player's session controls (only shown on a non-active character).
+- **Set active**: switches which character the player's session controls (only shown on a non-active character). The current one is marked **Active**.
+- **Level up**: only on the active character, once it's above level 0.
 - **Edit**: opens the character editor.
-- **Level Up**: only on the active character, once it's above level 0.
-- **Clone**: duplicates the character as a fresh row.
-- **Leave campaign**: detaches that character from the campaign entirely.
+- **More actions** menu: **Copy to my pool** (duplicates the character as a fresh one in the player's own pool) and **Leave campaign** (detaches that character from the campaign entirely).
 - **New Character**: starts the creation wizard for another character in this campaign.
+- **Looking after**: characters handed to this player for a session appear in their own list, with **Play** to switch to one.
+- **Available from your DM**: characters the DM has prepared for the player to take up.
 
 ## Character Sheet export
 
@@ -57,11 +59,11 @@ Reached from Champions or the character sheet. Guides the player through gaining
 
 A full equipment system:
 
-- **Paper doll**: your character's own figure, with the equipment slots in two columns either side of it, a thin line from each slot to its place on the body. Press "Make my doll" to have it drawn from your portrait (it takes about a minute and costs 100 credits; add a portrait first). If you have no credits, the button reads "Ask my DM" instead. Your DM sees the request on the party page and can draw the doll from their own credits; you can withdraw the request until then. Your DM can also draw your doll without being asked. Until then you see a stand-in figure. The pictures are drawn once, then swapped by what you wear: underclothes, clothes, robes or light, medium or heavy armour. Other worn items show in their slots. The slots are: Head, Neck, Shoulders, Body, Clothes, Gloves, Ring, Waist, Boots, plus weapon slots (main/off hand) and other equip slots beside it. Clicking a filled slot opens the item; an empty slot opens an assignment picker. An attunement pip indicator shows filled/empty of the character's attuned-item slots. Equipping a non-ruined shield adds its AC bonus everywhere automatically.
+- **Paper doll**: your character's own figure, with the equipment slots in two columns either side of it, a thin line from each slot to its place on the body. Press **Make my doll** (**Redraw** once you have one) to have it drawn from your portrait (it takes about a minute and costs credits, shown beside the button; add a portrait first). If you have no credits, the button reads **Ask my DM** instead. Your DM sees the request on the party page and can draw the doll from their own credits; you can withdraw the request until then. Your DM can also draw your doll without being asked. Until then you see a stand-in figure. The pictures are drawn once, then swapped by what you wear: underclothes, clothes, robes or light, medium or heavy armour. Other worn items show in their slots. The slots are: Head, Neck, Shoulders, Body, Clothes, Gloves, Ring, Waist, Boots, plus weapon slots (main/off hand) and other equip slots beside it. Clicking a filled slot opens the item; an empty slot opens an assignment picker. An attunement pip indicator shows filled/empty of the character's attuned-item slots. Equipping a non-ruined shield adds its AC bonus everywhere automatically.
 - **Coin purse**: one editable row per coin your table uses, with inline +/–, and a **Drop Coins to Chat** button that deducts the chosen amounts and posts a currency-drop message to Campaign Chat.
 - **Carry weight**: a picture of your own character that sags under the load (unencumbered → encumbered → heavily encumbered → over encumbered), weight vs. capacity (STR × 15 lbs, doubled for Powerful Build), and a capacity override field (absolute value, `*2`, or `+30`).
 - **Containers**: a default Backpack and Belt, plus any inventory item promoted to a container (vault items tagged "container" auto-promote on add). Each container supports add, move (to another container, stash, or "stored"), quantity/split, drop-to-chat, sell (posts an offer to chat), and drag-to-reorder. Extradimensional containers contribute zero weight.
-- **Stored Elsewhere** and **Party Stash** sections for untethered items.
+- **Add container** to start another container, and **Stored Elsewhere** and **Party Stash** sections for untethered items.
 - Clicking an item opens its detail panel: art, description, rarity, weight, an attunement toggle, charge tracking, identify/consume/sell, and, for a document item (one carrying its own written content), a Written Contents section, the same one that appears in the Journal's tome tabs.
 
 All inventory changes sync live: anything you change on your side appears on the player's device immediately.

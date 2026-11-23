@@ -235,7 +235,15 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
     if (made !== null) allies[id] = made;
   }
   // `playedMemberId` rides the env so a Reaction in this turn (a struck ally's Shield) is the rules' only for the members the person does not play.
-  const withPlayed: ResolveEnv = command.playedMemberId === undefined ? callEnv : { ...callEnv, playedMemberId: command.playedMemberId };
+  // The played character's own block is made too (their Shield and Counterspell are theirs to choose, `askPlayed`), but kept off `allies`, which
+  // would make every rules decision (their defences, an opportunity attack) play them as it plays an ally. `playedBlock` is read by Reactions only.
+  const playedOwn = command.playedMemberId === undefined ? undefined : state.combatants.find((c) => c.type === "player" && c.party_member_id === command.playedMemberId);
+  const playedBlock = playedOwn === undefined || command.playedMemberId === undefined
+    ? null
+    : allyStatBlock(callEnv.players, command.playedMemberId, playedOwn.action_uses, playedOwn.conditions.some((c) => c.name === RAGING));
+  const withPlayed: ResolveEnv = command.playedMemberId === undefined
+    ? callEnv
+    : { ...callEnv, playedMemberId: command.playedMemberId, ...(playedBlock === null ? {} : { playedBlock }) };
   const env: ResolveEnv = allyIds.size === 0 ? withPlayed : { ...withPlayed, sources: { ...callEnv.sources, allies } };
   const block = statBlockOf(mover, env.sources);
   // A player character the server cannot read (no sheet, or a form whose block was not read) has no stat block here: a player takes their own turn.

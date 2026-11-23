@@ -1,4 +1,5 @@
 import type { ResolvedAction, TurnTaken } from "@/rules/fight/fightState";
+import type { ReactionAnswer, ReactionOffer } from "@/rules/fight/reactionOffer";
 
 export type BoardLine =
   | { kind: "margin"; text: string; tone?: "harm" | "end" }
@@ -89,4 +90,15 @@ export function linesOfCreatureTurn(input: CreatureTurnInput): BoardLine[] {
   if (turn.leftTheMap === true) lines.push({ kind: "margin", text: `${name} flees the fight` });
   if (lines.length === 0) lines.push({ kind: "margin", text: `${name} holds its ground` });
   return lines;
+}
+
+/**
+ * What the person's choice at a Reaction card says in the margin, before the turn's own lines. A cast says so; a pass says
+ * nothing extra, because the turn's own lines already show the hit that landed or the spell that was cast.
+ */
+export function linesOfReaction(offer: ReactionOffer, answer: ReactionAnswer, nameOf: (instanceId: string) => string): BoardLine[] {
+  if (answer === "pass") return [];
+  const who = nameOf(offer.reactorId);
+  if (offer.kind === "shield") return [{ kind: "margin", text: `${who} casts ${offer.spell}: armour class ${offer.shieldedArmorClass}` }];
+  return [{ kind: "margin", text: `${who} casts ${offer.counterSpell} at ${nameOf(offer.casterId)}'s ${offer.spell}` }];
 }

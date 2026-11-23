@@ -4,7 +4,7 @@ section: Characters
 section_order: 11
 order: 4
 summary: A shared library of iconic pre-generated characters you can drop into any campaign as an NPC.
-keywords: hall of heroes, hero, pregen, import, setting, npc
+keywords: hall of heroes, hero, heroes, pregen, premade, ready-made character, iconic character, import, setting, npc, add to campaign, famous npc
 ---
 
 The Hall of Heroes (**Compendium → Hall of Heroes** in the sidebar, `/hall-of-heroes`) is a library of ready-made, iconic characters, organised by D&D setting, that any DM can pull into a campaign as an instant NPC. It's shared across every campaign on Grimoire rather than owned by one, the same as the SRD compendium.
@@ -19,12 +19,11 @@ The Hall of Heroes (**Compendium → Hall of Heroes** in the sidebar, `/hall-of-
 
 ## Finding a hero
 
-Use the **search box** (name, species, occupation, tags) and the **Setting** filter to narrow the list. Heroes whose setting matches your active campaign's calendar/setting float to the top automatically and carry a small ✦ marker on their card.
+Use **Search heroes…** (name, species, occupation, tags) and the setting filter (**All Settings** by default) to narrow the list. The layout toggle at the top switches between cards and compact rows. Heroes whose setting matches your active campaign's calendar/setting float to the top automatically and carry a small ✦ marker on their card.
 
 ## Using a hero
 
-1. Open a hero's card, or click through to its detail page.
-2. Click **Add to Campaign**. This requires an active campaign: the button is disabled and shows "No active campaign" otherwise.
+1. Click **Add to Campaign** on a hero's card or row, or open its detail page and click it there. This requires an active campaign: otherwise the button is disabled, with "No active campaign" as its tooltip.
 3. The hero is imported as a new NPC into your active campaign's NPC list, and you're taken straight to **NPCs**.
 
 Adding a hero doesn't remove or alter the original: it copies the hero's stat block and lore into a fresh NPC row, so you're free to edit that NPC afterward without touching the shared library entry.
@@ -40,7 +39,7 @@ Each hero's page shows:
 
 ## Managing the Hall (app admins only)
 
-Adding, editing, and deleting heroes is restricted to app admins, since this is a library shared across every campaign on Grimoire rather than per-campaign content. The editor (**New Hero** / **Edit**) has:
+Adding, editing, and deleting heroes is restricted to app admins, since this is a library shared across every campaign on Grimoire rather than per-campaign content. The editor (**New Hero** on the list, **Edit** on a hero) saves with **Create Hero** or **Save Changes** and has:
 
 - Portrait with focal-point control.
 - **Setting**: picked from the list of D&D settings.

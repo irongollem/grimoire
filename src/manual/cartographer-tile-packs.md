@@ -4,10 +4,10 @@ section: Cartographer
 section_order: 10
 order: 2
 summary: Upload your own map art or generate a tile pack with AI, and share it with a campaign.
-keywords: cartographer, tile pack, custom tiles, upload, zip, manifest, webp, share pack, generate tiles, AI tiles, GPT Image, credits, retries, style proof, pro
+keywords: cartographer, tile pack, tile packs, tileset, art pack, custom tiles, upload, zip, manifest, webp, share pack, generate tiles, AI tiles, credits, retries, style proof, pro
 ---
 
-Open **Cartographer → Tile Packs** (the **Tile Packs** button on the map list) to manage your own custom map art. Grimoire also ships a set of built-in packs that admins illustrate over time: those appear directly in the map editor's pack picker and aren't managed from this page.
+Open **Tile Packs** (a button on the Cartographer's map list, **Publish → Cartographer**) to manage your own custom map art. Grimoire also ships a set of built-in packs that admins illustrate over time: those appear directly in the map editor's pack picker and aren't managed from this page.
 
 ## Key ideas
 
@@ -32,7 +32,7 @@ Generating a pack works on every plan: you need an active campaign selected, its
 1. Enter a **Concept name** (up to 100 characters) and a **Description** (up to 1,000 characters): materials, motifs, palette, and mood.
 2. Click **Create generation run**.
 
-Generation uses GPT Image 2 at low quality and spends credits one tile at a time. **Each tile costs 12 credits, and that includes up to three retries.** You're charged once when a tile first generates; regenerating it costs nothing until all four attempts are used, after which the tile shows **No retries left**. A complete required set is 16 drawn tiles (the sideways walls and doorway are the horizontal ones turned, so they cost nothing), so a full pack costs 192 credits whether you accept every tile on the first try or retry your way through all of them.
+Generation uses Grimoire's tile-art image model at low quality and spends credits one tile at a time. **Each tile costs 12 credits, and that includes up to three retries.** You're charged once when a tile first generates; regenerating it costs nothing until all four attempts are used, after which the tile shows **No retries left**. A complete required set is 16 drawn tiles (the sideways walls and doorway are the horizontal ones turned, so they cost nothing), so a full pack costs 192 credits whether you accept every tile on the first try or retry your way through all of them.
 
 The run first generates three **style proofs** (a floor, a wall, and a solid block) and pauses. Review them at their actual tile scale:
 

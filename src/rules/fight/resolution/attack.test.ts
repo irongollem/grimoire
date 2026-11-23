@@ -322,13 +322,16 @@ describe("rollToHit: a Reaction after the hit (reactToHit)", () => {
 
   // PHB 2014 "Shield": +5 AC, "including against the triggering attack". Wolf +4, d20 12: total 16 meets AC 13 (a hit), so the hook is asked with exactly
   // that; it answers AC 18, and 16 is short of 18: a miss, no damage rolled, 40 hit points left, the reaction named.
-  // Bugs caught: the roll never decided again after the reaction, the hook told the new AC instead of the one rolled against, the summary silent.
+  // The hook is also told who struck and with what (the person's React card names them): the wolf's "Bite".
+  // Bugs caught: the roll never decided again after the reaction, the hook told the new AC instead of the one rolled against, the summary silent, the attacker or the attack's name left out.
   it("fails if a hit the reaction turns into a miss still deals damage, or the hook is not given the roll it reacts to", async () => {
     const s = scripted([[12]]);
     const t = table([wolf(), victim()], { dice: s.dice });
     const asked: Array<{ natural: number; total: number; armorClass: number }> = [];
-    const done = await swing(withHook(t, async (_target, roll) => { asked.push(roll); return { spell: "Shield", armorClass: 18 }; }), t);
+    const by: Array<{ attackerId: string; attack: string }> = [];
+    const done = await swing(withHook(t, async (_target, roll, source) => { asked.push(roll); by.push(source); return { spell: "Shield", armorClass: 18 }; }), t);
     expect(asked).toEqual([{ natural: 12, total: 16, armorClass: 13 }]);
+    expect(by).toEqual([{ attackerId: "wolf", attack: "Bite" }]);
     expect(done.summary).toMatchObject({ hit: false, targetAc: 18, damageTotal: 0, reaction: { by: "victim", spell: "Shield" } });
     expect(s.asks).toHaveLength(1);
     expect(t.hp("victim")).toBe(40);

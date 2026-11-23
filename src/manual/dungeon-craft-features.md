@@ -4,7 +4,7 @@ section: Dungeon Craft
 section_order: 9
 order: 5
 summary: Define hidden doors, secret passages, treasure chests, and other dungeon secrets.
-keywords: feature, secret door, hidden passage, treasure chest, dungeon, discovery, dc, trigger, lever, glyph, placed in
+keywords: feature, features, secret door, hidden passage, treasure chest, dungeon, discovery, dc, trigger, lever, glyph, placed in
 ---
 
 **Dungeon Features** are the interactive secrets embedded in your environments: things players can find and interact with if they look carefully enough. Find them under **Compendium → Dungeon Craft**, the **Features** tab (`/dungeon-craft`, the default tab).
@@ -50,7 +50,7 @@ Click **New Feature** and fill in:
 - **Contents / What's Inside**: rich text describing what's revealed once the feature is found or opened.
 - **Description**: environmental context: how it blends in, what it looks like to a careful observer.
 - **Tags**, **Image**.
-- **Scope**: **General: all campaigns** or a specific campaign; new features default to your active campaign.
+- **Scope**: **General · all campaigns** or **Campaign · its name**; new features default to your active campaign.
 
 Your private notes on a feature live in the **DM notes** box on its page, saved as you type; see [DM Notes and the Scratchpad](#dm-notes-and-the-scratchpad).
 

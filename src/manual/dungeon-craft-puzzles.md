@@ -4,10 +4,10 @@ section: Dungeon Craft
 section_order: 9
 order: 2
 summary: Build rich puzzles with hints you reveal live to specific players during the session.
-keywords: puzzle, hint, share, reveal, player, skill check, solution, read-aloud, realtime, who, scope
+keywords: puzzle, enigmarium, riddle, library, hint, share, reveal, player, skill check, solution, read-aloud, realtime, who, scope
 ---
 
-Puzzles in Grimoire are more than notes: they're interactive experiences your players can engage with directly through the Player Portal. You write the puzzle; you reveal hints one by one during play; the players you've named read everything you've exposed in real time. Find them under **Compendium → Dungeon Craft**, the **Enigmarium** tab.
+Use puzzles to run riddles, locks and mechanisms the whole table can puzzle over. They are more than notes: they're interactive experiences your players can engage with directly through the Player Portal. You write the puzzle; you reveal hints one by one during play; the players you've named read everything you've exposed in real time. Find them under **Compendium → Dungeon Craft**, the **Enigmarium** tab.
 
 ## Key ideas
 
@@ -38,7 +38,7 @@ Click **New Puzzle**. The editor has several sections:
 - **Dungeon Feature**: a Dungeon Feature (e.g. the Secret Door concealing it) this puzzle is anchored to, if any.
 - **Tags**: freeform labels.
 - **Image**: a square image representing the puzzle (focal-point aware).
-- **Scope**: **General** (all campaigns) or a specific campaign; new puzzles default to your active campaign.
+- **Scope**: **General · all campaigns** or **Campaign · its name**; new puzzles default to your active campaign.
 
 **Setup:**
 
@@ -67,14 +67,14 @@ When a Location or Dungeon Feature is set, the puzzle's header shows a pill link
 
 ## AI puzzle generator
 
-Click **Generate** and describe a puzzle concept. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost, and if AI is off, the panel points you at the toggle instead of the form. Optionally constrain type and difficulty, and toggle an illustration if a key is configured. Grimoire produces the full puzzle including setup, hints, and solution.
+Click **Generate** to open the Puzzle Generator and describe a puzzle concept. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost, and if AI is off, the panel points you at the toggle instead of the form. Optionally constrain type and difficulty, and leave **Generate room illustration** on for a picture. **New Blank Puzzle** gives you an empty one instead. Grimoire produces the full puzzle including setup, hints, and solution.
 
 ## Revealing a puzzle to players
 
 Puzzles use Grimoire's one **Reveal** control: the same icon-and-label button used across the app. On the puzzle's page it reads **Hidden**, **N players**, or **Whole party** depending on who can currently see it. Click it to open the reveal popover (a bottom sheet on phones):
 
 1. **Who**: check the party members who should see this puzzle. This also sets the puzzle's campaign Scope to your active campaign the first time you reveal it (unless you already scoped it yourself), and un-hiding never changes a Scope you set by hand.
-2. **What**: under **HINTS GIVEN**, check off each hint as you reveal it at the table.
+2. **What**: under **HINTS GIVEN**, check off each hint as you reveal it at the table. On the puzzle's own page each hint also has a **Revealed** / **Hidden** button that does the same.
 
 Unchecking every party member hides the puzzle again and **clears every revealed hint**: the next group to meet it starts from the top.
 
@@ -100,6 +100,10 @@ A workflow that works well:
 3. Post the Read-Aloud text and read it out.
 4. Check off hints as the party spends actions investigating: skill checks, time, or clever roleplay.
 5. Once solved or abandoned, uncheck everyone to clear it from the portal and reset the hint ladder for next time.
+
+## Ready-made puzzles from the library
+
+Turn on a Dungeon Craft book with the **book icon** in the Dungeon Craft header and its puzzles appear in the Enigmarium. A library puzzle is read-only: click **Use in campaign** to copy it into your campaign, scoped to the active campaign, and open the copy to edit.
 
 ## Moving a puzzle between campaigns
 

@@ -4,7 +4,7 @@ section: NPC Tracker
 section_order: 4
 order: 1
 summary: Control which players see which NPCs, which fields are revealed, and who wrote which note.
-keywords: npc, visibility, player, field, share, reveal, disguise, per-player, favour
+keywords: npc, visibility, player, players, field, share, reveal, hide, show, disguise, alter ego, per-player, favour, party notes, who can see, secret identity, eye, whole party, location people
 ---
 
 Grimoire gives you fine-grained control over what players know about each NPC. Every NPC surface (the list card, the sheet header, the mobile bars) carries the same reveal (eye) button; open it from any of them and you're editing the one shared state.
@@ -29,7 +29,7 @@ Sharing an NPC with a player for the first time during a running session posts a
 
 ## 2. Which fields they see
 
-Below **VISIBLE TO**, the reveal popover's **THEY ALSO SEE** section lists five fields you can toggle independently:
+Below **VISIBLE TO**, the reveal popover's **THEY ALSO SEE** section lists the fields you can toggle independently:
 
 | Field | Notes |
 | --- | --- |
@@ -47,11 +47,11 @@ This is how you show a shadowy figure who is clearly alive and present, without 
 
 ## Location NPC sharing
 
-A location's **Share linked NPCs** toggle (in the Atlas) makes every NPC whose Location field points at *that* location visible to the players the location is shared with, even if the NPC's own **Visible to** setting doesn't list them. It only affects NPCs directly at that location, never ones in child locations, so an NPC tucked into a back room stays hidden. Field-level visibility still applies on top of this: an NPC surfaced this way shows only the fields you've shared for it.
+A place's **People here** switch (in its Reveal control in the Atlas) makes every NPC whose Location field points at *that* place visible to the players the location is shared with, even if the NPC's own **Visible to** setting doesn't list them. It only affects NPCs directly at that location, never ones in child locations, so an NPC tucked into a back room stays hidden. Field-level visibility still applies on top of this: an NPC surfaced this way shows only the fields you've shared for it.
 
 ## 3. Faction membership visibility
 
-If a party member joins a faction, every member of that faction becomes visible to that player automatically, regardless of the NPC's own **Visible to** setting: faction members are assumed to know each other.
+If a party member joins a faction, the NPCs who belong to that faction become visible to that player automatically, regardless of the NPC's own **Visible to** setting: faction members are assumed to know each other. A membership can also be hidden from players on its own, with the eye on its row in the NPC's Connections block or the faction's Members list.
 
 ## The Alter Ego and the SEEN AS control
 
@@ -63,7 +63,7 @@ On the NPC's **With the party** tab, each character's row has a **connection**: 
 
 ## Party notes
 
-When an NPC is shared with at least one player, a **Party Notes** panel appears near the top of the edit form: rich text visible to every player who can see the NPC, for knowledge the whole party shares.
+When an NPC is shared with at least one player, a **PARTY NOTES** panel appears near the top of the NPC's edit page: rich text visible to every player who can see the NPC, for knowledge the whole party shares.
 
 ## Player personal notes
 
@@ -71,7 +71,7 @@ Players can write their own private notes on any NPC they can see, from the Play
 
 ## Favours owed
 
-Favours (on the Relations tab) aren't player-visible at all: they're your own bookkeeping for what an NPC owes the party, settled when the debt is paid.
+Favours owed (on the Relations tab) aren't player-visible at all: they're your own bookkeeping for what an NPC owes the party, settled when the debt is paid.
 
 ## Tips
 

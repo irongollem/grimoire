@@ -4,7 +4,7 @@ section: Dungeon Craft
 section_order: 9
 order: 3
 summary: Create random encounter and event tables, generate one with AI, and roll on them in real time.
-keywords: roll table, random table, d20, d100, encounter link, roll, result, generate, ai
+keywords: roll table, random table, library, use in campaign, d20, d100, encounter link, roll, result, generate, ai
 ---
 
 Roll tables let you codify random events (wandering monster tables, wild magic surges, random NPC quirks, weather tables) and roll on them directly in Grimoire. Find them under **Compendium → Dungeon Craft**, the **Roll Tables** tab.
@@ -25,16 +25,17 @@ Roll Tables are fully **inline** inside the Dungeon Craft hub: there's no separa
 Click **New Roll Table**. Set:
 
 - **Name**: required.
-- **Die type**: 1d4, 1d6, 1d8, 1d10, 1d12, 1d20, or 1d100.
-- **Scope**: **General** (all campaigns) or a specific campaign; new tables default to your active campaign.
+- **Die**: 1d4, 1d6, 1d8, 1d10, 1d12, 1d20, or 1d100.
+- **Description**: when and where to use this table.
+- **Scope**: **General · all campaigns** or **Campaign · its name**; new tables default to your active campaign.
 - **Tags**.
 
-Then add **entries**. Each entry has:
+Then add **entries** with **Add row**. Each entry has:
 
 - **Min** and **Max**: the inclusive range of die results this entry covers (e.g. min 1, max 3 on a d20 covers results 1, 2, and 3).
-- **Label**: what happens on this result.
-- **Linked Encounter**: optionally link an encounter from your encounter list. Clicking the rolled result opens that encounter sheet directly.
-- **Notes**: DM-only notes about this result.
+- **What happens?**: the label for this result.
+- **Link encounter…**: optionally link an encounter from your encounter list. The rolled result then has an **Open encounter →** button that opens that encounter sheet directly.
+- **Notes for you only**: DM-only notes about this result (click **+ add note** to start one).
 
 ## Entry ranges
 
@@ -56,7 +57,7 @@ A sticky panel on the right of the detail view has a **Roll** button. Clicking i
 
 ## Editing inline
 
-Roll tables use an inline editing interface: entries are edited directly in the table grid without navigating to a separate form. Click any cell to edit it.
+An existing table opens to read; click **Edit** to change it. In edit mode the entries are rows you change in place, without a separate form.
 
 ## Asking the table: send a roll table to your players
 
@@ -114,7 +115,7 @@ From the table's own page, **Copy to campaign…** makes an independent copy els
 
 ## Campaign scoping
 
-Tables belonging to your active campaign, plus every General table, show together. **Populate Examples** seeds example tables into your active campaign.
+Tables belonging to your active campaign, plus every General table, show together. The library's example tables show up too once you enable a book with the **book icon** in the Dungeon Craft header: open one and click **Use in campaign** to copy it into your active campaign as your own table.
 
 ## Related
 

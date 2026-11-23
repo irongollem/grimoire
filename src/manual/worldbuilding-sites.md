@@ -4,7 +4,7 @@ section: World Building
 section_order: 2
 order: 1
 summary: Build a floor plan out of layered maps, rooms and doors, then explore the dungeon at the table on the Play screen, with fog, reachability and a room-by-room card.
-keywords: site, dungeon, room, map, cartographer, edit map, explore, run, fog, door, plan, drawing, picture, layers, readiness, level, floor, storey, stair, basement, tower
+keywords: site, dungeon, room, map, cartographer, edit map, explore, run, fog, door, plan, drawing, picture, base image, zoning, layers, readiness, level, floor, storey, stair, basement, tower, trace walls, find walls, publish, bring a map, battle map, secret door, locked door, progress, loot
 ---
 
 A **site** is any [Atlas](#atlas-locations) location with a floor plan: a Building, Dungeon, Store, Tavern, Inn or Wilds. Where an ordinary location places its children with pins on a picture, a site places them as traced **rooms** (or, on a Wilds site, **grounds**) on a real map you can draw, scan or photograph. Select a site in the Atlas and its pane has two tabs, **Overview** and **Map**, and an action bar at the top: **Reveal**, ambience, **Explore** and **Details**. The map itself is edited in a full-screen editor you reach with the **Edit map** button on the Map tab.
@@ -16,7 +16,7 @@ A **site** is any [Atlas](#atlas-locations) location with a floor plan: a Buildi
 | Overview / Map | The two tabs of every place. The Overview lists the rooms (add, reorder and set ambience right there), the ways out and the prepared material; the Map tab shows the map. There is no separate editing state. |
 | Edit map | The gilt button at the top-right of the Map tab. It opens the full-screen map editor and comes back to the Map tab when you press the back link. |
 | Explore | The **Explore** button opens the Play screen for the site: the party's tokens walk the map, with the rooms listed on the left and the room ahead on the right. The same screen runs a fight when one starts. |
-| The map stack | A site's map is up to three independent layers: **Picture** (a scan, photo, or AI-styled render), **Drawing** (a Cartographer map, shown as a transparent bake so the Picture shows through where nothing's painted), and **Plan** (the rooms, doors and zones traced on top). Any layer can be empty. |
+| The map stack | A site's map is up to three independent layers: the **Base image** (a scan, photo, or AI-styled render), the **Drawing** (a Cartographer map, shown as a transparent bake so the Base image shows through where nothing's painted), and the **Zoning** (the rooms, doors and zones traced on top). Any layer can be empty. |
 | Room / Grounds | An ordinary child of a site, typed Room (or, on a Wilds site, Grounds). Listed and ordered in the Rooms panel, and optionally traced as a shape on the map. |
 | Way out | A named, directional door between two rooms (or a room and a nested site): not the same mechanism as a plain location's "Related Locations." |
 | Level | One floor of a site: the site itself is level 1, and each further floor is its own place under it, with its own map and rooms. See "Floors and levels" below. |
@@ -24,15 +24,15 @@ A **site** is any [Atlas](#atlas-locations) location with a floor plan: a Buildi
 
 ## Turning a place into a site
 
-Set its **Type** to Building, Dungeon, Store, Tavern, Inn or Wilds in the location editor. The site apparatus (the Explore button, the Rooms panel, the map editor with its Plan) appears automatically once the type qualifies.
+Set its **Type** to Building, Dungeon, Store, Tavern, Inn or Wilds in the location editor. The site apparatus (the Explore button, the Rooms panel, the map editor with its Zoning) appears automatically once the type qualifies.
 
-## Building the map: Picture, Drawing and Plan
+## Building the map: Base image, Drawing and Zoning
 
-Open the **Map** tab of a site and press **Edit map**. A site with no map yet shows a card instead, with **Draw one**, **Bring a map** and **Blank grid**; each opens the same full-screen editor. A selector in the editor switches between the map's three layers, bottom-up:
+Open the **Map** tab of a site and press **Edit map**. A site with no map yet shows a card instead, with **Draw one**, **Bring a map** and **Blank grid**; each opens the same full-screen editor. Three tabs at the top of the editor switch between the map's layers, bottom-up: **Base image** (key 1), **Drawing** (key 2) and **Zoning** (key 3).
 
-1. **Picture**: a scan, screenshot or render. **Upload** (or **Replace**) adds it, and **Line up the grid** lays an amber grid over it: drag the grid to move it, use the arrow keys to nudge it a pixel, type how many squares fit across (the squares down follow from the picture's shape), or draw a box over one square and let the rest follow. Press **Done** to keep it or **Cancel** to drop it. Until the grid is lined up, rooms can't be traced onto the picture. **Remove** clears the picture and its grid. The same layer has a **This is a battle map, not a region** box: it no longer decides whether the map can be played, it only keeps a battle map out of the Atlas's geography zoom.
+1. **Base image**: a scan, screenshot or render. **Upload** (or **Replace**) adds it, and **Line up the grid** lays an amber grid over it: drag the grid to move it, use the arrow keys to nudge it a pixel, type how many squares fit across (the squares down follow from the picture's shape), or draw a box over one square and let the rest follow. Press **Done** to keep it or **Cancel** to drop it. Until the grid is lined up, rooms can't be traced onto the picture. Once it is, **Trace the walls** takes you to the Angled wall tool to draw over the picture's walls (they start hidden, since the picture already shows them), and **Find walls in the picture** proposes the outlines of the building for you to keep or fix. **Remove** clears the picture and its grid. The same layer has a **This is a battle map, not a region** box: it no longer decides whether the map can be played, it only keeps a battle map out of the Atlas's geography zoom.
 2. **Drawing**: the editor's own canvas, with the painting tools described in [Cartographer: Overview](#cartographer-overview). The Drawing autosaves; there's no Save button, and the top bar says **Saved** once it has. The Map menu has **Style it with AI…** (see below) and **Export for another VTT**.
-3. **Plan**: once a Picture or Drawing exists, tracing happens directly on the canvas; if neither does, **Blank grid** (pick columns × rows) gives you a plan with no image underneath it at all.
+3. **Zoning**: once a Base image or Drawing exists, tracing happens directly on the canvas; if neither does, **Blank grid** (pick columns × rows) gives you a plan with no image underneath it at all.
 
 ### Bringing a map you already have
 
@@ -45,11 +45,11 @@ Open the **Map** tab of a site and press **Edit map**. A site with no map yet sh
 
 ### Styling the Drawing with AI
 
-**Style it with AI…** in the Map menu re-renders your tile map in an artistic style, the same generator described in [Cartographer: Export & AI Style](#cartographer-export-ai-style), with the save target fixed to this site: there's no location to pick. Generating asks first, plainly, since saving has a real effect on your map stack: the styled render replaces this site's **Picture**, and the **Drawing** you were editing is set aside rather than deleted. It survives in your Cartographer, so you can reopen it (or start a fresh one), draw fixes on top of the new Picture, and style again. That's the loop: style, correct, style again, as many times as the map needs.
+**Style it with AI…** in the Map menu re-renders your tile map in an artistic style, the same generator described in [Cartographer: Export & AI Style](#cartographer-export-ai-style), with the save target fixed to this site: there's no location to pick. Generating asks first, plainly, since saving has a real effect on your map stack: the styled render replaces this site's **Base image**, and the **Drawing** you were editing is set aside rather than deleted. It survives in your Cartographer, so you can reopen it (or start a fresh one), draw fixes on top of the new Base image, and style again. That's the loop: style, correct, style again, as many times as the map needs.
 
-Each pass also sets the Picture's grid to match automatically, so the fresh Drawing you start next lines up with it right away. It's a first guess, not a guarantee, so check that the grid still looks right and use **Calibrate** if the AI drifted it a little.
+Each pass also sets the Base image's grid to match automatically, so the fresh Drawing you start next lines up with it right away. It's a first guess, not a guarantee, so check that the grid still looks right and use **Calibrate** if the AI drifted it a little.
 
-The Drawing row shows a **Review N changes** link once your Cartographer drawing has moved ahead of what was last published: see "Publishing a drawing" below.
+The Map menu's **Review changes to the site** entry carries a count once your Cartographer drawing has moved ahead of what was last published: see "Publishing a drawing" below.
 
 ### The Cartographer, full screen
 
@@ -66,13 +66,13 @@ Three ways to trace a room's shape once you're in the tool: drag-to-paint cells 
 
 ### Publishing a drawing
 
-**Publish to Atlas** (opened via the Map menu's **Review** entry, or from the Cartographer editor itself) reconciles your drawing with the site rather than overwriting it: rooms are matched by their traced shape, ways out by the edge they sit on, and prepared items by cell: nothing you've hand-edited on the Atlas side is silently discarded. The review shows exactly what will be added, matched or left alone before you confirm.
+**Publish to Atlas** (opened via the Map menu's **Review changes to the site** entry, or from the Cartographer editor itself) reconciles your drawing with the site rather than overwriting it: rooms are matched by their traced shape, ways out by the edge they sit on, and prepared items by cell: nothing you've hand-edited on the Atlas side is silently discarded. The review shows exactly what will be added, matched or left alone before you confirm.
 
 ## Rooms (or Grounds)
 
 The **Rooms** panel (headed **Grounds** on a Wilds site) lists every room as a numbered row, in the order you set. It is always editable, on the Overview:
 
-1. Type a name into the **Add a room…** box and press Enter (or click **Add**) to create one.
+1. Type a name into the **Add a room…** box (on a Wilds site it reads **Add grounds…**) and press Enter (or click **Add**) to create one.
 2. Drag a row by its handle to reorder.
 3. Click a room's name to open it; renaming and deleting a room are on its own **Details**.
 4. Set each room's own **Ambience**: inherits from the nearest themed ancestor by default; assign a theme label to override it, or pick "silence" to mute the room deliberately.
@@ -87,7 +87,7 @@ The result lands in the editor, not in the room: change anything you like, then 
 
 ## Ways out
 
-Every room has a **Ways out** section listing its doors. A site-wide view of the whole door graph is also available higher up the page. These lists read the doors; one that is not on the map yet says **not on the map** and offers **Place it**, which opens the editor on the Plan. Doors are added and edited in the editor's Plan:
+Every room has a **Ways out** section listing its doors. A site-wide view of the whole door graph is also available higher up the page. These lists read the doors; one that is not on the map yet says **not on the map** and offers **Place it**, which opens the editor on Zoning. Doors are added and edited in the editor's Zoning tab:
 
 1. Pick the room or nested site to connect to, a **kind** (Door, Arch, Stair, Shaft, Portal), and an optional **label** (read-aloud text: "iron grille," "collapsed stair").
 2. Check **One-way**, **Starts locked** (and add a **lock note**: what opens it), or **Secret** as needed.
@@ -121,7 +121,7 @@ Any location with a campaign, most often a room, can hold prepared loot in its *
 
 ## Exploring the site at the table
 
-Click **Explore** on a site in the Atlas (or on a beat staged there, see below) to open the Play screen, which fills the window. **‹ Atlas** in the top bar brings you back to the site's Map tab. A gilt **Exploring** chip says what you are doing, and **Start a fight** is always one click away.
+Click **Explore** on a site in the Atlas (or on a beat staged there, see below) to open the Play screen, which fills the window. A back link in the top bar returns you to the site's Map tab, a chip says you are exploring, and **Start a fight** is always one click away.
 
 - **The map.** The party's tokens stand on the site's map, and the fog shows over what the party has not seen, translucent so you can still read the map. It is the same fog the fights on this map use. As the characters walk, what they can see lifts it, and in **Remembered** mode (Campaign Settings) it stays lifted. Your players see their own version on the table screen and their phones. Click a square and everyone moves together, keeping their order. Click one token to send it alone; press Esc, or **Move everyone** on the left, to bring the party back. The tokens remember where they stood, so a fight that starts here begins with everyone in place.
 - **Stepping into a room.** When the lead token walks into a room, the party is now in that room and it is recorded as Explored. Nothing asks you first. If a fight is prepared in that room and has not been run, a note appears at the top: *Ambush at the crypt is set here.* **Start it** opens the fight live on the Play screen; **Not now** dismisses it while the party stays in that room.
@@ -133,13 +133,13 @@ Moving the party into a room is a single write to the campaign's current locatio
 
 ### Quests staged at a site
 
-A quest beat can be staged at a site, or at one specific room inside it (see [Running a Quest at the Table](#running-a-quest-at-the-table)). When one is, the room card shows a beat card with a **Resolve beat**/**Back to the beat** link into the quest's opened beat: the room stack you're looking at is the same read-aloud-and-payoff idiom the opened beat itself uses, because a room is, in effect, a zoomed-in beat. A room's **Cleared** fact can also satisfy a quest objective directly, authored from [Quest Story Flow](#quest-story-flow-beats-routes-objectives) or from the room's own Spaces panel in Build.
+A quest beat can be staged at a site, or at one specific room inside it (see [Running a Quest at the Table](#running-a-quest-at-the-table)). When one is, the room card shows a beat card with a **Resolve beat**/**Back to the beat** link into the quest's opened beat: the room stack you're looking at is the same read-aloud-and-payoff idiom the opened beat itself uses, because a room is, in effect, a zoomed-in beat. A room's **Cleared** fact can also satisfy a quest objective directly, authored from [Quest Story Flow](#quest-story-flow-beats-routes-objectives).
 
 ## What your players see
 
 Players never see your raw map or plan. What they get is composed fresh from what the party has actually explored: explored rooms in full, glimpsed rooms (sharing a known, non-secret door with an explored one) as a bare outline with no name or contents, and ways out only where at least one end has been explored: a locked door still draws as a plain door, with no lock note. Unexplored geometry, secret doors, hazard details, room notes and trap DCs are never sent to the client at all, not merely hidden by the UI.
 
-The site editor has its own **Preview as players** toggle so you can check exactly what a specific shared party member would see before a session, without changing any data.
+To check exactly what one character would see before a session, use the preview button on that character's row in the Party tracker, which shows the player portal as them without changing any data.
 
 ## Tips
 

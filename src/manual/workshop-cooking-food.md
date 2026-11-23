@@ -4,8 +4,10 @@ section: Workshop
 section_order: 8
 order: 2
 summary: The cooking discipline and food tags. Note: mechanical hunger tracking is not yet implemented.
-keywords: cooking, food, meal, ration, hunger, provision, cook, attempt craft, ingredient
+keywords: cooking, cook, food, meal, ration, hunger, starvation, provision, kitchen, attempt craft, ingredient, recipe, workbench
 ---
+
+Use this page to set up cooking recipes and see what players do with them. Cooking is a crafting discipline like any other, with a few food tags on top.
 
 ## Cooking as a crafting discipline
 
@@ -32,7 +34,9 @@ Cooking works exactly like every other discipline: see [Workshop Overview](#work
 
 ## What your players see
 
-A player crafts from their own **Crafting** page (`/play/crafting`) in the Player Portal. Once you've revealed at least one Cooking recipe to them, a **Cooking** tab appears alongside any other discipline they have recipes for. Each recipe card shows the DC, crafting time, expected outputs, and a green/red checkmark per ingredient against what the character is actually carrying (party stash counts too). Clicking **Attempt Craft** opens a dialog showing the ingredient slots, any proficiency/tools warnings, optional modifier checkboxes (workspace bonus, poor-quality ingredients, any recipe-specific bonus), and finally the roll itself: success adds the outputs to their backpack, a failure keeps every ingredient and costs only the time, and a critical failure ruins just the primary one, and the outcome is posted to the campaign chat automatically.
+A player crafts from their own **Crafting** page (**Crafting** in the Player Portal). Once you've revealed at least one Cooking recipe to them, a **Cooking** tab appears beside **All** and any other discipline they have recipes for. Each recipe card shows the DC, crafting time, expected outputs and a green/red checkmark per ingredient against what the character is carrying (the party stash counts too). The card's **Open workbench** button opens the cooking bench for that recipe.
+
+At the bench the player lays their ingredients into the slots (the first slot is the **Primary** ingredient), reads the ledger (the tools, whether they are proficient, and **Your situation**: the workspace bonus, any recipe-specific bonus and the quality of what they are spending) and clicks **Attempt craft**. Success adds the outputs to their backpack, a failure keeps every ingredient and costs only the time, and a critical failure ruins just the primary one. A window shows what happened with **Done** and **Try again**, and the outcome is posted to the campaign chat automatically. The **Experiment** button on the discipline's tab lets a player try to discover recipes by laying out ingredients: see [Workshop Overview](#workshop-overview).
 
 ## Food / hunger tracking
 

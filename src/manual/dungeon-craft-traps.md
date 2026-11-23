@@ -4,10 +4,10 @@ section: Dungeon Craft
 section_order: 9
 order: 1
 summary: Create mechanical and magical traps with damage, saves, DCs, CR balancing, and an AI generator.
-keywords: trap, traps, dc, damage, save, cr, mechanical, magical, trigger, detect, disarm, generate, ai, glyph, placed in
+keywords: trap, traps, traproom, hazard, dc, damage, save, cr, cr advisor, mechanical, magical, trigger, detect, disarm, generate, ai, glyph, placed in, library, customize, sources, copy
 ---
 
-Traps in Grimoire are fully defined mechanical entries that can be linked to encounters, dropped into rooms on your Atlas sites, and appear in the runner's DM sidebar during combat. Find them under **Compendium → Dungeon Craft**, the **Traproom** tab.
+Use traps to prepare hazards once and reuse them. A trap is a fully defined mechanical entry that can be linked to encounters, dropped into rooms on your Atlas sites, and shown in the runner during combat. Find them under **Compendium → Dungeon Craft**, the **Traproom** tab.
 
 ## Key ideas
 
@@ -33,7 +33,7 @@ The Traproom tab has a search box and a type filter; both persist as you navigat
 
 Click **New Trap**. The editor has several sections:
 
-**Identity:**
+**Identity** (a card at the top of the editor):
 
 - **Name**: required.
 - **Type**: one of the four above.
@@ -42,45 +42,46 @@ Click **New Trap**. The editor has several sections:
 - **Tags**: freeform labels.
 - **Description**: rich text narrative description.
 - **Image**: optional art.
-- **Scope**: **General** (all campaigns) or **Campaign** (*your campaign's name*). New traps default to your active campaign; switch to General to make one available everywhere.
+- **Scope**: **General · all campaigns** or **Campaign · *your campaign's name***. New traps default to your active campaign; switch to General to make one available everywhere.
 
 Your private notes on a trap live in the **DM notes** box on its page, saved as you type, not in this form; see [DM Notes and the Scratchpad](#dm-notes-and-the-scratchpad).
 
-**Trigger:**
+**Mechanics:**
 
-- **Trigger type**: Tripwire, Pressure Plate, Proximity, Visual, Sound, Magic Sensor, Manual, or Other.
+- **Trigger**: Tripwire, Pressure Plate, Proximity, Visual, Sound, Magic Sensor, Manual, or Other.
 - **Detection DC**: Perception check to notice the trap.
 - **Disarm DC**: Thieves' Tools (or other skill) check to safely disarm.
 - **Trap HP**: hit points the trap has if it can be physically destroyed.
 - **Trap AC**: armour class for that same purpose.
-- **Damage immunities**: damage types the trap is immune to (defaults to poison and psychic).
-- **Reset**: None (one use), Automatic (resets each round), or Manual (someone has to reset it).
+- **Damage Immunities**: damage types the trap is immune to (defaults to poison and psychic).
+- **Reset**: **None**, **Automatic** or **Manual** (someone has to reset it).
 
 **Effect:**
 
-- **Effect description**: what happens when the trap triggers.
-- **Attack bonus**: if the trap makes a ranged or melee attack (e.g. crossbow bolt).
-- **Save type**: the saving throw victims make (STR through CHA).
+- **Effect Description**: what happens when the trap triggers.
+- **Attack Bonus**: if the trap makes a ranged or melee attack (e.g. crossbow bolt).
+- **Save Type**: the saving throw victims make (STR through CHA).
 - **Save DC**: the difficulty class of that save.
-- **Damage entries**: one or more dice expressions with damage types (e.g. `3d6 fire`, `2d8 piercing`). Multiple entries support secondary effects like ongoing poison.
+- **Damage**: one or more dice expressions with damage types (e.g. `3d6 fire`, `2d8 piercing`); click **+ Add** for another. Multiple entries support secondary effects like ongoing poison.
 
 ## CR Advisor
 
-Click **Suggest** next to the CR field to open a guided calculator. Answer five questions:
+Click **Suggest** next to the CR field to open the **CR Advisor**, a guided calculator that balances a trap against your party. Answer:
 
-1. **Primary effect**: Damage, Condition, Terrain, Alarm, or Death.
-2. **Damage dice** (if Damage): how many dice and what size.
-3. **Area of Effect**: Single target, Small (≤3), or Large (4+).
-4. **DC Difficulty** (highest of detection / save): Low (≤12), Moderate (13–16), High (17–20), or Extreme (21+).
-5. **Secondary effect**: None, Minor condition, Major condition (stunned/paralysed), Ongoing, or Barrier/split party.
+1. **Primary Effect**: Damage, Condition, Terrain, Alarm, or Death.
+2. **Damage Dice** (if Damage): a dice expression such as `2d10+3`.
+3. **Area of Effect**: Single target, Small area (≤3), or Large area (4+).
+4. **DC Difficulty** (highest of detection / save): Low (≤12), Mod (13–16), High (17–20), or Extreme (21+).
+5. **Secondary Effect**: None, Minor condition, Major condition, Ongoing damage, or Barrier / split.
+6. **Reset**, and a **Save-or-die mechanic** checkbox.
 
-The advisor outputs a suggested CR with a range, the contributing factors, and comparable example traps for reference. Click **Use CR X** to accept the suggestion and close the dialog.
+The advisor shows a **Suggested CR** with the contributing factors and reference benchmarks. Click **Use CR X** to accept it and close the dialog.
 
 ## AI trap generator
 
 Click **Generate** to open the Trap Generator panel. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost, and if AI is off, the panel points you at the toggle instead of the form; click **New Blank Trap** to skip AI entirely.
 
-1. Write a **Concept**: what the trap is and does, in plain language (e.g. "a pressure plate in a dungeon corridor that triggers a volley of poisoned darts from hidden alcoves in the walls…").
+1. Write the concept: what the trap is and does, in plain language (e.g. "a pressure plate in a dungeon corridor that triggers a volley of poisoned darts from hidden alcoves in the walls…").
 2. Optionally narrow **Type** and **CR** under Constraints.
 3. Toggle **Generate trap illustration**; if your campaign has an OpenAI key and a group portrait, an **Add party to scene** toggle also appears.
 4. The credit cost (or **Balance** if you're short) shows above the button. Click **Generate with AI**.
@@ -89,7 +90,7 @@ The generator fills in type, DCs, damage, save, effect description, and (if requ
 
 ## Linking traps to encounters
 
-In any encounter's **Traps** section, add references to your trap entries. During the live encounter runner, these traps appear in the **DM Tools sidebar** with their type, DC, and damage dice visible at a glance, so there's no need to remember the details during a fast-paced session.
+In any encounter's **Traps** section, add references to your trap entries. In the live runner these traps show as chips above the initiative list (in **Combat tools** on a phone) with their save DC and damage visible at a glance, so there's no need to remember the details during a fast-paced session.
 
 ## Placing a trap in your world
 
@@ -99,9 +100,9 @@ A trap's own page has a **Placed In** panel showing every room it's dropped into
 
 From the trap's own editor, **Copy to campaign…** makes an independent copy in another campaign you DM. From the Traproom tab, click **Select** to multi-select traps, then **Move** or **Copy** them as a batch.
 
-## Populate Examples
+## Ready-made traps from the library
 
-Click **Populate Traproom** to seed ~40 pre-built trap entries covering all four types and a range of CRs. Use them as-is or as reference templates.
+Dungeon Craft has a library of ready-made traps. It is off until you turn it on: click the **book icon** (**Manage Dungeon Craft sources for this campaign**) in the Dungeon Craft header and enable the books you want. Their traps then appear beside your own, and you can place them in rooms and encounters as they are. A library trap is read-only: click **Customize** ("Customize it to make your own editable copy.") to get a copy you can edit. A trap of your own with the same name as a library trap hides the library one.
 
 ## Related
 

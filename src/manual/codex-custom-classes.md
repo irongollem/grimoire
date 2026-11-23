@@ -4,14 +4,14 @@ section: Characters
 section_order: 11
 order: 1
 summary: Design homebrew classes with spellcasting and level features, and subclasses that add their own.
-keywords: class, custom class, homebrew, spellcasting, hit die, level, archetype, subclass, oath spells, domain spells, granted spells, ability score improvement, features per level
+keywords: class, custom class, homebrew, spellcasting, hit die, level, archetype, subclass, oath spells, domain spells, granted spells, expanded spell list, third caster, eldritch knight, wild shape, jack of all trades, duplicate, ability score improvement, features per level, proficiencies
 ---
 
 Custom classes let you design entirely new character classes from the ground up, with full spellcasting and a feature at every level you choose, for your players to pick during character creation.
 
 ## Opening the class editor
 
-Go to **Character Codex → Classes** and click **New Class** (or open an existing custom class and click **Edit**). The editor is split into several sections; a read-only summary sheet is shown until you click Edit.
+Go to **Character Codex → Classes** and click **New Class** (or open an existing custom class and click **Edit**). The editor is split into four sections, **Identity**, **Proficiencies**, **Features per Level** and **Spellcasting**; a read-only summary sheet is shown until you click Edit. **Create** (or **Save** on an existing class) is at the top, beside **Cancel** and **Delete**. The official classes are read-only: press **Duplicate** on one to get a copy to customise.
 
 ## Generating a class with AI
 
@@ -28,6 +28,8 @@ The generator reads your campaign setting and your ruleset, and each generation 
 - **Primary Ability**: free text describing the main ability score this class scales from (e.g. "Strength or Dexterity").
 - **Subclass-Granting Level**: which level the character chooses their archetype (typically 1–3).
 - **Campaign Scope**: the current campaign, or **All my campaigns**.
+- **This class can Wild Shape**: gives the class the druid's Wild Shape, with its forms, uses and the sheet's Wild Shape tab.
+- **This class has Jack of All Trades**: from 2nd level in the class, half the proficiency bonus on a check made without proficiency (any ability check under the 2014 rules, initiative too; only a skill check under 2024).
 
 ## Proficiencies
 
@@ -37,7 +39,7 @@ The generator reads your campaign setting and your ruleset, and each generation 
 
 ## Features per Level
 
-For each class level (1–20), add one or more **abilities** from the Abilities compendium. Type the ability name in the search box and click to assign it. This drives what appears on the player's character sheet **Features** tab once they reach that level.
+For each class level (1–20), add one or more **abilities** from the Abilities compendium. Choose a level in the **Level…** list and press **Add level** to open a row for it, then pick abilities in that row's **Add feature…** box. Each one shows as a chip, and the **×** on a chip takes it off. This drives what appears on the player's character sheet **Features** tab once they reach that level.
 
 ### Ability Score Improvement
 
@@ -49,13 +51,13 @@ A class no longer has separate lists of resource pools or level-up prompts. What
 
 ## Spellcasting
 
-Toggle the **Spellcasting** switch on to reveal the configuration:
+Switch **Spellcasting** to On to reveal the configuration:
 
 - **Caster Type**: Prepared (Cleric, Druid), Spellbook (Wizard), or Known (Bard, Sorcerer, Warlock).
 - **Slot Recovery**: Long rest or Short rest.
-- **Spells Known Table**: check to track a level-based "spells known" count (Known casters).
-- **Cantrips Known Table**: check to track cantrips known per level.
-- **Prepared Spell Ability**: WIS, INT, or CHA (Prepared/Spellbook casters only).
+- **Spells Known Table**: tick "Known caster" to track a level-based "spells known" count (Known casters).
+- **Cantrips Known Table**: tick "Track cantrips known per level".
+- **Prepared Spell Ability**: Wisdom, Intelligence or Charisma (Prepared/Spellbook casters only).
 - **Prepared Spell Scaling**: Full level (Cleric, Druid, Wizard) or Half level (Paladin, Artificer).
 - **Spell slot grid**: a 20-row × 9-column table. Enter how many slots of each level the class has at each character level; leave a cell at 0 where no slots exist.
 
@@ -63,7 +65,7 @@ Toggle the **Spellcasting** switch on to reveal the configuration:
 
 Archetypes are subclasses: Oaths, Domains, Circles, Martial Archetypes, and so on. They attach to a base class (one of the SRD classes or a custom class) and add their own features (and, for casters, granted spells) from the subclass-granting level onward.
 
-Open **Character Codex → Archetypes** and click **New Archetype**. The official subclasses (the SRD ones and those of the other open books) come with the app and are listed already; you can read them but not edit them. When the list is empty you'll also see **Load example** (a fully-worked demo archetype to edit).
+Open **Character Codex → Archetypes** and click **New Archetype**. The official subclasses (the SRD ones and those of the other open books) come with the app and are listed already; you can read them but not edit them. When the list is empty you'll also see **Load example** (a fully-worked demo archetype to edit). Archetypes can be filtered by class with the **All classes** list.
 
 The archetype editor has:
 
@@ -80,6 +82,10 @@ If AI is switched on for your campaign, **Character Codex → Archetypes** also 
 
 Same as class features: for each level, pick **abilities** from the Abilities compendium. These appear on the player's **Features** tab. For an Oath of the Ancients paladin you might add, at level 3: *Oath Spells*, *Channel Divinity: Nature's Wrath*, and *Channel Divinity: Turn the Faithless*.
 
+### Spellcasting of its own
+
+An archetype on a class that has no spellcasting (an Eldritch Knight, an Arcane Trickster) can cast by itself. Under **Spellcasting**, press **Add spellcasting** and choose the **Ability**, the **Spell List** it draws from and the **Caster Type**, then fill in the slot, known-spell and cantrip table by class level. If the base class already casts, the editor warns you.
+
 ### Granted Spells per Level
 
 This is how you model **oath spells, cleric domain spells, and druid circle spells**: spells the subclass grants automatically. Pick a level, then use **Add spell…** to pick a spell from the shared spell library or your own custom spells for that level.
@@ -93,6 +99,8 @@ Worked example: **Oath of the Ancients** oath spells:
 - **9**: Plant Growth, Protection from Energy
 - **13**: Ice Storm, Stoneskin
 - **17**: Commune with Nature, Tree Stride
+
+Two more sections sit below. **Spells by Choice** is for grants that depend on something the character picks, such as a Circle of the Land terrain: name what the player chooses (**What the player chooses**), add each option with **Add option**, and set the spells each option grants. **Expanded Spell List** adds spells to the class's list that the character still has to choose and that count toward spells known, as a Warlock patron does.
 
 > If a granted spell isn't in the shared spell library, create it first as a custom spell (Spellbook), then pick it here. Custom spells live in your own account, so book-only content stays private to your campaign.
 

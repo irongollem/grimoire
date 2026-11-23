@@ -3,11 +3,11 @@ title: Custom Rule Trackers
 section: Reliquary
 section_order: 12
 order: 2
-summary: Attach a mechanical tracker to any house rule so it appears on the player character sheet.
-keywords: tracker, custom rule, level, points, pool, dc, saving throw, speed penalty, character sheet, player
+summary: Attach a tracker, such as corruption, sanity or honour, to a house rule so the table can see and adjust it.
+keywords: tracker, track, sanity, corruption, hunger, madness, honour, counter, pool, buttons, dm buttons, tracks, tracker buttons, custom rule, level, points, pool, dc, saving throw, speed penalty, character sheet, player
 ---
 
-A **Tracker** is an optional mechanical bolt-on for any custom rule, added from the **Tracker** section at the bottom of the rule editor (**Reliquary → Custom Rules**, open or create a rule). Click **Add Tracker** to attach one, or **Remove** to drop it. When you attach a tracker, it appears on each player's character sheet automatically: players interact with it directly, and the values are stored per-character.
+A **Tracker** is an optional bolt-on for a custom rule that follows a value over time for each character: corruption, sanity, hunger, honour. Add it from the **Tracker** section of the rule editor (**Reliquary → Custom Rules**, then **New Rule**, or open a rule and press **Edit**). Click **Add Tracker** to attach one, or **Remove** to drop it, and press **Save Rule**. When you attach a tracker, it appears on each player's character sheet automatically: players interact with it directly, and the values are stored per-character.
 
 ## When to use a tracker
 
@@ -36,9 +36,9 @@ A set of named states: the character is always in exactly one level, determined 
 
 Click **Add Level** for each state. Every level has:
 
-- **Value**: a number, or an ability code (STR/DEX/CON/INT/WIS/CHA) if you want the threshold to scale with the character's modifier in that ability.
+- **VAL**: a number, or an ability code (STR/DEX/CON/INT/WIS/CHA) if you want the threshold to scale with the character's modifier in that ability.
 - **Level name**.
-- **Colour**: the badge colour shown on the character sheet, or "no color".
+- **Colour**: Green, Yellow, Orange, Red, Blue or Purple for the badge shown on the character sheet, or "no color".
 - **Effects** (click **+ add effect**, any combination): **Note** (a reminder label), **Speed penalty** (a number), **Disadv. ability checks** / **Disadv. saving throws** (optionally scoped to specific abilities, blank = all), **Exhaustion level** (1–6), or **Saving throw** (an ability, a base DC, and an optional "+VAL" to add the tracker's current value to the DC).
 
 ## Tracker Buttons
@@ -52,7 +52,7 @@ Click **Add Button** to give the tracker one-click adjustments. Each button has:
 
 ## How trackers appear to players
 
-Once you save a rule with a tracker, a **Tracks** widget appears on every player's character sheet. It shows the tracker's label, the current level badge (Level type) or a numeric bar (Points type), and any active level effects as small reminder text underneath. Any button you marked **Players** appears there too, so the player can apply it themselves; buttons you left DM-only don't. DMs see the same tracker and its full button set from the party panel.
+Once you save a rule with a tracker, a **Tracks** widget appears on every player's character sheet. It shows the tracker's label, the current level badge (Level type) or a numeric bar (Points type), and any active level effects as small reminder text underneath. Any button you marked **Players** appears there too, so the player can apply it themselves; buttons you left DM-only don't. You see the same tracker and its full button set on the dashboard, in the party widget and in a **Rule tracker** widget you can add for a single rule.
 
 ## What tracker effects do (and don't do)
 

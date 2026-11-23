@@ -3,23 +3,27 @@ title: Journal, Party & Live Play
 section: Player Portal
 section_order: 15
 order: 3
-summary: The Journal (with Quest Log, Puzzles, and document tomes folded in), the People tab, the live encounter panel, and player Settings.
-keywords: journal, quest log, puzzles, tomes, party, companions, people, reliquary, live encounter, initiative, settings, notifications
+summary: The player's Journal tabs (including My story, The World, Handouts and Notice Boards), the People tab, the Reliquary and the player Settings.
+keywords: journal, my story, backstory, the world, handouts, notice boards, quest log, puzzles, tomes, people, ledger, npcs I met, player settings, low art, songs, keep screen awake, party, companions, people, reliquary, live encounter, initiative, settings, notifications
 ---
 
 This page covers the parts of the portal built around the party and the table, rather than one player's own character: the **Journal**, the **People** tab, the live-encounter panel, the player **Reliquary**, and **Settings**.
 
 ## Journal
 
-Five tabs, each with a live count badge:
+The tabs, each with a count badge or a dot when something is new:
 
-- **My Journal**: private entries only the player sees.
+- **My Journal**: private entries only the player sees, with a category filter.
+- **My story**: the character's backstory, written together with you. It starts with the player's own **Before play** text, then the passages you have told, marked **Told by the DM**. The player can **Add to my story** with their own passages, shared with the party by default (**Share with the party**). A passage you haven't told never appears.
 - **Party Journal**: entries any player has marked Shared.
-- **Quest Log**: every quest with a beat the party has heard of or seen, grouped by status (Active / On Hold / Completed / Failed). This *is* the player's quest list: there's no separate Quests tab in the nav bar.
+- **The World**: the canon as this player may read it. **Only you know** holds truths marked for their character or faction, **What we know** holds truths known to all, and **Found out** holds the lore you have shared, with its passages in the order told. The session recaps you have shared appear here too.
+- **Quest Log**: every quest with a beat the party has heard of or seen, grouped by status (Active, Completed, Failed). This *is* the player's quest list: there's no separate Quests tab in the nav bar.
 - **Puzzles**: every puzzle you've shared, with hint counts. Also not a separate nav tab.
 - **DM Notes**: a read-only view of session notes you've shared with this player.
+- **Handouts**: the Scriptorium handouts you have shared with them.
+- **Notice Boards**: the notice boards you have revealed, each with a **Presenting now** chip while you are showing it to the table. Tapping a notice reads it, and **Take this notice** only works while you are presenting the board.
 
-A journal entry has a category (Adventure, Clue, Discovery, Session, Character, Rumor, each colour-coded), an optional title, a rich-text body, an optional link to a quest/NPC/location/item/monster/encounter, and a Private/Shared toggle a player can flip any time after creating it.
+A journal entry has a category (Adventure Log, Clue, Discovery, Session Log, Character, Rumor, each colour-coded), an optional title, a rich-text body, an optional link to a quest/NPC/location/item/monster/encounter, and a Private/Shared toggle a player can flip any time after creating it. The **Add to journal** pad on the Hearth's **Your notes** opens a new entry with what was typed there.
 
 **Document tomes.** Below the main tabs, a second pill row shows one tab per inventory item the party is currently carrying that has written content (a ledger, a contract). A tome appears the moment the party picks the item up and disappears the moment it leaves the inventory: it isn't something you or the player manage separately. Clicking one opens the same threaded, append-only writing surface used everywhere a document item appears; whether a player can add to it (not just read it) depends on the item's **content player-writable** flag, which you set in the [Item Vault](#vault-overview) editor.
 
@@ -33,39 +37,35 @@ Labelled **People** in the nav bar. Two parts: the party, and the ledger of ever
 
 **New to you**: someone you have just shared with this character arrives face down, on an ornate card with "Someone new" and where they met. The player taps to turn it over and meet them. When you reveal a disguised NPC's true self, their card waits face up as the face the party knew and turns to the truth ("You knew them as…"), once for each player. Nobody waiting here is in the ledger yet, so it never spoils the moment.
 
-**The ledger**: one line per person: portrait, name ("???" if you haven't shared it), species and occupation, how they regard the party, and a status only when it isn't "alive" (the dead are struck through, their portrait greyed). Players sort it by their own star rating (1 to 5, the default), by when they met each person (grouped by day), by place (grouped under the place each person lives, "Whereabouts unknown" last) or by name, and filter by relationship, status and place. A **Portraits** toggle shows the same people as cards. Tapping someone opens their page: what they know, the **connection** you wrote for this character on the NPC's **With the party** tab (only when you wrote one), and the player's own notes. On a tablet in landscape the ledger and the person's page sit side by side.
+**The ledger**: one line per person: portrait, name ("???" if you haven't shared it), species and occupation, how they regard the party, and a status only when it isn't "alive" (the dead are struck through, their portrait greyed). **Search people…** finds someone by name. Players sort with the sort control (their own star rating is the default, or when they met each person, place, or name) and filter by relationship, status (Alive, Dead, Missing, Unknown) and place under **Sort and filter**; **Clear** resets them. **Ledger** and **Portraits** switch the same people between lines and cards. Tapping someone opens their page: what they know, the **connection** you wrote for this character on the NPC's **With the party** tab (only when you wrote one), and the player's own notes. On a tablet in landscape the ledger and the person's page sit side by side.
 
 ## Live Encounter panel
 
-A full screen on a phone; a persistent left sidebar (drag-resizable) on tablet and up, auto-opened the moment you start a fight.
-
-Players get a toast the instant an encounter starts, plus a pulsing **Live** pill in the header. The panel shows: initiative order, a **Roll** button on their own "YOUR INITIATIVE" chip (rolls d20+DEX through the shared dice system) while they have no initiative yet, current-turn highlighting with an audio chime on their turn, their own HP/conditions updating live, and stat blocks for any monster they've discovered.
-
-**Before combat starts (lobby only):** if the player owns any companions, a strip lets them toggle each one **Joining**/**Elsewhere**, and your runner watches that same status live, so a benched companion never needs manual removal from your side.
-
-The subscription stays live even if the player navigates elsewhere in the portal.
+When you start a fight, a pulsing **Live** button appears in the player's top bar and the encounter panel shows initiative, turns, health, the battle map and companions. It has its own page: see [Fights on Your Phone](#fights-on-your-phone).
 
 ## Reliquary (rules reference)
 
-Five tabs: **Reference** (quick-reference cards), **Compendium** (the same rules browser you use), **Codex** (species/backgrounds/classes/archetypes), **House Rules** (only the custom rules you've marked player-visible), and **Licenses** (attribution: the same page you see, because the notices have to reach everyone who sees the content). Players can't create or edit anything here.
+Five tabs: **Reference** (the quick-reference tables), **Compendium** (the same rules browser you use), **Codex** (species, backgrounds, classes and subclasses), **House Rules** (only the custom rules you've marked **Visible to Players**), and **Licenses** (attribution: the same page you see, because the notices have to reach everyone who sees the content). Players can't create or edit anything here.
 
 ## Settings
 
 Reached from the hamburger menu. Sections, top to bottom:
 
-- **Display Name**: how the player appears to you and the rest of the party.
-- **Install App**: PWA install prompt.
+- **Display Name**: how the player appears to you and the rest of the party. Each campaign keeps its own.
+- **Install App**: install prompt, so the portal sits on the home screen like an app.
+- **Songs**: the music you have shared with the table, as big picture buttons anyone can tap.
 - **My Character**: claim or switch their linked character, or create a new one.
-- **Upcoming Sessions** / **Session Availability**: Yes/No response to your proposed session dates.
+- **Upcoming Sessions** and **Session Availability**: the player's answer to your proposed session dates.
 - **Calendar Subscription**: an iCal feed URL that includes both confirmed and tentatively-proposed sessions.
-- **Navigation**: drag-to-reorder the bottom bar (first 4/7 promote to the quick bar).
-- **Email Notifications**: separate toggles for "Shared session notes" and "Session date proposals".
-- **Combat Notifications**: "Turn audio cue" and "Dice roll sounds" toggles.
-- **Dice**: choose where rolls come from (the built-in digital roller, or a physical-dice entry mode).
-- **Appearance**: your own theme. **Follow campaign** uses the look your DM chose; or pick any of the same themes your DM can choose from. Your pick applies at tables you play at; a campaign you run keeps the theme you chose for it. Also a chat-timestamp locale override.
-- **Screen**: a wake-lock toggle to keep the device awake during long sessions.
-- **App**: a force-reload if the app looks stuck or stale.
-- **Account**: links out to the account page for billing and account-level settings.
+- **Navigation**: drag-to-reorder the bottom bar (the first 4 on a phone, 7 on a tablet, sit in the quick bar).
+- **Email Notifications**: **Session date proposals** (not shown for a child account). Things you share during play show up in the app, not by email.
+- **Combat Notifications**: **Turn audio cue**, **Dice roll sounds** and **Workshop sounds** toggles.
+- **Dice**: **Dice source**, where rolls come from (the built-in digital roller, or a physical-dice entry mode).
+- **Appearance**: your own theme. **Follow campaign** uses the look your DM chose; or pick any of the same themes your DM can choose from. Your pick applies at tables you play at; a campaign you run keeps the theme you chose for it. There is also a chat-timestamp locale override under **Timestamps**.
+- **Screen**: **Keep screen awake** keeps the device from sleeping during long sessions, where the device allows it.
+- **App**: **Reload app** if the app looks stuck or stale.
+- **Pictures**: **Show AI labels** (turning them off hides them on this player's screen only) and **Low art**, which swaps pictures in lists and sheets for text. Maps, Book Nooks, handouts and the gallery are not affected.
+- **Account**: **Manage account & billing →** goes to the account page.
 
 ## Tips
 

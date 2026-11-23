@@ -4,10 +4,10 @@ section: Campaign & Account
 section_order: 16
 order: 1
 summary: Your plan, AI credit balance, and where to upgrade, manage payment, or buy more credits.
-keywords: billing, subscription, pro, credits, stripe, plan, upgrade, cancel, downgrade
+keywords: billing, subscription, pro, credits, buy credits, stripe, plan, price, upgrade, cancel, cancel subscription, downgrade, payment method, invoice, free plan, limits, quota, manage billing, renewal
 ---
 
-The Billing page shows your current plan and AI credit balance, and is where you upgrade to Pro, manage payment, or buy more credits. Open it from the account menu at the bottom of the sidebar (click your name, then **Billing**), or go straight to `/billing`. It's account-wide: one plan and one credit balance cover every campaign you DM, and only DMs see the **Billing** entry in the account menu.
+Use this page to see what you are paying for and what you have left: your plan, your free-plan limits, and your AI credit balance. The Billing page shows your current plan and AI credit balance, and is where you upgrade to Pro, manage payment, or buy more credits. Open it from the account menu at the bottom of the sidebar (click your name, then **Billing**), or go straight to `/billing`. It's account-wide: one plan and one credit balance cover every campaign you DM, and only DMs see the **Billing** entry in the account menu.
 
 ## Key ideas
 
@@ -20,7 +20,7 @@ The Billing page shows your current plan and AI credit balance, and is where you
 The plan card shows **Free DM** or **Pro DM**, plus a status pill (**active**, **trialing**, **past_due**, etc.) once you've ever had a subscription. Below that:
 
 - If a cancellation is scheduled, it reads **"Cancels [date]. Pro access until then."** rather than a renewal date. Cancelling from the Stripe portal doesn't cut you off immediately, it lets the current billing period run out.
-- Otherwise, an active Pro subscription shows its next renewal date.
+- Otherwise, an active Pro subscription reads **Renews [date]**.
 - A **past_due** subscription shows a payment-failure warning; update your payment method to restore access.
 - A subscription that has fully ended shows "Your Pro subscription has ended."
 - If a cancellation is pending **and** you're currently over what the Free plan allows on something (campaigns, etc.), a warning box lists exactly what will be locked (not deleted) once Pro access ends, with your current count and the free-plan limit for each.

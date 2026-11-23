@@ -4,10 +4,10 @@ section: Campaign & Account
 section_order: 16
 order: 2
 summary: Let an external AI assistant like Claude read and edit your campaigns by conversation.
-keywords: mcp, oauth, connector, claude, ai assistant, connected apps, voice coach, soundboard
+keywords: mcp, oauth, connector, connector url, claude, claude desktop, claude.ai, claude code, chatgpt, external ai, ai assistant, connected apps, revoke, disconnect, voice coach, soundboard, ai connections
 ---
 
-Grimoire can act as a data source for your own AI assistant (Claude Desktop, claude.ai, or Claude Code), so you can ask it for an NPC's backstory, a monster's stat block, or a recap of an active quest instead of clicking through pages. It is a connector that lets an *external* AI tool work with your Grimoire data by conversation, separate from the in-app AI generation used for portraits and stat blocks. Set it up from **Campaign → Settings → AI Connections** (`/campaign/settings`).
+Grimoire can act as a data source for your own AI assistant (Claude Desktop, claude.ai, or Claude Code), so you can ask it for an NPC's backstory, a monster's stat block, or a recap of an active quest instead of clicking through pages. It is a connector that lets an *external* AI tool work with your Grimoire data by conversation, separate from the in-app AI generation used for portraits and stat blocks. Set it up from **Campaign → Settings → AI Connections**. Every DM sees this tab, co-DMs included, because the connection belongs to your account, not to one campaign.
 
 What a connected AI can do:
 
@@ -27,9 +27,9 @@ Whatever you ask it is sent to your AI provider, so only connect an assistant yo
 ## Connecting an AI assistant
 
 1. On the **AI Connections** tab, click **Copy** next to the **Connector URL** to copy it to your clipboard.
-2. In your AI client (claude.ai or Claude Desktop), go to **Settings → Connectors → Add custom connector** and paste the URL.
+2. In your AI client (claude.ai or Claude Desktop; Claude Code takes the same URL as a connector), go to **Settings → Connectors → Add custom connector** and paste the URL.
 3. Click **Connect**. You're sent to Grimoire's sign-in if you aren't already signed in, then to the authorization screen.
-4. On the authorization screen, review what access you're granting: reading, creating and editing your campaigns and their content (NPCs, monsters, spells, items, locations, quests, notes, and more) and spending AI credits on the Voice Coach, scoped to what your account can already see, with no ability to delete anything and no visibility into your password or API keys. Click **Allow** to finish, or **Deny** to cancel.
+4. On the authorization screen, review what access you're granting: reading, creating and editing your campaigns and their content (NPCs, monsters, spells, items, locations, quests, notes, and more) and spending AI credits on the Voice Coach, scoped to what your account can already see, with no ability to delete anything and no visibility into your password or API keys. Click **Allow** to finish, or **Deny** to cancel. A young player's account cannot authorise an AI client at all: see [Young Players' Accounts](#young-players-accounts).
 
 No token ever needs to be copied by hand: the whole handshake happens through sign-in and this one approval screen.
 

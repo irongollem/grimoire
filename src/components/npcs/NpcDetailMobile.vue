@@ -85,7 +85,9 @@
     </AccordionSection>
 
     <AccordionSection v-model:open="openSections.combat" title="Combat">
-      <div v-if="npc.stat_block" class="flex flex-col gap-4">
+      <!-- AccordionSection hides its body with v-show, so it is mounted at once: the body is only built once Combat has been opened (and stays, so
+           closing it does not empty the panel before its collapse animation ends). Until then neither async chunk is asked for. -->
+      <div v-if="npc.stat_block && combatSeen" class="flex flex-col gap-4">
         <StatBlockPanel :sb="npc.stat_block" :name="npc.name" />
         <TraitList title="Special Abilities" :traits="npc.stat_block.special_abilities" />
         <SpellcastingList :spellcasting="npc.stat_block.spellcasting" />
@@ -96,7 +98,7 @@
         <TraitList title="Lair Actions" :traits="npc.stat_block.lair_actions" />
         <TraitList title="How it fights"><StatBlockTacticsSummary :sb="npc.stat_block" :creature-type="null" /></TraitList>
       </div>
-      <p v-else class="text-body italic text-muted-foreground">No stat block defined for this NPC.</p>
+      <p v-else-if="!npc.stat_block" class="text-body italic text-muted-foreground">No stat block defined for this NPC.</p>
     </AccordionSection>
 
     <AccordionSection v-model:open="openSections.voice" title="Voice Coach">
@@ -176,12 +178,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, reactive } from "vue";
+import { computed, defineAsyncComponent, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import EntitySheetMobile from "@/components/common/entity/EntitySheetMobile.vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import NpcLoreSections from "@/components/npcs/NpcLoreSections.vue";
-import StatBlockPanel from "@/components/common/statblock/StatBlockPanel.vue";
 import TraitList from "@/components/common/statblock/TraitList.vue";
 import SpellcastingList from "@/components/common/statblock/SpellcastingList.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -213,8 +214,10 @@ import { useCalendarStore } from "@/stores/calendar";
 import { displayAge, displayBirth, displayDeath, isDeadRow } from "@/lib/calendar/age";
 import { NPC_RELATIONSHIP_LABELS, type Npc, type NpcListRow } from "@/types/npc.types";
 
-// Fetched when the Combat tab is first shown: it brings the tactics rules with it, which the rest of the NPC page never reads.
+// Fetched when the Combat section is first opened (its body is not mounted before, `combatSeen`): it brings the tactics rules with it, which the rest of the NPC page never reads.
 const StatBlockTacticsSummary = defineAsyncComponent(() => import("@/components/common/statblock/StatBlockTacticsSummary.vue"));
+// The stat block too: only the Combat section draws it, and it is its own chunk (the bestiary and Wild Shape share it), fetched on the same first opening.
+const StatBlockPanel = defineAsyncComponent(() => import("@/components/common/statblock/StatBlockPanel.vue"));
 
 const { npc } = defineProps<{
   /** Paints at once from the list row; the prose waits for `full` (#999). */
@@ -286,6 +289,14 @@ const openSections = reactive({
   combat: false,
   voice: false,
 });
+// Latched: true from the first time Combat is opened (including when it starts open) and never false again.
+const combatSeen = ref(openSections.combat);
+watch(
+  () => openSections.combat,
+  (open) => {
+    if (open) combatSeen.value = true;
+  },
+);
 
 // ── Delete ───────────────────────────────────────────────────────────────────
 const { mutateAsync: deleteNpc } = useDeleteNpc();

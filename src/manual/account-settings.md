@@ -3,20 +3,22 @@ title: Your Account
 section: Campaign & Account
 section_order: 16
 order: 3
-summary: Your account identity, a full data export, and deleting your account, plus where email notifications are actually controlled.
-keywords: account, profile, password, reset password, forgot password, display name, gdpr, data export, delete account, notifications, email
+summary: Your account email, picture display switches, news emails, a full data export and account deletion, plus where email notifications are controlled.
+keywords: account, my account, profile, email, password, reset password, forgot password, display name, change name, gdpr, data export, download my data, delete account, news and updates, newsletter, notifications, family, low art, ai labels
 ---
 
-**Your Account** is your identity across every campaign, not campaign-specific settings. Open it from the account menu at the bottom of the sidebar (click your name, then **Account**), or go straight to `/account`.
+**My Account** is for everything that belongs to you rather than to one campaign: your email, how pictures show on your screen, news emails, a copy of your data, and deleting your account. Open it from the account menu at the bottom of the sidebar (click your name, then **Account**).
 
-The same popover menu also has **Edit display name** (the name other members see in chat and member lists), the DM/Player mode switch, **Install app** (add Grimoire to your home screen, shown when your browser supports it), **Report a bug**, and **Sign out**: those live one click away from Account but aren't part of this page.
+The same popover menu also has **Edit display name** (the name other members see in chat and member lists), the DM/Player mode switch, **Install app** (add Grimoire to your home screen, shown when your browser supports it), **Join our Discord** (when an invite is set up), **Report a bug**, and **Sign out**: those live one click away from Account but aren't part of this page.
 
 ## Key ideas
 
-- **Account**: one row, the email address on file, plus a link on to **Billing & Subscription**.
+- **Account**: one row, the email address on file, plus a link on to **Billing & Subscription →**.
+- **Family**: **Manage family →** opens the page for the young players' accounts you manage.
+- **Pictures**: two switches, **Show AI labels** and **Low art**, that change only your own screen. See [Pictures: Low Art and AI Labels](#pictures-low-art-and-ai-labels).
+- **News and updates**: **Email me news and updates**, an opt-in switch for occasional emails about what is new. Off until you turn it on.
 - **Data export**: a GDPR access/portability request you can trigger yourself at any time.
 - **Delete account**: permanently removes your account; campaigns you own go with it.
-- **Family**: if you manage a young player's account for a player under 16, it's a separate page reached from the account menu, not part of this one. See [Young Players' Accounts](#young-players-accounts).
 
 ## Forgotten your password
 
@@ -25,6 +27,14 @@ The same popover menu also has **Edit display name** (the name other members see
 3. Open the link in the email and choose a new password. You are signed in straight away.
 
 The link also confirms your email address, so it gets you in even if the original confirmation email never arrived. Each link works once and expires; if yours has, the page offers to send a fresh one.
+
+## Changing how pictures show
+
+In the **Pictures** section, **Show AI labels** hides the small AI marks on pictures on your screen only (everyone else still sees them), and **Low art** swaps record pictures and placeholders for text in lists and sheets. Maps, Book Nooks, handouts and the gallery are not affected.
+
+## Email about news
+
+**Email me news and updates** under **News and updates** is off by default. Turn it on to get a few emails a year about what is new; turn it off and they stop. It does not control the emails players get about shared notes or proposed sessions.
 
 ## Downloading your data
 
@@ -38,6 +48,8 @@ API keys and invite links are deliberately left out, so the file is safe to keep
 1. Read the warning: campaigns you own, and everything in them, are deleted, and your players lose access; content you created in other people's campaigns is removed too; billing records are kept in anonymized form as legally required. If you want a campaign to survive you, transfer ownership to another member first (**Campaign Settings → Danger Zone**).
 2. Type **DELETE** into the confirmation field.
 3. Click **Delete account**.
+
+A young player's account has no delete or family section here: a parent manages it.
 
 This cannot be undone.
 

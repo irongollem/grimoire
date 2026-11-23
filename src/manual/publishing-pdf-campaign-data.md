@@ -4,7 +4,7 @@ section: Publishing
 section_order: 14
 order: 1
 summary: Embed campaign data inside a Scriptorium PDF so anyone who imports it gets your NPCs, monsters, and more, ready to play.
-keywords: pdf, share, publish, distribute, campaign data, world bundle, attach, import, adventure module, embed, scriptorium
+keywords: pdf, attach data, share a module, send adventure to another dm, import a pdf, grimoire file, share, publish, distribute, campaign data, world bundle, attach, import, adventure module, embed, scriptorium
 ---
 
 A PDF you export from the Scriptorium can do more than look good: it can secretly carry **campaign data**. Grimoire embeds your chosen NPCs, monsters, locations, and other entities invisibly inside the PDF file. The PDF still opens and prints normally in any reader, but when another DM imports it into Grimoire, all of that content lands in their campaign, ready to run.
@@ -22,9 +22,15 @@ You pick exactly which entities go in. The dialog starts with the ones your book
 
 ## Creating a shareable PDF
 
-Open the document in the Scriptorium. The **PDF** button above the preview downloads a plain PDF. To add campaign data, open the small menu next to it and choose **PDF with campaign data…**. (The menu only appears for a document that belongs to a campaign, since the data comes from that campaign.)
+You need a book that belongs to a campaign, since the data comes from that campaign. A players' book never offers this.
 
-A dialog walks you through the same steps as the World Bundle tab: choose the entity categories, tick the specific entities you want to share, then give the bundle a name (it starts as the document's title). Anything the book links to, plus the book itself, is already ticked for you; untick whatever you would rather keep back. Click **Export PDF** and Grimoire builds the PDF and downloads it, data inside, in one step. That file is the one to share.
+1. Open the book in the Scriptorium and click **Export PDF** in the header.
+2. In the dialog, tick **Attach the campaign data** ("Another DM can import the monsters, places and factions this book uses"). The tick only appears for a book in a campaign.
+3. Click **Choose the data**. Pick the entity categories, then tick the specific entities you want to share. Anything the book links to, plus the book itself, is already ticked for you; untick whatever you would rather keep back. Click **Continue to Details**.
+4. Give the bundle a **Bundle Name** (it starts as the book's title) and, if you like, a **Description** for whoever imports it. The panel shows how many of each kind go inside.
+5. Click **Export PDF**. Grimoire builds the PDF and downloads it, data inside, in one step. That file is the one to share.
+
+Leave **Attach the campaign data** unticked to export an ordinary PDF.
 
 ## Importing a PDF with campaign data
 

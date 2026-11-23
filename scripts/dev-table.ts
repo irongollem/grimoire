@@ -31,7 +31,7 @@
  * starts a fresh conversation (a new sitting); `/quit` leaves.
  *
  * Local only, by construction: `readLocalStack` refuses a stack that is not on
- * loopback. It switches `ai_enabled` on for the chosen LOCAL campaign, because a
+ * loopback. It grants the fixture the `ai_table` feature and switches `ai_enabled` on for the chosen LOCAL campaign, because a
  * fresh demo copy has it off, and says so. Every turn is a real model call on
  * the key in `supabase/functions/.env`, at about a tenth of a US cent a turn.
  */
@@ -82,6 +82,13 @@ if (campaign.ai_enabled !== true) {
   const { error } = await admin.from("campaigns").update({ ai_enabled: true }).eq("id", campaignId).eq("user_id", userId);
   if (error) throw error;
   console.log(`Switched AI on for the local campaign "${campaignName}".`);
+}
+
+// The table is also gated per account (`feature_access`, `ai_table`), and a fresh local stack grants it to nobody: without
+// it every turn is refused as "AI is disabled for this campaign" however the campaign is set.
+{
+  const { error } = await admin.from("feature_access").upsert({ user_id: userId, feature: "ai_table" }, { onConflict: "user_id,feature", ignoreDuplicates: true });
+  if (error) throw error;
 }
 
 let startLocationId: string | undefined;

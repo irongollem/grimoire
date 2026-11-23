@@ -4,20 +4,22 @@ section: Spells
 section_order: 6
 order: 2
 summary: How to fill in damage components so the cast button auto-rolls dice in chat.
-keywords: spells, damage, dice, fire, save, half, negates, healing, cast, roll, chat
+keywords: spells, damage, dice, fire, save, half, negates, healing, cast, roll, roll by hand, chat, auto-roll, mechanics, attack, saving throw
 ---
+
+Use this page to make a spell roll its own dice.
 
 ## What the cast button does
 
 When a player clicks **Cast**, Grimoire posts a flavour message ("Aria casts Burning Hands (DC 14 DEX)") and then **automatically rolls each damage entry** and posts the result to chat, including a note like *(half on DEX save)* when appropriate.
 
-This only works if the spell's **damage components** are filled in. Without them, the cast message appears but no dice are rolled.
+This only works if the spell's **damage components** are filled in (or, for a book spell, checked by Grimoire). Without them, the cast message appears but no dice are rolled.
 
-## Published spells leave damage blank
+## Spells from published books
 
-Spells enabled from a published source (via the Spellbook's Sources panel, see [Spellbook: Overview](#spellbook-overview)) come in as text only. The damage fields are **not** populated automatically: they must be filled in by hand.
+A spell enabled from a published source (via the Spellbook's **Spell Sources**, see [Spellbook: Overview](#spellbook-overview)) rolls by itself only when Grimoire has checked that its damage, save and scaling match the spell's own text. A spell that has not passed that check shows **Roll by hand** instead of damage and healing buttons, with the note "Grimoire can't roll this spell for you yet. Roll its dice by hand from the description." Read the spell text and roll the dice yourself, or build your own version of the spell.
 
-Since a shared/library spell can't be edited mechanically (only its art), you'll need to use **New Spell** to build an editable version first if you want a published spell's cast button to auto-roll. Open the spell in the Spell editor and complete the **Mechanics** section (see [Creating Custom Spells](#creating-custom-spells) for every field in it):
+A shared spell can't be edited mechanically (only its art), so to make a book spell roll the way you want, use **New Spell** and fill in the **Mechanics** section (see [Creating Custom Spells](#creating-custom-spells) for every field in it). Your own spells always roll from their own fields:
 
 | Field | Example | Notes |
 | --- | --- | --- |
@@ -40,7 +42,7 @@ Each row is rolled separately and posted as its own message in chat.
 
 ## Cantrips that scale
 
-Cantrip scaling (extra dice at levels 5/11/17) is not currently automatic. Enter the dice for the character's current tier and update when they level up.
+Cantrips scale on their own. Enter the dice for the base cantrip (a level 1 character) and the cast roll steps up at character levels 5, 11 and 17. Checked book spells also add the extra dice of a higher-level slot when a player casts them with one; a spell you write yourself rolls the dice you entered at any slot level.
 
 ## Healing spells
 

@@ -12,6 +12,7 @@
  */
 
 import { noulOf, type JudgeRequest, type JudgeResult, type NoulQuestion } from "../typesafe.ts";
+import { CANON_STATES_MIN, MAX_SECRETS_CHECKED, STATEMENT_MAX_CHARS } from "./canonCheck.ts";
 import type { AgentLine } from "./types.ts";
 
 /**
@@ -33,6 +34,23 @@ export const MAX_LINE_CHARS = 400;
 export const MAX_SENTENCE_CHARS = 400;
 
 const sentenceKey = (i: number): string => `s${i}`;
+const leakKey = (i: number, j: number): string => `leak_${i}_${j}`;
+
+/**
+ * Asked of every judged sentence against every secret, in the same request as the repetition question. A secret that
+ * reaches the page cannot be unshown, so this is the one check that also holds back text no character has spoken
+ * beside. The statement goes to the judge only: it is never shown, logged or sent to the browser.
+ */
+function leakQuestion(i: number, j: number): NoulQuestion {
+  return {
+    type: "noul",
+    instructions: `\`secrets[${j}]\` is something the players must not be told. \`sentences[${i}]\` is one sentence of narration about to be shown to them. Does that sentence state the secret, in whole or in its essential part, as a fact, so a reader learns it?`,
+    criteria: {
+      true: "The sentence says what that secret says, or the part of it that matters.",
+      false: "The sentence does not state it. A rumour, a hint, or a mention of its subject is not stating it.",
+    },
+  };
+}
 
 function sentenceQuestion(i: number): NoulQuestion {
   return {
@@ -97,10 +115,14 @@ export function splitSentences(text: string): string[] {
   return out;
 }
 
-export function buildNarrationRequest(lines: AgentLine[], sentences: string[]): JudgeRequest {
+export function buildNarrationRequest(lines: AgentLine[], sentences: string[], secrets: readonly string[] = []): JudgeRequest {
   const questions: Record<string, NoulQuestion> = {};
   sentences.forEach((_, i) => {
-    questions[sentenceKey(i)] = sentenceQuestion(i);
+    // Without a line shown there is nothing to repeat: only the secret questions are asked.
+    if (lines.length > 0) questions[sentenceKey(i)] = sentenceQuestion(i);
+    secrets.forEach((_, j) => {
+      questions[leakKey(i, j)] = leakQuestion(i, j);
+    });
   });
   return {
     state: {
@@ -110,32 +132,51 @@ export function buildNarrationRequest(lines: AgentLine[], sentences: string[]): 
         text: cut(l.text, MAX_LINE_CHARS),
       })),
       sentences: sentences.map((s) => cut(s, MAX_SENTENCE_CHARS)),
+      secrets: secrets.map((statement) => cut(statement, STATEMENT_MAX_CHARS)),
     },
     questions,
   };
 }
 
 /**
- * The part of the narration to show. Blank narration is "" and no lines returns it whole, neither costing a call.
- * Otherwise sentences below the line are dropped, a sentence with no answer is kept, and sentences past the judged
- * eighth are kept. When nothing is dropped the original text comes back untouched, so spacing and paragraphs are not
- * rewritten for nothing. A judge that throws is for the caller to treat as "show it all".
+ * The part of the narration to show. Blank narration is "" and, with no lines shown and no secrets to guard, the text
+ * comes back whole without a call. Otherwise a sentence is dropped when it only repeats the lines (only judged once
+ * a line was shown), or when it states one of `secrets` at CANON_STATES_MIN or above (judged with or without lines).
+ * A sentence with no answer is kept, and sentences past the judged eighth are kept. When nothing is dropped the
+ * original text comes back untouched, so spacing and paragraphs are not rewritten for nothing. A judge that throws is
+ * for the caller to treat as "show it all". `onLeak` hears how many sentences were dropped for stating a secret,
+ * never what the secret said.
  */
 export async function narrationKept(input: {
   lines: AgentLine[];
   narration: string;
   judge: (request: JudgeRequest) => Promise<JudgeResult>;
+  /** The campaign's secrets, as statements. Absent or empty: only the repetition check applies. */
+  secrets?: readonly string[];
+  onLeak?: (dropped: number) => void;
 }): Promise<string> {
   if (input.narration.trim() === "") return "";
-  if (input.lines.length === 0) return input.narration;
+  const secrets = input.secrets === undefined ? [] : input.secrets.slice(0, MAX_SECRETS_CHECKED);
+  if (input.lines.length === 0 && secrets.length === 0) return input.narration;
   const sentences = splitSentences(input.narration);
   const judged = sentences.slice(0, MAX_SENTENCES_JUDGED);
-  const result = await input.judge(buildNarrationRequest(input.lines, judged));
+  const result = await input.judge(buildNarrationRequest(input.lines, judged, secrets));
+  let leaks = 0;
   const keep = sentences.map((_, i) => {
     if (i >= judged.length) return true;
+    const states = secrets.some((__, j) => {
+      const p = noulOf(result, leakKey(i, j));
+      return p !== null && p >= CANON_STATES_MIN;
+    });
+    if (states) {
+      leaks++;
+      return false;
+    }
+    if (input.lines.length === 0) return true;
     const probability = noulOf(result, sentenceKey(i));
     return probability === null || probability >= NARRATION_ADDS_MIN;
   });
+  if (leaks > 0) input.onLeak?.(leaks);
   if (keep.every(Boolean)) return input.narration;
   return sentences
     .map((sentence, i) => (keep[i] ? mendClause(sentence, sentences[i - 1], keep[i - 1], keep[i + 1]) : null))

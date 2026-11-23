@@ -4,10 +4,10 @@ section: Campaign & Account
 section_order: 16
 order: 5
 summary: Set up and manage an account for a player under 16, sign them in, and see what changes at 16.
-keywords: child, young player, parent, guardian, consent, login name, family, under 16, coppa, gdpr
+keywords: child, children, kid, young player, under 16, parent, guardian, consent, login name, family, add child, add a young player, child account, reset password, coppa, gdpr, age, 13
 ---
 
-If one of your players is under 16, they don't sign up on their own. A parent
+Read this page if you are a parent or guardian setting up Grimoire for a child, or a DM with a young player at your table. If one of your players is under 16, they don't sign up on their own. A parent
 or guardian sets up the account for them, or approves a request the young
 player sends. That approval is what stands in for consent: nothing about the
 account works until a parent has agreed to it.
@@ -19,12 +19,13 @@ address, because it doesn't have one.
 
 ## Adding a young player from Account → Family
 
-1. Open the account menu, then **Account**, then **Family** (or go straight to
-   `/account/family`).
+1. Open the account menu, then **Account**, and in the **Family** section click
+   **Manage family →**.
 2. Click **Add a young player**.
-3. Fill in a display name, a login name (3 to 30 lowercase letters, numbers or
-   hyphens: this is what they'll type to sign in), and a password. You set
-   both, and you can change the password later from the same page.
+3. Fill in a **Display name**, a **Login name** (3 to 30 lowercase letters, numbers or
+   hyphens: this is what they'll type to sign in), and a **Password** (at least 8
+   characters, typed twice). You set both, and you can change the password later
+   from the same page.
 4. Answer the birth month and year question. Anyone under 16 gets a young
    player's account; 16 and over signs up for themselves instead.
 5. Read the consent line and tick the box. It covers what the account can and

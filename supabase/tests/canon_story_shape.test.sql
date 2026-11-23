@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(22);
 
--- 20261123233522_canon_story_shape (#1258): arcs with a shape and a theme, quests in arcs, the session a secret came
+-- 20261123235703_canon_story_shape (#1258): arcs with a shape and a theme, quests in arcs, the session a secret came
 -- out, a force's schedule, clues in items, questions tied to quests, what the players wonder, and a player telling
 -- the party a truth their character knows.
 

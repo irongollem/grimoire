@@ -2831,6 +2831,59 @@ describe("narration sentences that only repeat the characters are held back", ()
     expect(sent).not.toContain("EARLIER-LINE");
   });
 
+  describe("a secret in the narrator's text", () => {
+    const secretMaterial = { truths: [], questions: [], secrets: [{ id: "sec-1", statement: "BARON-STATEMENT" }] };
+    const leakJudge = () => {
+      const requests: JudgeRequest[] = [];
+      const judge = async (request: JudgeRequest): Promise<JudgeResult> => {
+        requests.push(request);
+        return { model: "jev-1", inputTokens: 1, answers: { leak_0_0: { type: "noul", noul: 0.95 } } };
+      };
+      return { judge, requests };
+    };
+
+    // Bug caught: text that states a secret streamed to the player because no character line had been shown.
+    it("holds back a sentence that states a secret, before any line, stores it unshown, and reads the canon once", async () => {
+      const j = leakJudge();
+      const h = harness([writes("The Baron poisoned the well.")]);
+      h.state.canonMaterial = secretMaterial;
+      const read = vi.spyOn(h.deps.canon, "material");
+      h.deps.judgeNarration = j.judge;
+      await play(h);
+      expect(texts(h)).toEqual([]);
+      expect(JSON.stringify(h.events)).not.toContain("poisoned");
+      expect(JSON.stringify(h.events)).not.toContain("BARON-STATEMENT");
+      expect(assistantBlocks(h).find((b) => b.type === "text")).toMatchObject({ unshown: true });
+      expect(JSON.stringify(j.requests[0].state)).toContain("BARON-STATEMENT");
+      expect(read).toHaveBeenCalledTimes(1);
+    });
+
+    // Bug caught: an unreadable canon taking the turn down, or silently skipping the check with no log.
+    it("shows the narration and logs it when the canon cannot be read", async () => {
+      const j = leakJudge();
+      const h = harness([writes("The Baron poisoned the well.")]);
+      h.state.canonMaterialThrows = true;
+      h.deps.judgeNarration = j.judge;
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      await play(h);
+      expect(texts(h)).toEqual(["The Baron poisoned the well."]);
+      expect(j.requests).toHaveLength(0);
+      expect(error).toHaveBeenCalled();
+      expect(last(h)).toMatchObject({ type: "done" });
+      error.mockRestore();
+    });
+
+    // Bug caught: the canon read for a turn that has no judge to use it.
+    it("does not read the canon for the narration check when there is no judge", async () => {
+      const h = harness([writes("The Baron poisoned the well.")]);
+      h.state.canonMaterial = secretMaterial;
+      const read = vi.spyOn(h.deps.canon, "material");
+      await play(h);
+      expect(read).not.toHaveBeenCalled();
+      expect(texts(h)).toEqual(["The Baron poisoned the well."]);
+    });
+  });
+
   it("sends the judge nothing a listener held back or a tool was given", async () => {
     const j = judgeBy(() => 0.9);
     const h = harness([
@@ -4279,6 +4332,18 @@ describe("the canon at the table (#1226)", () => {
     expect(everything(h)).not.toContain("BARON-STATEMENT");
     expect(everything(h)).not.toContain("SECRET-TRUTH");
     expect(JSON.stringify(h.events)).not.toContain("BARON-STATEMENT");
+  });
+
+  // Bug caught: the canon read twice a turn, once for the narration check and once for the invention check.
+  it("reads the canon's material once a turn when the narration check and an invention check both need it", async () => {
+    const h = played([file("r1", { fact: "The well tastes of iron." }), step(10)]);
+    h.state.canonMaterial = material;
+    const read = vi.spyOn(h.deps.canon, "material");
+    h.deps.judgeNarration = async () => ({ model: "jev-1", inputTokens: 1, answers: {} });
+    h.deps.judgeCanon = async () => ({ model: "jev-1", inputTokens: 1, answers: {} });
+    await play(h, { body: BODY });
+    expect(h.facts).toHaveLength(1);
+    expect(read).toHaveBeenCalledTimes(1);
   });
 
   it("refuses an invention that states a secret, tells the narrator no more than that, and files nothing", async () => {

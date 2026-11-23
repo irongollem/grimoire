@@ -4,10 +4,10 @@ section: Dungeon Craft
 section_order: 9
 order: 0
 summary: What Dungeon Craft contains and when to use each of its seven tabs.
-keywords: dungeon craft, overview, traps, puzzles, roll tables, loot tables, notice boards, features, cartographer, hidden doors
+keywords: dungeon craft, overview, traps, traproom, puzzles, enigmarium, roll tables, loot tables, notice boards, features, cartographer, hidden doors, library, sources, sourcebook, generate
 ---
 
-**Dungeon Craft** is a hub of seven preparation tools for designing complex environments and drawing the maps that go with them. Find it under **Compendium → Dungeon Craft** in the sidebar (`/dungeon-craft`). It isn't just for dungeons: use it any time you want scripted hazards, interactive puzzles, random tables, a loot drop, a board of notices for the party, or a tile-based map.
+Use **Dungeon Craft** to prepare the secrets, hazards, puzzles, tables and maps of an adventure in one place. It is a hub of seven tools. Find it under **Compendium → Dungeon Craft** in the sidebar. It isn't just for dungeons: use it any time you want scripted hazards, interactive puzzles, random tables, a loot drop, a board of notices for the party, or a tile-based map.
 
 ## The seven tabs
 
@@ -17,7 +17,7 @@ Secret doors, hidden passages, treasure chests, concealed alcoves, moving walls,
 
 ### Traproom
 
-Full mechanical trap definitions: type, trigger, detection and disarm DCs, damage entries, save DCs, and CR. A built-in **CR Advisor** helps you balance traps to match your encounter difficulty, and an AI **Generate** button can draft one from a one-line concept. See [Dungeon Craft: Traps](#dungeon-craft-traps).
+Full mechanical trap definitions: type, trigger, detection and disarm DCs, damage entries, save DCs, and CR. A built-in **CR Advisor** helps you balance traps to match your encounter difficulty, and an AI **Generate** button can draft one from a one-line concept. (The tab is called **Traproom**.) See [Dungeon Craft: Traps](#dungeon-craft-traps).
 
 ### Enigmarium
 
@@ -39,9 +39,9 @@ Cork and plank boards where you pin notes, wanted posters, sealed letters and pi
 
 Grimoire's tile-based map editor, embedded here as a seventh tab so map-drawing sits next to the rest of your dungeon prep. It's the same editor as the standalone **Publish → Cartographer** entry in the sidebar (desktop only): both open the same list of maps. See [Cartographer: Overview](#cartographer-overview).
 
-## Populate Examples
+## Ready-made content: Dungeon Craft sources
 
-Features, Traproom, Enigmarium, and Roll Tables each have a **Populate Examples** button (labelled **Populate Traproom** on the Traps tab) that seeds curated template content: pre-built traps, puzzles, features, and tables to use as-is or as a starting point. It's safe to run more than once, since it skips anything you've already got by name. Loot Tables, Notice Boards and Cartographer have no populate button.
+The Features, Traproom, Enigmarium and Roll Tables tabs can show a library of ready-made entries. It is off until you turn it on: click the **book icon** at the top of the page (**Manage Dungeon Craft sources for this campaign**) and enable the books you want. Enabling a book turns it on for all four kinds at once, for this campaign only. Library traps and features can be used as they are or copied with **Customize**; a library puzzle or roll table is copied into your campaign with **Use in campaign**. Loot Tables, Notice Boards and Cartographer have no library.
 
 ## AI generators
 
@@ -53,8 +53,8 @@ Traps, Features, Roll Tables, and Loot Tables can each be dropped into one or mo
 
 ## Moving things between campaigns
 
-On the Traproom, Enigmarium, Roll Tables, and Loot Tables tabs, click **Select** to enter multiple-selection mode, then use the bar that appears to **Move** or **Copy** the selected entries to a different campaign you DM. Each entity's own detail/editor page also has a **Copy to campaign…** action for one at a time. Features has no bulk move/copy on its grid.
+On the Traproom, Enigmarium, Roll Tables, and Loot Tables tabs, click **Select** to enter multiple-selection mode, then use the bar that appears to **Move** or **Copy** the selected entries to a different campaign you DM. Each entity's own page also has a **Copy to campaign…** action for one at a time. Features has no bulk move/copy on its grid.
 
 ## Campaign scope
 
-Every entity in Dungeon Craft carries a **Scope** control: **General** (all campaigns) or a specific campaign. General entries show up everywhere; a scoped one only shows while that campaign is active. New entries default to your active campaign.
+Every entity in Dungeon Craft carries a **Scope** control: **General · all campaigns** or **Campaign · its name**. General entries show up everywhere; a scoped one only shows while that campaign is active. New entries default to your active campaign.

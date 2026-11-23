@@ -1,4 +1,4 @@
-import { daysWithoutFoodAllowed, hungerExhaustion } from "@/rules/rations";
+import { hungerExhaustion } from "@/rules/rations";
 import { MAX_EXHAUSTION } from "@/rules/conditions";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { RulesetKey } from "@/types/ruleset.types";
@@ -150,9 +150,4 @@ export function planProvisions(input: {
     fromStash: stashTaken,
     forage: forageLog,
   };
-}
-
-/** How long a character can go without, for the words the dialog shows. */
-export function freeDays(t: Pick<ProvisionTraveller, "conModifier" | "ruleset">): number {
-  return daysWithoutFoodAllowed(t.conModifier, t.ruleset);
 }
