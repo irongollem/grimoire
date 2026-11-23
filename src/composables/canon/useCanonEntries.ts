@@ -1,5 +1,5 @@
 import type { AiProvenance } from "@/ai/provenance";
-import { computed } from "vue";
+import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { getCurrentUser, supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -80,7 +80,7 @@ export async function deleteCanonEntry(id: string): Promise<void> {
 }
 
 /** Every canon entry of the active campaign, in the DM's order. Refreshed by the doorbell (`canon_entries`). */
-export function useCanonEntries() {
+export function useCanonEntries({ enabled = true }: { enabled?: MaybeRefOrGetter<boolean> } = {}) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
@@ -89,7 +89,7 @@ export function useCanonEntries() {
       if (cid === null) throw new Error("useCanonEntries fetched without a campaign");
       return fetchCanonEntries(cid);
     },
-    enabled: computed(() => !!campaignId.value),
+    enabled: computed(() => !!campaignId.value && toValue(enabled)),
   });
 }
 

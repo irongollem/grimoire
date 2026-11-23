@@ -1,4 +1,4 @@
-import { onScopeDispose, ref, watch, type Ref } from "vue";
+import { computed, onScopeDispose, ref, watch, type Ref } from "vue";
 
 /**
  * Which modal is painted on top.
@@ -22,6 +22,9 @@ const BASE_Z = 200;
 
 /** Levels currently held, in claim order. Module scope: one stack per page. */
 const held = ref<number[]>([]);
+
+/** True while any modal holds a level: what a first-run tour waits on before it draws over the page. */
+export const anyModalOpen = computed(() => held.value.length > 0);
 
 /**
  * The z-index for one modal, or `null` while it is closed — nothing is painted

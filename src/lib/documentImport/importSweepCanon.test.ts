@@ -60,9 +60,9 @@ describe("planCanonChildren: who knows a truth", () => {
 
 describe("planCanonChildren: a force", () => {
   it("numbers its steps in the order the book gives them and ties it to the quests it names", () => {
-    const { steps, forceQuests, unresolved } = plan({ part: "force", steps: ["buy the bridge", "close the ferry"], quests: ["The Sunken Bell", "The Lost One"] });
+    const { steps, entryQuests, unresolved } = plan({ part: "force", steps: ["buy the bridge", "close the ferry"], quests: ["The Sunken Bell", "The Lost One"] });
     expect(steps.map((s) => [s.title, s.sort_order, s.force_id])).toEqual([["buy the bridge", 0, "e1"], ["close the ferry", 1, "e1"]]);
-    expect(forceQuests).toEqual([{ campaign_id: "c1", force_id: "e1", quest_id: "q-bell" }]);
+    expect(entryQuests).toEqual([{ campaign_id: "c1", entry_id: "e1", quest_id: "q-bell" }]);
     expect(unresolved).toEqual([{ sourceId: "e1", relation: "quest", name: "The Lost One" }]);
   });
 });

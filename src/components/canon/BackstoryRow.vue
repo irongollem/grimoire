@@ -6,6 +6,7 @@
         <span v-if="member.player_name" data-testid="backstory-player">played by {{ member.player_name }}</span>
         <span data-testid="backstory-count">{{ passages }} {{ passages === 1 ? "passage" : "passages" }}</span>
         <span v-if="untold > 0" class="font-bold text-foreground" data-testid="backstory-untold">{{ untold }} not yet told</span>
+        <span v-if="threads > 0" data-testid="backstory-threads-open">{{ threads }} open {{ threads === 1 ? "thread" : "threads" }}</span>
       </span>
     </span>
   </CanonLedgerRow>
@@ -15,6 +16,6 @@
 import CanonLedgerRow from "./CanonLedgerRow.vue";
 import type { PartyMember } from "@/types/party.types";
 
-defineProps<{ member: PartyMember; passages: number; untold: number; selected?: boolean }>();
+defineProps<{ member: PartyMember; passages: number; untold: number; threads: number; selected?: boolean }>();
 const emit = defineEmits<{ select: [] }>();
 </script>

@@ -25,8 +25,10 @@ const tick = (over: Partial<CanonForceTick>): CanonForceTick => ({
 });
 const force = (over = {}) => canonEntry({ id: "f1", campaign_id: "c1", part: "force", title: "The Stain spreads", wants: "to be forgotten into", clock_size: 6, ...over });
 
+const EntryQuestsStub = { name: "EntryQuests", props: ["entry", "links", "label", "empty"], template: "<div />" };
+
 const mountIt = (entry = force()) =>
-  mount(ForceDetail, { props: { entry }, global: { stubs: { ForceSteps: true, ForceQuests: true, ConnectionsSection: true, CanonEntryNotes: true } } });
+  mount(ForceDetail, { props: { entry }, global: { stubs: { ForceSteps: true, EntryQuests: EntryQuestsStub, ConnectionsSection: true, CanonEntryNotes: true } } });
 
 describe("ForceDetail", () => {
   beforeEach(() => {
@@ -149,5 +151,13 @@ describe("ForceDetail", () => {
   it("leaves the steps frozen only for an ended force", () => {
     expect(mountIt().getComponent({ name: "ForceSteps" }).props("frozen")).toBe(false);
     expect(mountIt(ended()).getComponent({ name: "ForceSteps" }).props("frozen")).toBe(true);
+  });
+
+  // Bug caught: the force's quest block listing links of other entries now that the links are the whole campaign's.
+  it("hands the quest block this force's links only, in the force's words", () => {
+    forceData.value.quests = [{ id: "l1", entry_id: "f1", quest_id: "q1" }, { id: "l2", entry_id: "s9", quest_id: "q1" }];
+    const block = mountIt().getComponent(EntryQuestsStub);
+    expect(block.props("links")).toEqual([expect.objectContaining({ id: "l1" })]);
+    expect(block.props("label")).toBe("Where the party meets it");
   });
 });

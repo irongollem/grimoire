@@ -10,7 +10,6 @@ vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => 
 
 import {
   clockFilled,
-  createForceQuests,
   fetchCanonForceData,
   moveStep,
   newestTick,
@@ -121,12 +120,12 @@ describe("reading", () => {
   it("reads only the asked campaign's steps, ticks and quests, so one campaign's forces never show in another", async () => {
     fake.seed("canon_force_steps", [{ ...step({ id: "mine" }) }, { ...step({ id: "other", campaign_id: "c2" }) }]);
     fake.seed("canon_force_ticks", [{ ...tick({ id: "mine" }) }, { ...tick({ id: "other", campaign_id: "c2" }) }]);
-    fake.seed("canon_force_quests", [{ id: "mine", campaign_id: "c1", force_id: "f1", quest_id: "q1" }, { id: "other", campaign_id: "c2", force_id: "f1", quest_id: "q1" }]);
+    fake.seed("canon_entry_quests", [{ id: "mine", campaign_id: "c1", entry_id: "f1", quest_id: "q1" }, { id: "other", campaign_id: "c2", entry_id: "f1", quest_id: "q1" }]);
     const data = await fetchCanonForceData("c1");
     expect([data.steps.map((s) => s.id), data.ticks.map((t) => t.id), data.quests.map((q) => q.id)]).toEqual([["mine"], ["mine"], ["mine"]]);
   });
 
-  it.each(["canon_force_steps", "canon_force_ticks", "canon_force_quests"])("throws %s's read error instead of showing a force with nothing moving", async (table) => {
+  it.each(["canon_force_steps", "canon_force_ticks", "canon_entry_quests"])("throws %s's read error instead of showing a force with nothing moving", async (table) => {
     fake.failNext(table, { message: "boom" });
     await expect(fetchCanonForceData("c1")).rejects.toMatchObject({ message: "boom" });
   });
@@ -182,12 +181,6 @@ describe("writing", () => {
     await expect(undoForceTick({ id: "reach", step_id: "missing" })).rejects.toThrow("gone");
     expect(fake.rows("canon_force_ticks")).toHaveLength(1);
   });
-
-  it("links a quest once and leaves the first link as it was, so adding it again from a second tab changes nothing", async () => {
-    fake.seed("canon_force_quests", [{ id: "first", user_id: "someone-else", campaign_id: "c1", force_id: "f1", quest_id: "q1" }]);
-    await createForceQuests([{ campaign_id: "c1", force_id: "f1", quest_id: "q1" }, { campaign_id: "c1", force_id: "f1", quest_id: "q2" }]);
-    expect(fake.rows("canon_force_quests")).toMatchObject([{ id: "first", user_id: "someone-else", quest_id: "q1" }, { force_id: "f1", quest_id: "q2" }]);
-  });
 });
 
 describe("accepting a suggested force", () => {
@@ -215,7 +208,7 @@ describe("accepting a suggested force", () => {
       { force_id: "f9", title: "The toll is a true sentence.", sort_order: 0, ai_provenance: provenance },
       { force_id: "f9", title: "The toll is two.", sort_order: 1, ai_provenance: provenance },
     ]);
-    expect(fake.rows("canon_force_quests")).toMatchObject([{ force_id: "f9", quest_id: "q1" }]);
+    expect(fake.rows("canon_entry_quests")).toMatchObject([{ entry_id: "f9", quest_id: "q1" }]);
     expect(connectAbout).toHaveBeenCalledWith("f9", { kind: "faction", id: "fa1", name: "The Ferrymen" }, provenance);
   });
 

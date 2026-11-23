@@ -51,7 +51,7 @@ Any campaign book comes apart into the campaign's sections through this one impo
   is never a `line` or a `veil`, and the clock, the reveal and `chronicle` are never set. Its children ride in
   `links.canon` and are written in the sweep's linking phase by `planCanonChildren` (`importSweepCanon.ts`): `known_to`
   becomes `world_links` from the entry to an NPC, player character or faction, a force's steps and quests become
-  `canon_force_steps` / `canon_force_quests`, a secret's clues `canon_clues`, a lore entry's passages
+  `canon_force_steps` / `canon_entry_quests`, a secret's clues `canon_clues`, a lore entry's passages
   `canon_lore_passages`. A name that matches nothing, or two things, never becomes a link: it is listed in
   `unresolvedLinks`, and a clue or passage whose place did not resolve is still written, unplaced.
 - A deity or canon entry defaults to **link** only on an exact match (a canon title is a sentence; a contained match is a

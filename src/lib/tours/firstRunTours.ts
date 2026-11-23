@@ -25,6 +25,16 @@ export function tourTargetRouteName(kind: TourKind): string {
   return TOUR_TARGET_ROUTE[kind];
 }
 
+/**
+ * Whether a tour may start now. The DM tour points at dashboard widgets that do not exist until the account has a
+ * campaign, and on a fresh account the New Campaign dialog opens by itself, so a tour that started then would sit on
+ * top of it and swallow its clicks. Any open modal holds either tour back; it starts when the modal closes.
+ */
+export function tourMayStart(kind: TourKind, ctx: { hasCampaign: boolean; modalOpen: boolean }): boolean {
+  if (ctx.modalOpen) return false;
+  return kind === "player" || ctx.hasCampaign;
+}
+
 /** Validates a raw localStorage read — anything else is treated as "no tour". */
 export function parseTourFlag(raw: string | null): TourKind | null {
   return raw === "dm" || raw === "player" ? raw : null;

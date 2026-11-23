@@ -40,6 +40,10 @@
         <AppButton variant="ghost" size="sm" :icon="IconAdd" icon-size="xs" label="Add a passage of yours" class="self-start" :loading="adding" @click="addPassage" />
       </div>
 
+      <BackstoryThreads :entry="entry" />
+
+      <EntryQuests :entry="entry" :links="questLinks" label="The quests that pay it off" empty="No quest pays this off yet." />
+
       <div class="flex flex-col gap-2" data-testid="backstory-people">
         <span class="text-eyebrow text-muted-foreground">The people from this past</span>
         <p class="m-0 text-caption text-muted-foreground">The same list the character's page shows. Each tie has its own reveal, so the player can know one person and not another's name.</p>
@@ -81,17 +85,20 @@ import AudienceRevealControl from "@/components/common/reveal/AudienceRevealCont
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import TypeChoiceChips from "@/components/connections/TypeChoiceChips.vue";
 import BackstoryBeforePlay from "./BackstoryBeforePlay.vue";
+import BackstoryThreads from "./BackstoryThreads.vue";
+import EntryQuests from "./EntryQuests.vue";
 import LorePassageRow from "./LorePassageRow.vue";
 import { isPlayersPassage, passageByline } from "@/lib/canon/canonBackstory";
 import { useBackstoryEntry } from "@/composables/canon/useBackstory";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useEntryQuestLinks } from "@/composables/canon/useEntryQuestLinks";
 import { usePassageList } from "@/composables/canon/usePassageList";
 import { useConnections } from "@/composables/connections/useConnections";
+import { useBackstoryOrigin } from "@/composables/canon/useBackstoryOrigin";
 import { useNewBackstoryNpc } from "@/composables/canon/useNewBackstoryNpc";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
 import { typeChoices, type TypeChoice } from "@/lib/worldLinks/connections";
 import { IconAdd } from "@/lib/icons";
-import type { BackstoryOrigin } from "@/components/connections/connectionRows";
 import type { Connection } from "@/types/connections.types";
 import type { PartyMember } from "@/types/party.types";
 
@@ -100,6 +107,7 @@ const { member } = defineProps<{ member: PartyMember }>();
 const { entry } = useBackstoryEntry(() => member.id);
 const { mutate: update } = useUpdateCanonEntry();
 const { passages, adding, addPassage, move, removePassage } = usePassageList(() => entry.value?.id ?? null);
+const questLinks = useEntryQuestLinks(() => entry.value?.id ?? null);
 const untold = computed(() => passages.value.filter((p) => p.told_at === null).length);
 const { data: sessions } = useCampaignSessions();
 
@@ -107,14 +115,9 @@ const { data: sessions } = useCampaignSessions();
 // them came from this backstory (the NPCs it is `about`), and to leave those out of the second block, where they
 // would be shown twice. An `about` tie to someone the character has no tie to stays there, so nothing is hidden.
 const { data: characterTies } = useConnections("party_member", () => member.id);
-const { data: entryTies } = useConnections("canon", () => entry.value?.id ?? null);
+const origin = useBackstoryOrigin(() => member.id, entry);
 const isPerson = (c: Connection) => c.other_kind === "npc" || c.other_kind === "party_member";
 const peopleOfCharacter = computed(() => new Set((characterTies.value ?? []).filter(isPerson).map((c) => `${c.other_kind}:${c.other_id}`)));
-const origin = computed<BackstoryOrigin | undefined>(() => {
-  if (entry.value === null) return undefined;
-  const npcIds = new Set((entryTies.value ?? []).filter((c) => c.type === "about" && c.other_kind === "npc").map((c) => c.other_id));
-  return { entryId: entry.value.id, npcIds };
-});
 function isShownAbove(c: Connection): boolean {
   return c.type === "about" && isPerson(c) && peopleOfCharacter.value.has(`${c.other_kind}:${c.other_id}`);
 }

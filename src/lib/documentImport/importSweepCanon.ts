@@ -23,9 +23,9 @@ export interface CanonStepWrite {
   ai_provenance: AiProvenance;
 }
 
-export interface CanonForceQuestWrite {
+export interface CanonEntryQuestWrite {
   campaign_id: string;
-  force_id: string;
+  entry_id: string;
   quest_id: string;
 }
 
@@ -74,7 +74,7 @@ export interface CanonLookups {
 export interface PlannedCanon {
   worldLinks: WorldLinkWrite[];
   steps: CanonStepWrite[];
-  forceQuests: CanonForceQuestWrite[];
+  entryQuests: CanonEntryQuestWrite[];
   clues: CanonClueWrite[];
   passages: CanonPassageWrite[];
   unresolved: UnresolvedCanonLink[];
@@ -120,7 +120,7 @@ export function planCanonChildren(
   campaignId: string,
   provenance: AiProvenance,
 ): PlannedCanon {
-  const planned: PlannedCanon = { worldLinks: [], steps: [], forceQuests: [], clues: [], passages: [], unresolved: [] };
+  const planned: PlannedCanon = { worldLinks: [], steps: [], entryQuests: [], clues: [], passages: [], unresolved: [] };
 
   for (const row of rows) {
     const canon = (row.links as EntityCanonLinks).canon;
@@ -165,7 +165,7 @@ export function planCanonChildren(
       const questId = found[0]!.id;
       if (seenQuests.has(questId)) continue;
       seenQuests.add(questId);
-      planned.forceQuests.push({ campaign_id: campaignId, force_id: row.id, quest_id: questId });
+      planned.entryQuests.push({ campaign_id: campaignId, entry_id: row.id, quest_id: questId });
     }
 
     canon.clues.forEach((clue, i) => {

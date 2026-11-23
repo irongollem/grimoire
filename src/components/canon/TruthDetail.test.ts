@@ -17,6 +17,12 @@ vi.mock("@/composables/canon/useCanonEntries", () => ({
   useUpdateCanonEntry: () => ({ mutate: mocks.update }),
 }));
 
+const questData = vi.hoisted(() => ({ quests: [] as unknown[] }));
+vi.mock("@/composables/canon/useCanonForces", async (orig) => ({
+  ...(await orig<typeof import("@/composables/canon/useCanonForces")>()),
+  useCanonForceData: () => ({ data: { value: { steps: [], ticks: [], quests: questData.quests } } }),
+}));
+const EntryQuestsStub = { name: "EntryQuests", props: ["entry", "links", "label", "empty"], template: "<div data-testid='entry-quests' />" };
 import TruthDetail from "./TruthDetail.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
 
@@ -39,7 +45,7 @@ const PickerStub = {
 function mountDetail(e: CanonEntry) {
   return mount(TruthDetail, {
     props: { entry: e },
-    global: { stubs: { RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" }, ConnectionsSection: true, CanonEntryNotes: true, WorldEntityPicker: PickerStub } },
+    global: { stubs: { EntryQuests: EntryQuestsStub, RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" }, ConnectionsSection: true, CanonEntryNotes: true, WorldEntityPicker: PickerStub } },
   });
 }
 
@@ -128,5 +134,16 @@ describe("TruthDetail", () => {
     const w = mountDetail(entry({ from_fact_id: "f1" }));
     expect(w.find("[data-testid=truth-from-table]").text()).toBe("First said at the table.");
     expect(w.find("[data-testid=truth-from-table] a").attributes("href")).toBe("/table/story");
+  });
+  // Bug caught: the block showing another entry's quests (or another part's words), so a truth read as a force's "where the party meets it".
+  it("shows this truth's own quest links, in the truth's words", () => {
+    questData.quests = [
+      { id: "l1", entry_id: "t1", quest_id: "q1" },
+      { id: "l2", entry_id: "someone-else", quest_id: "q2" },
+    ];
+    const block = mountDetail(entry()).getComponent(EntryQuestsStub);
+    expect(block.props("links")).toEqual([expect.objectContaining({ id: "l1" })]);
+    expect(block.props("label")).toBe("The quests that turn on it");
+    expect(block.props("empty")).toBe("No quest turns on this yet.");
   });
 });

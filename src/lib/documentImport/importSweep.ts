@@ -198,7 +198,7 @@ export interface WriteQuestSpineOutcome {
 }
 
 /** The tables a canon entry's children land in (#1226). Each row carries `campaign_id` and its parent entry's id. */
-export type CanonChildTable = "canon_force_steps" | "canon_force_quests" | "canon_clues" | "canon_lore_passages";
+export type CanonChildTable = "canon_force_steps" | "canon_entry_quests" | "canon_clues" | "canon_lore_passages";
 
 /** Everything the sweep needs from the outside world. */
 export interface ImportSweepDeps {
@@ -709,7 +709,7 @@ export async function runImportSweep(
     await writeBatchIsolatingFailures(plannedCanon.worldLinks, (batch) => deps.insertWorldLinks(batch));
     const childWrites: [CanonChildTable, Record<string, unknown>[]][] = [
       ["canon_force_steps", plannedCanon.steps.map((row) => ({ ...row }))],
-      ["canon_force_quests", plannedCanon.forceQuests.map((row) => ({ ...row }))],
+      ["canon_entry_quests", plannedCanon.entryQuests.map((row) => ({ ...row }))],
       ["canon_clues", plannedCanon.clues.map((row) => ({ ...row }))],
       ["canon_lore_passages", plannedCanon.passages.map((row) => ({ ...row }))],
     ];

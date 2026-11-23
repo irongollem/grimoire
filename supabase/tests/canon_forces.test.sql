@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(10);
 
 -- What is moving (20261120033038, #1226 story 4): a force's steps, ticks and quests hang off a force and nothing else,
 -- stay in their campaign, and only the campaign's DMs read them; a force never reaches a player.
@@ -44,7 +44,7 @@ select lives_ok($$
     ('12260000-0000-4000-8000-000000000301', '12260000-0000-4000-8000-000000000310', '12260000-0000-4000-8000-000000000330', 'They buy the bridge.', 0);
   insert into public.canon_force_ticks (user_id, campaign_id, force_id, delta, note) values
     ('12260000-0000-4000-8000-000000000301', '12260000-0000-4000-8000-000000000310', '12260000-0000-4000-8000-000000000330', 1, 'A week passed.');
-  insert into public.canon_force_quests (user_id, campaign_id, force_id, quest_id) values
+  insert into public.canon_entry_quests (user_id, campaign_id, entry_id, quest_id) values
     ('12260000-0000-4000-8000-000000000301', '12260000-0000-4000-8000-000000000310', '12260000-0000-4000-8000-000000000330', '12260000-0000-4000-8000-000000000340')
 $$, 'the DM gives a force a step, a tick and a quest');
 
@@ -54,9 +54,23 @@ select throws_ok($$
 $$, '23514', null, 'a step cannot hang off a truth, so a truth never grows a clock');
 
 select throws_ok($$
-  insert into public.canon_force_quests (user_id, campaign_id, force_id, quest_id) values
+  insert into public.canon_entry_quests (user_id, campaign_id, entry_id, quest_id) values
     ('12260000-0000-4000-8000-000000000301', '12260000-0000-4000-8000-000000000310', '12260000-0000-4000-8000-000000000330', '12260000-0000-4000-8000-000000000341')
 $$, null, null, 'a force cannot be met in another campaign''s quest');
+
+-- #1255: any entry that a quest can turn on may be tied to it, not only a force. 331 is a truth of this campaign.
+select lives_ok($$
+  insert into public.canon_entry_quests (user_id, campaign_id, entry_id, quest_id) values
+    ('12260000-0000-4000-8000-000000000301', '12260000-0000-4000-8000-000000000310', '12260000-0000-4000-8000-000000000331', '12260000-0000-4000-8000-000000000340')
+$$, 'a truth is tied to the quest that turns on it');
+select throws_ok($$
+  with q as (
+    insert into public.canon_entries (user_id, campaign_id, part, title) values
+      ('12260000-0000-4000-8000-000000000301', '12260000-0000-4000-8000-000000000310', 'question', 'Who cast the bell?')
+    returning id)
+  insert into public.canon_entry_quests (user_id, campaign_id, entry_id, quest_id)
+  select '12260000-0000-4000-8000-000000000301', '12260000-0000-4000-8000-000000000310', q.id, '12260000-0000-4000-8000-000000000340' from q
+$$, '23514', null, 'an open question is not tied to a quest: answered, it becomes a truth or a secret that can be');
 
 select throws_ok($$
   insert into public.canon_force_ticks (user_id, campaign_id, force_id, delta) values
@@ -76,7 +90,7 @@ select ok(
   'a force never reaches a player, even with the reveal list set');
 
 select set_config('request.jwt.claim.sub', '12260000-0000-4000-8000-000000000303', true);
-select is_empty($$ select id from public.canon_force_quests $$, 'another campaign''s DM reads none of this force''s quests');
+select is_empty($$ select id from public.canon_entry_quests $$, 'another campaign''s DM reads none of this force''s quests');
 
 select * from finish();
 rollback;

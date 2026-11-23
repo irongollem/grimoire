@@ -75,6 +75,8 @@
       />
     </div>
 
+    <EntryQuests :entry="entry" :links="questLinks" label="The quests that turn on it" empty="No quest turns on this yet." />
+
     <ConnectionsSection :subject="subject" :subject-name="entry.title" />
 
     <AppButton
@@ -101,8 +103,10 @@ import SegmentedControl from "@/components/common/controls/SegmentedControl.vue"
 import WorldEntityPicker from "@/components/common/entity/WorldEntityPicker.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
+import EntryQuests from "./EntryQuests.vue";
 import CanonRef from "./CanonRef.vue";
 import { KNOWLEDGE_HELP, MARK_OPTIONS } from "@/lib/canon/canonParts";
+import { useEntryQuestLinks } from "@/composables/canon/useEntryQuestLinks";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { KNOWER_KINDS, useKnownTo } from "@/composables/canon/useKnownTo";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
@@ -114,6 +118,7 @@ const { entry } = defineProps<{ entry: CanonEntry }>();
 const emit = defineEmits<{ delete: [] }>();
 
 const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
+const questLinks = useEntryQuestLinks(() => entry.id);
 const knowledge = computed<KnowledgeMark>(() => {
   if (entry.knowledge === null) throw new Error("a truth without a knowledge mark");
   return entry.knowledge;

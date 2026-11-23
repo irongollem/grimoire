@@ -5,6 +5,7 @@
     <div class="flex min-w-0 flex-col gap-5 px-6 py-5">
       <QuestDetailsSection :quest="quest" />
       <QuestOpensCampaign :quest-id="quest.id" />
+      <QuestCanon v-if="quest.campaign_id" :quest-id="quest.id" :campaign-id="quest.campaign_id" />
       <DmNoteBox type="quest" :id="quest.id" :label="quest.title" />
       <QuestSidebarPanels :is-new="false" :quest-id="quest.id" :sub-quests="subQuests" :shared-notes="sharedNotes" />
       <AccordionSection v-model:open="calendarOpen" title="Calendar">
@@ -39,6 +40,7 @@ import { useQuests } from "@/composables/quests/useQuests";
 import { useQuestBeatEdges, useQuestBeats } from "@/composables/quests/useQuestFlow";
 import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import type { Quest } from "@/types/quest.types";
+import QuestCanon from "../overview/QuestCanon.vue";
 import QuestOpensCampaign from "../panel/QuestOpensCampaign.vue";
 import QuestSidebarPanels from "../flow/QuestSidebarPanels.vue";
 import QuestThreadsPanel from "../flow/QuestThreadsPanel.vue";

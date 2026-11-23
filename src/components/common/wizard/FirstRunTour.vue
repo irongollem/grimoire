@@ -16,10 +16,19 @@ import {
   tourTargetRouteName,
   firstAnchorSelector,
   buildTourSteps,
+  tourMayStart,
 } from "@/lib/tours/firstRunTours";
+import { anyModalOpen } from "@/components/common/overlays/modalStack";
+import { useCampaignStore } from "@/stores/campaign";
 import { chunksArrived } from "@/lib/staleChunkRecovery";
 
 const route = useRoute();
+const campaign = useCampaignStore();
+
+/** A tour is held back (and its flag kept) while there is no campaign for the DM tour to describe, or a modal is open. */
+function allowed(kind: "dm" | "player"): boolean {
+  return tourMayStart(kind, { hasCampaign: campaign.activeCampaignId !== null, modalOpen: anyModalOpen.value });
+}
 
 // True for the whole visible lifetime of a tour — set right before drive(),
 // cleared only in onDestroyed (which fires on natural completion AND on
@@ -66,6 +75,8 @@ async function maybeStartTour(): Promise<void> {
   const kind = parseTourFlag(readFlag());
   if (!kind) return;
   if (route.name !== tourTargetRouteName(kind)) return;
+  // Held back, not consumed: the flag stays set, and the watch below retries when a campaign appears or the modal closes.
+  if (!allowed(kind)) return;
 
   awaitingDom = true;
   const found = await waitForFirstAnchor(firstAnchorSelector(kind));
@@ -73,7 +84,7 @@ async function maybeStartTour(): Promise<void> {
 
   // Re-check after the wait: another invocation may have started a tour, or
   // cleared the flag, while this one was polling the DOM.
-  if (!found || tourActive || !parseTourFlag(readFlag())) return;
+  if (!found || tourActive || !parseTourFlag(readFlag()) || !allowed(kind)) return;
 
   const steps = buildTourSteps(kind);
   if (steps.length === 0) return;
@@ -85,6 +96,7 @@ async function maybeStartTour(): Promise<void> {
   // is retried the next time this route is reached, by which point a reload
   // already in flight will likely have picked up the fresh chunk graph.
   if (!chunksArrived(modules)) return;
+  if (tourActive || !allowed(kind)) return; // a modal may have opened while the chunks loaded
   const [{ driver }] = modules;
   tourActive = true;
   const tour = driver({
@@ -106,7 +118,7 @@ async function maybeStartTour(): Promise<void> {
   tour.drive();
 }
 
-watch(() => route.name, () => { void maybeStartTour(); }, { immediate: true });
+watch([() => route.name, () => campaign.activeCampaignId, anyModalOpen], () => { void maybeStartTour(); }, { immediate: true });
 </script>
 
 <style>

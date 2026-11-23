@@ -167,12 +167,16 @@ export interface CanonForceTick {
   created_at: string;
 }
 
-/** A quest where the party meets a force. Unique per (force, quest). Written and deleted. */
-export interface CanonForceQuest {
+/** The parts of the canon that may be tied to a quest; the database refuses a premise entry or an open question (23514). */
+export const QUEST_LINKED_PARTS = ["force", "secret", "truth", "lore", "backstory"] as const;
+export type QuestLinkedPart = (typeof QUEST_LINKED_PARTS)[number];
+
+/** A quest a canon entry matters in: where the party meets a force, the quest that uncovers a secret. Unique per (entry, quest). Written and deleted. */
+export interface CanonEntryQuest {
   id: string;
   user_id: string;
   campaign_id: string;
-  force_id: string;
+  entry_id: string;
   quest_id: string;
   created_at: string;
 }

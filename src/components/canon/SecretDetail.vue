@@ -64,6 +64,8 @@
       </p>
     </div>
 
+    <EntryQuests :entry="entry" :links="questLinks" label="The quests that uncover it" empty="No quest is built to uncover this yet." />
+
     <ConnectionsSection :subject="subject" :subject-name="entry.title" />
 
     <AppButton variant="destructive" size="sm" :icon="IconDelete" icon-size="xs" label="Delete this secret" class="self-start" @click="emit('delete')" />
@@ -80,12 +82,14 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
+import EntryQuests from "./EntryQuests.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
 import ClueForm from "./ClueForm.vue";
 import ClueRow from "./ClueRow.vue";
 import { CLUES_WANTED, SECRET_STATE_LABEL, SECRET_STATE_MARK, clueTally, secretState } from "@/lib/canon/canonSecrets";
 import { useCreateCanonClue, useCanonClues, useDeleteCanonClue, useSetClueFound, useUpdateCanonClue, type ClueKind } from "@/composables/canon/useCanonClues";
 import { useCanonEntries, useCreateCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useEntryQuestLinks } from "@/composables/canon/useEntryQuestLinks";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useClueWhere } from "@/composables/canon/useClueWhere";
@@ -103,6 +107,7 @@ const emit = defineEmits<{ delete: [] }>();
 const NO_ENTRIES: readonly CanonEntry[] = [];
 
 const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
+const questLinks = useEntryQuestLinks(() => entry.id);
 
 const { data: allClues } = useCanonClues();
 const clues = computed(() => (allClues.value ?? []).filter((c) => c.secret_id === entry.id));

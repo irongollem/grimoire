@@ -6,7 +6,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(17);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('12553000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -126,5 +126,16 @@ select is(
   null, 'and that species comes without its name, which is not hers to read');
 
 reset role;
+
+-- ── Handing the campaign on ──
+-- A row's user_id cascades from its account, so the mover behind an ownership transfer must hand the peoples to the
+-- new owner with the rest of the canon, or they are deleted with the old owner's account.
+select private.move_campaign_content(
+  '12553000-0000-4000-8000-0000000000c1', '12553000-0000-4000-8000-000000000001', '12553000-0000-4000-8000-000000000004', false, false);
+select is(
+  (select count(*)::int from public.campaign_peoples
+    where campaign_id = '12553000-0000-4000-8000-0000000000c1' and user_id = '12553000-0000-4000-8000-000000000001'), 0,
+  'handing a campaign on leaves none of its peoples with the outgoing owner');
+
 select * from finish();
 rollback;

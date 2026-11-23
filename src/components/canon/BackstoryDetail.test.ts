@@ -1,18 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { computed, ref } from "vue";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { canonEntry } from "@/test/canonEntry";
 import type { CanonLorePassage } from "@/types/canon.types";
 import type { PartyMember } from "@/types/party.types";
 
-const mocks = vi.hoisted(() => ({ startNpc: vi.fn(), update: vi.fn() }));
+const mocks = vi.hoisted(() => ({ startNpc: vi.fn(), update: vi.fn(), createEntry: vi.fn(), connect: vi.fn(), remove: vi.fn(), toastError: vi.fn() }));
 const state = vi.hoisted(() => ({ entry: null as unknown, passages: [] as unknown[], sessions: [] as unknown[] }));
 const ties = vi.hoisted(() => ({ byKind: {} as Record<string, unknown[]> }));
+const threadData = vi.hoisted(() => ({ entries: [] as unknown[], links: [] as unknown[] }));
 vi.mock("@/composables/connections/useConnections", () => ({
   useConnections: (kind: string) => ({ data: computed(() => ties.byKind[kind] ?? []) }),
+  useCampaignLinks: () => ({ data: computed(() => threadData.links) }),
+  useCreateConnectionInCampaign: () => ({ mutateAsync: mocks.connect }),
 }));
+vi.mock("@/lib/toast", () => ({ toast: { error: mocks.toastError, fromError: (e: Error) => e.message } }));
+vi.mock("@/composables/canon/useEntryQuestLinks", () => ({ useEntryQuestLinks: () => ref([]) }));
 vi.mock("@/composables/canon/useBackstory", () => ({ useBackstoryEntry: () => ({ entry: computed(() => state.entry), opening: ref(false) }) }));
-vi.mock("@/composables/canon/useCanonEntries", () => ({ useUpdateCanonEntry: () => ({ mutate: mocks.update }) }));
+vi.mock("@/composables/canon/useCanonEntries", () => ({
+  useUpdateCanonEntry: () => ({ mutate: mocks.update }),
+  useCreateCanonEntry: () => ({ mutateAsync: mocks.createEntry }),
+  useDeleteCanonEntry: () => ({ mutateAsync: mocks.remove, mutate: mocks.remove }),
+  useCanonEntries: () => ({ data: computed(() => threadData.entries) }),
+}));
+vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ isDM: true }) }));
+vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => ({ dmPreviewMode: false }) }));
 vi.mock("@/composables/canon/usePassageList", () => ({
   usePassageList: () => ({ passages: computed(() => state.passages), adding: ref(false), addPassage: vi.fn(), move: vi.fn(), removePassage: vi.fn() }),
 }));
@@ -49,7 +61,7 @@ const tie = (over: Partial<Connection>) => ({ row_id: "r", type: "about", other_
 const mountDetail = () =>
   mount(BackstoryDetail, {
     props: { member },
-    global: { stubs: { LorePassageRow: RowStub, BackstoryBeforePlay: true, ConnectionsSection: SectionStub, AudienceRevealControl: true, ListSkeleton: true } },
+    global: { stubs: { LorePassageRow: RowStub, BackstoryBeforePlay: true, ConnectionsSection: SectionStub, AudienceRevealControl: true, ListSkeleton: true, EntryQuests: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } },
   });
 
 describe("BackstoryDetail", () => {
@@ -59,6 +71,8 @@ describe("BackstoryDetail", () => {
     state.passages = [];
     ties.byKind = {};
     state.sessions = [{ number: 15, started_at: "2026-10-08T18:00:00Z" }];
+    threadData.entries = [];
+    threadData.links = [];
   });
 
   // Bug caught: the DM could not tell their own passage from the player's, or which session the player wrote one after.
@@ -130,5 +144,49 @@ describe("BackstoryDetail", () => {
     };
     const first = mountDetail().findAll("[data-testid=section]")[0]!;
     expect(first.findAll("[data-testid=tie]").map((t) => t.attributes("data-marked"))).toEqual(["true", "false"]);
+  });
+
+  describe("threads left open", () => {
+    const thread = (to_id: string) => ({ from_kind: "canon", from_id: "b1", to_kind: "canon", to_id, type: "related_to" });
+
+    // Bug caught: an answered question (or a revealed secret) still listed as a thread the past leaves open.
+    it("lists the open questions and unrevealed secrets tied to the backstory, not an answered one", () => {
+      threadData.entries = [
+        canonEntry({ id: "q1", part: "question", title: "Who burned the mill?" }),
+        canonEntry({ id: "q2", part: "question", title: "Settled", closed_as: "answered", closed_at: "2026-11-01T00:00:00Z", closed_note: "Maren" }),
+        canonEntry({ id: "s1", part: "secret", title: "Who paid" }),
+      ];
+      threadData.links = [thread("q1"), thread("q2"), thread("s1")];
+      expect(mountDetail().findAll("[data-testid=backstory-thread]").map((t) => t.text())).toEqual(["Who burned the mill?a question", "Who paida secret"]);
+    });
+
+    async function addThread(w: ReturnType<typeof mountDetail>, words: string) {
+      await w.get("input[aria-label='A thread this past leaves open']").setValue(words);
+      await w.get("[data-testid=backstory-threads] form").trigger("submit");
+      await flushPromises();
+    }
+
+    // Bug caught: the tie written before the question exists (no id to tie to), or to the wrong end, or as a world tie other than related_to.
+    it("makes an open question, then ties it to the backstory", async () => {
+      const order: string[] = [];
+      mocks.createEntry.mockImplementation(async () => { order.push("question"); return { id: "q9", title: "Who burned the mill?" }; });
+      mocks.connect.mockImplementation(async () => { order.push("tie"); });
+      await addThread(mountDetail(), "Who burned the mill?");
+      expect(mocks.createEntry).toHaveBeenCalledWith({ part: "question", title: "Who burned the mill?" });
+      expect(mocks.connect).toHaveBeenCalledWith({
+        input: expect.objectContaining({ subject: { kind: "canon", id: "b1" }, other: { kind: "canon", id: "q9", name: "Who burned the mill?" }, choice: expect.objectContaining({ key: "related_to" }) }),
+        campaignId: "c1",
+      });
+      expect(order).toEqual(["question", "tie"]);
+    });
+
+    // Bug caught: a failed tie deleting the question (losing the DM's words) or failing without a word.
+    it("keeps the question and says so when the tie fails", async () => {
+      mocks.createEntry.mockResolvedValue({ id: "q9", title: "Who burned the mill?" });
+      mocks.connect.mockRejectedValue(new Error("refused"));
+      await addThread(mountDetail(), "Who burned the mill?");
+      expect(mocks.remove).not.toHaveBeenCalled();
+      expect(mocks.toastError).toHaveBeenCalledWith(expect.stringContaining("could not be tied"));
+    });
   });
 });

@@ -52,6 +52,8 @@
       <CanonSuggestions v-if="plainText !== ''" mode="lore" :entries="NO_ENTRIES" :lore="{ title: entry.title, kind: entry.lore_kind, entryId: entry.id, text: plainText }" />
     </div>
 
+    <EntryQuests :entry="entry" :links="questLinks" label="The quests that tell it" empty="No quest tells this yet." />
+
     <ConnectionsSection :subject="subject" :subject-name="entry.title" />
 
     <AppButton variant="destructive" size="sm" :icon="IconDelete" icon-size="xs" label="Delete this lore" class="self-start" @click="emit('delete')" />
@@ -72,10 +74,12 @@ import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
+import EntryQuests from "./EntryQuests.vue";
 import LorePassageRow from "./LorePassageRow.vue";
 import WorldDateField from "./WorldDateField.vue";
 import { LORE_KIND_OPTIONS, entryDate, normaliseDate, worldDateLabel, type WorldDate } from "@/lib/canon/canonLore";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useEntryQuestLinks } from "@/composables/canon/useEntryQuestLinks";
 import { toldTally } from "@/composables/canon/useCanonPassages";
 import { usePassageList } from "@/composables/canon/usePassageList";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
@@ -90,6 +94,7 @@ const emit = defineEmits<{ delete: [] }>();
 const NO_ENTRIES: readonly CanonEntry[] = [];
 
 const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
+const questLinks = useEntryQuestLinks(() => entry.id);
 const { mutate: update } = useUpdateCanonEntry();
 const { text, revision } = useCommittedText(() => entry.title, (next) => update({ id: entry.id, patch: { title: next } }));
 

@@ -38,6 +38,12 @@ the `campaigns` row, which every member reads (#1228).
   clues). RLS: the campaign's DMs read and write; players read only `get_player_canon`, which never returns the reveal
   list and withholds secret blocks in the body. It rings the campaign doorbell (`canon_entries` → `CANON_KEY`,
   `CONNECTIONS_KEY`).
+- `canon_entry_quests` (`20261123135952_canon_entry_quests.sql`, #1255 items 12 and 13): which quests a canon entry matters
+  in, once each per (entry, quest) (23505). It began as `canon_force_quests` ("where the party meets it") and was renamed and
+  widened, never copied: a force, a secret, a truth, lore or a backstory may be tied to a quest, a premise entry or an
+  open question may not (23514). DMs read and write, players read none of it; it rings the doorbell (`canon_entry_quests`
+  → `CANON_KEY`) and is read once for the campaign with the forces' data (`useCanonForceData().quests`, written by
+  `useCanonEntryQuests`).
 - `campaign_peoples` (`20261123124451_campaign_peoples.sql`, #1255 item 30): who lives in the world, one row per people
   with its `percent` share. A people is a record the campaign already has, never typed: exactly one of `species_id`
   (a DM-written species), `library_species_id` (a shared book's), `monster_id` (a DM-written creature) or
@@ -132,6 +138,9 @@ the secret stays, still revealed. A part never changes, so becoming is always a 
 (`src/lib/canon/canonClose.ts` builds both writes). Revealed secrets sort after the ones still to find. The contents column
 and the start strip count only open questions and forces still moving (`sectionCounts`).
 
+A secret also says which quests uncover it ("The quests that uncover it", `canon_entry_quests`; see What is moving), and the
+quest's page lists it under "The canon behind this quest" with its state.
+
 ## What is moving
 
 Part III of the page (frame 06; `ForcesSection.vue`, `ForceDetail.vue`). A force is a `canon_entries` row with
@@ -139,8 +148,19 @@ Part III of the page (frame 06; `ForcesSection.vue`, `ForceDetail.vue`). A force
 clock) says how many ticks fill its clock. Only a force may hold either column (23514 otherwise). Its other state lives
 in three DM-only tables, all under the canon query root and all ringing the doorbell: `canon_force_steps` (what it does
 next, in `sort_order`; `reached_at` and `reached_session_id` stamp the step it has reached), `canon_force_ticks` (each
-move of the clock, forward or back, with a note, the open session and the world's date) and `canon_force_quests` (the
+move of the clock, forward or back, with a note, the open session and the world's date) and `canon_entry_quests` (the
 quests where the party meets it, once each). Players never read any of it.
+
+- **Quests and canon tie both ways** (#1255 item 12). The links are one table for five parts, and one block draws them:
+  `EntryQuests` ("Where the party meets it" on a force, "The quests that uncover it" on a secret, "turn on it" on a truth,
+  "tell it" on lore, "pay it off" on a backstory), each with its own empty words, a *Link a quest…* picker that leaves out
+  quests already tied, and an unlink per row. The quest's own page shows the reverse, **The canon behind this quest**
+  (`QuestCanon`, in the quest drawer's wide part): the entries tied to it grouped force, secret, truth, lore, backstory,
+  each linking to `/canon?entry=<id>` (a backstory by its character's name) with one quiet fact (a force's clock or its
+  ending, a secret's state), and a *Link canon…* picker over the five parts. A faction's page shows **What it is moving**
+  (`FactionForces`): the forces `about` the faction (the canon connections whose entry is a force), with what each wants
+  and its clock or ending, or a quiet *Name a force* link to `/canon`. Both are DM-only: the canon tables are DM-only reads,
+  so in the player lens or a DM's preview of the player portal the gate component mounts nothing and none of the reads run.
 
 - **The clock is the sum of the ticks**, shown clamped to 0..size and never stored, so an undo that deletes a tick moves
   the dial back. Tick forward and Tick back each write a tick (`delta` 1 or -1, an optional note); both disable at the
@@ -260,6 +280,13 @@ there. **New NPC from this backstory** asks how that person relates to the chara
 alongside the Canon `about` link, keeps both hidden from players, then opens the NPC (`useNewBackstoryNpc`). In the NPC's
 Connections block, the People relationship is primary and its Canon origin is a compact marker linking back to the
 source entry.
+
+**Threads left open** (#1255 item 13) are the questions and secrets a past raises: the open questions and unrevealed
+secrets tied to the backstory entry by a canon-to-canon link (`related_to` or `led_to`, from either end;
+`src/lib/canon/backstoryThreads.ts`). *A thread this past leaves open…* makes an open question and then ties it to the
+backstory with `related_to`, in that order; if the tie fails the question stays and a toast says it could not be tied.
+Answering the question or revealing the secret takes it off the list. The ledger row says "n open threads" when above zero.
+The backstory also lists **The quests that pay it off** (`canon_entry_quests`).
 
 The DM's side is `BackstoriesSection` (one row per party member: "played by", passages, "n not yet told"; the contents
 column counts characters, not entries) and `BackstoryDetail` (opened with `?backstory=<party member id>`, or

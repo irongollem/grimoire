@@ -28,6 +28,12 @@ vi.mock("@/composables/canon/useCanonPassages", () => ({ useCanonPassages: () =>
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: party }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 
+const questData = vi.hoisted(() => ({ quests: [] as unknown[] }));
+vi.mock("@/composables/canon/useCanonForces", async (orig) => ({
+  ...(await orig<typeof import("@/composables/canon/useCanonForces")>()),
+  useCanonForceData: () => ({ data: { value: { steps: [], ticks: [], quests: questData.quests } } }),
+}));
+const EntryQuestsStub = { name: "EntryQuests", props: ["entry", "links", "label", "empty"], template: "<div data-testid='entry-quests' />" };
 import SecretDetail from "./SecretDetail.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
 
@@ -37,7 +43,7 @@ const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
   quest_beat_id: null, found_at: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
 });
 
-const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { ConnectionsSection: true, CanonEntryNotes: true, ClueForm: true, CanonSuggestions: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
+const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { EntryQuests: EntryQuestsStub, ConnectionsSection: true, CanonEntryNotes: true, ClueForm: true, CanonSuggestions: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
 
 describe("SecretDetail", () => {
   beforeEach(() => {
@@ -170,5 +176,16 @@ describe("SecretDetail", () => {
     const w = mountDetail(revealed({ became_entry_id: "t7" }));
     expect(w.find("[data-testid=make-truth]").exists()).toBe(false);
     expect(w.get("[data-testid=secret-became]").text()).toBe("Now a truth: Sift is the daughter.");
+  });
+  // Bug caught: the block showing another entry's quests (or another part's words), so a secret read as a force's "where the party meets it".
+  it("shows this secret's own quest links, in the secret's words", () => {
+    questData.quests = [
+      { id: "l1", entry_id: "s1", quest_id: "q1" },
+      { id: "l2", entry_id: "someone-else", quest_id: "q2" },
+    ];
+    const block = mountDetail(secret()).getComponent(EntryQuestsStub);
+    expect(block.props("links")).toEqual([expect.objectContaining({ id: "l1" })]);
+    expect(block.props("label")).toBe("The quests that uncover it");
+    expect(block.props("empty")).toBe("No quest is built to uncover this yet.");
   });
 });

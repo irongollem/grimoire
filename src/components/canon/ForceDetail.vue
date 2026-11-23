@@ -46,7 +46,7 @@
     </div>
 
     <ForceSteps :force="entry" :steps="steps" :frozen="outcome !== null" />
-    <ForceQuests :force="entry" :links="links" />
+    <EntryQuests :entry="entry" :links="links" label="Where the party meets it" empty="In no quest yet: the party has not crossed its path." />
     <ForceLog :ticks="ticks" @undo="undo" />
 
     <ConnectionsSection :subject="subject" :subject-name="entry.title" />
@@ -74,7 +74,7 @@ import CanonEntryNotes from "./CanonEntryNotes.vue";
 import ForceClock from "./ForceClock.vue";
 import ForceEndForm from "./ForceEndForm.vue";
 import ForceLog from "./ForceLog.vue";
-import ForceQuests from "./ForceQuests.vue";
+import EntryQuests from "./EntryQuests.vue";
 import ForceSteps from "./ForceSteps.vue";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { clockFilled, useCanonForceData, useUndoForceTick, useTickForce } from "@/composables/canon/useCanonForces";
@@ -92,7 +92,7 @@ const CLOCK_SIZES = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 const { data } = useCanonForceData();
 const steps = computed(() => (data.value?.steps ?? []).filter((s) => s.force_id === entry.id));
 const ticks = computed(() => (data.value?.ticks ?? []).filter((t) => t.force_id === entry.id));
-const links = computed(() => (data.value?.quests ?? []).filter((q) => q.force_id === entry.id));
+const links = computed(() => (data.value?.quests ?? []).filter((q) => q.entry_id === entry.id));
 
 const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
 const filled = computed(() => (entry.clock_size === null ? 0 : clockFilled(ticks.value, entry.clock_size)));
