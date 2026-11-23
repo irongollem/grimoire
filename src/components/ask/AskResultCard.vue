@@ -25,19 +25,29 @@
         </div>
       </li>
     </ul>
-    <AppButton v-if="item.route" variant="primary" size="sm" class="self-start" :label="openLabel" :to="item.route" />
+    <AppButton v-if="item.route && item.open" variant="primary" size="sm" class="self-start" :label="openLabel" @click="openInPage(item.route, item.open)" />
+    <AppButton v-else-if="item.route" variant="primary" size="sm" class="self-start" :label="openLabel" :to="item.route" />
   </section>
 </template>
 
 <script setup lang="ts">
 /** The end of a run in the thread: each part with a tick or a cross, a retry for what failed, and the way in. */
 import { computed } from "vue";
+import { useRouter } from "vue-router";
 import { IconCheck, IconClose } from "@/lib/icons";
 import type { AskItem, ResultPart } from "@/composables/ask/useAskConversation";
 import AppButton from "@/components/common/controls/AppButton.vue";
 
 const { item } = defineProps<{ item: Extract<AskItem, { kind: "result" }> }>();
 const emit = defineEmits<{ retry: [index: number]; leave: [index: number] }>();
+
+const router = useRouter();
+
+/** Suggestions live in the page's own panel: go there, then open it with them in it. */
+async function openInPage(route: string, open: () => void) {
+  await router.push(route);
+  open();
+}
 
 const openLabel = computed(() => (item.review ? "Review suggestions" : `Open ${item.noun}`));
 

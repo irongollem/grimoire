@@ -1,6 +1,10 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from "vitest";
-import { mount } from "@vue/test-utils";
+import { describe, expect, it, vi } from "vitest";
+import { flushPromises, mount } from "@vue/test-utils";
+
+const order: string[] = [];
+const push = vi.fn(async (to: string) => { order.push(`push ${to}`); });
+vi.mock("vue-router", async (original) => ({ ...(await original<typeof import("vue-router")>()), useRouter: () => ({ push }) }));
 import AskReply from "./AskReply.vue";
 import AskResultCard from "./AskResultCard.vue";
 import AskUpsell from "./AskUpsell.vue";
@@ -54,6 +58,16 @@ describe("AskResultCard", () => {
     expect(w.emitted("retry")).toEqual([[1]]);
     await w.setProps({ item: item({ parts: [{ label: "Portrait", ok: false, credits: 0, error: "x", left: true, retry: { credits: 3, run: async () => ({ label: "Portrait", ok: true, credits: 3 }) } }] }) });
     expect(w.find('[data-testid="ask-retry"]').exists()).toBe(false);
+  });
+
+  // Bug caught: suggestions held in a page's own panel opened before the page is there (so nothing shows), or never.
+  it("goes to the page first, then opens its panel, for a result that lives in the page's review", async () => {
+    order.length = 0;
+    const open = vi.fn(() => { order.push("open"); });
+    const w = mount(AskResultCard, { props: { item: item({ review: true, route: "/quests", open, parts: [] }) }, global: { stubs } });
+    await w.get("button").trigger("click");
+    await flushPromises();
+    expect(order).toEqual(["push /quests", "open"]);
   });
 
   // Bug caught: a review generator opening "Open NPC" instead of the page's own review.
