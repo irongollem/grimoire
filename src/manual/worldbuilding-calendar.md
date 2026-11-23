@@ -20,9 +20,9 @@ The Calendar tracks your campaign's in-world dates (festivals, session markers, 
 
 ## Choosing a calendar
 
-Pick your adapter in **Campaign Settings → Details**, under **Calendar**: Faerûn (Calendar of Harptos), Eberron, Greyhawk, Dragonlance, Ravenloft, Planescape, Spelljammer, Dark Sun, Mystara, or Gregorian: nine D&D settings plus the real-world calendar. Faerûn's Harptos calendar is 12 months of 30 days, grouped into three 10-day tendays, plus 5–6 intercalary festival days a year (a sixth, Shieldmeet, only on leap years) that sit between months rather than inside them. Each adapter knows its own month names, day counts, festival days and date format.
+Pick your calendar in **Canon**, in the **How the world works** part, under **How the world keeps time**: Faerûn (Calendar of Harptos), Eberron, Greyhawk, Dragonlance, Ravenloft, Planescape, Spelljammer, Dark Sun, Mystara, or Gregorian: nine D&D settings plus the real-world calendar. Faerûn's Harptos calendar is 12 months of 30 days, grouped into three 10-day tendays, plus 5–6 intercalary festival days a year (a sixth, Shieldmeet, only on leap years) that sit between months rather than inside them. Each adapter knows its own month names, day counts, festival days and date format.
 
-Pick **Custom calendar…** instead to build your own from scratch with the calendar editor that appears beneath the picker: your own month names, lengths and festival days.
+Pick **Blank calendar (make your own)…** instead to build your own from scratch with the calendar editor that appears beneath the picker: your own month names, lengths and festival days.
 
 ## Month view and Chronicle view
 
@@ -30,6 +30,31 @@ Toggle between the two with the **Month** / **Chronicle** control in the top-rig
 
 - **Month**: one month at a time, one cell per day. Festival days appear as their own rows between months (Harptos only). Click any day to add an event there, or an existing event to edit it.
 - **Chronicle**: a horizontal timeline. A **ZOOM** row of preset buttons (1wk, 1mo, 1yr, 10yr, 20yr, 50yr, 100yr) sets how much time is visible at once; ← / → step by that same span, and a year box jumps straight to a given year. Overlapping events stack into separate lanes automatically so nothing overlaps.
+
+## Moons and seasons
+
+Every calendar has a sky. The ten built-in calendars come with their world's moons and seasons already filled in, and a custom calendar can have as many of its own as you like.
+
+### What you see
+
+- **On the calendar page**, a line under the title shows the current season and the day of the season ("Winter · day 12"), today's weather, and a small moon for each moon in your world with its phase (for example "Waxing gibbous"). Hover a moon to read its name and phase.
+- **In the month view**, the month's season shows under the title, a moon symbol marks each day a moon is full or new, and the first day of a season carries the season's name. A festival banner lists only the moons that are full or new that day.
+- **Players** see the same line on their Hearth page, beside the date.
+
+Phases follow the calendar day by day, so a festival or a leap day counts as a day like any other.
+
+### Giving your world moons and seasons
+
+Moons and seasons are part of the calendar, so you can edit them for a custom calendar. Open **Canon**, go to **How the world works**, choose **Blank calendar (make your own)…** under **How the world keeps time**, and the calendar editor appears below. It saves itself.
+
+- **MOONS**: click **+ Add moon**. Give it a name, a cycle length in **DAYS**, and one day when it is full (**FULL ON**): a day, a month or a festival, and a year. Every other phase is counted from that day. Pick a **COLOUR** for it too. The **×** at the end of its row removes it.
+- **SEASONS**: click **+ Add season**. Give it a name and the day and month it starts (**FROM**). A season lasts until the next one begins and wraps round the end of the year, so festival days belong to a season as well. **WEATHER LIKE** says how its weather behaves (**Spring (mild, wet)**, **Summer (warmest)**, **Autumn (cooling)** or **Winter (coldest)**); it starts out matching the name when you type something like "Winter".
+
+The add buttons need at least one month in the calendar. If a start day is not a real day in that month, the editor tells you and waits until you fix it before it saves.
+
+### Weather follows the season
+
+Beside **How the world keeps time**, **Its weather** sets the campaign's climate (Polar, Cold, Temperate, Warm, Tropical, Arid, or Underground, which has no weather). The season's weather kind and the climate together decide today's weather, which is the same for you and every player, and drifts over a few days rather than jumping. Any place in the Atlas can name its own climate in its Details, and the party's current place sets the weather shown.
 
 ## Event types and colours
 

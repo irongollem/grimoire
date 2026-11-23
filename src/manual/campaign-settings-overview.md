@@ -9,7 +9,7 @@ keywords: campaign settings, members, invites, scheduling, rules, classes, speci
 
 Campaign Settings is where every setting that applies to the whole campaign (rather than to one NPC, quest, or location) lives, organized into tabs. Open it from **Campaign → Settings** at the bottom of the sidebar's Campaign group (it's always last in the list), or go straight to `/campaign/settings`. It's DM-only: players are blocked from this route entirely.
 
-This page covers the tabs you'll use most: **Details**, **Members & Invites**, **Scheduling**, **Rules**, **Currency**, **Classes**, **Species**, and **AI Assistant**. The more occasional, administrative tabs (**Spotify**, **Backup**, **World Bundle**, and **Danger Zone**) are covered on [Campaign Settings: Backup, Sharing & Danger Zone](#campaign-settings-backup-sharing-danger-zone). Connecting an external AI assistant (Claude, etc.) to *read* your campaign by conversation is a different tab, **AI Connections**, covered on its own page: [Connecting an AI Assistant](#connecting-an-ai-assistant).
+This page covers the tabs you'll use most: **Details**, **Members & Invites**, **Scheduling**, **Rules**, **Travel**, **Classes**, **Species**, and **AI Assistant**. The more occasional, administrative tabs (**Spotify**, **Backup**, **World Bundle**, and **Danger Zone**) are covered on [Campaign Settings: Backup, Sharing & Danger Zone](#campaign-settings-backup-sharing-danger-zone). Connecting an external AI assistant (Claude, etc.) to *read* your campaign by conversation is a different tab, **AI Connections**, covered on its own page: [Connecting an AI Assistant](#connecting-an-ai-assistant).
 
 ## Key ideas
 
@@ -21,24 +21,21 @@ This page covers the tabs you'll use most: **Details**, **Members & Invites**, *
 The **Details** tab holds the campaign's core identity and table-wide toggles.
 
 1. **Name**: the campaign's display name.
-2. **World**: a free-text setting name (Forgotten Realms, Eberron, Homebrew, etc.), with a dropdown of common settings for convenience.
-3. **Calendar**: pick a built-in calendar system, or choose **Custom calendar…** to open the custom calendar editor and define your own months, weekdays, and moons.
-4. **Current Year**: the campaign's current in-world year.
-5. If the world you picked has a matching setting bundle, a **Populate from [Setting]** box appears. Click **Populate** to seed locations, notable NPCs, and factions from that setting: existing entries are skipped, so it's safe to run more than once.
-6. **Theme**: pick one of the available visual themes; each option previews its background, primary, and card colors as three swatches.
-7. **Health Visibility**: controls how HP is shown to players:
+2. **Calendar, today's date and populating from a setting**: these live in **Canon**, in the **How the world works** part, not on this tab. See [Calendar System](#calendar-system).
+3. **Theme**: pick one of the available visual themes; each option previews its background, primary, and card colors as three swatches.
+4. **Health Visibility**: controls how HP is shown to players:
    - **Strategic**: HP bars and labels for everyone; exact numbers for player characters only.
    - **Immersive**: player characters show a bar only (no numbers); monsters show status words only.
    - **Unknown**: no health information shown for anything that isn't a player character.
-8. **Immersive Rolls**: when on, Stealth, Investigation, and Insight-style checks show only flavor text in chat; the full numeric result is whispered to the DM only, so the player never sees their own roll's outcome.
-9. **Map memory**: how much of the map your players keep once they have seen it.
+5. **Immersive Rolls**: when on, Stealth, Investigation, and Insight-style checks show only flavor text in chat; the full numeric result is whispered to the DM only, so the player never sees their own roll's outcome.
+6. **Map memory**: how much of the map your players keep once they have seen it.
    - **Remembered** (the default): what the party has seen stays on the map, shaded a little where they cannot see right now.
    - **Strict**: the map shows only what the party can see right now, plus anything you reveal by hand.
-10. **Sight**: whose eyes a player's phone looks through.
+7. **Sight**: whose eyes a player's phone looks through.
    - **Shared by the party** (the default): every screen shows what any character can see. Best when everyone sits at one table.
    - **Each their own**: a player's phone shows only what their own character can see. Best for online play. The table screen on your TV always shows the whole party.
-11. **Show VTT tokens to players**: when off, the player-facing battle map shows only the map and fog of war, with no character or monster tokens. Use this for in-person sessions run with physical minis or theater of the mind; your own DM view is unaffected either way.
-12. Click **Save Changes**.
+8. **Show VTT tokens to players**: when off, the player-facing battle map shows only the map and fog of war, with no character or monster tokens. Use this for in-person sessions run with physical minis or theater of the mind; your own DM view is unaffected either way.
+9. Click **Save Changes**.
 
 ## Managing members and invites
 
@@ -71,9 +68,22 @@ The **Scheduling** tab manages proposed session dates and the party's shared cal
 
 ## Toggling optional rules
 
-The **Rules** tab has two parts.
+The **Rules** tab has two parts, the game system and the optional rules.
 
-**Rules edition**: pick **D&D 5e (2014)** or **D&D 5e (2024)** for the whole campaign. Existing campaigns default to 2014. Changing edition can alter character progression and available content; existing character choices are preserved for review rather than discarded.
+**Game system**: the system this table plays by. You choose it when you create the campaign (**GAME SYSTEM** on the **New Campaign** form) between **D&D 5e (2014)**, **D&D 5e (2024)** and **Generic**. The system sets the character sheets, creatures, items, rests and encounter rules, and which edition's books the campaign reads.
+
+- **Switching between the two 5e editions**: on the **Rules** tab, choose the other edition. Changing it changes no character: each keeps the edition it was built with and keeps its seat. Characters built for the other edition are listed below the picker, so you can see who is out of step.
+- **Allow both editions**: **On**, characters of either edition may join and stay as they are. **Off**, a character built with the other edition is asked to bring a converted copy. The same choice is offered as **Allow characters built for...** when you create the campaign.
+- **Generic cannot be changed.** **Generic** is for any other system: the world, quests, maps and story tools, with no rules system's sheets or stat blocks. It does not swap with 5e in either direction, so the Rules tab just says it was chosen when the campaign was created.
+
+### A Generic campaign
+
+Anything that exists only for a rules system is hidden in a Generic campaign, so it opens as a world-building and story tool. These are not in the sidebar:
+
+- **Encounters**, **Party**, the **Table**, and **Character Sheet**, because there are no characters to build or fight with.
+- In **Compendium**: **Reliquary**, **Bestiary**, **Spellbook**, **Item Vault** and **Character Codex**.
+
+In the same way, **Campaign Settings** drops the **Classes** and **Species** tabs, and the **Rules** tab has no optional rules to toggle. Dice roll as plain dice, with no advantage or disadvantage. Quests, the Atlas and maps, NPCs, factions, notes, the calendar, sessions, the soundboard and chat all work as in any campaign. A Generic campaign starts with a single coin you can rename or add to in **Canon**, under **How the world works**. Characters built for 5e cannot join a Generic table, and no conversion is offered.
 
 **Optional rules**: a toggle per rule. Enabled rules become visible to players in the Rules Reliquary. Some rules expose extra numeric fields (like a turn duration) once switched on. The full list:
 
@@ -98,7 +108,7 @@ The **Rules** tab has two parts.
 
 ## Setting the campaign's coins
 
-The **Currency** tab lists the coins your table uses. A new campaign starts with the D&D coins (platinum, gold, electrum, silver, copper); change them to your own homebrew coins, or to dollars or credits for another kind of game.
+The **Coins** part of **Canon**, under **How the world works**, lists the coins your table uses. A new campaign starts with the D&D coins (platinum, gold, electrum, silver, copper); change them to your own homebrew coins, or to dollars or credits for another kind of game.
 
 - **Each coin** has a name, a short name (shown everywhere: "5 gp"), a worth counted in your smallest coin, a colour, and **Used for change**: whether it is handed back as change when someone pays (D&D's electrum is not).
 - **Exactly one coin is worth 1.** It is the smallest coin, and every other coin's worth is counted in it.

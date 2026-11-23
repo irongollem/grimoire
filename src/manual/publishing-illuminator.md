@@ -3,8 +3,8 @@ title: "Illuminator: Image Effects"
 section: Publishing
 section_order: 14
 order: 4
-summary: Edit the pictures in your books: edges, colour, vignette, texture, focus, a brush mask, and optional AI actions, all kept as settings over the original.
-keywords: illuminator, image, picture, effect, colour grading, vignette, depth of field, focus, brush, mask, edge, torn paper, texture, before and after, reset, scriptorium, ai, cut out, watercolour
+summary: Edit and paint on the pictures in your books: edges, colour, vignette, texture, focus, paint layers and brushes, a picture painted from words, and optional AI actions, all kept as settings over the original.
+keywords: illuminator, describe it, paint, painting, brush, layers, smudge, eraser, generate picture, ai picture, image, picture, effect, colour grading, vignette, depth of field, focus, brush, mask, edge, torn paper, texture, before and after, reset, scriptorium, ai, cut out, watercolour
 ---
 
 The **Illuminator** is the picture editor inside the [Scriptorium](#scriptorium-document-publisher). You use it on a picture in your book, without leaving the book. It has no page of its own in the sidebar.
@@ -64,16 +64,40 @@ Upload a tiling texture such as parchment, stone or fabric. Choose a **Blend mod
 
 Click the picture to set the sharp spot. Everything away from it blurs. Choose the **Falloff** (Linear, Quadratic or Cubic) and set **Focus radius**, **Blur strength** and **Desaturation**, which slightly drains the colour from blurred areas.
 
-### Brush
+### Painting
 
-Paint the focus yourself instead of using a single spot.
+The **Paint** group at the top of the tool rail lets you paint on the picture itself: **Brush** (B), **Smudge** (S), **Eraser** (E) and **Pick colour** (I). Below them, the two colour squares show the colour you paint with in front and the background colour behind. **X** swaps them and **D** returns to ink on paper.
 
-- **Shape**: Round, Splatter, Rough or Chalk.
-- **Pressure** decides whether a stylus or touch pressure changes brush size or opacity.
-- Sliders for size, hardness, opacity, jitter and spacing, depending on the shape.
-- Left-drag erases, right-drag restores. **Undo (Ctrl+Z)** and **Clear mask** are always there.
+- **Brush** lays paint down as a stroke. Along the bar above the stage you set the **Size**, **Opacity**, **Flow** and **Smoothing**, a **Blend mode**, and open the brush library to choose a brush.
+- **Smudge** smears the paint already on a layer.
+- **Eraser** takes paint away. On the picture itself it erases the picture, so the page's paper shows through.
+- **Pick colour** takes the colour from anywhere on the stage.
+- Only a pen reports pressure. A mouse, trackpad or finger paints at full strength.
+
+Your paint goes onto its own **layers**, above the picture, and the picture underneath is never painted on. The right-hand panel has **Brushes**, **Layers** and **Colour** sections you can open together. In **Layers** you can add a **New layer**, rename it, set its blend mode and **Opacity**, **Lock transparency**, **Merge down**, **Delete**, or **Flatten into the picture**. One undo history covers every layer.
+
+#### Your own brushes
+
+Under **Yours** in the brush library, choose **New brush...** to make a brush four ways: **From this brush** (keep the one you have tuned), **From a photo of a mark**, **From a box on the picture** (drag a box round a mark you painted), or **Describe it** (AI, if your campaign has it on): type a few words such as "a wet sponge dab", and four tips come back to choose from. **Import brushes...** reads brush files from other painting programs, and tells you afterwards what it could not carry over. A brush of yours saves its settings by itself.
+
+#### Paint on a whole page
+
+You can also paint straight on a page without starting from a picture. In the Scriptorium panel, under **Add to this page**, click **Paint on this page**. A transparent painting the size of the page is placed behind the text, and the Illuminator opens on it with the Brush ready. Your paper shows through wherever you have not painted, on screen and in print. **Done** keeps it. **Cancel** straight after starting takes the empty painting away again.
+
+Free accounts keep one painting with layers. **Flatten into the picture** frees its slot, or Pro has no limit.
 
 **Reset all to defaults** at the foot of the right column clears every tool.
+
+## Describe it: a picture painted from words
+
+If AI is on for the campaign, you can have a picture painted for your book instead of finding one.
+
+1. Select a picture on the page, and in its panel click **Describe it…**. It is shown only for a book of the campaign you have open, with AI on.
+2. In **Describe the picture**, write the **Scene prompt**. Type **@** and a name to bring in an NPC, a character or a place, and an NPC with a portrait is painted to match it. The **Resolved characters** list shows which names were understood.
+3. Choose a **Shape**: **Full page**, **Tall**, **Square**, **Landscape**, **Wide banner** or **Narrow column**. Each shows its credit cost.
+4. Click **Generate**. The dialog closes and you can keep writing: the picture paints in the background and swaps itself in when it is ready. While it paints, the button reads **Painting…**. If it fails, you are told.
+
+The picture arrives as a normal picture you can edit with the quick edits or the Illuminator. It carries the AI label wherever it is shown, and if you change the shape of the crop later, the generated file itself is left untouched.
 
 ## Ask the Illuminator (AI)
 
