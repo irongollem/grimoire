@@ -50,6 +50,16 @@ export type AskItem =
   | { kind: "upsell"; id: number }
   | { kind: "error"; id: number; message: string };
 
+function dedupeRecords(records: AskRecordRef[]): AskRecordRef[] {
+  const seen = new Set<string>();
+  return records.filter((r) => {
+    const key = `${r.type}:${r.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 type ReplyItem = Extract<AskItem, { kind: "reply" }>;
 type NewItem = AskItem extends infer T ? (T extends { id: number } ? Omit<T, "id"> : never) : never;
 
@@ -137,6 +147,8 @@ export function useAskConversation(deps: AskConversationDeps) {
     let reply: ReplyItem | null = null;
     /** Every paragraph this turn wrote, so a withheld answer can take back all of them. */
     const written = new Set<number>();
+    /** The read lines this turn pushed: only these may take more records, never an earlier turn's. */
+    const readLines = new Set<number>();
     try {
       const response = await transport(body, mine.signal);
       if (!response.ok) {
@@ -175,7 +187,18 @@ export function useAskConversation(deps: AskConversationDeps) {
             push({ kind: "ask", question: event.question, choices: event.choices, answered: false });
             break;
           case "read":
-            if (event.records.length > 0) push({ kind: "read", records: event.records });
+            if (event.records.length > 0) {
+              // The server reports each tool call on its own, so one answer arrives as "Read 1", "Read 1", "Read 5".
+              // A read straight after another of this turn joins it: the DM sees one line per answer.
+              const last = items.value.at(-1);
+              if (last && last.kind === "read" && readLines.has(last.id)) {
+                const known = new Set(last.records.map((r) => `${r.type}:${r.id}`));
+                for (const r of event.records) if (!known.has(`${r.type}:${r.id}`)) last.records.push(r);
+              } else {
+                const line = push({ kind: "read", records: dedupeRecords(event.records) });
+                readLines.add(line.id);
+              }
+            }
             break;
           case "ideas":
             reply = null;

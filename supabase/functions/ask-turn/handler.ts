@@ -18,6 +18,7 @@ import { checkOutput } from "../_shared/agent/askOutput.ts";
 import { checkScope, earlierFrom, isShortFollowUp, type ScopeEarlier } from "../_shared/agent/askScope.ts";
 import { ASK_HEADINGS, askState, askSystem } from "../_shared/agent/askPrompt.ts";
 import { createReadLog, seedReadLog } from "../_shared/agent/askReads.ts";
+import { dmWordsOf } from "../_shared/agent/askSettled.ts";
 import { makeAskTools } from "../_shared/agent/askTools.ts";
 import {
   ASK_MAX_OUTPUT_TOKENS,
@@ -120,6 +121,7 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
           newId: () => deps.newId(),
           reads,
           emit,
+          dmMessages: [...dmWordsOf(history), body.message],
         });
 
         const result = await runTurn({
