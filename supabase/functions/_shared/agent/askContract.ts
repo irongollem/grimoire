@@ -64,6 +64,16 @@ const npcLinks = {
   kinds: ["npc", "party_member", "faction", "location", "deity", "item", "canon"],
 } as const satisfies AskInputSchema;
 
+/** Ties a made record may be given to existing records, read from the new record; one per generator that makes a linkable kind. */
+function linksFor(subject: "faction" | "location" | "deity" | "item", what: string): AskInputSchema {
+  return {
+    type: "links",
+    description: `Ties to existing records of this campaign (${what}). Each is {kind, id, relation}; relation is what the NEW ${subject === "location" ? "place" : subject} is to that record, read from it. Use this for any tie that has no input of its own above.`,
+    subject,
+    kinds: ["npc", "party_member", "faction", "location", "deity", "item", "canon"],
+  };
+}
+
 const image = { type: "boolean", description: "Paint a picture of it as well. Costs extra; ask unless the DM said." } as const;
 
 /**
@@ -117,7 +127,7 @@ export const ASK_GENERATORS: readonly AskGenerator[] = [
   {
     id: "item", action: "Create item", noun: "item", ending: "record", fiveE: true,
     describe: "A new item: magic item, weapon, armour, potion, trinket.",
-    inputs: {
+    inputs: { links: linksFor("item", "its owner, the place it lies in, the faction that guards it, the god it is sacred to"),
       item_type: { type: "string", description: "Kind of item." },
       rarity: { type: "string", description: "Rarity.", enum: ["common", "uncommon", "rare", "very rare", "legendary", "artifact"] },
       cursed: { type: "boolean", description: "Carries a curse." },
@@ -138,7 +148,7 @@ export const ASK_GENERATORS: readonly AskGenerator[] = [
   {
     id: "faction", action: "Create faction", noun: "faction", ending: "record",
     describe: "A new faction, guild, cult or organisation, with a leader. An existing NPC can lead it (`leader_npc_id`) and an existing place can be its headquarters (`headquarters_id`).",
-    inputs: {
+    inputs: { links: linksFor("faction", "a place they hold, a god they serve, a rival faction, an NPC who works for them"),
       faction_type: { type: "string", description: "Kind of organisation." },
       alignment: { type: "string", description: "Alignment." },
       leader_npc_id: { type: "string", description: "Id of an existing NPC in this campaign who leads it. They are added as its Leader." },
@@ -152,7 +162,7 @@ export const ASK_GENERATORS: readonly AskGenerator[] = [
   {
     id: "location", action: "Create place", noun: "place", ending: "record",
     describe: "A new place in the Atlas: a town, building, region, dungeon. It can sit inside an existing place (`parent_id`) and be kept by an existing NPC (`keeper_npc_id`).",
-    inputs: {
+    inputs: { links: linksFor("location", "a faction that holds it, a god worshipped there, an NPC who lives or works there"),
       location_type: { type: "string", description: "Kind of place." },
       parent_id: { type: "string", description: "Id of the place in this campaign it sits inside." },
       keeper_npc_id: { type: "string", description: "Id of an NPC in this campaign who keeps or owns it (the innkeeper, the lord)." },
@@ -174,7 +184,7 @@ export const ASK_GENERATORS: readonly AskGenerator[] = [
   { id: "dungeon_feature", action: "Create dungeon feature", noun: "feature", ending: "record", fiveE: true, describe: "A dungeon feature: a fountain, altar, strange door.", inputs: { feature_type: { type: "string", description: "Kind of feature." }, image } },
   { id: "trap", action: "Create trap", noun: "trap", ending: "record", fiveE: true, describe: "A trap with its trigger, effect and countermeasures.", inputs: { trap_type: { type: "string", description: "Kind of trap." }, image } },
   { id: "puzzle", action: "Create puzzle", noun: "puzzle", ending: "record", describe: "A puzzle room or riddle.", inputs: { puzzle_type: { type: "string", description: "Kind of puzzle." }, difficulty: { type: "string", description: "How hard." }, image } },
-  { id: "deity", action: "Create deity", noun: "deity", ending: "record", describe: "A god or power, with domains and an emblem. It can join an existing pantheon (`pantheon_id`).", inputs: { pantheon_id: { type: "string", description: "Id of a pantheon in this campaign it belongs to." }, alignment: { type: "string", description: "Alignment." }, domain: { type: "string", description: "A domain." }, image } },
+  { id: "deity", action: "Create deity", noun: "deity", ending: "record", describe: "A god or power, with domains and an emblem. It can join an existing pantheon (`pantheon_id`).", inputs: { links: linksFor("deity", "a faction or NPC who serves them, a holy place, a relic"), pantheon_id: { type: "string", description: "Id of a pantheon in this campaign it belongs to." }, alignment: { type: "string", description: "Alignment." }, domain: { type: "string", description: "A domain." }, image } },
   { id: "species", action: "Create species", noun: "species", ending: "record", fiveE: true, describe: "A playable species.", inputs: { size: { type: "string", description: "Size." }, image } },
   { id: "background", action: "Create background", noun: "background", ending: "record", fiveE: true, describe: "A character background.", inputs: { skill_focus: { type: "string", description: "Skills it leans on." } } },
   { id: "class", action: "Create class", noun: "class", ending: "record", fiveE: true, describe: "A custom character class.", inputs: { hit_die: { type: "integer", description: "Hit die faces.", minimum: 6, maximum: 12 } } },
