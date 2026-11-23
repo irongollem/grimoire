@@ -32,7 +32,7 @@
 import { computed, ref } from "vue";
 import { IconGenerate } from "@/lib/icons";
 import { useConfirm } from "@/composables/useConfirm";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useQuestBeatQuote } from "@/composables/ai/quotes/questBeatQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useQuestBeatFill, type QuestBeatFilled } from "@/ai/useQuestBeatFill";
@@ -53,12 +53,13 @@ const emit = defineEmits<{ filled: [result: QuestBeatFilled & { overwrite: boole
 
 const { confirm } = useConfirm();
 const { canSpend } = useGenerationGate();
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok: isByok } = useCampaignProviders();
+const { textIsByok: isByok } = useCampaignProviders();
 const { isGenerating, error, generate } = useQuestBeatFill();
 
 const steer = ref("");
-const creditCost = computed(() => textCredits(costOf("quest_beat_generation")));
+// The price is the quote's, the one Ask Grimoire shows for the same fill.
+const quoteOf = useQuestBeatQuote();
+const creditCost = computed(() => quoteOf().total);
 
 async function run() {
   if (isGenerating.value) return;

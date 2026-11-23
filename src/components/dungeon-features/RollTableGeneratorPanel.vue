@@ -5,8 +5,8 @@
     title="Roll Table Generator"
     concept-placeholder="Forest road at night, bandits active in the region, levels 3–5…"
     :concept-limit="CONCEPT_LIMIT"
-    :credits="textCreditCost"
-    :byok="textIsByok"
+    :credits="quote.total"
+    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     :show-results="!!result"
@@ -105,29 +105,25 @@ const CONCEPT_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { useRouter } from "vue-router";
 import { IconAdd, IconCheckCircle } from "@/lib/icons";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
-import { useCampaignStore } from "@/stores/campaign";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
-import { useCreateRollTable } from "@/composables/dungeon-features/useRollTables";
+import { useGenerateRollTable, ROLL_TABLE_GENERATOR_DICE } from "@/composables/dungeon-features/useGenerateRollTable";
+import { useRollTableQuote } from "@/composables/ai/quotes/rollTableQuote";
 import { useRollTableGeneration } from "@/ai/useRollTableGeneration";
 import { resolveGeneratedEntities, type ResolvedEntity, ENTITY_KIND_ROUTE } from "@/ai/resolveGeneratedEntities";
 import GeneratedEntityChips from "@/components/common/ai/GeneratedEntityChips.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { ROLL_TABLE_DIE_MAX } from "@/types/rollTable.types";
 import type { RollTableDie } from "@/types/rollTable.types";
 
-const DIE_OPTIONS: RollTableDie[] = ["1d6", "1d8", "1d10", "1d12", "1d20"];
-const dieOptions = DIE_OPTIONS.map((d) => ({ value: d, label: d }));
+const dieOptions = ROLL_TABLE_GENERATOR_DICE.map((d) => ({ value: d, label: d }));
 
 const generatorsUi = useGeneratorUiStore();
 const router = useRouter();
-const campaign = useCampaignStore();
 // Mounted on every DM page — only fetch the dropdown data once the panel opens.
 const panelOpen = () => generatorsUi.rollTableGeneratorOpen;
 const { data: npcs } = useNpcs(panelOpen);
@@ -145,7 +141,7 @@ const {
   clearResult,
 } = useRollTableGeneration();
 
-const { mutateAsync: createRollTable } = useCreateRollTable();
+const { saveGeneratedRollTable } = useGenerateRollTable();
 
 // Same pools the comboboxes on other generator panels fetch — resolveGeneratedEntities
 // just needs the {id, name} shape.
@@ -168,12 +164,10 @@ function goToEntity(entity: ResolvedEntity) {
   router.push(`${ENTITY_KIND_ROUTE[entity.kind]}/${entity.id}`);
 }
 
-const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const textCreditCost = computed(
-  () => textCredits(costOf("roll_table_generation")),
-);
+// The price is the quote's, the one Ask Grimoire shows too, so the page and Ask cannot disagree.
+const quoteRollTable = useRollTableQuote();
+const quote = computed(() => quoteRollTable());
 
 const concept = ref("");
 const die = ref<RollTableDie>("1d8");
@@ -183,7 +177,7 @@ const creating = ref(false);
 const createdTableId = ref<string | null>(null);
 
 async function runGenerate() {
-  if (!requireCredits(textCreditCost.value, textIsByok.value)) return;
+  if (!requireCredits(quote.value.total, quote.value.byok)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();
@@ -195,23 +189,7 @@ async function createTable() {
   if (!result.value) return;
   creating.value = true;
   try {
-    const table = await createRollTable({
-      campaign_id: campaign.activeCampaignId,
-      name: result.value.name,
-      description: result.value.description || null,
-      dice: die.value,
-      entries: result.value.entries.map((e) => ({
-        id: crypto.randomUUID(),
-        min: e.min,
-        max: e.max,
-        label: e.label,
-        encounter_id: null,
-        notes: e.notes ?? null,
-      })),
-      tags: result.value.tags,
-      notes: null,
-      ai_provenance: result.value.ai_provenance ?? null,
-    });
+    const table = await saveGeneratedRollTable(result.value, die.value);
     createdTableId.value = table.id;
     completedEntityId.value = table.id;
   } finally {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBeatFillConstraints, normalizeBeatFill, type BeatFillContext } from "./beatFill";
+import { buildBeatFillConstraints, buildBeatFillContext, normalizeBeatFill, type BeatFillContext } from "./beatFill";
 
 const doc = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
 const other = (title: string, lead = "") => ({ title, dm_content: lead ? doc(lead) : null });
@@ -96,5 +96,32 @@ describe("normalizeBeatFill", () => {
     expect(() => normalizeBeatFill(null)).toThrow();
     expect(() => normalizeBeatFill("text")).toThrow();
     expect(() => normalizeBeatFill({ title: "Only a title" })).toThrow();
+  });
+});
+
+describe("buildBeatFillContext", () => {
+  const beats = [
+    { id: "a", title: "Before", dm_content: null },
+    { id: "b", title: "This", dm_content: null },
+    { id: "c", title: "After", dm_content: null },
+  ];
+  const edges = [
+    { source_beat_id: "a", target_beat_id: "b", label: "by boat" },
+    { source_beat_id: "b", target_beat_id: "c", label: null },
+  ];
+  const source = (over = {}) => ({
+    quest: { title: "Q", summary: null }, beat: { ...beats[1], kind: "social" as const }, beats, edges, objectives: [], stagedAt: "Boathouse", threadCount: 1, ...over,
+  });
+
+  it("finds the beats on either side of this one by the routes that join them", () => {
+    const context = buildBeatFillContext(source());
+    expect(context.incoming.map((b) => b.title)).toEqual(["Before"]);
+    expect(context.outgoing.map((b) => b.title)).toEqual(["After"]);
+    expect(context.stagedAt).toBe("Boathouse");
+  });
+
+  it("names the thread only when the quest runs more than one", () => {
+    expect(buildBeatFillContext(source({ threadCount: 1 })).threadLabel).toBeNull();
+    expect(buildBeatFillContext(source({ threadCount: 2 })).threadLabel).toBe("by boat");
   });
 });

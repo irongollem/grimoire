@@ -227,7 +227,14 @@ const STEER_PLACEHOLDERS: Record<ComplicationMode, string> = {
   reinforcements: "A second warband answers the horn, guards pour in from the north tunnel…",
 };
 
-const { mode } = defineProps<{ mode: ComplicationMode }>();
+const { mode, steerSeed = null } = defineProps<{
+  mode: ComplicationMode;
+  /**
+   * A request Ask Grimoire (#1253) left for this dialog: a new object each time, so asking twice with the same words
+   * still lands. The steer is filled in and any earlier preview dropped; "Generate" stays the DM's own press.
+   */
+  steerSeed?: { text: string } | null;
+}>();
 const open = defineModel<boolean>({ required: true });
 
 const campaign = useCampaignStore();
@@ -307,6 +314,18 @@ function handleDiscard() {
 
 const addingToEvents = ref(false);
 const persistError = ref<string | null>(null);
+
+// After the mode watcher on purpose: a request that also switches the mode must land after that switch clears the steer.
+watch(
+  () => steerSeed,
+  (seed) => {
+    if (seed === null) return;
+    clearResult();
+    steer.value = seed.text.slice(0, STEER_LIMIT);
+    persistError.value = null;
+  },
+  { immediate: true },
+);
 
 /**
  * Approve the preview. The event joins the runner's live list UNFIRED — the

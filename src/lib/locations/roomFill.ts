@@ -5,8 +5,11 @@
  * model, the validation of what comes back, and the Tiptap document.
  */
 import { extractTiptapText } from "@/lib/utils";
+import { markEdited, type AiProvenance } from "@/ai/provenance";
+import { buildAtlasIndex } from "@/lib/locations/tree";
+import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
 import type { DoorKind } from "@/types/locationDoor.types";
-import type { Location } from "@/types/location.types";
+import type { Location, LocationSummary } from "@/types/location.types";
 
 /** The edge function takes at most 12 constraint lines of 400 characters. */
 const MAX_LINES = 12;
@@ -99,6 +102,47 @@ export function buildRoomFillConstraints(ctx: RoomFillContext): string[] {
   const others = ctx.siblings.filter((s) => s.id !== ctx.room.id).map((s) => s.name);
   if (others.length) lines.push(`Other rooms on this level: ${others.join(", ")}`);
   return lines.slice(0, MAX_LINES).map((l) => clip(l, MAX_LINE));
+}
+
+/**
+ * The grounding lines for filling one room, from the Atlas: which floor it is on (and how many floors the site has),
+ * the exits its doors give it, and the other rooms on that floor. The room list's "Roll it with AI" and Ask Grimoire
+ * both build their request here, so the model reads the same site from either. `siblings` is the other rooms on the
+ * room's floor; the caller passes them because the list already holds them.
+ */
+export function roomFillConstraintsFor(input: {
+  atlas: readonly LocationSummary[];
+  site: Location;
+  room: Location;
+  doors: readonly RoomFillDoorEdge[];
+  siblings: readonly Pick<Location, "id" | "name">[];
+}): string[] {
+  const index = buildAtlasIndex(input.atlas);
+  const floor = (input.room.parent_id ? index.byId.get(input.room.parent_id) : null) ?? index.byId.get(input.site.id) ?? null;
+  const levels = floor ? levelsOf(index, floor) : null;
+  const ordinal = levels && floor ? levelOrdinal(levels.levels, floor.id) : null;
+  return buildRoomFillConstraints({
+    site: input.site,
+    level: levels && floor && ordinal ? { name: floor.name, ordinal, total: levels.levels.length } : null,
+    room: input.room,
+    neighbours: neighboursOf(input.room.id, input.doors),
+    siblings: input.siblings,
+  });
+}
+
+/**
+ * What saving a filled room writes: the description and, for text the AI wrote, its provenance. Text saved untouched
+ * keeps its provenance as generated; once the DM has changed it, the record says so (#606).
+ */
+export function roomFillSaveUpdate(input: {
+  description: string | null;
+  aiDraft: string | null;
+  provenance: AiProvenance | null;
+}): { description: string | null; ai_provenance?: AiProvenance } {
+  const provenance = input.provenance && input.description !== input.aiDraft
+    ? markEdited(input.provenance)
+    : input.provenance;
+  return { description: input.description, ...(provenance ? { ai_provenance: provenance } : {}) };
 }
 
 export interface RoomFill {

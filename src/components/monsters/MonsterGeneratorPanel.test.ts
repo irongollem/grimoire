@@ -53,8 +53,8 @@ vi.mock("@/composables/ai/useAiCredits", () => ({
   useAiCredits: () => ({ affordable: () => affordableState.value, balance: ref(10) }),
 }));
 // The price is the shared quote's (the one Ask Grimoire reads too); its own arithmetic is tested beside it.
-vi.mock("@/composables/ai/useGeneratorQuote", () => ({
-  useGeneratorQuote: () => ({ quoteFor: mocks.quoteFor }),
+vi.mock("@/composables/ai/quotes/monsterQuote", () => ({
+  useMonsterQuote: () => mocks.quoteFor,
 }));
 vi.mock("@/composables/billing/useQuota", () => ({
   useQuota: () => ({ canCreate: canCreateMonster, quota: ref(null) }),
@@ -189,7 +189,7 @@ describe("MonsterGeneratorPanel — what it asks for and where it lands", () => 
   it("prices the run through the shared quote, with the picture counted while its toggle is on", async () => {
     mocks.quoteFor.mockClear();
     mountPanel();
-    expect(mocks.quoteFor).toHaveBeenCalledWith("monster", { image: true });
+    expect(mocks.quoteFor).toHaveBeenCalledWith({ image: true });
   });
 
   it("asks for the trimmed concept and leaves every blank constraint out", async () => {

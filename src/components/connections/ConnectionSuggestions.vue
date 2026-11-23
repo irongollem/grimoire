@@ -111,7 +111,7 @@ import BannerLoader from "@/components/brand/BannerLoader.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import ConnectionSlip, { type ConnectionTag } from "@/components/common/entity/ConnectionSlip.vue";
 import { useCreateConnection } from "@/composables/connections/useConnections";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useConnectionSuggestionsQuote } from "@/composables/ai/quotes/connectionSuggestionsQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useToast } from "@/composables/useToast";
@@ -152,9 +152,9 @@ const {
 
 const { mutateAsync: createConnection } = useCreateConnection();
 const { canSpend } = useGenerationGate();
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const suggestCost = computed(() => textCredits(costOf("npc_relationship_suggestion")));
+const quoteFor = useConnectionSuggestionsQuote();
+const { textIsByok } = useCampaignProviders();
+const suggestCost = computed(() => quoteFor().total);
 
 const showSteer = ref(false);
 const steer = ref("");

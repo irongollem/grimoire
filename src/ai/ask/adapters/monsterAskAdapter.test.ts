@@ -30,7 +30,7 @@ vi.mock("@/composables/monsters/useGenerateMonster", () => ({
 }));
 
 const { useMonsterAskAdapter } = await import("./monsterAskAdapter");
-const { useGeneratorQuote } = await import("@/composables/ai/useGeneratorQuote");
+const { useMonsterQuote } = await import("@/composables/ai/quotes/monsterQuote");
 
 const proposal = (inputs: Record<string, unknown> = {}, concept = "A moss-backed bear"): AskProposal => ({
   proposalId: "p1", generator: "monster", concept, inputs,
@@ -47,9 +47,9 @@ describe("useMonsterAskAdapter", () => {
 
   it("quotes the same price the page shows, with the picture counted only when asked", () => {
     const adapter = useMonsterAskAdapter();
-    const { quoteFor } = useGeneratorQuote();
-    expect(adapter.quote(proposal()).total).toBe(quoteFor("monster", { image: false }).total);
-    expect(adapter.quote(proposal({ image: true })).total).toBe(quoteFor("monster", { image: true }).total);
+    const quoteFor = useMonsterQuote();
+    expect(adapter.quote(proposal()).total).toBe(quoteFor({ image: false }).total);
+    expect(adapter.quote(proposal({ image: true })).total).toBe(quoteFor({ image: true }).total);
   });
 
   it("a monster on a campaign without stat blocks is blocked, not run", async () => {

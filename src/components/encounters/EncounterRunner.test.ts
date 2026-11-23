@@ -71,6 +71,7 @@ vi.mock("@/composables/encounters/useEvergreenWildShape", () => ({ useEvergreenW
 import EncounterRunner from "./EncounterRunner.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAskPrefillStore } from "@/stores/ui/askPrefill";
 
 const beastArt = vi.hoisted(() => ({ byId: new Map<string, { image_url: string | null }>() }));
 vi.mock("@/composables/monsters/useMonstersByIds", () => ({
@@ -91,6 +92,7 @@ const stubs = {
   RunnerCombatantList: true, RunnerSpawnPanel: true, RunnerDmTools: true,
   RunnerToolsSheet: true, DmNoteBox: true, PlayMap: true, PlayPhoneMap: true,
   RunnerEntityDetail: { template: "<div data-testid='detail' />" },
+  ComplicationGeneratorDialog: { name: "ComplicationGeneratorDialog", props: ["modelValue", "mode", "steerSeed"], template: "<div data-testid='complication' :data-open='modelValue' :data-mode='mode'>{{ steerSeed?.text }}</div>" },
 };
 
 function mountRunner() {
@@ -116,6 +118,21 @@ describe("EncounterRunner", () => {
     h.releaseFight.mockImplementation(() => useEncounterRunStore().reset());
     h.ensureSession.mockResolvedValue({ id: "session-1", started: false });
     useCampaignStore().activeCampaignId = "camp-1";
+  });
+
+  // Bug caught: Ask Grimoire's complication opened the fight with the dialog shut and the DM's wording lost.
+  it("opens the complication dialog with the steer Ask Grimoire left, and not otherwise", () => {
+    isMobile.value = false;
+    const campaign = useCampaignStore();
+    campaign.activeCampaign = { id: "camp-1", ai_enabled: true } as typeof campaign.activeCampaign;
+    useAskPrefillStore().offer("complication", "a rope bridge starts to fray");
+    const w = mountRunner();
+    const dialog = w.get("[data-testid=complication]");
+    expect(dialog.attributes("data-open")).toBe("true");
+    expect(dialog.attributes("data-mode")).toBe("complication");
+    expect(dialog.text()).toBe("a rope bridge starts to fray");
+    w.unmount();
+    expect(mountRunner().get("[data-testid=complication]").attributes("data-open")).toBe("false");
   });
 
   // A DM who is not live (or has no campaign, so no Go Live) could never begin combat.

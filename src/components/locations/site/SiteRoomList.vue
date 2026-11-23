@@ -112,16 +112,14 @@ import { IconCoins, IconGenerate, IconHide, IconShieldCheck } from "@/lib/icons"
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { useAllLocations, useFetchLocation, useUpdateLocation } from "@/composables/locations/useLocations";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useRoomQuote } from "@/composables/ai/quotes/roomQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useRoomFill } from "@/ai/useRoomFill";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
-import { markEdited, type AiProvenance } from "@/ai/provenance";
+import type { AiProvenance } from "@/ai/provenance";
 import { useCampaignStore } from "@/stores/campaign";
-import { buildAtlasIndex } from "@/lib/locations/tree";
-import { levelsOf, levelOrdinal } from "@/lib/locations/levels";
-import { buildRoomFillConstraints, neighboursOf } from "@/lib/locations/roomFill";
+import { roomFillConstraintsFor, roomFillSaveUpdate } from "@/lib/locations/roomFill";
 import { useMoveParty } from "@/composables/locations/useMoveParty";
 import { useLootPlacements } from "@/composables/quests/useQuestFlow";
 import { useToast } from "@/composables/useToast";
@@ -230,13 +228,8 @@ function cancelFill(): void {
   aiProvenance.value = null;
 }
 function saveFill(room: Location): void {
-  // AI-written text saved untouched keeps its provenance as generated; once the
-  // DM has changed it, the record says so (#606).
-  const provenance = aiProvenance.value && draft.value !== aiDraft.value
-    ? markEdited(aiProvenance.value)
-    : aiProvenance.value;
   updateLocation(
-    { id: room.id, update: { description: draft.value, ...(provenance ? { ai_provenance: provenance } : {}) } },
+    { id: room.id, update: roomFillSaveUpdate({ description: draft.value, aiDraft: aiDraft.value, provenance: aiProvenance.value }) },
     {
       onSuccess: () => { emit("fill", room.id); cancelFill(); },
       onError: (e) => toast.error(toast.fromError(e)),
@@ -252,11 +245,10 @@ const aiDraft = ref<string | null>(null);
 const aiProvenance = ref<AiProvenance | null>(null);
 const { isGenerating, error: genError, clearError, fill } = useRoomFill();
 const { canSpend } = useGenerationGate();
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const fillCreditCost = computed(
-  () => textCredits(costOf("room_generation")),
-);
+const { textIsByok } = useCampaignProviders();
+// The price is the quote's, the one Ask Grimoire shows for the same fill.
+const roomQuote = useRoomQuote();
+const fillCreditCost = computed(() => roomQuote().total);
 
 // Only fetched once a fill is open: nothing else on this list needs them.
 const fillOpen = () => fillingId.value !== null && isAiEnabled.value;
@@ -267,7 +259,6 @@ const { data: doors } = useSiteDoors(roomIds);
 
 async function rollFill(room: Location): Promise<void> {
   if (!canSpend(fillCreditCost.value, textIsByok.value)) return;
-  const index = buildAtlasIndex(allLocations.value ?? []);
   // The slim list has no description; the fill wants the site's, so read that
   // one row by id (cached with the place's own `["locations", id]` entry).
   let site: Location;
@@ -277,14 +268,11 @@ async function rollFill(room: Location): Promise<void> {
     toast.error(toast.fromError(e));
     return;
   }
-  const floor = (room.parent_id ? index.byId.get(room.parent_id) : null) ?? index.byId.get(siteId) ?? null;
-  const levels = floor ? levelsOf(index, floor) : null;
-  const ordinal = levels && floor ? levelOrdinal(levels.levels, floor.id) : null;
-  const constraints = buildRoomFillConstraints({
+  const constraints = roomFillConstraintsFor({
+    atlas: allLocations.value ?? [],
     site,
-    level: levels && floor && ordinal ? { name: floor.name, ordinal, total: levels.levels.length } : null,
     room,
-    neighbours: neighboursOf(room.id, doors.value ?? []),
+    doors: doors.value ?? [],
     siblings: rooms.filter((r) => r.parent_id === room.parent_id),
   });
   const result = await fill({ room, constraints, steer: steer.value });
