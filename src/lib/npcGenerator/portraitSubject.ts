@@ -21,16 +21,62 @@ function article(word: string): string {
   return /^[aeiou]/i.test(word) ? `an ${word}` : `a ${word}`;
 }
 
+function wordsOf(text: string): string[] {
+  return text.toLowerCase().split(/[^a-z-]+/).filter((w) => w !== "");
+}
+
 /**
  * The portrait subject: "<species, with its build>. <description>". A race the record does not have (null, blank)
  * leaves the description as the model wrote it. Matched on any word of the race, so "Halfling (Lightfoot)" and
  * "Lightfoot halfling" both find the halfling build.
+ *
+ * With `referenced`, a picture of the species goes along as a reference (`speciesPictureFor`), and the subject says
+ * what it is for: an image model given a reference otherwise copies its pose, clothes and face.
  */
-export function npcPortraitSubject(race: string | null | undefined, description: string): string {
+export function npcPortraitSubject(race: string | null | undefined, description: string, referenced = false): string {
   const species = typeof race === "string" ? race.trim() : "";
   if (species === "") return description;
-  const words = species.toLowerCase().split(/[^a-z-]+/).filter((w) => w !== "");
-  const build = words.map((w) => BUILD[w]).find((b) => b !== undefined);
+  const build = wordsOf(species).map((w) => BUILD[w]).find((b) => b !== undefined);
   const lead = build ?? article(species.toLowerCase());
-  return `${lead.charAt(0).toUpperCase()}${lead.slice(1)}. ${description}`;
+  const subject = `${lead.charAt(0).toUpperCase()}${lead.slice(1)}. ${description}`;
+  if (!referenced) return subject;
+  return `${subject} The reference picture shows what ${article(species.toLowerCase())} looks like: take the species' build, `
+    + "skin, scales, hair and features from it, and nothing else; this person's face, pose, clothing and surroundings are "
+    + "as described here.";
+}
+
+/** A species row with the picture that shows it. */
+export interface SpeciesPicture {
+  name: string;
+  image_url: string | null;
+}
+
+/**
+ * The picture of the NPC's species, to send to the image model as a reference: not every species is known to it (a
+ * homebrew people never is), and a name alone paints a human. The campaign's own species beat the library's (the DM's
+ * homebrew is what the race means in this campaign); within each, an exact name beats one word of a longer race
+ * ("Hill Dwarf" finds "Dwarf"). Only a species with a picture counts; null when none fits.
+ *
+ * Never for a human: every image model paints one unasked, and a reference costs input tokens on each portrait and
+ * pulls the picture toward the library art's look for nothing (every library species has a picture).
+ */
+export function speciesPictureFor(
+  race: string | null | undefined,
+  campaignSpecies: readonly SpeciesPicture[],
+  librarySpecies: readonly SpeciesPicture[],
+): string | null {
+  const wanted = typeof race === "string" ? race.trim().toLowerCase() : "";
+  if (wanted === "" || /^human\b/.test(wanted)) return null;
+  const words = new Set(wordsOf(wanted));
+  for (const rows of [campaignSpecies, librarySpecies]) {
+    const pictured = rows.filter((row): row is SpeciesPicture & { image_url: string } => !!row.image_url);
+    const exact = pictured.find((row) => row.name.trim().toLowerCase() === wanted);
+    if (exact) return exact.image_url;
+    const byWord = pictured.find((row) => {
+      const name = row.name.trim().toLowerCase();
+      return name !== "" && !name.includes(" ") && words.has(name);
+    });
+    if (byWord) return byWord.image_url;
+  }
+  return null;
 }
