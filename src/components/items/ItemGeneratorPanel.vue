@@ -5,8 +5,8 @@
     v-model:generate-image="generateImage"
     title="Item Generator"
     concept-placeholder="A staff carved from petrified dragon bone, crackling with lightning and able to call storms when wielded by a chosen champion…"
-    :credits="textCreditCost"
-    :byok="textIsByok"
+    :credits="quote.total"
+    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     blank-to="/vault/new"
@@ -55,15 +55,13 @@ import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useItemsUiStore } from "@/stores/ui/items";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCreateItem } from "@/composables/items/useItems";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
+import { useItemQuote } from "@/composables/ai/quotes/itemQuote";
+import { useGenerateItem } from "@/composables/items/useGenerateItem";
 import { useItemGeneration } from "@/ai/useItemGeneration";
-import { generatedItemPayload } from "@/lib/items/generatedItemPayload";
 import {
   ITEM_TYPES,
   ITEM_TYPE_LABELS,
@@ -74,48 +72,42 @@ import {
 const itemsUi = useItemsUiStore();
 const router = useRouter();
 const campaign = useCampaignStore();
-const { mutateAsync: createItem } = useCreateItem();
-const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useItemGeneration();
+const { generateAndCreateItem } = useGenerateItem();
+// The shared generation state `useGenerateItem` drives underneath; this panel reads it for its own loading UI.
+const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted } = useItemGeneration();
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 
-const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const textCreditCost = computed(
-  () => textCredits(costOf("item_generation")),
-);
+const quoteItem = useItemQuote();
 
 const concept = ref("");
 const constraints = reactive({ item_type: "", rarity: "" });
 const generateImage = ref(true);
 const generateCursed = ref(false);
 
-async function generateAndCreate() {
-  if (!requireCredits(textCreditCost.value, textIsByok.value)) return;
+// The price Ask Grimoire quotes for the same run: the picture counts when it is switched on.
+const quote = computed(() => quoteItem({ image: generateImage.value }));
 
-  const campaignId = campaign.activeCampaignId;
+async function generateAndCreate() {
+  if (!requireCredits(quote.value.total, quote.value.byok)) return;
+
   genConcept.value = concept.value.trim();
   clearCompleted();
 
-  const result = await generate(
-    concept.value.trim(),
-    {
-      item_type: constraints.item_type || undefined,
-      rarity: constraints.rarity || undefined,
-      cursed: generateCursed.value || undefined,
-      generateImage: generateImage.value,
-    },
-  );
-  if (!result) return;
-
-  const created = await createItem(generatedItemPayload(result, campaignId));
+  const { id } = await generateAndCreateItem(concept.value.trim(), {
+    item_type: constraints.item_type || undefined,
+    rarity: constraints.rarity || undefined,
+    cursed: generateCursed.value || undefined,
+    generateImage: generateImage.value,
+  });
+  if (!id) return;
 
   if (itemsUi.itemGeneratorOpen) {
     itemsUi.itemGeneratorOpen = false;
-    router.push(`/vault/${created.id}`);
+    router.push(`/vault/${id}`);
   } else {
-    completedEntityId.value = created.id;
+    completedEntityId.value = id;
   }
 }
 </script>

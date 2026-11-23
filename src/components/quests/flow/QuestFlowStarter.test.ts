@@ -1,6 +1,8 @@
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { reactive } from "vue";
+import { createPinia, setActivePinia } from "pinia";
+import { useAskPrefillStore } from "@/stores/ui/askPrefill";
 import QuestFlowStarter from "./QuestFlowStarter.vue";
 import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 
@@ -11,7 +13,7 @@ import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 // keeps this file testing only what QuestFlowStarter itself is responsible
 // for: which panel renders for which mode.
 vi.mock("@/components/quests/flow/QuestDesignerPanel.vue", () => ({
-  default: { name: "QuestDesignerPanel", props: ["parentId"], template: "<div>Designer panel stub</div>" },
+  default: { name: "QuestDesignerPanel", props: ["parentId", "initialProse"], template: "<div data-testid=\"designer\">{{ initialProse }}</div>" },
 }));
 
 const mocks = vi.hoisted(() => ({
@@ -39,11 +41,31 @@ vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => campaignState }));
 
 describe("QuestFlowStarter", () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
     mocks.create.mockReset();
     mocks.createBeat.mockReset().mockResolvedValue({ id: "beat-new" });
     mocks.push.mockReset();
     mocks.ui.dmMode = "play";
     campaignState.isAiEnabled = true;
+  });
+
+  // Bug caught: Ask's "Open quest" landed on the typed form with the description lost, so the DM described it twice.
+  it("opens the Designer with the description Ask Grimoire left, and only then", async () => {
+    useAskPrefillStore().offer("quest_designer", "A heist in the mint");
+    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub, PaywallModal: true } } });
+    expect(wrapper.get("[data-testid=designer]").text()).toBe("A heist in the mint");
+    wrapper.unmount();
+
+    const plain = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub, PaywallModal: true } } });
+    expect(plain.find("[data-testid=designer]").exists()).toBe(false);
+  });
+
+  // Bug caught: with AI off the Designer's mode has no button, so a request switched the page into a mode the DM cannot leave.
+  it("ignores the request when the campaign's AI is off", () => {
+    campaignState.isAiEnabled = false;
+    useAskPrefillStore().offer("quest_designer", "A heist in the mint");
+    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub, PaywallModal: true } } });
+    expect(wrapper.find("[data-testid=designer]").exists()).toBe(false);
   });
 
   it("creates the quest shell and opens its overview", async () => {

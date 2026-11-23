@@ -5,8 +5,8 @@
     title="Loot Table Generator"
     concept-placeholder="The smugglers' vault beneath the Rusty Anchor: coin, contraband, one thing they stole and couldn't sell…"
     :concept-limit="CONCEPT_LIMIT"
-    :credits="textCreditCost"
-    :byok="textIsByok"
+    :credits="quote.total"
+    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     :show-results="!!result"
@@ -163,25 +163,21 @@ import { useRouter } from "vue-router";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 import { IconAdd, IconCheckCircle, IconCoins, IconWarning } from "@/lib/icons";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
-import { useCampaignStore } from "@/stores/campaign";
 import { useCurrency } from "@/composables/currency/useCurrency";
 import { useItemIndex } from "@/composables/items/useItemIndex";
-import { useCreateLootTable } from "@/composables/dungeon-features/useLootTables";
+import { useGenerateLootTable, toLootPool } from "@/composables/dungeon-features/useGenerateLootTable";
+import { useLootTableQuote } from "@/composables/ai/quotes/lootTableQuote";
 import { useLootGeneration } from "@/ai/useLootGeneration";
 import { resolveGeneratedLoot, type ResolvedLootEntry } from "@/ai/resolveGeneratedLoot";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import {
   LOOT_CR_TIERS,
   LOOT_CR_TIER_LABELS,
   LOOT_TIER_RARITIES,
-  validateEntries,
   type LootCrTier,
-  type LootEntry,
 } from "@/types/lootTable.types";
 import { ITEM_RARITY_LABELS, ITEM_TYPE_LABELS, RARITY_TEXT, type ItemRarity } from "@/types/item.types";
 
@@ -189,7 +185,6 @@ const CONCEPT_LIMIT = AI_PROMPT_LIMIT_SHORT;
 
 const generatorsUi = useGeneratorUiStore();
 const router = useRouter();
-const campaign = useCampaignStore();
 // Mounted on every DM page — the vault catalogue is multiple MB, so only fetch
 // it once the panel is actually open (same guard the other panels use).
 const { data: vaultItems } = useItemIndex(() => ({ enabled: generatorsUi.lootTableGeneratorOpen }));
@@ -205,7 +200,7 @@ const {
   clearResult,
 } = useLootGeneration();
 
-const { mutateAsync: createLootTable } = useCreateLootTable();
+const { saveGeneratedLootTable } = useGenerateLootTable();
 
 const concept = ref("");
 const crTier = ref<LootCrTier>("5-10");
@@ -220,9 +215,7 @@ const tierRarityHint = computed(() => {
 // The merged catalogue: the DM's own items plus library items their enabled
 // sources make visible — the same pool the server offered the model, so a name
 // the model took from the candidate block resolves here.
-const itemPool = computed(() =>
-  (vaultItems.value ?? []).map((i) => ({ id: i.id, name: i.name, rarity: i.rarity, item_type: i.item_type })),
-);
+const itemPool = computed(() => toLootPool(vaultItems.value ?? []));
 
 const resolvedEntries = computed<ResolvedLootEntry[]>(() =>
   result.value ? resolveGeneratedLoot(result.value.entries, itemPool.value, currency.value) : [],
@@ -245,15 +238,13 @@ const creating = ref(false);
 const createError = ref<string | null>(null);
 const createdTableId = ref<string | null>(null);
 
-const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const textCreditCost = computed(
-  () => textCredits(costOf("loot_generation")),
-);
+// The price is the quote's, the one Ask Grimoire shows too, so the page and Ask cannot disagree.
+const quoteLootTable = useLootTableQuote();
+const quote = computed(() => quoteLootTable());
 
 async function runGenerate() {
-  if (!requireCredits(textCreditCost.value, textIsByok.value)) return;
+  if (!requireCredits(quote.value.total, quote.value.byok)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();
@@ -265,78 +256,19 @@ async function runGenerate() {
   });
 }
 
-/**
- * Persist the resolved entries. An item entry stores the resolved id as-is: a
- * vault uuid or a shared `library_items` text id (`LootEntry.item_id` is jsonb,
- * so either is safe). Nothing is cloned, same as the manual item picker.
- *
- * Unresolved entries are not written — no stub items, no dangling ids (#337).
- * The panel has already told the DM which ones and why.
- */
+/** Persist the resolved entries (the shared workflow resolves nothing and drops the unresolved ones). */
 async function createTable() {
   if (!result.value) return;
   creating.value = true;
   createError.value = null;
   try {
-    const entries: LootEntry[] = [];
-    for (const resolved of resolvedEntries.value) {
-      if (resolved.kind === "unresolved") continue;
-      if (resolved.kind === "item") {
-        entries.push({
-          id: crypto.randomUUID(),
-          type: "item",
-          item_id: resolved.item.id,
-          drop_chance: resolved.dropChance,
-          dice: resolved.dice,
-          fixed_qty: resolved.fixedQty,
-          notes: resolved.notes,
-        });
-      } else if (resolved.kind === "currency") {
-        entries.push({
-          id: crypto.randomUUID(),
-          type: "currency",
-          currency_label: resolved.label,
-          drop_chance: resolved.dropChance,
-          coins: resolved.coins,
-          notes: resolved.notes,
-        });
-      } else {
-        entries.push({
-          id: crypto.randomUUID(),
-          type: "random",
-          rarity: resolved.rarity,
-          item_type_filter: resolved.itemTypeFilter,
-          drop_chance: resolved.dropChance,
-          dice: resolved.dice,
-          fixed_qty: resolved.fixedQty,
-          notes: resolved.notes,
-        });
-      }
-    }
-
-    // The same validator the manual editor saves through — a generated table
-    // is held to exactly the DM's own standard, and nothing the resolver
-    // repaired can slip past it. Reached only if the resolver has a gap, which
-    // is the point of having it here.
-    const invalid = validateEntries(entries);
-    if (invalid) {
-      createError.value = `${invalid} Try regenerating.`;
+    const saved = await saveGeneratedLootTable(result.value, resolvedEntries.value, crTier.value);
+    if ("error" in saved) {
+      createError.value = saved.error;
       return;
     }
-
-    const table = await createLootTable({
-      campaign_id: campaign.activeCampaignId,
-      name: result.value.name,
-      description: result.value.description || null,
-      cr_tier: crTier.value,
-      entries,
-      tags: result.value.tags,
-      notes: null,
-      monster_ids: [],
-      ai_provenance: result.value.ai_provenance ?? null,
-    });
-    createdTableId.value = table.id;
-    completedEntityId.value = table.id;
+    createdTableId.value = saved.table.id;
+    completedEntityId.value = saved.table.id;
   } catch (e) {
     createError.value = e instanceof Error ? e.message : "Could not create the table.";
   } finally {

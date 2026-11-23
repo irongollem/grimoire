@@ -5,8 +5,8 @@
     v-model:generate-image="generateImage"
     title="Location Generator"
     concept-placeholder="A crumbling dwarven forge district deep beneath the mountain, long abandoned after a cave-in sealed the lower tunnels and the forgemasters never returned…"
-    :credits="effectiveCreditCost"
-    :byok="fullyByok"
+    :credits="quote.total"
+    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     blank-to="/locations/new"
@@ -50,8 +50,7 @@ import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCreateLocation, useLocationTree } from "@/composables/locations/useLocations";
-import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
+import { useLocationTree } from "@/composables/locations/useLocations";
 import { useToast } from "@/composables/useToast";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
@@ -59,12 +58,11 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useLocationGeneration } from "@/ai/useLocationGeneration";
-import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { LocationType } from "@/types/location.types";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
+import { useLocationQuote } from "@/composables/ai/quotes/locationQuote";
+import { useGenerateLocation } from "@/composables/locations/useGenerateLocation";
 import { placeRoute } from "@/lib/locations/placeRoute";
 
 const TYPE_OPTIONS = Object.entries(LOCATION_TYPE_LABELS) as [LocationType, string][];
@@ -72,42 +70,18 @@ const TYPE_OPTIONS = Object.entries(LOCATION_TYPE_LABELS) as [LocationType, stri
 const generatorsUi = useGeneratorUiStore();
 const router   = useRouter();
 const campaign = useCampaignStore();
-const { mutateAsync: createLocation } = useCreateLocation();
-const { logImageGeneration } = useImageGenerationLog();
+const { generateAndCreateLocation } = useGenerateLocation();
 // Mounted on every DM page — only fetch the parent-location tree once the panel opens.
 const { locationOptions } = useLocationTree(() => generatorsUi.locationGeneratorOpen);
-const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useLocationGeneration();
+// The shared generation state `useGenerateLocation` drives underneath; this panel reads it for its own loading UI.
+const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted } = useLocationGeneration();
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const toast = useToast();
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("locations");
 
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok, imageCredits, imageIsByok } = useCampaignProviders();
-
-// Whole generation is BYOK-covered only when every image actually being
-// generated is covered too — a scene or map still charged while the text
-// call is free is not a BYOK generation.
-const fullyByok = computed(
-  () => textIsByok.value && (imageIsByok.value || (!generateImage.value && !generateMap.value)),
-);
-
-// Null while any part that will be charged has no known price yet.
-const effectiveCreditCost = computed<number | null>(() => {
-  let cost = textIsByok.value
-    ? 0
-    : textCredits(costOf("location_generation"));
-  if (cost === null) return null;
-  // Scene + map are each a separate entity_image charge (square → 1.0×).
-  if (!imageIsByok.value) {
-    const perImage = imageCredits(costOf("entity_image", { size: "1024x1024" }));
-    if (perImage === null) return null;
-    if (generateImage.value) cost += perImage;
-    if (generateMap.value)   cost += perImage;
-  }
-  return cost;
-});
+const quoteLocation = useLocationQuote();
 
 const concept          = ref("");
 const constraints      = reactive({ location_type: "" });
@@ -116,76 +90,36 @@ const parentLocation   = computed(() => locationOptions.value.find((l) => l.id =
 const generateImage    = ref(true);
 const generateMap      = ref(false);
 
+// The price Ask Grimoire quotes for the same run. A scene or map still charged while the text is free is not a BYOK
+// generation, and each picture is its own charge; null while any charged part has no known price yet.
+const quote = computed(() => quoteLocation({ image: generateImage.value, map: generateMap.value }));
+
 async function generateAndCreate() {
-  if (!canSpend(effectiveCreditCost.value, fullyByok.value)) return;
+  if (!canSpend(quote.value.total, quote.value.byok)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();
 
-  const result = await generate(
-    concept.value.trim(),
-    {
-      location_type: constraints.location_type || undefined,
-      parent_name:   parentLocation.value?.name || undefined,
-      generateImage: generateImage.value,
-      generateMap:   generateMap.value,
-    },
-  );
-
-  if (!result) return;
-
   // The generation has already been paid for, so a failed save must say so
   // rather than vanish as an unhandled rejection — a non-quota failure gets
   // the toast (gateQuotaError handles the quota case).
-  let location;
+  let outcome;
   try {
-    location = await createLocation({
-      name:                  result.name,
-      location_type:         (constraints.location_type as LocationType) || "other",
-      description:           toTiptapJson(result.description),
-      player_summary:        result.player_summary || null,
-      tags:                  result.tags,
-      notes:                 result.notes ? toTiptapJson(result.notes) : null,
-      era_start:             null,
-      era_end:               null,
-      parent_id:             parentLocationId.value || null,
-      image_url:             result.image_url,
-      map_url:               result.map_url,
-      map_pins:              [],
-      is_map_shared:         false,
-      player_visible_to:     [],
-      is_description_shared: false,
-      is_npcs_shared:        false,
-      is_inventory_shared:   false,
-      npc_owner_id:          null,
-      related_location_ids:  [],
-      source_map_id:         null,
-      is_battle_map:         false,
-      grid_calibration:      null,
-      ai_provenance:         result.ai_provenance ?? null,
+    outcome = await generateAndCreateLocation(concept.value.trim(), {
+      locationType:  (constraints.location_type as LocationType) || undefined,
+      parent:        parentLocation.value,
+      generateImage: generateImage.value,
+      generateMap:   generateMap.value,
     });
   } catch (e) {
     if (gateQuotaError(e)) return;
     toast.error(toast.fromError(e));
     return;
   }
+  if (!outcome.id) return;
 
-  // Log generated scene + map to the Gallery, linked back to the new location.
-  if (result.image_url) {
-    void logImageGeneration({
-      kind: "location", imageUrl: result.image_url, prompt: genConcept.value,
-      targetId: location.id, targetColumn: "image_url",
-    });
-  }
-  if (result.map_url) {
-    void logImageGeneration({
-      kind: "map", imageUrl: result.map_url, prompt: genConcept.value,
-      targetId: location.id, targetColumn: "map_url",
-    });
-  }
-
-  completedEntityId.value = location.id;
+  completedEntityId.value = outcome.id;
   generatorsUi.locationGeneratorOpen = false;
-  router.push(placeRoute(location.id));
+  router.push(placeRoute(outcome.id));
 }
 </script>

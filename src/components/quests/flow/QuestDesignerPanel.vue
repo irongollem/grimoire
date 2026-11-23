@@ -193,7 +193,11 @@ import QuestDesignQuestionCard from "./QuestDesignQuestionCard.vue";
 import QuestDesignTreePreview from "./QuestDesignTreePreview.vue";
 import { IconGenerate } from "@/lib/icons";
 
-const { parentId = null } = defineProps<{ parentId?: string | null }>();
+const { parentId = null, initialProse = "" } = defineProps<{
+  parentId?: string | null;
+  /** The description Ask Grimoire (#1253) was given: the first message, in the box. The DM still presses Propose. */
+  initialProse?: string;
+}>();
 
 const router = useRouter();
 const campaign = useCampaignStore();
@@ -221,6 +225,8 @@ const {
   answer,
   reset,
 } = useQuestDesigner();
+// Opened by Ask Grimoire (#1253) with the DM's description: it is the first message, cut to the box's own limit.
+if (initialProse !== "") prose.value = initialProse.slice(0, QUEST_DESIGN_PROSE_LIMIT);
 
 const creating = ref(false);
 const noteText = ref("");

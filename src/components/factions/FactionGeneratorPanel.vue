@@ -5,8 +5,8 @@
     v-model:generate-image="generateImage"
     title="Faction Generator"
     concept-placeholder="A shadowy thieves' guild operating beneath the city's merchant quarter, secretly manipulating trade routes and bribing officials to maintain their monopoly on smuggled goods…"
-    :credits="textCreditCost"
-    :byok="textIsByok"
+    :credits="quote.total"
+    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     blank-to="/factions/new"
@@ -57,35 +57,26 @@
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
-import { useCreateFaction, useAddFactionNpc } from "@/composables/factions/useFactions";
-import { useCreateConnection } from "@/composables/connections/useConnections";
-import { typeChoices } from "@/lib/worldLinks/connections";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
+import { useFactionQuote } from "@/composables/ai/quotes/factionQuote";
+import { useGenerateFaction } from "@/composables/factions/useGenerateFaction";
+import { useToast } from "@/composables/useToast";
 import { useFactionGeneration } from "@/ai/useFactionGeneration";
-import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { FACTION_TYPES, FACTION_ALIGNMENTS } from "@/types/faction.types";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useLocationTree } from "@/composables/locations/useLocations";
 
 const generatorsUi = useGeneratorUiStore();
 const router   = useRouter();
+const toast    = useToast();
 
-// The headquarters is a "based in" tie from the new faction to the place (#1084).
-const BASED_IN = (() => {
-  const choice = typeChoices("faction", "location").find((c) => c.key === "based_in" && c.subjectIsFrom);
-  if (!choice) throw new Error("the catalogue has no faction to place 'based in' type");
-  return choice;
-})();
-const { mutateAsync: createFaction }    = useCreateFaction();
-const { mutateAsync: addFactionNpc }    = useAddFactionNpc();
-const { mutateAsync: createConnection } = useCreateConnection();
-const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useFactionGeneration();
+const { generateAndCreateFaction } = useGenerateFaction();
+// The shared generation state `useGenerateFaction` drives underneath; this panel reads it for its own loading UI.
+const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted } = useFactionGeneration();
 
 // Mounted on every DM page — only fetch the dropdown data once the panel opens.
 const panelOpen           = () => generatorsUi.factionGeneratorOpen;
@@ -94,17 +85,16 @@ const { locationOptions } = useLocationTree(panelOpen);
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("factions");
 
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const textCreditCost = computed(
-  () => textCredits(costOf("faction_generation")),
-);
+const quoteFaction = useFactionQuote();
 
 const concept                = ref("");
 const constraints            = reactive({ faction_type: "", alignment: "" });
 const generateImage          = ref(true);
 const leaderNpcId            = ref("");
 const headquartersLocationId = ref("");
+
+// The price Ask Grimoire quotes for the same run: the emblem counts when it is switched on.
+const quote = computed(() => quoteFaction({ image: generateImage.value }));
 
 const npcOptions = computed(() =>
   (npcs.value ?? []).map((n) => ({ id: n.id, name: n.name })),
@@ -118,7 +108,7 @@ const headquartersLocation = computed(() =>
 );
 
 async function generateAndCreate() {
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(quote.value.total, quote.value.byok)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();
@@ -129,51 +119,28 @@ async function generateAndCreate() {
       : leaderNpc.value.name
     : undefined;
 
-  const result = await generate(
-    concept.value.trim(),
-    {
+  let outcome;
+  try {
+    outcome = await generateAndCreateFaction(concept.value.trim(), {
       faction_type:      constraints.faction_type || undefined,
       alignment:         constraints.alignment || undefined,
       generateImage:     generateImage.value,
       leader_name:       leaderName,
       headquarters_name: headquartersLocation.value?.name || undefined,
-    },
-  );
-
-  if (!result) return;
-
-  let faction;
-  try {
-    faction = await createFaction({
-      name:              result.name,
-      faction_type:      result.faction_type || null,
-      alignment:         result.alignment || null,
-      description:       toTiptapJson(result.description),
-      emblem_url:        result.image_url,
-      player_visible_to: [],
-      tags:              result.tags,
-      ai_provenance:     result.ai_provenance ?? null,
+      leaderNpcId:            leaderNpcId.value || null,
+      headquartersLocationId: headquartersLocationId.value || null,
     });
   } catch (e) {
     if (gateQuotaError(e)) return;
     throw e;
   }
+  if (!outcome.id) return;
 
-  await Promise.all([
-    leaderNpcId.value
-      ? addFactionNpc({ faction_id: faction.id, npc_id: leaderNpcId.value, role: "Leader" })
-      : Promise.resolve(),
-    headquartersLocationId.value
-      ? createConnection({
-          subject: { kind: "faction", id: faction.id },
-          other: { kind: "location", id: headquartersLocationId.value, name: "" },
-          choice: BASED_IN,
-        })
-      : Promise.resolve(),
-  ]);
+  // The faction is saved whatever happened to its leader or headquarters: say what did not link, and open it.
+  for (const message of outcome.linkErrors) toast.error(message);
 
-  completedEntityId.value = faction.id;
+  completedEntityId.value = outcome.id;
   generatorsUi.factionGeneratorOpen = false;
-  router.push(`/factions/${faction.id}`);
+  router.push(`/factions/${outcome.id}`);
 }
 </script>

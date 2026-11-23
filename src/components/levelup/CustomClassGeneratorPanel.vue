@@ -87,40 +87,33 @@ import { useGeneratorUiStore } from "@/stores/ui/generators";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useToast } from "@/composables/useToast";
-import { useCreateCustomClass } from "@/composables/rules/useCustomClasses";
-import { useCreateFeature, useDeleteFeature } from "@/composables/rules/useFeatures";
-import { useCustomClassGeneration } from "@/ai/useCustomClassGeneration";
+import { useClassQuote } from "@/composables/ai/quotes/classQuote";
+import { useGenerateCustomClass } from "@/composables/rules/useGenerateCustomClass";
 import {
   CASTER_PROGRESSIONS,
   CASTER_PROGRESSION_LABELS,
   HIT_DICE,
-  classWithFeatureIds,
   featureCountsByBand,
   type CasterProgression,
   type ClassDraft,
 } from "@/lib/codex/classAi";
-import { createWithFeatures } from "@/lib/codex/featureBatch";
 import type { HitDie } from "@/levelup/customTypes";
 
 const generatorsUi = useGeneratorUiStore();
 const router = useRouter();
 const toast = useToast();
 
-const { mutateAsync: createClass } = useCreateCustomClass();
-const { mutateAsync: createFeature } = useCreateFeature();
-const { mutateAsync: deleteFeature } = useDeleteFeature();
-const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useCustomClassGeneration();
+const { generation, createClassFromDraft } = useGenerateCustomClass();
+const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = generation;
 
 const { canSpend } = useGenerationGate();
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const textCreditCost = computed(
-  () => textCredits(costOf("custom_class_generation")),
-);
+// The price comes from the quote Ask Grimoire reads too, so the page and the panel cannot disagree.
+const { textIsByok } = useCampaignProviders();
+const quote = useClassQuote();
+const textCreditCost = computed(() => quote().total);
 
 const concept = ref("");
 const hitDie = ref<HitDie | "">("");
@@ -161,13 +154,7 @@ async function createAll() {
   if (!draft || creating.value) return;
   creating.value = true;
   try {
-    // Abilities first, then the class that points at them. A failed write
-    // removes the abilities already created, so nothing is left orphaned.
-    const created = await createWithFeatures(draft.features, {
-      createFeature,
-      deleteFeature,
-      createParent: (ids) => createClass(classWithFeatureIds(draft, ids)),
-    });
+    const created = await createClassFromDraft(draft);
     pending.value = null;
     completedEntityId.value = created.id;
     generatorsUi.customClassGeneratorOpen = false;

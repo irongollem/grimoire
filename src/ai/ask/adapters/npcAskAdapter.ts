@@ -1,7 +1,7 @@
 /**
  * Ask Grimoire (#1253): the NPC generator, as a quote and a run.
  *
- * A seam over the page's own workflow: the price is `useGeneratorQuote`'s (the one `NpcGeneratorPanel` shows), the
+ * A seam over the page's own workflow: the price is `useNpcQuote`'s (the one `NpcGeneratorPanel` shows), the
  * gates are the page's (`useAskGate`), and the run is `useGenerateNpc`, the generate-and-create step the page calls.
  * What it adds is reading the proposal: `proposal.inputs` through the schema (`readAskInputs`), so only what the
  * contract lists reaches the generator.
@@ -16,14 +16,14 @@
 import { computed, ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
+import { conceptBlock, failedRun, picturePart, spent } from "@/ai/ask/adapters/askAdapterKit";
 import { askFlag, askInteger, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
-import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import { useMissingPortrait } from "@/ai/useMissingPortrait";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
-import { useGeneratorQuote } from "@/composables/ai/useGeneratorQuote";
+import { useNpcQuote } from "@/composables/ai/quotes/npcQuote";
 import { buildNpcAiContext, useGenerateNpc, type NpcGenerateForm } from "@/composables/npcs/useGenerateNpc";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { DEFAULT_ASSOCIATE } from "@/lib/npcGenerator/associate";
@@ -33,14 +33,9 @@ function blankIfUnsaid(value: string | null): string {
   return value === null ? "" : value;
 }
 
-/** What a line charged: a price that is still unknown at run time cannot be, since the quote waits for it. */
-function spent(line: AskQuoteLine | undefined): number {
-  return line && line.credits !== null ? line.credits : 0;
-}
-
 export function useNpcAskAdapter(): AskAdapter {
   const campaign = useCampaignStore();
-  const { quoteFor } = useGeneratorQuote();
+  const quoteFor = useNpcQuote();
   const { blockFor } = useAskGate("npcs", "NPC");
   const { generateAndCreateNpc } = useGenerateNpc();
   const missing = useMissingPortrait("npc");
@@ -76,7 +71,7 @@ export function useNpcAskAdapter(): AskAdapter {
 
   function quote(proposal: AskProposal): AskQuote {
     const read = understand(proposal);
-    const priced = quoteFor("npc", { portrait: read.portrait, alterEgo: read.alterEgo });
+    const priced = quoteFor({ portrait: read.portrait, alterEgo: read.alterEgo });
 
     const who = [read.race, read.age === null ? null : `about ${read.age}`].filter((part) => part !== null).join(", ");
     const lines: AskQuoteLine[] = [];
@@ -90,27 +85,20 @@ export function useNpcAskAdapter(): AskAdapter {
     if (!read.portrait) lines.push({ label: "Portrait", value: "None", credits: null });
 
     let block = blockFor({ total: priced.total, byok: priced.byok });
-    if (!block && read.concept === "") {
-      block = { reason: "missing", message: "Say what this NPC is like first." };
-    } else if (!block && read.concept.length > AI_PROMPT_LIMIT) {
-      block = { reason: "missing", message: `Shorten the description to ${AI_PROMPT_LIMIT} characters.` };
-    } else if (!block && lookupsLoading.value) {
+    block = block ?? conceptBlock(read.concept, "NPC");
+    if (!block && lookupsLoading.value) {
       block = { reason: "missing", message: "Still reading this campaign's places and factions." };
     }
     return { lines, total: priced.total, byok: priced.byok, block };
   }
 
-  function failed(label: string, error: string): AskRunResult {
-    return { record: null, route: null, parts: [{ label, ok: false, credits: 0, error }] };
-  }
-
   async function run(proposal: AskProposal): Promise<AskRunResult> {
     // The state may have moved since the DM read the quote: the same gates, again, before anything is spent.
     const current = quote(proposal);
-    if (current.block) return failed("NPC text", current.block.message);
+    if (current.block) return failedRun("NPC text", current.block.message);
     const read = understand(proposal);
     const campaignId = campaign.activeCampaignId;
-    if (!campaignId) return failed("NPC text", "No active campaign selected.");
+    if (!campaignId) return failedRun("NPC text", "No active campaign selected.");
 
     const form: NpcGenerateForm = {
       name: blankIfUnsaid(read.name),
@@ -164,11 +152,11 @@ export function useNpcAskAdapter(): AskAdapter {
       const message = isQuotaExceeded(e)
         ? "You have reached your limit of NPCs on this plan."
         : e instanceof Error ? e.message : "The NPC could not be saved.";
-      return failed("NPC text", message);
+      return failedRun("NPC text", message);
     }
     if (!outcome.id || outcome.name === null) {
       // `error` is null when the DM declined the likeness notice.
-      return failed("NPC text", outcome.error ?? "The likeness notice was not accepted, so nothing was made.");
+      return failedRun("NPC text", outcome.error ?? "The likeness notice was not accepted, so nothing was made.");
     }
 
     const id = outcome.id;
@@ -195,21 +183,14 @@ export function useNpcAskAdapter(): AskAdapter {
       // The true portrait is saved; only the alter ego's picture is missing, and the paint flow repaints the true one.
       return { label: "Portrait", ok: false, credits: 0, error: "The alter ego's picture could not be painted. The NPC is saved with their portrait." };
     }
-    return {
+    return picturePart({
       label: "Portrait",
-      ok: false,
+      saved: false,
+      // A repaint whose price is unknown reports nothing spent here; the quote's figure belongs to the first try.
       credits: 0,
-      error: "The portrait could not be painted. The NPC is saved without one.",
-      retry: {
-        credits: missing.cost.value,
-        run: async (): Promise<AskRunPart> => {
-          const url = await missing.paint(npcId, paintContext);
-          return url
-            ? { label: "Portrait", ok: true, credits: missing.cost.value === null ? 0 : missing.cost.value }
-            : { label: "Portrait", ok: false, credits: 0, error: missing.error.value ?? "The portrait could not be painted." };
-        },
-      },
-    };
+      noun: "NPC",
+      retry: { credits: missing.cost.value, paint: () => missing.paint(npcId, paintContext), error: () => missing.error.value },
+    });
   }
 
   return { id: "npc", quote, run };

@@ -1,19 +1,19 @@
 /**
  * Ask Grimoire (#1253): the Monster Generator, as a quote and a run.
  *
- * The same seam as the NPC adapter: the price is `useGeneratorQuote`'s (the one `MonsterGeneratorPanel` shows), the
+ * The same seam as the NPC adapter: the price is `useMonsterQuote`'s (the one `MonsterGeneratorPanel` shows), the
  * gates are the page's (`useAskGate`, which also refuses a campaign whose game system has no stat blocks), and the run
  * is `useGenerateMonster`, the step the page and the document importer share. A failed picture leaves the monster
  * saved, and its part carries `retry`, which paints the saved row once with the page's own paint flow.
  */
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
+import { conceptBlock, failedRun, picturePart, spent } from "@/ai/ask/adapters/askAdapterKit";
 import { askFlag, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
-import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import { useMissingPortrait } from "@/ai/useMissingPortrait";
 import { useCampaignStore } from "@/stores/campaign";
-import { useGeneratorQuote } from "@/composables/ai/useGeneratorQuote";
+import { useMonsterQuote } from "@/composables/ai/quotes/monsterQuote";
 import { useGenerateMonster } from "@/composables/monsters/useGenerateMonster";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { MONSTER_TYPES } from "@/types/monster.types";
@@ -21,14 +21,9 @@ import { MONSTER_TYPES } from "@/types/monster.types";
 /** A challenge rating as the page's field takes it: a whole number or a fraction such as 1/2. */
 const CHALLENGE_RATING = /^\d{1,2}(\/\d{1,2})?$/;
 
-/** What a line charged: a price that is still unknown at run time cannot be, since the quote waits for it. */
-function spent(line: AskQuoteLine | undefined): number {
-  return line && line.credits !== null ? line.credits : 0;
-}
-
 export function useMonsterAskAdapter(): AskAdapter {
   const campaign = useCampaignStore();
-  const { quoteFor } = useGeneratorQuote();
+  const quoteFor = useMonsterQuote();
   const { blockFor } = useAskGate("monsters", "monster");
   const { generateAndCreateMonster } = useGenerateMonster();
   const missing = useMissingPortrait("monster");
@@ -48,7 +43,7 @@ export function useMonsterAskAdapter(): AskAdapter {
 
   function quote(proposal: AskProposal): AskQuote {
     const read = understand(proposal);
-    const priced = quoteFor("monster", { image: read.image });
+    const priced = quoteFor({ image: read.image });
 
     const lines: AskQuoteLine[] = [];
     if (read.challengeRating) lines.push({ label: "Challenge rating", value: read.challengeRating, credits: null });
@@ -59,40 +54,14 @@ export function useMonsterAskAdapter(): AskAdapter {
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
 
     let block = blockFor({ total: priced.total, byok: priced.byok, fiveE: true });
-    if (!block && read.concept === "") {
-      block = { reason: "missing", message: "Say what this monster is like first." };
-    } else if (!block && read.concept.length > AI_PROMPT_LIMIT) {
-      block = { reason: "missing", message: `Shorten the description to ${AI_PROMPT_LIMIT} characters.` };
-    }
+    block = block ?? conceptBlock(read.concept, "monster");
     return { lines, total: priced.total, byok: priced.byok, block };
-  }
-
-  function failed(error: string): AskRunResult {
-    return { record: null, route: null, parts: [{ label: "Stat block", ok: false, credits: 0, error }] };
-  }
-
-  function picturePart(id: string, paintContext: string, credits: number): AskRunPart {
-    return {
-      label: "Picture",
-      ok: false,
-      credits: 0,
-      error: "The picture could not be painted. The monster is saved without one.",
-      retry: {
-        credits: missing.cost.value,
-        run: async (): Promise<AskRunPart> => {
-          const url = await missing.paint(id, paintContext);
-          return url
-            ? { label: "Picture", ok: true, credits: missing.cost.value === null ? credits : missing.cost.value }
-            : { label: "Picture", ok: false, credits: 0, error: missing.error.value ?? "The picture could not be painted." };
-        },
-      },
-    };
   }
 
   async function run(proposal: AskProposal): Promise<AskRunResult> {
     // The state may have moved since the DM read the quote: the same gates, again, before anything is spent.
     const current = quote(proposal);
-    if (current.block) return failed(current.block.message);
+    if (current.block) return failedRun("Stat block", current.block.message);
     const read = understand(proposal);
 
     let outcome;
@@ -108,18 +77,21 @@ export function useMonsterAskAdapter(): AskAdapter {
       const message = isQuotaExceeded(e)
         ? "You have reached your limit of monsters on this plan."
         : e instanceof Error ? e.message : "The monster could not be saved.";
-      return failed(message);
+      return failedRun("Stat block", message);
     }
-    if (!outcome.id || outcome.name === null) return failed(outcome.error ?? "Monster generation failed.");
+    if (!outcome.id || outcome.name === null) return failedRun("Stat block", outcome.error ?? "Monster generation failed.");
 
     const id = outcome.id;
     const name = outcome.name;
     const parts: AskRunPart[] = [{ label: "Stat block", ok: true, credits: spent(current.lines.find((l) => l.label === "Stat block")) }];
     if (read.image) {
       const credits = spent(current.lines.find((l) => l.label === "Picture"));
-      parts.push(outcome.picture === "saved"
-        ? { label: "Picture", ok: true, credits }
-        : picturePart(id, `${name}. ${read.concept}`, credits));
+      parts.push(picturePart({
+        saved: outcome.picture === "saved",
+        credits,
+        noun: "monster",
+        retry: { credits: missing.cost.value, paint: () => missing.paint(id, `${name}. ${read.concept}`), error: () => missing.error.value },
+      }));
     }
     return { record: { type: "monster", id, name }, route: `/monsters/${id}`, parts };
   }

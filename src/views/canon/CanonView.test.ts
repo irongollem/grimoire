@@ -32,7 +32,7 @@ const TruthsStub = {
   name: "TruthsSection",
   props: ["truths", "selectedId"],
   emits: ["select"],
-  template: "<section><div v-for='t in truths' :id=\"'canon-entry-' + t.id\" :key='t.id' @click=\"$emit('select', t.id)\">{{ t.title }}</div></section>",
+  template: "<section id=\"canon-truths\"><div v-for='t in truths' :id=\"'canon-entry-' + t.id\" :key='t.id' @click=\"$emit('select', t.id)\">{{ t.title }}</div></section>",
 };
 
 const SecretDetailStub = { name: "SecretDetail", props: ["entry"], emits: ["delete"], template: "<div data-testid='secret-detail'>{{ entry.title }}<button data-testid='del-secret' @click=\"$emit('delete')\" /></div>" };
@@ -127,6 +127,23 @@ describe("CanonView", () => {
     const w = mountView();
     await flushPromises();
     expect(w.find("[data-testid=backstory-detail]").text()).toBe("Pim");
+  });
+
+  // Bug caught: Ask Grimoire's "Review suggestions" landed on the top of the Canon page, with the suggested truths
+  // somewhere far down it, so the DM saw nothing had happened.
+  it("scrolls to the part named by ?section= once the page has loaded, and ignores a part that does not exist", async () => {
+    route.query = { section: "truths" };
+    const w = mountView();
+    await flushPromises();
+    expect(mocks.scroll).toHaveBeenCalledTimes(1);
+    expect(mocks.scroll.mock.contexts[0]).toBe(document.getElementById("canon-truths"));
+    w.unmount();
+    mounted.pop();
+    mocks.scroll.mockReset();
+    route.query = { section: "not-a-part" };
+    mountView();
+    await flushPromises();
+    expect(mocks.scroll).not.toHaveBeenCalled();
   });
 
   // Bug caught: a search result or web link to a backstory entry opened nothing.

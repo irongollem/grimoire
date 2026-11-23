@@ -1,5 +1,5 @@
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
-import type { Quest, QuestBeat, QuestObjective } from "@/types/quest.types";
+import type { Quest, QuestBeat, QuestBeatEdge, QuestObjective } from "@/types/quest.types";
 
 /** The server's cap on a generator's constraint list (`generate-entity-text`). */
 export const BEAT_FILL_MAX_LINES = 12;
@@ -19,6 +19,37 @@ export interface BeatFillContext {
   stagedAt: string | null;
   /** The thread this beat sits on, when the quest runs more than one. */
   threadLabel: string | null;
+}
+
+/** What the quest holds around one beat: the parts `buildBeatFillContext` turns into a `BeatFillContext`. */
+export interface BeatFillSource {
+  quest: Pick<Quest, "title" | "summary">;
+  beat: Pick<QuestBeat, "id" | "kind" | "title" | "dm_content">;
+  beats: ReadonlyArray<Pick<QuestBeat, "id" | "title" | "dm_content">>;
+  edges: ReadonlyArray<Pick<QuestBeatEdge, "source_beat_id" | "target_beat_id" | "label">>;
+  objectives: Array<Pick<QuestObjective, "description" | "status">>;
+  stagedAt: string | null;
+  /** How many threads the quest runs; the thread is named only when there is more than one. */
+  threadCount: number;
+}
+
+/**
+ * The quest's flow around a beat, for the fill. The drawer's fill bar and Ask Grimoire build it here, so the
+ * model reads the same context whichever asked.
+ */
+export function buildBeatFillContext(source: BeatFillSource): BeatFillContext {
+  const byId = new Map(source.beats.map((other) => [other.id, other]));
+  const incomingEdges = source.edges.filter((edge) => edge.target_beat_id === source.beat.id);
+  const outgoingEdges = source.edges.filter((edge) => edge.source_beat_id === source.beat.id);
+  return {
+    quest: source.quest,
+    beat: source.beat,
+    incoming: incomingEdges.flatMap((edge) => byId.get(edge.source_beat_id) ?? []),
+    outgoing: outgoingEdges.flatMap((edge) => byId.get(edge.target_beat_id) ?? []),
+    objectives: source.objectives,
+    stagedAt: source.stagedAt,
+    threadLabel: source.threadCount > 1 ? (incomingEdges.find((edge) => edge.label)?.label ?? null) : null,
+  };
 }
 
 export interface BeatFill {

@@ -54,7 +54,7 @@ import { IconGenerate } from "@/lib/icons";
 import { useNpcsUiStore } from "@/stores/ui/npcs";
 import { useCreateNpcInCampaign } from "@/composables/npcs/useNpcs";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useGeneratorQuote } from "@/composables/ai/useGeneratorQuote";
+import { useNpcQuote } from "@/composables/ai/quotes/npcQuote";
 import { buildNpcAiContext, useGenerateNpc } from "@/composables/npcs/useGenerateNpc";
 import { getNpcTemplate } from "@/data/npcTemplates";
 import type { NpcInsert, NpcRelationship } from "@/types/npc.types";
@@ -125,10 +125,10 @@ const isAiEnabled = computed(() => campaign.isAiEnabled);
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("npcs");
 
-const { quoteFor } = useGeneratorQuote();
+const quoteFor = useNpcQuote();
 
 // The price Ask Grimoire quotes for the same run. Null while any part that will be charged has no known price yet.
-const quote = computed(() => quoteFor("npc", { portrait: generateImage.value, alterEgo: generateAlterEgo.value }));
+const quote = computed(() => quoteFor({ portrait: generateImage.value, alterEgo: generateAlterEgo.value }));
 const effectiveCreditCost = computed(() => quote.value.total);
 // GenerationCostBadge's own byok flag needs "no credits will be charged at all", not just the text provider: an
 // image-only BYOK key still leaves the text portion billed.

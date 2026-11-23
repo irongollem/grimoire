@@ -20,7 +20,8 @@ export interface AskGateInput {
   fiveE?: boolean;
 }
 
-export function useAskGate(resource: QuotaResource | null, noun: string) {
+/** `plural` for a noun that does not take an "s" ("deities"). */
+export function useAskGate(resource: QuotaResource | null, noun: string, plural = `${noun}s`) {
   const campaign = useCampaignStore();
   const { affordable } = useAiCredits();
   const { offers } = useGameSystem();
@@ -34,7 +35,7 @@ export function useAskGate(resource: QuotaResource | null, noun: string) {
       return { reason: "system", message: `This campaign's game system has no stat blocks, so a ${noun} cannot be made here.` };
     }
     if (quota && !quota.canCreate.value) {
-      return { reason: "quota", message: `You have reached your limit of ${noun}s on this plan.` };
+      return { reason: "quota", message: `You have reached your limit of ${plural} on this plan.` };
     }
     // A price not known yet is no block: the quote waits for it instead of guessing.
     if (total !== null && !affordable(total, byok)) {

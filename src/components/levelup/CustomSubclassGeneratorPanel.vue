@@ -76,49 +76,28 @@ import { useGeneratorUiStore } from "@/stores/ui/generators";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useToast } from "@/composables/useToast";
-import { useCampaignCustomClasses, useCampaignSystemClasses } from "@/composables/rules/useCustomClasses";
-import { useCreateCustomSubclass } from "@/composables/rules/useCustomSubclasses";
-import { useCreateFeature, useDeleteFeature } from "@/composables/rules/useFeatures";
-import { useCustomSubclassGeneration } from "@/ai/useCustomSubclassGeneration";
-import { subclassWithFeatureIds, type SubclassDraft } from "@/lib/codex/subclassAi";
-import { createWithFeatures } from "@/lib/codex/featureBatch";
+import { useSubclassQuote } from "@/composables/ai/quotes/subclassQuote";
+import { useGenerateCustomSubclass, useSubclassParents } from "@/composables/rules/useGenerateCustomSubclass";
+import type { SubclassDraft } from "@/lib/codex/subclassAi";
 
 const generatorsUi = useGeneratorUiStore();
 const router = useRouter();
 const toast = useToast();
 
-const { mutateAsync: createSubclass } = useCreateCustomSubclass();
-const { mutateAsync: createFeature } = useCreateFeature();
-const { mutateAsync: deleteFeature } = useDeleteFeature();
-const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useCustomSubclassGeneration();
+const { generation, createSubclassFromDraft } = useGenerateCustomSubclass();
+const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = generation;
 
-// Both lists are the campaign-gated ones the class pickers use, so a class the DM
-// switched off is not offered. Mounted on every DM page: fetch only once opened.
-const panelOpen = () => generatorsUi.customSubclassGeneratorOpen;
-const { data: systemClasses } = useCampaignSystemClasses(panelOpen);
-const { data: customClasses } = useCampaignCustomClasses(panelOpen);
-
-/** A class name maps to the level it grants its subclass; a homebrew class of the same name wins. */
-const subclassLevelByClass = computed(() => {
-  const levels = new Map<string, number>();
-  for (const c of systemClasses.value ?? []) levels.set(c.class_name, c.subclass_level);
-  for (const c of customClasses.value ?? []) levels.set(c.class_name, c.subclass_level);
-  return levels;
-});
-const classOptions = computed(() =>
-  [...subclassLevelByClass.value.keys()].sort().map((name) => ({ id: name, name })),
-);
+// Mounted on every DM page: fetch only once opened.
+const { levelByClass: subclassLevelByClass, options: classOptions } = useSubclassParents(() => generatorsUi.customSubclassGeneratorOpen);
 
 const { canSpend } = useGenerationGate();
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const textCreditCost = computed(
-  () => textCredits(costOf("custom_subclass_generation")),
-);
+// The price comes from the quote Ask Grimoire reads too, so the page and the panel cannot disagree.
+const { textIsByok } = useCampaignProviders();
+const quote = useSubclassQuote();
+const textCreditCost = computed(() => quote().total);
 
 const concept = ref("");
 const parentClassName = ref("");
@@ -155,13 +134,7 @@ async function createAll() {
   if (!draft || creating.value) return;
   creating.value = true;
   try {
-    // Abilities first, then the archetype that points at them. A failed write
-    // removes the abilities already created, so nothing is left orphaned.
-    const created = await createWithFeatures(draft.features, {
-      createFeature,
-      deleteFeature,
-      createParent: (ids) => createSubclass(subclassWithFeatureIds(draft, ids)),
-    });
+    const created = await createSubclassFromDraft(draft);
     pending.value = null;
     completedEntityId.value = created.id;
     generatorsUi.customSubclassGeneratorOpen = false;

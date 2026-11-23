@@ -54,7 +54,7 @@
     </template>
 
     <QuestPasteImportPanel v-else-if="startMode === 'paste'" :parent-id="parentId ?? null" />
-    <QuestDesignerPanel v-else-if="startMode === 'design'" :parent-id="parentId ?? null" />
+    <QuestDesignerPanel v-else-if="startMode === 'design'" :parent-id="parentId ?? null" :initial-prose="designerProse" />
   </section>
 
   <PaywallModal v-model="showPaywall" resource="quests" />
@@ -76,6 +76,7 @@ import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import QuestPasteImportPanel from "@/components/quests/overview/QuestPasteImportPanel.vue";
 import QuestDesignerPanel from "@/components/quests/flow/QuestDesignerPanel.vue";
+import { useAskPrefill } from "@/ai/ask/screens/useAskPrefill";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { IconClipboard, IconEdit, IconGenerate } from "@/lib/icons";
 
@@ -105,6 +106,14 @@ const START_MODE_OPTIONS = computed<SegmentedOption<StartMode>[]>(() => [
     ]
     : []),
 ]);
+// Ask Grimoire (#1253) opens the Designer with the DM's description in its first message. With AI off for the
+// campaign the mode has no button, so the request is dropped rather than shown in a mode the DM cannot reach.
+const designerProse = ref("");
+useAskPrefill("quest_designer", (text) => {
+  if (!campaign.isAiEnabled) return;
+  designerProse.value = text;
+  startMode.value = "design";
+});
 // AI switched off mid-visit: an AI mode with no button is not a state to
 // leave the page in.
 watch(() => campaign.isAiEnabled, (enabled) => {

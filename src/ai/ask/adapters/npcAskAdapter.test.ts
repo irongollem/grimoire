@@ -49,7 +49,7 @@ vi.mock("@/composables/npcs/useGenerateNpc", async (importOriginal) => ({
 }));
 
 const { useNpcAskAdapter } = await import("./npcAskAdapter");
-const { useGeneratorQuote } = await import("@/composables/ai/useGeneratorQuote");
+const { useNpcQuote } = await import("@/composables/ai/quotes/npcQuote");
 
 const proposal = (inputs: Record<string, unknown> = {}, concept = "A gruff baker"): AskProposal => ({
   proposalId: "p1", generator: "npc", concept, inputs,
@@ -74,7 +74,7 @@ describe("useNpcAskAdapter", () => {
 
   it("quotes the same price the page shows for an NPC with a portrait", () => {
     const quote = useNpcAskAdapter().quote(proposal({ portrait: true }));
-    const page = useGeneratorQuote().quoteFor("npc", { portrait: true, alterEgo: false });
+    const page = useNpcQuote()({ portrait: true, alterEgo: false });
     expect(quote.total).toBe(page.total);
     expect(quote.lines.filter((l) => l.credits !== null)).toEqual(page.lines);
   });

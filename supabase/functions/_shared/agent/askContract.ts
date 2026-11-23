@@ -143,9 +143,21 @@ export const ASK_GENERATORS: readonly AskGenerator[] = [
   { id: "subclass", action: "Create subclass", noun: "subclass", ending: "record", fiveE: true, describe: "A subclass (archetype) of an existing class.", inputs: { parent_class: { type: "string", description: "The class it belongs to. Required." } }, ask: ["parent_class"] },
   { id: "class_feature", action: "Create ability", noun: "ability", ending: "record", fiveE: true, describe: "A class feature or special ability.", inputs: { activation: { type: "string", description: "How it is used." } } },
   { id: "house_rule", action: "Create house rule", noun: "rule", ending: "record", describe: "A house rule or optional rule.", inputs: { category: { type: "string", description: "What it governs." } } },
-  { id: "recipe", action: "Create recipe", noun: "recipe", ending: "record", describe: "A crafting recipe and what it makes.", inputs: { discipline: { type: "string", description: "Crafting discipline." } } },
-  { id: "scriptorium_draft", action: "Draft document", noun: "document", ending: "record", describe: "A handout, letter or book drafted in the Scriptorium.", inputs: { kind: { type: "string", description: "What to draft.", enum: ["handout", "book"] } }, ask: ["kind"] },
-  { id: "music_track", action: "Compose music", noun: "track", ending: "record", describe: "A music track for the soundboard.", inputs: { length_seconds: { type: "integer", description: "Length in seconds.", minimum: 10, maximum: 180 }, vocals: { type: "boolean", description: "With singing." } } },
+  { id: "recipe", action: "Create recipe", noun: "recipe", ending: "record", fiveE: true, describe: "A crafting recipe and what it makes.", inputs: { discipline: { type: "string", description: "Crafting discipline." } } },
+  {
+    id: "scriptorium_draft", action: "Draft document", noun: "document", ending: "record",
+    describe: "A document drafted in the Scriptorium about one record of this campaign: a player handout, a faction dossier, or a session recap.",
+    // What `draft-scriptorium-document` takes: it refuses a draft that is not about a record of the campaign.
+    inputs: {
+      kind: { type: "string", description: "What to draft.", enum: ["handout", "faction_dossier", "session_recap"] },
+      subject_type: { type: "string", description: "What it is about. A dossier is about a faction; a recap about a session.", enum: ["npc", "location", "faction", "session"] },
+      subject_id: { type: "string", description: "Id of that record in this campaign." },
+      audience: { type: "string", description: "Who reads it.", enum: ["players", "dm"] },
+    },
+    ask: ["kind"],
+  },
+  // `generate-music` makes 60, 120 or 180 seconds; the browser rounds to the nearest.
+  { id: "music_track", action: "Compose music", noun: "track", ending: "record", describe: "A music track for the soundboard.", inputs: { length_seconds: { type: "integer", description: "Length in seconds: 60, 120 or 180.", minimum: 60, maximum: 180 }, vocals: { type: "boolean", description: "With singing." } } },
   // ── fills a record (needs a target) ─────────────────────────────────────────────────────────────────────────────
   { id: "portrait", action: "Paint portrait", noun: "portrait", ending: "fill", describe: "A picture for an existing NPC, party member, monster, item or spell.", inputs: {}, target: ["npc", "party_member", "monster", "item", "spell"] },
   { id: "quest_beat", action: "Write beat", noun: "quest", ending: "fill", describe: "Write a quest beat's title, read-aloud and DM text.", inputs: {}, target: ["quest_beat"] },

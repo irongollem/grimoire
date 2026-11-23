@@ -61,6 +61,7 @@
 // available to correct (it opens seeded from whatever this wrote, same as
 // any other Picture).
 
+import { useAskPrefill } from "@/ai/ask/screens/useAskPrefill";
 import { computed, ref, watch } from "vue";
 import { bakeAiStyleInput, styledPictureCalibration } from "@/cartographer/aiStyleInput";
 import { buildStyledPlay, type StyledPlay } from "@/cartographer/styledPlay";
@@ -115,6 +116,9 @@ async function warnIfStyleResultSizeDrifted(blob: Blob, requested: { width: numb
     // calibration already written stands regardless.
   }
 }
+
+/** The direction box's own `maxlength` in `CartographerAiStyleModal`: a longer request is cut here, not by the browser. */
+const STYLE_DIRECTION_LIMIT = 300;
 
 export function useMapExport(opts: {
   /** The current map, merged with in-progress layers/metadata edits, or null while unloaded. */
@@ -176,6 +180,12 @@ export function useMapExport(opts: {
   const showStyleResult = ref(false);
   const selectedPresetId = ref("playable");
   const stylePromptSuffix = ref("");
+  // Ask Grimoire (#1253) opens the picker with the DM's wording in the direction box. It never renders: "Generate" is
+  // the DM's own press, which prices it in the picker.
+  useAskPrefill("map_style", (text) => {
+    stylePromptSuffix.value = text.slice(0, STYLE_DIRECTION_LIMIT);
+    showStylePicker.value = true;
+  });
   const styleGenerating = ref(false);
   const styleResultBlob = ref<Blob | null>(null);
   const styleResultUrl = ref<string | null>(null);

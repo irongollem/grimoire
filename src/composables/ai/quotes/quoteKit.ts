@@ -1,14 +1,12 @@
 /**
- * What one run of a generator costs, in the lines the quote card shows (#1253).
+ * The pieces every generator's quote is built from, in the lines the quote card shows (#1253).
  *
- * The generator's own panel and Ask Grimoire both read their price from here, so the page and the panel cannot
- * disagree: a price written twice is the one that drifts. Each generator is one entry in `QUOTES` (its options and the
- * parts it charges for); the next generator is one more entry, not a new composable.
+ * The generator's own panel and Ask Grimoire both read their price from a generator's quote composable
+ * (`quotes/<id>Quote.ts`, built from `useQuoteKit`), so the page and the panel cannot disagree: a price written twice
+ * is the one that drifts.
  *
  * Keys are checked at compile time (`QuoteCostKey`) because `costOf` answers 1 for a key the table does not have, which
- * reads as a price and is not one. Each key here is one the server charges for that part: the NPC text is
- * `generate-npc`'s `npc_text`, and every picture goes through the durable image job, which bills `entity_image`
- * (generate-chronicle-image, `PURPOSE_CONFIG`), not the `portrait` row generate-npc only uses when it paints inline.
+ * reads as a price and is not one. Each key a quote uses is one the server charges for that part.
  */
 import type { AskQuoteLine } from "@/lib/ask/askAdapter";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
@@ -39,13 +37,6 @@ export interface GeneratorQuote {
   /** Every part in play runs on the DM's own key: nothing is charged. */
   byok: boolean;
 }
-
-/** The options that change a generator's price, by generator id. */
-export interface QuoteOptions {
-  npc: { portrait: boolean; alterEgo: boolean };
-  monster: { image: boolean };
-}
-export type QuotedGenerator = keyof QuoteOptions;
 
 /**
  * The pieces every generator's quote is built from: a text part, a picture part and the total. A generator that is
@@ -87,31 +78,4 @@ export function useQuoteKit() {
   }
 
   return { textLine, artLine, quoteOf, textIsByok, imageIsByok };
-}
-
-export function useGeneratorQuote() {
-  const { textLine, artLine, quoteOf, textIsByok, imageIsByok } = useQuoteKit();
-
-  const QUOTES: { [G in QuotedGenerator]: (options: QuoteOptions[G]) => { lines: AskQuoteLine[]; byok: boolean } } = {
-    npc: ({ portrait, alterEgo }) => {
-      const lines = [textLine("NPC text", "Written by AI", "npc_text")];
-      if (portrait) {
-        const count = alterEgo ? 2 : 1;
-        lines.push(artLine("Portrait", count === 2 ? "Portrait and alter ego" : "Portrait", count));
-      }
-      return { lines, byok: textIsByok.value && (!portrait || imageIsByok.value) };
-    },
-    monster: ({ image }) => {
-      const lines = [textLine("Stat block", "Written by AI", "monster_stat_block")];
-      if (image) lines.push(artLine("Picture", "Painted by AI", 1));
-      return { lines, byok: textIsByok.value && (!image || imageIsByok.value) };
-    },
-  };
-
-  function quoteFor<G extends QuotedGenerator>(generator: G, options: QuoteOptions[G]): GeneratorQuote {
-    const { lines, byok } = QUOTES[generator](options);
-    return quoteOf(lines, byok);
-  }
-
-  return { quoteFor };
 }

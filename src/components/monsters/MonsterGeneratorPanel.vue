@@ -57,7 +57,7 @@ import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue"
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useGeneratorQuote } from "@/composables/ai/useGeneratorQuote";
+import { useMonsterQuote } from "@/composables/ai/quotes/monsterQuote";
 import { useMonsterGeneration } from "@/ai/useMonsterGeneration";
 import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
 
@@ -72,14 +72,14 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("monsters");
 
-const { quoteFor } = useGeneratorQuote();
+const quoteFor = useMonsterQuote();
 
 const concept = ref("");
 const constraints = reactive({ challenge_rating: "", monster_type: "", size: "" });
 const generateImage = ref(true);
 
 // The price Ask Grimoire quotes for the same run: the picture counts when it is switched on.
-const quote = computed(() => quoteFor("monster", { image: generateImage.value }));
+const quote = computed(() => quoteFor({ image: generateImage.value }));
 
 async function generateAndCreate() {
   if (!canSpend(quote.value.total, quote.value.byok)) return;

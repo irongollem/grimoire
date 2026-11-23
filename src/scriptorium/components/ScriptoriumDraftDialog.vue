@@ -119,7 +119,6 @@ import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import { IconGenerate } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
@@ -130,13 +129,11 @@ import { useNotes } from "@/composables/notes/useNotes";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
 import { sessionLabel } from "@/lib/sessions/sessionLabel";
 import { sessionOf } from "@/lib/notes/noteSessions";
-import { useCreateScriptoriumBook } from "@/scriptorium/composables/useScriptorium";
+import { useSaveScriptoriumDraft, type KindedDraft } from "@/scriptorium/composables/useGenerateScriptoriumDraft";
+import { useScriptoriumDraftQuote } from "@/composables/ai/quotes/scriptoriumDraftQuote";
 import { useScriptoriumDraft } from "@/ai/useScriptoriumDraft";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
-import { htmlToScriptoriumJson } from "@/scriptorium/lib/documentContent";
-import { handoutDefaults } from "@/scriptorium/lib/looks";
-import type { ScriptoriumDocInsert } from "@/scriptorium/types";
 import type { DraftAudience, DraftKind, DraftSubjectType } from "@edge-shared/scriptoriumDraft.ts";
 
 const { open } = defineProps<{ open: boolean }>();
@@ -145,11 +142,11 @@ const emit = defineEmits<{ close: [] }>();
 const router = useRouter();
 const campaign = useCampaignStore();
 const { isGenerating, error: genError, generate } = useScriptoriumDraft();
-const { mutateAsync: createBook } = useCreateScriptoriumBook();
+const { saveDraft } = useSaveScriptoriumDraft();
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("scriptorium_documents");
 // It remembers the kind it was drafted as: a handout is one sheet of paper, the
 // other kinds are books, and the picker may move on before a retry.
-type Draft = NonNullable<Awaited<ReturnType<typeof generate>>> & { kind: DraftKind };
+type Draft = KindedDraft;
 // A paid draft whose save failed is kept so the retry costs nothing.
 const retained = useRetainedGeneration<Draft>();
 
@@ -161,11 +158,10 @@ const { data: locations } = useAllLocations(whenOpen);
 const { data: notes } = useNotes(whenOpen);
 const { data: sessions } = useCampaignSessions({ enabled: () => open });
 
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const textCreditCost = computed(
-  () => textCredits(costOf("scriptorium_draft")),
-);
+// The price is the quote's, the one Ask Grimoire shows for the same draft.
+const draftQuote = useScriptoriumDraftQuote();
+const { textIsByok } = useCampaignProviders();
+const textCreditCost = computed(() => draftQuote().total);
 
 const KIND_OPTIONS: ReadonlyArray<SegmentedOption<DraftKind>> = [
   { value: "handout", label: "Player handout" },
@@ -265,37 +261,7 @@ async function save(draft: Draft) {
   // it again without generating (and paying) twice.
   const created = await retained.run(draft, async (d) => {
     try {
-      // A model's draft carries no page furniture (the draft prompt asks for
-      // headings and prose), so only the body is kept; the anchor id is moot.
-      const { content } = htmlToScriptoriumJson(d.html, "");
-      const filing: Pick<
-        ScriptoriumDocInsert,
-        "title" | "doc_type" | "campaign_id" | "tags" | "is_published" | "page_number_start" | "ink_friendly" | "ai_provenance" | "footer_title"
-      > = {
-        title: d.title,
-        doc_type: "custom",
-        campaign_id: campaign.activeCampaignId,
-        tags: [],
-        is_published: false,
-        page_number_start: 1,
-        ink_friendly: false,
-        ai_provenance: d.ai_provenance,
-        // A draft comes with no footer text, so its pages carry their chapters' titles.
-        footer_title: "chapter",
-      };
-      const book: ScriptoriumDocInsert =
-        d.kind === "handout"
-          ? { ...filing, kind: "handout", theme: "plain", ...handoutDefaults("plain") }
-          : {
-              ...filing,
-              kind: "book",
-              theme: "grimoire",
-              page_size: "A4",
-              is_two_column: false,
-              show_page_numbers: false,
-              footer_text: "",
-            };
-      return await createBook({ book, chapters: [{ content }] });
+      return await saveDraft(d, campaign.activeCampaignId);
     } catch (e) {
       if (!gateQuotaError(e)) createError.value = e instanceof Error ? e.message : "The draft could not be saved.";
       return null;
