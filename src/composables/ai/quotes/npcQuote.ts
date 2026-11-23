@@ -2,8 +2,7 @@
  * What one NPC Generator run costs (#1253), shared by `NpcGeneratorPanel` and the Ask Grimoire NPC adapter.
  *
  * Verified against the server: the NPC text is `generate-npc`'s `npc_text`, and every picture goes through the durable
- * image job, which bills `entity_image` (generate-chronicle-image, `PURPOSE_CONFIG`), not the `portrait` row
- * generate-npc only uses when it paints inline.
+ * image job, which bills `entity_image` (generate-chronicle-image, `PURPOSE_CONFIG`). generate-npc paints nothing.
  */
 import { useQuoteKit, type GeneratorQuote } from "@/composables/ai/quotes/quoteKit";
 
