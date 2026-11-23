@@ -57,6 +57,14 @@ describe("useGenerateRecipe", () => {
     expect(mocks.outputs).toHaveBeenCalledWith({ recipeId: "r1", outputs: [{ item_id: UUID, library_item_id: null, quantity: 1 }] });
   });
 
+  it("makes the item the DM picked, and tells the model its name, even when the model's output is named otherwise", async () => {
+    const picked = { id: UUID, name: "Smoke Bomb" };
+    await useGenerateRecipe().generateAndCreateRecipe("a draught", { items: [picked], output: picked });
+    expect(mocks.generate).toHaveBeenCalledWith("a draught", { outputName: "Smoke Bomb" });
+    expect(mocks.createItem).not.toHaveBeenCalled();
+    expect(mocks.outputs).toHaveBeenCalledWith({ recipeId: "r1", outputs: [{ item_id: UUID, library_item_id: null, quantity: 1 }] });
+  });
+
   it("throws, writing no recipe, when the output item cannot be made", async () => {
     mocks.createItem.mockRejectedValue(new Error("item failed"));
     await expect(useGenerateRecipe().generateAndCreateRecipe("a draught", { items: [] })).rejects.toThrow("item failed");

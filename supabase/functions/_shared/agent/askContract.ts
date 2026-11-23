@@ -53,11 +53,24 @@ export interface AskGenerator {
 
 const image = { type: "boolean", description: "Paint a picture of it as well. Costs extra; ask unless the DM said." } as const;
 
+/**
+ * What the NEW NPC is to an existing one, in the words a DM says it. The first four are kin (the page's family tie, written
+ * to the kinship table); the rest are the associate ties (the page's "known associate", written as a world link). Read
+ * from the new NPC: "mentor" means the new NPC is the mentor, "apprentice" that they are the apprentice. The adapter maps
+ * each word to the page's own choice and `askContract.test.ts` holds the list equal to the catalogue's choices.
+ */
+export const NPC_RELATIONS = [
+  "child", "parent", "spouse", "sibling",
+  "friend", "ally", "lover", "contact", "rival", "enemy", "mentor", "apprentice", "superior", "subordinate",
+  "chosen_family", "former_ally", "former_enemy", "employer", "employee", "patron", "protege", "creditor", "debtor",
+  "blackmailer", "blackmailed_by", "betrayed", "betrayed_by", "sworn_to", "holds_oath_of",
+] as const;
+
 export const ASK_GENERATORS: readonly AskGenerator[] = [
   // ── makes a record ──────────────────────────────────────────────────────────────────────────────────────────────
   {
     id: "npc", action: "Create NPC", noun: "NPC", ending: "record",
-    describe: "A new non-player character: name, look, voice, personality, secret.",
+    describe: "A new non-player character: name, look, voice, personality, secret. It can be tied to people, places and factions the campaign already has: say who it is to them (a sister, a former partner, a rival) with `related_npc_id` or `related_pc_id` and `relation`.",
     inputs: {
       name: { type: "string", description: "A name the DM gave." },
       race: { type: "string", description: "Species or race, as the DM said it." },
@@ -66,6 +79,11 @@ export const ASK_GENERATORS: readonly AskGenerator[] = [
       role: { type: "string", description: "Occupation or role in the world." },
       location_id: { type: "string", description: "Id of a place in this campaign where they live or work." },
       faction_id: { type: "string", description: "Id of a faction in this campaign they belong to." },
+      faction_role: { type: "string", description: "Their role in that faction, e.g. Leader, Spy, Member. Only with faction_id." },
+      related_npc_id: { type: "string", description: "Id of an existing NPC in this campaign this one is tied to (kin, friend, rival, former partner...). Pair it with `relation`." },
+      related_pc_id: { type: "string", description: "Id of an existing party member (player character) in this campaign this one is kin to. Only for the family words of `relation`." },
+      relation: { type: "string", description: "What the NEW NPC is to the one in related_npc_id or related_pc_id, read from the new NPC: \"sibling\" = the new NPC is their sibling; \"mentor\" = the new NPC mentors them; \"betrayed\" = the new NPC betrayed them; \"betrayed_by\" = they betrayed the new NPC. Without it a related id is ignored.", enum: NPC_RELATIONS },
+      second_parent_id: { type: "string", description: "Id of an existing NPC who is the other parent, when relation is child. Only with related_npc_id or related_pc_id." },
       portrait: image,
       alter_ego: { type: "boolean", description: "Give them a disguise or second identity." },
     },
@@ -105,30 +123,36 @@ export const ASK_GENERATORS: readonly AskGenerator[] = [
   },
   {
     id: "faction", action: "Create faction", noun: "faction", ending: "record",
-    describe: "A new faction, guild, cult or organisation, with a leader.",
+    describe: "A new faction, guild, cult or organisation, with a leader. An existing NPC can lead it (`leader_npc_id`) and an existing place can be its headquarters (`headquarters_id`).",
     inputs: {
       faction_type: { type: "string", description: "Kind of organisation." },
       alignment: { type: "string", description: "Alignment." },
-      leader_name: { type: "string", description: "The leader's name, if the DM gave one." },
-      headquarters_name: { type: "string", description: "Where it is based." },
+      leader_npc_id: { type: "string", description: "Id of an existing NPC in this campaign who leads it. They are added as its Leader." },
+      leader_name: { type: "string", description: "The leader's name when they are not an existing NPC, if the DM gave one." },
+      headquarters_id: { type: "string", description: "Id of an existing place in this campaign where it is based. It is linked as its headquarters." },
+      headquarters_name: { type: "string", description: "Where it is based when that place does not exist yet." },
       image,
     },
     ask: ["image"],
   },
   {
     id: "location", action: "Create place", noun: "place", ending: "record",
-    describe: "A new place in the Atlas: a town, building, region, dungeon.",
+    describe: "A new place in the Atlas: a town, building, region, dungeon. It can sit inside an existing place (`parent_id`) and be kept by an existing NPC (`keeper_npc_id`).",
     inputs: {
       location_type: { type: "string", description: "Kind of place." },
       parent_id: { type: "string", description: "Id of the place in this campaign it sits inside." },
+      keeper_npc_id: { type: "string", description: "Id of an NPC in this campaign who keeps or owns it (the innkeeper, the lord)." },
       image,
     },
     ask: ["image"],
   },
   {
     id: "encounter", action: "Create encounter", noun: "encounter", ending: "record", fiveE: true,
-    describe: "A combat encounter with monsters balanced for the party.",
-    inputs: { difficulty: { type: "string", description: "How hard.", enum: ["auto", "easy", "medium", "hard", "deadly"] } },
+    describe: "A combat encounter with monsters balanced for the party. It can be set in an existing place (`location_id`), where the Atlas then lists it.",
+    inputs: {
+      difficulty: { type: "string", description: "How hard.", enum: ["auto", "easy", "medium", "hard", "deadly"] },
+      location_id: { type: "string", description: "Id of a place in this campaign where the fight happens." },
+    },
     ask: ["difficulty"],
   },
   { id: "roll_table", action: "Create roll table", noun: "roll table", ending: "record", describe: "A random table to roll on.", inputs: { die: { type: "integer", description: "Faces of the die, e.g. 6, 20, 100.", minimum: 2, maximum: 100 } } },
@@ -136,14 +160,14 @@ export const ASK_GENERATORS: readonly AskGenerator[] = [
   { id: "dungeon_feature", action: "Create dungeon feature", noun: "feature", ending: "record", fiveE: true, describe: "A dungeon feature: a fountain, altar, strange door.", inputs: { feature_type: { type: "string", description: "Kind of feature." }, image } },
   { id: "trap", action: "Create trap", noun: "trap", ending: "record", fiveE: true, describe: "A trap with its trigger, effect and countermeasures.", inputs: { trap_type: { type: "string", description: "Kind of trap." }, image } },
   { id: "puzzle", action: "Create puzzle", noun: "puzzle", ending: "record", describe: "A puzzle room or riddle.", inputs: { puzzle_type: { type: "string", description: "Kind of puzzle." }, difficulty: { type: "string", description: "How hard." }, image } },
-  { id: "deity", action: "Create deity", noun: "deity", ending: "record", describe: "A god or power, with domains and an emblem.", inputs: { pantheon: { type: "string", description: "The pantheon it belongs to." }, alignment: { type: "string", description: "Alignment." }, domain: { type: "string", description: "A domain." }, image } },
+  { id: "deity", action: "Create deity", noun: "deity", ending: "record", describe: "A god or power, with domains and an emblem. It can join an existing pantheon (`pantheon_id`).", inputs: { pantheon_id: { type: "string", description: "Id of a pantheon in this campaign it belongs to." }, alignment: { type: "string", description: "Alignment." }, domain: { type: "string", description: "A domain." }, image } },
   { id: "species", action: "Create species", noun: "species", ending: "record", fiveE: true, describe: "A playable species.", inputs: { size: { type: "string", description: "Size." }, image } },
   { id: "background", action: "Create background", noun: "background", ending: "record", fiveE: true, describe: "A character background.", inputs: { skill_focus: { type: "string", description: "Skills it leans on." } } },
   { id: "class", action: "Create class", noun: "class", ending: "record", fiveE: true, describe: "A custom character class.", inputs: { hit_die: { type: "integer", description: "Hit die faces.", minimum: 6, maximum: 12 } } },
   { id: "subclass", action: "Create subclass", noun: "subclass", ending: "record", fiveE: true, describe: "A subclass (archetype) of an existing class.", inputs: { parent_class: { type: "string", description: "The class it belongs to. Required." } }, ask: ["parent_class"] },
   { id: "class_feature", action: "Create ability", noun: "ability", ending: "record", fiveE: true, describe: "A class feature or special ability.", inputs: { activation: { type: "string", description: "How it is used." } } },
   { id: "house_rule", action: "Create house rule", noun: "rule", ending: "record", describe: "A house rule or optional rule.", inputs: { category: { type: "string", description: "What it governs." } } },
-  { id: "recipe", action: "Create recipe", noun: "recipe", ending: "record", fiveE: true, describe: "A crafting recipe and what it makes.", inputs: { discipline: { type: "string", description: "Crafting discipline." } } },
+  { id: "recipe", action: "Create recipe", noun: "recipe", ending: "record", fiveE: true, describe: "A crafting recipe and what it makes. It can make an existing item (`output_item_id`).", inputs: { discipline: { type: "string", description: "Crafting discipline." }, output_item_id: { type: "string", description: "Id of an existing item in this campaign the recipe produces." } } },
   {
     id: "scriptorium_draft", action: "Draft document", noun: "document", ending: "record",
     describe: "A document drafted in the Scriptorium about one record of this campaign: a player handout, a faction dossier, or a session recap.",

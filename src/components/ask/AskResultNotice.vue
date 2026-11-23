@@ -16,6 +16,7 @@
 </template>
 
 <script setup lang="ts">
+import { creditsText } from "@/lib/ask/askCredits";
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 
@@ -24,5 +25,5 @@ import type { AskNotice } from "@/composables/ask/useAskConversation";
 const { notice } = defineProps<{ notice: AskNotice }>();
 const emit = defineEmits<{ dismiss: []; open: [route: string] }>();
 
-const detail = computed(() => `${notice.noun} in ${notice.campaign} · ${notice.credits} ${notice.credits === 1 ? "credit" : "credits"}`);
+const detail = computed(() => `${notice.noun} in ${notice.campaign} · ${creditsText(notice.credits)}`);
 </script>

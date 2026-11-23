@@ -72,6 +72,7 @@
  */
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
+import { creditsText } from "@/lib/ask/askCredits";
 import { askGenerator, type AskGenerator } from "@edge-shared/agent/askContract";
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
 import { askGeneratorPage } from "@/composables/ask/askRecordRoute";
@@ -101,11 +102,11 @@ const waitingForPrice = computed(() => quote.value !== null && quote.value.total
 const totalText = computed(() => {
   if (quote.value === null) return "";
   if (quote.value.byok) return "Your own key";
-  return quote.value.total === null ? "…" : `${quote.value.total} credits`;
+  return quote.value.total === null ? "…" : creditsText(quote.value.total);
 });
 /** The gilt button: drawn only inside the branch where the generator is known. */
 function buttonText(known: AskGenerator): string {
   if (quote.value === null || quote.value.byok || quote.value.total === null) return known.action;
-  return `${known.action} · ${quote.value.total} credits`;
+  return `${known.action} · ${creditsText(quote.value.total)}`;
 }
 </script>

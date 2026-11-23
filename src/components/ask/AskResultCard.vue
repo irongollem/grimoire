@@ -31,6 +31,7 @@
 </template>
 
 <script setup lang="ts">
+import { creditsText } from "@/lib/ask/askCredits";
 /** The end of a run in the thread: each part with a tick or a cross, a retry for what failed, and the way in. */
 import { computed } from "vue";
 import { useRouter } from "vue-router";
@@ -53,6 +54,6 @@ const openLabel = computed(() => (item.review ? "Review suggestions" : `Open ${i
 
 function retryLabel(part: ResultPart): string {
   const credits = part.retry?.credits;
-  return credits === null || credits === undefined ? `Retry ${part.label}` : `Retry ${part.label} · ${credits} credits`;
+  return credits === null || credits === undefined ? `Retry ${part.label}` : `Retry ${part.label} · ${creditsText(credits)}`;
 }
 </script>

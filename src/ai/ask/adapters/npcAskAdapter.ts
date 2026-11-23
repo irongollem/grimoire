@@ -10,6 +10,14 @@
  * calls `ensureLikenessAck`), and the notice dialog is mounted app-wide, so it opens over the Ask panel exactly as it
  * does over the page. Declining it makes nothing and costs nothing, and the result says so.
  *
+ * Linking: the generator's page can tie a new NPC to an existing one (family, or a bond such as rival or mentor), to a
+ * party member, to a faction (with a role) and to a place, and Ask offers the same through `related_npc_id`,
+ * `related_pc_id`, `relation`, `second_parent_id`, `faction_id`, `faction_role` and `location_id`. Every id is looked
+ * up in this campaign's own lists and an id that is not there is ignored, so the model cannot tie an NPC to another
+ * campaign's row; the word becomes the page's own form field (`npcRelations`), so the page's workflow writes the kin
+ * link or the world link, and the related people reach the model's context with their birth years. A related person
+ * named with no word is a contact, the page's own default tie.
+ *
  * A failed picture never costs the NPC: the row and its text are saved first, the portrait is its own part, and it
  * carries `retry`, which paints the saved NPC once with the page's own paint flow.
  */
@@ -23,6 +31,10 @@ import { useMissingPortrait } from "@/ai/useMissingPortrait";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useParty } from "@/composables/party/useParty";
+import { DEFAULT_RELATION, npcRelation } from "@/ai/ask/adapters/npcRelations";
+import { personKey } from "@/lib/kinship/keys";
 import { useNpcQuote } from "@/composables/ai/quotes/npcQuote";
 import { buildNpcAiContext, useGenerateNpc, type NpcGenerateForm } from "@/composables/npcs/useGenerateNpc";
 import { isQuotaExceeded } from "@/lib/quotaError";
@@ -46,6 +58,11 @@ export function useNpcAskAdapter(): AskAdapter {
   const { data: locations } = useAllLocations(() => lookupsWanted.value);
   const { data: factions } = useAllFactions(() => lookupsWanted.value);
   const lookupsLoading = computed(() => lookupsWanted.value && (locations.value === undefined || factions.value === undefined));
+  // The people are read only when a proposal ties the NPC to one, for the same reason.
+  const peopleWanted = ref(false);
+  const { data: npcs } = useNpcs(() => peopleWanted.value);
+  const { data: party } = useParty(() => peopleWanted.value);
+  const peopleLoading = computed(() => peopleWanted.value && (npcs.value === undefined || party.value === undefined));
 
   /** What Ask understood of the proposal, with ids only when they name a row this campaign has. */
   function understand(proposal: AskProposal) {
@@ -55,7 +72,24 @@ export function useNpcAskAdapter(): AskAdapter {
     if (locationId !== null || factionId !== null) lookupsWanted.value = true;
     const location = locationId === null ? null : locations.value?.find((l) => l.id === locationId) ?? null;
     const faction = factionId === null ? null : factions.value?.find((f) => f.id === factionId) ?? null;
+
+    const relatedNpcId = askString(inputs, "related_npc_id");
+    const relatedPcId = askString(inputs, "related_pc_id");
+    const secondParentId = askString(inputs, "second_parent_id");
+    if (relatedNpcId !== null || relatedPcId !== null) peopleWanted.value = true;
+    const relatedNpc = relatedNpcId === null ? null : npcs.value?.find((n) => n.id === relatedNpcId) ?? null;
+    const relatedPc = relatedPcId === null ? null : party.value?.find((p) => p.id === relatedPcId) ?? null;
+    // A character beats an NPC when both are named, as the page's own kin code does.
+    const related = relatedPc ? { kind: "pc" as const, row: relatedPc } : relatedNpc ? { kind: "npc" as const, row: relatedNpc } : null;
+    const relation = related === null ? null : npcRelation(askString(inputs, "relation")) ?? DEFAULT_RELATION;
+    // The other parent exists only for a child, and is one of this campaign's NPCs (or characters).
+    const secondParent = relation?.kind === "kin" && relation.kin === "child" && secondParentId !== null
+      ? npcs.value?.find((n) => n.id === secondParentId) ?? null
+      : null;
     return {
+      related,
+      relation,
+      secondParent,
       name: askString(inputs, "name"),
       race: askString(inputs, "race"),
       age: askInteger(inputs, "age"),
@@ -63,6 +97,7 @@ export function useNpcAskAdapter(): AskAdapter {
       role: askString(inputs, "role"),
       location,
       faction,
+      factionRole: askString(inputs, "faction_role"),
       portrait: askFlag(inputs, "portrait"),
       alterEgo: askFlag(inputs, "alter_ego"),
       concept: proposal.concept.trim(),
@@ -79,7 +114,9 @@ export function useNpcAskAdapter(): AskAdapter {
     lines.push({ label: "Who", value: who || "As the description says", credits: null });
     if (read.role) lines.push({ label: "Role", value: read.role, credits: null });
     if (read.location) lines.push({ label: "Lives in", value: read.location.name, credits: null });
-    if (read.faction) lines.push({ label: "Faction", value: read.faction.name, credits: null });
+    if (read.faction) lines.push({ label: "Faction", value: read.factionRole ? `${read.faction.name}, as ${read.factionRole}` : read.faction.name, credits: null });
+    if (read.related && read.relation) lines.push({ label: read.relation.label, value: read.related.row.name, credits: null });
+    if (read.secondParent) lines.push({ label: "Other parent", value: read.secondParent.name, credits: null });
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.portrait) lines.push({ label: "Portrait", value: "None", credits: null });
@@ -88,6 +125,9 @@ export function useNpcAskAdapter(): AskAdapter {
     block = block ?? conceptBlock(read.concept, "NPC");
     if (!block && lookupsLoading.value) {
       block = { reason: "missing", message: "Still reading this campaign's places and factions." };
+    }
+    if (!block && peopleLoading.value) {
+      block = { reason: "missing", message: "Still reading this campaign's people." };
     }
     return { lines, total: priced.total, byok: priced.byok, block };
   }
@@ -108,12 +148,12 @@ export function useNpcAskAdapter(): AskAdapter {
       templateId: "auto",
       location_id: read.location?.id ?? null,
       faction_id: read.faction?.id ?? null,
-      faction_role: "Member",
-      related_npc_id: null,
-      related_npc_tie: DEFAULT_ASSOCIATE,
-      related_npc_kin: null,
-      related_pc_id: null,
-      second_parent: null,
+      faction_role: blankIfUnsaid(read.factionRole) || "Member",
+      related_npc_id: read.related?.kind === "npc" ? read.related.row.id : null,
+      related_npc_tie: read.relation?.kind === "tie" ? read.relation.choice : DEFAULT_ASSOCIATE,
+      related_npc_kin: read.relation?.kind === "kin" ? read.relation.kin : null,
+      related_pc_id: read.related?.kind === "pc" ? read.related.row.id : null,
+      second_parent: read.secondParent ? personKey("npc", read.secondParent.id) : null,
     };
     // The schema's age and role have no field on the page's form; the model reads them as constraint lines.
     const extra = [
@@ -125,8 +165,8 @@ export function useNpcAskAdapter(): AskAdapter {
       buildNpcAiContext(form, form.location_id, [], {
         locations: read.location ? [read.location] : [],
         factions: read.faction ? [read.faction] : [],
-        npcs: [],
-        party: [],
+        npcs: [read.related?.kind === "npc" ? read.related.row : null, read.secondParent].filter((row) => row !== null),
+        party: read.related?.kind === "pc" ? [read.related.row] : [],
         todayYear: campaign.todayYear,
       }),
     ].filter((line) => line !== "").join("\n");
@@ -145,7 +185,8 @@ export function useNpcAskAdapter(): AskAdapter {
         form,
         locationId: form.location_id,
         inventoryItems: [],
-        associate: null,
+        // The workflow writes a bond only when it is told who the associate is, in this campaign.
+        associate: read.related && read.relation?.kind === "tie" ? { id: read.related.row.id, name: read.related.row.name } : null,
       });
     } catch (e) {
       // A quota race on the create, or a save that failed: the generated text is lost, so say so plainly.

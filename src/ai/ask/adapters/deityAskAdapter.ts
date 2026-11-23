@@ -3,8 +3,8 @@
  *
  * The price is `useDeityQuote`'s (the one `DeityGeneratorPanel` shows), the gates are the page's (`useAskGate`, with
  * the plan's deity quota), and the run is `useGenerateDeity`, the generate-then-save step the page calls. The
- * pantheon is named by the model and matched against this campaign's pantheons: a name that matches none is not
- * understood. The deity's secrets note can fail on its own; the deity is saved and that is its own part. The
+ * pantheon is given by id (`pantheon_id`, as the page's picker holds it) and looked up in this campaign's own
+ * pantheons: an id that matches none is not understood, so the deity joins no pantheon rather than another campaign's. The deity's secrets note can fail on its own; the deity is saved and that is its own part. The
  * picture cannot be painted again from Ask (it is not one of the kinds `useMissingPortrait` knows), so a failed
  * picture is said plainly and the deity's own page can paint it.
  */
@@ -13,7 +13,7 @@ import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
 import { askFlag, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
-import { conceptBlock, failedRun, matchOption, picturePart, sameWord, saveFailure, spent } from "@/ai/ask/adapters/askAdapterKit";
+import { conceptBlock, failedRun, matchOption, picturePart, saveFailure, spent } from "@/ai/ask/adapters/askAdapterKit";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllDeities, useAllPantheons } from "@/composables/deities/useDeities";
 import { useDeityQuote } from "@/composables/ai/quotes/deityQuote";
@@ -38,9 +38,9 @@ export function useDeityAskAdapter(): AskAdapter {
 
   function understand(proposal: AskProposal) {
     const inputs = readAskInputs("deity", proposal.inputs);
-    const pantheonName = askString(inputs, "pantheon");
-    if (pantheonName !== null) lookupsWanted.value = true;
-    const pantheon = pantheonName === null ? null : pantheons.value?.find((p) => sameWord(p.name, pantheonName)) ?? null;
+    const pantheonId = askString(inputs, "pantheon_id");
+    if (pantheonId !== null) lookupsWanted.value = true;
+    const pantheon = pantheonId === null ? null : pantheons.value?.find((p) => p.id === pantheonId) ?? null;
     return {
       pantheon,
       alignment: matchOption(askString(inputs, "alignment"), ALIGNMENTS),

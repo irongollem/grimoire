@@ -7,6 +7,7 @@
  * so a running turn or generation carries on.
  */
 import { ref } from "vue";
+import { creditsText } from "@/lib/ask/askCredits";
 import {
   ASK_OFF_TOPIC_MESSAGE,
   ASK_REFUSALS,
@@ -272,7 +273,7 @@ export function useAskConversation(deps: AskConversationDeps) {
     const quote = adapter.quote(proposal);
     // The button is disabled in these states; the guard is for a press that races a re-quote.
     if (quote.block !== null) return;
-    const price = quote.byok ? "your own key" : quote.total === null ? null : `${quote.total} credits`;
+    const price = quote.byok ? "your own key" : quote.total === null ? null : creditsText(quote.total);
     if (price === null) return;
     if (ran.has(proposal.proposalId)) return;
     ran.add(proposal.proposalId);

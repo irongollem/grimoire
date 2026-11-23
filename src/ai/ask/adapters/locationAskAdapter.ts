@@ -5,6 +5,9 @@
  * gates are the page's (`useAskGate`, with the plan's location quota), and the run is `useGenerateLocation`. The map
  * sketch is the page's own extra switch and the contract does not offer it, so it is always off here.
  *
+ * `keeper_npc_id` names an NPC who keeps the place (the Atlas shows them as its keeper); like `parent_id` it is looked up in
+ * this campaign's own NPCs and ignored when it is not there. The page has no picker for a keeper: this link is Ask's alone.
+ *
  * `parent_id` must name a place of this campaign: the id is looked up in the campaign's Atlas and ignored otherwise,
  * so the model cannot file a place under a row of another campaign. The Atlas is read only once a proposal names a
  * parent, because this adapter lives as long as the panel. A kind of place is understood only when it is one of the
@@ -17,6 +20,7 @@ import { askFlag, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
 import { conceptBlock, failedRun, matchKey, picturePart, spent } from "@/ai/ask/adapters/askAdapterKit";
 import { useCampaignStore } from "@/stores/campaign";
+import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useLocationQuote } from "@/composables/ai/quotes/locationQuote";
 import { useGenerateLocation } from "@/composables/locations/useGenerateLocation";
@@ -43,13 +47,20 @@ export function useLocationAskAdapter(): AskAdapter {
   const lookupsWanted = ref(false);
   const { data: locations } = useAllLocations(() => lookupsWanted.value);
   const lookupsLoading = computed(() => lookupsWanted.value && locations.value === undefined);
+  const keeperWanted = ref(false);
+  const { data: npcs } = useNpcs(() => keeperWanted.value);
+  const keeperLoading = computed(() => keeperWanted.value && npcs.value === undefined);
 
   function understand(proposal: AskProposal) {
     const inputs = readAskInputs("location", proposal.inputs);
     const parentId = askString(inputs, "parent_id");
     if (parentId !== null) lookupsWanted.value = true;
     const parent = parentId === null ? null : locations.value?.find((l) => l.id === parentId) ?? null;
+    const keeperId = askString(inputs, "keeper_npc_id");
+    if (keeperId !== null) keeperWanted.value = true;
+    const keeper = keeperId === null ? null : npcs.value?.find((n) => n.id === keeperId) ?? null;
     return {
+      keeper: keeper ? { id: keeper.id, name: keeper.name } : null,
       locationType: locationType(askString(inputs, "location_type")),
       parent: parent ? { id: parent.id, name: parent.name } : null,
       image: askFlag(inputs, "image"),
@@ -64,6 +75,7 @@ export function useLocationAskAdapter(): AskAdapter {
     const lines: AskQuoteLine[] = [];
     if (read.locationType) lines.push({ label: "Kind", value: LOCATION_TYPE_LABELS[read.locationType], credits: null });
     if (read.parent) lines.push({ label: "Inside", value: read.parent.name, credits: null });
+    if (read.keeper) lines.push({ label: "Kept by", value: read.keeper.name, credits: null });
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
@@ -72,6 +84,7 @@ export function useLocationAskAdapter(): AskAdapter {
     if (!block && lookupsLoading.value) {
       block = { reason: "missing", message: "Still reading this campaign's places." };
     }
+    if (!block && keeperLoading.value) block = { reason: "missing", message: "Still reading this campaign's NPCs." };
     return { lines, total: priced.total, byok: priced.byok, block };
   }
 
@@ -86,6 +99,7 @@ export function useLocationAskAdapter(): AskAdapter {
       outcome = await generateAndCreateLocation(read.concept, {
         locationType: read.locationType ?? undefined,
         parent: read.parent,
+        keeperNpcId: read.keeper?.id ?? null,
         // Explicit either way: left out, the generator paints a scene. The map sketch is not Ask's to spend on.
         generateImage: read.image,
         generateMap: false,

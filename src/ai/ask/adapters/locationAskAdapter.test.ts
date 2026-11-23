@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({ generateAndCreateLocation: vi.fn() }));
 const state = vi.hoisted(() => ({
   aiEnabled: true, canCreate: true, affordable: true,
   places: undefined as { id: string; name: string }[] | undefined,
+  npcs: undefined as { id: string; name: string }[] | undefined,
 }));
 
 vi.mock("@/stores/campaign", () => ({
@@ -25,6 +26,7 @@ vi.mock("@/composables/rules/useGameSystem", () => ({ useGameSystem: () => ({ of
 vi.mock("@/composables/locations/useLocations", () => ({
   useAllLocations: () => ({ data: { get value() { return state.places; } } }),
 }));
+vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: { get value() { return state.npcs; } } }) }));
 vi.mock("@/composables/locations/useGenerateLocation", () => ({
   useGenerateLocation: () => ({ generateAndCreateLocation: mocks.generateAndCreateLocation }),
 }));
@@ -40,7 +42,7 @@ const saved = (over: Record<string, unknown> = {}) => ({ id: "l1", name: "Forgeh
 describe("useLocationAskAdapter", () => {
   beforeEach(() => {
     mocks.generateAndCreateLocation.mockReset().mockResolvedValue(saved());
-    Object.assign(state, { aiEnabled: true, canCreate: true, affordable: true, places: [{ id: "p1", name: "Thornkeep" }] });
+    Object.assign(state, { aiEnabled: true, canCreate: true, affordable: true, places: [{ id: "p1", name: "Thornkeep" }], npcs: [{ id: "n1", name: "Brenna" }] });
   });
 
   it("quotes the same price the page shows, with the picture counted only when asked and never a map", () => {
@@ -69,14 +71,25 @@ describe("useLocationAskAdapter", () => {
     expect(useLocationAskAdapter().quote(proposal({ parent_id: "p1" })).block).toMatchObject({ reason: "missing" });
   });
 
+  it("puts an NPC of this campaign in charge of the place, names them in the quote, and ignores one it lacks", async () => {
+    const adapter = useLocationAskAdapter();
+    expect(adapter.quote(proposal({ keeper_npc_id: "n1" })).lines.find((l) => l.label === "Kept by")?.value).toBe("Brenna");
+    await adapter.run(proposal({ keeper_npc_id: "n1" }));
+    expect(mocks.generateAndCreateLocation.mock.calls[0][1]).toMatchObject({ keeperNpcId: "n1" });
+    await adapter.run(proposal({ keeper_npc_id: "other-campaign" }));
+    expect(mocks.generateAndCreateLocation.mock.calls[1][1]).toMatchObject({ keeperNpcId: null });
+    state.npcs = undefined;
+    expect(useLocationAskAdapter().quote(proposal({ keeper_npc_id: "n1" })).block?.reason).toBe("missing");
+  });
+
   it("files the place under a parent of this campaign, and ignores a parent id that is not one", async () => {
     await useLocationAskAdapter().run(proposal({ parent_id: "p1", location_type: "City" }));
     expect(mocks.generateAndCreateLocation.mock.calls[0][1]).toEqual({
-      locationType: "city", parent: { id: "p1", name: "Thornkeep" }, generateImage: false, generateMap: false,
+      locationType: "city", parent: { id: "p1", name: "Thornkeep" }, keeperNpcId: null, generateImage: false, generateMap: false,
     });
     await useLocationAskAdapter().run(proposal({ parent_id: "someone-elses-place", location_type: "lair of doom", system_prompt: "x" }));
     expect(mocks.generateAndCreateLocation.mock.calls[1][1]).toEqual({
-      locationType: undefined, parent: null, generateImage: false, generateMap: false,
+      locationType: undefined, parent: null, keeperNpcId: null, generateImage: false, generateMap: false,
     });
   });
 

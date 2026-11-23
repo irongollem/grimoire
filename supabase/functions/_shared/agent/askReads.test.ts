@@ -11,6 +11,22 @@ describe("recordsRead", () => {
     expect(recordsRead("find", {}, ok({ hits: [{ type: "faction", id: "f1", name: "Guild" }] }))).toEqual([{ type: "faction", id: "f1", name: "Guild" }]);
   });
 
+  // Bug caught: canon idea "the campaign has an active quest called Perf Quest" read through campaign_overview was
+  // demoted to a new idea, because the overview's records were never logged.
+  it("names the party, active quests and recent notes a campaign_overview answer lists", () => {
+    const answer = ok({
+      campaign: { id: "c1", name: "Kind Country" },
+      party: [{ id: "p1", name: "Ysolde" }],
+      active_quests: [{ id: "q1", title: "Perf Quest" }],
+      recent_notes: [{ id: "n1", title: "Session 3" }],
+    });
+    expect(recordsRead("campaign_overview", {}, answer)).toEqual([
+      { type: "party_member", id: "p1", name: "Ysolde" },
+      { type: "quest", id: "q1", name: "Perf Quest" },
+      { type: "note", id: "n1", name: "Session 3" },
+    ]);
+  });
+
   it("names a `get` by the type that was asked for, taking the name or the title", () => {
     expect(recordsRead("get", { type: "quest", id: "q1" }, ok({ id: "q1", title: "The Stain", body: "x" }))).toEqual([{ type: "quest", id: "q1", name: "The Stain" }]);
   });
@@ -22,7 +38,7 @@ describe("recordsRead", () => {
 
   it("names nothing for a failed call, a tool that does not read records, or an answer that is not JSON", () => {
     expect(recordsRead("search", {}, { content: JSON.stringify({ hits: [{ type: "npc", id: "n1", name: "Harl" }] }), isError: true })).toEqual([]);
-    expect(recordsRead("campaign_overview", {}, ok({ hits: [{ type: "npc", id: "n1", name: "Harl" }] }))).toEqual([]);
+    expect(recordsRead("roll", {}, ok({ hits: [{ type: "npc", id: "n1", name: "Harl" }] }))).toEqual([]);
     expect(recordsRead("search", {}, { content: "not json", isError: false })).toEqual([]);
   });
 

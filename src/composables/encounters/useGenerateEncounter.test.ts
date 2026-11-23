@@ -40,6 +40,12 @@ describe("useGenerateEncounter", () => {
     companions.value = [{ id: "c-fights", fights: true }, { id: "c-bystander", fights: false }];
   });
 
+  it("saves the encounter at the place it was set in, and keeps the model options free of it", async () => {
+    await useGenerateEncounter().generateAndCreateEncounter("Ambush", { difficulty: "hard", locationId: "l1" });
+    expect(mocks.generate).toHaveBeenCalledWith("Ambush", { difficulty: "hard" });
+    expect(mocks.create.mock.calls[0][0].location_id).toBe("l1");
+  });
+
   it("generates nothing, and spends nothing, while another generator is running", async () => {
     busy.value = true;
     expect(await useGenerateEncounter().generateAndCreateEncounter("Ambush", { difficulty: "auto" })).toMatchObject({ id: null, error: "Another AI generation is already in progress." });

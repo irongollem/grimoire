@@ -83,7 +83,7 @@ describe("useDeityAskAdapter", () => {
 
   it("passes only understood constraints, the matched pantheon, and always says explicitly whether to paint", async () => {
     await useDeityAskAdapter().run(proposal({
-      pantheon: "the hollow court", alignment: "neutral good", domain: "Trickery", system_prompt: "x", image: false,
+      pantheon_id: "pan1", alignment: "neutral good", domain: "Trickery", system_prompt: "x", image: false,
     }));
     expect(mocks.generateAndCreateDeity).toHaveBeenCalledWith("A weary goddess of crossroads", {
       pantheon: { id: "pan1", name: "The Hollow Court" },
@@ -94,14 +94,14 @@ describe("useDeityAskAdapter", () => {
     });
   });
 
-  it("does not understand a pantheon, alignment or domain the page's pickers do not offer", async () => {
-    await useDeityAskAdapter().run(proposal({ pantheon: "Nowhere", alignment: "Chaotic Silly", domain: "Pizza" }));
+  it("does not understand a pantheon id this campaign lacks (nor a pantheon by name), or an alignment or domain the page's pickers do not offer", async () => {
+    await useDeityAskAdapter().run(proposal({ pantheon_id: "other-campaign", pantheon: "The Hollow Court", alignment: "Chaotic Silly", domain: "Pizza" }));
     expect(mocks.generateAndCreateDeity.mock.calls[0][1]).toMatchObject({ pantheon: undefined, alignment: undefined, primaryDomain: undefined });
   });
 
   it("waits for the pantheons when one is named, rather than run without it", () => {
     state.pantheons = undefined;
-    expect(useDeityAskAdapter().quote(proposal({ pantheon: "The Hollow Court" })).block?.reason).toBe("missing");
+    expect(useDeityAskAdapter().quote(proposal({ pantheon_id: "pan1" })).block?.reason).toBe("missing");
     expect(useDeityAskAdapter().quote(proposal()).block).toBeNull();
   });
 
