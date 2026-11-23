@@ -68,6 +68,9 @@ select check_name, cnt from (
   union all select 'campaign_peoples.library_monster_id -> library_monsters',
     (select count(*) from campaign_peoples p where p.library_monster_id is not null
        and not exists (select 1 from library_monsters s where s.id = p.library_monster_id))
+  union all select 'campaign_habitat_life.library_monster_id -> library_monsters',
+    (select count(*) from campaign_habitat_life l where l.library_monster_id is not null
+       and not exists (select 1 from library_monsters s where s.id = l.library_monster_id))
   union all select 'campaign_peoples.library_species_id -> library_species',
     (select count(*) from campaign_peoples p where p.library_species_id is not null
        and not exists (select 1 from library_species s where s.id = p.library_species_id))

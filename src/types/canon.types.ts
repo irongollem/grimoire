@@ -74,6 +74,10 @@ export interface CanonEntry {
   became_entry_id: string | null;
   /** The table fact (`story_facts`) this truth was made from. Set only when `part` is `truth`; one fact makes at most one truth. */
   from_fact_id: string | null;
+  /** The arc this entry belongs to (`canon_arcs`); never set on a premise entry. */
+  arc_id: string | null;
+  /** The habitat this truth belongs to (`campaign_habitats`, the Ecology part); set only when `part` is `truth`. */
+  habitat_id: string | null;
   created_at: string;
   updated_at: string;
 }

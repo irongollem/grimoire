@@ -82,6 +82,7 @@ function beat(overrides: Partial<QuestBeat> = {}): QuestBeat {
     title: "Descend the Drowned Vault",
     dm_content: null,
     secret: false,
+    canon_secret_id: null,
     visible_to: null,
     read_aloud: null,
     how_it_plays: null,

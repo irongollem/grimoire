@@ -39,6 +39,7 @@ decided answer, not that every number is small.
 | Invite tokens | `app_invites`, `campaign_invites` | **90 days** after the token stops working | `private.purge_expired_retention()` |
 | Product signal | `feature_interest` | **365 days** | `private.purge_expired_retention()` |
 | Objection to being contacted | A request to stop receiving fault notices or experience questions — see `legitimate-interests.md` | **Indefinite**, deliberately | Kept precisely so the address is never used again; deleting it would re-enable the contact the person objected to. Not yet a table — hand-kept while the volume is three people, and the first thing to formalise if it stops being three |
+| Deleted canon entries | `canon_trash` (#1255): a canon entry deleted from the Canon page, kept with a snapshot of what hung off it so the DM can restore it | **30 days** from `deleted_at` | `purge-canon-trash` (`20261123154815`) |
 | Derived vectors | the eight `*_embeddings` tables | Lifetime of the row they describe | FK cascade from the source row |
 | Shared library content | `library_*`, `sound_library`, `content_sources` | **Indefinite** | — not personal data |
 | Rules catalogue and operator config | `plans`, `provider_config`, `ai_model_pricing`, the `class_*` policy tables, and the rest | **Indefinite** | — not personal data |

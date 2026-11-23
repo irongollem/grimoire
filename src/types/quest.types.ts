@@ -126,6 +126,8 @@ export interface QuestClock {
   filled: number;
   sort_order: number;
   created_by: string | null;
+  /** The canon force this clock moves (#1255): ticking the clock ticks the force the same way, in the database. */
+  moves_force_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -134,7 +136,7 @@ export type QuestClockInsert = Pick<QuestClock, "campaign_id" | "quest_id" | "la
   id?: string;
   sort_order?: number;
 };
-export type QuestClockUpdate = Partial<Pick<QuestClock, "label" | "segments" | "sort_order">>;
+export type QuestClockUpdate = Partial<Pick<QuestClock, "label" | "segments" | "sort_order" | "moves_force_id">>;
 
 /** The fewest and most segments a clock may have (`quest_clocks_segments_check`). */
 export const QUEST_CLOCK_MIN_SEGMENTS = 2;
@@ -460,6 +462,8 @@ export interface QuestBeat {
   dm_content: string | null;
   /** A secret beat is never rumored on a move: it stays hidden until revealed by hand or arrived at. */
   secret: boolean;
+  /** The canon secret this beat's secret is (#1255); the beat shows its words. DM only, never in a player projection. */
+  canon_secret_id: string | null;
   read_aloud: string | null;
   /**
    * `outcomes`/`consequences` are gone (migration `20260908210320`): a beat's
@@ -512,7 +516,7 @@ export interface QuestBeat {
   updated_at: string;
 }
 
-export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at" | "updated_at" | "staged_at_location_id" | "secret" | "visible_to"> & {
+export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at" | "updated_at" | "staged_at_location_id" | "secret" | "visible_to" | "canon_secret_id"> & {
   id?: string;
   /** Omit to take the column default of null (the whole party). */
   visible_to?: string[] | null;
@@ -520,6 +524,8 @@ export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at"
   secret?: boolean;
   /** Omit to take the column default of null — stage it after creation. */
   staged_at_location_id?: string | null;
+  /** Omit to take the column default of null: a beat is tied to a canon secret after it exists. */
+  canon_secret_id?: string | null;
 };
 export type QuestBeatUpdate = Partial<Omit<QuestBeatInsert, "quest_id" | "campaign_id">>;
 

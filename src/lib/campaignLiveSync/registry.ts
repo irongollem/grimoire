@@ -325,6 +325,11 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["canon_force_steps", [CANON_KEY]],
   ["canon_force_ticks", [CANON_KEY]],
   ["canon_entry_quests", [CANON_KEY]],
+  ["canon_arcs", [CANON_KEY]],
+  ["canon_trash", [CANON_KEY]],
+  ["campaign_habitats", [CANON_KEY]],
+  ["campaign_habitat_places", [CANON_KEY]],
+  ["campaign_habitat_life", [CANON_KEY]],
   // Who lives in the world (#1255 item 30): DM-only rows, read by name through campaign_peoples_named under the canon root.
   ["campaign_peoples", [CANON_KEY]],
   ["canon_lore_passages", [CANON_KEY]],
