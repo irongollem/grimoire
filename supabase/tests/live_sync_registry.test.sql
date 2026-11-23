@@ -118,6 +118,7 @@ insert into live_sync_exempt (name, reason) values
   ('campaign_api_keys',         'the owner''s own BYOK credentials (#1228): only the owner reads them, on opening the campaign and after their own save, and a ring would tell every player that the DM changed a key'),
   ('ai_generation_jobs',        'server job progress, awaited by row id (waitForRow); not campaign content any member reads'),
   ('agent_sessions',            'a private conversation between one account and the model (#1205): only its owner reads it, and the page that runs it streams the turn itself'),
+  ('ask_pending_routes',        'Ask Grimoire''s routed turns awaiting a generator (#1253): written and settled only by the server, read only by their owner, and nothing on any page shows them'),
   ('agent_turns',               'the messages of a private conversation with the model (#1205): written once by the server, read only by their owner'),
   ('agent_board_lines',         'what the board of a fight wrote into a private conversation (#1021): written once by its owner''s own page, which already shows it, and read back only when the sitting is reopened'),
   ('image_generation_jobs',     'server job progress, awaited by row id (waitForRow); not campaign content any member reads'),
