@@ -14,6 +14,17 @@
             <span class="text-caption-sm text-muted-foreground shrink-0 capitalize">{{ opt.rarity }}</span>
           </span>
         </template>
+        <template #footer="{ query, close }">
+          <AppButton
+            v-if="query"
+            variant="menu"
+            size="body"
+            block
+            :label="`Add “${query}” by name`"
+            @mousedown.prevent
+            @click="addByName(query, close)"
+          />
+        </template>
       </EntityCombobox>
       <AppInput
         v-model.number="newItemQty"
@@ -64,5 +75,13 @@ function submit() {
   emit("submit", picked.id, picked.name, qty);
   newItemSelectedId.value = "";
   newItemQty.value = 1;
+}
+
+function addByName(name: string, close: () => void) {
+  const qty = Math.max(1, Math.floor(Number(newItemQty.value) || 1));
+  emit("submit", "", name, qty);
+  newItemSelectedId.value = "";
+  newItemQty.value = 1;
+  close();
 }
 </script>

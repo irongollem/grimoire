@@ -91,6 +91,12 @@ beforeEach(() => {
   mocks.updateItem.mockResolvedValue(undefined);
 });
 
+it("omits the stat block when an inventory row has no catalogue details", () => {
+  const wrapper = mountPanel(makeInv({ name: "Light Crossbow", item_id: null }));
+  expect(wrapper.findComponent({ name: "ItemStatBlock" }).exists()).toBe(false);
+  expect(findButton(wrapper, "Drop to chat").exists()).toBe(true);
+});
+
 describe("ItemDetailPanel — Notes (#809)", () => {
   it("shows an Add a note button when the item has no note yet", () => {
     const wrapper = mountPanel(makeInv({ notes: null }));

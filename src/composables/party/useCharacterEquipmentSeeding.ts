@@ -6,6 +6,7 @@ import { parseEquipmentList, type CharacterFormState } from "@/rules/characterCr
 import type { BundleItemEntry } from "@/types/item.types";
 import type { PartyInventoryInsert } from "@/types/inventory.types";
 import { itemRefColumns } from "@/lib/itemRef";
+import { itemCatalogueNames } from "@/lib/items/itemCatalogueNames";
 import { likeLiteral, orFilterValue } from "@/lib/postgrestFilter";
 import type { RulesetKey } from "@/types/ruleset.types";
 import { reportHandledError } from "@/lib/observability/sentry";
@@ -85,11 +86,11 @@ export function parseStartingEquipmentPlan(value: unknown): StartingEquipmentPla
 // ── Writing the rows ─────────────────────────────────────────────────────────
 
 function equipmentName(name: string): string {
-  return name.trim().replace(/[‘’]/g, "'").replace(/^(?:a set of |an? )/i, "").replace(/\.$/, "").toLowerCase();
+  return itemCatalogueNames(name.trim().replace(/[‘’]/g, "'").replace(/^(?:a set of |an? )/i, "").replace(/\.$/, ""))[0];
 }
 
 async function lookupLibraryGear(names: string[], ruleset: RulesetKey): Promise<Map<string, LibraryGear>> {
-  const keys = [...new Set(names.map(equipmentName).filter(Boolean))];
+  const keys = [...new Set(names.map(equipmentName).filter(Boolean).flatMap(itemCatalogueNames))];
   if (keys.length === 0) return new Map();
   const filter = keys.map((key) => `name.ilike.${orFilterValue(likeLiteral(key))}`).join(",");
   const { data, error } = await supabase.from("library_items")

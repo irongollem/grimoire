@@ -117,11 +117,12 @@ const keysOf = () =>
     }
   });
 
-  it("links the character's edition of Scale Mail and the contents of its pack, skipping unmatched prose", async () => {
+  it("links the character's edition of gear, alternate catalogue names, and pack contents", async () => {
     seatCharacter({ starting_grants: { class_name: "Cleric", class_choice: "a", background_items: ["A note from home"] } });
     seedLibrary([
       { name: "Scale Mail", id: "scale-2014", ruleset: "2014" },
       { name: "Scale Mail", id: "scale-2024", ruleset: "2024" },
+      { name: "Crossbow, Light", id: "light-crossbow-2024", ruleset: "2024" },
       { name: "Priest's Pack", bundle_items: [{ name: "Candle", quantity: 10 }, { name: "Missing item" }] },
       { name: "Candle" },
     ]);
@@ -129,11 +130,12 @@ const keysOf = () =>
     await replayStartingGrants("pm1", "camp-1", client);
 
     const rows = fake.rows("party_inventory");
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(4);
     const pack = rows.find((row) => row.is_container);
     expect(pack).toMatchObject({ name: "Priest's Pack", library_item_id: "priest's-pack" });
     expect(rows).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "Scale Mail", library_item_id: "scale-2024" }),
+      expect.objectContaining({ name: "Crossbow, Light", library_item_id: "light-crossbow-2024" }),
       expect.objectContaining({ name: "Candle", library_item_id: "candle", quantity: 10, container_id: pack?.id }),
     ]));
   });

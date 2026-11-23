@@ -1,7 +1,7 @@
 <template>
-  <AppModal :open="!!inv" size="md" @close="emit('close')">
+  <AppModal :open="!!inv" size="md" :dismissable="!catalogueBusy" @close="emit('close')">
     <template v-if="inv">
-      <ModalHeader :title="inv.name" closeable @close="emit('close')" />
+      <ModalHeader :title="inv.name" :closeable="!catalogueBusy" @close="emit('close')" />
 
       <!-- Body: use first (what it is, what you can do with it), then the rules text,
            then the bookkeeping (stack, notes, selling). The picture is a thumbnail that
@@ -63,7 +63,7 @@
                   variant="primary"
                   size="md"
                   label="Equip"
-                  :disabled="freeEquipOptions.length === 0"
+                  :disabled="catalogueBusy || freeEquipOptions.length === 0"
                   @click="startEquip"
                 />
                 <AppButton
@@ -96,6 +96,7 @@
                   variant="subtle"
                   size="md"
                   label="Drop to chat"
+                  :disabled="catalogueBusy"
                   @click="emit('dropToChat')"
                 />
               </div>
@@ -190,7 +191,8 @@
             </div>
 
             <!-- Stat block: type / rarity / cost / weight -->
-            <ItemStatBlock :item="vaultItem" :is-identified="localIdentified" omit-summary-rows />
+            <ItemStatBlock v-if="vaultItem" :item="vaultItem" :is-identified="localIdentified" omit-summary-rows />
+            <slot name="catalogue-actions" />
 
             <!-- Description: mundane when unidentified, full when identified -->
             <div v-if="displayDescription" class="flex flex-col gap-1">
@@ -364,6 +366,7 @@
                 size="inline-xs"
                 :icon="IconShop"
                 label="List for Sale"
+                :disabled="catalogueBusy"
                 @click="openSell"
               />
               <div v-else class="space-y-2">
@@ -434,6 +437,7 @@ const props = defineProps<{
   vaultItem: Item | null;
   attunedCount: number;
   canIdentify?: boolean;
+  catalogueBusy?: boolean;
   /** Slots this item can go in, from the parent that knows what is worn. Empty = it cannot be equipped. */
   equipOptions: EquipOption[];
 }>();

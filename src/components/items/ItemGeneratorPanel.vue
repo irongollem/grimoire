@@ -63,7 +63,7 @@ import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useItemGeneration } from "@/ai/useItemGeneration";
-import { toTiptapJson } from "@/ai/useNpcGeneration";
+import { generatedItemPayload } from "@/lib/items/generatedItemPayload";
 import {
   ITEM_TYPES,
   ITEM_TYPE_LABELS,
@@ -94,6 +94,7 @@ const generateCursed = ref(false);
 async function generateAndCreate() {
   if (!requireCredits(textCreditCost.value, textIsByok.value)) return;
 
+  const campaignId = campaign.activeCampaignId;
   genConcept.value = concept.value.trim();
   clearCompleted();
 
@@ -108,38 +109,7 @@ async function generateAndCreate() {
   );
   if (!result) return;
 
-  const created = await createItem({
-    name: result.name,
-    item_type: result.item_type,
-    subtype: result.subtype ?? null,
-    rarity: result.rarity,
-    requires_attunement: result.requires_attunement ?? false,
-    attunement_requirements: result.attunement_requirements ?? null,
-    weight: result.weight !== null && result.weight !== undefined ? parseFloat(String(result.weight)) || null : null,
-    cost: result.cost ?? null,
-    damage_rolls: result.damage_rolls ?? null,
-    armor_class: result.armor_class ?? null,
-    properties: result.properties ?? [],
-    weapon_range: result.weapon_range ?? null,
-    versatile_damage: result.versatile_damage ?? null,
-    charges: result.charges ?? null,
-    recharge: result.recharge ?? null,
-    spell_ids: [],
-    description: result.description ? toTiptapJson(result.description) : "",
-    mundane_description: result.mundane_description ? toTiptapJson(result.mundane_description) : null,
-    source: "Grimoire:AI",
-    tags: result.tags ?? [],
-    image_url: result.image_url ?? null,
-    image_focal_point: null,
-    curse_description: result.curse_description ?? null,
-    is_arcane_focus: false,
-    ai_provenance: result.ai_provenance ?? null,
-    // Matches ItemDetail.vue's manual-create default (#596): an AI-generated
-    // item is DM content for the campaign the DM is looking at, not a fresh
-    // "available everywhere" default. No active campaign is a genuine
-    // "no campaign yet" case, so it stays global rather than inventing one.
-    campaign_id: campaign.activeCampaignId ?? null,
-  });
+  const created = await createItem(generatedItemPayload(result, campaignId));
 
   if (itemsUi.itemGeneratorOpen) {
     itemsUi.itemGeneratorOpen = false;

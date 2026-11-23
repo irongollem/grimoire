@@ -73,6 +73,15 @@
             <template #icon><IconArrowUp class="h-3.5 w-3.5 shrink-0 text-muted-foreground" /></template>
           </AppButton>
           <AppButton
+            v-if="canConvert && !inventoryItemRef(item)"
+            variant="menu"
+            size="sm"
+            block
+            class="rounded-none"
+            label="Make catalogue item"
+            @click="pick('convert')"
+          />
+          <AppButton
             v-if="packLink"
             variant="menu"
             size="sm"
@@ -114,6 +123,7 @@ import { ICON_TOUCH_TARGET } from "@/components/common/controls/appButtonVariant
 import GiveCountPicker from "@/components/inventory/GiveCountPicker.vue";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 import { IconAdd, IconArrowUp, IconDelete, IconExternalLink, IconMinus, IconMore, IconStar } from "@/lib/icons";
+import { inventoryItemRef } from "@/lib/itemRef";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 
 export interface PackGiveTarget {
@@ -122,12 +132,13 @@ export interface PackGiveTarget {
   name: string;
 }
 
-const { item, packLink = null } = defineProps<{
+const { item, packLink = null, canConvert = false } = defineProps<{
   item: PartyInventoryItem;
   /** Everywhere this row can go: the stash and each member but its carrier. */
   giveTargets: PackGiveTarget[];
   carrierName: string | null;
   packLink?: string | null;
+  canConvert?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -137,6 +148,7 @@ const emit = defineEmits<{
   attune: [];
   drop: [];
   remove: [];
+  convert: [];
 }>();
 
 const open = ref(false);
@@ -169,10 +181,11 @@ function confirmGive(quantity: number | null) {
   emit("give", target.id, quantity ?? undefined);
 }
 
-function pick(action: "attune" | "drop" | "remove") {
+function pick(action: "attune" | "drop" | "remove" | "convert") {
   open.value = false;
   if (action === "attune") emit("attune");
   else if (action === "drop") emit("drop");
+  else if (action === "convert") emit("convert");
   else emit("remove");
 }
 </script>

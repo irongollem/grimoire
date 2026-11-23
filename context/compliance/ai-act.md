@@ -152,6 +152,11 @@ they stop getting swept into AI audits on name association alone. Its "Ask the
 Illuminator" actions are the opposite case and are listed above
 (`illuminate-picture`).
 
+The DM's **Generate with AI** action for a name-only inventory row uses the
+same item text and optional art pipelines as the Item Vault. The item name
+and inventory notes prefill an editable concept. Saving retains the generated
+item's provenance, then links the original inventory row to that item.
+
 ## 4. Consent gateway decision (4 Aug 2026)
 
 Compliance couples to the campaign's existing `ai_enabled` toggle

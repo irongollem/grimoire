@@ -131,6 +131,7 @@
       :vault-item="selectedVaultItem"
       :attuned-count="attunedItems.length"
       :can-identify="auth.isDM && !appUi.dmPreviewMode"
+      :catalogue-busy="catalogueBusy"
       :equip-options="selectedEquipOptions"
       @close="selectedInv = null"
       @unequip="unequipOpenItem"
@@ -138,7 +139,19 @@
       @drop-to-chat="dropSelectedToChat"
       @sell="handleSell"
       @consume="handleConsume"
-    />
+    >
+      <template #catalogue-actions>
+        <InventoryCatalogueActions
+          v-if="catalogueTarget"
+          :key="catalogueTarget.id"
+          :item="catalogueTarget"
+          :catalogue="catalogue ?? []"
+          :ai-enabled="campaign.isAiEnabled"
+          @busy="catalogueBusy = $event"
+          @linked="onCatalogueLinked"
+        />
+      </template>
+    </ItemDetailPanel>
 
     <!-- Slot assignment modal -->
     <PlayerSlotEquipModal
@@ -153,7 +166,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from "vue";
+import { ref, computed, nextTick, watch } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useParty } from "@/composables/party/useParty";
@@ -168,12 +181,14 @@ import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerItemProjection } from "@/composables/items/useItems";
 import { usePlayerItemPicker } from "@/composables/items/usePlayerItemPicker";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
+import { useItemsByIds } from "@/composables/items/useItemsByIds";
 import { useToast } from "@/composables/useToast";
 import { useInventorySlots } from "@/composables/items/useInventorySlots";
 import { useInventoryMutations } from "@/composables/items/useInventoryMutations";
 import { useGiveInventoryItem } from "@/composables/items/useGiveInventory";
 import { useCharacterPurse } from "@/composables/items/useCharacterPurse";
 import { inventoryItemRef } from "@/lib/itemRef";
+import { uniqueCatalogueMatch } from "@/lib/items/itemCatalogueNames";
 import { extradimensionalCheck, itemWeightMap, packSlices, packWeights, stashRows } from "@/lib/inventory/pack";
 import { equipSlotOptions, type EquipOption } from "@/components/inventory/itemDetailSummary";
 import { inventoryItemWeight, inventoryItemWeightPerUnit } from "@/rules/inventoryWeight";
@@ -181,6 +196,7 @@ import type { InventorySlot, PartyInventoryItem } from "@/types/inventory.types"
 import type { Item } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
 import ItemDetailPanel from "@/components/inventory/ItemDetailPanel.vue";
+import InventoryCatalogueActions from "@/components/inventory/InventoryCatalogueActions.vue";
 import PlayerPaperDoll from "@/components/player/PlayerPaperDoll.vue";
 import PlayerCoinPurse from "@/components/player/PlayerCoinPurse.vue";
 import PlayerCarryWeight from "@/components/player/PlayerCarryWeight.vue";
@@ -346,11 +362,33 @@ function giveItem(item: PartyInventoryItem, toMemberId: string, quantity: number
 // ── Item detail panel ──────────────────────────────────────────────────────────
 const selectedInv = ref<PartyInventoryItem | null>(null);
 const detailPanel = ref<InstanceType<typeof ItemDetailPanel> | null>(null);
+const catalogueBusy = ref(false);
+const catalogueTarget = computed(() => {
+  const row = selectedInv.value;
+  if (!auth.isDM || appUi.dmPreviewMode || !row || row.campaign_id !== campaign.activeCampaignId) return null;
+  return inventoryItemRef(row) ? null : row;
+});
+watch(() => catalogueTarget.value?.id, () => { catalogueBusy.value = false; });
+
+function onCatalogueLinked(row: PartyInventoryItem) {
+  if (selectedInv.value?.id === row.id && campaign.activeCampaignId === row.campaign_id) selectedInv.value = row;
+}
+
+// Older starting gear may only carry a name. Recover a clear public, mundane
+// match on open; a name alone cannot grant access to a private vault record.
+const selectedLibraryMatch = computed(() => {
+  const inv = selectedInv.value;
+  if (!inv?.is_identified || inventoryItemRef(inv)) return null;
+  const match = uniqueCatalogueMatch(inv.name, catalogue.value ?? []);
+  return match?.is_shared && match.rarity === "mundane" ? match.id : null;
+});
+const { data: selectedLibraryItems } = useItemsByIds(() => [selectedLibraryMatch.value]);
 
 const selectedVaultItem = computed<Item | null>(() => {
   const ref = selectedInv.value ? inventoryItemRef(selectedInv.value) : null;
-  if (!ref) return null;
-  return allItems.value.find((it) => it.id === ref) ?? null;
+  if (ref) return allItems.value.find((it) => it.id === ref) ?? null;
+  const match = selectedLibraryMatch.value;
+  return match ? selectedLibraryItems.value.get(match) ?? null : null;
 });
 
 function openDetail(inv: PartyInventoryItem) {

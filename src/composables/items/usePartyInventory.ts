@@ -4,6 +4,7 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { persistReorder } from "@/lib/reorder";
+import { itemRefColumns } from "@/lib/itemRef";
 import type { PartyInventoryItem, PartyInventoryInsert, PartyInventoryUpdate } from "@/types/inventory.types";
 
 const QUERY_KEY = "party-inventory";
@@ -116,6 +117,34 @@ export function useRemoveInventoryItem() {
   return useMutation({
     mutationFn: removeItem,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+  });
+}
+
+export function useLinkInventoryCatalogueItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ inventoryId, campaignId, catalogueId }: {
+      inventoryId: string;
+      campaignId: string;
+      catalogueId: string;
+    }): Promise<PartyInventoryItem> => {
+      if (!catalogueId.trim()) throw new Error("Choose a catalogue item to link.");
+      // Only the references change. A concurrent link wins over stale UI.
+      const { data, error } = await supabase
+        .from("party_inventory")
+        .update(itemRefColumns(catalogueId))
+        .eq("campaign_id", campaignId)
+        .eq("id", inventoryId)
+        .is("item_id", null)
+        .is("library_item_id", null)
+        .select()
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("This inventory item is already linked or is no longer available.");
+      return data as PartyInventoryItem;
+    },
+    onSettled: (_data, _error, { campaignId }) =>
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, campaignId] }),
   });
 }
 

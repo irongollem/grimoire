@@ -44,6 +44,17 @@
             <template #option="{ opt }">
               <span class="truncate">{{ opt.name }}</span>
             </template>
+            <template #footer="{ query, close }">
+              <AppButton
+                v-if="query"
+                variant="menu"
+                size="body"
+                block
+                :label="`Add “${query}” by name`"
+                @mousedown.prevent
+                @click="addByName(query, close)"
+              />
+            </template>
           </EntityCombobox>
         </div>
         <AppButton type="submit" variant="primary" size="xs" label="Add" :disabled="!addSelectedId" />
@@ -265,5 +276,12 @@ function submit() {
   if (!picked) return;
   emit('add', picked.name, picked.id);
   addSelectedId.value = ""; showAdd.value = false;
+}
+
+function addByName(name: string, close: () => void) {
+  emit("add", name, null);
+  addSelectedId.value = "";
+  showAdd.value = false;
+  close();
 }
 </script>

@@ -42,10 +42,12 @@
             :give-targets="giveTargetsFor(section.container)"
             :carrier-name="column.title"
             :pack-link="column.link"
+            :can-convert="canConvert"
             @give="(to, qty) => $emit('give', section.container!, to, qty)"
             @attune="$emit('attune', section.container!)"
             @drop="$emit('drop', section.container!)"
             @remove="$emit('remove', section.container!)"
+            @convert="$emit('convert', section.container!)"
           />
         </div>
         <VueDraggable
@@ -86,11 +88,13 @@
               :give-targets="giveTargetsFor(row)"
               :carrier-name="column.title"
               :pack-link="column.link"
+              :can-convert="canConvert"
               @give="(to, qty) => $emit('give', row, to, qty)"
               @count="(delta) => $emit('count', row, delta)"
               @attune="$emit('attune', row)"
               @drop="$emit('drop', row)"
               @remove="$emit('remove', row)"
+              @convert="$emit('convert', row)"
             />
           </li>
         </VueDraggable>
@@ -149,13 +153,14 @@ export interface PackColumnData {
   hidden: number;
 }
 
-const { column, query, stacked, faded, startOpen, rarityOf, isDmOnly, giveTargetsFor } = defineProps<{
+const { column, query, stacked, faded, startOpen, canConvert = false, rarityOf, isDmOnly, giveTargetsFor } = defineProps<{
   column: PackColumnData;
   query: string;
   /** Phone layout: the head folds the pack open and shut, and dragging is off. */
   stacked: boolean;
   faded: boolean;
   startOpen: boolean;
+  canConvert?: boolean;
   rarityOf: (row: PartyInventoryItem) => ItemRarity | null;
   isDmOnly: (row: PartyInventoryItem) => boolean;
   giveTargetsFor: (row: PartyInventoryItem) => PackGiveTarget[];
@@ -167,6 +172,7 @@ const emit = defineEmits<{
   attune: [row: PartyInventoryItem];
   drop: [row: PartyInventoryItem];
   remove: [row: PartyInventoryItem];
+  convert: [row: PartyInventoryItem];
   /** A row was dragged onto this pack. */
   receive: [rowId: string, toMemberId: string | null];
 }>();

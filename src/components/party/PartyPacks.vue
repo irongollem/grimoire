@@ -36,14 +36,28 @@
       <PacksAnswer v-if="search.active" :result="search" :query="ui.packsSearch" class="m-3" />
 
       <div v-if="stacked" class="flex flex-col">
-        <PackColumn v-for="column in columns" :key="column.key" v-bind="columnProps(column)" @give="give" @count="count" @attune="attune" @drop="dropToChat" @remove="remove" @receive="receive" />
+        <PackColumn v-for="column in columns" :key="column.key" v-bind="columnProps(column)" @give="give" @count="count" @attune="attune" @drop="dropToChat" @remove="remove" @receive="receive" @convert="openConversion" />
       </div>
       <div v-else class="overflow-x-auto">
         <div class="grid" :style="gridStyle">
-          <PackColumn v-for="column in columns" :key="column.key" v-bind="columnProps(column)" @give="give" @count="count" @attune="attune" @drop="dropToChat" @remove="remove" @receive="receive" />
+          <PackColumn v-for="column in columns" :key="column.key" v-bind="columnProps(column)" @give="give" @count="count" @attune="attune" @drop="dropToChat" @remove="remove" @receive="receive" @convert="openConversion" />
         </div>
       </div>
     </template>
+    <AppModal :open="conversionRow !== null" :dismissable="!conversionBusy" :backdrop-dismiss="false" size="md" @close="closeConversion">
+      <template v-if="conversionRow">
+        <ModalHeader :title="conversionRow.name" :closeable="!conversionBusy" @close="closeConversion" />
+        <div class="min-h-0 overflow-y-auto p-4">
+          <InventoryCatalogueActions
+            :item="conversionRow"
+            :catalogue="catalogue ?? []"
+            :ai-enabled="campaign.isAiEnabled"
+            @busy="conversionBusy = $event"
+            @linked="conversionRow = null"
+          />
+        </div>
+      </template>
+    </AppModal>
   </section>
 </template>
 
@@ -53,9 +67,15 @@
  * each character in the party's order, with one search across all of them. The DM writes
  * any row; a give goes through `give_inventory_item`, the same door a player uses.
  */
-import { computed, ref } from "vue";
+import { computed, ref, watch, defineAsyncComponent } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import AppModal from "@/components/common/overlays/AppModal.vue";
+import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
+import { useItemIndex } from "@/composables/items/useItemIndex";
+import { useAuthStore } from "@/stores/auth";
+import { useCampaignStore } from "@/stores/campaign";
+import { useAppUiStore } from "@/stores/ui/app";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import { IconAdd, IconInventory } from "@/lib/icons";
 import { useBelow } from "@/composables/useBreakpoint";
@@ -88,6 +108,29 @@ const SHARED_COLUMNS = 6;
 const ATTUNEMENT_SLOTS = 3;
 
 const { party } = defineProps<{ party: PartyMember[] }>();
+
+const InventoryCatalogueActions = defineAsyncComponent(() => import("@/components/inventory/InventoryCatalogueActions.vue"));
+const auth = useAuthStore();
+const campaign = useCampaignStore();
+const appUi = useAppUiStore();
+const canConvert = computed(() => auth.isDM && !appUi.dmPreviewMode);
+const conversionRow = ref<PartyInventoryItem | null>(null);
+const conversionBusy = ref(false);
+const { data: catalogue } = useItemIndex(() => ({ enabled: conversionRow.value !== null }));
+
+function openConversion(row: PartyInventoryItem) {
+  if (!canConvert.value || row.campaign_id !== campaign.activeCampaignId || inventoryItemRef(row)) return;
+  conversionRow.value = row;
+}
+
+function closeConversion() {
+  if (!conversionBusy.value) conversionRow.value = null;
+}
+
+watch([() => campaign.activeCampaignId, canConvert], () => {
+  conversionRow.value = null;
+  conversionBusy.value = false;
+});
 
 const ui = usePartyUiStore();
 const { confirm } = useConfirm();
@@ -197,6 +240,7 @@ function columnProps(column: PackColumnData) {
     faded: search.value.active && !matches,
     startOpen: search.value.active ? matches : column.memberId === null,
     rarityOf,
+    canConvert: canConvert.value,
     isDmOnly,
     giveTargetsFor,
   };

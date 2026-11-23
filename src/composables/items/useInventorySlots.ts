@@ -9,6 +9,7 @@ import {
   useUpdateInventoryItem,
 } from "@/composables/items/usePartyInventory";
 import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
+import { uniqueCatalogueMatch } from "@/lib/items/itemCatalogueNames";
 
 interface UseInventorySlotsOptions {
   equippedItems: ComputedRef<PartyInventoryItem[]>;
@@ -33,8 +34,7 @@ export function useInventorySlots({
   function vaultItem(inv: PartyInventoryItem): Item | ItemIndexEntry | null {
     const ref = inventoryItemRef(inv);
     if (ref) return allItems.value?.find((it) => it.id === ref) ?? null;
-    const name = inv.name.trim().toLocaleLowerCase();
-    return catalogue.value?.find((it) => it.name.trim().toLocaleLowerCase() === name) ?? null;
+    return uniqueCatalogueMatch(inv.name, catalogue.value ?? []);
   }
 
   function slotItem(slot: InventorySlot): PartyInventoryItem | null {
