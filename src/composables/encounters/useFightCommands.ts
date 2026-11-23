@@ -6,6 +6,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { liveRevision, liveState, refreshLiveState } from "@/composables/encounters/useEncounterLive";
 import type { ResolvedAction, TurnTaken } from "@/rules/fight/fightState";
+import type { ReactionAnswer, ReactionOffer } from "@/rules/fight/reactionOffer";
 import {
   FightRequestError,
   confirmedFromAnswer,
@@ -23,6 +24,10 @@ export interface TurnRun {
   outcomes: ResolvedAction[];
   /** Player characters who may strike a creature the server moved as it left their reach; the browser offers each the attack. */
   provokedPlayer: Array<{ moverId: string; playerId: string }>;
+  /** The turn is paused: the played character may react (Shield, Counterspell). Nothing else came with it; answer with `answerReaction`. */
+  reactionOffered: ReactionOffer | null;
+  /** The id of that offer, sent back with the answer so the server can tell which offer was answered; null exactly when there is no offer. */
+  reactionOfferId: string | null;
 }
 
 /** What the server did for a player's walk: who struck the mover on its way out, at which step of the path, and what each blow came to. */
@@ -121,6 +126,24 @@ export function useFightCommands(encounterId: Ref<string>, options: { onLost: ()
     return answer;
   }
 
+  function foldTurn(answer: FightAnswer): TurnRun {
+    let turn: TurnTaken | null = null;
+    const outcomes: ResolvedAction[] = [];
+    const provokedPlayer: TurnRun["provokedPlayer"] = [];
+    let reactionOffered: ReactionOffer | null = null;
+    let reactionOfferId: string | null = null;
+    for (const effect of answer.effects) {
+      if (effect.type === "turn_taken") turn = effect.turn;
+      else if (effect.type === "resolved") outcomes.push(effect.resolved);
+      else if (effect.type === "provoked_player") provokedPlayer.push({ moverId: effect.moverId, playerId: effect.playerId });
+      else if (effect.type === "reaction_offered") {
+        reactionOffered = effect.offer;
+        reactionOfferId = effect.offerId;
+      }
+    }
+    return { turn, outcomes, provokedPlayer, reactionOffered, reactionOfferId };
+  }
+
   /**
    * Asks the server to play one creature's turn and shows the fight it answers with, the token moved. It never ends
    * the turn. Throws when it cannot be done: a refusal (the server's sentence is the message) or no connection.
@@ -128,16 +151,16 @@ export function useFightCommands(encounterId: Ref<string>, options: { onLost: ()
   async function takeTurn(instanceId: string, playedMemberId?: string): Promise<TurnRun> {
     // `playedMemberId`: the party member the person plays. Without it the server reports every player who may strike a
     // departing foe; with it, every other party member strikes by the rules (#1021).
-    const answer = await lifecycle(playedMemberId === undefined ? { type: "take_turn", instanceId } : { type: "take_turn", instanceId, playedMemberId });
-    let turn: TurnTaken | null = null;
-    const outcomes: ResolvedAction[] = [];
-    const provokedPlayer: TurnRun["provokedPlayer"] = [];
-    for (const effect of answer.effects) {
-      if (effect.type === "turn_taken") turn = effect.turn;
-      else if (effect.type === "resolved") outcomes.push(effect.resolved);
-      else if (effect.type === "provoked_player") provokedPlayer.push({ moverId: effect.moverId, playerId: effect.playerId });
-    }
-    return { turn, outcomes, provokedPlayer };
+    return foldTurn(await lifecycle(playedMemberId === undefined ? { type: "take_turn", instanceId } : { type: "take_turn", instanceId, playedMemberId }));
+  }
+
+  /**
+   * Answers the Reaction a paused turn offered (`offerId` is the offer's own id): the server replays the turn with the answer, and
+   * refuses an answer to an offer it has moved past. The reply is the turn (or its next offer: a second chance in the same
+   * turn). Throws like `takeTurn`.
+   */
+  async function answerReaction(answer: ReactionAnswer, offerId: string): Promise<TurnRun> {
+    return foldTurn(await lifecycle({ type: "answer_reaction", answer, offerId }));
   }
 
   /**
@@ -202,5 +225,5 @@ export function useFightCommands(encounterId: Ref<string>, options: { onLost: ()
     if (store.linkedEncounterId() === fightId) store.reset();
   }
 
-  return { lifecycle, takeTurn, provoke, requestPartySync, releaseFight };
+  return { lifecycle, takeTurn, answerReaction, provoke, requestPartySync, releaseFight };
 }

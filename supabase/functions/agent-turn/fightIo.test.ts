@@ -7,13 +7,15 @@ import { startFight } from "./fightIo";
 // keyed on `encounter_state.xp_awarded_at` (#1021 row 27); a carried fight that kept the first fight's mark would give
 // nothing for the foes the party brings down the second time.
 describe("startFight: a fight that followed the party", () => {
-  it("opens the row as a new fight, with the award mark cleared", async () => {
+  it("opens the row as a new fight, with the award mark and an old owed sheet cost cleared", async () => {
     const fake = createSupabaseFake();
     fake.seed("encounters", [{ id: "e1", campaign_id: "c1", party_member_ids: ["pm1"], combatants: [], location_id: "here" }]);
     fake.seed("encounter_state", [{
       id: "row1", encounter_id: "e1", campaign_id: "c1", version: 4,
       combatants_live: [{ instance_id: "w1", type: "monster", name: "Wolf", hp: 5, faction_id: "enemy" }],
       ended_at: "2026-11-19T10:00:00Z", xp_awarded_at: "2026-11-19T10:00:01Z",
+      // A cost the last fight still owed: settled on the new fight it would undo whatever rest came between.
+      owed_writes: { batchId: "b-old", slots: [{ memberId: "pm1", slots: [] }], innate: [], resources: [] },
     }]);
     fake.seed("agent_sessions", [{ id: "s1", campaign_id: "c1" }]);
     const client = fake.client as unknown as SupabaseClient;
@@ -24,7 +26,7 @@ describe("startFight: a fight that followed the party", () => {
       { kind: "prepared", encounterId: "e1", name: "The wolves", carried: ["Wolf"] },
     );
     const { data } = await client.from("encounter_state").select("*").eq("id", "row1").single();
-    expect(data).toMatchObject({ ended_at: null, xp_awarded_at: null, version: 5 });
+    expect(data).toMatchObject({ ended_at: null, xp_awarded_at: null, owed_writes: null, version: 5 });
   });
 });
 

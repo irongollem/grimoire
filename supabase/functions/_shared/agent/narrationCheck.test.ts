@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CANON_STATES_MIN, MAX_SECRETS_CHECKED, STATEMENT_MAX_CHARS } from "./canonCheck";
 import {
   MAX_LINE_CHARS,
   MAX_LINES_SENT,
@@ -158,5 +159,91 @@ describe("narrationKept", () => {
     await narrationKept({ lines: [{ ...line("Hi."), to: "everyone" }], narration: "x.", judge: j.judge });
     expect(JSON.stringify(j.requests[0].state)).not.toContain("id-1");
     expect(Object.keys((j.requests[0].state as { lines: object[] }).lines[0]).sort()).toEqual(["kind", "text", "who"]);
+  });
+});
+
+/** A judge answering by key: `answers` maps a question key to its score, all others get none. */
+function answering(answers: Record<string, number>) {
+  const requests: JudgeRequest[] = [];
+  const judge = async (request: JudgeRequest): Promise<JudgeResult> => {
+    requests.push(request);
+    return { model: "jev-1", inputTokens: 1, answers: Object.fromEntries(Object.entries(answers).map(([k, noul]) => [k, { type: "noul" as const, noul }])) };
+  };
+  return { judge, requests };
+}
+
+describe("narrationKept against secrets", () => {
+  const SECRET = "THE-BARON-POISONED-THE-WELL";
+
+  // Bug caught: a sentence that states a secret reaching the player because no line had been shown yet.
+  it("drops a sentence that states a secret even when no line was shown, and reports the count", async () => {
+    const j = answering({ leak_1_0: 0.95 });
+    const dropped: number[] = [];
+    const kept = await narrationKept({ lines: [], narration: "Rain falls. It was the Baron. Night comes.", judge: j.judge, secrets: [SECRET], onLeak: (n) => dropped.push(n) });
+    expect(kept).toBe("Rain falls. Night comes.");
+    expect(dropped).toEqual([1]);
+    expect(Object.keys(j.requests[0].questions).sort()).toEqual(["leak_0_0", "leak_1_0", "leak_2_0"]);
+  });
+
+  // Bug caught: the threshold moved (a hint at 0.79 dropped, or a statement at 0.8 kept).
+  it("drops at exactly the canon's states line and keeps just under it", async () => {
+    const at = answering({ leak_0_0: CANON_STATES_MIN, leak_1_0: CANON_STATES_MIN - 0.01 });
+    expect(await narrationKept({ lines: [], narration: "One. Two.", judge: at.judge, secrets: [SECRET] })).toBe("Two.");
+  });
+
+  // Bug caught: a leak against the second secret ignored because only the first was read.
+  it("drops a sentence that states any one of several secrets", async () => {
+    const j = answering({ leak_0_1: 0.9 });
+    expect(await narrationKept({ lines: [], narration: "One. Two.", judge: j.judge, secrets: ["a", "b"] })).toBe("Two.");
+  });
+
+  // Bug caught: every narration paying for a judge call in a campaign with nothing to guard.
+  it("makes no call and returns the text whole with no secrets and no lines", async () => {
+    const j = answering({});
+    expect(await narrationKept({ lines: [], narration: "Rain falls.", judge: j.judge, secrets: [] })).toBe("Rain falls.");
+    expect(await narrationKept({ lines: [], narration: "Rain falls.", judge: j.judge })).toBe("Rain falls.");
+    expect(j.requests).toHaveLength(0);
+  });
+
+  // Bug caught: the repetition question applied with no line shown, dropping new narration for "repeating" nothing.
+  it("asks no repetition question when no line was shown, and does not drop on a stray s-answer", async () => {
+    const j = answering({ s0: 0.01 });
+    expect(await narrationKept({ lines: [], narration: "Rain falls.", judge: j.judge, secrets: [SECRET] })).toBe("Rain falls.");
+    expect(Object.keys(j.requests[0].questions)).toEqual(["leak_0_0"]);
+  });
+
+  // Bug caught: the secret check replacing the repetition check once lines were shown.
+  it("still drops a restating sentence while guarding secrets, and keeps an unanswered one", async () => {
+    const j = answering({ s0: 0.1, s1: 0.95 });
+    expect(await narrationKept({ lines: [line("Hi.")], narration: "She waits. Rain falls. Dusk.", judge: j.judge, secrets: [SECRET] })).toBe("Rain falls. Dusk.");
+  });
+
+  // Bug caught: a leak in a sentence past the judged eighth is shown (documented fail open) but the cap also must hold.
+  it("judges only the first eight sentences and only the first twelve secrets, cut to the statement limit", async () => {
+    const secrets = Array.from({ length: MAX_SECRETS_CHECKED + 3 }, () => "x".repeat(STATEMENT_MAX_CHARS + 50));
+    const text = Array.from({ length: MAX_SENTENCES_JUDGED + 2 }, (_, i) => `S${i}.`).join(" ");
+    const j = answering({});
+    await narrationKept({ lines: [], narration: text, judge: j.judge, secrets });
+    expect(Object.keys(j.requests[0].questions)).toHaveLength(MAX_SENTENCES_JUDGED * MAX_SECRETS_CHECKED);
+    const sent = (j.requests[0].state as { secrets: string[] }).secrets;
+    expect(sent).toHaveLength(MAX_SECRETS_CHECKED);
+    expect(sent[0]).toHaveLength(STATEMENT_MAX_CHARS);
+  });
+
+  // Bug caught: a judge failure turned into a verdict instead of reaching the caller's fail-open.
+  it("lets a throwing judge reach the caller when only secrets are guarded", async () => {
+    const judge = async (): Promise<JudgeResult> => {
+      throw new Error("down");
+    };
+    await expect(narrationKept({ lines: [], narration: "x.", judge, secrets: [SECRET] })).rejects.toThrow();
+  });
+
+  // Bug caught: the secret's statement leaking into a question (only the state's `secrets` is the judge's).
+  it("never reports the statement through onLeak, only a count", async () => {
+    const j = answering({ leak_0_0: 0.99 });
+    const heard: unknown[] = [];
+    await narrationKept({ lines: [], narration: "It was the Baron.", judge: j.judge, secrets: [SECRET], onLeak: (n) => heard.push(n) });
+    expect(JSON.stringify(heard)).not.toContain(SECRET);
+    expect(JSON.stringify(j.requests[0].questions)).not.toContain(SECRET);
   });
 });

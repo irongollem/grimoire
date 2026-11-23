@@ -36,7 +36,7 @@ function setup(extra: Partial<RunCombatant> = {}, partyMembers: PartyMember[] = 
   store.started = true;
   store.round = 1;
   store.activeIndex = 0;
-  const provide = { [RUNNER_TAKE_TURN as symbol]: createRunnerTakeTurn(async () => ({ turn: null, outcomes: [], provokedPlayer: [] }), String) };
+  const provide = { [RUNNER_TAKE_TURN as symbol]: createRunnerTakeTurn(async () => ({ turn: null, outcomes: [], provokedPlayer: [], reactionOffered: null, reactionOfferId: null }), String) };
   const w = mount(PlayTurnCard, { props: { partyMembers }, global: { provide, stubs: { PlayPcAttacks: { props: ["member", "senderName"], template: "<div data-testid='pc-attacks'>{{ member.id }} {{ senderName }}</div>" }, RunnerActionList: { props: ["sections"], template: "<div data-testid='actions'>{{ sections.map(s => s.label).join() }}</div>" } } } });
   return { store, w };
 }

@@ -20,6 +20,7 @@ import { NARRATOR_SPEAKER } from "../_shared/agent/lineKey.ts";
 import { prologueText } from "../_shared/agent/prologue.ts";
 import { declinedText, rollText } from "../_shared/agent/playerRoll.ts";
 import type { HazardRules } from "../_shared/agent/hazard.ts";
+import type { CanonCheckMaterial } from "../_shared/agent/canonCheck.ts";
 import { runTurn } from "../_shared/agent/turn.ts";
 import { makeTurnTools } from "./turnTools.ts";
 import { narrationGate, type NarrationGate } from "./narration.ts";
@@ -70,6 +71,19 @@ export async function beginTurn(input: {
         const ctx = await readTurnContext(scope, session);
         const { character, stored, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere, inventions } = ctx;
         const fightRunning = fights !== null && fights.fight !== null && fights.fight.phase === "running";
+        // The canon's material is read once a turn and shared by the invention check and the narration check. A failed
+        // read is forgotten so the next asker may try again.
+        let materialLoad: Promise<CanonCheckMaterial> | null = null;
+        const loadMaterial = (): Promise<CanonCheckMaterial> => {
+          if (materialLoad === null) {
+            const load = deps.canon.material(campaign.id);
+            materialLoad = load;
+            load.catch(() => {
+              if (materialLoad === load) materialLoad = null;
+            });
+          }
+          return materialLoad;
+        };
         const turnTools = makeTurnTools({
           deps,
           campaignId: campaign.id,
@@ -93,7 +107,7 @@ export async function beginTurn(input: {
           canon: {
             here: canonHere,
             lookup: (query) => deps.canon.lookup(campaign.id, query),
-            material: () => deps.canon.material(campaign.id),
+            material: loadMaterial,
             judge: deps.judgeCanon,
             onBroughtOut: (brought) => { fx.broughtOut.push(brought); },
           },
@@ -144,8 +158,18 @@ export async function beginTurn(input: {
           const text = body.message.trim();
           emit({ type: "voice", role: "player", text, voice: deps.voiceKey(sessionId, { role: "player", speaker: { id: character.id, name: character.name }, text }) });
         }
+        // The narration check needs the secrets before the first word streams; with no judge it asks for none.
+        let secrets: readonly string[] = [];
+        if (deps.judgeNarration !== null) {
+          try {
+            secrets = (await loadMaterial()).secrets.map((s) => s.statement);
+          } catch (error) {
+            console.error("agent-turn: the narration check ran without the campaign's secrets (the canon could not be read).", error);
+          }
+        }
         const narration = narrationGate({
           judge: deps.judgeNarration,
+          secrets,
           onNarration: (text) => {
             if (deps.voiceKey !== null) emit({ type: "voice", role: "narrator", text, voice: deps.voiceKey(sessionId, { role: "narrator", speaker: NARRATOR_SPEAKER, text }) });
           },

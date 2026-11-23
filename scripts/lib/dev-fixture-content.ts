@@ -79,26 +79,26 @@ export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureCon
     notes: seed(
       "notes",
       `insert into public.notes
-         (user_id, campaign_id, title, content, category, tags, session_id, player_visible_to)
+         (user_id, campaign_id, title, content, tags, session_id, player_visible_to)
        values
          (${owner}, ${campaign}, 'A Crack in the Candy-Glass',
           ${prose("The party reached the market wanting warmth and answers, and got a cracked pane and a missing spoon instead.")},
-          'session', '{mystery,market}', ${sessionOf(3)}, ${all}),
+          '{mystery,market}', ${sessionOf(3)}, ${all}),
          (${owner}, ${campaign}, 'The Sticky Pursuit of Crumbkin',
           ${prose("Footprints in spilled treacle led out past the last lamp. Whatever made them was not walking on two legs the whole way.")},
-          'session', '{chase}', ${sessionOf(4)}, ${some}),
+          '{chase}', ${sessionOf(4)}, ${some}),
          (${owner}, ${campaign}, 'What the Syrup-Warden Would Not Say',
           ${prose("She answered every question put to her, and not one that mattered.")},
-          'session', '{politics}', ${sessionOf(5)}, ${hidden}),
+          '{politics}', ${sessionOf(5)}, ${hidden}),
          (${owner}, ${campaign}, 'The Marmalade Tide and Who Profits By It',
           ${prose("Someone is selling jar lids at four times last season's price, and it is not a Guild warden.")},
-          'lore', '{economy,marmalade}', null, ${some}),
+          '{economy,marmalade}', null, ${some}),
          (${owner}, ${campaign}, 'Burnt Sugar, and What It Does to People',
           ${prose("Dark glaze that takes a spell and gives it back bitter. The drifters will not carry it uncooled.")},
-          'lore', '{glaze}', null, ${all}),
+          '{glaze}', null, ${all}),
          (${owner}, ${campaign}, 'The Sugar Moth: DM only',
           ${prose("The Sugar Moth is not the villain of this campaign. The people deciding who gets the last jar are.")},
-          'general', '{spoilers}', null, ${hidden});`,
+          '{spoilers}', null, ${hidden});`,
     ),
 
     factions: seed(

@@ -90,6 +90,8 @@
         <AppButton variant="outline" size="md" label="Let it go" @click="letItGo()" />
       </div>
     </section>
+    <!-- Shield or Counterspell: the turn is paused at the moment and the fight waits for the answer. A second offer in the same turn is a new card. -->
+    <SoloReactCard v-if="reacting" :key="reacting.key" :offer="reacting.offer" :name-of="nameOf" @answer="answerReaction" />
     <!-- Hide is a Dexterity (Stealth) check: asked like any roll of yours, with a way back out before it is made. -->
     <div v-if="hideAsk && attack.state.value.step === 'idle'" class="mx-auto flex w-full max-w-176 flex-col gap-1" data-testid="solo-hide-ask">
       <SoloRollAsk :ask="hideAsk" :bonus="hideCheck ? hideCheck.bonus : null" :forced-disadvantage="hideCheck ? hideCheck.forcedDisadvantage : false" :busy="resolving" @roll="onHide" />
@@ -138,6 +140,8 @@ import { useDrawWeapon } from "@/composables/table/useDrawWeapon";
 import { usePcAttackRows } from "@/composables/encounters/usePcAttackRows";
 import type { PcAttackRow } from "@/types/pcAttack.types";
 import { useHotkeys } from "@/composables/useHotkeys";
+import SoloReactCard from "@/components/table/solo/SoloReactCard.vue";
+import type { ReactionAnswer, ReactionOffer } from "@/rules/fight/reactionOffer";
 import KeyCap from "@/components/common/controls/KeyCap.vue";
 import { actOutcome, hideAction, searchOutcome, type ActKind } from "@/lib/table/solo/fight/acts";
 import type { FogCellKey } from "@/lib/battlemap/fogMask";
@@ -207,6 +211,8 @@ const host = useSoloFightHost({
   onFoeLine: (name, moment) => foeLine(name, moment),
   foesTalk: () => foesTalk.value,
   onProvoked: (moverId) => offerReaction(moverId),
+  onReaction: (offer) => askReaction(offer),
+  onReactionAnswered: () => (reacting.value = null),
 });
 const played = host.played;
 
@@ -376,6 +382,20 @@ async function onDraw(rowId: string): Promise<void> {
   } finally {
     resolving.value = false;
   }
+}
+
+// ── Your Reaction: Shield or Counterspell, asked while the server holds the creature's turn ─────────────────────────
+const nameOf = (instanceId: string): string => store.combatants.find((c) => c.instance_id === instanceId)?.name ?? "Someone";
+const reacting = ref<{ key: number; offer: ReactionOffer; done: (answer: ReactionAnswer) => void } | null>(null);
+let reactionAsks = 0;
+function askReaction(offer: ReactionOffer): Promise<ReactionAnswer> {
+  return new Promise((resolve) => {
+    reacting.value = { key: ++reactionAsks, offer, done: resolve };
+  });
+}
+// The card stays, its buttons off, until the server has answered (`onReactionAnswered`).
+function answerReaction(answer: ReactionAnswer): void {
+  reacting.value?.done(answer);
 }
 
 // ── Your Reaction: an opportunity attack on a creature that walks out of your reach ────────────────────────────────
