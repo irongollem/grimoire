@@ -2,7 +2,7 @@
   <div class="flex h-full min-h-0 w-full flex-col">
     <header class="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-2.5">
       <div class="flex min-w-0 items-center gap-2">
-        <IconAsk class="size-4 shrink-0 text-primary" />
+        <FamiliarAvatar class="size-9" :speaking="speaking" />
         <h2 class="text-heading font-semibold text-foreground">Familiar</h2>
         <AppButton as="span" variant="tinted" size="xs" tone="info" emphasis="outline" label="Beta" data-testid="ask-beta" />
       </div>
@@ -43,7 +43,8 @@
 /** The panel's face: header, where-from chip, the thread and the composer. State and wiring belong to AskPanel. */
 import { ref } from "vue";
 import type { AskChoice, AskReportDraft } from "@edge-shared/agent/askContract";
-import { IconAsk, IconClose } from "@/lib/icons";
+import { IconClose } from "@/lib/icons";
+import FamiliarAvatar from "@/components/ask/FamiliarAvatar.vue";
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
 import type { AskItem } from "@/composables/ask/useAskConversation";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -54,6 +55,8 @@ defineProps<{
   items: AskItem[];
   adapters: AskAdapters;
   running: boolean;
+  /** Words are arriving: the avatar moves only then. */
+  speaking: boolean;
   campaignName: string;
   pageTitle: string | null;
   allowanceLine: string;

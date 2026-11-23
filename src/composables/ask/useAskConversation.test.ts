@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import { ASK_OFF_TOPIC_MESSAGE, type AskEvent, type AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskRunResult } from "@/lib/ask/askAdapter";
-import { refusalMessage, useAskConversation, type AskConversationDeps } from "./useAskConversation";
+import { refusalMessage, SPEAKING_TAIL_MS, useAskConversation, type AskConversationDeps } from "./useAskConversation";
 
 function sse(events: unknown[]): Response {
   const body = events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join("");
@@ -402,5 +402,40 @@ describe("useAskConversation: campaign, allowance and withheld proposals", () =>
     const { convo } = setup({ responses: [sse([{ type: "report", report }, { type: "error", message: "Withheld.", withheld: true }])] });
     await convo.send("idea");
     expect(convo.items.value.map((i) => i.kind)).toEqual(["user", "error"]);
+  });
+});
+
+describe("speaking", () => {
+  /** A stream the test feeds by hand, so the state can be read between events. */
+  function liveStream() {
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    const body = new ReadableStream<Uint8Array>({ start: (c) => { controller = c; } });
+    const send = (e: unknown) => controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(e)}\n\n`));
+    return { response: new Response(body, { headers: { "content-type": "text/event-stream" } }), send, end: () => controller.close() };
+  }
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  // Bug caught: the avatar moving while the Familiar only reads or waits, or never stopping once the words stop.
+  it("is true while words arrive, and false a moment after they stop and when the turn ends", async () => {
+    const live = liveStream();
+    const { convo } = setup({ responses: [live.response] });
+    const turn = convo.send("who runs the mill?");
+    await settle();
+    expect(convo.speaking.value).toBe(false);
+    live.send({ type: "read", records: [] });
+    await settle();
+    expect(convo.speaking.value).toBe(false);
+    live.send({ type: "text", delta: "Harl " });
+    await settle();
+    expect(convo.speaking.value).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, SPEAKING_TAIL_MS + 50));
+    expect(convo.speaking.value).toBe(false);
+    live.send({ type: "text", delta: "runs it." });
+    await settle();
+    expect(convo.speaking.value).toBe(true);
+    live.send(done);
+    live.end();
+    await turn;
+    expect(convo.speaking.value).toBe(false);
   });
 });

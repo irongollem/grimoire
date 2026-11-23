@@ -94,6 +94,7 @@ const surfaceProps = computed(() => ({
   items: convo.items.value,
   adapters,
   running: convo.running.value,
+  speaking: convo.speaking.value,
   campaignName: campaign.activeCampaign?.name ?? "No campaign",
   pageTitle: (route.meta.title as string | undefined) ?? null,
   allowanceLine: allowanceLine.value,

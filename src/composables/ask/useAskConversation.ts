@@ -131,10 +131,29 @@ export function partsCredits(parts: readonly AskRunPart[]): number {
   return parts.reduce((sum, p) => sum + p.credits, 0);
 }
 
+/** How long after the last words the Familiar keeps moving: text arrives in bursts, and a still-move-still flicker reads as a glitch. */
+export const SPEAKING_TAIL_MS = 700;
+
 export function useAskConversation(deps: AskConversationDeps) {
   const transport = deps.transport ?? sendToAskTurn;
   const items = ref<AskItem[]>([]);
   const running = ref(false);
+  /**
+   * The Familiar is writing words right now: true while text arrives, false once it has paused a moment or the turn
+   * ends. Its avatar moves only then (maintainer, 24 Nov 2026), not while it reads or waits on a tool.
+   */
+  const speaking = ref(false);
+  let quietTimer: ReturnType<typeof setTimeout> | null = null;
+  function hush() {
+    if (quietTimer !== null) clearTimeout(quietTimer);
+    quietTimer = null;
+    speaking.value = false;
+  }
+  function heard() {
+    speaking.value = true;
+    if (quietTimer !== null) clearTimeout(quietTimer);
+    quietTimer = setTimeout(hush, SPEAKING_TAIL_MS);
+  }
   /** What the server last said is left of today's free questions; null until a turn has said. */
   const freeLeft = ref<number | null>(null);
   let sessionId: string | undefined;
@@ -196,6 +215,7 @@ export function useAskConversation(deps: AskConversationDeps) {
             written.add(reply.id);
           }
           reply.text += event.delta;
+          heard();
           continue;
         }
         // Anything that is not words ends the paragraph being written.
@@ -256,6 +276,7 @@ export function useAskConversation(deps: AskConversationDeps) {
       if (controller === mine) {
         running.value = false;
         controller = null;
+        hush();
       }
     }
   }
@@ -281,6 +302,7 @@ export function useAskConversation(deps: AskConversationDeps) {
     controller?.abort();
     controller = null;
     running.value = false;
+    hush();
     sessionId = undefined;
     items.value = [];
     // The allowance line goes back to the server's row: an own-key turn had streamed 0.
@@ -387,5 +409,5 @@ export function useAskConversation(deps: AskConversationDeps) {
     if (part) part.left = true;
   }
 
-  return { items, running, freeLeft, send, choose, newConversation, handOff, adjust, decide, cancel, confirm, retryPart, leavePart };
+  return { items, running, speaking, freeLeft, send, choose, newConversation, handOff, adjust, decide, cancel, confirm, retryPart, leavePart };
 }
