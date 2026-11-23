@@ -110,7 +110,7 @@ export async function rollToHit(ctx: ResolutionContext, input: AttackInput): Pro
   // is asked about only once the rules said "hit", and the roll is decided again against the armour class the reaction raised.
   let reaction: { by: string; spell: string } | undefined;
   if (ruled !== null && ruled.hit && targetAc !== null && ctx.reactToHit) {
-    const answer = await ctx.reactToHit(target, { natural, total, armorClass: targetAc });
+    const answer = await ctx.reactToHit(target, { natural, total, armorClass: targetAc }, { attackerId: attacker.instance_id, attack: entry.name });
     if (answer !== null) {
       reaction = { by: target.instance_id, spell: answer.spell };
       targetAc = answer.armorClass;

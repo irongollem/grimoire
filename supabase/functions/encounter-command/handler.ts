@@ -36,6 +36,10 @@ import { NO_CASTING, type PlayerSheets } from "../../../src/rules/fight/playerSh
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import { FightCommandError } from "./commandError.ts";
+import {
+  isAnswerReactionCommand, parsePendingReaction, pendingOf, playedRunOf, ReactionPause, validateAnswerReactionCommand,
+  type AnswerReactionCommand, type PendingReaction, type PlayedRun,
+} from "./playedReaction.ts";
 import { isRecord, validateCombatants, validateReducerCommand } from "./commandShape.ts";
 import { applyProvoke, isProvokeCommand, validateProvokeCommand, type ProvokeCommand } from "./opportunity.ts";
 import { applyTakeTurn, isTakeTurnCommand, MAX_MEMBER_ID_LENGTH, validateTakeTurnCommand, type TakeTurnCommand } from "./takeTurn.ts";
@@ -52,6 +56,7 @@ import {
 
 export { FightCommandError };
 export type { TakeTurnCommand };
+export type { AnswerReactionCommand, PendingReaction };
 export { ALL_RESOLVING_COMMANDS_LISTED, type ResolvingCommand, type PostedRoll, type StatBlockSources } from "./resolve.ts";
 
 export const MAX_COMMANDS = 50;
@@ -112,7 +117,7 @@ export type LifecycleCommand =
   /** The DM turns Go Live off: the players' screens leave the fight, which goes on. Nothing else about it changes. */
   | { type: "go_private" };
 export const LIFECYCLE_TYPES: ReadonlySet<string> = new Set(["open", "go_live", "end_combat", "abandon", "go_private"]);
-export type BatchCommand = FightCommand | SyncPartyCommand | LifecycleCommand | ResolvingCommand | TakeTurnCommand | ProvokeCommand;
+export type BatchCommand = FightCommand | SyncPartyCommand | LifecycleCommand | ResolvingCommand | TakeTurnCommand | ProvokeCommand | AnswerReactionCommand;
 
 export const MAX_ADDED_COMBATANTS = 30;
 export const MAX_OPENED_COMBATANTS = 60;
@@ -211,6 +216,10 @@ export function validateRequest(body: unknown): CommandRequest {
       // The server's own turn is worked out from the fight as it stands, so nothing is sent beside it.
       if (commands.length !== 1) throw new FightCommandError(400, "take_turn is sent alone.");
       validateTakeTurnCommand(command);
+    } else if (isAnswerReactionCommand(command as { type: string })) {
+      // It replays the paused turn from the fight as it stands, so nothing is sent beside it.
+      if (commands.length !== 1) throw new FightCommandError(400, "answer_reaction is sent alone.");
+      validateAnswerReactionCommand(command);
     } else if (isProvokeCommand(command as { type: string })) {
       // Like take_turn it reads the fight as it stands, so nothing is sent beside it.
       if (commands.length !== 1) throw new FightCommandError(400, "provoke is sent alone.");
@@ -245,6 +254,11 @@ export interface FightRow {
   ended_at: string | null;
   /** When combat first went live; null before. The note-judgment cap counts from it, so going live again must not move it. */
   started_at: string | null;
+  /**
+   * The Reaction the played character is being asked for, and what replays the paused creature turn (`playedReaction.ts`); null when
+   * nothing waits. A jsonb column: what is read back is checked by `parsePendingReaction`, never trusted.
+   */
+  pending_reaction: PendingReaction | null;
 }
 
 /** Everything a batch needs besides the row: the encounter's own settings and what its spawns are built from. */
@@ -272,6 +286,8 @@ export interface FightWrite {
   events_fired: string[];
   lair_fired_rounds: number[];
   applied_command_ids: string[];
+  /** Written only by a batch that pauses a turn (the pending Reaction) or finishes or closes one (null); left out, the column is untouched. */
+  pending_reaction?: PendingReaction | null;
 }
 
 /** What only the lifecycle commands write beside the fight's state. */
@@ -453,15 +469,19 @@ async function attempt(
   row: FightRow,
   deps: BatchDeps,
   notes: NoteJudgments,
-): Promise<{ state: FightState; effects: FightEffect[]; rolls: PostedRoll[]; spent: ResolveEnv["spent"]; slotsSpent: ResolveEnv["slotsSpent"]; resourcesSpent: ResolveEnv["resourcesSpent"]; innateSpent: ResolveEnv["innateSpent"] }> {
+  /** A turn the person's own Reaction may pause (`playedReaction.ts`): its dice and judgments are taped, and a moment of theirs asks them. Null: the DM's own fight and every other command. */
+  played: PlayedRun | null = null,
+): Promise<{ state: FightState; effects: FightEffect[]; rolls: PostedRoll[]; spent: ResolveEnv["spent"]; slotsSpent: ResolveEnv["slotsSpent"]; resourcesSpent: ResolveEnv["resourcesSpent"]; innateSpent: ResolveEnv["innateSpent"]; noteTokens: number[] | null }> {
+  // Every die of the attempt comes from these three: a played turn draws them through its tape, so a replay throws the same dice.
+  const dice = played === null ? { rollD20: deps.rollD20, rollD6: deps.rollD6, rollDie: deps.rollDie } : played.tape.wrap(deps);
   const fightDeps: FightDeps = {
     monsters: loaded.monsters,
     npcs: loaded.npcs,
     now: deps.now,
     // Dice are rolled here, inside the attempt that may be saved: a retried attempt rolls again,
     // which is right because the earlier roll was never written anywhere.
-    rollD20: deps.rollD20,
-    rollD6: deps.rollD6,
+    rollD20: dice.rollD20,
+    rollD6: dice.rollD6,
   };
   let state = buildState(loaded, row);
   const effects: FightEffect[] = [];
@@ -535,7 +555,11 @@ async function attempt(
     // `undefined` is "not asked yet" (a null map is an answer: this fight has none).
     if (map === undefined) map = await deps.loadFightMap(request.encounterId);
     if (standIns === null) standIns = await deps.loadStandIns();
-    return { fightDeps, sources, players, map, standIns, factions: loaded.factions, rollDie: deps.rollDie, spells, spellsListed, posted: rolls, spent, slotsSpent, resourcesSpent, innateSpent, judgeNote: notes.ask };
+    return {
+      fightDeps, sources, players, map, standIns, factions: loaded.factions, rollDie: dice.rollDie, spells, spellsListed, posted: rolls, spent, slotsSpent, resourcesSpent, innateSpent,
+      judgeNote: played === null ? notes.ask : (key, request) => played.tape.note(key, () => notes.ask(key, request)),
+      ...(played === null ? {} : { askPlayed: played.ask }),
+    };
   };
   /** The Rages in the fight after a command (`rageUpkeep.ts`): the state they leave it in, their effects added to `effects`. */
   const settled = (from: FightState, to: FightState, into: FightEffect[]): FightState => {
@@ -579,7 +603,8 @@ async function attempt(
     state = result.state;
     effects.push(...result.effects);
   }
-  return { state, effects, rolls, spent, slotsSpent, resourcesSpent, innateSpent };
+  // A played turn bills the judgments its tape holds (the ones a pause carried over included, once); any other bills what was asked (`notes.answered`).
+  return { state, effects, rolls, spent, slotsSpent, resourcesSpent, innateSpent, noteTokens: played === null ? null : played.tape.billedTokens() };
 }
 
 /** Whether a write would leave the fight exactly as the row has it (the batch id aside). */
@@ -637,6 +662,9 @@ async function perform(effects: FightEffect[], deps: BatchDeps): Promise<string[
   }
   return failures;
 }
+
+/** The write that takes a waiting Reaction off the row: only when one is stored (a malformed one too), so every other write keeps its shape. */
+const clearPending = (row: FightRow): { pending_reaction?: null } => (row.pending_reaction ? { pending_reaction: null } : {});
 
 function writeOf(state: FightState, previousIds: string[], batchId: string): FightWrite {
   return {
@@ -698,6 +726,7 @@ async function openFight(request: CommandRequest, command: Extract<LifecycleComm
   const next = {
     ...writeOf(state, [], request.batchId),
     is_running: false, ended_at: null, started_at: null, session_id: null, magical_darkness: [], xp_awarded_at: null,
+    ...clearPending(loaded.row),
   } satisfies FightWrite & Partial<FightLifecycleWrite>;
   const saved = await deps.saveFight(loaded.row.id, loaded.row.version, next);
   if (!saved) return null;
@@ -763,7 +792,7 @@ async function runLifecycle(
   if (command.type === "abandon") {
     // Hit points and conditions stay as they were; only the rolls, which belonged to this fight, are cleared.
     const state = buildState(loaded, row);
-    const next = { ...writeOf(state, row.applied_command_ids, request.batchId), is_running: false, ended_at: deps.nowIso() } satisfies FightWrite & Partial<FightLifecycleWrite>;
+    const next = { ...writeOf(state, row.applied_command_ids, request.batchId), is_running: false, ended_at: deps.nowIso(), ...clearPending(row) } satisfies FightWrite & Partial<FightLifecycleWrite>;
     const saved = await deps.saveFight(row.id, row.version, next);
     if (!saved) return null;
     const failures = await performAll(clearInitiativeWrites(playerMemberIds(row.combatants_live), deps));
@@ -775,7 +804,7 @@ async function runLifecycle(
   const context = await deps.loadEndContext(command.siteId === undefined ? null : command.siteId);
   // The saved roster is the authority for where the tokens stand: the browser's store does not hear a player moving their own token.
   const writeBack = [...endWriteBack(state.combatants, context, deps), ...xpWrite(state.combatants, loaded, deps)];
-  const next = { ...writeOf(state, row.applied_command_ids, request.batchId), is_running: false, ended_at: deps.nowIso() } satisfies FightWrite & Partial<FightLifecycleWrite>;
+  const next = { ...writeOf(state, row.applied_command_ids, request.batchId), is_running: false, ended_at: deps.nowIso(), ...clearPending(row) } satisfies FightWrite & Partial<FightLifecycleWrite>;
   const saved = await deps.saveFight(row.id, row.version, next);
   if (!saved) return null;
   const failures = await performAll(writeBack);
@@ -836,6 +865,31 @@ function xpWrite(combatants: RunCombatant[], loaded: LoadedFight, deps: BatchDep
   }];
 }
 
+/** What a fight that waits for the person's Reaction says to a command that is not the answer. */
+const waitingFor = (row: FightRow, pending: PendingReaction): string =>
+  `The fight is waiting for ${row.combatants_live.find((c) => c.instance_id === pending.offer.reactorId)?.name ?? "the played character"}'s reaction.`;
+
+/**
+ * A fight that waits for the person's Reaction (`pending_reaction`) takes no command but the answer: the paused turn replays from the fight
+ * it started from, so anything else that changed it would make the answer play a different turn. What it does take, without changing it:
+ * the same turn sent again (a reloaded page, a retried send) is answered with the offer it is waiting on, and a party sync is answered
+ * unapplied like any sync that finds nothing to change. End combat, Abandon and `open` (a resume) never reach here. Returns the answer to
+ * give, or null when the command is the answer to this very Reaction and the batch should replay the turn.
+ * A stored value that is not a pending reaction this code wrote is refused with a 409 that says so (only End combat or Abandon clear it).
+ */
+function holdsFight(request: CommandRequest, row: FightRow, pending: PendingReaction | "malformed"): BatchResult | null {
+  if (pending === "malformed") throw new FightCommandError(409, "The Reaction this fight is waiting for could not be read; end or abandon the fight to clear it.");
+  const only = request.commands.length === 1 ? request.commands[0] : null;
+  const offered = (): BatchResult => resultOf(false, row.version, row, row, [{ type: "reaction_offered", offer: pending.offer }], []);
+  if (only !== null && isAnswerReactionCommand(only)) {
+    // The retry of the answer that made this pause: the answer is already in, so the offer is shown again, not answered a second time.
+    return pending.answerBatchId === request.batchId ? offered() : null;
+  }
+  if (only !== null && isTakeTurnCommand(only) && only.instanceId === pending.command.instanceId) return offered();
+  if (only !== null && only.type === "sync_party") return resultOf(false, row.version, row, row, [], []);
+  throw new FightCommandError(409, waitingFor(row, pending));
+}
+
 export async function runBatch(request: CommandRequest, deps: BatchDeps): Promise<BatchResult> {
   const notes = noteJudgmentsOf(deps);
   const first = request.commands[0];
@@ -851,13 +905,19 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
       return resultOf(false, row.version, row, row, [], failures);
     }
 
+    const syncOnly = request.commands.length === 1 && request.commands[0].type === "sync_party";
+    // A fight that waits for the person's Reaction: End combat, Abandon and a resuming `open` go on (the first two clear it); everything else is held.
+    const waiting = row !== null && row.ended_at === null ? parsePendingReaction(row.pending_reaction) : null;
+    const closesOrResumes = lifecycle !== null && (lifecycle.type === "end_combat" || lifecycle.type === "abandon" || lifecycle.type === "open");
+    if (row && waiting !== null && !closesOrResumes) {
+      const held = holdsFight(request, row, waiting);
+      if (held !== null) return held;
+    }
     if (lifecycle) {
       const result = await runLifecycle(request, lifecycle, loaded, deps);
       if (result) return result;
       continue;
     }
-
-    const syncOnly = request.commands.length === 1 && request.commands[0].type === "sync_party";
     if (!row) throw new FightCommandError(404, "This encounter has no fight.");
     if (row.ended_at !== null) {
       // The runner asks for a sync whenever a character's row rings, and ending a fight writes those rows: the
@@ -866,8 +926,34 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
       throw new FightCommandError(409, "This fight has ended.");
     }
 
-    const { state, effects, rolls, spent, slotsSpent, resourcesSpent, innateSpent } = await attempt(request, loaded, row, deps, notes);
-    const write = writeOf(state, row.applied_command_ids, request.batchId);
+    // The person's own Reaction: a turn sent with the played member, or the answer to the one that paused, is played through a tape so it can be replayed.
+    const only = request.commands.length === 1 ? request.commands[0] : null;
+    const answering = only !== null && isAnswerReactionCommand(only) ? only : null;
+    if (answering !== null && (waiting === null || waiting === "malformed")) throw new FightCommandError(409, "Nothing is waiting for a reaction.");
+    const turn: PendingReaction["command"] | null = answering !== null && waiting !== null && waiting !== "malformed"
+      ? waiting.command
+      : only !== null && isTakeTurnCommand(only) && only.playedMemberId !== undefined ? (only as PendingReaction["command"]) : null;
+    const run = turn === null ? null : answering !== null && waiting !== null && waiting !== "malformed"
+      ? playedRunOf([...waiting.answers, answering.answer], waiting.tape)
+      : playedRunOf([], []);
+    let outcome: Awaited<ReturnType<typeof attempt>>;
+    try {
+      outcome = await attempt(turn === null ? request : { ...request, commands: [turn] }, loaded, row, deps, notes, run);
+    } catch (e) {
+      if (!(e instanceof ReactionPause) || run === null || turn === null) throw e;
+      // The moment is the person's: nothing of the attempt is saved. The row keeps the fight as it was, the offer, the answers so far and the tape,
+      // under the same version rule as any save, and the batch id is NOT recorded so a retried send is offered again rather than taken for applied.
+      const paused = await deps.saveFight(row.id, row.version, {
+        combatants_live: row.combatants_live, current_round: row.current_round, active_combatant_index: row.active_combatant_index,
+        events_fired: row.events_fired, lair_fired_rounds: row.lair_fired_rounds, applied_command_ids: row.applied_command_ids,
+        pending_reaction: pendingOf(turn, run, e.offer, answering === null ? null : request.batchId),
+      });
+      if (!paused) continue;
+      return resultOf(false, paused.version, row, row, [{ type: "reaction_offered", offer: e.offer }], []);
+    }
+    const { state, effects, rolls, spent, slotsSpent, resourcesSpent, innateSpent } = outcome;
+    // The answer that finishes the turn also takes the pending Reaction off the row.
+    const write: FightWrite = { ...writeOf(state, row.applied_command_ids, request.batchId), ...(answering === null ? {} : { pending_reaction: null }) };
     // Most syncs find the sheets as the fight already has them (the ring was this fight's own write to a sheet
     // coming back). Saving anyway would raise the version and ring every screen for nothing, on every hit.
     if (syncOnly && sameFight(row, write)) return resultOf(false, row.version, row, row, [], []);
@@ -894,7 +980,8 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
     const lastResources = new Map(resourcesSpent.map((w) => [w.memberId, w.resources]));
     for (const [memberId, resources] of lastResources) effectFailures.push(...(await performAll([{ name: "ally_class_resources", run: () => deps.writeClassResources(memberId, resources) }])));
     // Billed after the save, like the rolls, and only for calls that answered: a refused or failed one cost nothing we know of.
-    effectFailures.push(...(await performAll(notes.answered.map((answer) => ({ name: "note_judgment", run: () => deps.recordNoteJudgment(answer.inputTokens) })))));
+    const billed = outcome.noteTokens === null ? notes.answered.map((answer) => answer.inputTokens) : outcome.noteTokens;
+    effectFailures.push(...(await performAll(billed.map((inputTokens) => ({ name: "note_judgment", run: () => deps.recordNoteJudgment(inputTokens) })))));
     return resultOf(true, saved.version, row, write, effects, effectFailures);
   }
   throw new FightCommandError(409, "The fight kept changing under this command; try again.");

@@ -2,21 +2,54 @@ import type { RunCombatant } from "@/types/encounter.types";
 import { afterFoeSpoke, foeMoment, FOE_NEVER_SEEN, NO_FOE_TALK, type FoeMoment, type FoeSeen, type FoeTalk } from "@/lib/table/solo/fight/foeLine";
 import { computed, ref, watch, type Ref } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useFightCommands } from "@/composables/encounters/useFightCommands";
+import { useFightCommands, type TurnRun } from "@/composables/encounters/useFightCommands";
 import { useCreatureTurns } from "@/composables/encounters/useCreatureTurns";
 import { useToast } from "@/composables/useToast";
-import { linesOfAttacks, linesOfCreatureTurn, type BoardLine } from "@/lib/table/solo/fight/boardLines";
+import { linesOfAttacks, linesOfCreatureTurn, linesOfReaction, type BoardLine } from "@/lib/table/solo/fight/boardLines";
 import { canReact } from "@/lib/table/solo/fight/turnBudget";
 import { helperTakesTurn, NEVER_SEEN, type HelperSeen } from "@/lib/table/solo/fight/helperTurn";
 import { fightStanding, hasSomeoneToFight, type FightStanding } from "@/lib/table/solo/fight/fightOver";
 import { asThePlayerSees } from "@/lib/table/solo/fight/foeView";
 import { turnBudgetOf } from "@/lib/table/solo/fight/turnBudget";
 import type { FightChange } from "@/lib/table/solo/fight/fightChange";
+import type { ReactionAnswer, ReactionOffer } from "@/rules/fight/reactionOffer";
 import { initiativeRoll } from "@/rules/initiative";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 
 /** How a fight at the table ended: by itself (nobody left to fight), or by the Dungeon Master's ruling. */
 export type SoloFightEnd = "foes_out" | "you_fell" | NonNullable<FightChange["ends"]>;
+
+/**
+ * Plays a creature's turn to its end while the person answers the Reactions it offers (#1021). A reply that carries an offer
+ * is a paused turn: the person is asked, the answer is sent, and what comes back is read the same way (a second chance in
+ * the same turn), until a reply has none. Returns that last reply, or null when the offer is for someone the person does not
+ * play (the server never sends one; the turn is left as nothing rather than asked of the wrong person). A failed send throws.
+ */
+export async function playTurnAnswering(input: {
+  start: () => Promise<TurnRun>;
+  answer: (answer: ReactionAnswer) => Promise<TurnRun>;
+  /** The played character's instance id, or null when there is none. */
+  playedInstanceId: string | null;
+  ask: (offer: ReactionOffer) => Promise<ReactionAnswer>;
+  /** The answer has been sent and has come back (or failed): the card that asked can go. */
+  answered: () => void;
+  onLines: (lines: BoardLine[]) => void;
+  nameOf: (instanceId: string) => string;
+}): Promise<TurnRun | null> {
+  let run = await input.start();
+  while (run.reactionOffered !== null) {
+    const offer = run.reactionOffered;
+    if (offer.reactorId !== input.playedInstanceId) return null;
+    const answer = await input.ask(offer);
+    try {
+      run = await input.answer(answer);
+    } finally {
+      input.answered();
+    }
+    input.onLines(linesOfReaction(offer, answer, input.nameOf));
+  }
+  return run;
+}
 
 /**
  * The fight at the AI table, run from the table screen (#1021, Solo Table canvas, frames 12 to 16).
@@ -59,6 +92,13 @@ export function useSoloFightHost(options: {
    * Settles when the player has struck or let it go.
    */
   onProvoked: (moverId: string) => Promise<void>;
+  /**
+   * A creature's turn is paused at a moment the played character may answer (Shield against a hit, Counterspell against a
+   * spell). Settles with the person's choice; the fight waits.
+   */
+  onReaction: (offer: ReactionOffer) => Promise<ReactionAnswer>;
+  /** The server has replied to that answer (or refused it): the card can go. */
+  onReactionAnswered: () => void;
   /** The fight could not go on (it was ended elsewhere, or the server refused): the page lets go of it. */
   onLost: () => void;
 }) {
@@ -144,7 +184,18 @@ export function useSoloFightHost(options: {
       if (mover && mover.hp > 0 && !hasSomeoneToFight(mover, store.combatants, store.factions)) return true;
       try {
         const before = { playedHp: played.value === null ? null : played.value.hp, defences: defencesShown() };
-        const { turn, outcomes, provokedPlayer } = await fight.takeTurn(instanceId, mine.value ? options.memberId() : undefined);
+        const memberId = mine.value ? options.memberId() : undefined;
+        const result = await playTurnAnswering({
+          start: () => fight.takeTurn(instanceId, memberId),
+          answer: (a) => fight.answerReaction(a),
+          playedInstanceId: played.value === null ? null : played.value.instance_id,
+          ask: options.onReaction,
+          answered: options.onReactionAnswered,
+          onLines: options.onLines,
+          nameOf,
+        });
+        if (result === null) return true;
+        const { turn, outcomes, provokedPlayer } = result;
         if (turn === null) return true;
         const mover = store.combatants.find((c) => c.instance_id === instanceId);
         const me = played.value;

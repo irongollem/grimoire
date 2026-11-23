@@ -58,6 +58,7 @@ function row(over: Partial<FightRow> = {}): FightRow {
     is_running: false,
     ended_at: null,
     started_at: null,
+    pending_reaction: null,
     ...over,
   };
 }
@@ -221,7 +222,7 @@ function harness(
     },
     async createFight(_encounterId, first) {
       if (h.store.row) return null;
-      h.store.row = { id: "row-new", version: 1, started_at: null, ...structuredClone(first) };
+      h.store.row = { id: "row-new", version: 1, started_at: null, pending_reaction: null, ...structuredClone(first) };
       h.log.push("create");
       return { id: "row-new", version: 1 };
     },
@@ -5412,11 +5413,12 @@ describe("a Reaction: Counterspell", () => {
     expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 3, max: 2, used: 1 }] }]);
   });
 
-  // The same fight where the person plays Tam herself (and one with no one named: a DM's own fight): her Reaction is the person's, not the rules'. Her save (a 1) fails,
+  // A DM's own fight (no one named as the played member, no stand-ins): her Reaction is never the rules' to take. Her save (a 1) fails,
   // 8d6 of ones deal 8 (20 -> 12), no Reaction, no slot written. Bug caught: a player's Reaction taken for them.
-  it.each([["pm-tam"], [undefined]])("fails if a player the person plays (%s) is made to counter", async (played) => {
+  // (When the person plays Tam herself the Reaction is theirs to choose: the turn pauses and asks, see "the person's own Reaction" below.)
+  it("fails if a player nobody plays by the rules (no played member named) is made to counter", async () => {
     const h = harness(mageVersusTam(), { sources: mageSources(), players: tamCounters(), map: mapOf(), spells: [counterspell(), fireball()], dieFaces: [1, 1, 1, 1, 1, 1, 1, 1, 1], standIns: [] });
-    await runBatch(batch("t-c2", takeTurn({ instanceId: "mage", ...(played === undefined ? {} : { playedMemberId: played }), optionId: "spell:Fireball:3:tam" })), h.deps);
+    await runBatch(batch("t-c2", takeTurn({ instanceId: "mage", optionId: "spell:Fireball:3:tam" })), h.deps);
     expect(hpOf(stored(h), "tam")).toBe(12);
     expect(combatantOf(stored(h), "tam").reactionUsed).not.toBe(true);
     expect(h.slotWrites).toEqual([]);
@@ -5538,5 +5540,376 @@ describe("take_turn: hide, search, and what a hidden creature cannot be aimed at
     expect(result.effects.some((e) => e.type === "opportunity")).toBe(false);
     expect(hpOf(stored(h), "wolf")).toBe(2);
     expect(h.dieCalls).toBe(0);
+  });
+});
+
+// ── the played character's own Reaction: the turn pauses and the answer replays it (#1021 "React card") ─────────
+
+describe("the person's own Reaction: Shield and Counterspell pause the turn", () => {
+  const grant = (name: string, level: number): AllySpellRow => ({ id: `${name}-row`, party_member_id: "pm-tam", name, level, is_known: true, is_prepared: true, always_prepared: false, source_type: "class", source_class_id: "cls-wiz", casting_ability: null, uses_per_day: null, uses_remaining: null });
+  // Tam: a 5th-level Wizard with no armour (AC 10, Dex 10), Shield prepared and two 1st-level slots. The person plays her.
+  const tamShield = (used = 0) => wizardTamSheets({ slots: [{ level: 1, max: 2, used }], spells: [grant("Shield", 1)] });
+  const tamFight = (tam: Partial<RunCombatant> = {}) =>
+    row({
+      combatants_live: [
+        combatant("wolf", { monster_id: "m-wolf", faction_id: "m", hp: 11, max_hp: 11, initiative: 12, position: { x: 1, y: 1 } }),
+        pc("tam", { faction_id: "p", hp: 20, max_hp: 20, initiative: 8, position: { x: 2, y: 1 }, ...tam }),
+      ],
+    });
+  const BITE_TAM = "attack:actions:Bite:tam";
+  const wolfBites = (over: Record<string, unknown> = {}) => takeTurn({ playedMemberId: "pm-tam", optionId: BITE_TAM, ...over });
+  const answer = (value: unknown) => ({ type: "answer_reaction", answer: value }) as unknown as CommandRequest["commands"][number];
+  const bothBites = () => ({ monsters: [monster("m-wolf", { actions: [MULTI([{ action: "Bite", count: 2 }]), bite] }), monster("m-ox")], npcs: [], companions: [] }) as StatBlockSources;
+  const at = (over: { sources?: StatBlockSources; players?: PlayerSheets; dieFaces?: number[]; fight?: FightRow; judge?: (r: JudgeRequest) => JudgeResult | null; ruleset?: "2014" | "2024"; standIns?: string[] } = {}) =>
+    harness(over.fight ?? tamFight(), {
+      sources: over.sources ?? SOURCES, players: over.players ?? tamShield(), map: mapOf(), spells: [shield()], dieFaces: over.dieFaces ?? [], judge: over.judge, ruleset: over.ruleset, standIns: over.standIns,
+    });
+  const offerOf = (result: { effects: Array<{ type: string }> }) => (result.effects.find((e) => e.type === "reaction_offered") as unknown as { offer: Record<string, unknown> } | undefined)?.offer;
+  const pendingOf = (h: Harness) => stored(h).pending_reaction;
+  const totals = (h: Harness) => h.posted.map((p) => p.result.total);
+
+  // PHB 2014 "Shield": Tam (AC 10) is hit by the wolf's d20 8 + 4 = 12, which +5 (15) would turn into a miss. The choice is the person's, so the turn stops.
+  // Nothing of it is saved: the fight is as it was (no hit points lost, no roll posted, no slot written, the batch id not recorded), and the row keeps the moment
+  // with the one die thrown so far. Bugs caught: the hit applied before the person answers, the pause recorded as applied (a retry then answered as done), no offer.
+  it("fails if a hit Shield would turn is applied before the person answers, or the pause is recorded as applied", async () => {
+    const h = at({ dieFaces: [8] });
+    const result = await runBatch(batch("t1", wolfBites()), h.deps);
+    expect(offerOf(result)).toEqual({
+      kind: "shield", reactorId: "tam", attackerId: "wolf", attack: "Bite", roll: { natural: 8, total: 12 }, armorClass: 10, shieldedArmorClass: 15, spell: "Shield", castLevel: 1, spends: "slot",
+    });
+    expect(result).toMatchObject({ applied: false });
+    expect(result.effects).toHaveLength(1);
+    expect(hpOf(stored(h), "tam")).toBe(20);
+    expect(combatantOf(stored(h), "wolf").action_used).not.toBe(true);
+    expect(stored(h).applied_command_ids).toEqual([]);
+    expect(h.posted).toEqual([]);
+    expect(h.slotWrites).toEqual([]);
+    expect(pendingOf(h)).toMatchObject({ answers: [], tape: [{ fn: "die", sides: 20, value: 8 }], answerBatchId: null, command: { type: "take_turn", instanceId: "wolf", playedMemberId: "pm-tam" } });
+  });
+
+  // "cast": the SAME d20 (8, from the tape: no die is scripted past it, so a fresh throw fails the test) now meets AC 15 and misses. The Reaction and one 1st-level slot
+  // are spent, the Shield condition (+5) is on Tam, no damage die is rolled, the pending Reaction is cleared and the batch id is recorded.
+  // Bugs caught: the replay rolling a new d20, the cast spending nothing or not written to the sheet, the pending left on the row.
+  it("fails if answering cast does not replay the same d20 as a miss, spending the Reaction and the slot and clearing the pending", async () => {
+    const h = at({ dieFaces: [8] });
+    await runBatch(batch("t1", wolfBites()), h.deps);
+    const result = await runBatch(batch("a1", answer("cast")), h.deps);
+    expect(result.applied).toBe(true);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { optionId: BITE_TAM } });
+    expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "attack", natural: 8, total: 12, targetAc: 15, hit: false, reaction: { by: "tam", spell: "Shield" } } });
+    expect(h.dieCalls).toBe(1);
+    expect(hpOf(stored(h), "tam")).toBe(20);
+    expect(combatantOf(stored(h), "tam").reactionUsed).toBe(true);
+    expect(combatantOf(stored(h), "tam").conditions.find((c) => c.name === "Shield")).toMatchObject({ grants: { ac: 5 }, ends: { kind: "turn", at: "start", of: "self" } });
+    expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 1, max: 2, used: 1 }] }]);
+    expect(pendingOf(h)).toBeNull();
+    expect(stored(h).applied_command_ids).toEqual(["a1"]);
+    expect(totals(h)).toEqual([12]);
+  });
+
+  // "pass": the hit lands as it was rolled, with the damage dice an unpaused run throws: d20 8, then 1d6+2 with a 4 is 6 (20 -> 14), the Reaction and slot untouched.
+  // The reference is the same turn with a Shield-less Tam: its posted totals [12, 6] must be the replay's. Bug caught: a pass that casts anyway, or a replay whose dice differ from the first run's.
+  it("fails if answering pass changes the hit or the damage an unpaused turn would have dealt", async () => {
+    const h = at({ dieFaces: [8, 4] });
+    await runBatch(batch("t1", wolfBites()), h.deps);
+    const result = await runBatch(batch("a1", answer("pass")), h.deps);
+    expect(result.applied).toBe(true);
+    expect(hpOf(stored(h), "tam")).toBe(14);
+    expect(combatantOf(stored(h), "tam").reactionUsed).not.toBe(true);
+    expect(h.slotWrites).toEqual([]);
+    expect(pendingOf(h)).toBeNull();
+    const plain = at({ dieFaces: [8, 4], players: wizardTamSheets() });
+    await runBatch(batch("p1", wolfBites()), plain.deps);
+    expect(hpOf(stored(plain), "tam")).toBe(14);
+    expect(totals(h)).toEqual(totals(plain));
+    expect(totals(h)).toEqual([12, 6]);
+  });
+
+  // Not every hit is offered: a d20 of 14 totals 18, which +5 (15) does not turn, so the turn goes straight through (1d6+2 with a 3 is 5: 20 -> 15) and nothing waits.
+  // Bug caught: a card shown for a hit Shield could not save (the spell is only worth casting when it turns the hit, `reactionTurnsHit`).
+  it("fails if a hit Shield could not turn pauses the turn", async () => {
+    const h = at({ dieFaces: [14, 3] });
+    const result = await runBatch(batch("t1", wolfBites()), h.deps);
+    expect(offerOf(result)).toBeUndefined();
+    expect(result.applied).toBe(true);
+    expect(hpOf(stored(h), "tam")).toBe(15);
+    expect(pendingOf(h)).toBeNull();
+  });
+
+  // The conditions a creature the rules play meets bind the person's character too: the same d20 8 hits, and each of these leaves it a plain hit (5 + ... 1d6+2 with a 3 = 5: 15).
+  // Bugs caught: a card for a Reaction already spent, a Shield already up, a spell the sheet does not list, no slot left, a character at 0 hit points or Incapacitated.
+  it.each([
+    ["the Reaction is already used", { fight: tamFight({ reactionUsed: true }) }],
+    ["Shield is already up", { fight: tamFight({ conditions: [{ name: "Shield", grants: { ac: 5 }, source: { id: "tam", spell: "Shield" }, ends: { kind: "turn" as const, at: "start" as const, of: "self" as const } }] }), dieFaces: [14, 3] }],
+    ["the sheet does not list Shield", { players: wizardTamSheets() }],
+    ["no 1st-level slot is left", { players: tamShield(2) }],
+    ["Tam is Incapacitated", { fight: tamFight({ conditions: [{ name: "Incapacitated" }] }) }],
+    ["Tam is a bystander (no one the table plays)", { fight: tamFight({ bystander: true }) }],
+  ] as Array<[string, Parameters<typeof at>[0]]>)("fails if a card is offered when %s", async (_why, over) => {
+    const h = at({ dieFaces: [8, 3], ...over });
+    const result = await runBatch(batch("t1", wolfBites()), h.deps);
+    expect(offerOf(result)).toBeUndefined();
+    expect(result.applied).toBe(true);
+    expect(pendingOf(h)).toBeNull();
+    // 12 hits AC 10 (a plain hit of 5), or 18 hits AC 15 with Shield up: either way Tam lost 5.
+    expect(hpOf(stored(h), "tam")).toBe(15);
+  });
+
+  // A DM's own fight and every other command never ask: with no `playedMemberId` (take_turn) or a plain `resolve_attack`, Tam is no one's choice here (no stand-ins), so the same hit lands (20 -> 15).
+  // Bug caught: the person's Reaction asked in a fight with no one at an AI table, which would stop a DM's turn waiting for an answer nobody can give.
+  it("fails if a fight with no played member pauses for a Reaction", async () => {
+    for (const command of [takeTurn({ optionId: BITE_TAM }), attack({ attackerId: "wolf", targetId: "tam" })]) {
+      const h = at({ dieFaces: [8, 3], standIns: [] });
+      const result = await runBatch(batch("d1", command), h.deps);
+      expect(offerOf(result)).toBeUndefined();
+      expect(result.applied).toBe(true);
+      expect(hpOf(stored(h), "tam")).toBe(15);
+      expect(pendingOf(h)).toBeNull();
+    }
+  });
+
+  // A Multiattack of two Bites. First d20 8 pauses; "pass" lets that hit land (a 4: 6 damage, 20 -> 14) and the second swing (d20 9 = 13, a hit AC 10 Shield turns) asks AGAIN,
+  // because the Reaction is still unspent. Nothing is saved between: the row still holds 20 and the batch ids stay empty. The tape now holds all three dice and one answer.
+  // Bug caught: only the first moment of a turn asked about, or the answers not kept in order across pauses.
+  it("fails if a second hit after a declined Shield does not offer the card again", async () => {
+    const h = at({ sources: bothBites(), dieFaces: [8, 4, 9] });
+    const multi = takeTurn({ playedMemberId: "pm-tam", optionId: "attack:actions:Multiattack:tam" });
+    await runBatch(batch("t1", multi), h.deps);
+    const second = await runBatch(batch("a1", answer("pass")), h.deps);
+    expect(offerOf(second)).toMatchObject({ kind: "shield", roll: { natural: 9, total: 13 } });
+    expect(second.applied).toBe(false);
+    expect(hpOf(stored(h), "tam")).toBe(20);
+    expect(stored(h).applied_command_ids).toEqual([]);
+    expect(pendingOf(h)).toMatchObject({ answers: ["pass"], answerBatchId: "a1", tape: [{ value: 8 }, { value: 4 }, { value: 9 }] });
+    // Casting at the second moment: the first hit still lands as passed (20 -> 14), the second is a miss, one slot is spent.
+    const done = await runBatch(batch("a2", answer("cast")), h.deps);
+    expect(done.applied).toBe(true);
+    expect(hpOf(stored(h), "tam")).toBe(14);
+    expect(combatantOf(stored(h), "tam").reactionUsed).toBe(true);
+    expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 1, max: 2, used: 1 }] }]);
+    expect(h.dieCalls).toBe(3);
+  });
+
+  // After "cast" the Reaction is spent and Shield is up: the second swing (a fresh d20 12 = 16) meets AC 15 and hits (a 4: 6 damage, 20 -> 14) with no second card.
+  // Bug caught: a card offered for a Reaction the person just spent (Shield again on top of Shield).
+  it("fails if the card is offered again after the person cast Shield", async () => {
+    const h = at({ sources: bothBites(), dieFaces: [8, 12, 4] });
+    await runBatch(batch("t1", takeTurn({ playedMemberId: "pm-tam", optionId: "attack:actions:Multiattack:tam" })), h.deps);
+    const done = await runBatch(batch("a1", answer("cast")), h.deps);
+    expect(offerOf(done)).toBeUndefined();
+    expect(done.applied).toBe(true);
+    expect(hpOf(stored(h), "tam")).toBe(14);
+    expect(pendingOf(h)).toBeNull();
+  });
+
+  describe("while the fight waits", () => {
+    const waiting = async (over: Parameters<typeof at>[0] = {}) => {
+      const h = at({ dieFaces: [8, 4], ...over });
+      await runBatch(batch("t1", wolfBites()), h.deps);
+      return h;
+    };
+
+    // The page reloads and sends the same turn again: it is answered with the same card, without running anything (no die, no save).
+    // Bug caught: a second turn played over the first, or a reload that loses the card.
+    it("fails if the same creature's take_turn is not answered with the waiting offer, unplayed", async () => {
+      const h = await waiting();
+      const saves = h.saves;
+      const again = await runBatch(batch("t2", wolfBites()), h.deps);
+      expect(offerOf(again)).toMatchObject({ kind: "shield", roll: { natural: 8, total: 12 } });
+      expect(again.applied).toBe(false);
+      expect(h.saves).toBe(saves);
+      expect(h.dieCalls).toBe(1);
+    });
+
+    // Anything else would change the fight the replay starts from. Bug caught: a DM command applied under a waiting turn, a take_turn of another creature played beside it.
+    it("fails if another command or creature's turn is accepted, or the refusal does not name who is waited for", async () => {
+      const h = await waiting();
+      await expect(runBatch(batch("x1", { type: "adjust_hp", instanceId: "wolf", delta: -1 }), h.deps)).rejects.toMatchObject({ status: 409, message: "The fight is waiting for tam's reaction." });
+      await expect(runBatch(batch("x2", takeTurn({ instanceId: "tam", playedMemberId: "pm-tam" })), h.deps)).rejects.toMatchObject({ status: 409 });
+      await expect(runBatch(batch("x3", { type: "go_live", sessionId: null }), h.deps)).rejects.toMatchObject({ status: 409 });
+      expect(hpOf(stored(h), "wolf")).toBe(11);
+    });
+
+    // The runner syncs whenever a sheet rings: answered, not applied (no save), as a sync that finds nothing to change is.
+    it("fails if a party sync under a waiting turn is applied or refused", async () => {
+      const h = await waiting();
+      const saves = h.saves;
+      const result = await runBatch(batch("s1", { type: "sync_party" }), h.deps);
+      expect(result.applied).toBe(false);
+      expect(h.saves).toBe(saves);
+      expect(pendingOf(h)).not.toBeNull();
+    });
+
+    // End combat and Abandon clear the pending Reaction (it belongs to a fight that is over); both are saved with the column null.
+    // Bug caught: a closed fight that keeps a card nobody can answer.
+    it.each([["end_combat"], ["abandon"]])("fails if %s leaves the waiting Reaction on the row", async (type) => {
+      const h = await waiting();
+      const result = await runBatch(batch("e1", { type } as CommandRequest["commands"][number]), h.deps);
+      expect(result.applied).toBe(true);
+      expect(stored(h).ended_at).not.toBeNull();
+      expect(pendingOf(h)).toBeNull();
+    });
+
+    // A retried send of the answer that made this pause (a lost reply) shows the card again; it must not take the same word for the NEXT moment.
+    // Bug caught: the retried "pass" consumed twice, deciding the second Shield too without the person.
+    it("fails if a retried answer that paused again answers the next moment as well", async () => {
+      const h = at({ sources: bothBites(), dieFaces: [8, 4, 9] });
+      await runBatch(batch("t1", takeTurn({ playedMemberId: "pm-tam", optionId: "attack:actions:Multiattack:tam" })), h.deps);
+      await runBatch(batch("a1", answer("pass")), h.deps);
+      const retry = await runBatch(batch("a1", answer("pass")), h.deps);
+      expect(offerOf(retry)).toMatchObject({ roll: { natural: 9 } });
+      expect(pendingOf(h)).toMatchObject({ answers: ["pass"] });
+      expect(hpOf(stored(h), "tam")).toBe(20);
+    });
+
+    // A pause is a save like any other: another writer's change between the load and the save makes it load again and pause on the fresh fight (the wolf at 9 hit points).
+    it("fails if a lost race on the pausing save drops the pause or keeps the stale fight", async () => {
+      const h = at({ dieFaces: [8, 8] });
+      h.rival.run = rivalEdit(h, (r) => {
+        r.combatants_live = r.combatants_live.map((c) => (c.instance_id === "wolf" ? { ...c, hp: 9 } : c));
+      });
+      const result = await runBatch(batch("t1", wolfBites()), h.deps);
+      expect(offerOf(result)).toBeDefined();
+      expect(hpOf(stored(h), "wolf")).toBe(9);
+      expect(pendingOf(h)).not.toBeNull();
+    });
+  });
+
+  // With nothing waiting an answer is refused, and a malformed one never reaches the fight.
+  // Bugs caught: an answer applied to a fight that asked nothing, a "maybe" taken for a choice, an answer sent beside other commands.
+  it("fails if an answer with nothing pending is accepted, or a malformed answer passes validation", async () => {
+    const h = at();
+    await expect(runBatch(batch("n1", answer("cast")), h.deps)).rejects.toMatchObject({ status: 409, message: "Nothing is waiting for a reaction." });
+    expect(h.saves).toBe(0);
+    expect(() => validateRequest(batch("v", answer("cast")))).not.toThrow();
+    expect(() => validateRequest(batch("v", answer("pass")))).not.toThrow();
+    for (const bad of ["maybe", undefined, 1, null, "CAST"]) expect(() => validateRequest(batch("v", answer(bad)))).toThrow(FightCommandError);
+    expect(() => validateRequest(batch("v", { type: "next_turn" }, answer("cast")))).toThrow(FightCommandError);
+  });
+
+  // The column is jsonb, so what is read back is checked: something that is not a pending reaction this code wrote refuses every command with a 409 that says so,
+  // except End combat (which clears it). Bug caught: a half-readable pending replayed as a turn, or one that locks the fight for good.
+  it("fails if a malformed pending is replayed, or cannot be cleared by End combat", async () => {
+    const h = at();
+    h.store.row = { ...h.store.row!, pending_reaction: { command: { type: "next_turn" }, answers: ["cast"] } as never };
+    await expect(runBatch(batch("m1", wolfBites()), h.deps)).rejects.toMatchObject({ status: 409, message: expect.stringMatching(/could not be read/) });
+    await expect(runBatch(batch("m2", answer("cast")), h.deps)).rejects.toMatchObject({ status: 409 });
+    await runBatch(batch("m3", { type: "end_combat" }), h.deps);
+    expect(pendingOf(h)).toBeNull();
+  });
+
+  // A turn the note judged: the judge is asked once (321 input tokens) in the paused run and its answer rides the tape, so the answer's replay does not ask again.
+  // The cost row is written once, after the save that commits the turn, and never for the pause.
+  // Bugs caught: a note answer bought twice (the replay asking again), billed at the pause, or billed twice (once for the pause's call, once for the tape).
+  it("fails if the replay asks the judge again, or a taped judgment is billed at the pause or twice", async () => {
+    const noted = { monsters: [monster("m-wolf", { tactics: { note: "Never leaves its square." } }), monster("m-ox")], npcs: [], companions: [] } as StatBlockSources;
+    const h = at({ sources: noted, dieFaces: [8, 4], judge: noteSays(() => 0.1) });
+    await runBatch(batch("t1", takeTurn({ playedMemberId: "pm-tam" })), h.deps);
+    expect(pendingOf(h)).not.toBeNull();
+    expect(h.noteAsks).toHaveLength(1);
+    expect(h.noteCosts).toEqual([]);
+    await runBatch(batch("a1", answer("pass")), h.deps);
+    expect(h.noteAsks).toHaveLength(1);
+    expect(h.noteCosts).toEqual([{ inputTokens: 321, savesBefore: 2 }]);
+  });
+
+  describe("Counterspell", () => {
+    // PHB 2014 "Counterspell": the mage (hostile to Tam) casts Fireball (3rd level) at her, 15 ft from the mage. Tam has Counterspell and two 3rd-level slots: a slot of the spell's level, so no check.
+    const mageSources = (): StatBlockSources => ({ ...SOURCES, monsters: [...SOURCES.monsters, { id: "m-mage", name: "Mage", stat_block: mageBlock() } as unknown as Monster] });
+    const tamCounter = () => wizardTamSheets({ spells: [grant("Counterspell", 3)] });
+    const mage = (extra: RunCombatant[] = []) =>
+      row({
+        combatants_live: [
+          combatant("mage", { monster_id: "m-mage", faction_id: "m", hp: 40, max_hp: 40, initiative: 12, position: { x: 1, y: 1 } }),
+          pc("tam", { faction_id: "p", hp: 20, max_hp: 20, initiative: 8, position: { x: 4, y: 1 } }),
+          ...extra,
+        ],
+      });
+    const BALL_AT_TAM = "spell:Fireball:3:tam";
+    const mageCasts = () => takeTurn({ instanceId: "mage", playedMemberId: "pm-tam", optionId: BALL_AT_TAM });
+    const withTam = (fight: FightRow, dieFaces: number[], ruleset: "2014" | "2024" = "2014") =>
+      harness(fight, { sources: mageSources(), players: tamCounter(), map: mapOf(), ruleset, spells: [counterspell({ ruleset }), fireball({ ruleset })], dieFaces });
+    const countLine = (result: { effects: Array<{ type: string }> }) => (result.effects.find((e) => e.type === "resolved" && (e as unknown as { resolved: { kind: string } }).resolved.kind === "countered") as unknown as { resolved: Record<string, unknown> } | undefined)?.resolved;
+
+    // The offer names the spell and its level, and what the counter would cost; the turn stopped before anything was spent (Fireball's slot included: the mage has no slot spent).
+    // "cast": the spell is stopped, Tam's Reaction is spent and one 3rd-level slot is written to her sheet. No die is thrown at all.
+    // Bugs caught: the cast resolving anyway, the counter's slot never written, the caster paying nothing.
+    it("fails if the played mage is not asked, or a cast does not stop the Fireball and write her slot", async () => {
+      const h = withTam(mage(), []);
+      const paused = await runBatch(batch("c1", mageCasts()), h.deps);
+      expect(offerOf(paused)).toEqual({ kind: "counterspell", reactorId: "tam", casterId: "mage", spell: "Fireball", spellLevel: 3, counterSpell: "Counterspell", castLevel: 3, spends: "slot" });
+      expect(hpOf(stored(h), "tam")).toBe(20);
+      expect(combatantOf(stored(h), "mage").action_used).not.toBe(true);
+      const done = await runBatch(batch("c2", answer("cast")), h.deps);
+      expect(countLine(done)).toMatchObject({ kind: "countered", counterId: "tam", stopped: true });
+      expect(hpOf(stored(h), "tam")).toBe(20);
+      expect(combatantOf(stored(h), "tam").reactionUsed).toBe(true);
+      expect(combatantOf(stored(h), "mage").action_used).toBe(true);
+      expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 3, max: 2, used: 1 }] }]);
+      expect(h.dieCalls).toBe(0);
+    });
+
+    // "pass" with no one else to counter: the Fireball resolves (Tam's save 1 fails DC 14, 8d6 of ones: 20 -> 12) and she keeps her Reaction and slot.
+    // Bug caught: a pass that counters anyway.
+    it("fails if passing on Counterspell still counters, or spends her slot", async () => {
+      const h = withTam(mage(), [1, 1, 1, 1, 1, 1, 1, 1, 1]);
+      await runBatch(batch("c1", mageCasts()), h.deps);
+      await runBatch(batch("c2", answer("pass")), h.deps);
+      expect(hpOf(stored(h), "tam")).toBe(12);
+      expect(combatantOf(stored(h), "tam").reactionUsed).not.toBe(true);
+      expect(h.slotWrites).toEqual([]);
+    });
+
+    // The person is asked BEFORE the rules' creatures, even one nearer to the caster: a warden (hostile to the mage, 5 ft away) would counter first on distance alone, yet Tam (25 ft) is asked.
+    // The warden stands more than the blast's 20 ft from Tam, so the Fireball at her is still a turn on offer.
+    // "pass" falls through to the warden, who counters (3rd-level slot, Reaction); "cast" leaves the warden's Reaction alone.
+    // Bugs caught: the rules' counterer answering ahead of the person, a pass that ends the chain so nobody counters.
+    it("fails if a nearer creature the rules play counters before the person is asked, or a pass ends the chain", async () => {
+      const warden = combatant("warden", { monster_id: "m-mage", faction_id: "p", hp: 40, max_hp: 40, initiative: 3, position: { x: 1, y: 2 } });
+      const far = (r: FightRow): FightRow => ({ ...r, combatants_live: r.combatants_live.map((c) => (c.instance_id === "tam" ? { ...c, position: { x: 6, y: 1 } } : c)) });
+      const passed = withTam(far(mage([warden])), []);
+      const asked = await runBatch(batch("w1", mageCasts()), passed.deps);
+      expect(offerOf(asked)).toMatchObject({ kind: "counterspell", reactorId: "tam" });
+      expect(combatantOf(stored(passed), "warden").reactionUsed).not.toBe(true);
+      const after = await runBatch(batch("w2", answer("pass")), passed.deps);
+      expect(countLine(after)).toMatchObject({ counterId: "warden", stopped: true });
+      expect(combatantOf(stored(passed), "warden").reactionUsed).toBe(true);
+      expect(combatantOf(stored(passed), "tam").reactionUsed).not.toBe(true);
+      const cast = withTam(far(mage([warden])), []);
+      await runBatch(batch("w3", mageCasts()), cast.deps);
+      const counted = await runBatch(batch("w4", answer("cast")), cast.deps);
+      expect(countLine(counted)).toMatchObject({ counterId: "tam" });
+      expect(combatantOf(stored(cast), "warden").reactionUsed).not.toBe(true);
+    });
+
+    // A creature that is no foe of the caster is never offered a Counterspell: Tam on the mage's own side (a different faction would make her hostile; the same one does not).
+    // Bug caught: a card to counter an ally's spell.
+    it("fails if Tam is asked to counter a spell cast by her own side", async () => {
+      const fight = row({
+        combatants_live: [
+          combatant("mage", { monster_id: "m-mage", faction_id: "p", hp: 40, max_hp: 40, initiative: 12, position: { x: 1, y: 1 } }),
+          pc("tam", { faction_id: "p", hp: 20, max_hp: 20, initiative: 8, position: { x: 4, y: 1 } }),
+          combatant("ox", { monster_id: "m-ox", faction_id: "m", hp: 40, max_hp: 40, ac: "13", initiative: 3, position: { x: 1, y: 3 } }),
+        ],
+      });
+      const h = withTam(fight, [5, 1, 1, 1, 1, 1, 1, 1, 1]);
+      const result = await runBatch(batch("o1", takeTurn({ instanceId: "mage", playedMemberId: "pm-tam", optionId: "spell:Fireball:3:ox" })), h.deps);
+      expect(offerOf(result)).toBeUndefined();
+      expect(result.applied).toBe(true);
+    });
+
+    // PHB 2024 "Counterspell": the caster makes a Constitution save against Tam's spell save DC 14 (Int 16 +3, proficiency +3, 8 + 6). The offer carries the save, not a check.
+    // The mage's Con 11 is +0: a d20 of 13 fails, the spell is stopped. The save is rolled by the server after the answer (nothing was on the tape), and Tam pays her Reaction and slot.
+    // Bugs caught: the 2014 check described for a 2024 table, the save rolled with the wrong DC or not at all.
+    it("fails if a 2024 Counterspell offer does not carry the save, or a failed save does not stop the spell", async () => {
+      const h = withTam(mage(), [13], "2024");
+      const paused = await runBatch(batch("s1", mageCasts()), h.deps);
+      expect(offerOf(paused)).toEqual({ kind: "counterspell", reactorId: "tam", casterId: "mage", spell: "Fireball", spellLevel: 3, counterSpell: "Counterspell", castLevel: 3, spends: "slot", save: { dc: 14 } });
+      const done = await runBatch(batch("s2", answer("cast")), h.deps);
+      expect(countLine(done)).toMatchObject({ save: { total: 13, dc: 14 }, stopped: true });
+      expect(hpOf(stored(h), "tam")).toBe(20);
+      expect(combatantOf(stored(h), "tam").reactionUsed).toBe(true);
+      expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 3, max: 2, used: 1 }] }]);
+    });
   });
 });

@@ -95,7 +95,12 @@ export interface ResolutionContext {
    * the spell's name and the new armour class; null for no reaction. Absent in the DM's browser (the DM decides at the table) and in the
    * solo table: nothing is cast there.
    */
-  reactToHit?(target: RunCombatant, roll: { natural: number; total: number; armorClass: number }): Promise<{ spell: string; armorClass: number } | null>;
+  reactToHit?(
+    target: RunCombatant,
+    roll: { natural: number; total: number; armorClass: number },
+    /** Who struck and with which attack, by name: a Reaction the person chooses is shown them with it (#1021 "React card"). */
+    by: { attackerId: string; attack: string },
+  ): Promise<{ spell: string; armorClass: number } | null>;
 }
 
 /** The action cannot be resolved as asked: nothing to roll, a creature the server has no data for. The server answers it with a 400. */

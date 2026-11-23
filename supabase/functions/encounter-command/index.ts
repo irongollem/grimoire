@@ -111,7 +111,7 @@ serve(withCors(async (req: Request) => {
       async loadFight(encounterId) {
         const { data, error } = await admin
           .from("encounter_state")
-          .select("id, version, combatants_live, current_round, active_combatant_index, events_fired, lair_fired_rounds, applied_command_ids, is_running, ended_at, started_at")
+          .select("id, version, combatants_live, current_round, active_combatant_index, events_fired, lair_fired_rounds, applied_command_ids, is_running, ended_at, started_at, pending_reaction")
           .eq("encounter_id", encounterId)
           .eq("campaign_id", campaignId)
           .maybeSingle();

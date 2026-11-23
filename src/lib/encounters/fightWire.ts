@@ -6,6 +6,7 @@
 import { supabase } from "@/lib/supabase";
 import type { FightCommand } from "@/rules/fight/fightCommands";
 import type { FightEffect } from "@/rules/fight/fightState";
+import type { ReactionAnswer } from "@/rules/fight/reactionOffer";
 import type { EncounterState, RunCombatant } from "@/types/encounter.types";
 import type { ConfirmedFight, ObservedRow } from "./fightSync";
 
@@ -19,7 +20,9 @@ export type FightLifecycleCommand =
   | { type: "abandon" }
   /** Asks the server to play a creature's turn (#1203). Never ends the turn; the creature need not be the active one. */
   | { type: "take_turn"; instanceId: string; optionId?: string; playedMemberId?: string }
-  | { type: "provoke"; moverId: string; path: Array<{ x: number; y: number }> };
+  | { type: "provoke"; moverId: string; path: Array<{ x: number; y: number }> }
+  /** The person's answer to a `reaction_offered`; sent alone, it replays the paused turn with the answer (#1021). */
+  | { type: "answer_reaction"; answer: ReactionAnswer };
 
 /** Everything the function accepts in `commands`: a batch of fight commands, or one of these sent alone. */
 export type WireCommand = FightCommand | FightLifecycleCommand | { type: "sync_party" };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ResolvedAction, TurnTaken } from "@/rules/fight/fightState";
-import { linesOfAttacks, linesOfCreatureTurn } from "./boardLines";
+import type { CounterspellOffer, ShieldOffer } from "@/rules/fight/reactionOffer";
+import { linesOfAttacks, linesOfCreatureTurn, linesOfReaction } from "./boardLines";
 
 const names: Record<string, string> = { orc: "Orc", me: "Mira", wolf: "Wolf" };
 const nameOf = (id: string) => names[id];
@@ -160,5 +161,26 @@ describe("advantage and disadvantage in the story", () => {
       const moved = run({ feetMoved: 30, turn: turn({ kind: "death_save", deathSave: { d20: 5, label: "a failure", status: "dying" } }) });
       expect(moved).toHaveLength(1);
     });
+  });
+});
+
+describe("linesOfReaction", () => {
+  const shield: ShieldOffer = { kind: "shield", reactorId: "me", attackerId: "orc", attack: "Greataxe", roll: { natural: 14, total: 19 }, armorClass: 16, shieldedArmorClass: 21, spell: "Shield", castLevel: 1, spends: "slot" };
+  const counter: CounterspellOffer = { kind: "counterspell", reactorId: "me", casterId: "orc", spell: "Fireball", spellLevel: 3, counterSpell: "Counterspell", castLevel: 3, spends: "slot" };
+
+  // Bug caught: the shield line quoting the unshielded armour class (or the attacker) instead of the new number the person bought.
+  it("says a cast Shield with the armour class it makes", () => {
+    expect(linesOfReaction(shield, "cast", nameOf)).toEqual([{ kind: "margin", text: "Mira casts Shield: armour class 21" }]);
+  });
+
+  // Bug caught: the counter line naming the reactor as the caster, so the margin says Mira counters Mira's spell.
+  it("says a cast Counterspell against the caster's spell", () => {
+    expect(linesOfReaction(counter, "cast", nameOf)).toEqual([{ kind: "margin", text: "Mira casts Counterspell at Orc's Fireball" }]);
+  });
+
+  // Bug caught: a declined reaction writing a "casts" line for a spell that was never cast.
+  it("writes nothing when the person passes", () => {
+    expect(linesOfReaction(shield, "pass", nameOf)).toEqual([]);
+    expect(linesOfReaction(counter, "pass", nameOf)).toEqual([]);
   });
 });
