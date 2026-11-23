@@ -240,6 +240,9 @@
       </div>
     </div>
 
+    <!-- The clues the canon placed in this item: a letter, a locket (#1258 item 30). DM only; a library item has no row. -->
+    <CanonHere v-if="!playerView && isUuid(item.id)" kind="item" :id="item.id" />
+
     <!-- Who carries it, who seeks it, whose relic it is (DM only; #1084). A library item has no row to tie to. -->
     <ConnectionsSection
       v-if="!playerView && isUuid(item.id)"
@@ -280,6 +283,7 @@ import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import WeaponMasteryBadge from "@/components/items/WeaponMasteryBadge.vue";
 import ItemDocumentSection from "@/components/items/ItemDocumentSection.vue";
 import { useLootTablesByItem } from "@/composables/dungeon-features/useLootTables";
+import CanonHere from "@/components/canon/CanonHere.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { useDmCampaigns } from "@/composables/campaign/useCampaigns";

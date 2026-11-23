@@ -14,11 +14,21 @@ export interface CanonArc {
   name: string;
   summary: string | null;
   sort_order: number;
+  /** Planned, running or ended (#1258); an ending is written only once it has ended. */
+  status: "planned" | "running" | "ended";
+  /** The dramatic question the arc asks, what is at stake, and how it ended. */
+  question: string | null;
+  stakes: string | null;
+  ending: string | null;
+  /** The premise theme line the arc carries. */
+  theme_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type CanonArcPatch = Partial<Pick<CanonArc, "name" | "summary" | "sort_order">>;
+export type CanonArcStatus = CanonArc["status"];
+
+export type CanonArcPatch = Partial<Pick<CanonArc, "name" | "summary" | "sort_order" | "status" | "question" | "stakes" | "ending" | "theme_id">>;
 
 /** The campaign's arcs in the DM's order, scoped in the query: RLS bounds who may read, it does not choose the campaign. */
 export async function fetchCanonArcs(campaignId: string): Promise<CanonArc[]> {

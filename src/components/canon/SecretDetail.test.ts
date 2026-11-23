@@ -4,9 +4,10 @@ import { ref } from "vue";
 import type { CanonClue, CanonEntry } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
 
-const mocks = vi.hoisted(() => ({ update: vi.fn(), updateAsync: vi.fn(), create: vi.fn(), toastError: vi.fn(), confirm: vi.fn(), setFound: vi.fn(), destroyClue: vi.fn(), connect: vi.fn() }));
+const mocks = vi.hoisted(() => ({ update: vi.fn(), updateAsync: vi.fn(), create: vi.fn(), toastError: vi.fn(), confirm: vi.fn(), setFound: vi.fn(), destroyClue: vi.fn(), connect: vi.fn(), createClue: vi.fn() }));
 const clues = ref<CanonClue[]>([]);
-const party = ref<{ id: string }[] | undefined>([]);
+const party = ref<{ id: string; name: string }[] | undefined>([]);
+const session = ref<{ id: string } | null>({ id: "sess1" });
 const passages = ref<{ id: string; entry_id: string; title: string }[]>([]);
 
 const entries = ref<CanonEntry[]>([]);
@@ -16,9 +17,10 @@ vi.mock("@/composables/canon/useCanonEntries", () => ({
   useCreateCanonEntry: () => ({ mutateAsync: mocks.create }),
   useCanonEntries: () => ({ data: entries }),
 }));
-vi.mock("@/composables/canon/useCanonClues", () => ({
+vi.mock("@/composables/canon/useCanonClues", async (importOriginal) => ({
+  cluePlacement: (await importOriginal<typeof import("@/composables/canon/useCanonClues")>()).cluePlacement,
   useCanonClues: () => ({ data: clues }),
-  useCreateCanonClue: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
+  useCreateCanonClue: () => ({ mutateAsync: mocks.createClue, isPending: ref(false) }),
   useUpdateCanonClue: () => ({ mutate: vi.fn() }),
   useDeleteCanonClue: () => ({ mutateAsync: mocks.destroyClue }),
   useSetClueFound: () => mocks.setFound,
@@ -26,6 +28,7 @@ vi.mock("@/composables/canon/useCanonClues", () => ({
 vi.mock("@/composables/connections/useConnections", () => ({ useCreateConnection: () => ({ mutateAsync: mocks.connect }) }));
 vi.mock("@/composables/canon/useClueWhere", () => ({ useClueWhere: () => ref(() => null), useBeatOptions: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/canon/useCanonPassages", () => ({ useCanonPassages: () => ({ data: passages }) }));
+vi.mock("@/composables/campaign/useCampaignSession", () => ({ useCampaignSession: () => ({ session }) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: party }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 
@@ -34,19 +37,21 @@ vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data
 import SecretDetail from "./SecretDetail.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
 import SecretOutlets from "./SecretOutlets.vue";
+import EntryStoryLinks from "./EntryStoryLinks.vue";
 
 const secret = (over: Partial<CanonEntry> = {}): CanonEntry => canonEntry({ id: "s1", part: "secret", title: "Sift is the guild master's daughter.", ...over });
 const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
   id: "k1", user_id: "u", campaign_id: "c", secret_id: "s1", title: "A locket", sort_order: 0, location_id: null, npc_id: null,
-  quest_beat_id: null, found_at: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
+  quest_beat_id: null, found_at: null, item_id: null, document_id: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
 });
 
-const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { ConnectionsSection: true, SecretOutlets: true, CanonEntryNotes: true, ClueForm: true, CanonSuggestions: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
+const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { EntryStoryLinks: true, CanonSuggestFold: { template: "<div><slot /></div>" }, ConnectionsSection: true, SecretOutlets: true, CanonEntryNotes: true, ClueForm: true, CanonSuggestions: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
 
 describe("SecretDetail", () => {
   beforeEach(() => {
     clues.value = [clue(), clue({ id: "k2", title: "A carving" })];
-    party.value = [{ id: "pm1" }, { id: "pm2" }];
+    party.value = [{ id: "pm1", name: "Mira" }, { id: "pm2", name: "Bram" }];
+    session.value = { id: "sess1" };
     passages.value = [];
     entries.value = [];
     Object.values(mocks).forEach((m) => m.mockReset());
@@ -92,6 +97,44 @@ describe("SecretDetail", () => {
     expect(call.id).toBe("s1");
     expect(call.patch.player_visible_to).toEqual(["pm1", "pm2"]);
     expect(Number.isNaN(Date.parse(call.patch.revealed_at))).toBe(false);
+    // Bug caught (#1258 item 23): a revealed secret never said which session it came out in.
+    expect(call.patch.revealed_session_id).toBe("sess1");
+  });
+
+  // Bug caught (#1258 item 23): "Reveal to…" shared the secret with the whole party, or stamped no session, or wrote
+  // before the DM chose anyone.
+  it("reveals to only the characters ticked under Reveal to…, and stamps the open session", async () => {
+    const w = mountDetail(secret());
+    await w.get("[data-testid=reveal-some]").trigger("click");
+    expect(mocks.update).not.toHaveBeenCalled();
+    await w.get("[data-testid=tell-some-pm2]").setValue(true);
+    await w.get("[data-testid=tell-some-confirm]").trigger("click");
+    await flushPromises();
+    expect(mocks.update).toHaveBeenCalledTimes(1);
+    const { id, patch } = mocks.update.mock.calls[0][0];
+    expect(id).toBe("s1");
+    expect(patch.player_visible_to).toEqual(["pm2"]);
+    expect(patch.revealed_session_id).toBe("sess1");
+    expect(Number.isNaN(Date.parse(patch.revealed_at))).toBe(false);
+  });
+
+  // Bug caught: cancelling the picker still revealed the secret.
+  it("reveals nothing when the DM cancels the picker", async () => {
+    const w = mountDetail(secret());
+    await w.get("[data-testid=reveal-some]").trigger("click");
+    await w.get("[data-testid=tell-some-cancel]").trigger("click");
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(w.find("[data-testid=tell-some]").exists()).toBe(false);
+  });
+
+  // Bug caught: Reveal to… offered on a secret already revealed, so a second reveal could overwrite who reads it.
+  it("offers Reveal to… only while the secret is hidden", () => {
+    expect(mountDetail(secret({ revealed_at: "2026-11-02T20:00:00Z" })).find("[data-testid=reveal-some]").exists()).toBe(false);
+  });
+
+  // Bug caught (#1258 item 18, mounted here by item 23): the cause-and-effect block was handed no entry, or another one.
+  it("mounts the story links for this secret", () => {
+    expect(mountDetail(secret()).getComponent(EntryStoryLinks).props("entry")).toMatchObject({ id: "s1" });
   });
 
   // Bug caught (#1258 item 13): Hide again on a secret that became a truth hid it silently, leaving the truth known to all
@@ -106,7 +149,7 @@ describe("SecretDetail", () => {
     mocks.confirm.mockResolvedValue(true);
     await w.get("[data-testid=hide]").trigger("click");
     await flushPromises();
-    expect(mocks.update).toHaveBeenCalledWith({ id: "s1", patch: { revealed_at: null } });
+    expect(mocks.update).toHaveBeenCalledWith({ id: "s1", patch: { revealed_at: null, revealed_session_id: null } });
   });
 
   // Bug caught: the question was asked of every secret, so hiding one that never became a truth needed a pointless confirm.
@@ -115,14 +158,14 @@ describe("SecretDetail", () => {
     await w.get("[data-testid=hide]").trigger("click");
     await flushPromises();
     expect(mocks.confirm).not.toHaveBeenCalled();
-    expect(mocks.update).toHaveBeenCalledWith({ id: "s1", patch: { revealed_at: null } });
+    expect(mocks.update).toHaveBeenCalledWith({ id: "s1", patch: { revealed_at: null, revealed_session_id: null } });
   });
 
   it("offers Hide again, not Reveal, once revealed, and clears revealed_at", async () => {
     const w = mountDetail(secret({ revealed_at: "2026-11-02T20:00:00Z" }));
     expect(w.find("[data-testid=reveal]").exists()).toBe(false);
     await w.find("[data-testid=hide]").trigger("click");
-    expect(mocks.update).toHaveBeenCalledWith({ id: "s1", patch: { revealed_at: null } });
+    expect(mocks.update).toHaveBeenCalledWith({ id: "s1", patch: { revealed_at: null, revealed_session_id: null } });
   });
 
   it("shows partly known with the tally once a clue is found", () => {
@@ -130,6 +173,18 @@ describe("SecretDetail", () => {
     const w = mountDetail(secret());
     expect(w.find("[data-testid=secret-state]").text()).toContain("Partly known");
     expect(w.text()).toContain("1 of 2 clues found");
+  });
+
+  it("puts a clue placed in an item in the item's column", async () => {
+    // Bug: every kind but a place or a person fell into quest_beat_id, so a clue in a letter pointed at a beat that
+    // does not exist (#1258 item 30).
+    const w = mountDetail(secret());
+    (w.vm as unknown as { adding: boolean }).adding = true;
+    await w.vm.$nextTick();
+    w.findComponent({ name: "ClueForm" }).vm.$emit("submit", { title: "A receipt", where: { kind: "item", id: "item-1" } });
+    await flushPromises();
+    expect(mocks.createClue).toHaveBeenCalledWith(expect.objectContaining({ item_id: "item-1" }));
+    expect(mocks.createClue.mock.calls[0]![0]).not.toHaveProperty("quest_beat_id");
   });
 
   it("ticks a clue through the shared Found tick", async () => {

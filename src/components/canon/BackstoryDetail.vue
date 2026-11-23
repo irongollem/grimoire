@@ -46,6 +46,8 @@
 
       <EntryQuests :entry="entry" :links="questLinks" label="The quests that pay it off" empty="No quest pays this off yet." />
 
+      <EntryStoryLinks :entry="entry" />
+
       <BackstoryPeople :member="member" :entry="entry" />
 
       <div data-testid="backstory-things">
@@ -76,6 +78,7 @@ import BackstoryPeople from "./BackstoryPeople.vue";
 import BackstoryThreads from "./BackstoryThreads.vue";
 import EntryArcPicker from "./EntryArcPicker.vue";
 import EntryQuests from "./EntryQuests.vue";
+import EntryStoryLinks from "./EntryStoryLinks.vue";
 import LorePassageRow from "./LorePassageRow.vue";
 import { isPlayersPassage, passageByline } from "@/lib/canon/canonBackstory";
 import { useBackstoryEntry } from "@/composables/canon/useBackstory";
@@ -99,12 +102,12 @@ const untold = computed(() => passages.value.filter((p) => p.told_at === null).l
 const { data: sessions } = useCampaignSessions();
 
 // The entry's own block is for places and things. The people are listed above it (BackstoryPeople), so an `about` tie to
-// a person is left out here, and so is a thread (BackstoryThreads lists those, open or paid off): each is shown once.
+// a person is left out here, and so is a thread (BackstoryThreads lists those, open or paid off): each is shown once. `led_to` and `carries` are EntryStoryLinks'.
 const { data: canonEntries } = useCanonEntries();
 const { data: links } = useCampaignLinks();
 const threadIds = computed(() => new Set(allThreads(entry.value?.id ?? "", canonEntries.value ?? [], links.value ?? []).map((t) => t.id)));
 function isShownAbove(c: Connection): boolean {
-  return (c.type === "about" && c.other_kind === "npc") || isThreadTie(c, threadIds.value);
+  return (c.type === "about" && c.other_kind === "npc") || isThreadTie(c, threadIds.value) || (c.source === "link" && (c.type === "led_to" || c.type === "carries"));
 }
 
 function setAudience(next: string[]) {

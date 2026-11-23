@@ -3,65 +3,81 @@
     <template #actions>
       <AppButton to="/canon/tonight" variant="ghost" size="md" :icon="IconMoon" label="Tonight" />
       <AppButton to="/canon/import" variant="outline" size="md" :icon="IconUpload" label="Bring in a book" />
+      <CanonAiTools />
     </template>
     <!-- The header holds these from a tablet up; a phone's header is the page's own bar, so they sit under the title where a thumb finds them. -->
-    <div class="mb-4 flex gap-2 md:hidden" data-testid="canon-phone-actions">
+    <div class="mb-4 flex flex-wrap items-start gap-2 md:hidden" data-testid="canon-phone-actions">
       <AppButton to="/canon/tonight" variant="outline" size="sm" :icon="IconMoon" label="Tonight" />
       <AppButton to="/canon/import" variant="outline" size="sm" :icon="IconUpload" label="Bring in a book" />
+      <CanonAiTools />
     </div>
+
+    <!-- One search for the whole page: while a query is set its results stand in place of the part. -->
+    <div id="canon-page-top" class="mb-4 flex max-w-3xl items-center gap-2">
+      <AppInput v-model="ui.query" type="search" tone="filled" size="body" class="flex-1" placeholder="Search the whole canon…" aria-label="Search the whole canon" />
+      <AppButton v-if="searching" variant="ghost" size="sm" label="Clear" data-testid="search-clear" @click="ui.query = ''" />
+    </div>
+
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
       <CanonContents class="sticky top-0 z-10 lg:z-auto lg:shrink-0" :active="active" :counts="counts" @select="goTo" />
 
       <div
-        class="@container flex min-w-0 flex-1 flex-col gap-8 max-lg:[&_#canon-inline-detail]:scroll-mt-16 max-lg:[&_section]:scroll-mt-16"
+        class="@container flex min-w-0 flex-1 flex-col gap-8 max-lg:[&_#canon-inline-detail]:scroll-mt-16"
         :class="splitOpen ? 'max-w-5xl [&>:not([data-split-open])]:max-w-3xl' : 'max-w-3xl'"
       >
         <ListSkeleton v-if="isLoading || campaign === null" variant="rows" :count="4" />
         <p v-else-if="isError" role="alert" class="text-body text-destructive">Could not load the canon.</p>
         <template v-else>
-          <CanonArcs />
-          <CanonStart :counts="startCounts" :has-pitch="hasPitch" @go="goTo" />
-          <PremiseSection :campaign="campaign" :entries="entries" />
-          <TruthsSection :truths="shownTruths" :arc-label="arcLabel" :selected-id="selected?.id ?? null" @select="select" />
-          <!-- Below a desktop there is no side column: the selected truth opens under its part. -->
-          <div v-if="selectedTruth && !wide" id="canon-inline-detail">
-            <TruthDetail :key="selectedTruth.id" :entry="selectedTruth" @delete="removeSelected" />
-          </div>
-          <CanonSplit close-label="Close this force" @close="closeEntry">
-            <ForcesSection :forces="shownForces" :arc-label="arcLabel" :selected-id="selectedForce?.id ?? null" @select="select" />
-            <template v-if="selectedForce" #detail>
-              <ForceDetail :key="selectedForce.id" :entry="selectedForce" @delete="removeSelected" />
+          <CanonArcs v-if="searching || ARC_NARROWED_SECTIONS.includes(active)" />
+          <CanonSearchResults v-if="searching" :groups="hitGroups" :query="ui.query" @open="ui.query = ''" />
+          <template v-else>
+            <template v-if="active === 'premise'">
+              <CanonStart :counts="startCounts" :has-pitch="hasPitch" @go="goTo" />
+              <PremiseSection :campaign="campaign" :entries="entries" />
             </template>
-          </CanonSplit>
-          <SecretsSection :secrets="shownSecrets" :questions="shownQuestions" :arc-label="arcLabel" :selected-id="selectedSecret?.id ?? null" @select="select">
-            <!-- In the part's slot, so it opens under the ledger and not past the open questions. -->
-            <div v-if="selectedSecret && !wide" id="canon-inline-detail">
-              <SecretDetail :key="selectedSecret.id" :entry="selectedSecret" @delete="removeSelected" />
-            </div>
-          </SecretsSection>
-          <WorldWorksSection />
-          <LifeSection />
-          <CanonSplit close-label="Close this lore entry" @close="closeEntry">
-            <LoreSection :lore="shownLore" :arc-label="arcLabel" :selected-id="selectedLore?.id ?? null" @select="select" />
-            <template v-if="selectedLore" #detail>
-              <LoreDetail :key="selectedLore.id" :entry="selectedLore" @delete="removeSelected" />
+            <template v-else-if="active === 'truths'">
+              <TruthsSection :truths="shownTruths" :arc-label="arcLabel" :selected-id="selected?.id ?? null" @select="select" />
+              <!-- Below a desktop there is no side column: the selected truth opens under its part. -->
+              <div v-if="selectedTruth && !wide" id="canon-inline-detail">
+                <TruthDetail :key="selectedTruth.id" :entry="selectedTruth" @delete="removeSelected" />
+              </div>
             </template>
-          </CanonSplit>
-          <CanonSplit close-label="Close this backstory" @close="closeEntry">
-            <BackstoriesSection :party="party" :entries="backstories" :passages="allPassages ?? []" :selected-id="selectedBackstoryMember?.id ?? null" @select="selectBackstory" />
-            <template v-if="selectedBackstoryMember" #detail>
-              <BackstoryDetail :key="selectedBackstoryMember.id" :member="selectedBackstoryMember" />
-            </template>
-          </CanonSplit>
-          <ChronicleSection :lore="lore" :forces="forces" />
-          <TableAddedSection :truths="truths" />
-          <CanonDeleted />
+            <CanonSplit v-else-if="active === 'moving'" close-label="Close this force" @close="closeEntry">
+              <ForcesSection :forces="shownForces" :arc-label="arcLabel" :selected-id="selectedForce?.id ?? null" @select="select" />
+              <template v-if="selectedForce" #detail>
+                <ForceDetail :key="selectedForce.id" :entry="selectedForce" @delete="removeSelected" />
+              </template>
+            </CanonSplit>
+            <SecretsSection v-else-if="active === 'secrets'" :secrets="shownSecrets" :questions="shownQuestions" :arc-label="arcLabel" :selected-id="selectedSecret?.id ?? null" @select="select">
+              <!-- In the part's slot, so it opens under the ledger and not past the open questions. -->
+              <div v-if="selectedSecret && !wide" id="canon-inline-detail">
+                <SecretDetail :key="selectedSecret.id" :entry="selectedSecret" @delete="removeSelected" />
+              </div>
+            </SecretsSection>
+            <WorldWorksSection v-else-if="active === 'world'" />
+            <LifeSection v-else-if="active === 'life'" />
+            <CanonSplit v-else-if="active === 'lore'" close-label="Close this lore entry" @close="closeEntry">
+              <LoreSection :lore="shownLore" :arc-label="arcLabel" :selected-id="selectedLore?.id ?? null" @select="select" />
+              <template v-if="selectedLore" #detail>
+                <LoreDetail :key="selectedLore.id" :entry="selectedLore" @delete="removeSelected" />
+              </template>
+            </CanonSplit>
+            <CanonSplit v-else-if="active === 'backstories'" close-label="Close this backstory" @close="closeEntry">
+              <BackstoriesSection :party="party" :entries="backstories" :passages="allPassages ?? []" :selected-id="selectedBackstoryMember?.id ?? null" @select="selectBackstory" />
+              <template v-if="selectedBackstoryMember" #detail>
+                <BackstoryDetail :key="selectedBackstoryMember.id" :member="selectedBackstoryMember" />
+              </template>
+            </CanonSplit>
+            <ChronicleSection v-else-if="active === 'chronicle'" :lore="lore" :forces="forces" />
+            <TableAddedSection v-else :truths="truths" />
+            <CanonDeleted />
+          </template>
         </template>
       </div>
     </div>
 
     <!-- Only the short entries take the side column: a lore entry and a force are long, and open beside their ledger. -->
-    <template v-if="(selectedTruth || selectedSecret) && wide" #sidebar>
+    <template v-if="(selectedTruth || selectedSecret) && wide && !searching" #sidebar>
       <TruthDetail v-if="selectedTruth" :key="selectedTruth.id" :entry="selectedTruth" @delete="removeSelected" />
       <SecretDetail v-else-if="selectedSecret" :key="selectedSecret.id" :entry="selectedSecret" @delete="removeSelected" />
     </template>
@@ -70,18 +86,23 @@
 
 <script setup lang="ts">
 /**
- * The DM's Canon page (#1226): the premise, the truths, what is moving, the secrets and the open questions, how the world works, the lore, the chronicle and what the table added, with a
- * contents column. `?entry=<id>` is the link to one entry (search results and the world web point there), and also the
- * page's own selection, so a reload or a shared link keeps the truth or secret that is open.
+ * The DM's Canon page (#1226): the premise, the truths, what is moving, the secrets and the open questions, how the world works, the lore, the chronicle and what the table added, one part
+ * at a time (#1258 item 19), chosen in the contents column. The part is the route, `/canon/:part`; `/canon` opens the one
+ * the DM was last on. `?entry=<id>` is the link to one entry (search results and the world web point there) and also the
+ * page's own selection; it, `?section=<part>` and `?backstory=<member>` on a bare `/canon` resolve to the part that holds
+ * them. One search at the top finds a word in any title or body, and stands in place of the part while it is set.
  */
-import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import BackstoriesSection from "@/components/canon/BackstoriesSection.vue";
 import BackstoryDetail from "@/components/canon/BackstoryDetail.vue";
+import CanonAiTools from "@/components/canon/CanonAiTools.vue";
 import CanonArcs from "@/components/canon/CanonArcs.vue";
+import CanonSearchResults from "@/components/canon/CanonSearchResults.vue";
 import CanonSplit from "@/components/canon/CanonSplit.vue";
 import ChronicleSection from "@/components/canon/ChronicleSection.vue";
 import TableAddedSection from "@/components/canon/TableAddedSection.vue";
@@ -100,13 +121,15 @@ import TruthsSection from "@/components/canon/TruthsSection.vue";
 import WorldWorksSection from "@/components/canon/WorldWorksSection.vue";
 import LifeSection from "@/components/canon/ecology/LifeSection.vue";
 import { narrowToArc } from "@/lib/canon/canonNarrow";
+import { searchCanon } from "@/lib/canon/canonSearch";
 import { useCanonArcs } from "@/composables/canon/useCanonArcs";
 import { useCanonUiStore } from "@/stores/ui/canon";
-import { CANON_SECTIONS, sectionCounts, sectionOfPart, type CanonSectionId } from "@/lib/canon/canonParts";
+import { ARC_NARROWED_SECTIONS, isSectionId, sectionCounts, sectionFromWord, sectionOfPart, type CanonSectionId } from "@/lib/canon/canonParts";
 import { unreviewedCount } from "@/lib/canon/canonTableFacts";
+import { useCanonClues } from "@/composables/canon/useCanonClues";
 import { useCanonEntries, useTrashCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useCanonForceData } from "@/composables/canon/useCanonForces";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
-import { useCanonScrollSpy } from "@/composables/canon/useCanonScrollSpy";
 import { useChronicle } from "@/composables/canon/useChronicle";
 import { useParty } from "@/composables/party/useParty";
 import { useTableFacts } from "@/composables/canon/useTableFacts";
@@ -132,6 +155,8 @@ const hasPitch = computed(() => entries.value.some((e) => e.part === "premise" &
 const { data: partyData } = useParty();
 const party = computed(() => partyData.value ?? []);
 const { data: allPassages } = useCanonPassages();
+const { data: allClues } = useCanonClues();
+const { data: forceData } = useCanonForceData();
 // The Chronicle counts the sessions with a chronicle entry written; What the table added, the lines still to review.
 const { written } = useChronicle();
 const tableRecord = useTableFacts();
@@ -162,10 +187,43 @@ const counts = computed(() => ({
   ...elsewhere.value,
 }));
 
-// Opening `?entry=<id>` brings that truth into view, once per id and only after the list has loaded.
-let scrolledTo: string | null = null;
+// The page's one search: it reads the arc-narrowed canon, and the clues, force steps and passages of what it reads.
+const searching = computed(() => ui.query.trim() !== "");
+const hitGroups = computed(() =>
+  searching.value ? searchCanon(ui.query, { entries: narrowed.value, clues: allClues.value ?? [], steps: forceData.value?.steps ?? [], passages: allPassages.value ?? [] }) : [],
+);
 
 const entryParam = computed(() => (typeof route.query.entry === "string" ? route.query.entry : null));
+const backstoryParam = computed(() => (typeof route.query.backstory === "string" ? route.query.backstory : null));
+
+// The part on screen. The route names it; on a bare `/canon` a link's own words do (`?section=`, `?backstory=`, the part
+// `?entry=` points into) and otherwise the part the DM was last on.
+const routePart = computed(() => (isSectionId(route.params.part) ? route.params.part : null));
+const linkedPart = computed<CanonSectionId | null>(() => {
+  const word = sectionFromWord(route.query.section);
+  if (word !== null) return word;
+  if (backstoryParam.value !== null) return "backstories";
+  const target = entries.value.find((e) => e.id === entryParam.value);
+  return target ? sectionOfPart(target.part) : null;
+});
+const active = computed<CanonSectionId>(() => routePart.value ?? linkedPart.value ?? ui.lastPart);
+
+// A link with no part, or with a part the entry is not in, or with `?section=`, is rewritten to the part's own address
+// once the canon has loaded (an entry's part is only known then), so the URL names what is on screen.
+const ready = computed(() => campaign.value !== null && !isLoading.value && !isError.value);
+watch(
+  [ready, () => route.params.part, () => route.query, entries],
+  () => {
+    if (!ready.value) return;
+    const wanted = linkedPart.value ?? routePart.value ?? ui.lastPart;
+    if (routePart.value === wanted && route.query.section === undefined) return;
+    void router.replace({ path: `/canon/${wanted}`, query: { ...route.query, section: undefined } });
+  },
+  { immediate: true },
+);
+watch(active, (id) => { ui.lastPart = id; }, { immediate: true });
+
+// Each part draws only its own detail; a link whose part and entry disagree is rewritten to the entry's part above.
 const selectedTruth = computed(() => truths.value.find((t) => t.id === entryParam.value) ?? null);
 const selectedSecret = computed(() => secrets.value.find((t) => t.id === entryParam.value) ?? null);
 const selectedForce = computed(() => forces.value.find((t) => t.id === entryParam.value) ?? null);
@@ -175,15 +233,16 @@ const selected = computed(() => selectedTruth.value ?? selectedForce.value ?? se
 // A backstory is chosen by its character: `?backstory=<party member id>`, or `?entry=<its entry>` (search and the world
 // web point at the entry, which a character may not have yet).
 const selectedBackstoryMember = computed(() => {
-  const queried = typeof route.query.backstory === "string" ? route.query.backstory : null;
   const viaEntry = backstories.value.find((e) => e.id === entryParam.value)?.party_member_id ?? null;
-  const id = queried ?? viaEntry;
+  const id = backstoryParam.value ?? viaEntry;
   return id === null ? null : party.value.find((m) => m.id === id) ?? null;
 });
 
 // A split (a ledger with its entry beside it) widens the page body; the entries that take the side column do not.
 const splitOpen = computed(() => selectedBackstoryMember.value !== null || selectedForce.value !== null || selectedLore.value !== null);
 
+// Opening `?entry=<id>` brings that entry into view, once per id and only after the list has loaded.
+let scrolledTo: string | null = null;
 // A tap that opens the detail under its part, which can be off screen: bring it into view once it is there.
 let tapped = false;
 
@@ -221,16 +280,19 @@ async function removeSelected() {
   void router.replace({ query: { ...route.query, entry: undefined } });
 }
 
-const active = ref<CanonSectionId>(CANON_SECTIONS[0].id);
-
-// The highlight follows the scroll, and stays on a part chosen here until the DM scrolls by hand again.
-const { hold } = useCanonScrollSpy(CANON_SECTIONS.map((s) => s.id), active, (id) => `canon-${id}`);
-
+// Choosing a part leaves the search and any open entry behind: the part is what the DM asked to see.
 function goTo(id: CanonSectionId) {
-  hold();
-  active.value = id;
-  document.getElementById(`canon-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  ui.query = "";
+  void router.push({ path: `/canon/${id}` });
 }
+
+// A part opens at its top; an entry link scrolls to its own row below instead.
+watch(active, async () => {
+  if (entryParam.value !== null) return;
+  await nextTick();
+  const top = document.getElementById("canon-page-top");
+  if (typeof top?.scrollIntoView === "function") top.scrollIntoView({ block: "start", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+});
 
 // The premise and the questions have no detail pane: a landed-on row is marked for a moment instead.
 const LANDED = ["ring-1", "ring-primary"];
@@ -244,13 +306,11 @@ function clearLanded() {
 }
 onBeforeUnmount(clearLanded);
 
-watch([entryParam, entries, isLoading], async ([id]) => {
+watch([entryParam, entries, isLoading, active], async ([id]) => {
   const target = entries.value.find((e) => e.id === id);
   // A backstory is opened by its own watcher below.
-  if (!target || target.part === "backstory" || target.id === scrolledTo) return;
+  if (!target || target.part === "backstory" || target.id === scrolledTo || sectionOfPart(target.part) !== active.value) return;
   scrolledTo = target.id;
-  hold();
-  active.value = sectionOfPart(target.part);
   await nextTick();
   const row = document.getElementById(`canon-entry-${target.id}`);
   row?.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
@@ -272,33 +332,13 @@ watch(() => selected.value?.id, async (id) => {
   if (typeof detail?.scrollIntoView === "function") detail.scrollIntoView({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
 });
 
-// `?section=<part>` opens the page at a part ("What the table added" from Tonight). Once per value, after the page
-// has loaded, so the part is on the page to scroll to.
-const sectionParam = computed<CanonSectionId | null>(() => {
-  const raw = route.query.section;
-  return CANON_SECTIONS.find((s) => s.id === raw)?.id ?? null;
-});
 watch(
-  () => (campaign.value && !isLoading.value && !isError.value ? sectionParam.value : null),
-  async (id) => {
-    if (!id) return;
-    hold();
-    active.value = id;
-    await nextTick();
-    const part = document.getElementById(`canon-${id}`);
-    if (typeof part?.scrollIntoView === "function") part.scrollIntoView({ block: "start" });
-  },
-  { immediate: true },
-);
-
-watch(
-  () => campaign.value && !isLoading.value && !isError.value ? selectedBackstoryMember.value?.id : undefined,
+  () => (ready.value ? selectedBackstoryMember.value?.id : undefined),
   async (memberId) => {
     if (!memberId) return;
-    hold();
-    active.value = "backstories";
     await nextTick();
-    document.getElementById("canon-backstories")?.scrollIntoView({ block: "start" });
+    const detail = document.getElementById("canon-inline-detail");
+    if (typeof detail?.scrollIntoView === "function") detail.scrollIntoView({ block: "nearest" });
   },
   { immediate: true },
 );

@@ -44,6 +44,7 @@ const stubs = {
   ConnectionsSection: true,
   RichTextViewer: true,
   WeaponMasteryBadge: true,
+  CanonHere: { props: ["kind", "id"], template: "<div data-testid='canon-here' :data-kind='kind' :data-id='id' />" },
 };
 const open = (overrides: Partial<Item> = {}) => mount(ItemSheet, { props: { item: item(overrides) }, global: { stubs } });
 
@@ -83,5 +84,21 @@ describe("ItemSheet in low art (#1179)", () => {
     const w = open();
     expect(w.find("img").exists()).toBe(true);
     expect(w.findAll(".sr-only").some((e) => e.text() === "Rarity VR")).toBe(false);
+  });
+});
+
+describe("ItemSheet clues (#1258 item 30)", () => {
+  const UUID = "0b1f3c52-6a0e-4f5b-9a55-1c2d3e4f5a6b";
+  const shown = (props: { item: Item; playerView?: boolean }) => mount(ItemSheet, { props, global: { stubs } });
+
+  // Bug: a clue lying in an item never showed on the item, or showed to a player reading it.
+  it("asks the canon about the item by its id for the DM, and never on a player's view", () => {
+    expect(shown({ item: item({ id: UUID }) }).get("[data-testid=canon-here]").attributes()).toMatchObject({ "data-kind": "item", "data-id": UUID });
+    expect(shown({ item: item({ id: UUID }), playerView: true }).find("[data-testid=canon-here]").exists()).toBe(false);
+  });
+
+  // Bug: a shared-library item (a text id, no row to put a clue in) asked the database a uuid question with a text id.
+  it("does not ask for a library item, which has no row", () => {
+    expect(shown({ item: item({ id: "srd_longsword" }) }).find("[data-testid=canon-here]").exists()).toBe(false);
   });
 });

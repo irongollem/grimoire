@@ -1,4 +1,6 @@
-import type { CanonForceTick } from "@/types/canon.types";
+import { normaliseDate, worldDateLabel, type WorldDate } from "./canonLore";
+import type { Campaign } from "@/types/campaign.types";
+import type { CanonEntry, CanonForceStep, CanonForceTick } from "@/types/canon.types";
 
 /**
  * A force's clock, as a number: the sum of its ticks, never past its size or below nothing. The ticks keep whatever
@@ -37,4 +39,66 @@ export function forceWhoNames(links: readonly { force_id: string; faction_id: st
     if (name !== undefined && !who.has(link.force_id)) who.set(link.force_id, { id: link.faction_id, name });
   }
   return who;
+}
+
+// ── A step's due date (#1258 item 9) ─────────────────────────────────────────
+
+type DueColumns = Pick<CanonForceStep, "due_year" | "due_month" | "due_day">;
+
+/** The date a step is due, as the three columns carry it: a year, a year and month, or a whole date; all null for none. */
+export const stepDue = (step: DueColumns): WorldDate => ({ year: step.due_year, month: step.due_month, day: step.due_day });
+
+/** The three columns a due date writes. Normalised first, so a day without its month (which the table refuses) is never sent. */
+export function duePatch(date: WorldDate): DueColumns {
+  const d = normaliseDate(date);
+  return { due_year: d.year, due_month: d.month, due_day: d.day };
+}
+
+/** The campaign's current date in the world, or null when it keeps no calendar (its date is then a default nobody set). */
+export function campaignToday(campaign: Pick<Campaign, "calendar_id" | "current_year" | "current_month" | "current_day"> | null): WorldDate | null {
+  if (campaign === null || campaign.calendar_id === null) return null;
+  return { year: campaign.current_year, month: campaign.current_month, day: campaign.current_day };
+}
+
+/**
+ * Whether an unreached step's due date has gone by. The due date is read at its own precision: a step due in a year is
+ * late once that year is over, one due in a month once the month is over, one due on a day once the day is over. A
+ * reached step, an undated one, or an unknown today is never late.
+ */
+export function stepOverdue(step: DueColumns & Pick<CanonForceStep, "reached_at">, today: WorldDate | null): boolean {
+  if (step.reached_at !== null || step.due_year === null || today === null || today.year === null) return false;
+  if (today.year !== step.due_year) return today.year > step.due_year;
+  if (step.due_month === null || today.month === null) return false;
+  if (today.month !== step.due_month) return today.month > step.due_month;
+  if (step.due_day === null || today.day === null) return false;
+  return today.day > step.due_day;
+}
+
+/** The quiet line for a late step: "Due 3 Harvest, not reached." Null when the step is not late. */
+export function overdueLine(
+  step: DueColumns & Pick<CanonForceStep, "reached_at">,
+  today: WorldDate | null,
+  format: (year: number, month: number | null, day: number | null, festival: string | null) => string,
+): string | null {
+  if (!stepOverdue(step, today)) return null;
+  const when = worldDateLabel(stepDue(step), format);
+  return when === null ? null : `Due ${when}, not reached.`;
+}
+
+/** The first late step of a force, in the order given: the one its row and detail name. Null when none is late. */
+export function firstOverdueStep<T extends DueColumns & Pick<CanonForceStep, "reached_at">>(steps: readonly T[], today: WorldDate | null): T | null {
+  return steps.find((s) => stepOverdue(s, today)) ?? null;
+}
+
+/**
+ * The steps the calendar and the almanac show as "due": unreached steps that carry a due date, of a force that is still
+ * moving. A reached step is a tick in the past already; the step of an ended force or of a force that is gone will not
+ * happen, so none of those is offered.
+ */
+export function dueSteps(steps: readonly CanonForceStep[], forces: readonly CanonEntry[]): { step: CanonForceStep; force: CanonEntry }[] {
+  const live = new Map(forces.filter((f) => f.part === "force" && f.closed_at === null).map((f) => [f.id, f] as const));
+  return steps.flatMap((step) => {
+    const force = live.get(step.force_id);
+    return force === undefined || step.reached_at !== null || step.due_year === null ? [] : [{ step, force }];
+  });
 }

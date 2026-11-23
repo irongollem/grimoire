@@ -9,7 +9,9 @@ const mocks = vi.hoisted(() => ({
   locations: [] as Array<{ id: string; name: string }>,
   allQuests: [] as Array<{ id: string; title: string }>,
   xpLevelling: false,
+  arcs: [] as Array<{ id: string; name: string }>,
 }));
+vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: { value: mocks.arcs } }) }));
 
 vi.mock("@/composables/npcs/useNpcs", () => ({
   useNpcs: (enabled?: () => boolean) => ({ data: { value: enabled?.() ? mocks.npcs : undefined } }),
@@ -35,6 +37,7 @@ function quest(overrides: Partial<Quest> = {}): Quest {
     user_id: "u1",
     campaign_id: "campaign-1",
     parent_quest_id: null,
+    arc_id: null,
     title: "The Unseen",
     summary: "A rumor of something wrong at the mill.",
     dm_content: null,
@@ -67,6 +70,7 @@ describe("QuestDetailsSection", () => {
     mocks.locations = [];
     mocks.allQuests = [];
     mocks.xpLevelling = false;
+    mocks.arcs = [];
   });
   afterEach(() => vi.useRealTimers());
 
@@ -135,6 +139,29 @@ describe("QuestDetailsSection", () => {
     await wrapper.find('input[aria-label="Title"]').setValue("   ");
     await settle();
     expect(mocks.updateQuest).not.toHaveBeenCalled();
+  });
+
+  describe("the arc it belongs to (#1258 item 7)", () => {
+    const arcSelect = (w: ReturnType<typeof mountDetails>) => w.find('select[aria-label="The arc it belongs to"]');
+
+    // Bug caught: the picker shown (or its write sent) with no arc to choose, cluttering every quest of a campaign without arcs.
+    it("stays out of the way until the campaign has an arc", () => {
+      expect(arcSelect(mountDetails()).exists()).toBe(false);
+      mocks.arcs = [{ id: "a1", name: "The drowned god" }];
+      expect(arcSelect(mountDetails()).exists()).toBe(true);
+    });
+
+    // Bug caught: the choice kept in the draft but never written, or written under another column, so a quest never joined its arc.
+    it("saves the chosen arc, and no arc as null rather than an empty id", async () => {
+      mocks.arcs = [{ id: "a1", name: "The drowned god" }];
+      const w = mountDetails();
+      await arcSelect(w).setValue("a1");
+      await settle();
+      expect(mocks.updateQuest).toHaveBeenLastCalledWith({ id: "quest-1", update: { arc_id: "a1" } });
+      await arcSelect(w).setValue("");
+      await settle();
+      expect(mocks.updateQuest).toHaveBeenLastCalledWith({ id: "quest-1", update: { arc_id: null } });
+    });
   });
 
   describe("what the quest is worth (#1021 row 27)", () => {

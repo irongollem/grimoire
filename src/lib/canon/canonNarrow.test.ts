@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canonEntry } from "@/test/canonEntry";
-import { matchesQuery, narrowToArc } from "./canonNarrow";
+import { narrowToArc } from "./canonNarrow";
 
 describe("narrowToArc", () => {
   const entries = [
@@ -29,17 +29,5 @@ describe("narrowToArc", () => {
 
   it("shows everything with no arc chosen", () => {
     expect(narrowToArc(entries, null)).toHaveLength(5);
-  });
-});
-
-describe("matchesQuery", () => {
-  it("matches a word anywhere in the title, in any case", () => {
-    expect(matchesQuery("The Drowned God", "drowned")).toBe(true);
-    expect(matchesQuery("The Drowned God", "mill")).toBe(false);
-  });
-
-  // Bug caught: a query of spaces hiding every row.
-  it("treats an empty or blank query as matching everything", () => {
-    expect(matchesQuery("x", "   ")).toBe(true);
   });
 });

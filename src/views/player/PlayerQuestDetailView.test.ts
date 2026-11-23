@@ -11,6 +11,7 @@ function quest(overrides: Partial<Quest> = {}): Quest {
     user_id: "dm-1",
     campaign_id: "campaign-1",
     parent_quest_id: null,
+    arc_id: null,
     title: "The Silent Bell",
     summary: "Something rings under the church at night.",
     dm_content: null,

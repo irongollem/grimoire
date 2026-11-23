@@ -1,10 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { computed } from "vue";
 
 const state = vi.hoisted(() => ({
   places: [] as { id: string; habitatId: string; locationId: string }[],
+  tables: [] as { id: string; name: string; placeId: string }[],
 }));
+vi.mock("@/composables/canon/usePlacedTables", () => ({ usePlacedTables: () => computed(() => state.tables) }));
 
 vi.mock("@/composables/canon/useCampaignHabitats", () => ({
   useCampaignHabitats: () => ({
@@ -31,6 +33,8 @@ import PlaceHabitat from "./PlaceHabitat.vue";
 const mountFor = (placeId: string) => mount(PlaceHabitat, { props: { placeId }, global: { stubs: { RouterLink: { props: ["to"], template: "<a :href=\"to.query.section\"><slot /></a>" } } } });
 
 describe("PlaceHabitat", () => {
+  beforeEach(() => { state.tables = []; });
+
   // Bug: the block showed the habitat but not what lives there, or no way to the Life section.
   it("shows the habitat a place is in, what lives there and the way to Life", () => {
     state.places = [{ id: "p", habitatId: "h1", locationId: "town" }];
@@ -52,5 +56,33 @@ describe("PlaceHabitat", () => {
   it("renders nothing for a place in no habitat", () => {
     state.places = [{ id: "p", habitatId: "h1", locationId: "town" }];
     expect(mountFor("hill").find("[data-testid=place-habitat]").exists()).toBe(false);
+  });
+});
+
+describe("PlaceHabitat with a table of its own (#1258 item 15)", () => {
+  beforeEach(() => { state.places = [{ id: "p", habitatId: "h1", locationId: "town" }]; });
+
+  // Bug: the page showed the habitat as if it were what the party meets, hiding that the place's own table comes first.
+  it("shows the habitat line and says the place's own table comes first", () => {
+    state.tables = [{ id: "t1", name: "Coast road encounters", placeId: "town" }];
+    const text = mountFor("town").get("[data-testid=place-habitat]").text();
+    expect(text).toContain("Salt marsh");
+    expect(mountFor("town").get("[data-testid=place-habitat-table]").text()).toBe("Its own table, Coast road encounters, comes first");
+    expect(text).toContain("Marsh eel 40%");
+  });
+
+  // Bug: the line was drawn for a place whose table belongs to an unrelated place.
+  it("says nothing of a table that is on another place", () => {
+    state.tables = [{ id: "t1", name: "Hill table", placeId: "hill" }];
+    expect(mountFor("town").find("[data-testid=place-habitat-table]").exists()).toBe(false);
+  });
+
+  // Bug: a place with a table but in no habitat drew nothing, hiding the table.
+  it("still draws the table line for a place in no habitat", () => {
+    state.places = [];
+    state.tables = [{ id: "t1", name: "Hill table", placeId: "hill" }];
+    const w = mountFor("hill");
+    expect(w.find("[data-testid=place-habitat-table]").exists()).toBe(true);
+    expect(w.find("[data-testid=place-habitat-life]").exists()).toBe(false);
   });
 });

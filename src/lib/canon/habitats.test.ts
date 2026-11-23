@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { habitatForPlace, lifeConstraints, type HabitatLife } from "./habitats";
+import { encounterSourceForPlace, habitatForPlace, lifeConstraints, type HabitatLife } from "./habitats";
 
 const parents: Record<string, string | null> = { room: "town", town: "region", region: null, island: null, inner: "town" };
 const parentOf = (id: string) => parents[id] ?? null;
@@ -56,5 +56,37 @@ describe("lifeConstraints", () => {
   it("adds no constraint for a habitat with no creature at a share", () => {
     expect(lifeConstraints("Salt marsh", [], () => 0.1)).toEqual([]);
     expect(lifeConstraints("Salt marsh", [life("Marsh eel", 0)], () => 0.1)).toEqual([]);
+  });
+});
+
+describe("encounterSourceForPlace", () => {
+  const covered = [{ habitatId: "marsh", locationId: "region" }];
+  const table = (id: string, placeId: string) => ({ id, name: `Table ${id}`, placeId });
+
+  // Bug: a place with its own encounter table still rolled from the habitat around it.
+  it("lets a place's own table win over the habitat that covers it", () => {
+    expect(encounterSourceForPlace("town", parentOf, [table("t1", "town")], covered)).toEqual({
+      from: "table",
+      tables: [{ id: "t1", name: "Table t1", placeId: "town" }],
+    });
+  });
+
+  // Bug: only a table on the very place counted, so a room of a town with a table fell through to the habitat.
+  it("takes the table of the nearest place it lies inside before any habitat", () => {
+    const source = encounterSourceForPlace("room", parentOf, [table("t1", "town")], covered);
+    expect(source).toMatchObject({ from: "table", tables: [{ id: "t1" }] });
+  });
+
+  // Bug: the habitat was dropped whenever tables existed anywhere in the campaign, not only on this place's line.
+  it("falls back to the habitat when no table is on the place or above it", () => {
+    expect(encounterSourceForPlace("town", parentOf, [table("t9", "island")], covered)).toEqual({
+      from: "habitat",
+      match: { habitatId: "marsh", throughPlaceId: "region" },
+    });
+  });
+
+  // Bug: a place with neither was given a source.
+  it("is null with no table and no habitat", () => {
+    expect(encounterSourceForPlace("island", parentOf, [], covered)).toBeNull();
   });
 });

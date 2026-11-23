@@ -30,7 +30,7 @@ import SecretOutlets from "./SecretOutlets.vue";
 const entry = canonEntry({ id: "s1", campaign_id: "c1", part: "secret" });
 const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
   id: "k1", user_id: "u", campaign_id: "c1", secret_id: "s1", title: "A locket", sort_order: 0, location_id: null, npc_id: null,
-  quest_beat_id: null, found_at: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
+  quest_beat_id: null, found_at: null, item_id: null, document_id: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
 });
 const link = (over: Partial<CanonEntryQuest> = {}): CanonEntryQuest => ({ id: "l1", user_id: "u", campaign_id: "c1", entry_id: "s1", quest_id: "q1", created_at: "", ...over });
 const ComboStub = { name: "EntityCombobox", props: ["modelValue", "options"], emits: ["update:modelValue"], template: "<div />" };

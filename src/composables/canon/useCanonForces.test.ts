@@ -26,7 +26,7 @@ import type { ForceSuggestion } from "@/ai/useCanonSuggestions";
 
 const step = (over: Partial<CanonForceStep> = {}): CanonForceStep => ({
   id: "st1", user_id: "dm-1", campaign_id: "c1", force_id: "f1", title: "The orchards sour.", sort_order: 0, reached_at: null,
-  reached_session_id: null, ai_provenance: null, created_at: "2026-11-19T10:00:00Z", updated_at: "2026-11-19T10:00:00Z", ...over,
+  reached_session_id: null, due_year: null, due_month: null, due_day: null, ai_provenance: null, created_at: "2026-11-19T10:00:00Z", updated_at: "2026-11-19T10:00:00Z", ...over,
 });
 const tick = (over: Partial<CanonForceTick> = {}): CanonForceTick => ({
   id: "t1", user_id: "dm-1", campaign_id: "c1", force_id: "f1", delta: 1, note: "", session_id: null, step_id: null, world_year: null, world_month: null,

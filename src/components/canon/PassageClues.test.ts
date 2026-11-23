@@ -23,7 +23,7 @@ const passage: CanonLorePassage = {
 };
 const clue = (over: Partial<CanonClue>): CanonClue => ({
   id: "k1", user_id: "u", campaign_id: "c", secret_id: "s1", title: "What was lost", sort_order: 0, location_id: null, npc_id: null,
-  quest_beat_id: null, found_at: null, found_session_id: null, passage_id: "g1", ai_provenance: null, created_at: "", updated_at: "", ...over,
+  quest_beat_id: null, found_at: null, item_id: null, document_id: null, found_session_id: null, passage_id: "g1", ai_provenance: null, created_at: "", updated_at: "", ...over,
 });
 
 const Combobox = { name: "EntityCombobox", props: ["modelValue", "options"], emits: ["update:modelValue"], template: "<div data-testid='passage-clue-add' />" };

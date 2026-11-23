@@ -113,7 +113,7 @@ export async function createForceSteps(inputs: readonly NewForceStep[]): Promise
   if (error) throw error;
 }
 
-export type ForceStepPatch = Partial<Pick<CanonForceStep, "title" | "sort_order" | "reached_at" | "reached_session_id">>;
+export type ForceStepPatch = Partial<Pick<CanonForceStep, "title" | "sort_order" | "reached_at" | "reached_session_id" | "due_year" | "due_month" | "due_day">>;
 
 export async function updateForceStep(id: string, patch: ForceStepPatch): Promise<void> {
   // RLS answers a write it refuses with no error and no row; asking for the row back is how that is told from a save.

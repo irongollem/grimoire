@@ -46,8 +46,8 @@
 
 <script setup lang="ts">
 /**
- * The parts of the canon: a column on a desktop, a row of chips on a phone. Choosing one scrolls the page to it, and
- * the page moves the highlight as it scrolls (#1255), so the phone's row stays on screen and keeps the chip in sight.
+ * The parts of the canon: a column on a desktop, a row of chips on a phone. The page shows one part at a time
+ * (#1258 item 19), so this is how the DM moves between them; the phone's row scrolls to keep the chosen chip in sight.
  */
 import { nextTick, useTemplateRef, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";

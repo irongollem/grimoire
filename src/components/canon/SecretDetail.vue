@@ -37,7 +37,7 @@
       <p v-if="clues.length < CLUES_WANTED" class="text-caption text-muted-foreground" data-testid="clues-wanted">
         A secret wants {{ CLUES_WANTED }} clues, so the party can miss two and still find it.
       </p>
-      <CanonSuggestions mode="clues" :entries="NO_ENTRIES" :secret-id="entry.id" />
+      <CanonSuggestFold part="clues"><CanonSuggestions mode="clues" :entries="NO_ENTRIES" :secret-id="entry.id" /></CanonSuggestFold>
       <ClueForm v-if="adding" :saving="creating" @submit="addClue" @cancel="adding = false" />
       <AppButton v-else variant="outline" size="sm" :icon="IconAdd" icon-size="xs" label="Add a clue" class="self-start" @click="adding = true" />
     </div>
@@ -52,7 +52,17 @@
         data-testid="reveal"
         @click="reveal"
       />
-      <AppButton v-else variant="outline" size="sm" label="Hide again" class="self-start" data-testid="hide" @click="hide" />
+      <AppButton
+        v-if="entry.revealed_at === null && !choosingWho"
+        variant="outline"
+        size="sm"
+        label="Reveal to…"
+        class="self-start"
+        data-testid="reveal-some"
+        @click="choosingWho = true"
+      />
+      <PassageTellSome v-if="entry.revealed_at === null && choosingWho" :members="party ?? []" tell-label="Reveal" @tell="revealChosen" @cancel="choosingWho = false" />
+      <AppButton v-else-if="entry.revealed_at !== null" variant="outline" size="sm" label="Hide again" class="self-start" data-testid="hide" @click="hide" />
       <p v-if="entry.revealed_at !== null && entry.became_entry_id !== null" class="text-body text-foreground" data-testid="secret-became">
         <RouterLink :to="{ path: '/canon', query: { entry: entry.became_entry_id } }" class="underline">
           {{ became ? `Now a truth: ${became.title}` : "Now a truth" }}
@@ -67,6 +77,8 @@
 
     <SecretOutlets :entry="entry" :clues="clues" />
 
+    <EntryStoryLinks :entry="entry" />
+
     <ConnectionsSection :subject="subject" :subject-name="entry.title" />
 
     <AppButton variant="destructive" size="sm" :icon="IconDelete" icon-size="xs" label="Delete this secret" class="self-start" @click="emit('delete')" />
@@ -76,26 +88,30 @@
 <script setup lang="ts">
 /**
  * The selected secret (frame 05): its statement, its clues with the Found tick, and the DM's Reveal button. The state
- * is read off the clues, never stored; revealing shares the secret with every party member and stamps the time.
+ * is read off the clues, never stored; revealing shares the secret with every party member (or only those chosen under "Reveal to…") and stamps the time and the open session.
  */
 import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import EntryArcPicker from "./EntryArcPicker.vue";
+import EntryStoryLinks from "./EntryStoryLinks.vue";
+import PassageTellSome from "./PassageTellSome.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
+import CanonSuggestFold from "./CanonSuggestFold.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
 import ClueForm from "./ClueForm.vue";
 import ClueRow from "./ClueRow.vue";
 import SecretOutlets from "./SecretOutlets.vue";
 import { CLUES_WANTED, SECRET_STATE_LABEL, SECRET_STATE_MARK, clueTally, secretState } from "@/lib/canon/canonSecrets";
-import { useCreateCanonClue, useCanonClues, useDeleteCanonClue, useSetClueFound, useUpdateCanonClue, type ClueKind } from "@/composables/canon/useCanonClues";
+import { cluePlacement, useCreateCanonClue, useCanonClues, useDeleteCanonClue, useSetClueFound, useUpdateCanonClue, type ClueKind } from "@/composables/canon/useCanonClues";
 import { useCanonEntries, useCreateCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useLinkBecame } from "@/composables/canon/useLinkBecame";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useClueWhere } from "@/composables/canon/useClueWhere";
 import { useRevealSecret } from "@/composables/canon/useRevealSecret";
+import { useParty } from "@/composables/party/useParty";
 import { useConfirm } from "@/composables/useConfirm";
 import { IconAdd, IconDelete } from "@/lib/icons";
 import { toast } from "@/lib/toast";
@@ -137,15 +153,15 @@ const { confirm } = useConfirm();
 const { text, revision } = useCommittedText(() => entry.title, (next) => update({ id: entry.id, patch: { title: next } }));
 
 const adding = ref(false);
-watch(() => entry.id, () => { adding.value = false; });
+const choosingWho = ref(false);
+watch(() => entry.id, () => { adding.value = false; choosingWho.value = false; });
+const { data: party } = useParty();
 
 async function addClue(input: { title: string; where: { kind: ClueKind; id: string } | null }) {
   const base = { secret_id: entry.id, title: input.title, sort_order: clues.value.length };
   try {
-    if (input.where === null) await createClue(base);
-    else if (input.where.kind === "location") await createClue({ ...base, location_id: input.where.id });
-    else if (input.where.kind === "npc") await createClue({ ...base, npc_id: input.where.id });
-    else await createClue({ ...base, quest_beat_id: input.where.id });
+    // One column per kind (cluePlacement), so an item or a handout never lands in another kind's column.
+    await createClue(input.where === null ? base : { ...base, ...cluePlacement(input.where) });
     adding.value = false;
   } catch {
     // The mutation has already told the DM (toast); the form stays open to try again.
@@ -171,6 +187,12 @@ async function reveal() {
   });
   if (!ok) return;
   revealSecret(entry.id);
+}
+
+/** "Reveal to…": only the characters ticked read it, and the picker's Reveal is the DM's act, so it asks nothing more. */
+function revealChosen(ids: string[]) {
+  choosingWho.value = false;
+  revealSecret(entry.id, ids);
 }
 
 const making = ref(false);
@@ -205,6 +227,7 @@ async function hide() {
     const ok = await confirm("The truth it became stays known to all. Hide the secret anyway?", { title: "Hide again", confirmLabel: "Hide the secret" });
     if (!ok) return;
   }
-  update({ id: entry.id, patch: { revealed_at: null } });
+  // A session with no reveal time is refused by the table, so hiding clears both.
+  update({ id: entry.id, patch: { revealed_at: null, revealed_session_id: null } });
 }
 </script>

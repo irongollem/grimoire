@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { canonCalendarItems, canonOnCalendarEnabled } from "./canonCalendar";
 import { canonEntry } from "@/test/canonEntry";
-import type { CanonForceTick } from "@/types/canon.types";
+import type { CanonForceStep, CanonForceTick } from "@/types/canon.types";
 
 const tick = (id: string, over: Partial<CanonForceTick> = {}): CanonForceTick => ({
   id, user_id: "u", campaign_id: "c1", force_id: "f1", delta: 1, note: "", session_id: null, step_id: null,
@@ -50,5 +50,27 @@ describe("canonOnCalendarEnabled", () => {
     expect(canonOnCalendarEnabled({ ...dm, dmPreview: true })).toBe(false);
     expect(canonOnCalendarEnabled({ ...dm, show: false })).toBe(false);
     expect(canonOnCalendarEnabled({ ...dm, campaignId: null })).toBe(false);
+  });
+});
+
+const step = (over: Partial<CanonForceStep>): CanonForceStep => ({
+  id: "s1", user_id: "u", campaign_id: "c1", force_id: "f1", title: "The ferry stops", sort_order: 0, reached_at: null, reached_session_id: null,
+  due_year: null, due_month: null, due_day: null, ai_provenance: null, created_at: "2026-11-01T10:00:00Z", updated_at: "2026-11-01T10:00:00Z", ...over,
+});
+
+describe("canonCalendarItems: steps that are due", () => {
+  // Bug caught: a step's due date never reaching the Calendar, or arriving before the tick that came before it.
+  it("offers an unreached step with a due date beside the past ticks, in world order", () => {
+    const items = canonCalendarItems({ lore: [], forces, ticks: [tick("t1", { world_year: 400 })], steps: [step({ due_year: 512, due_month: 3 })] });
+    expect(items.map((i) => [i.label, i.title, i.year, i.month])).toEqual([
+      ["A force moved", "The Ferrymen moved closer", 400, null],
+      ["A step due", "The Ferrymen: The ferry stops", 512, 3],
+    ]);
+  });
+
+  // Bug caught: a step already reached drawn twice (as its tick and as "due"), or an undated one pinned to year 0.
+  it("leaves out reached and undated steps", () => {
+    const items = canonCalendarItems({ lore: [], forces, ticks: [], steps: [step({ id: "a", due_year: 5, reached_at: "x" }), step({ id: "b" })] });
+    expect(items).toEqual([]);
   });
 });

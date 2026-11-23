@@ -1,28 +1,31 @@
 <template>
-  <li :id="`canon-entry-${entry.id}`" class="flex min-w-0 items-center gap-2 border-b border-border px-3 py-1.5 last:border-b-0" :data-kind="entry.premise_kind">
-    <span
-      v-if="note"
-      class="shrink-0 border px-1.5 py-px text-label font-bold uppercase"
-      :class="entry.premise_kind === 'line' ? 'border-destructive/40 text-destructive' : 'border-border text-muted-foreground'"
-    >
-      {{ entry.premise_kind === "line" ? "Line" : "Veil" }}
-    </span>
-    <AppInput
-      :key="revision"
-      v-model.lazy="text"
-      wrap
-      size="body"
-      :aria-label="label"
-      :class="textClass"
-    />
-    <span v-if="note" class="hidden shrink-0 text-caption text-muted-foreground sm:inline">{{ note }}</span>
-    <AudienceRevealControl
-      :visible-to="entry.player_visible_to"
-      :name="entry.title"
-      @change="(next) => update({ id: entry.id, patch: { player_visible_to: next } })"
-    />
-    <CanonMoveButtons v-if="move" :label="entry.title" :first="move.first" :last="move.last" @move="(d) => emit('move', d)" />
-    <AppButton variant="ghost" size="icon-sm" :icon="IconDelete" aria-label="Delete this entry" @click="remove" />
+  <li :id="`canon-entry-${entry.id}`" class="flex min-w-0 flex-col gap-1 border-b border-border px-3 py-1.5 last:border-b-0" :data-kind="entry.premise_kind">
+    <div class="flex min-w-0 items-center gap-2">
+      <span
+        v-if="note"
+        class="shrink-0 border px-1.5 py-px text-label font-bold uppercase"
+        :class="entry.premise_kind === 'line' ? 'border-destructive/40 text-destructive' : 'border-border text-muted-foreground'"
+      >
+        {{ entry.premise_kind === "line" ? "Line" : "Veil" }}
+      </span>
+      <AppInput
+        :key="revision"
+        v-model.lazy="text"
+        wrap
+        size="body"
+        :aria-label="label"
+        :class="textClass"
+      />
+      <span v-if="note" class="hidden shrink-0 text-caption text-muted-foreground sm:inline">{{ note }}</span>
+      <AudienceRevealControl
+        :visible-to="entry.player_visible_to"
+        :name="entry.title"
+        @change="(next) => update({ id: entry.id, patch: { player_visible_to: next } })"
+      />
+      <CanonMoveButtons v-if="move" :label="entry.title" :first="move.first" :last="move.last" @move="(d) => emit('move', d)" />
+      <AppButton variant="ghost" size="icon-sm" :icon="IconDelete" aria-label="Delete this entry" @click="remove" />
+    </div>
+    <ThemeCarriedBy v-if="entry.premise_kind === 'theme'" :entry="entry" />
   </li>
 </template>
 
@@ -36,6 +39,7 @@ import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import CanonMoveButtons from "./CanonMoveButtons.vue";
+import ThemeCarriedBy from "./ThemeCarriedBy.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import { useTrashCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCommittedText } from "@/composables/canon/useCommittedText";

@@ -31,6 +31,15 @@
         <EntityCombobox v-model="draft.parentQuestId" :options="parentQuestOptions" placeholder="Search quests…" />
       </label>
 
+      <!-- The arc of the story it belongs to (#1258 item 7); out of the way until the DM has made an arc. -->
+      <label v-if="arcs.length > 0 || draft.arcId !== ''" class="contents">
+        <span class="text-caption font-semibold text-muted-foreground">Arc</span>
+        <AppSelect v-model="draft.arcId" size="sm" block aria-label="The arc it belongs to">
+          <option value="">No arc</option>
+          <option v-for="a in arcs" :key="a.id" :value="a.id">{{ a.name }}</option>
+        </AppSelect>
+      </label>
+
       <!-- What the quest is worth, in a campaign that levels by XP: the party shares it when the quest is completed (#1021 row 27). -->
       <label v-if="xpLevelling" class="contents">
         <span class="text-caption font-semibold text-muted-foreground">Worth</span>
@@ -53,6 +62,7 @@ import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import TagInput from "@/components/common/controls/TagInput.vue";
+import { useCanonArcs } from "@/composables/canon/useCanonArcs";
 import { useAllLocations, useLocation } from "@/composables/locations/useLocations";
 import { useNpc, useNpcs } from "@/composables/npcs/useNpcs";
 import { useQuests, useUpdateQuest } from "@/composables/quests/useQuests";
@@ -71,6 +81,7 @@ interface DetailsDraft {
   giverNpcId: string;
   locationId: string;
   parentQuestId: string;
+  arcId: string;
   tags: string[];
   /** As typed; empty for none. */
   xpReward: string;
@@ -85,6 +96,8 @@ const locationListWanted = ref(false);
 const { data: npcs } = useNpcs(() => npcListWanted.value);
 const { data: locations } = useAllLocations(() => locationListWanted.value);
 const { data: allQuests } = useQuests();
+const { data: arcData } = useCanonArcs();
+const arcs = computed(() => arcData.value ?? []);
 const { mutateAsync: updateQuest } = useUpdateQuest();
 const xpLevelling = useIsRuleEnabled("xp_levelling");
 
@@ -95,6 +108,7 @@ function questToDraft(quest: Quest): DetailsDraft {
     giverNpcId: quest.giver_npc_id ?? "",
     locationId: quest.location_id ?? "",
     parentQuestId: quest.parent_quest_id ?? "",
+    arcId: quest.arc_id ?? "",
     tags: [...quest.tags],
     xpReward: quest.xp_reward === null ? "" : String(quest.xp_reward),
   };
@@ -121,6 +135,7 @@ const CONFLICT_LABELS: Record<keyof DetailsDraft, string> = {
   giverNpcId: "Quest giver",
   locationId: "Primary location",
   parentQuestId: "Part of quest",
+  arcId: "Arc",
   tags: "Tags",
   xpReward: "XP",
 };
@@ -135,6 +150,7 @@ function detailsRow(d: DetailsDraft) {
     giver_npc_id: d.giverNpcId || null,
     location_id: d.locationId || null,
     parent_quest_id: d.parentQuestId || null,
+    arc_id: d.arcId || null,
     tags: d.tags,
     xp_reward: xpRewardOf(d.xpReward),
   };

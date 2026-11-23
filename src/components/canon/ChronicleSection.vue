@@ -10,7 +10,7 @@
     <p v-else-if="isError" role="alert" class="text-body text-destructive">Could not load the chronicle.</p>
     <template v-else>
       <ol v-if="shown.length > 0" class="m-0 flex list-none flex-col border border-border bg-card px-4 py-0" data-testid="chronicle-list">
-        <ChronicleEntry v-for="item in shown" :key="item.session.id" :session="item.session" :note="item.note" />
+        <ChronicleEntry v-for="item in shown" :key="item.session.id" :session="item.session" :note="item.note" :canon="canonOf(item.session)" />
       </ol>
       <EmptyState
         v-else
@@ -21,7 +21,7 @@
       <AppButton v-if="ordered.length > shown.length" variant="outline" size="sm" class="self-start" :label="`Show ${Math.min(PAGE, ordered.length - shown.length)} more`" @click="visible += PAGE" />
     </template>
 
-    <ChronicleAlmanac :lore="lore" :forces="forces" :ticks="ticks" :items="items" :calendar-events="calendarEvents" />
+    <ChronicleAlmanac :lore="lore" :forces="forces" :ticks="ticks" :steps="steps" :items="items" :calendar-events="calendarEvents" />
   </section>
 </template>
 
@@ -41,12 +41,14 @@ import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import { useCanonForceData } from "@/composables/canon/useCanonForces";
 import { useCampaignCalendarEvents } from "@/composables/calendar/useCampaignCalendarEvents";
 import { useChronicle } from "@/composables/canon/useChronicle";
+import { useSessionCanon } from "@/composables/canon/useSessionCanon";
 import { useCanonUiStore } from "@/stores/ui/canon";
 import CanonRubric from "./CanonRubric.vue";
 import ChronicleAlmanac from "./ChronicleAlmanac.vue";
 import ChronicleEntry from "./ChronicleEntry.vue";
 import { orderChronicle, type ChronicleOrder } from "@/lib/canon/canonChronicle";
 import type { CanonEntry } from "@/types/canon.types";
+import type { CampaignSession } from "@/types/session.types";
 
 const { lore, forces } = defineProps<{ lore: readonly CanonEntry[]; forces: readonly CanonEntry[] }>();
 
@@ -58,8 +60,11 @@ const ORDER_OPTIONS: ReadonlyArray<{ value: ChronicleOrder; label: string }> = [
 
 const ui = useCanonUiStore();
 const { items, isLoading, isError } = useChronicle();
+const canonBySession = useSessionCanon();
+const canonOf = (session: CampaignSession) => canonBySession.value(session);
 const { data: forceData } = useCanonForceData();
 const ticks = computed(() => forceData.value?.ticks ?? []);
+const steps = computed(() => forceData.value?.steps ?? []);
 const { data: calendarEventData } = useCampaignCalendarEvents();
 const calendarEvents = computed(() => calendarEventData.value ?? []);
 

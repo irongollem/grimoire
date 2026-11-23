@@ -17,6 +17,8 @@ export function canonEntry(over: Partial<CanonEntry> = {}): CanonEntry {
     sort_order: 0,
     player_visible_to: [],
     revealed_at: null,
+    revealed_session_id: null,
+    if_succeeds: null,
     wants: null,
     clock_size: null,
     image_url: null,

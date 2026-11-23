@@ -10,10 +10,12 @@
         :first="index === 0"
         :last="index === steps.length - 1"
         :frozen="frozen"
+        :today="today"
         @rename="(title) => update({ id: step.id, patch: { title } })"
         @reach="(reached) => reach({ step, reached })"
         @move="(direction) => move({ steps, id: step.id, direction })"
         @remove="remove(step.id)"
+        @due="(date) => update({ id: step.id, patch: duePatch(date) })"
       />
     </ul>
     <p v-else class="text-caption text-muted-foreground">No steps yet. A step is what the force does next, so the table can see it coming.</p>
@@ -39,12 +41,15 @@ import {
   useReachForceStep,
   useUpdateForceStep,
 } from "@/composables/canon/useCanonForces";
+import { useWorldToday } from "@/composables/canon/useWorldToday";
+import { duePatch } from "@/lib/canon/canonForces";
 import { IconAdd } from "@/lib/icons";
 import type { CanonEntry, CanonForceStep } from "@/types/canon.types";
 
 /** `frozen` is a force that has ended: its steps stay readable but cannot be reached, and none is added. */
 const { force, steps, frozen = false } = defineProps<{ force: CanonEntry; steps: readonly CanonForceStep[]; frozen?: boolean }>();
 
+const today = useWorldToday();
 const now = computed(() => stepReached(steps));
 const draft = ref("");
 

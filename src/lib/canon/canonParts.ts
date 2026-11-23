@@ -29,6 +29,25 @@ export const TABLE_SECTION_HINT = "Filled by the Narrator as it invents. Keep, e
 
 export type CanonSectionId = (typeof CANON_SECTIONS)[number]["id"];
 
+/** The route's `:part` pattern: only a part's id, so `/canon/tonight`, `/canon/arcs/:id` and `/canon/import` are never read as one. */
+export const CANON_PART_PATTERN = CANON_SECTIONS.map((s) => s.id).join("|");
+
+/** The parts an arc narrows (the premise, the backstories and the rest of the page belong to no arc): the arc bar shows above them. */
+export const ARC_NARROWED_SECTIONS: readonly CanonSectionId[] = ["truths", "moving", "secrets", "lore"];
+
+export function isSectionId(value: unknown): value is CanonSectionId {
+  return CANON_SECTIONS.some((s) => s.id === value);
+}
+
+/** The suggestion helpers name a part by their own word ("forces", "questions"); a link made with one lands on the part that holds it. */
+const SECTION_OF_WORD: Record<string, CanonSectionId> = { forces: "moving", questions: "secrets" };
+
+/** The part `?section=<word>` names: a part's id, or the word a helper uses for one. Null for anything else. */
+export function sectionFromWord(word: unknown): CanonSectionId | null {
+  if (isSectionId(word)) return word;
+  return typeof word === "string" ? (SECTION_OF_WORD[word] ?? null) : null;
+}
+
 /** The page section an entry of this part sits in: where a link to one entry (`?entry=<id>`) lands. */
 export function sectionOfPart(part: CanonPart): CanonSectionId {
   const section = CANON_SECTIONS.find((s) => (s.parts as readonly string[]).includes(part));

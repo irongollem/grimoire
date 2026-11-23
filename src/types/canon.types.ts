@@ -52,6 +52,10 @@ export interface CanonEntry {
   player_visible_to: string[];
   /** Set by the DM's Reveal button, only on a secret: until then players never read it. */
   revealed_at: string | null;
+  /** The session that was running when the secret was revealed; only ever set with `revealed_at` (#1258). */
+  revealed_session_id: string | null;
+  /** What happens if nobody stops a force (#1258). Set only when `part` is `force`. */
+  if_succeeds: string | null;
   /** What a force wants, in one line. Set only when `part` is `force`. */
   wants: string | null;
   /** How many ticks fill a force's clock (2 to 12); null is no clock. Set only when `part` is `force`. */
@@ -124,6 +128,9 @@ export interface CanonClue {
   location_id: string | null;
   npc_id: string | null;
   quest_beat_id: string | null;
+  /** An item the clue lies in (a letter, a locket), or a Scriptorium handout (#1258). One place at most, as above. */
+  item_id: string | null;
+  document_id: string | null;
   found_at: string | null;
   found_session_id: string | null;
   /** The lore passage this clue is, when it points at one: telling the passage finds the clue (in the database). */
@@ -144,6 +151,10 @@ export interface CanonForceStep {
   reached_at: string | null;
   /** The session that was running when it was reached; only ever set with `reached_at`. */
   reached_session_id: string | null;
+  /** When the step is due in the world's calendar: a year, a year and month, or a whole date (#1258). */
+  due_year: number | null;
+  due_month: number | null;
+  due_day: number | null;
   ai_provenance: AiProvenance | null;
   created_at: string;
   updated_at: string;
@@ -183,4 +194,17 @@ export interface CanonEntryQuest {
   entry_id: string;
   quest_id: string;
   created_at: string;
+}
+
+/** A player's question about the world (#1258 item 24). The DM adopts it as an open question or lets it be. */
+export interface CanonWonder {
+  id: string;
+  user_id: string;
+  campaign_id: string;
+  party_member_id: string | null;
+  body: string;
+  adopted_entry_id: string | null;
+  dismissed_at: string | null;
+  created_at: string;
+  updated_at: string;
 }

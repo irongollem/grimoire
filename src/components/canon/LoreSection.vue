@@ -2,7 +2,7 @@
   <section id="canon-lore" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-lore-heading">
     <CanonRubric id="canon-lore-heading" numeral="VII" title="Lore" />
 
-    <CanonPartFind part="lore" noun="lore entry" article="a" :count="lore.length" :arc-label="arcLabel" />
+    <p v-if="arcLabel !== null" class="m-0 text-caption text-muted-foreground" data-testid="arc-note">Showing {{ arcLabel }} only.</p>
 
     <ul v-if="shown.length > 0" class="flex flex-col border border-border bg-card" data-testid="lore-ledger">
       <LoreRow
@@ -15,7 +15,6 @@
         @select="emit('select', entry.id)"
       />
     </ul>
-    <EmptyState v-else-if="lore.length > 0" class="border border-dashed border-border bg-card" title="No lore matches" description="Nothing here has those words in it." />
     <EmptyState
       v-else-if="arcLabel !== null"
       class="border border-dashed border-border bg-card"
@@ -36,7 +35,9 @@
       </AppSelect>
     </CanonAddRow>
 
-    <CanonSuggestions mode="lore" :entries="lore" :lore="{ title: draftTitle, kind: draftKind, entryId: null, text: '' }" @accepted="(id) => emit('select', id)" />
+    <CanonSuggestFold part="lore">
+      <CanonSuggestions mode="lore" :entries="lore" :lore="{ title: draftTitle, kind: draftKind, entryId: null, text: '' }" @accepted="(id) => emit('select', id)" />
+    </CanonSuggestFold>
   </section>
 </template>
 
@@ -50,12 +51,10 @@ import { computed, ref } from "vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import CanonAddRow from "./CanonAddRow.vue";
-import CanonPartFind from "./CanonPartFind.vue";
 import CanonRubric from "./CanonRubric.vue";
+import CanonSuggestFold from "./CanonSuggestFold.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
 import LoreRow from "./LoreRow.vue";
-import { matchesQuery } from "@/lib/canon/canonNarrow";
-import { useCanonUiStore } from "@/stores/ui/canon";
 import { LORE_KIND_OPTIONS, entryDate, sortLore, worldDateLabel } from "@/lib/canon/canonLore";
 import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { passagesOf, toldTally, useCanonPassages } from "@/composables/canon/useCanonPassages";
@@ -72,9 +71,8 @@ const { lore, selectedId = null, arcLabel = null } = defineProps<{
 const emit = defineEmits<{ select: [id: string] }>();
 
 const ordered = computed(() => sortLore(lore));
-const store = useCanonUiStore();
-// Lore reads by its date in the world, so it has a search and no manual order.
-const shown = computed(() => ordered.value.filter((e) => matchesQuery(e.title, store.partQuery.lore)));
+// Lore reads by its date in the world, so it has no manual order.
+const shown = ordered;
 const { data: passages } = useCanonPassages();
 const tallyOf = (id: string) => toldTally(passagesOf(passages.value ?? [], id));
 const calendar = useCalendarStore();

@@ -4,6 +4,8 @@ import { ref } from "vue";
 const mocks = vi.hoisted(() => ({ update: vi.fn() }));
 const party = ref<{ id: string }[] | undefined>([{ id: "pm1" }, { id: "pm2" }]);
 vi.mock("@/composables/canon/useCanonEntries", () => ({ useUpdateCanonEntry: () => ({ mutate: mocks.update }) }));
+const session = ref<{ id: string } | null>({ id: "sess1" });
+vi.mock("@/composables/campaign/useCampaignSession", () => ({ useCampaignSession: () => ({ session }) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: party }) }));
 
 import { useRevealSecret } from "./useRevealSecret";
@@ -12,6 +14,7 @@ describe("useRevealSecret", () => {
   beforeEach(() => {
     mocks.update.mockReset();
     party.value = [{ id: "pm1" }, { id: "pm2" }];
+    session.value = { id: "sess1" };
   });
 
   // Bug caught: the secret was stamped revealed but shared with some or none of the party, so a player never read it.
@@ -29,6 +32,27 @@ describe("useRevealSecret", () => {
     const { ready, revealSecret } = useRevealSecret();
     expect(ready.value).toBe(false);
     expect(revealSecret("s1")).toBe(false);
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  // Bug caught (#1258 item 23): "Reveal to…" shared with the whole party instead of the members chosen.
+  it("reveals only to the members chosen, stamping the open session", () => {
+    expect(useRevealSecret().revealSecret("s1", ["pm2"])).toBe(true);
+    const { patch } = mocks.update.mock.calls[0]![0] as { patch: { player_visible_to: string[]; revealed_session_id: string | null } };
+    expect(patch.player_visible_to).toEqual(["pm2"]);
+    expect(patch.revealed_session_id).toBe("sess1");
+  });
+
+  // Bug caught: no session running wrote a made-up session id (or failed the write) instead of null, as a Found clue does.
+  it("stamps no session when none is running", () => {
+    session.value = null;
+    useRevealSecret().revealSecret("s1");
+    expect((mocks.update.mock.calls[0]![0] as { patch: { revealed_session_id: string | null } }).patch.revealed_session_id).toBeNull();
+  });
+
+  // Bug caught: an empty choice stamped the secret revealed with an audience of nobody, so the DM saw "revealed" and no player read it.
+  it("writes nothing when no one is chosen", () => {
+    expect(useRevealSecret().revealSecret("s1", [])).toBe(false);
     expect(mocks.update).not.toHaveBeenCalled();
   });
 });

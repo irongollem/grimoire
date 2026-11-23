@@ -11,7 +11,10 @@
         <span :style="{ paddingLeft: `${(opt as PlaceOption).depth * 0.75}rem` }">{{ opt.name }}</span>
       </template>
     </EntityCombobox>
-    <p v-if="habitat" class="mt-1 text-caption text-muted-foreground" data-testid="encounter-where-life">
+    <p v-if="ownTable" class="mt-1 text-caption text-muted-foreground" data-testid="encounter-where-table">
+      Uses {{ ownTable }} here
+    </p>
+    <p v-else-if="habitat" class="mt-1 text-caption text-muted-foreground" data-testid="encounter-where-life">
       {{ habitat.name }}: {{ summary }}
     </p>
   </div>
@@ -20,14 +23,16 @@
 <script setup lang="ts">
 /**
  * The encounter generator's "Where" (#1255 item 31): the place the encounter happens in, which is the party's place
- * until the DM picks another. When that place lies in a habitat with creatures, one quiet line says what lives there
- * and the panel rolls from it. It owns the reads so a closed panel fetches nothing; the panel is told the habitat.
+ * until the DM picks another. When the place (or one it lies inside) has an encounter table of its own, one quiet line
+ * says "Uses <table> here" and nothing is rolled from a habitat; otherwise, when it lies in a habitat with creatures,
+ * the line says what lives there and the panel rolls from it (`encounterSourceForPlace`: the table wins). It owns the reads so a closed panel fetches nothing; the panel is told the habitat.
  */
 import { computed, watch } from "vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useCampaignHabitats } from "@/composables/canon/useCampaignHabitats";
+import { usePlacedTables } from "@/composables/canon/usePlacedTables";
 import { useLocationTree } from "@/composables/locations/useLocations";
-import { habitatForPlace, type EncounterHabitat } from "@/lib/canon/habitats";
+import { encounterSourceForPlace, type EncounterHabitat } from "@/lib/canon/habitats";
 import { sharesLine } from "@edge-shared/worldBlock.ts";
 
 type PlaceOption = { id: string; name: string; depth: number };
@@ -44,11 +49,15 @@ const { habitats, places, life } = useCampaignHabitats();
 
 const parentOf = computed(() => new Map(locationOptions.value.map((l) => [l.id, l.parent_id])));
 
+const placedTables = usePlacedTables();
+const source = computed(() => (placeId === null ? null : encounterSourceForPlace(placeId, (id) => parentOf.value.get(id) ?? null, placedTables.value, places.value)));
+
+const ownTable = computed(() => (source.value?.from === "table" ? source.value.tables.map((t) => t.name).join(", ") : null));
+
 const habitat = computed<EncounterHabitat | null>(() => {
-  if (placeId === null) return null;
-  const match = habitatForPlace(placeId, (id) => parentOf.value.get(id) ?? null, places.value);
-  if (match === null) return null;
-  const found = habitats.value.find((h) => h.id === match.habitatId);
+  const chosen = source.value;
+  if (chosen === null || chosen.from !== "habitat") return null;
+  const found = habitats.value.find((h) => h.id === chosen.match.habitatId);
   if (found === undefined) return null;
   const living = life.value.filter((l) => l.habitatId === found.id);
   if (!living.some((l) => l.percent > 0)) return null;

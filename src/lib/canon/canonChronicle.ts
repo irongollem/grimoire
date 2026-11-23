@@ -2,7 +2,8 @@ import { sortLore, type WorldDate } from "./canonLore";
 import { sortSessionLog } from "@/lib/sessions/sessionPrefill";
 import { sessionLabel } from "@/lib/sessions/sessionLabel";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
-import type { CanonEntry, CanonForceTick } from "@/types/canon.types";
+import { dueSteps } from "./canonForces";
+import type { CanonEntry, CanonForceStep, CanonForceTick } from "@/types/canon.types";
 import type { CalendarEvent, CalendarEventType } from "@/types/calendar.types";
 import type { Note } from "@/types/notes.types";
 import type { CampaignSession } from "@/types/session.types";
@@ -79,7 +80,7 @@ export function firstNoteImage(content: string | null): string | null {
   }
 }
 
-export type AlmanacKind = "lore" | "moving" | "session" | "calendar";
+export type AlmanacKind = "lore" | "moving" | "due" | "session" | "calendar";
 
 export interface AlmanacEvent {
   key: string;
@@ -128,13 +129,15 @@ export function tickTitle(forceTitle: string, tick: Pick<CanonForceTick, "note" 
  * One timeline in the world's calendar: lore with a date in the world, force ticks that carry a world date, the Calendar's own events
  * (read, never copied; its session events are left out because every session is already here from its note), and every
  * session by the date its note gives. Dated events are in world order (a year with no month before a month, as the
- * lore list reads); a tie keeps lore, then ticks, then calendar events, then sessions. Sessions with no world date come last, oldest first,
+ * lore list reads); a tie keeps lore, then ticks, then due steps, then calendar events, then sessions. Sessions with no world date come last, oldest first,
  * so the almanac never hides an evening for want of a date. Undated lore and ticks are not part of it.
  */
 export function almanac(input: {
   lore: readonly CanonEntry[];
   forces: readonly CanonEntry[];
   ticks: readonly CanonForceTick[];
+  /** A force's steps: the unreached ones with a due date are listed as "due", beside the ticks already past. Left out, none is. */
+  steps?: readonly CanonForceStep[];
   /** Newest first, as `chronicleItems` returns them. */
   items: readonly ChronicleItem[];
   /** The campaign's Calendar events. Left alone when omitted. Events of type `session` are never listed: each session already is one, from its note. */
@@ -154,6 +157,11 @@ export function almanac(input: {
     if (tick.world_year === null || forceName === undefined) continue;
     const date = { year: tick.world_year, month: tick.world_month, day: tick.world_day };
     dated.push({ key: `tick:${tick.id}`, kind: "moving", title: tickTitle(forceName, tick), date, word: null, to: { path: "/canon", query: { entry: tick.force_id } }, ...asDated(date) });
+  }
+  for (const { step, force } of dueSteps(input.steps ?? [], input.forces)) {
+    if (step.due_year === null) continue;
+    const date = { year: step.due_year, month: step.due_month, day: step.due_day };
+    dated.push({ key: `due:${step.id}`, kind: "due", title: `${force.title}: ${step.title}`, date, word: null, to: { path: "/canon", query: { entry: force.id } }, ...asDated(date) });
   }
   for (const event of input.calendarEvents ?? []) {
     // The session's own event is a mirror of its note's dates (useNoteCalendarSync); the note already makes it an entry.

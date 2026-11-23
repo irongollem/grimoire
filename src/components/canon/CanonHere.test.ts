@@ -99,4 +99,25 @@ describe("CanonHere", () => {
     expect(w.find("[data-testid=clues-here]").exists()).toBe(true);
     expect(w.find("[data-testid=lore-here]").exists()).toBe(true);
   });
+
+  // Bug caught: the compact prop ignored, so the run surfaces carry the full-size card.
+  it("marks itself compact only when asked", async () => {
+    answer.clues = [clue()];
+    expect((await mountHere("location", "p1")).get("[data-testid=canon-here]").attributes("data-compact")).toBeUndefined();
+    const w = mount(CanonHere, {
+      props: { kind: "location", id: "p1", compact: true },
+      global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]], stubs: { RouterLink: true } },
+    });
+    await flushPromises();
+    expect(w.get("[data-testid=canon-here]").attributes("data-compact")).toBe("true");
+  });
+});
+
+// Bug caught: Canon here (the DM's clues and Tell buttons) imported into a player surface, which would show a player what is hidden.
+describe("CanonHere stays off the player surfaces", () => {
+  const sources = import.meta.glob(["/src/views/player/**/*.vue", "/src/components/player/**/*.vue", "/src/components/table/**/*.vue"], { query: "?raw", import: "default", eager: true }) as Record<string, string>;
+  it("is imported by no player view or component", () => {
+    expect(Object.keys(sources).length).toBeGreaterThan(10);
+    expect(Object.entries(sources).filter(([, src]) => src.includes("CanonHere")).map(([path]) => path)).toEqual([]);
+  });
 });

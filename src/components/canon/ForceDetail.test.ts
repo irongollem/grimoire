@@ -35,7 +35,7 @@ const force = (over = {}) => canonEntry({ id: "f1", campaign_id: "c1", part: "fo
 const EntryQuestsStub = { name: "EntryQuests", props: ["entry", "links", "label", "empty"], template: "<div />" };
 
 const mountIt = (entry = force()) =>
-  mount(ForceDetail, { props: { entry }, global: { stubs: { RouterLink: { props: ["to"], template: "<a :href=\"to\"><slot /></a>" }, ForceSteps: true, EntryQuests: EntryQuestsStub, ConnectionsSection: true, CanonEntryNotes: true, ForceQuestClocks: true } } });
+  mount(ForceDetail, { props: { entry }, global: { stubs: { RouterLink: { props: ["to"], template: "<a :href=\"to\"><slot /></a>" }, ForceSteps: true, EntryQuests: EntryQuestsStub, ConnectionsSection: true, CanonEntryNotes: true, ForceQuestClocks: true, EntryStoryLinks: true } } });
 
 describe("ForceDetail", () => {
   beforeEach(() => {
@@ -233,5 +233,26 @@ describe("ForceDetail", () => {
     const block = mountIt().getComponent(EntryQuestsStub);
     expect(block.props("links")).toEqual([expect.objectContaining({ id: "l1" })]);
     expect(block.props("label")).toBe("Where the party meets it");
+  });
+
+  // Bug caught (#1258 item 9): "If it succeeds" not saved when left, or saved with untrimmed words.
+  it("saves what happens if it succeeds when the field is left", async () => {
+    await mountIt().get("textarea[aria-label='If it succeeds']").setValue("  The Mere swallows the road. ");
+    expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { if_succeeds: "The Mere swallows the road." } });
+  });
+
+  // Bug caught: clearing the field saving an empty string (the table keeps it as a value) or being refused like the other fields.
+  it("writes null when it is cleared, and nothing when it is left as it was", async () => {
+    const w = mountIt(force({ if_succeeds: "The Mere swallows the road." }));
+    const field = w.get("textarea[aria-label='If it succeeds']");
+    await field.setValue("The Mere swallows the road.");
+    expect(mocks.update).not.toHaveBeenCalled();
+    await field.setValue("   ");
+    expect(mocks.update).toHaveBeenCalledExactlyOnceWith({ id: "f1", patch: { if_succeeds: null } });
+  });
+
+  // Bug caught: the story links (what it is because of, what it led to) not mounted on a force, or for another entry.
+  it("mounts the story links for this force", () => {
+    expect(mountIt().getComponent({ name: "EntryStoryLinks" }).props("entry")).toMatchObject({ id: "f1" });
   });
 });

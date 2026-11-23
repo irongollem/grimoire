@@ -13,6 +13,8 @@ const LEDGER: Record<CanonSuggestionMode, QuoteCostKey> = {
   questions: "canon_question_suggestion",
   forces: "canon_force_suggestion",
   lore: "canon_lore_suggestion",
+  secrets: "canon_secret_suggestion",
+  read: "canon_read_through",
 };
 
 export function useCanonSuggestionsQuote(): (mode: CanonSuggestionMode) => GeneratorQuote {

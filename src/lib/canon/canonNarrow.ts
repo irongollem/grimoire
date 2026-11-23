@@ -11,12 +11,3 @@ export function narrowToArc(entries: readonly CanonEntry[], arcId: string | null
   if (arcId === null) return [...entries];
   return entries.filter((e) => !NARROWED.includes(e.part) || e.arc_id === arcId);
 }
-
-/** A part's search: its words contain the query, any case. An empty query matches everything. */
-export function matchesQuery(text: string, query: string): boolean {
-  const needle = query.trim().toLowerCase();
-  return needle === "" || text.toLowerCase().includes(needle);
-}
-
-/** A part shows its search field once it has more than this many entries (or while a query is set). */
-export const SEARCH_THRESHOLD = 5;

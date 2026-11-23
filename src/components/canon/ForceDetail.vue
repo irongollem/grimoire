@@ -20,6 +20,10 @@
           <span class="text-eyebrow text-muted-foreground">Wants</span>
           <AppInput :key="wantsRevision" v-model.lazy="wants" wrap size="body" tone="filled" aria-label="What it wants" placeholder="What it wants, in one line…" />
         </div>
+        <div class="flex flex-col gap-1">
+          <span class="text-eyebrow text-muted-foreground">If it succeeds</span>
+          <AppInput v-model.lazy="ifSucceeds" wrap size="body" tone="filled" aria-label="If it succeeds" placeholder="What the world becomes if nobody stops it…" />
+        </div>
         <EntryArcPicker :entry="entry" />
         <CanonEntryNotes
           :key="entry.id"
@@ -60,6 +64,7 @@
         <ForceSteps :force="entry" :steps="steps" :frozen="outcome !== null" />
         <EntryQuests :entry="entry" :links="links" label="Where the party meets it" empty="In no quest yet: the party has not crossed its path." />
         <ForceQuestClocks :entry="entry" />
+        <EntryStoryLinks :entry="entry" />
         <ForceLog :ticks="ticks" @undo="undo" />
       </div>
     </div>
@@ -73,7 +78,7 @@
 <script setup lang="ts">
 /**
  * The selected force (frame 06): who it is and what it wants, its clock with Tick forward and back, its steps, the
- * quests where the party meets it and the log of what moved. The clock's fill is the sum of the ticks, never stored.
+ * quests where the party meets it and the log of what moved, and what the world becomes if it succeeds. The clock's fill is the sum of the ticks, never stored.
  * It opens beside the forces ledger (`CanonSplit`) and, from 32rem of its own width, runs in two columns.
  */
 import { computed, ref } from "vue";
@@ -89,6 +94,7 @@ import ForceLog from "./ForceLog.vue";
 import ForceQuestClocks from "./ForceQuestClocks.vue";
 import EntryArcPicker from "./EntryArcPicker.vue";
 import EntryQuests from "./EntryQuests.vue";
+import EntryStoryLinks from "./EntryStoryLinks.vue";
 import ForceSteps from "./ForceSteps.vue";
 import { useCreateCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCreateConnection } from "@/composables/connections/useConnections";
@@ -129,6 +135,17 @@ const { text: wants, revision: wantsRevision } = useCommittedText(
   () => (entry.wants === null ? "" : entry.wants),
   (next) => update({ id: entry.id, patch: { wants: next } }),
 );
+
+// What happens if nobody stops it. Unlike the other fields, clearing it is allowed: it writes null, never an empty string.
+const ifSucceeds = computed<string>({
+  get: () => (entry.if_succeeds === null ? "" : entry.if_succeeds),
+  set: (next) => {
+    const text = next.trim();
+    const saved = entry.if_succeeds === null ? "" : entry.if_succeeds;
+    if (text === saved) return;
+    update({ id: entry.id, patch: { if_succeeds: text === "" ? null : text } });
+  },
+});
 
 const clockSize = computed<number | null>({
   get: () => entry.clock_size,

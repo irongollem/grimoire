@@ -6,7 +6,7 @@
       </li>
     </ul>
     <div class="flex flex-wrap items-center gap-2">
-      <AppButton variant="primary" size="sm" label="Tell" :disabled="chosen.length === 0" data-testid="tell-some-confirm" @click="emit('tell', [...chosen])" />
+      <AppButton variant="primary" size="sm" :label="tellLabel" :disabled="chosen.length === 0" data-testid="tell-some-confirm" @click="emit('tell', [...chosen])" />
       <AppButton variant="ghost" size="sm" label="Cancel" data-testid="tell-some-cancel" @click="emit('cancel')" />
     </div>
   </div>
@@ -21,10 +21,12 @@ import { ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 
-const { members, told = [] } = defineProps<{
+const { members, told = [], tellLabel = "Tell" } = defineProps<{
   members: readonly { id: string; name: string }[];
   /** Member ids that already have the passage: ticked to begin with. */
   told?: readonly string[];
+  /** The confirm button's word: "Tell" for a passage, "Reveal" for a secret. */
+  tellLabel?: string;
 }>();
 const emit = defineEmits<{ tell: [ids: string[]]; cancel: [] }>();
 

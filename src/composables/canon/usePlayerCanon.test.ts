@@ -10,7 +10,7 @@ const { fake } = await vi.hoisted(async () => {
 });
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 
-import { groupPlayerWorld, isPassageNew, usePlayerCanon, type PlayerCanonEntry, type PlayerLorePassage } from "./usePlayerCanon";
+import { groupPlayerWorld, isPassageNew, knownWithLabel, usePlayerCanon, type PlayerCanonEntry, type PlayerLorePassage } from "./usePlayerCanon";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 
@@ -67,6 +67,40 @@ describe("groupPlayerWorld", () => {
     );
     expect(world.lore.find((l) => l.entry.id === "l1")?.latestAt).toBe("2026-11-09T10:00:00Z");
     expect(world.lore.find((l) => l.entry.id === "l2")?.latestAt).toBe("2026-10-01T00:00:00Z");
+  });
+});
+
+describe("groupPlayerWorld: who knows a truth (#1258 item 14)", () => {
+  // Bug caught: every truth marked "some" stayed under "Only you know", so a player who shared it with Mira was told
+  // it was theirs alone. A truth nobody else knows (empty, null or absent known_with) stays there.
+  it("keeps a truth under Only you know until another character shares it", () => {
+    const world = groupPlayerWorld(
+      [
+        entry({ id: "alone", knowledge: "some", known_with: [] }),
+        entry({ id: "absent", knowledge: "some" }),
+        entry({ id: "nulled", knowledge: "some", known_with: null }),
+        entry({ id: "shared", knowledge: "some", known_with: ["Mira"] }),
+        entry({ id: "all", knowledge: "all" }),
+      ],
+      [],
+    );
+    expect(world.onlyMine.map((e) => e.id)).toEqual(["alone", "absent", "nulled"]);
+    expect(world.known.map((e) => e.id)).toEqual(["shared", "all"]);
+  });
+
+  // Bug caught: the sentence read "You and Bram, Mira know" or dropped a name; one name takes "and", more join with commas.
+  it.each([
+    [["Mira"], "You and Mira know"],
+    [["Bram", "Mira"], "You, Bram and Mira know"],
+    [["Bram", "Jo", "Mira"], "You, Bram, Jo and Mira know"],
+  ])("says who knows it for %j", (names, words) => {
+    expect(knownWithLabel(entry({ knowledge: "some", known_with: names }))).toBe(words);
+  });
+
+  // Bug caught: a truth known to all, or one shared with nobody, wore a "You and … know" line.
+  it("says nothing for a truth known to all or one only the player knows", () => {
+    expect(knownWithLabel(entry({ knowledge: "all", known_with: ["Mira"] }))).toBeNull();
+    expect(knownWithLabel(entry({ knowledge: "some", known_with: [] }))).toBeNull();
   });
 });
 

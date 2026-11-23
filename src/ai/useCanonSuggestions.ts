@@ -10,16 +10,18 @@ import type {
   LoreSuggestion,
   PremiseSuggestion,
   QuestionSuggestion,
+  SecretSuggestion,
   TruthSuggestion,
 } from "@edge-shared/canonSuggestions.ts";
+import type { ReadFinding } from "@edge-shared/canonReadThrough.ts";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { isAnyAiGenerating } from "./aiGeneratorRegistry";
 import type { AiProvenance } from "./provenance";
 import { useCampaignStore } from "@/stores/campaign";
 
-export type { ClueSuggestion, ForceSuggestion, LoreSuggestion, PremiseSuggestion, QuestionSuggestion, TruthSuggestion };
+export type { ClueSuggestion, ForceSuggestion, LoreSuggestion, PremiseSuggestion, QuestionSuggestion, ReadFinding, SecretSuggestion, TruthSuggestion };
 
-export type CanonSuggestionMode = "premise" | "truths" | "clues" | "questions" | "forces" | "lore";
+export type CanonSuggestionMode = "premise" | "truths" | "clues" | "questions" | "forces" | "lore" | "secrets" | "read";
 
 interface Shapes {
   premise: PremiseSuggestion;
@@ -28,6 +30,9 @@ interface Shapes {
   questions: QuestionSuggestion;
   forces: ForceSuggestion;
   lore: LoreSuggestion;
+  secrets: SecretSuggestion;
+  /** Findings, not proposals: nothing in them can be accepted, and none is ever written. */
+  read: ReadFinding;
 }
 
 /** What a mode sends besides the steer: the secret the clues are for, or the lore entry's title, kind and text. */
@@ -67,7 +72,7 @@ export function resetCanonSuggestions() {
 }
 
 /**
- * The canon helpers (#1226 story 2): "Draft from a pitch" (`premise`) and "Suggest truths" (`truths`), then clues for a secret, open questions, forces and a lore draft. Server-path
+ * The canon helpers (#1226 story 2): "Draft from a pitch" (`premise`) and "Suggest truths" (`truths`), then clues for a secret, open questions, forces, a lore draft, secrets with their clues, and "Read it through" (`read`). Server-path
  * only, like Suggest connections: the world and the candidate knowers are service-role reads. Only PROPOSES; writing
  * an accepted entry is the caller's job, one at a time.
  */
@@ -105,7 +110,8 @@ export function useCanonSuggestions<M extends CanonSuggestionMode>(mode: M, scop
 
       const result = data as CanonSuggestionsResponse<S>;
       const setAside = result.setAside ?? [];
-      if (result.suggestions.length === 0 && setAside.length === 0) throw new Error("No usable suggestions. Try again.");
+      // A read that found nothing is an answer ("nothing to report"); for every other mode an empty reply is a failure.
+      if (mode !== "read" && result.suggestions.length === 0 && setAside.length === 0) throw new Error("No usable suggestions. Try again.");
       _results.value = { ..._results.value, [key]: { suggestions: result.suggestions, setAside, provenance: result.ai_provenance } };
       return true;
     } catch (e) {
@@ -123,6 +129,8 @@ export function useCanonSuggestions<M extends CanonSuggestionMode>(mode: M, scop
   const setAside = computed(() => mine()?.setAside ?? []);
   const provenance = computed(() => mine()?.provenance ?? null);
   const isGenerating = computed(() => _generating.value === key);
+  /** A result is held for this key, even an empty one: "Read it through" ran and found nothing. */
+  const hasResult = computed(() => mine() !== undefined);
   const error = computed(() => (_errorFor.value === key ? _state.error.value : null));
 
   function dismiss(suggestion: S) {
@@ -137,5 +145,5 @@ export function useCanonSuggestions<M extends CanonSuggestionMode>(mode: M, scop
     if (_errorFor.value === key) _state.error.value = null;
   }
 
-  return { suggest, suggestions, setAside, provenance, isGenerating, error, dismiss, dismissAll };
+  return { suggest, suggestions, setAside, provenance, isGenerating, hasResult, error, dismiss, dismissAll };
 }

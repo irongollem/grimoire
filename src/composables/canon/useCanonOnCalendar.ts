@@ -48,6 +48,7 @@ export function useCanonOnCalendar() {
       lore: all.filter((e) => e.part === "lore"),
       forces: all.filter((e) => e.part === "force"),
       ticks: forceData.data.value?.ticks ?? [],
+      steps: forceData.data.value?.steps ?? [],
     });
   });
 

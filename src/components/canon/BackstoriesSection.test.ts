@@ -55,16 +55,16 @@ describe("BackstoriesSection", () => {
   });
 });
 
-describe("BackstoriesSection search and arc (#1255 item 11)", () => {
+describe("BackstoriesSection and arcs (#1255 item 11)", () => {
   beforeEach(() => setActivePinia(createPinia()));
   const names = ["Tansy", "Pim", "Wren", "Sift", "Oro", "Bex"];
   const party = names.map((n, i) => member(`m${i}`, n, null));
 
-  // Bug caught: the search matching the player's name or nothing, so a character could not be found by their own name.
-  it("finds a character by name", async () => {
+  // Bug caught: the per-part find field left on the part after the page got its one search, so two boxes answer one question.
+  it("has no search of its own, and lists the whole party", () => {
     const w = mount(BackstoriesSection, { props: { party, entries: [], passages: [] }, global: { stubs: { CanonRubric: true } } });
-    await w.find("input[type=search]").setValue("wre");
-    expect(w.findAll("[data-testid=backstory-ledger] li")).toHaveLength(1);
+    expect(w.find("input[type=search]").exists()).toBe(false);
+    expect(w.findAll("[data-testid=backstory-ledger] li")).toHaveLength(names.length);
   });
 
   // Bug caught (#1258 item 29): the part saying "Nothing of this part is in <arc>" for a party no arc narrows.

@@ -16,7 +16,7 @@ select set_eq(
   array['notes', 'session_proposals', 'encounter_state', 'npc_reveals', 'location_reveals',
         'handout_reveals', 'discovered_monsters', 'quest_beat_transitions', 'npc_memories',
         'character_caretakers', 'agent_sessions', 'story_facts', 'party_member_memories',
-        'canon_clues', 'canon_force_steps', 'canon_force_ticks', 'canon_lore_passages'],
+        'canon_clues', 'canon_force_steps', 'canon_force_ticks', 'canon_lore_passages', 'canon_entries'],
   'the merge moves every link into the session log'
 );
 

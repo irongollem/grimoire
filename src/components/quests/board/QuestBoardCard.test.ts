@@ -10,6 +10,7 @@ function quest(overrides: Partial<Quest> = {}): Quest {
     user_id: "dm-1",
     campaign_id: "campaign-1",
     parent_quest_id: null,
+    arc_id: null,
     title: "The Salt-Drowned Bell",
     summary: "Something beneath the harbour rings on the wrong tide.",
     dm_content: null,

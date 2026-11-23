@@ -327,6 +327,8 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["canon_entry_quests", [CANON_KEY]],
   ["canon_arcs", [CANON_KEY]],
   ["canon_trash", [CANON_KEY]],
+  // What the players wonder (#1258 item 24): a player reads their own, the DM all, under the canon root.
+  ["canon_wonders", [CANON_KEY]],
   ["campaign_habitats", [CANON_KEY]],
   ["campaign_habitat_places", [CANON_KEY]],
   ["campaign_habitat_life", [CANON_KEY]],

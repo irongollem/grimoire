@@ -3,8 +3,10 @@ import { openThreads, type BackstoryThreadLink } from "@/lib/canon/backstoryThre
 import { isPlayersPassage } from "@/lib/canon/canonBackstory";
 import { unreviewedCount } from "@/lib/canon/canonTableFacts";
 import type { StoryFact } from "@/lib/table/solo/storyRecord";
-import type { CanonClue, CanonEntry, CanonForceStep, CanonForceTick, CanonLorePassage } from "@/types/canon.types";
+import type { CanonClue, CanonEntry, CanonEntryQuest, CanonForceStep, CanonForceTick, CanonLorePassage } from "@/types/canon.types";
 import type { PartyMember } from "@/types/party.types";
+import type { Quest } from "@/types/quest.types";
+import type { CampaignSession } from "@/types/session.types";
 
 /**
  * "Tonight" (#1255 item 14): what a DM needs for the next session, gathered from the canon and nothing new stored. Pure:
@@ -26,6 +28,8 @@ export interface TonightLore {
   passageTitle: string;
   entryId: string;
   entryTitle: string;
+  /** The character a backstory passage is told to; null for lore, which is told to the whole party. */
+  tellTo: string | null;
 }
 
 export interface TonightClue {
@@ -118,7 +122,7 @@ export function loreToTell(entries: readonly CanonEntry[], passages: readonly Ca
     const entry = entryOf.get(p.entry_id);
     const at = whereOf(p);
     if (entry === undefined || at === null || p.told_at !== null || told.has(p.id)) continue;
-    rows.push({ at, item: { passageId: p.id, passageTitle: p.title, entryId: entry.id, entryTitle: entry.title } });
+    rows.push({ at, item: { passageId: p.id, passageTitle: p.title, entryId: entry.id, entryTitle: entry.title, tellTo: entry.part === "backstory" ? entry.party_member_id : null } });
   }
   return grouped(rows);
 }
@@ -186,4 +190,148 @@ export function tonight(input: TonightInput): Tonight {
 /** True when nothing waits: the page then says so instead of five empty blocks. */
 export function nothingTonight(t: Tonight): boolean {
   return t.lore.length === 0 && t.clues.length === 0 && t.forces.length === 0 && t.threads.length === 0 && t.tableUnreviewed === 0;
+}
+
+// ── Scope (#1258 item 1): Tonight is run from, so it narrows to where the table is ────────────────────────────────
+
+/** "Where the party is" (the default), the beats of the quests being played, or everything the canon holds. */
+export type TonightScope = "party" | "quests" | "all";
+export const TONIGHT_SCOPES: readonly { id: TonightScope; label: string }[] = [
+  { id: "party", label: "Where the party is" },
+  { id: "quests", label: "Active quests" },
+  { id: "all", label: "Everything" },
+];
+export const DEFAULT_TONIGHT_SCOPE: TonightScope = "party";
+
+export interface TonightScopeContext {
+  /** `campaigns.current_location_id`; null when the party has no place set. */
+  currentLocationId: string | null;
+  /** Every place of the campaign, for walking `parent_id` down from the current one. */
+  locations: readonly { id: string; parent_id: string | null }[];
+  /** The beats of quests whose status is active. */
+  activeBeatIds: ReadonlySet<string>;
+}
+
+/** The place and every place inside it, however deep (a room in a dungeon in the party's town). */
+export function placesWithin(rootId: string, locations: readonly { id: string; parent_id: string | null }[]): Set<string> {
+  const childrenOf = new Map<string, string[]>();
+  for (const l of locations) {
+    if (l.parent_id === null) continue;
+    childrenOf.set(l.parent_id, [...(childrenOf.get(l.parent_id) ?? []), l.id]);
+  }
+  const within = new Set<string>([rootId]);
+  const queue = [rootId];
+  for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
+    for (const child of childrenOf.get(id) ?? []) {
+      if (within.has(child)) continue; // a loop in the tree must not hang the page
+      within.add(child);
+      queue.push(child);
+    }
+  }
+  return within;
+}
+
+/** The beats that belong to a quest being played now. */
+export function activeQuestBeatIds(beats: readonly { id: string; quest_id: string }[], quests: readonly Pick<Quest, "id" | "status">[]): Set<string> {
+  const active = new Set(quests.filter((q) => q.status === "active").map((q) => q.id));
+  return new Set(beats.filter((b) => active.has(b.quest_id)).map((b) => b.id));
+}
+
+function scopedGroups<T>(groups: TonightGroup<T>[], keep: (at: TonightWhere) => boolean): TonightGroup<T>[] {
+  return groups.filter((g) => g.at !== null && keep(g.at));
+}
+
+/**
+ * Narrows what lies somewhere to the scope. Lore and clues are the two blocks that come out at a place or a beat, so they
+ * are the two that narrow; what moves and the open threads belong to the whole campaign and are never cut. A scope keeps
+ * a group only when it can say it is there, so what lies nowhere (or at a person) is left out of "party" and "quests".
+ */
+export function scopeTonight(t: Tonight, scope: TonightScope, ctx: TonightScopeContext): Tonight {
+  if (scope === "all") return t;
+  let keep: (at: TonightWhere) => boolean;
+  if (scope === "party") {
+    const here = ctx.currentLocationId === null ? new Set<string>() : placesWithin(ctx.currentLocationId, ctx.locations);
+    keep = (at) => at.location_id !== null && here.has(at.location_id);
+  } else {
+    keep = (at) => at.quest_beat_id !== null && ctx.activeBeatIds.has(at.quest_beat_id);
+  }
+  return { ...t, lore: scopedGroups(t.lore, keep), clues: scopedGroups(t.clues, keep) };
+}
+
+/** True when the scope hid every lore passage and clue that something else (the unscoped plan) had: the page says so. */
+export function scopeHidAll(full: Tonight, scoped: Tonight): boolean {
+  return (full.lore.length > 0 || full.clues.length > 0) && scoped.lore.length === 0 && scoped.clues.length === 0;
+}
+
+// ── Loose ends (#1258 item 31): what the canon promises and has not yet got ready ────────────────────────────────
+
+export type LooseEndKind = "secret" | "force" | "question" | "backstory" | "arc";
+
+export interface LooseEnd {
+  key: string;
+  kind: LooseEndKind;
+  title: string;
+  reasons: string[];
+  /** Where the row opens: the entry, the character's backstory, or the Canon page for an arc (which has no entry of its own). */
+  to: { path: "/canon"; query: Record<string, string> };
+}
+
+export interface LooseEndsInput {
+  entries: readonly CanonEntry[];
+  clues: readonly CanonClue[];
+  steps: readonly CanonForceStep[];
+  entryQuests: readonly Pick<CanonEntryQuest, "entry_id">[];
+  links: readonly BackstoryThreadLink[];
+  arcs: readonly { id: string; name: string; status: string }[];
+  quests: readonly Pick<Quest, "id" | "status" | "arc_id">[];
+  sessions: readonly Pick<CampaignSession, "created_at">[];
+}
+
+/** A secret with fewer clues than this is thin: one clue is one missed roll from a dead end. */
+export const MIN_CLUES = 3;
+/** A question open through more sessions than this has been forgotten rather than kept. */
+export const STALE_QUESTION_SESSIONS = 5;
+
+const isPlaced = (c: CanonClue) => c.location_id !== null || c.npc_id !== null || c.quest_beat_id !== null || c.item_id !== null || c.document_id !== null || c.passage_id !== null;
+const entryTo = (id: string): LooseEnd["to"] => ({ path: "/canon", query: { entry: id } });
+
+export function looseEnds(input: LooseEndsInput): LooseEnd[] {
+  const out: LooseEnd[] = [];
+  const open = (e: CanonEntry) => e.closed_as === null;
+
+  for (const secret of input.entries.filter((e) => e.part === "secret" && e.revealed_at === null)) {
+    const clues = input.clues.filter((c) => c.secret_id === secret.id);
+    const reasons: string[] = [];
+    if (clues.length === 0) reasons.push("No clues yet");
+    else {
+      if (clues.length < MIN_CLUES) reasons.push(`${clues.length} ${clues.length === 1 ? "clue" : "clues"}, fewer than ${MIN_CLUES}`);
+      if (!clues.some(isPlaced)) reasons.push("No clue is placed anywhere");
+    }
+    if (reasons.length > 0) out.push({ key: `secret:${secret.id}`, kind: "secret", title: secret.title, reasons, to: entryTo(secret.id) });
+  }
+
+  for (const force of input.entries.filter((e) => e.part === "force" && open(e))) {
+    const reasons: string[] = [];
+    if (!input.steps.some((s) => s.force_id === force.id && s.reached_at === null)) reasons.push("No step left to reach");
+    if (!input.entryQuests.some((q) => q.entry_id === force.id)) reasons.push("No quest tied to it");
+    if (reasons.length > 0) out.push({ key: `force:${force.id}`, kind: "force", title: force.title, reasons, to: entryTo(force.id) });
+  }
+
+  for (const question of input.entries.filter((e) => e.part === "question" && open(e))) {
+    const since = input.sessions.filter((s) => s.created_at > question.created_at).length;
+    if (since > STALE_QUESTION_SESSIONS) out.push({ key: `question:${question.id}`, kind: "question", title: question.title, reasons: [`Open through ${since} sessions`], to: entryTo(question.id) });
+  }
+
+  for (const backstory of input.entries.filter((e) => e.part === "backstory")) {
+    if (openThreads(backstory.id, input.entries, input.links).length > 0) continue;
+    const to: LooseEnd["to"] = backstory.party_member_id === null ? entryTo(backstory.id) : { path: "/canon", query: { backstory: backstory.party_member_id } };
+    out.push({ key: `backstory:${backstory.id}`, kind: "backstory", title: backstory.title, reasons: ["No open thread"], to });
+  }
+
+  for (const arc of input.arcs.filter((a) => a.status === "running")) {
+    const moving = input.entries.some((e) => e.part === "force" && open(e) && e.arc_id === arc.id);
+    const played = input.quests.some((q) => q.arc_id === arc.id && q.status === "active");
+    if (!moving && !played) out.push({ key: `arc:${arc.id}`, kind: "arc", title: arc.name, reasons: ["Running, with no force moving and no quest active"], to: { path: "/canon", query: {} } });
+  }
+  return out;
 }

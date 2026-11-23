@@ -1,4 +1,5 @@
 import type { RouteRecordRaw } from "vue-router";
+import { CANON_PART_PATTERN } from "@/lib/canon/canonParts";
 
 export const routes: RouteRecordRaw[] = [
   // ── Root ──────────────────────────────────────────────────────────────
@@ -419,7 +420,9 @@ export const routes: RouteRecordRaw[] = [
 
   // Canon (#1226)
   {
-    path: "/canon",
+    // One part at a time (#1258 item 19). The pattern lists the parts, so `/canon/tonight`, `/canon/arcs/:id` and
+    // `/canon/import` are never read as one; a bare `/canon` opens the part the DM was last on.
+    path: `/canon/:part(${CANON_PART_PATTERN})?`,
     name: "canon",
     component: () => import("@/views/canon/CanonView.vue"),
     meta: { requiresAuth: true, title: "Canon" },
@@ -429,6 +432,12 @@ export const routes: RouteRecordRaw[] = [
     name: "canon-tonight",
     component: () => import("@/views/canon/CanonTonightView.vue"),
     meta: { requiresAuth: true, title: "Tonight" },
+  },
+  {
+    path: "/canon/arcs/:id",
+    name: "canon-arc",
+    component: () => import("@/views/canon/ArcView.vue"),
+    meta: { requiresAuth: true, title: "Arc" },
   },
   {
     path: "/canon/import",

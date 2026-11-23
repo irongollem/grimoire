@@ -42,6 +42,7 @@
       </div>
 
       <div class="flex min-w-0 flex-col gap-5 border-border px-6 py-5 lg:border-l">
+        <CanonHere kind="quest_beat" :id="beatId" compact />
         <section v-if="atTheTable" class="flex flex-col gap-3" aria-label="At the table">
           <h3 class="text-body font-bold text-foreground">At the table</h3>
           <QuestRunHeldPayoff v-if="heldLoot.length || context?.held.length" :campaign-id="beat.campaign_id" :quest-id="questId" :loot="heldLoot" :held="context?.held ?? NO_HELD" />
@@ -88,6 +89,7 @@ import { partyBeatIdsOf, reachedBeatIdsOf } from "@/lib/quests/visibility";
 import type { QuestBeatPrepGap, QuestBeatPresentation } from "@/lib/quests/presentation";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { Quest, QuestBeatAttachmentSummary, QuestHeldPayoff, QuestThread } from "@/types/quest.types";
+import CanonHere from "@/components/canon/CanonHere.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import QuestBeatAttachmentsPanel from "../inspector/QuestBeatAttachmentsPanel.vue";

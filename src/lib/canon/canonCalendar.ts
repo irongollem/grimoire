@@ -1,6 +1,7 @@
 import { sortLore } from "./canonLore";
 import { tickTitle } from "./canonChronicle";
-import type { CanonEntry, CanonForceTick } from "@/types/canon.types";
+import { dueSteps } from "./canonForces";
+import type { CanonEntry, CanonForceStep, CanonForceTick } from "@/types/canon.types";
 
 /**
  * The canon's dated things as the Calendar's timeline shows them, for the DM only (#1255 item 19). They are read from
@@ -10,8 +11,8 @@ import type { CanonEntry, CanonForceTick } from "@/types/canon.types";
 
 export interface CanonCalendarItem {
   key: string;
-  /** The small word on it: "Lore", or "A force moved". */
-  label: "Lore" | "A force moved";
+  /** The small word on it: "Lore", "A force moved", or "A step due" (a force's unreached step that has a due date). */
+  label: "Lore" | "A force moved" | "A step due";
   title: string;
   year: number;
   month: number | null;
@@ -20,8 +21,11 @@ export interface CanonCalendarItem {
   to: { path: string; query: Record<string, string> };
 }
 
-/** Dated lore, then force ticks that carry a world date, in world order. Undated ones, and ticks of a deleted force, are left out. */
-export function canonCalendarItems(input: { lore: readonly CanonEntry[]; forces: readonly CanonEntry[]; ticks: readonly CanonForceTick[] }): CanonCalendarItem[] {
+/**
+ * Dated lore, force ticks that carry a world date and the unreached steps that are due on one, in world order. Undated
+ * ones, and ticks of a deleted force, are left out. `steps` is optional: left out, no step is offered.
+ */
+export function canonCalendarItems(input: { lore: readonly CanonEntry[]; forces: readonly CanonEntry[]; ticks: readonly CanonForceTick[]; steps?: readonly CanonForceStep[] }): CanonCalendarItem[] {
   const forceTitle = new Map(input.forces.filter((f) => f.part === "force").map((f) => [f.id, f.title]));
   const items: (CanonCalendarItem & { world_year: number; world_month: number | null; world_day: number | null })[] = [];
   for (const entry of input.lore) {
@@ -39,6 +43,14 @@ export function canonCalendarItems(input: { lore: readonly CanonEntry[]; forces:
       key: `tick:${tick.id}`, label: "A force moved", title: tickTitle(name, tick), year: tick.world_year, month: tick.world_month, day: tick.world_day,
       to: { path: "/canon", query: { entry: tick.force_id } },
       world_year: tick.world_year, world_month: tick.world_month, world_day: tick.world_day,
+    });
+  }
+  for (const { step, force } of dueSteps(input.steps ?? [], input.forces)) {
+    if (step.due_year === null) continue;
+    items.push({
+      key: `due:${step.id}`, label: "A step due", title: `${force.title}: ${step.title}`, year: step.due_year, month: step.due_month, day: step.due_day,
+      to: { path: "/canon", query: { entry: force.id } },
+      world_year: step.due_year, world_month: step.due_month, world_day: step.due_day,
     });
   }
   return sortLore(items).map(({ world_year: _y, world_month: _m, world_day: _d, ...item }) => item);

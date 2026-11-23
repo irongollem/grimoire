@@ -4,6 +4,7 @@
  * through `campaign_habitat_life_named`). The share rules are `shares.ts`'s, the same as the peoples'.
  */
 import { rollShare, type Share } from "./shares";
+import { tablesForPlaces, type TableOnPlace } from "@/lib/travel/wayTables";
 
 export interface Habitat {
   id: string;
@@ -74,4 +75,32 @@ export function lifeConstraints(habitatName: string, life: readonly HabitatLife[
   const listed = shared.filter((l) => l.readable).map((l) => l.name);
   if (listed.length === 0) return [];
   return [`The creatures are not ${listed.join(", ")}: something this country rarely sees.`];
+}
+
+/** A roll table put on a place, with its name for the line that says "Uses <name> here". */
+export interface PlacedTable extends TableOnPlace {
+  name: string;
+}
+
+/**
+ * What a place's encounters come from (#1258 item 15). One rule for the generator's Where line and the place page:
+ * the place's own encounter table (or the nearest one of a place it lies inside, `tablesForPlaces`) wins, and the
+ * habitat is the fallback only when neither the place nor any ancestor has a table. Never both: a table on the
+ * place means the DM already said what happens there, so nothing is rolled from the habitat.
+ */
+export type PlaceEncounterSource =
+  | { from: "table"; tables: { id: string; name: string; placeId: string }[] }
+  | { from: "habitat"; match: PlaceHabitatMatch }
+  | null;
+
+export function encounterSourceForPlace(
+  placeId: string,
+  parentOf: (id: string) => string | null,
+  tables: readonly PlacedTable[],
+  covered: readonly HabitatCoverage[],
+): PlaceEncounterSource {
+  const own = tablesForPlaces([placeId], parentOf, tables);
+  if (own.length > 0) return { from: "table", tables: own.map(({ table }) => ({ id: table.id, name: table.name, placeId: table.placeId })) };
+  const match = habitatForPlace(placeId, parentOf, covered);
+  return match === null ? null : { from: "habitat", match };
 }

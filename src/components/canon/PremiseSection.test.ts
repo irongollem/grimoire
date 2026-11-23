@@ -31,11 +31,18 @@ const RevealStub = { name: "AudienceRevealControl", template: "<i data-testid='r
 function mountSection(entries: CanonEntry[], table_violence: Campaign["table_violence"] = "standard") {
   return mount(PremiseSection, {
     props: { campaign: { id: "c1", setting: "Eberron", calendar_id: null, table_violence } as Campaign, entries },
-    global: { stubs: { RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" }, AudienceRevealControl: RevealStub, PremiseWorld: true, PremisePitch: true, CanonSuggestions: true } },
+    global: { stubs: { RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" }, AudienceRevealControl: RevealStub, ThemeCarriedBy: true, PremiseWorld: true, PremisePitch: true, CanonSuggestions: true, CanonSuggestFold: { name: "CanonSuggestFold", props: ["part"], template: "<div data-testid='fold'><slot /></div>" } } },
   });
 }
 
 describe("PremiseSection", () => {
+  // Bug caught (#1258 item 19): the premise helper left open on the page, above the pitch on every visit.
+  it("keeps the helper inside the Suggest fold", () => {
+    const w = mountSection([]);
+    expect(w.get("[data-testid=fold]").findComponent({ name: "CanonSuggestions" }).exists()).toBe(true);
+    expect(w.getComponent({ name: "CanonSuggestFold" }).props("part")).toBe("premise");
+  });
+
   it("gives voice and look no reveal control, because players never read them", () => {
     const w = mountSection([entry({ id: "v", premise_kind: "voice", title: "Dry" }), entry({ id: "l", premise_kind: "look", title: "Gouache" })]);
     expect(w.find("[data-testid=premise-voice] [data-testid=reveal]").exists()).toBe(false);

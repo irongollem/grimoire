@@ -12,6 +12,9 @@ vi.mock("@/composables/canon/useCanonEntries", () => ({
   useUpdateCanonEntry: () => ({ mutate: mocks.update, mutateAsync: mocks.updateAsync }),
   useTrashCanonEntry: () => ({ mutateAsync: mocks.destroy }),
 }));
+vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/canon/useEntryQuestLinks", () => ({ useEntryQuestLinks: () => ref([]) }));
+vi.mock("@/composables/canon/useCanonWonders", () => ({ useCampaignWonders: () => ({ data: ref([]) }), useWonderActions: () => ({ takeUp: vi.fn(), letBe: vi.fn() }), isOpenWonder: () => true }));
 vi.mock("@/composables/connections/useConnections", () => ({ useCreateConnection: () => ({ mutateAsync: mocks.connect }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 
@@ -22,7 +25,7 @@ import QuestionsList from "./QuestionsList.vue";
 const q = (id: string, title: string): CanonEntry => canonEntry({ id, part: "question", title });
 const answered = (): CanonEntry => canonEntry({ id: "q9", part: "question", title: "Who built the mill?", closed_as: "answered", closed_at: "t", closed_note: "The guild did.", became_entry_id: "t9" });
 const mountList = (rows: CanonEntry[] = [q("q1", "Who made the Stain?")]) =>
-  mount(QuestionsList, { props: { questions: rows }, global: { stubs: { CanonSuggestions: true, RouterLink: { props: ["to"], template: "<a :data-to=\"JSON.stringify(to)\"><slot /></a>" } } } });
+  mount(QuestionsList, { props: { questions: rows }, global: { stubs: { CanonSuggestions: true, CanonSuggestFold: { template: "<div><slot /></div>" }, RouterLink: { props: ["to"], template: "<a :data-to=\"JSON.stringify(to)\"><slot /></a>" } } } });
 const submitButton = (w: ReturnType<typeof mountList>) => w.find("button[type=submit]");
 
 describe("QuestionsList", () => {
@@ -177,7 +180,7 @@ describe("QuestionsList", () => {
 describe("QuestionsList find and order (#1255 item 11)", () => {
   beforeEach(() => { setActivePinia(createPinia()); Object.values(mocks).forEach((m) => m.mockReset()); mocks.updateAsync.mockResolvedValue(undefined); });
   const many = () => ["a", "b", "c", "d", "e", "f"].map((t, i) => canonEntry({ id: `q${i}`, part: "question", title: `Why ${t}?`, sort_order: i }));
-  const mountMany = (props: Record<string, unknown> = {}) => mount(QuestionsList, { props: { questions: many(), ...props }, global: { stubs: { CanonSuggestions: true } } });
+  const mountMany = (props: Record<string, unknown> = {}) => mount(QuestionsList, { props: { questions: many(), ...props }, global: { stubs: { CanonSuggestions: true, CanonSuggestFold: { template: "<div><slot /></div>" } } } });
 
   it("moves an open question up by swapping its place with the one before it", async () => {
     await mountMany().find("button[aria-label='Move Why c? up']").trigger("click");
@@ -185,14 +188,9 @@ describe("QuestionsList find and order (#1255 item 11)", () => {
     expect(mocks.updateAsync.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["q2", 1], ["q1", 2]]);
   });
 
-  // Bug caught: moving inside a list a search has cut, where "up" would swap with a row that is not on screen.
-  it("hides the move buttons while a search narrows the list, and narrows by title", async () => {
-    const w = mountMany();
-    expect(w.find("[data-testid=move-buttons]").exists()).toBe(true);
-    await w.find("input[type=search]").setValue("why");
-    expect(w.findAll("li")).toHaveLength(6); // still several rows, so a move would be possible if it were offered
-    expect(w.find("[data-testid=move-buttons]").exists()).toBe(false);
-    await w.find("input[type=search]").setValue("why d");
-    expect(w.findAll("li")).toHaveLength(1);
+  // Bug caught: moving inside a list an arc has narrowed, where "up" would swap with a row that is not on screen.
+  it("hides the move buttons while an arc narrows the list", () => {
+    expect(mountMany().find("[data-testid=move-buttons]").exists()).toBe(true);
+    expect(mountMany({ arcLabel: "The drowned god" }).find("[data-testid=move-buttons]").exists()).toBe(false);
   });
 });

@@ -4,7 +4,7 @@
 
     <div class="@container flex flex-col gap-4 border border-border bg-card p-4">
       <PremiseWorld :campaign="campaign" />
-      <CanonSuggestions mode="premise" :entries="entries" />
+      <CanonSuggestFold part="premise"><CanonSuggestions mode="premise" :entries="entries" /></CanonSuggestFold>
       <PremisePitch :pitches="ofKind('pitch')" :calendar-id="campaign.calendar_id" />
 
       <!-- Side by side only when the column itself is wide: with the truth's aside open it is not, whatever the screen. -->
@@ -69,6 +69,7 @@ import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useTableAccess } from "@/composables/campaign/useTableAccess";
 import { tableViolenceLabel } from "@/lib/campaign/tableViolence";
+import CanonSuggestFold from "./CanonSuggestFold.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
 import CanonRubric from "./CanonRubric.vue";
 import PremiseLines from "./PremiseLines.vue";

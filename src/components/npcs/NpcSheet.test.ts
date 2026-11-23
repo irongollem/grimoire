@@ -9,6 +9,7 @@ const asked = vi.hoisted(() => [] as (string | null)[]);
 
 // The clues block reads canon through the query client; these tests are about the sheet around it.
 vi.mock("@/components/canon/CanonHere.vue", () => ({ default: { template: "<div />" } }));
+vi.mock("@/components/npcs/NpcToldOf.vue", () => ({ default: { props: ["npcId", "name"], template: "<div data-testid='told-of' :data-id='npcId' :data-name='name' />" } }));
 vi.mock("@/composables/locations/useLocations", () => ({
   // Answers only for the id the sheet asks for, as `useLocation` does: a place the sheet
   // did not ask by id (the old every-place read) never reaches it.
@@ -44,6 +45,11 @@ describe("NpcSheet", () => {
     const sheet = mountSheet();
     expect(sheet.text()).toContain("alive");
     expect(sheet.get('[data-testid="tabs"]').attributes("data-has-full")).toBe("false");
+  });
+
+  // Bug: the lore told about this person never reached the sheet, so a past told in stages could not be followed from them.
+  it("shows the lore told of this person on the DM's sheet", () => {
+    expect(mountSheet().get("[data-testid=told-of]").attributes()).toMatchObject({ "data-id": "n1", "data-name": "Maera" });
   });
 
   it("starts the DM note read from the id alone, without waiting for the record", () => {

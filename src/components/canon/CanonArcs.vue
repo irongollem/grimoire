@@ -21,8 +21,11 @@
           :arc="arc"
           :first="index === 0"
           :last="index === arcs.length - 1"
+          :themes="themes"
           @rename="(name) => actions.update.mutate({ id: arc.id, patch: { name } })"
           @summarise="(summary) => actions.update.mutate({ id: arc.id, patch: { summary } })"
+          @status="(next) => setStatus(arc, next)"
+          @patch="(patch) => actions.update.mutate({ id: arc.id, patch })"
           @move="(direction) => actions.move.mutate({ arcs, id: arc.id, direction })"
           @remove="remove(arc)"
         />
@@ -39,7 +42,7 @@
 <script setup lang="ts">
 /**
  * The bar at the top of the Canon page (#1255 item 11): "Show: everything / one arc" narrows every part at once, and
- * "Arcs…" opens the panel where arcs are made, renamed, put in order and deleted. An arc is the one grouping, so there
+ * "Arcs…" opens the panel where arcs are made, shaped (status, question, stakes, theme, ending), put in order and deleted. An arc is the one grouping, so there
  * are no free tags. The chosen arc lives in the page's store; a deleted arc clears itself from it.
  */
 import { computed, ref, watch } from "vue";
@@ -47,7 +50,9 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import CanonArcRow from "./CanonArcRow.vue";
-import { useCanonArcActions, useCanonArcs, type CanonArc } from "@/composables/canon/useCanonArcs";
+import { useCanonArcActions, useCanonArcs, type CanonArc, type CanonArcStatus } from "@/composables/canon/useCanonArcs";
+import { statusPatch } from "@/lib/canon/canonArcs";
+import { useCanonEntries } from "@/composables/canon/useCanonEntries";
 import { useConfirm } from "@/composables/useConfirm";
 import { IconAdd } from "@/lib/icons";
 import { useCanonUiStore } from "@/stores/ui/canon";
@@ -62,6 +67,8 @@ const filter = computed({
 
 const { data, isSuccess } = useCanonArcs();
 const arcs = computed(() => data.value ?? []);
+const { data: entries } = useCanonEntries();
+const themes = computed(() => (entries.value ?? []).filter((e) => e.part === "premise" && e.premise_kind === "theme").map((e) => ({ id: e.id, title: e.title })));
 const actions = useCanonArcActions();
 const { confirm } = useConfirm();
 
@@ -84,6 +91,12 @@ async function add() {
   } catch {
     // The mutation has already told the DM (toast); the words stay in the boxes.
   }
+}
+
+/** Leaving Ended throws the ending away, so a written ending is asked about first; nothing is written if the DM says no. */
+async function setStatus(arc: CanonArc, next: CanonArcStatus) {
+  if (arc.status === "ended" && arc.ending !== null && !(await confirm("This arc is no longer over, so how it ended is cleared. Carry on?", { title: "Clear how it ended", confirmLabel: "Clear it" }))) return;
+  actions.update.mutate({ id: arc.id, patch: statusPatch(arc, next) });
 }
 
 async function remove(arc: CanonArc) {

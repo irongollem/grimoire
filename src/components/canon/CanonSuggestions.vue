@@ -113,16 +113,16 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
-import { useCanonSuggestions, type ClueSuggestion, type ForceSuggestion, type LoreSuggestion, type PremiseSuggestion, type QuestionSuggestion, type TruthSuggestion } from "@/ai/useCanonSuggestions";
+import { useCanonSuggestions, type ClueSuggestion, type ForceSuggestion, type LoreSuggestion, type PremiseSuggestion, type QuestionSuggestion, type SecretSuggestion, type TruthSuggestion } from "@/ai/useCanonSuggestions";
 import type { AiProvenance } from "@/ai/provenance";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import { premiseEntryText } from "@edge-shared/worldBlock.ts";
 import type { CanonEntry, LoreKind, PremiseKind } from "@/types/canon.types";
 
-type Suggestion = PremiseSuggestion | TruthSuggestion | ClueSuggestion | QuestionSuggestion | ForceSuggestion | LoreSuggestion;
+type Suggestion = PremiseSuggestion | TruthSuggestion | ClueSuggestion | QuestionSuggestion | ForceSuggestion | LoreSuggestion | SecretSuggestion;
 
-const { mode, entries, secretId = null, lore = null } = defineProps<{
-  mode: "premise" | "truths" | "clues" | "questions" | "forces" | "lore";
+const { mode, entries, secretId = null, lore = null, scope = undefined } = defineProps<{
+  mode: "premise" | "truths" | "clues" | "questions" | "forces" | "lore" | "secrets";
   /** The entries the mode adds to: premise entries, truths or questions. Unused by `clues`, which counts the secret's own. */
   entries: readonly CanonEntry[];
   /** Required by `clues`: the secret the clues are for. */
@@ -132,7 +132,10 @@ const { mode, entries, secretId = null, lore = null } = defineProps<{
    * into passages and replaces its passages; without one it drafts a whole new entry.
    */
   lore?: { title: string; kind: LoreKind | null; entryId: string | null; text: string } | null;
+  /** Keeps this mount's proposals apart from another mount of the same mode (the Shape the world walk beside its part). */
+  scope?: string;
 }>();
+// Emitted with the entry an accept created and the page may open: a lore draft, or a secret.
 const emit = defineEmits<{ accepted: [entryId: string] }>();
 
 const COPY = {
@@ -184,6 +187,14 @@ const COPY = {
     waiting: "Reading your campaign to draft this lore. This takes a little while.",
     heading: "Suggested lore",
   },
+  secrets: {
+    open: "Suggest secrets",
+    run: "Suggest secrets",
+    steerLabel: "Steer the secrets",
+    placeholder: "e.g. something the guild hides, and one about the old bridge",
+    waiting: "Reading your campaign for secrets and places to hide clues. This takes a little while.",
+    heading: "Suggested secrets",
+  },
   split: {
     open: "Split into passages",
     run: "Split",
@@ -214,7 +225,7 @@ const { confirm } = useConfirm();
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const steerId = useId();
 
-const { suggest, suggestions, setAside, provenance, isGenerating, error, dismiss, dismissAll } = useCanonSuggestions(mode, mode === "lore" ? (lore?.entryId ?? "new") : undefined);
+const { suggest, suggestions, setAside, provenance, isGenerating, error, dismiss, dismissAll } = useCanonSuggestions(mode, scope ?? (mode === "lore" ? (lore?.entryId ?? "new") : undefined));
 const { canSpend } = useGenerationGate();
 const quoteFor = useCanonSuggestionsQuote();
 const { textIsByok } = useCampaignProviders();
@@ -280,8 +291,11 @@ function isClue(s: Suggestion): s is ClueSuggestion {
 function isForce(s: Suggestion): s is ForceSuggestion {
   return "steps" in s;
 }
+function isSecret(s: Suggestion): s is SecretSuggestion {
+  return "clues" in s;
+}
 function isQuestion(s: Suggestion): s is QuestionSuggestion {
-  return !("knowledge" in s) && !("spot" in s) && !("kind" in s) && !("steps" in s) && !("passages" in s);
+  return !("knowledge" in s) && !("spot" in s) && !("kind" in s) && !("steps" in s) && !("passages" in s) && !("clues" in s);
 }
 
 interface Proposal {
@@ -297,6 +311,7 @@ interface Proposal {
 
 const proposals = computed<Proposal[]>(() =>
   (suggestions.value as Suggestion[]).map((source, i) => {
+    if (isSecret(source)) return { key: `${i}:${source.title}`, source, tag: "A secret", text: source.title, knowers: null, spot: null, detail: secretDetail(source) };
     if (isLore(source)) return { key: `${i}:${source.title}`, source, tag: lore?.entryId ? "Passages" : "A lore entry", text: source.title, knowers: null, spot: null, detail: loreDetail(source) };
     if (isForce(source)) return { key: `${i}:${source.title}`, source, tag: "A force", text: `${source.title} wants ${source.wants}`, knowers: null, spot: null, who: source.who, detail: forceDetail(source) };
     if (isTruth(source)) return { key: `${i}:${source.title}`, source, tag: MARK_TAG[source.knowledge], text: source.title, knowers: source.knowers.map((k) => k.name), spot: null };
@@ -305,6 +320,10 @@ const proposals = computed<Proposal[]>(() =>
     return { key: `${i}:${source.kind}:${source.text}`, source, tag: KIND_TAG[source.kind], text: source.text, knowers: null, spot: null };
   }),
 );
+
+function secretDetail(s: SecretSuggestion): string {
+  return `${s.clues.length === 1 ? "A clue" : `${s.clues.length} clues`}: ${s.clues.map((c) => (c.spot ? `${c.title} (at ${c.spot.name})` : c.title)).join("; ")}.`;
+}
 
 function loreDetail(s: LoreSuggestion): string {
   return `${s.passages.length} ${s.passages.length === 1 ? "passage" : "passages"}: ${s.passages.map((p) => p.title).join("; ")}.`;
@@ -361,16 +380,31 @@ async function acceptTruth(s: TruthSuggestion) {
   return true;
 }
 
-/** A clue lies at exactly one of the three places; only the column matching the suggested spot is set. */
+/** A clue lies at exactly one of the three places, or nowhere yet; only the column matching the spot is set. */
+function clueAt(secret: string, title: string, sort_order: number, spot: ClueSuggestion["spot"] | null): NewCanonClue {
+  const base = { secret_id: secret, title, sort_order, ...stamp() };
+  if (spot === null) return base;
+  return spot.kind === "location" ? { ...base, location_id: spot.id }
+    : spot.kind === "npc" ? { ...base, npc_id: spot.id }
+    : { ...base, quest_beat_id: spot.id };
+}
+
 async function acceptClue(s: ClueSuggestion) {
   if (secretId === null) throw new Error("Place clues is only offered on a secret.");
   const count = (allClues.value ?? []).filter((c) => c.secret_id === secretId).length;
-  const base = { secret_id: secretId, title: s.title, sort_order: count, ...stamp() };
-  const clue: NewCanonClue =
-    s.spot.kind === "location" ? { ...base, location_id: s.spot.id }
-    : s.spot.kind === "npc" ? { ...base, npc_id: s.spot.id }
-    : { ...base, quest_beat_id: s.spot.id };
-  await createClue(clue);
+  await createClue(clueAt(secretId, s.title, count, s.spot));
+  return true;
+}
+
+/**
+ * A secret and its clues, written in turn: the clues need the secret's id. One that fails stops the rest and tells the
+ * DM (the caller's toast); the secret and the clues already made stay, and the proposal stays to accept again.
+ */
+async function acceptSecret(s: SecretSuggestion) {
+  const count = entries.filter((e) => e.part === "secret").length;
+  const created = await createEntry({ part: "secret", title: s.title, sort_order: count, ...stamp() });
+  for (const [i, clue] of s.clues.entries()) await createClue(clueAt(created.id, clue.title, i, clue.spot));
+  emit("accepted", created.id);
   return true;
 }
 
@@ -407,7 +441,7 @@ async function acceptLore(s: LoreSuggestion) {
 async function accept(s: Suggestion) {
   isAccepting.value = true;
   try {
-    const done = isLore(s) ? await acceptLore(s) : isForce(s) ? await acceptForce(s) : isTruth(s) ? await acceptTruth(s) : isClue(s) ? await acceptClue(s) : isQuestion(s) ? await acceptQuestion(s) : await acceptPremise(s);
+    const done = isSecret(s) ? await acceptSecret(s) : isLore(s) ? await acceptLore(s) : isForce(s) ? await acceptForce(s) : isTruth(s) ? await acceptTruth(s) : isClue(s) ? await acceptClue(s) : isQuestion(s) ? await acceptQuestion(s) : await acceptPremise(s);
     if (done) dismiss(s as never);
   } catch (e) {
     toast.error(e instanceof Error ? e.message : "Could not save that suggestion.");

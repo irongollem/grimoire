@@ -59,11 +59,12 @@ const SectionStub = {
     },
   },
 };
+const EntryStoryLinksStub = { name: "EntryStoryLinks", props: ["entry"], template: "<div data-testid='story-links' :data-entry='entry.id' />" };
 const tie = (over: Partial<Connection>) => ({ row_id: "r", source: "link", type: "about", other_kind: "npc", other_id: "n1", other_name: "Someone", outward: true, ...over }) as Connection;
 const mountDetail = () =>
   mount(BackstoryDetail, {
     props: { member },
-    global: { stubs: { LorePassageRow: RowStub, BackstoryBeforePlay: true, ConnectionsSection: SectionStub, AudienceRevealControl: true, ListSkeleton: true, EntryQuests: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } },
+    global: { stubs: { LorePassageRow: RowStub, BackstoryBeforePlay: true, ConnectionsSection: SectionStub, AudienceRevealControl: true, ListSkeleton: true, EntryQuests: true, EntryStoryLinks: EntryStoryLinksStub, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } },
   });
 
 describe("BackstoryDetail", () => {
@@ -123,6 +124,20 @@ describe("BackstoryDetail", () => {
     };
     const second = mountDetail().find("[data-testid=section]");
     expect(second.findAll("[data-testid=tie]").map((t) => t.text())).toEqual(["mill"]);
+  });
+
+  // Bug caught (#1258 item 18): cause and effect listed twice, in the story links and again as raw led_to / carries rows.
+  it("mounts the story links for the entry and keeps led_to and carries ties out of the places block", () => {
+    ties.byKind = {
+      canon: [
+        tie({ row_id: "l", other_kind: "canon", other_id: "x", type: "led_to" }),
+        tie({ row_id: "c", other_kind: "canon", other_id: "t", type: "carries" }),
+        tie({ row_id: "p", other_kind: "location", other_id: "mill", type: "took_place_at" }),
+      ],
+    };
+    const w = mountDetail();
+    expect(w.get("[data-testid=story-links]").attributes("data-entry")).toBe("b1");
+    expect(w.find("[data-testid=section]").findAll("[data-testid=tie]").map((t) => t.text())).toEqual(["mill"]);
   });
 
   describe("threads left open", () => {

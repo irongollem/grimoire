@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canonEntry } from "@/test/canonEntry";
-import { cluesToFind, forcesMoving, loreToTell, nothingTonight, threadsLeftOpen, tonight, type TonightInput } from "./canonTonight";
+import { activeQuestBeatIds, cluesToFind, forcesMoving, looseEnds, loreToTell, nothingTonight, placesWithin, scopeHidAll, scopeTonight, threadsLeftOpen, tonight, type LooseEndsInput, type TonightInput, type TonightScopeContext } from "./canonTonight";
 import type { StoryFact } from "@/lib/table/solo/storyRecord";
 import type { CanonClue, CanonForceStep, CanonForceTick, CanonLorePassage } from "@/types/canon.types";
 import type { PartyMember } from "@/types/party.types";
@@ -15,10 +15,10 @@ const passage = (id: string, entry_id: string, over: Partial<CanonLorePassage> =
 });
 const clue = (id: string, secret_id: string, over: Partial<CanonClue> = {}): CanonClue => ({
   id, user_id: "u", campaign_id: "c1", secret_id, title: `Clue ${id}`, sort_order: 0, location_id: null, npc_id: null, quest_beat_id: null,
-  found_at: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: stamp(), updated_at: stamp(), ...over,
+  found_at: null, item_id: null, document_id: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: stamp(), updated_at: stamp(), ...over,
 });
 const step = (id: string, force_id: string, sort_order: number, reached_at: string | null = null): CanonForceStep => ({
-  id, user_id: "u", campaign_id: "c1", force_id, title: `Step ${id}`, sort_order, reached_at, reached_session_id: null, ai_provenance: null,
+  id, user_id: "u", campaign_id: "c1", force_id, title: `Step ${id}`, sort_order, reached_at, reached_session_id: null, due_year: null, due_month: null, due_day: null, ai_provenance: null,
   created_at: stamp(), updated_at: stamp(),
 });
 const tick = (force_id: string, delta: number): CanonForceTick => ({
@@ -184,5 +184,167 @@ describe("tonight", () => {
     expect(nothingTonight(tonight(empty))).toBe(true);
     expect(nothingTonight(tonight({ ...empty, facts: [fact("a")] }))).toBe(false);
     expect(nothingTonight(tonight({ ...empty, entries: [canonEntry({ id: "F1", part: "force" })] }))).toBe(false);
+  });
+});
+
+describe("scope", () => {
+  // A town, a dungeon under it, a room in the dungeon; a second town with a room of its own.
+  const places = [
+    { id: "town", parent_id: null },
+    { id: "dungeon", parent_id: "town" },
+    { id: "room", parent_id: "dungeon" },
+    { id: "elsewhere", parent_id: null },
+    { id: "elsewhere-room", parent_id: "elsewhere" },
+  ];
+  const ctx = (over: Partial<TonightScopeContext> = {}): TonightScopeContext => ({ currentLocationId: "town", locations: places, activeBeatIds: new Set(["b1"]), ...over });
+  const L = (id: string, over: Partial<CanonLorePassage>) => passage(id, "L1", { sort_order: 1, ...over });
+  const plan = (): TonightInput => ({
+    entries: [lore, canonEntry({ id: "S1", part: "secret", title: "A secret" })],
+    passages: [passage("first", "L1", { sort_order: 0 }), L("inTown", { location_id: "town" }), L("inRoom", { location_id: "room" }), L("far", { location_id: "elsewhere-room" }), L("atBeat", { quest_beat_id: "b1" }), L("atOtherBeat", { quest_beat_id: "b2" }), L("atNpc", { npc_id: "n1" })],
+    clues: [clue("kRoom", "S1", { location_id: "room" }), clue("kBeat", "S1", { quest_beat_id: "b1" }), clue("kNowhere", "S1")],
+    steps: [], ticks: [], party: [], links: [], facts: [],
+  });
+  const ids = (t: ReturnType<typeof tonight>) => ({ lore: t.lore.flatMap((g) => g.items.map((i) => i.passageId)), clues: t.clues.flatMap((g) => g.items.map((i) => i.clueId)) });
+
+  // Bug caught: only the party's own place matched, so a room inside the party's town was dropped from "Where the party is".
+  it("where the party is keeps the place, a room inside it however deep, and nothing in another town", () => {
+    const scoped = scopeTonight(tonight(plan()), "party", ctx());
+    expect(ids(scoped)).toEqual({ lore: ["inTown", "inRoom"], clues: ["kRoom"] });
+  });
+
+  // Bug caught: a party with no place set matching every group (an unset id compared as a wildcard).
+  it("where the party is keeps nothing when the campaign has no current place", () => {
+    expect(ids(scopeTonight(tonight(plan()), "party", ctx({ currentLocationId: null })))).toEqual({ lore: [], clues: [] });
+  });
+
+  // Bug caught: the walk down parent_id following a loop forever, hanging the page on a bad tree.
+  it("walks a place loop once", () => {
+    const loop = [{ id: "a", parent_id: "b" }, { id: "b", parent_id: "a" }];
+    expect([...placesWithin("a", loop)].sort()).toEqual(["a", "b"]);
+  });
+
+  // Bug caught: active quests keeping the beats of every quest, or a place group, instead of the active quests' beats only.
+  it("active quests keeps only what lies at a beat of an active quest", () => {
+    expect(ids(scopeTonight(tonight(plan()), "quests", ctx()))).toEqual({ lore: ["atBeat"], clues: ["kBeat"] });
+  });
+
+  // Bug caught: the active set built from every quest's beats, so a completed quest's beats still counted.
+  it("builds the active beats from active quests only", () => {
+    const beats = [{ id: "b1", quest_id: "q1" }, { id: "b2", quest_id: "q2" }];
+    expect([...activeQuestBeatIds(beats, [{ id: "q1", status: "active" }, { id: "q2", status: "completed" }])]).toEqual(["b1"]);
+  });
+
+  // Bug caught: Everything narrowing anyway, or dropping what lies nowhere.
+  it("everything keeps every group, including what lies nowhere", () => {
+    expect(ids(scopeTonight(tonight(plan()), "all", ctx())).clues).toEqual(["kRoom", "kBeat", "kNowhere"]);
+  });
+
+  // Bug caught: forces and threads cut by a place scope they have no place for, hiding what moves.
+  it("never narrows what moves", () => {
+    const input = { ...plan(), entries: [...plan().entries, canonEntry({ id: "F1", part: "force" })] };
+    expect(scopeTonight(tonight(input), "party", ctx()).forces).toHaveLength(1);
+  });
+
+  // Bug caught: the "nothing placed here" note shown when the scope hid nothing, or not when it hid everything.
+  it("says the scope hid everything only when something existed and none of it is in scope", () => {
+    const full = tonight(plan());
+    expect(scopeHidAll(full, scopeTonight(full, "party", ctx()))).toBe(false);
+    expect(scopeHidAll(full, scopeTonight(full, "party", ctx({ currentLocationId: null })))).toBe(true);
+    const bare = tonight({ ...plan(), passages: [], clues: [] });
+    expect(scopeHidAll(bare, scopeTonight(bare, "party", ctx()))).toBe(false);
+  });
+});
+
+describe("looseEnds", () => {
+  const base: LooseEndsInput = { entries: [], clues: [], steps: [], entryQuests: [], links: [], arcs: [], quests: [], sessions: [] };
+  const secret = canonEntry({ id: "S1", part: "secret", title: "The mayor is a ghoul" });
+  const kinds = (i: LooseEndsInput) => looseEnds(i).map((e) => `${e.kind}:${e.reasons.join("|")}`);
+  const placed = (id: string) => clue(id, "S1", { location_id: "loc" });
+
+  // Bug caught: the three-clue floor off by one (<=) so a secret with exactly three clues was flagged.
+  it("flags a secret with fewer than three clues, not one with three placed", () => {
+    expect(kinds({ ...base, entries: [secret], clues: [placed("a"), placed("b")] })).toEqual(["secret:2 clues, fewer than 3"]);
+    expect(kinds({ ...base, entries: [secret], clues: [placed("a"), placed("b"), placed("c")] })).toEqual([]);
+  });
+
+  // Bug caught: a secret with no clues at all passing because "fewer than three" was only checked once one existed.
+  it("flags a secret with no clues", () => {
+    expect(kinds({ ...base, entries: [secret] })).toEqual(["secret:No clues yet"]);
+  });
+
+  // Bug caught: three clues lying nowhere counted as covered, though the DM has nowhere to find any of them.
+  it("flags a secret whose clues are all unplaced, and treats a clue at an item or a passage as placed", () => {
+    const loose = ["a", "b", "c"].map((id) => clue(id, "S1"));
+    expect(kinds({ ...base, entries: [secret], clues: loose })).toEqual(["secret:No clue is placed anywhere"]);
+    expect(kinds({ ...base, entries: [secret], clues: [clue("a", "S1", { item_id: "i" }), clue("b", "S1"), clue("c", "S1")] })).toEqual([]);
+  });
+
+  // Bug caught: a revealed secret still listed as thin.
+  it("leaves a revealed secret alone", () => {
+    expect(kinds({ ...base, entries: [{ ...secret, revealed_at: "2026-11-20T10:00:00Z" }] })).toEqual([]);
+  });
+
+  const force = canonEntry({ id: "F1", part: "force", title: "The Tithe Court" });
+  // Bug caught: a force whose every step is reached still counted as having somewhere to go.
+  it("flags a force with no unreached step, and one with no quest tied, each by its own reason", () => {
+    expect(kinds({ ...base, entries: [force], steps: [step("s1", "F1", 0, "2026-11-20T10:00:00Z")], entryQuests: [{ entry_id: "F1" }] })).toEqual(["force:No step left to reach"]);
+    expect(kinds({ ...base, entries: [force], steps: [step("s1", "F1", 0)] })).toEqual(["force:No quest tied to it"]);
+    expect(kinds({ ...base, entries: [force], steps: [step("s1", "F1", 0)], entryQuests: [{ entry_id: "F1" }] })).toEqual([]);
+  });
+
+  // Bug caught: another force's step or quest tie satisfying this force.
+  it("reads a force's own steps and quest ties only", () => {
+    expect(kinds({ ...base, entries: [force], steps: [step("s1", "F2", 0)], entryQuests: [{ entry_id: "F2" }] })).toEqual(["force:No step left to reach|No quest tied to it"]);
+  });
+
+  // Bug caught: an ended force flagged, nagging about what is over.
+  it("leaves an ended force alone", () => {
+    expect(kinds({ ...base, entries: [{ ...force, closed_as: "faded" }] })).toEqual([]);
+  });
+
+  const question = canonEntry({ id: "Q1", part: "question", title: "Who rang the bell?", created_at: "2026-01-01T00:00:00Z" });
+  const sessionsAfter = (n: number) => Array.from({ length: n }, (_, i) => ({ created_at: `2026-02-0${i + 1}T00:00:00Z` }));
+  // Bug caught: the boundary read as five-or-more, flagging a question open for exactly five sessions.
+  it("flags a question open through more than five sessions, not five", () => {
+    expect(kinds({ ...base, entries: [question], sessions: sessionsAfter(5) })).toEqual([]);
+    expect(kinds({ ...base, entries: [question], sessions: sessionsAfter(6) })).toEqual(["question:Open through 6 sessions"]);
+  });
+
+  // Bug caught: sessions played before the question was asked counted against it.
+  it("counts only the sessions since the question was asked, and skips an answered one", () => {
+    const before = Array.from({ length: 8 }, () => ({ created_at: "2025-06-01T00:00:00Z" }));
+    expect(kinds({ ...base, entries: [question], sessions: before })).toEqual([]);
+    expect(kinds({ ...base, entries: [{ ...question, closed_as: "answered" }], sessions: sessionsAfter(8) })).toEqual([]);
+  });
+
+  const backstory = canonEntry({ id: "B1", part: "backstory", title: "Lotte", party_member_id: "m1" });
+  // Bug caught: a backstory with an unanswered question tied to it listed as having no thread, or one with none not listed.
+  it("flags a backstory with no open thread and links to the character", () => {
+    const open = canonEntry({ id: "Q2", part: "question" });
+    const tie = { from_kind: "canon", from_id: "B1", to_kind: "canon", to_id: "Q2", type: "related_to" } as const;
+    expect(kinds({ ...base, entries: [backstory, open], links: [tie] })).toEqual([]);
+    const ends = looseEnds({ ...base, entries: [backstory] });
+    expect(ends.map((e) => e.reasons)).toEqual([["No open thread"]]);
+    expect(ends[0]?.to).toEqual({ path: "/canon", query: { backstory: "m1" } });
+  });
+
+  const arc = { id: "A1", name: "The Drowned Bell", status: "running" };
+  // Bug caught: a running arc flagged though a force of its own is moving, or one that has only a planned arc flagged.
+  it("flags a running arc with no moving force and no active quest, and clears it with either", () => {
+    expect(kinds({ ...base, arcs: [arc] })).toHaveLength(1);
+    expect(kinds({ ...base, arcs: [{ ...arc, status: "planned" }] })).toEqual([]);
+    expect(kinds({ ...base, arcs: [arc], entries: [canonEntry({ id: "F9", part: "force", arc_id: "A1" })], steps: [step("s", "F9", 0)], entryQuests: [{ entry_id: "F9" }] })).toEqual([]);
+    expect(kinds({ ...base, arcs: [arc], quests: [{ id: "q", status: "active", arc_id: "A1" }] })).toEqual([]);
+  });
+
+  // Bug caught: an ended force or a completed quest still keeping a running arc "alive".
+  it("does not let an ended force or a completed quest keep a running arc moving", () => {
+    const ended = canonEntry({ id: "F9", part: "force", arc_id: "A1", closed_as: "stopped" });
+    expect(kinds({ ...base, arcs: [arc], entries: [ended], quests: [{ id: "q", status: "completed", arc_id: "A1" }] })).toHaveLength(1);
+  });
+
+  // Bug caught: a row linking to the wrong entry.
+  it("links a secret row to its own entry", () => {
+    expect(looseEnds({ ...base, entries: [secret] })[0]?.to).toEqual({ path: "/canon", query: { entry: "S1" } });
   });
 });

@@ -63,14 +63,14 @@ select lives_ok($$
   insert into public.canon_entry_quests (user_id, campaign_id, entry_id, quest_id) values
     ('12260000-0000-4000-8000-000000000301', '12260000-0000-4000-8000-000000000310', '12260000-0000-4000-8000-000000000331', '12260000-0000-4000-8000-000000000340')
 $$, 'a truth is tied to the quest that turns on it');
-select throws_ok($$
+select lives_ok($$
   with q as (
     insert into public.canon_entries (user_id, campaign_id, part, title) values
       ('12260000-0000-4000-8000-000000000301', '12260000-0000-4000-8000-000000000310', 'question', 'Who cast the bell?')
     returning id)
   insert into public.canon_entry_quests (user_id, campaign_id, entry_id, quest_id)
   select '12260000-0000-4000-8000-000000000301', '12260000-0000-4000-8000-000000000310', q.id, '12260000-0000-4000-8000-000000000340' from q
-$$, '23514', null, 'an open question is not tied to a quest: answered, it becomes a truth or a secret that can be');
+$$, 'an open question is tied to the quest that should answer it (#1258)');
 
 select throws_ok($$
   insert into public.canon_force_ticks (user_id, campaign_id, force_id, delta) values

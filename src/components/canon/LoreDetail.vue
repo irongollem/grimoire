@@ -35,6 +35,11 @@
 
     <div class="flex flex-col gap-1">
       <span class="text-eyebrow text-muted-foreground">Told in passages</span>
+      <!-- One rule, in the database: the first passage is told with the entry and is never offered at a place or to Tell. -->
+      <p v-if="passages.length > 0" class="flex flex-col gap-0.5" data-testid="lore-opening">
+        <span class="text-label font-bold text-foreground">The opening, read when the entry is shared</span>
+        <span class="text-caption text-muted-foreground">The first passage below is told with the entry, so it never waits at a place. The rest are told one at a time.</span>
+      </p>
       <ul v-if="passages.length > 0" class="flex flex-col" data-testid="lore-passages">
         <LorePassageRow
           v-for="(p, i) in passages"
@@ -52,6 +57,8 @@
       <AppButton variant="ghost" size="sm" :icon="IconAdd" icon-size="xs" label="Add a passage" class="self-start" :loading="adding" @click="addPassage" />
       <CanonSuggestions v-if="plainText !== ''" mode="lore" :entries="NO_ENTRIES" :lore="{ title: entry.title, kind: entry.lore_kind, entryId: entry.id, text: plainText }" />
     </div>
+
+    <EntryStoryLinks :entry="entry" />
 
     <EntryQuests :entry="entry" :links="questLinks" label="The quests that tell it" empty="No quest tells this yet." />
 
@@ -77,6 +84,7 @@ import ConnectionsSection from "@/components/connections/ConnectionsSection.vue"
 import CanonSuggestions from "./CanonSuggestions.vue";
 import EntryArcPicker from "./EntryArcPicker.vue";
 import EntryQuests from "./EntryQuests.vue";
+import EntryStoryLinks from "./EntryStoryLinks.vue";
 import LorePassageRow from "./LorePassageRow.vue";
 import WorldDateField from "./WorldDateField.vue";
 import { LORE_KIND_OPTIONS, entryDate, normaliseDate, worldDateLabel, type WorldDate } from "@/lib/canon/canonLore";

@@ -3,9 +3,11 @@
     <CanonRubric id="canon-moving-heading" numeral="III" title="What is moving" />
     <p class="text-caption text-muted-foreground">The world's own business, beyond the party's quests. Never shown to players.</p>
 
-    <CanonSuggestions mode="forces" :entries="forces" />
+    <CanonSuggestFold part="forces">
+      <CanonSuggestions mode="forces" :entries="forces" />
+    </CanonSuggestFold>
 
-    <CanonPartFind part="forces" noun="force" :count="forces.length" :arc-label="arcLabel" />
+    <p v-if="arcLabel !== null" class="m-0 text-caption text-muted-foreground" data-testid="arc-note">Showing {{ arcLabel }} only.</p>
 
     <!-- By the section's own width, not the viewport: beside the page-body ledger of an open force the log drops under the list. -->
     <div class="flex flex-col gap-4 @2xl:flex-row @2xl:items-start">
@@ -24,12 +26,6 @@
             @move="(direction) => reorder(moving, force.id, direction)"
           />
         </ul>
-        <EmptyState
-          v-else-if="forces.length > 0 && ended.length === 0"
-          class="border border-dashed border-border bg-card"
-          title="No force matches"
-          description="Nothing here has those words in it."
-        />
         <EmptyState
           v-else-if="forces.length === 0 && arcLabel !== null"
           class="border border-dashed border-border bg-card"
@@ -82,16 +78,14 @@
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
-import CanonPartFind from "./CanonPartFind.vue";
 import CanonRubric from "./CanonRubric.vue";
+import CanonSuggestFold from "./CanonSuggestFold.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
 import ForceAddForm from "./ForceAddForm.vue";
 import ForceLog from "./ForceLog.vue";
 import ForceRow from "./ForceRow.vue";
 import { useCanonReorder } from "@/composables/canon/useCanonReorder";
-import { matchesQuery } from "@/lib/canon/canonNarrow";
 import { endsOf } from "@/lib/canon/canonOrder";
-import { useCanonUiStore } from "@/stores/ui/canon";
 import { useCanonForceData, useUndoForceTick } from "@/composables/canon/useCanonForces";
 import { useForceFactions } from "@/composables/canon/useForceFactions";
 import { IconChevronDown, IconChevronRight } from "@/lib/icons";
@@ -108,12 +102,10 @@ const { forces, selectedId = null, arcLabel = null } = defineProps<{
 const emit = defineEmits<{ select: [id: string] }>();
 
 // A force that has ended leaves the ledger and waits under "No longer moving"; its detail opens as any other.
-const store = useCanonUiStore();
-const found = computed(() => forces.filter((f) => matchesQuery(f.title, store.partQuery.forces)));
-const moving = computed(() => found.value.filter((f) => f.closed_as === null));
-const ended = computed(() => found.value.filter((f) => f.closed_as !== null));
+const moving = computed(() => forces.filter((f) => f.closed_as === null));
+const ended = computed(() => forces.filter((f) => f.closed_as !== null));
 // Moving inside a narrowed list would be ambiguous, so the buttons wait for the whole list.
-const canReorder = computed(() => arcLabel === null && store.partQuery.forces.trim() === "");
+const canReorder = computed(() => arcLabel === null);
 const reorder = useCanonReorder();
 // Transient UI state: whether the ended forces are showing.
 const showEnded = ref(false);

@@ -419,3 +419,68 @@ export function loreShape(): string {
   return `\n\nReturn a single JSON object {"title":"the entry's title","kind":"${LORE_KINDS.join("|")}","passages":[{"title":"the passage's heading","text":"plain text, one or two short paragraphs","at":null or ${SPOT_NOTE}}]}. The first passage's "at" is always null.\n` +
     "Return only the JSON object. No markdown fences, no explanation.";
 }
+
+// ── Suggest secrets (#1255 item 7): a secret and up to three clues, each placed by id ────────────────────────────
+
+export const MAX_SECRET_SUGGESTIONS = 5;
+export const MAX_SECRET_CLUES = 3;
+
+export interface SecretClueSuggestion {
+  title: string;
+  /** The real place, person or beat the clue lies at; null when the model named none, or one the campaign does not have. */
+  spot: SpotCandidate | null;
+}
+
+export interface SecretSuggestion {
+  title: string;
+  clues: SecretClueSuggestion[];
+}
+
+/**
+ * Secrets with their clues. A clue's place is matched by id to a candidate the server read from the campaign: an unknown
+ * id (or kind) is dropped and the clue stays, unplaced, rather than the whole answer failing. One place holds one clue
+ * of a secret, so a second clue at the same place is left unplaced too. A secret that came with no readable clue is set
+ * aside, and a secret already in the campaign (or twice in one answer) is skipped.
+ */
+export function sanitizeSecrets(
+  parsed: unknown,
+  spots: readonly SpotCandidate[],
+  existingTitles: readonly string[],
+): { suggestions: SecretSuggestion[]; setAside: CanonSetAside[] } {
+  const byId = new Map<string, SpotCandidate>();
+  for (const s of spots) byId.set(spotKey(s.kind, s.id), s);
+  const suggestions: SecretSuggestion[] = [];
+  const setAside: CanonSetAside[] = [];
+  const seen = new Set(existingTitles.map(norm));
+  for (const raw of listOf(parsed, "suggestions")) {
+    if (suggestions.length >= MAX_SECRET_SUGGESTIONS) break;
+    if (!isRecord(raw)) continue;
+    const title = clean(raw.title, MAX_LINE_CHARS);
+    if (title === "" || seen.has(norm(title))) continue;
+    const taken = new Set<string>();
+    const clues: SecretClueSuggestion[] = [];
+    for (const c of Array.isArray(raw.clues) ? raw.clues : []) {
+      if (clues.length >= MAX_SECRET_CLUES) break;
+      if (!isRecord(c)) continue;
+      const clueTitle = clean(c.title, MAX_LINE_CHARS);
+      if (clueTitle === "") continue;
+      const at = isRecord(c.at) ? c.at : null;
+      const found = at && typeof at.kind === "string" && typeof at.id === "string" ? byId.get(spotKey(at.kind, at.id)) ?? null : null;
+      const spot = found && !taken.has(spotKey(found.kind, found.id)) ? found : null;
+      if (spot) taken.add(spotKey(spot.kind, spot.id));
+      clues.push({ title: clueTitle, spot });
+    }
+    if (clues.length === 0) {
+      setAside.push({ claim: title, reason: "it came with no clues, so the party would have no way to find it" });
+      continue;
+    }
+    seen.add(norm(title));
+    suggestions.push({ title, clues });
+  }
+  return { suggestions, setAside };
+}
+
+export function secretShape(): string {
+  return `\n\nReturn a single JSON object {"suggestions":[...]}, up to ${MAX_SECRET_SUGGESTIONS} suggestions, each {"title":"the secret, one statement of what is true and hidden","clues":[{"title":"the clue, one line, hinting at the secret and never stating it","at":null or {"kind":"location|npc|quest_beat","id":"the id copied exactly from the list given"}}]}. Give every secret three clues, each at a different place, person or beat from the list where one fits.\n` +
+    "Return only the JSON object. No markdown fences, no explanation.";
+}

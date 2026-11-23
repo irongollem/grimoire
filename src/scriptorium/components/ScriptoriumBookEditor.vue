@@ -30,6 +30,8 @@
 
     <div v-if="isHandout" class="shrink-0 border-b border-border px-4 py-2 sm:px-6">
       <HandoutAudienceLine :handout="doc" />
+      <!-- The clues the canon placed in this handout (#1258 item 30); nothing is drawn when none lies here. -->
+      <CanonHere kind="document" :id="doc.id" class="mt-2" />
     </div>
 
     <div class="flex min-h-0 flex-1">
@@ -218,6 +220,7 @@ import ChapterRail from "@/scriptorium/components/chapters/ChapterRail.vue";
 import BookKit from "@/scriptorium/components/kit/BookKit.vue";
 import InspectNotesDrawer from "@/scriptorium/components/inspect/InspectNotesDrawer.vue";
 import InspectNotesLayer from "@/scriptorium/components/inspect/InspectNotesLayer.vue";
+import CanonHere from "@/components/canon/CanonHere.vue";
 import HandoutAudienceLine from "@/scriptorium/components/HandoutAudienceLine.vue";
 import HandoutShareControl from "@/scriptorium/components/HandoutShareControl.vue";
 import HandoutShareDialog from "@/scriptorium/components/HandoutShareDialog.vue";

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { almanac, chronicleExcerpt, chronicleItems, firstNoteImage, orderChronicle, writtenCount } from "./canonChronicle";
 import { canonEntry } from "@/test/canonEntry";
 import type { CalendarEvent } from "@/types/calendar.types";
-import type { CanonForceTick } from "@/types/canon.types";
+import type { CanonForceStep, CanonForceTick } from "@/types/canon.types";
 import type { Note } from "@/types/notes.types";
 import type { CampaignSession } from "@/types/session.types";
 
@@ -153,5 +153,24 @@ describe("excerpt and picture", () => {
     expect(firstNoteImage(nested)).toBe("https://cdn.test/a.webp");
     expect(firstNoteImage("just words")).toBeNull();
     expect(firstNoteImage(null)).toBeNull();
+  });
+});
+
+describe("almanac: steps that are due", () => {
+  const dueStep = (over: Partial<CanonForceStep> = {}): CanonForceStep => ({
+    id: "s1", user_id: "u", campaign_id: "c1", force_id: "f1", title: "The ferry stops", sort_order: 0, reached_at: null, reached_session_id: null,
+    due_year: 512, due_month: null, due_day: null, ai_provenance: null, created_at: "2026-11-01T10:00:00Z", updated_at: "2026-11-01T10:00:00Z", ...over,
+  });
+  const forces = [canonEntry({ id: "f1", part: "force", title: "The Ferrymen" })];
+
+  // Bug caught: a step's due date missing from the almanac, or sorted away from its place in the world.
+  it("lists an unreached step with a due date as due, in world order beside past ticks", () => {
+    const events = almanac({ lore: [], forces, ticks: [tick("t1", { world_year: 600 })], steps: [dueStep()], items: [] });
+    expect(events.map((e) => [e.kind, e.title])).toEqual([["due", "The Ferrymen: The ferry stops"], ["moving", "The Ferrymen moved closer"]]);
+  });
+
+  // Bug caught: a step already reached listed as due as well as the tick that says so.
+  it("does not list a reached step", () => {
+    expect(almanac({ lore: [], forces, ticks: [], steps: [dueStep({ reached_at: "x" })], items: [] })).toEqual([]);
   });
 });

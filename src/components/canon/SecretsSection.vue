@@ -2,7 +2,11 @@
   <section id="canon-secrets" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-secrets-heading">
     <CanonRubric id="canon-secrets-heading" numeral="IV" title="Secrets and questions" />
 
-    <CanonPartFind part="secrets" noun="secret" :count="secrets.length" :arc-label="arcLabel" />
+    <CanonSuggestFold part="secrets">
+      <CanonSuggestions mode="secrets" :entries="secrets" @accepted="(id) => emit('select', id)" />
+    </CanonSuggestFold>
+
+    <p v-if="arcLabel !== null" class="m-0 text-caption text-muted-foreground" data-testid="arc-note">Showing {{ arcLabel }} only.</p>
 
     <ul v-if="shown.length > 0" class="flex flex-col border border-border bg-card" data-testid="secret-ledger">
       <SecretRow
@@ -16,7 +20,6 @@
         @move="(direction) => reorder(groupOf(secret), secret.id, direction)"
       />
     </ul>
-    <EmptyState v-else-if="secrets.length > 0" class="border border-dashed border-border bg-card" title="No secret matches" description="Nothing here has those words in it." />
     <EmptyState
       v-else-if="arcLabel !== null"
       class="border border-dashed border-border bg-card"
@@ -42,20 +45,19 @@
 <script setup lang="ts">
 /**
  * Part IV (frame 05): every secret with its state and how many clues are found, and the open questions beside them.
- * The clues are read once for the whole list, never one per secret.
+ * The clues are read once for the whole list, never one per secret. "Suggest secrets" sits above the list, as the other parts' helpers do.
  */
 import { computed } from "vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import CanonAddRow from "./CanonAddRow.vue";
-import CanonPartFind from "./CanonPartFind.vue";
 import CanonRubric from "./CanonRubric.vue";
+import CanonSuggestFold from "./CanonSuggestFold.vue";
+import CanonSuggestions from "./CanonSuggestions.vue";
 import QuestionsList from "./QuestionsList.vue";
 import SecretRow from "./SecretRow.vue";
 import { revealedLast } from "@/lib/canon/canonSecrets";
-import { matchesQuery } from "@/lib/canon/canonNarrow";
 import { endsOf } from "@/lib/canon/canonOrder";
 import { useCanonReorder } from "@/composables/canon/useCanonReorder";
-import { useCanonUiStore } from "@/stores/ui/canon";
 import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCanonClues } from "@/composables/canon/useCanonClues";
 import type { CanonClue, CanonEntry } from "@/types/canon.types";
@@ -73,10 +75,9 @@ const emit = defineEmits<{ select: [id: string] }>();
 // What is still to find reads first; a revealed secret settles to the end.
 const ordered = computed(() => revealedLast(secrets));
 
-const store = useCanonUiStore();
-const shown = computed(() => ordered.value.filter((s) => matchesQuery(s.title, store.partQuery.secrets)));
+const shown = ordered;
 // Moving inside a narrowed list would be ambiguous, so the buttons wait for the whole list.
-const canReorder = computed(() => arcLabel === null && store.partQuery.secrets.trim() === "");
+const canReorder = computed(() => arcLabel === null);
 const reorder = useCanonReorder();
 // A secret moves among those in its own state: the ledger draws the revealed after the rest whatever their order.
 const groupOf = (secret: CanonEntry) => ordered.value.filter((s) => (s.revealed_at === null) === (secret.revealed_at === null));

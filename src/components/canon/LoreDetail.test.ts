@@ -42,7 +42,7 @@ const p = (id: string, sort: number): CanonLorePassage => ({
 const mountIt = (over = {}) =>
   mount(LoreDetail, {
     props: { entry: canonEntry({ id: "l1", part: "lore", title: "The Fall", ...over }) },
-    global: { stubs: { EntryQuests: EntryQuestsStub, EntityImageBlock: true, AudienceRevealControl: true, ConnectionsSection: true, CanonSuggestions: true, LorePassageRow: { props: ["passage"], emits: ["move", "remove"], template: "<li data-testid='row'>{{ passage.id }}<button data-testid='up' @click=\"$emit('move', -1)\" /><button data-testid='rm' @click=\"$emit('remove')\" /></li>" } } },
+    global: { stubs: { EntryQuests: EntryQuestsStub, EntryStoryLinks: { props: ["entry"], template: "<div data-testid='story-links' :data-id='entry.id' />" }, EntityImageBlock: true, AudienceRevealControl: true, ConnectionsSection: true, CanonSuggestions: true, LorePassageRow: { props: ["passage"], emits: ["move", "remove"], template: "<li data-testid='row'>{{ passage.id }}<button data-testid='up' @click=\"$emit('move', -1)\" /><button data-testid='rm' @click=\"$emit('remove')\" /></li>" } } },
   });
 
 describe("LoreDetail", () => {
@@ -51,6 +51,20 @@ describe("LoreDetail", () => {
     mocks.createPassage.mockResolvedValue({});
     mocks.updatePassage.mockResolvedValue(undefined);
     passages.value = [];
+  });
+
+  // Bug: the first passage looked like any other, so the DM could not tell it is read when the entry is shared.
+  it("labels the first passage as the opening, read when the entry is shared, once there is a passage", () => {
+    expect(mountIt().find("[data-testid=lore-opening]").exists()).toBe(false);
+    passages.value = [p("a", 0)];
+    const opening = mountIt().get("[data-testid=lore-opening]");
+    expect(opening.text()).toContain("The opening, read when the entry is shared");
+    expect(opening.text()).toContain("never waits at a place");
+  });
+
+  // Bug: a lore entry showed no "Because of" and "Led to", so its cause and effect were only visible from other entries.
+  it("shows what the entry came of and led to", () => {
+    expect(mountIt().get("[data-testid=story-links]").attributes("data-id")).toBe("l1");
   });
 
   it("clears the month and day with the year, so the table never gets a month with no year", async () => {

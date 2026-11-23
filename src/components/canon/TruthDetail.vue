@@ -78,6 +78,8 @@
 
     <EntryQuests :entry="entry" :links="questLinks" label="The quests that turn on it" empty="No quest turns on this yet." />
 
+    <EntryStoryLinks :entry="entry" />
+
     <ConnectionsSection :subject="subject" :subject-name="entry.title" :hide="isShownAbove" />
 
     <AppButton
@@ -106,6 +108,7 @@ import ConnectionsSection from "@/components/connections/ConnectionsSection.vue"
 import EntryArcPicker from "./EntryArcPicker.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
 import EntryQuests from "./EntryQuests.vue";
+import EntryStoryLinks from "./EntryStoryLinks.vue";
 import CanonRef from "./CanonRef.vue";
 import { KNOWLEDGE_HELP, MARK_OPTIONS } from "@/lib/canon/canonParts";
 import { useEntryQuestLinks } from "@/composables/canon/useEntryQuestLinks";
@@ -134,8 +137,9 @@ const { text, revision } = useCommittedText(() => entry.title, (next) => update(
 const pickerOpen = ref(false);
 watch(() => entry.id, () => { pickerOpen.value = false; });
 
-// Who knows it is the block above, so the Connections block does not list the same ties again (#1258 item 6).
-const isShownAbove = (c: Connection): boolean => c.source === "link" && c.type === "known_to" && c.outward;
+// Who knows it and the story links (because of, led to, carries) are the blocks above, so the Connections block does
+// not list the same ties again (#1258 items 6 and 18).
+const isShownAbove = (c: Connection): boolean => c.source === "link" && ((c.type === "known_to" && c.outward) || c.type === "led_to" || c.type === "carries");
 
 function setKnowledge(next: KnowledgeMark) {
   if (next === entry.knowledge) return;

@@ -66,6 +66,14 @@ describe("ForcesSection", () => {
     expect(mountArc(forces, "The guild").find("[data-testid=move-buttons]").exists()).toBe(false);
   });
 
+  // Bug caught (#1258 item 19): the forces helper left open on the page, above the ledger on every visit.
+  it("keeps the helper inside the Suggest fold", () => {
+    const fold = { name: "CanonSuggestFold", props: ["part"], template: "<div data-testid='fold'><slot /></div>" };
+    const w = mount(ForcesSection, { props: { forces }, global: { stubs: { CanonSuggestions: true, CanonSuggestFold: fold, EntityCombobox: true } } });
+    expect(w.get("[data-testid=fold]").findComponent({ name: "CanonSuggestions" }).exists()).toBe(true);
+    expect(w.getComponent({ name: "CanonSuggestFold" }).props("part")).toBe("forces");
+  });
+
   it("says nothing is moving when there are no forces", () => {
     expect(mountIt([]).text()).toContain("Nothing is moving yet");
   });

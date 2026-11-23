@@ -10,6 +10,7 @@ function quest(id: string, status: Quest["status"]): Quest {
     user_id: "dm-1",
     campaign_id: "campaign-1",
     parent_quest_id: null,
+    arc_id: null,
     title: `Quest ${id}`,
     summary: null,
     dm_content: null,

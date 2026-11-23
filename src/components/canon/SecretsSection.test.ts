@@ -11,12 +11,42 @@ vi.mock("@/composables/canon/useCanonEntries", () => ({
 }));
 vi.mock("@/composables/canon/useCanonClues", () => ({ useCanonClues: () => ({ data: ref([]) }) }));
 
+// The helper's own behaviour is CanonSuggestions.test.ts; here it is a stub that records its mode and can "accept".
+vi.mock("./CanonSuggestions.vue", async () => {
+  const { defineComponent, h } = await import("vue");
+  return {
+    default: defineComponent({
+      props: { mode: { type: String, default: "" }, entries: { type: Array, default: () => [] } },
+      emits: ["accepted"],
+      setup: (props, { emit }) => () => h("button", { "data-testid": `suggest-${props.mode}`, onClick: () => emit("accepted", "s-new") }),
+    }),
+  };
+});
+
 import SecretsSection from "./SecretsSection.vue";
 
-const mountSection = () => mount(SecretsSection, { props: { secrets: [], questions: [] }, global: { stubs: { QuestionsList: true } } });
+const FoldStub = { name: "CanonSuggestFold", props: ["part"], template: "<div data-testid='fold'><slot /></div>" };
+const mountSection = () => mount(SecretsSection, { props: { secrets: [], questions: [] }, global: { stubs: { QuestionsList: true, CanonSuggestFold: FoldStub } } });
 
 describe("SecretsSection", () => {
   beforeEach(() => setActivePinia(createPinia()));
+
+  // Bug caught: the secrets helper was left unmounted (the part had no "Suggest secrets"), or an accepted suggestion
+  // left the DM on the list instead of opening the secret it made.
+  it("mounts Suggest secrets and opens the secret an accepted suggestion made", async () => {
+    const w = mountSection();
+    const helper = w.get("[data-testid=suggest-secrets]");
+    await helper.trigger("click");
+    expect(w.emitted("select")?.[0]).toEqual(["s-new"]);
+  });
+
+  // Bug caught (#1258 item 19): the secrets helper left open on the page, above the ledger on every visit.
+  it("keeps the helper inside the Suggest fold", () => {
+    const w = mountSection();
+    expect(w.find("[data-testid=fold] [data-testid=suggest-secrets]").exists()).toBe(true);
+    expect(w.getComponent({ name: "CanonSuggestFold" }).props("part")).toBe("secrets");
+  });
+
   beforeEach(() => { mocks.create.mockReset(); });
 
   it("adds a secret, empties the box and opens the new secret", async () => {
@@ -88,10 +118,4 @@ describe("SecretsSection find and order (#1255 item 11)", () => {
     expect(mountList({ arcLabel: "The guild" }).find("[data-testid=move-buttons]").exists()).toBe(false);
   });
 
-  it("narrows by title once there are more than five secrets", async () => {
-    const many = ["a", "b", "c", "d", "e", "f"].map((t, i) => secret(`x-${t}`, i));
-    const w = mountList({ secrets: many });
-    await w.find("input[type=search]").setValue("x-d");
-    expect(w.findAll("[data-testid=secret-ledger] li")).toHaveLength(1);
-  });
 });

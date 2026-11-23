@@ -7,6 +7,7 @@ const quest = (id: string, title: string): Quest => ({
   user_id: "user-1",
   campaign_id: "campaign-1",
   parent_quest_id: null,
+  arc_id: null,
   title,
   summary: null,
   dm_content: null,

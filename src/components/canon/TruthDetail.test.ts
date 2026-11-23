@@ -44,12 +44,13 @@ const PickerStub = {
   template: `<button data-testid="pick" @click="$emit('pick', { kind: 'faction', id: 'f9', name: 'The Gilded' })">pick</button>`,
 };
 
+const EntryStoryLinksStub = { name: "EntryStoryLinks", props: ["entry"], template: "<div data-testid='story-links' />" };
 const ConnectionsStub = { name: "ConnectionsSection", props: ["hide"], template: "<div />" };
 
 function mountDetail(e: CanonEntry) {
   return mount(TruthDetail, {
     props: { entry: e },
-    global: { stubs: { EntryQuests: EntryQuestsStub, RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" }, ConnectionsSection: ConnectionsStub, CanonEntryNotes: true, WorldEntityPicker: PickerStub } },
+    global: { stubs: { EntryQuests: EntryQuestsStub, EntryStoryLinks: EntryStoryLinksStub, RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" }, ConnectionsSection: ConnectionsStub, CanonEntryNotes: true, WorldEntityPicker: PickerStub } },
   });
 }
 
@@ -153,6 +154,20 @@ describe("TruthDetail", () => {
 
   // Bug caught (#1258 item 6): "who knows it" was drawn twice, once as Known to and again in the Connections block,
   // because the block got no filter. Other ties (a place, a faction it is about) must still show.
+  // Bug caught (#1258 item 18): cause and effect listed twice, once in the story links and again as raw led_to / carries rows.
+  it("hides led_to and carries ties, in either direction, from the Connections block", () => {
+    const hide = mountDetail(entry()).getComponent(ConnectionsStub).props("hide") as (c: Connection) => boolean;
+    for (const type of ["led_to", "carries"]) {
+      expect(hide(knower({ type }))).toBe(true);
+      expect(hide(knower({ type, outward: false }))).toBe(true);
+    }
+    expect(hide(knower({ type: "related_to" }))).toBe(false);
+  });
+
+  it("mounts the story links for this truth", () => {
+    expect(mountDetail(entry()).getComponent(EntryStoryLinksStub).props("entry")).toMatchObject({ id: "t1" });
+  });
+
   it("hides the known_to ties from the Connections block, and only those", () => {
     const hide = mountDetail(entry()).getComponent(ConnectionsStub).props("hide") as (c: Connection) => boolean;
     expect(hide(knower())).toBe(true);

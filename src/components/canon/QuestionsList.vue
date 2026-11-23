@@ -4,8 +4,8 @@
       <h3 class="text-heading-xs font-bold text-foreground">Open questions</h3>
       <p class="text-caption text-muted-foreground">Questions you keep open on purpose. Nobody, the Narrator included, settles them by invention.</p>
     </div>
-    <CanonSuggestions mode="questions" :entries="open" />
-    <CanonPartFind part="questions" noun="question" :count="open.length" :arc-label="arcLabel" />
+    <WonderInbox :sort-order="questions.length" />
+    <CanonSuggestFold part="questions"><CanonSuggestions mode="questions" :entries="open" /></CanonSuggestFold>
     <ul v-if="shown.length > 0" class="flex flex-col border border-border bg-card">
       <QuestionRow
         v-for="q in shown"
@@ -48,20 +48,19 @@
 </template>
 
 <script setup lang="ts">
-/** The open questions, with Answer… on each, and the answered ones folded away beneath them. */
+/** The open questions, with Answer… on each, the players' own wonders above them (#1258 item 24), and the answered ones folded away beneath. */
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import CanonAddRow from "./CanonAddRow.vue";
-import CanonPartFind from "./CanonPartFind.vue";
+import CanonSuggestFold from "./CanonSuggestFold.vue";
 import CanonSuggestions from "./CanonSuggestions.vue";
 import QuestionAnsweredRow from "./QuestionAnsweredRow.vue";
 import QuestionRow from "./QuestionRow.vue";
+import WonderInbox from "./WonderInbox.vue";
 import { useCreateCanonEntry, useTrashCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useLinkBecame } from "@/composables/canon/useLinkBecame";
 import { useCanonReorder } from "@/composables/canon/useCanonReorder";
-import { matchesQuery } from "@/lib/canon/canonNarrow";
 import { endsOf } from "@/lib/canon/canonOrder";
-import { useCanonUiStore } from "@/stores/ui/canon";
 import { useConfirm } from "@/composables/useConfirm";
 import { REOPEN_QUESTION_PATCH, answerEntry, answeredPatch, type AnswerKind } from "@/lib/canon/canonClose";
 import { IconChevronDown, IconChevronRight } from "@/lib/icons";
@@ -76,13 +75,12 @@ const { questions, arcLabel = null } = defineProps<{
   arcLabel?: string | null;
 }>();
 
-const store = useCanonUiStore();
 const linkBecame = useLinkBecame();
 const open = computed(() => questions.filter((q) => q.closed_as === null));
-const shown = computed(() => open.value.filter((q) => matchesQuery(q.title, store.partQuery.questions)));
+const shown = open;
 const answered = computed(() => questions.filter((q) => q.closed_as !== null));
 // Moving inside a narrowed list would be ambiguous, so the buttons wait for the whole list.
-const canReorder = computed(() => arcLabel === null && store.partQuery.questions.trim() === "");
+const canReorder = computed(() => arcLabel === null);
 const reorder = useCanonReorder();
 
 const { mutateAsync: create } = useCreateCanonEntry();

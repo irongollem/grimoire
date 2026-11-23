@@ -35,6 +35,8 @@ export interface Quest {
   user_id: string;
   campaign_id: string | null;
   parent_quest_id: string | null;
+  /** The canon arc the quest belongs to (#1258). */
+  arc_id: string | null;
   title: string;
   /**
    * The blurb that lets you tell what a quest is without opening it. One
@@ -72,9 +74,10 @@ export interface Quest {
   updated_at: string;
 }
 
-export type QuestInsert = Omit<Quest, "id" | "user_id" | "created_at" | "updated_at" | "entry_beat_id" | "dm_content" | "xp_reward" | "xp_awarded_at"> & {
+export type QuestInsert = Omit<Quest, "id" | "user_id" | "created_at" | "updated_at" | "entry_beat_id" | "dm_content" | "xp_reward" | "xp_awarded_at" | "arc_id"> & {
   /** Omit to take the column default of null. */
   dm_content?: string | null;
+  arc_id?: string | null;
   xp_reward?: number | null;
 };
 export type QuestUpdate = Partial<QuestInsert> & { entry_beat_id?: string | null };

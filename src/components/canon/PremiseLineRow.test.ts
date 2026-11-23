@@ -15,11 +15,18 @@ import PremiseLineRow from "./PremiseLineRow.vue";
 const entry: CanonEntry = canonEntry({ id: "e1", part: "premise", premise_kind: "theme", title: "What is sweet can spoil." });
 
 function mountRow() {
-  return mount(PremiseLineRow, { props: { entry, label: "Theme" }, global: { stubs: { AudienceRevealControl: true } } });
+  return mount(PremiseLineRow, { props: { entry, label: "Theme" }, global: { stubs: { AudienceRevealControl: true, ThemeCarriedBy: true } } });
 }
 
 describe("PremiseLineRow", () => {
   beforeEach(() => Object.values(mocks).forEach((m) => m.mockReset()));
+
+  // Bug caught (#1258 item 17): "Carried by" drawn under a line or a veil, which nothing can carry.
+  it("shows what carries a theme, and only under a theme", () => {
+    expect(mountRow().findComponent({ name: "ThemeCarriedBy" }).exists()).toBe(true);
+    const line = mount(PremiseLineRow, { props: { entry: canonEntry({ id: "l1", part: "premise", premise_kind: "line", title: "No harm to children" }), label: "Line" }, global: { stubs: { AudienceRevealControl: true, ThemeCarriedBy: true } } });
+    expect(line.findComponent({ name: "ThemeCarriedBy" }).exists()).toBe(false);
+  });
 
   it("saves the new words once the field is left", async () => {
     const w = mountRow();
@@ -60,7 +67,7 @@ describe("PremiseLineRow", () => {
   it("a Line reads upright, not struck through like a deleted entry", () => {
     // Bug: line-through made "No harm to children" read as a removed row.
     const line = canonEntry({ id: "l1", part: "premise", premise_kind: "line", title: "No harm to children" });
-    const w = mount(PremiseLineRow, { props: { entry: line, label: "Line" }, global: { stubs: { AudienceRevealControl: true } } });
+    const w = mount(PremiseLineRow, { props: { entry: line, label: "Line" }, global: { stubs: { AudienceRevealControl: true, ThemeCarriedBy: true } } });
     expect(w.find("textarea").classes()).not.toContain("line-through");
     expect(w.find("textarea").classes()).not.toContain("italic");
   });

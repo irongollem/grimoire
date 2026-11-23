@@ -373,6 +373,7 @@ describe("buildMarkdownVault — Quests", () => {
       user_id: "u1",
       campaign_id: "c1",
       parent_quest_id: null,
+      arc_id: null,
       title: "The Ashen Vale",
       summary: "Find the source of the ash storms.",
       dm_content: null,

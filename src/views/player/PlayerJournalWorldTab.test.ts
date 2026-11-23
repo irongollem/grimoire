@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import { flushPromises, mount } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
 import type { PlayerCanonEntry, PlayerLore, PlayerLorePassage, PlayerWorld } from "@/composables/canon/usePlayerCanon";
 
 const state = vi.hoisted(() => ({
@@ -10,6 +11,10 @@ const state = vi.hoisted(() => ({
   notes: [] as unknown[],
   sessions: [] as unknown[],
   noteReads: 0,
+  tell: vi.fn(),
+  addWonder: vi.fn(),
+  found: [] as unknown[],
+  wonders: [] as unknown[],
 }));
 
 vi.mock("@/composables/canon/usePlayerCanon", async (orig) => {
@@ -35,6 +40,12 @@ vi.mock("@/composables/notes/useNotes", () => ({
     return { data: ref(state.notes) };
   },
 }));
+vi.mock("@/composables/canon/useTellParty", () => ({ useTellParty: () => ({ tellParty: state.tell, telling: ref(false) }) }));
+vi.mock("@/composables/canon/usePlayerFoundClues", () => ({ usePlayerFoundClues: () => ({ rows: ref(state.found) }) }));
+vi.mock("@/composables/canon/useCanonWonders", () => ({
+  usePlayerWonders: () => ({ data: ref(state.wonders) }),
+  useAddWonder: () => ({ mutateAsync: state.addWonder }),
+}));
 vi.mock("@/composables/sessions/usePlayerSessions", () => ({ usePlayerSessions: () => ({ data: ref(state.sessions) }) }));
 vi.mock("@/stores/calendar", () => ({
   useCalendarStore: () => ({ adapter: { formatDate: (y: number, m: number | null, d: number | null) => `${d}/${m}/${y} AR` } }),
@@ -59,6 +70,11 @@ const lore = (passages: PlayerLorePassage[]): PlayerLore => ({
 const world = (over: Partial<PlayerWorld>): PlayerWorld => ({ onlyMine: [], known: [], lore: [], backstories: [], premise: [], revealed: [], ...over });
 
 beforeEach(() => {
+  setActivePinia(createPinia());
+  state.tell.mockReset();
+  state.addWonder.mockReset();
+  state.found = [];
+  state.wonders = [];
   state.readAt = new Map();
   state.marked = [];
   state.notes = [];
@@ -187,6 +203,79 @@ describe("PlayerJournalWorldTab", () => {
     state.world = world({});
     const w = mount(PlayerJournalWorldTab);
     expect(w.text()).toContain("has not told you anything of the world yet");
-    expect(w.find("section").exists()).toBe(false);
+    // Only the player's own wonders stay: they have something to ask even when nothing has been told.
+    expect(w.find("section:not([data-testid=player-wonders])").exists()).toBe(false);
+  });
+});
+
+describe("PlayerJournalWorldTab: who knows, found clues and wonders (#1258 items 14, 23, 24)", () => {
+  const mountTab = () => mount(PlayerJournalWorldTab, { global: { stubs: { RouterLink: true } } });
+
+  // Bug caught: a truth shared with some characters read like any shared truth, so the player could not tell who knew it.
+  it("says who shares a truth only some know, and says nothing under a truth known to all", () => {
+    state.world = world({
+      known: [{ ...truth("a", "The river gives back", "some"), known_with: ["Bram", "Mira"] }, truth("b", "Magic leaves a taste", "all")],
+    });
+    const items = mountTab().findAll("section")[0]!.findAll("li");
+    expect(items[0]!.find("[data-testid=known-with]").text()).toBe("You, Bram and Mira know");
+    expect(items[1]!.find("[data-testid=known-with]").exists()).toBe(false);
+  });
+
+  // Bug caught: Tell the party was offered on truths the whole table already knows, or told the party the wrong truth.
+  it("offers Tell the party only under Only you know, for that truth", async () => {
+    state.world = world({ onlyMine: [truth("a", "The river gives back", "some")], known: [truth("b", "Magic leaves a taste", "all")] });
+    const w = mountTab();
+    const buttons = w.findAll("[data-testid=tell-party]");
+    expect(buttons).toHaveLength(1);
+    await buttons[0]!.trigger("click");
+    expect(state.tell).toHaveBeenCalledWith(expect.objectContaining({ id: "a", title: "The river gives back" }));
+  });
+
+  // Bug caught: a DM previewing as a player could tell the party on the player's behalf.
+  it("does not offer Tell the party to a DM previewing as a player", async () => {
+    const { useAppUiStore } = await import("@/stores/ui/app");
+    useAppUiStore().dmPreviewMode = true;
+    state.world = world({ onlyMine: [truth("a", "The river gives back", "some")] });
+    expect(mountTab().find("[data-testid=tell-party]").exists()).toBe(false);
+  });
+
+  // Bug caught: found clues never reached the player's page, or named a place the player cannot see.
+  it("lists the found clues with where they lay, and just the title when it is nowhere the player can see", () => {
+    state.world = world({ known: [truth("b", "Magic leaves a taste", "all")] });
+    state.found = [
+      { clue: { id: "k1", title: "A brass key" }, where: { kind: "place", name: "The Drowned Mill" } },
+      { clue: { id: "k2", title: "A torn letter" }, where: null },
+    ];
+    const section = mountTab().get("[data-testid=found-clues]");
+    expect(section.text()).toContain("What we have found");
+    expect(section.text()).toContain("Found at The Drowned Mill");
+    const rows = section.findAll("li");
+    expect(rows[1]!.text()).toBe("A torn letter");
+  });
+
+  // Bug caught: with nothing told yet the wonder field was not drawn, so a player at the start of a campaign could not ask anything.
+  it("lets a player ask a wonder, even before the DM has told them anything", async () => {
+    state.world = world({});
+    state.addWonder.mockResolvedValue(undefined);
+    const w = mountTab();
+    const input = w.get("input[aria-label='Something you wonder']");
+    await input.setValue("  Who sank the mill?  ");
+    await w.get("form").trigger("submit");
+    await flushPromises();
+    expect(state.addWonder).toHaveBeenCalledWith("Who sank the mill?");
+  });
+
+  // Bug caught: the player never learned what became of their question.
+  it("says what became of each wonder", () => {
+    state.world = world({ known: [truth("b", "x", "all")] });
+    state.wonders = [
+      { id: "w1", body: "Who sank the mill?", adopted_entry_id: "q1", dismissed_at: null },
+      { id: "w2", body: "Is the well cursed?", adopted_entry_id: null, dismissed_at: "2026-11-02T00:00:00Z" },
+      { id: "w3", body: "Where does the river go?", adopted_entry_id: null, dismissed_at: null },
+    ];
+    const items = mountTab().get("[data-testid=player-wonders]").findAll("li");
+    expect(items[0]!.text()).toContain("Taken up by the DM");
+    expect(items[1]!.text()).toContain("Let be");
+    expect(items[2]!.text()).toBe("Where does the river go?");
   });
 });
