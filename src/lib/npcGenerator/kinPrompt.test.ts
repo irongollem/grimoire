@@ -15,17 +15,26 @@ function spouse(a: string, b: string): KinLink {
 describe("kinPromptLine", () => {
   it("names both parents with birth years and current ages", () => {
     expect(
-      kinPromptLine("child", [{ name: "Brenna Ashe", bornYear: 1459 }, { name: "Corwin Ashe", bornYear: 1456 }], 1495),
+      kinPromptLine("child", [{ name: "Brenna Ashe", bornYear: 1459, species: null }, { name: "Corwin Ashe", bornYear: 1456, species: null }], 1495),
     ).toBe(
-      "The new NPC is the child of Brenna Ashe (born 1459, 36 now) and Corwin Ashe (born 1456, 39 now). The current year is 1495. Give an age that fits.",
+      "The new NPC is the child of Brenna Ashe (born 1459, 36 now) and Corwin Ashe (born 1456, 39 now). The current year is 1495. Give an age that fits. Unless the request says otherwise, they are of the same people as their blood kin.",
     );
   });
 
   it("leaves out what is unknown", () => {
-    expect(kinPromptLine("sibling", [{ name: "Pip", bornYear: null }], null)).toBe(
-      "The new NPC is the sibling of Pip. Give an age that fits.",
+    expect(kinPromptLine("spouse", [{ name: "Pip", bornYear: null, species: null }], null)).toBe(
+      "The new NPC is the spouse of Pip. Give an age that fits.",
     );
-    expect(kinPromptLine("parent", [{ name: "Pip", bornYear: 1490 }], null)).toContain("Pip (born 1490)");
+    expect(kinPromptLine("parent", [{ name: "Pip", bornYear: 1490, species: null }], null)).toContain("Pip (born 1490)");
+  });
+
+  // Bug caught (live run, 23 Nov 2026): a halfling innkeeper's younger sister was made human, because the line
+  // named the relative but never their people.
+  it("names the relative's people, and keeps blood kin of it while a spouse may differ", () => {
+    const sibling = kinPromptLine("sibling", [{ name: "Perf Innkeeper", bornYear: null, species: "Halfling" }], null);
+    expect(sibling).toContain("Perf Innkeeper (Halfling)");
+    expect(sibling).toContain("same people as their blood kin");
+    expect(kinPromptLine("spouse", [{ name: "Perf Innkeeper", bornYear: null, species: "Halfling" }], null)).not.toContain("same people");
   });
 });
 

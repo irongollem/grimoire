@@ -100,6 +100,21 @@ describe("useMusicGeneration", () => {
     expect(music.isGenerating.value).toBe(false);
   });
 
+  it("leaves the Generate tab's draft untouched on success, a refusal and a re-file when asked to keep it", async () => {
+    const music = useMusicGeneration();
+    music.draft.description.value = "half typed";
+    music.draft.category.value = "ambient";
+
+    mocks.waitForJob.mockResolvedValue(job());
+    expect(await music.generate({ ...INPUT, keepDraft: true })).toBe(true);
+    expect(music.draft.description.value).toBe("half typed");
+    expect(music.draft.category.value).toBe("ambient");
+
+    mocks.waitForJob.mockRejectedValue(new AiGenerationJobFailedError(job({ status: "failed", artifacts: { url: null, storagePath: null, mimeType: null, metadata: { prompt: "Ask's prompt" } } })));
+    expect(await music.generate({ ...INPUT, keepDraft: true })).toBe(false);
+    expect(music.draft.editedPrompt.value).toBeNull();
+  });
+
   it("hands a refused prompt back as the editable draft prompt", async () => {
     const refused = job({
       status: "failed",

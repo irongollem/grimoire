@@ -20,3 +20,4 @@ export const UNREADABLE_PEOPLE = "A people another DM listed";
 
 /** Who a made-up person is: each people at its share, the rest as `null` ("anyone else"). */
 export const rollPeople = rollShare<People>;
+

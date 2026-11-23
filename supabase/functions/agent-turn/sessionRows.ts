@@ -11,6 +11,7 @@ export function sessionRow(row: Row): SessionRow {
     id: row.id as string,
     user_id: row.user_id as string,
     campaign_id: row.campaign_id as string,
+    kind: row.kind as string,
     summary: (row.summary as string | null) ?? null,
     summary_through_seq: Number(row.summary_through_seq),
     scene_location_id: (row.scene_location_id as string | null) ?? null,
@@ -25,13 +26,6 @@ export function sessionRow(row: Row): SessionRow {
     fight_encounter_id: (row.fight_encounter_id as string | null) ?? null,
     pursuit_encounter_id: (row.pursuit_encounter_id as string | null) ?? null,
   };
-}
-
-// The database answers with the whole credits to bill. A value that is not a number must never become "bill nothing".
-export function wholeCredits(data: unknown): number {
-  const due = Number(data);
-  if (data === null || data === undefined || !Number.isFinite(due)) throw new Error("the database did not say what is due");
-  return due;
 }
 
 /** The next play session's number: one after the highest, or 1 for a campaign that has had none. */

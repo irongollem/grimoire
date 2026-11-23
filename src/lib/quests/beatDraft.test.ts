@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { QuestBeat } from "@/types/quest.types";
 import type { AiProvenance } from "@/ai/provenance";
-import { applyBeatFill, questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "./beatDraft";
+import { applyBeatFill, applyFilledBeat, questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "./beatDraft";
 
 const beat = {
   id: "beat", title: "A choice", kind: "social", presentation_hint: null,
@@ -133,5 +133,38 @@ describe("quest beat draft", () => {
       const b = questBeatToDraft({ ...beat, ai_provenance: { ...prov } } as QuestBeat);
       expect(questBeatDraftsEqual(a, b)).toBe(true);
     });
+  });
+});
+
+describe("applyFilledBeat", () => {
+  const doc = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+  const filled = { fill: { title: "Filled", readAloud: "Read this", dmContent: "Lead this" }, provenance: null };
+  const empty = () => questBeatToDraft({ ...beat, title: "Untitled beat", dm_content: null, read_aloud: null } as QuestBeat);
+
+  it("fills an empty beat, placeholder title included", () => {
+    const draft = empty();
+    applyFilledBeat(draft, { ...filled, overwrite: false });
+    expect(draft.title).toBe("Filled");
+    expect(draft.read_aloud).toContain("Read this");
+    expect(draft.dm_content).toContain("Lead this");
+  });
+
+  it("keeps a title the DM chose, even when the prose is replaced", () => {
+    const draft = questBeatToDraft({ ...beat, dm_content: doc("old"), read_aloud: doc("old") } as QuestBeat);
+    applyFilledBeat(draft, { ...filled, overwrite: true });
+    expect(draft.title).toBe("A choice");
+    expect(draft.dm_content).toContain("Lead this");
+  });
+
+  it("leaves prose that is already written alone unless told to overwrite", () => {
+    const written = { ...beat, dm_content: doc("old lead"), read_aloud: doc("old speech") } as QuestBeat;
+    const kept = questBeatToDraft(written);
+    applyFilledBeat(kept, { ...filled, overwrite: false });
+    expect(kept.dm_content).toBe(doc("old lead"));
+    expect(kept.read_aloud).toBe(doc("old speech"));
+    const replaced = questBeatToDraft(written);
+    applyFilledBeat(replaced, { ...filled, overwrite: true });
+    expect(replaced.dm_content).toContain("Lead this");
+    expect(replaced.read_aloud).toContain("Read this");
   });
 });

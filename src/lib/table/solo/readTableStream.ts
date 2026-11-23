@@ -1,4 +1,5 @@
 import { asShown } from "@edge-shared/agent/show.ts";
+import { readEventStream } from "@/lib/agentStream/readEventStream";
 import { parseFightChange } from "./fight/fightChange";
 import { parseDmRoll } from "./dmRoll";
 import { parseRollAsk, parseRolled } from "./tableRoll";
@@ -152,46 +153,10 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
   }
 }
 
-function eventFromBlock(block: string): TableEvent | null {
-  // A block is `data: <json>` lines; a comment line (": keep-alive") has none and is skipped.
-  const payload = block
-    .split("\n")
-    .filter((l) => l.startsWith("data:"))
-    .map((l) => l.slice(5).replace(/^ /, ""))
-    .join("\n");
-  if (payload === "") return null;
-  try {
-    return parseTableEvent(JSON.parse(payload));
-  } catch {
-    return null;
-  }
-}
-
 /**
  * The server-sent events of an `agent-turn` response, as typed events, in order.
- * Chunks arrive wherever the network cut them: an event may be split across two, and several may share one,
- * so text is buffered until a blank line ends an event.
+ * Chunks arrive wherever the network cut them: see `readEventStream`.
  */
-export async function* readTableStream(response: Response): AsyncGenerator<TableEvent> {
-  if (!response.body) return;
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
-      let cut = buffer.indexOf("\n\n");
-      while (cut >= 0) {
-        const event = eventFromBlock(buffer.slice(0, cut));
-        buffer = buffer.slice(cut + 2);
-        if (event) yield event;
-        cut = buffer.indexOf("\n\n");
-      }
-    }
-    // A stream that ends mid-event never finished it: the half block is dropped, not guessed at.
-  } finally {
-    reader.releaseLock();
-  }
+export function readTableStream(response: Response): AsyncGenerator<TableEvent> {
+  return readEventStream(response, parseTableEvent);
 }

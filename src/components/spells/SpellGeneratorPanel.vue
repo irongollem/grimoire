@@ -5,8 +5,8 @@
     v-model:generate-image="generateImage"
     title="Spell Generator"
     concept-placeholder="A storm of luminous moths that swarm a target, biting and dazzling them with flashes of bioluminescence…"
-    :credits="textCreditCost"
-    :byok="textIsByok"
+    :credits="quote.total"
+    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     blank-to="/spells/new"
@@ -40,36 +40,28 @@
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useSpellsUiStore } from "@/stores/ui/spells";
-import { useCampaignStore } from "@/stores/campaign";
-import { useCreateSpell } from "@/composables/spells/useSpells";
 import { useSpellGeneration } from "@/ai/useSpellGeneration";
+import { useGenerateSpell } from "@/composables/spells/useGenerateSpell";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
-import { spellInsertFromAi } from "@/ai/spellAiAdapter";
+import { useSpellQuote } from "@/composables/ai/quotes/spellQuote";
 import { SPELL_SCHOOLS, type SpellSchool } from "@/types/spell.types";
 
 const spellsUi = useSpellsUiStore();
 const router = useRouter();
-const campaign = useCampaignStore();
-const { mutateAsync: createSpell } = useCreateSpell();
+const { generateAndCreateSpell } = useGenerateSpell();
+// The shared generation state `useGenerateSpell` drives underneath; this panel reads it for its own loading UI.
 const {
   isGenerating,
   error: genError,
   completedEntityId,
   concept: genConcept,
   clearCompleted,
-  generate,
 } = useSpellGeneration();
 
-const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const textCreditCost = computed(
-  () => textCredits(costOf("spell_generation")),
-);
+const quoteSpell = useSpellQuote();
 
 const concept = ref("");
 const constraints = reactive<{ level: string; school: "" | SpellSchool }>({
@@ -77,6 +69,9 @@ const constraints = reactive<{ level: string; school: "" | SpellSchool }>({
   school: "",
 });
 const generateImage = ref(true);
+
+// The price Ask Grimoire quotes for the same run: the picture counts when it is switched on.
+const quote = computed(() => quoteSpell({ image: generateImage.value }));
 
 function levelSuffix(n: number): string {
   if (n === 1) return "st";
@@ -86,32 +81,23 @@ function levelSuffix(n: number): string {
 }
 
 async function generateAndCreate() {
-  if (!requireCredits(textCreditCost.value, textIsByok.value)) return;
+  if (!requireCredits(quote.value.total, quote.value.byok)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();
 
-  const result = await generate(concept.value.trim(), {
+  const { id } = await generateAndCreateSpell(concept.value.trim(), {
     level: constraints.level === "" ? undefined : Number(constraints.level),
     school: constraints.school || undefined,
     generateImage: generateImage.value,
   });
-  if (!result) return;
-
-  const created = await createSpell({
-    ...spellInsertFromAi(result),
-    // spellInsertFromAi is a pure AI→shape adapter with no campaign awareness;
-    // stamp the same default SpellDetail.vue's manual create path uses (#596)
-    // so an AI-generated spell lands in the DM's current campaign rather than
-    // "every campaign" by accident. No active campaign is genuinely global.
-    campaign_id: campaign.activeCampaignId ?? null,
-  });
+  if (!id) return;
 
   if (spellsUi.spellGeneratorOpen) {
     spellsUi.spellGeneratorOpen = false;
-    router.push(`/spells/${created.id}`);
+    router.push(`/spells/${id}`);
   } else {
-    completedEntityId.value = created.id;
+    completedEntityId.value = id;
   }
 }
 </script>

@@ -1,12 +1,9 @@
-// What a turn does around the loop: reading the scene and the record for the system text, folding old messages into
-// the summary, and the two small helpers both use. Split from `handler.ts` so the handler holds the turn's rules.
+// What a turn does around the loop: reading the scene and the record for the system text, and the small helpers both
+// use (the summary fold is `conversation/foldSummary.ts`). Split from `handler.ts` so the handler holds the turn's rules.
 
 import { budgetLine, type TurnBudget } from "../_shared/agent/fightChange.ts";
 import { peoplesSection } from "../_shared/agent/peoples.ts";
 import { fightsSection, NO_FIGHTS, type FightsInView } from "../_shared/agent/fight.ts";
-import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
-import { planSummary, summarise } from "../_shared/agent/summary.ts";
-import type { StoredTurn } from "../_shared/agent/transcript.ts";
 import { sceneSection, trimScene, type TrimmedScene } from "../_shared/agent/scene.ts";
 import { recordSection, type RecordedFact } from "../_shared/agent/record.ts";
 import { CANON_GUIDE, canonHereSection, NO_CANON_HERE, previouslySection, type CanonHere } from "../_shared/agent/canon.ts";
@@ -18,18 +15,11 @@ import { playerCharacterSection, type PlayerCharacter } from "../_shared/agent/p
 import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTablePrompt.ts";
 import type { DatePoint } from "../_shared/npcAge.ts";
 import { NO_QUESTS, pressureIsSpent, pressureTick, questsSection, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
-import type { CallModel } from "../_shared/agent/types.ts";
-import type { CreditLogFields } from "../_shared/credits.ts";
-import type { AgentTurnDeps, CampaignRow, SessionRow, TurnLedger } from "./turnTypes.ts";
+import type { AgentTurnDeps, CampaignRow } from "./turnTypes.ts";
 
 /** What the screen does to one section of campaign text: keeps it or swaps it for the withheld line. */
 export type SectionFilter = (text: string) => string;
 const KEEP: SectionFilter = (text) => text;
-
-// The session's credits hold six decimals; accruing at the same precision keeps what is sent equal to what is stored.
-export function round6(n: number): number {
-  return Math.round(n * 1_000_000) / 1_000_000;
-}
 
 /** The party's place for the system text. A place that will not load is no place: the turn still runs. */
 export async function sceneOf(deps: AgentTurnDeps, campaignId: string, locationId: string | null) {
@@ -230,74 +220,6 @@ export async function applyKeptQuestMoves(input: {
   if (tick !== null) await safely(() => deps.applyQuestMove(ctx, tick));
   // A clock that is now full has done its work: the conversation lets go of it (and a clock the table made goes).
   if (pressureIsSpent(input.state, input.queued)) await safely(() => deps.applyQuestMove(ctx, { kind: "pressure", mode: "stop" }));
-}
-
-/**
- * Folds the older messages into the session's summary when the conversation has grown. It runs after the turn has
- * been saved, charged and reported, so whatever happens in here, the player already has their answer: everything
- * thrown is logged and nothing is emitted.
- */
-export async function foldIntoSummary(input: {
-  deps: AgentTurnDeps;
-  ledger: TurnLedger;
-  session: SessionRow;
-  storedNow: StoredTurn[];
-  callModel: CallModel;
-  isByok: boolean;
-  price: ModelPrice | null;
-  calibration: CreditCalibration | null;
-}): Promise<void> {
-  const { deps, session, isByok } = input;
-  try {
-    const plan = planSummary(input.storedNow, session.summary_through_seq);
-    if (!plan) return;
-
-    const { summary, usage } = await summarise({
-      callModel: input.callModel,
-      previousSummary: session.summary,
-      fold: plan.fold,
-    });
-    const logFields: CreditLogFields = {
-      model: usage.model,
-      provider: usage.provider,
-      input_tokens: usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens,
-      output_tokens: usage.outputTokens,
-    };
-    const logWithoutCharge = async () => input.ledger.charge("agent_turn", { cost: 0, isByok, log: logFields });
-
-    // Nothing to store and nothing to bill, but the provider was paid for the call, so the tokens are logged.
-    if (summary === null) {
-      await safely(logWithoutCharge);
-      return;
-    }
-
-    let credits = 0;
-    if (!isByok && input.price && input.calibration) {
-      credits = round6(creditsForUsd(usdForSteps([usage], input.price), input.calibration));
-    }
-    // Like a turn: a summary that was not kept is not billed, but its tokens were spent and are logged.
-    let saved: { due: number } | "stale" | "failed";
-    try {
-      saved = await deps.saveSummary({
-        sessionId: session.id,
-        expectedThroughSeq: session.summary_through_seq,
-        throughSeq: plan.throughSeq,
-        summary,
-        usage,
-        credits,
-      });
-    } catch (error) {
-      console.error("agent-turn: saving the summary failed:", error);
-      saved = "failed";
-    }
-    if (saved === "stale" || saved === "failed") {
-      await safely(logWithoutCharge);
-      return;
-    }
-    await safely(async () => input.ledger.charge("agent_turn", { cost: saved.due, isByok, log: logFields }));
-  } catch (error) {
-    console.error("agent-turn: the summary failed:", error);
-  }
 }
 
 // A bookkeeping call after the model has answered must not turn a finished turn into an exception.

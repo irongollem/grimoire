@@ -2,10 +2,12 @@ import { mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LocationGeneratorPanel from "./LocationGeneratorPanel.vue";
+import { typeChoices } from "@/lib/worldLinks/connections";
 import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 
 const mocks = vi.hoisted(() => ({
   createLocation: vi.fn(),
+  createConnection: vi.fn(),
   generate: vi.fn(),
   push: vi.fn(),
   toastError: vi.fn(),
@@ -36,6 +38,8 @@ vi.mock("@/composables/locations/useLocations", () => ({
   useCreateLocation: () => ({ mutateAsync: mocks.createLocation }),
   useLocationTree: () => ({ locationOptions: ref([]) }),
 }));
+vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: ref([{ id: "npc-brenna", name: "Brenna" }]) }) }));
+vi.mock("@/composables/connections/useConnections", () => ({ useCreateConnectionInCampaign: () => ({ mutateAsync: mocks.createConnection }) }));
 vi.mock("@/composables/ai/useImageGenerationLog", () => ({
   useImageGenerationLog: () => ({ logImageGeneration: vi.fn() }),
 }));
@@ -78,7 +82,7 @@ vi.mock("@/composables/billing/useQuota", () => ({
 function mountPanel() {
   return mount(LocationGeneratorPanel, {
     global: {
-      stubs: { RouterLink: RouterLinkStub, EntityCombobox: true, PaywallModal: true },
+      stubs: { RouterLink: RouterLinkStub, EntityCombobox: true, GeneratorLinksField: true, PaywallModal: true },
     },
   });
 }
@@ -167,6 +171,7 @@ describe("LocationGeneratorPanel — generate, create, land on the new place", (
 
   beforeEach(() => {
     mocks.createLocation.mockReset().mockResolvedValue({ id: "new-place" });
+    mocks.createConnection.mockReset().mockResolvedValue(undefined);
     mocks.toastError.mockReset();
     mocks.generate.mockReset();
     mocks.push.mockReset();
@@ -212,5 +217,40 @@ describe("LocationGeneratorPanel — generate, create, land on the new place", (
     await Promise.resolve();
     expect(mocks.push).not.toHaveBeenCalled();
     expect(mocks.toastError).toHaveBeenCalledWith("db down");
+  });
+
+  // Bug caught: the workflow took a keeper but the page had no way to pick one, so a made place was never kept by anyone.
+  it("makes the NPC picked as keeper the place's keeper, and no one when none is picked", async () => {
+    mocks.generate.mockResolvedValue(result);
+    await run();
+    await vi.waitFor(() => expect(mocks.createLocation).toHaveBeenCalled());
+    expect(mocks.createLocation.mock.calls[0]![0]).toMatchObject({ npc_owner_id: null });
+
+    mocks.createLocation.mockClear();
+    const picker = mountPanel();
+    const keeper = picker.findAllComponents({ name: "EntityCombobox" }).find((c) => c.props("options").some((o: { id: string }) => o.id === "npc-brenna"))!;
+    keeper.vm.$emit("update:modelValue", "npc-brenna");
+    await picker.get("textarea").setValue("An inn.");
+    await picker.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+    await vi.waitFor(() => expect(mocks.createLocation).toHaveBeenCalled());
+    expect(mocks.createLocation.mock.calls[0]![0]).toMatchObject({ npc_owner_id: "npc-brenna" });
+  });
+
+  // Bug caught: a tie chosen under "Tie it to…" lived in the form but the generated place never got it.
+  it("ties the new place to what the Ties field holds, and says so when a tie fails", async () => {
+    mocks.generate.mockResolvedValue(result);
+    const controls = typeChoices("location", "faction").find((c) => c.key === "controls")!;
+    const wrapper = mountPanel();
+    wrapper.findComponent({ name: "GeneratorLinksField" }).vm.$emit("update:modelValue", [{ kind: "faction", id: "f1", name: "The Red Hand", choice: controls }]);
+    await wrapper.get("textarea").setValue("A fort.");
+    mocks.createConnection.mockRejectedValueOnce(new Error("denied"));
+    await wrapper.findAll("button").find((b) => b.text().includes("Generate with AI"))!.trigger("click");
+    await vi.waitFor(() => expect(mocks.createConnection).toHaveBeenCalledTimes(1));
+    expect(mocks.createConnection.mock.calls[0]![0]).toMatchObject({
+      input: { subject: { kind: "location", id: "new-place" }, other: { kind: "faction", id: "f1" }, choice: { key: "controls" } },
+      campaignId: "campaign-1",
+    });
+    await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith(expect.stringContaining("The Red Hand")));
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/locations?at=new-place"));
   });
 });

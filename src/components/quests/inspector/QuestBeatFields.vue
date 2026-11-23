@@ -77,9 +77,8 @@ import CanonHere from "@/components/canon/CanonHere.vue";
 import { useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
 import { useAutosave } from "@/composables/useAutosave";
 import { toast } from "@/lib/toast";
-import { applyBeatFill, questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "@/lib/quests/beatDraft";
+import { applyFilledBeat, questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "@/lib/quests/beatDraft";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
-import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import type { BeatFillContext } from "@/lib/quests/beatFill";
 import type { QuestBeatFilled } from "@/ai/useQuestBeatFill";
 import type { QuestBeat } from "@/types/quest.types";
@@ -140,19 +139,11 @@ watch(() => beat, (nextBeat) => {
 
 const hasText = (value: string) => !!tiptapToPlainText(value).trim();
 const hasFillableText = computed(() => hasText(draft.dm_content) || hasText(draft.read_aloud));
-// A title the DM never chose: blank, or the placeholder the flow shows for one.
-const PLACEHOLDER_TITLES = ["untitled beat", "new beat"];
 
 // Writing into the draft is exactly what typing does, so autosave persists the
 // fill, and the provenance is stamped against the text it describes.
-function applyFill({ fill, provenance, overwrite }: QuestBeatFilled & { overwrite: boolean }) {
-  const title = draft.title.trim();
-  const isPlaceholder = !title || PLACEHOLDER_TITLES.includes(title.toLowerCase());
-  applyBeatFill(draft, {
-    title: fill.title && isPlaceholder ? fill.title : undefined,
-    read_aloud: fill.readAloud && (overwrite || !hasText(draft.read_aloud)) ? toTiptapJson(fill.readAloud) : undefined,
-    dm_content: fill.dmContent && (overwrite || !hasText(draft.dm_content)) ? toTiptapJson(fill.dmContent) : undefined,
-  }, provenance);
+function applyFill(filled: QuestBeatFilled & { overwrite: boolean }) {
+  applyFilledBeat(draft, filled);
 }
 
 // Tying is one deliberate write of its own column; the autosaved draft never carries it, so neither overwrites the other.

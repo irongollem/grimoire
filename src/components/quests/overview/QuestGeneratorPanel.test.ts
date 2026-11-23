@@ -315,6 +315,17 @@ describe("QuestGeneratorPanel — the request and the created quest", () => {
     expect(sentPrompt()).not.toContain("Quest Giver: Odo (");
   });
 
+  // Bug caught: hooks Ask Grimoire made opened in the panel with the giver and place empty, so a hook the DM picked
+  // was built without them (the build reads the panel's own pickers).
+  it("takes the giver and place Ask Grimoire fixed, once, and clears the hand-over", async () => {
+    (mocks.ui as { questGeneratorPrefill?: { giverNpcId: string; locationId: string } | null }).questGeneratorPrefill = { giverNpcId: "npc-1", locationId: "loc-1" };
+    const w = mountPanel();
+    await generate(w);
+    expect(sentPrompt()).toContain("Quest Giver: Mara (Smith, ally)");
+    expect(sentPrompt()).toContain("Location: Thornkeep");
+    expect((mocks.ui as { questGeneratorPrefill?: unknown }).questGeneratorPrefill).toBeNull();
+  });
+
   it("adds the theme trimmed, and names the request by it, else by the party's level", async () => {
     mocks.party = [{ level: 3 }];
     const w = mountPanel();

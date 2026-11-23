@@ -1,0 +1,53 @@
+import { describe, expect, it, vi } from "vitest";
+import { ref } from "vue";
+
+// Each key a different price, so a quote on the wrong row shows as the wrong number.
+const PRICES: Record<string, number> = {
+  quest_generation: 11,
+  npc_relationship_suggestion: 12,
+  canon_premise_suggestion: 21,
+  canon_truth_suggestion: 22,
+  canon_clue_suggestion: 23,
+  canon_question_suggestion: 24,
+  canon_force_suggestion: 25,
+  canon_lore_suggestion: 26,
+};
+const byok = vi.hoisted(() => ({ value: false }));
+
+vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: (key: string) => PRICES[key] }) }));
+vi.mock("@/composables/ai/useCampaignProviders", () => ({
+  useCampaignProviders: () => ({
+    textIsByok: { get value() { return byok.value; } }, imageIsByok: ref(false), imageProvider: ref("openai"),
+    textCredits: (base: number) => base, imageCredits: (base: number) => base,
+  }),
+}));
+
+const { useQuestHooksQuote } = await import("./questHooksQuote");
+const { useConnectionSuggestionsQuote } = await import("./connectionSuggestionsQuote");
+const { useCanonSuggestionsQuote: useCanonQuote } = await import("./canonSuggestionsQuote");
+
+describe("the review generators' quotes", () => {
+  // Bug caught: the quote priced a row the server does not charge (the monster panel once did).
+  it("price each generator on the row its edge function charges", () => {
+    expect(useQuestHooksQuote()().total).toBe(PRICES.quest_generation);
+    expect(useConnectionSuggestionsQuote()().total).toBe(PRICES.npc_relationship_suggestion);
+  });
+
+  // Bug caught: a lore draft quoted as truths (or the reverse) because modes shared one row.
+  it("price each canon mode on its own ledger row, as suggest-canon's MODES does", () => {
+    const quoteFor = useCanonQuote();
+    expect(quoteFor("premise").total).toBe(21);
+    expect(quoteFor("truths").total).toBe(22);
+    expect(quoteFor("clues").total).toBe(23);
+    expect(quoteFor("questions").total).toBe(24);
+    expect(quoteFor("forces").total).toBe(25);
+    expect(quoteFor("lore").total).toBe(26);
+  });
+
+  it("cost nothing on the DM's own key", () => {
+    byok.value = true;
+    const quote = useQuestHooksQuote()();
+    expect(quote).toMatchObject({ total: 0, byok: true });
+    byok.value = false;
+  });
+});

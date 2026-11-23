@@ -17,6 +17,7 @@ export const RATE_LIMITS = {
   // One message to the AI table (#1205). A turn is several model calls, so a DM gets fewer of these than of a single
   // generation; 20 a minute is far above anyone typing replies to a story.
   agent_turn:    { action: "agent_turn",    limit: 20, windowSeconds: 60 },
+  ask_turn:      { action: "ask_turn",      limit: 20, windowSeconds: 60 },
   // One spoken line voiced at the AI table (#1021). A turn shows up to a handful of lines and each is a paid call to
   // a speech service, so this is its own bucket: far above a story being played, well below a loop.
   table_voice:   { action: "table_voice",   limit: 60, windowSeconds: 60 },

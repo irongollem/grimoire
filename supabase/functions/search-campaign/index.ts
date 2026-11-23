@@ -1,4 +1,4 @@
-import { gameSystemEdition } from "../_shared/gameSystem.ts";
+import { retrieveCampaignHits } from "../_shared/campaignRetrieval.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { isAccountSuspended, isChildAccount, suspendedResponse } from "../_shared/accountGate.ts";
@@ -15,13 +15,9 @@ import {
   type EntryFields,
 } from "./rerank.ts";
 import {
-  DM_SEARCH_NOTE_SCOPE,
   hitKey,
-  noteHitLabel,
-  rankSearchHits,
   rerankPool,
   type CampaignSearchHit,
-  type CampaignSearchKind,
   type CampaignSearchResponse,
   type CampaignSearchUnavailable,
 } from "../_shared/campaignSearch.ts";
@@ -29,7 +25,6 @@ import { UUID_RE } from "../_shared/uuid.ts";
 import { serveUser } from "../_shared/pipeline/serveUser.ts";
 import { json, jsonError, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
-import { CANON_PARTS } from "../../../src/types/canon.types.ts";
 
 /**
  * Campaign-wide semantic search (#599): "find my thing" across the DM's own
@@ -83,7 +78,6 @@ const admin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-const MATCH_COUNT = 8;
 const RERANK_TIMEOUT_MS = 6_000;
 
 interface SearchCampaign extends BaseCampaign {
@@ -94,64 +88,6 @@ function unavailable(reason: CampaignSearchUnavailable): Response {
   const body: CampaignSearchResponse = { hits: [], unavailable: reason };
   return json(body);
 }
-
-/** Enum values read as words in the dropdown: "point_of_interest" -> "point of interest". */
-function humanize(value: string): string {
-  return value.replace(/_/g, " ");
-}
-
-/** Non-empty parts, humanized, joined with ", " or null when there are none. */
-function join(...parts: (string | null | undefined)[]): string | null {
-  const present = parts.filter((p): p is string => typeof p === "string" && p.trim().length > 0);
-  return present.length > 0 ? present.map(humanize).join(", ") : null;
-}
-
-interface RpcResult {
-  kind: CampaignSearchKind;
-  hits: CampaignSearchHit[];
-  failed: boolean;
-}
-
-/** Runs one match RPC; a failure drops that kind (logged), never the search. */
-async function runMatch(
-  kind: CampaignSearchKind,
-  call: PromiseLike<{ data: unknown; error: { message: string } | null }>,
-  toHit: (row: Record<string, unknown>) => CampaignSearchHit,
-): Promise<RpcResult> {
-  try {
-    const { data, error } = await call;
-    if (error) {
-      console.error(`search-campaign: ${kind} match failed:`, error.message);
-      return { kind, hits: [], failed: true };
-    }
-    return { kind, hits: ((data ?? []) as Record<string, unknown>[]).map(toHit), failed: false };
-  } catch (e) {
-    console.error(`search-campaign: ${kind} match threw:`, e);
-    return { kind, hits: [], failed: true };
-  }
-}
-
-function simple(
-  kind: CampaignSearchKind,
-  nameKey: string,
-  descriptor: (row: Record<string, unknown>) => string | null,
-): (row: Record<string, unknown>) => CampaignSearchHit {
-  return (row) => ({
-    kind,
-    id: String(row.id),
-    name: String(row[nameKey]),
-    descriptor: join(descriptor(row)),
-    distance: Number(row.distance),
-  });
-}
-
-const itemDescriptor = (row: Record<string, unknown>) =>
-  join(row.item_type as string | null, row.rarity as string | null);
-const monsterDescriptor = (row: Record<string, unknown>) =>
-  join(
-    row.monster_type as string | null,
-    row.challenge_rating != null && row.challenge_rating !== "" ? `CR ${row.challenge_rating}` : null,
-  );
 
 /**
  * The text of each pooled hit, keyed by hitKey. One read per table, by id (the
@@ -258,76 +194,19 @@ serve(serveUser(async ({ user, req }) => {
     return jsonError(502, "embedding_failed", e instanceof Error ? e.message : "Embedding failed");
   }
 
-  // Same source derivation as generate-loot / generate-encounter. A Generic
-  // campaign has no edition and no 5e monster or library content, so those
-  // searches are skipped (never scoped to a fabricated 2014). An unreadable source list drops the library sides
-  // (logged) rather than failing the search; it is never read as "none enabled".
-  const ruleset = gameSystemEdition(campaign.game_system);
-  const ownerId = campaign.user_id as string;
-  const model = provider.model;
-  // Only the library sides read the enabled sources, and a system with no edition has none.
-  let enabledSlugs: string[] = [];
-  if (ruleset) {
-    const { data: enabledRows, error: enabledError } = await admin
-      .from("campaign_enabled_sources")
-      .select("source_slug")
-      .eq("campaign_id", campaignId);
-    if (enabledError) console.error("search-campaign: enabled sources lookup failed:", enabledError.message);
-    else enabledSlugs = (enabledRows ?? []).map((r: { source_slug: string }) => r.source_slug);
-  }
-
-  const scope = { p_campaign_id: campaignId, p_owner_id: ownerId, p_embedding_model: model };
-
-  const jobs: Promise<RpcResult>[] = [
-    runMatch("npc", admin.rpc("match_campaign_npcs", { query_embedding: vector, ...scope, match_count: MATCH_COUNT }),
-      simple("npc", "name", (r) => (r.occupation as string | null) ?? null)),
-    runMatch("location", admin.rpc("match_campaign_locations", { query_embedding: vector, ...scope, match_count: MATCH_COUNT }),
-      simple("location", "name", (r) => (r.location_type as string | null) ?? null)),
-    runMatch("faction", admin.rpc("match_campaign_factions", { query_embedding: vector, ...scope, match_count: MATCH_COUNT }),
-      simple("faction", "name", (r) => (r.faction_type as string | null) ?? null)),
-    runMatch("note", admin.rpc("match_campaign_notes", {
-      query_embedding: vector, ...scope, p_exclude_id: null, ...DM_SEARCH_NOTE_SCOPE, match_count: MATCH_COUNT,
-    }), simple("note", "title", (r) =>
-      noteHitLabel(r.session_num))),
-    runMatch("quest", admin.rpc("match_campaign_quests", { query_embedding: vector, ...scope, match_count: MATCH_COUNT }),
-      simple("quest", "title", (r) => (r.status as string | null) ?? null)),
-    // The DM reads every part of their own canon, secrets included, so every part is asked for here; the Narrator's
-    // lookup asks for the others only (agent-turn/canonLookup.ts).
-    runMatch("canon", admin.rpc("match_campaign_canon", {
-      query_embedding: vector, p_campaign_id: campaignId, p_embedding_model: model, p_parts: [...CANON_PARTS], match_count: MATCH_COUNT,
-    }), simple("canon", "title", (r) => (r.part as string | null) ?? null)),
-    runMatch("item", admin.rpc("match_custom_items", {
-      query_embedding: vector, ...scope, p_rarities: [], p_exclude_attunement: false, match_count: MATCH_COUNT,
-    }), simple("item", "name", itemDescriptor)),
-  ];
-  if (ruleset) {
-    jobs.push(runMatch("monster", admin.rpc("match_custom_monsters", {
-      query_embedding: vector, ...scope, p_ruleset: ruleset, match_count: MATCH_COUNT,
-    }), simple("monster", "name", monsterDescriptor)));
-  }
-
-  // Library sides only when sources are enabled -- never called with an empty
-  // array, which would loosen the predicate (the #567/#583 licensing mistake).
-  if (ruleset && enabledSlugs.length > 0) {
-    jobs.push(
-      runMatch("library_item", admin.rpc("match_library_items", {
-        query_embedding: vector, source_keys: ["grimoire-bundled", ...enabledSlugs], p_ruleset: ruleset,
-        p_rarities: [], p_exclude_attunement: false, p_embedding_model: model, match_count: MATCH_COUNT,
-      }), simple("library_item", "name", itemDescriptor)),
-      runMatch("library_monster", admin.rpc("match_library_monsters", {
-        query_embedding: vector, source_slugs: enabledSlugs, p_ruleset: ruleset,
-        p_embedding_model: model, match_count: MATCH_COUNT,
-      }), simple("library_monster", "name", monsterDescriptor)),
-    );
-  }
-
-  const results = await Promise.all(jobs);
-  if (results.every((r) => r.failed)) {
+  const retrieved = await retrieveCampaignHits(admin, {
+    campaignId,
+    ownerId: campaign.user_id as string,
+    gameSystem: campaign.game_system,
+    vector,
+    model: provider.model,
+  });
+  if (retrieved.allFailed) {
     return jsonError(500, "search_failed", "Search failed. Please try again.");
   }
 
-  const allHits = results.flatMap((r) => r.hits);
-  let hits = rankSearchHits(allHits);
+  const allHits = retrieved.allHits;
+  let hits = retrieved.ranked;
 
   // The rerank is an enhancement: nothing in it may fail the search.
   try {

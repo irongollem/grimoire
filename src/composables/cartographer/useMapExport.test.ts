@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ref } from "vue";
+import { createPinia, setActivePinia } from "pinia";
+import { useAskPrefillStore } from "@/stores/ui/askPrefill";
 import type { MapImageLayer } from "@/lib/locations/mapStack";
 import type { DungeonMap } from "@/types/dungeonMap.types";
 
@@ -118,6 +120,7 @@ function fakeMap(): DungeonMap {
 
 describe("useMapExport", () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
     mocks.bakeAiStyleInput.mockClear();
     mocks.updatePicture.mockClear();
     mocks.saveStyledSitePicture.mockClear();
@@ -128,6 +131,30 @@ describe("useMapExport", () => {
     mocks.invoke.mockClear();
     mocks.decryptedOpenAiKey = "";
     mocks.decryptedGeminiKey = "";
+  });
+
+  describe("a request from Ask Grimoire", () => {
+    const host = () => ({ buildMap: fakeMap, runtimes: () => new Map(), loadDressing: async () => new Map(), mapName: () => "Test", glyphs: () => ({}) });
+
+    // Bug caught: Ask opened the map editor with the styler's picker closed and its box empty, so the DM said it twice.
+    it("opens the picker with the DM's wording in the direction box, and renders nothing by itself", () => {
+      useAskPrefillStore().offer("map_style", "inked, like an old survey");
+      const exp = useMapExport(host());
+      expect(exp.showStylePicker.value).toBe(true);
+      expect(exp.stylePromptSuffix.value).toBe("inked, like an old survey");
+      expect(mocks.invoke).not.toHaveBeenCalled();
+      expect(mocks.bakeAiStyleInput).not.toHaveBeenCalled();
+    });
+
+    // Bug caught: a request longer than the box's 300 characters rode to the server uncut.
+    it("cuts the wording to the direction box's limit", () => {
+      useAskPrefillStore().offer("map_style", "x".repeat(400));
+      expect(useMapExport(host()).stylePromptSuffix.value).toHaveLength(300);
+    });
+
+    it("leaves the picker shut when no request was made", () => {
+      expect(useMapExport(host()).showStylePicker.value).toBe(false);
+    });
   });
 
   describe("the campaign the render runs under", () => {

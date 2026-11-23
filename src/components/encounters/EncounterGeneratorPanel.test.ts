@@ -46,6 +46,9 @@ vi.mock("@/stores/campaign", () => ({
 vi.mock("@/composables/encounters/useEncounters", () => ({
   useCreateEncounter: () => ({ mutateAsync: mocks.createEncounter }),
 }));
+vi.mock("@/composables/locations/useLocations", () => ({
+  useLocationTree: () => ({ locationOptions: ref([{ id: "place-docks", name: "The Docks", depth: 0 }]) }),
+}));
 vi.mock("@/composables/monsters/useMonsterIndex", () => ({ useMonsterIndex: () => ({ data: ref([]), isLoading: bestiaryLoading }) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: partyRows }) }));
 // The surface reads the active party; here it is the same fixture as useParty.
@@ -207,6 +210,24 @@ describe("EncounterGeneratorPanel: generating and creating", () => {
     expect(input.description).toContain("Add manually: Unknown Horror (Ambusher)");
     expect(input.description).toContain("Tactics: Hit the cart first");
     expect(input.description).not.toContain("Twist:");
+  });
+
+  // Bug caught: the workflow took a place but the page had no way to pick one, so a made encounter was never set anywhere.
+  it("sets the encounter in the place the DM picked, and nowhere when none is picked", async () => {
+    // Bug: the encounter was saved somewhere other than the Where choice (the place its creatures were rolled from).
+    mocks.createEncounter.mockResolvedValue({ id: "enc-9" });
+    await clickButton(mountPanel(), "Create Encounter");
+    expect(mocks.createEncounter.mock.calls[0][0].location_id).toBeNull();
+
+    // The place is picked on the form, before the result replaces it.
+    const result = generated.value;
+    generated.value = null;
+    const wrapper = mountPanel();
+    wrapper.findComponent(EncounterWhereStub).vm.$emit("update:placeId", "place-docks");
+    generated.value = result;
+    await wrapper.vm.$nextTick();
+    await clickButton(wrapper, "Create Encounter");
+    expect(mocks.createEncounter.mock.calls[1][0].location_id).toBe("place-docks");
   });
 
   it("opens the new encounter in the editor, and shows the failure when creating fails", async () => {

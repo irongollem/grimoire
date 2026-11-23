@@ -15,7 +15,7 @@
         @keydown.escape="close"
         @keydown.down.prevent="moveFocus(1)"
         @keydown.up.prevent="moveFocus(-1)"
-        @keydown.enter.prevent="selectFocused"
+        @keydown.enter.prevent="onEnter"
       />
       <AppButton
         v-if="query"
@@ -44,6 +44,9 @@
       data-slip
       class="absolute left-0 top-full mt-1 z-50 w-[min(27rem,calc(100vw-2rem))] bg-card border border-border rounded-md shadow-lg overflow-hidden max-h-80 overflow-y-auto"
     >
+      <!-- The same words put to Grimoire instead (DM only). Not in the arrow-key list, so plain Enter is unchanged. -->
+      <AskSearchRow v-if="canAsk" :query="query" @ask="askFromSearch" />
+
       <!-- Loading -->
       <div v-if="isFetching" class="px-3 py-2 text-caption text-muted-foreground flex items-center gap-2">
         <BannerLoader class="h-3.5" />
@@ -100,6 +103,9 @@ import type { SearchGroup } from "@/composables/useGlobalSearch";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SearchResultList from "@/components/layout/SearchResultList.vue";
+import AskSearchRow from "@/components/ask/AskSearchRow.vue";
+import { useCanAsk } from "@/composables/ask/useCanAsk";
+import { useAskUiStore } from "@/stores/ui/ask";
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
 
 const { hotkey = true } = defineProps<{
@@ -136,6 +142,23 @@ function moveFocus(delta: number) {
   const len = flatItems.value.length;
   if (len === 0) return;
   focusedIndex.value = (focusedIndex.value + delta + len) % len;
+}
+
+const askUi = useAskUiStore();
+/** Ask is a DM tool, and offered only once the query is long enough to be a question. */
+const canAskHere = useCanAsk();
+const canAsk = computed(() => canAskHere.value && query.value.trim().length >= 2);
+
+function askFromSearch() {
+  askUi.openPanel(query.value);
+  query.value = "";
+  close();
+}
+
+/** Mod+Enter puts the query to Grimoire; plain Enter opens the focused result, or does nothing with none focused. */
+function onEnter(event: KeyboardEvent) {
+  if ((event.metaKey || event.ctrlKey) && canAsk.value) askFromSearch();
+  else selectFocused();
 }
 
 function selectFocused() {

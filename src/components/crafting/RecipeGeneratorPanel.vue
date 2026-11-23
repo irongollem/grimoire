@@ -88,47 +88,30 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
-import { useCampaignStore } from "@/stores/campaign";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useRecipeQuote } from "@/composables/ai/quotes/recipeQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useToast } from "@/composables/useToast";
-import { useCreateItem } from "@/composables/items/useItems";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import {
-  useCreateRecipe,
-  useReplaceIngredients,
-  useReplaceModifiers,
-  useReplaceOutputs,
-} from "@/composables/crafting/useCrafting";
-import { useRecipeGeneration } from "@/ai/useRecipeGeneration";
-import { toTiptapJson } from "@/ai/useNpcGeneration";
+  resolveRecipeOutputFor,
+  useGenerateRecipe,
+  type RecipeDraft,
+} from "@/composables/crafting/useGenerateRecipe";
 import { CRAFTING_DISCIPLINES } from "@/lib/crafting/disciplines";
-import { isUuid } from "@/lib/library/contentIdentity";
-import {
-  describeOutputResolution,
-  disciplineLabel,
-  resolveRecipeOutput,
-  type RecipeAiResult,
-  type RecipeOutputResolution,
-} from "@/lib/crafting/recipeAi";
+import { describeOutputResolution, disciplineLabel } from "@/lib/crafting/recipeAi";
 import { craftingTimeText } from "@/lib/crafting/craftingTime";
 import type { CraftingDiscipline } from "@/types/crafting.types";
 
 const generatorsUi = useGeneratorUiStore();
 const router = useRouter();
-const campaign = useCampaignStore();
 const toast = useToast();
 
-const { mutateAsync: createItem } = useCreateItem();
-const { mutateAsync: createRecipe } = useCreateRecipe();
-const { mutateAsync: replaceIngredients } = useReplaceIngredients();
-const { mutateAsync: replaceModifiers } = useReplaceModifiers();
-const { mutateAsync: replaceOutputs } = useReplaceOutputs();
+const { generation, saveRecipe } = useGenerateRecipe();
 const {
   isGenerating,
   error: genError,
@@ -136,27 +119,22 @@ const {
   concept: genConcept,
   clearCompleted,
   generate,
-} = useRecipeGeneration();
+} = generation;
 
 // Mounted on every DM page: only fetch the item catalogue once the panel opens.
 const { data: items } = useItemIndex(() => ({ enabled: generatorsUi.recipeGeneratorOpen }));
 
 const { canSpend } = useGenerationGate();
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const textCreditCost = computed(
-  () => textCredits(costOf("recipe_generation")),
-);
+// The price comes from the quote Ask Grimoire reads too, so the page and the panel cannot disagree.
+const { textIsByok } = useCampaignProviders();
+const quote = useRecipeQuote();
+const textCreditCost = computed(() => quote().total);
 
 const concept = ref("");
 const discipline = ref<CraftingDiscipline | "">("");
 const outputItemId = ref("");
 
-interface PendingRecipe {
-  recipe: RecipeAiResult;
-  resolution: RecipeOutputResolution;
-}
-const pending = ref<PendingRecipe | null>(null);
+const pending = ref<RecipeDraft | null>(null);
 const creating = ref(false);
 
 const itemOptions = computed(() => (items.value ?? []).map((i) => ({ id: i.id, name: i.name })));
@@ -167,21 +145,6 @@ const ingredientSummary = computed(() =>
     .map((i) => `${i.quantity} x ${i.tags.join(" + ")}`)
     .join(", "),
 );
-
-function resolveOutput(recipe: RecipeAiResult): RecipeOutputResolution {
-  const picked = pickedItem.value;
-  if (picked) {
-    return isUuid(picked.id)
-      ? { kind: "campaign", item_id: picked.id, name: picked.name }
-      : { kind: "library", library_item_id: picked.id, name: picked.name };
-  }
-  const all = items.value ?? [];
-  return resolveRecipeOutput(
-    recipe.output,
-    all.filter((i) => isUuid(i.id)),
-    all.filter((i) => !isUuid(i.id)),
-  );
-}
 
 async function generateRecipe() {
   if (!canSpend(textCreditCost.value, textIsByok.value)) return;
@@ -197,68 +160,17 @@ async function generateRecipe() {
   if (!result) return;
 
   // Nothing is written yet: the DM sees what will be created first.
-  pending.value = { recipe: result, resolution: resolveOutput(result) };
+  pending.value = { recipe: result, resolution: resolveRecipeOutputFor(result, items.value ?? [], pickedItem.value) };
 }
 
 async function createAll() {
   const current = pending.value;
   if (!current || creating.value) return;
   creating.value = true;
-  const { recipe, resolution } = current;
 
-  let recipeId: string;
-  let outputRef: { item_id: string | null; library_item_id: string | null };
+  let saved: Awaited<ReturnType<typeof saveRecipe>>;
   try {
-    if (resolution.kind === "create") {
-      const created = await createItem({
-        name: resolution.draft.name,
-        item_type: resolution.draft.item_type,
-        subtype: null,
-        rarity: resolution.draft.rarity,
-        requires_attunement: false,
-        attunement_requirements: null,
-        weight: null,
-        cost: null,
-        damage_rolls: null,
-        armor_class: null,
-        properties: [],
-        charges: null,
-        recharge: null,
-        spell_ids: [],
-        description: resolution.draft.description ? toTiptapJson(resolution.draft.description) : "",
-        source: "Grimoire:AI",
-        tags: [],
-        image_url: null,
-        image_focal_point: null,
-        curse_description: null,
-        is_arcane_focus: false,
-        ai_provenance: recipe.ai_provenance ?? null,
-        campaign_id: campaign.activeCampaignId ?? null,
-      });
-      outputRef = { item_id: created.id, library_item_id: null };
-    } else if (resolution.kind === "campaign") {
-      outputRef = { item_id: resolution.item_id, library_item_id: null };
-    } else {
-      outputRef = { item_id: null, library_item_id: resolution.library_item_id };
-    }
-
-    const created = await createRecipe({
-      name: recipe.name,
-      description: recipe.description ? toTiptapJson(recipe.description) : "",
-      discipline: recipe.discipline,
-      dc: recipe.dc,
-      crafting_time: recipe.crafting_time,
-      crafting_time_unit: recipe.crafting_time_unit,
-      requires_proficiency: recipe.requires_proficiency,
-      requires_tools: recipe.requires_tools,
-      discoverable: false,
-      player_visible_to: [],
-      // No picture of its own: the card shows the output's art.
-      image_url: null,
-      image_focal_point: null,
-      ai_provenance: recipe.ai_provenance ?? null,
-    });
-    recipeId = created.id;
+    saved = await saveRecipe(current);
   } catch (e) {
     creating.value = false;
     toast.error(toast.fromError(e));
@@ -267,29 +179,14 @@ async function createAll() {
 
   // The recipe exists from here on. A failed child write must not strand the DM
   // on a silent half-recipe, so report it and still open the recipe to fix.
-  try {
-    await replaceOutputs({
-      recipeId,
-      outputs: [{ ...outputRef, quantity: recipe.output.quantity }],
-    });
-    await replaceIngredients({
-      recipeId,
-      ingredients: recipe.ingredients.map((i) => ({
-        item_id: null,
-        library_item_id: null,
-        tags: i.tags,
-        quantity: i.quantity,
-      })),
-    });
-    await replaceModifiers({ recipeId, modifiers: recipe.modifiers });
-  } catch (e) {
-    toast.error(`The recipe was created but part of it could not be saved: ${toast.fromError(e)}. Check its outputs, ingredients and modifiers.`);
+  if (saved.partsFailure) {
+    toast.error(`The recipe was created but part of it could not be saved: ${toast.fromError(saved.partsFailure)}. Check its outputs, ingredients and modifiers.`);
   }
 
   creating.value = false;
   pending.value = null;
-  completedEntityId.value = recipeId;
+  completedEntityId.value = saved.id;
   generatorsUi.recipeGeneratorOpen = false;
-  router.push(`/crafting/${recipeId}`);
+  router.push(`/crafting/${saved.id}`);
 }
 </script>

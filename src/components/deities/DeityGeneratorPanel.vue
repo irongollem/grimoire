@@ -42,6 +42,8 @@
           </AppSelect>
         </div>
       </div>
+      <!-- Every other tie (a faction that serves them, a holy place, a relic) has no field of its own above. -->
+      <GeneratorLinksField v-model="links" subject-kind="deity" noun="this deity" />
     </template>
   </GeneratorPanelShell>
 
@@ -53,28 +55,25 @@ import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useToast } from "@/composables/useToast";
-import { useCreateDeity, useAllDeities, useAllPantheons } from "@/composables/deities/useDeities";
+import { useAllDeities, useAllPantheons } from "@/composables/deities/useDeities";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
+import GeneratorLinksField from "@/components/generators/GeneratorLinksField.vue";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
-import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
-import { useDeityGeneration } from "@/ai/useDeityGeneration";
-import { toTiptapJson } from "@/ai/useNpcGeneration";
-import { useCreateEntityNote } from "@/composables/notes/useEntityNotes";
+import { useDeityQuote } from "@/composables/ai/quotes/deityQuote";
+import { useGenerateDeity, type DeityDraft } from "@/composables/deities/useGenerateDeity";
 import { CLERIC_DOMAINS, DEITY_ALIGNMENTS } from "@/types/deity.types";
+import type { GeneratorLink } from "@/lib/worldLinks/generatorLinks";
 
 const generatorsUi = useGeneratorUiStore();
 const router   = useRouter();
 const toast = useToast();
-const { mutateAsync: createDeity } = useCreateDeity();
-const { mutateAsync: createNote } = useCreateEntityNote();
-const { logImageGeneration } = useImageGenerationLog();
-const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useDeityGeneration();
+const { generation, generateDeityDraft, saveDeity } = useGenerateDeity();
+const { isGenerating, error: genError, completedEntityId, concept: genConcept } = generation;
 
 // Mounted on every DM page: only fetch the pantheons and deities once the panel opens.
 const panelOpen = () => generatorsUi.deityGeneratorOpen;
@@ -83,26 +82,24 @@ const { data: deities } = useAllDeities(panelOpen);
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("deities");
 
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const textCreditCost = computed(
-  () => textCredits(costOf("deity_generation")),
-);
+// The price comes from the quote Ask Grimoire reads too, so the page and the panel cannot disagree.
+const { textIsByok } = useCampaignProviders();
+const quote = useDeityQuote();
+const textCreditCost = computed(() => quote({ image: false }).total);
 
 const concept       = ref("");
 const constraints   = reactive({ alignment: "", primaryDomain: "" });
 const generateImage = ref(true);
 const pantheonId    = ref("");
+const links         = ref<GeneratorLink[]>([]);
 
 const pantheonOptions = computed(() =>
   (pantheons.value ?? []).map((p) => ({ id: p.id, name: p.name })),
 );
 
-type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;
 // The result is kept with the choices it was generated under, so a retry
 // after the form changed (or after upgrading from a quota wall) saves where
 // it was meant to.
-interface DeityDraft { result: Generated; pantheonId: string | null; alignment: string | null }
 const retained = useRetainedGeneration<DeityDraft>();
 
 async function onGenerate() {
@@ -116,85 +113,42 @@ async function onGenerate() {
 async function generateAndCreate() {
   if (!canSpend(textCreditCost.value, textIsByok.value)) return;
 
-  genConcept.value = concept.value.trim();
-  clearCompleted();
-
   const pantheon = (pantheons.value ?? []).find((p) => p.id === pantheonId.value);
-  const siblings = pantheon
-    ? (deities.value ?? [])
-        .filter((d) => d.pantheon_id === pantheon.id)
-        .map((d) => ({ name: d.name, portfolio: d.portfolio }))
-    : undefined;
-
-  const result = await generate(concept.value.trim(), {
-    pantheonName:    pantheon?.name,
-    pantheonDeities: siblings,
-    alignment:       constraints.alignment || undefined,
-    primaryDomain:   constraints.primaryDomain || undefined,
-    generateImage:   generateImage.value,
+  const draft = await generateDeityDraft(concept.value.trim(), {
+    pantheon,
+    deities: deities.value,
+    alignment: constraints.alignment || undefined,
+    primaryDomain: constraints.primaryDomain || undefined,
+    generateImage: generateImage.value,
+    links: links.value,
   });
-  if (!result) return;
+  if (!draft) return;
 
-  await save({ result, pantheonId: pantheon?.id ?? null, alignment: constraints.alignment || null });
+  await save(draft);
 }
 
 async function save(draft: DeityDraft) {
-  const { result } = draft;
   // The generation is already paid for: a failed save keeps the result so the
   // DM can save it again without generating (and paying) twice.
   const deity = await retained.run(draft, async (d) => {
-    let created: Awaited<ReturnType<typeof createDeity>>;
     try {
-      created = await createDeity({
-        name:              d.result.name,
-        titles:            d.result.titles,
-        alternate_names:   d.result.alternate_names,
-        pantheon_id:       d.pantheonId,
-        alignment:         d.result.alignment ?? d.alignment,
-        symbol:            d.result.symbol,
-        symbol_image_url:  null,
-        portrait_url:      d.result.portrait_url,
-        portrait_focal_point: d.result.portrait_url ? { x: 50, y: 50 } : null,
-        domains:           d.result.domains,
-        portfolio:         d.result.portfolio,
-        description:       d.result.description ? toTiptapJson(d.result.description) : null,
-        player_visible_to: [],
-        tags:              d.result.tags,
-        ai_provenance:     d.result.ai_provenance ?? null,
-      });
+      const saved = await saveDeity(d, genConcept.value);
+      // The deity exists by now, so a failed note write must not make a retry
+      // create a second deity: report it and carry on.
+      if (saved.notesFailure) {
+        toast.error(`The deity was created, but its DM notes were not saved. ${toast.fromError(saved.notesFailure)}`);
+      }
+      // The same for a tie that did not write: the deity is there, and a retry must not make a second one.
+      if (saved.linkErrors.length) {
+        toast.error(`The deity was created, but some connections could not be added: ${saved.linkErrors.join("; ")}`);
+      }
+      return saved;
     } catch (e) {
       if (!gateQuotaError(e)) toast.error(toast.fromError(e));
       return null;
     }
-    // Deity DM notes live in the DM's private entity note, not a column. The
-    // deity exists by now, so a failed note write must not make a retry create
-    // a second deity: report it and carry on.
-    const secrets = d.result.dm_notes?.trim();
-    if (secrets) {
-      try {
-        await createNote({
-          entity_type: "deity",
-          entity_id: created.id,
-          content: toTiptapJson(secrets),
-          is_private: true,
-          shared_with_dm: false,
-          campaign_id: created.campaign_id,
-        });
-      } catch (e) {
-        toast.error(`The deity was created, but its DM notes were not saved. ${toast.fromError(e)}`);
-      }
-    }
-    return created;
   });
   if (!deity) return;
-
-  // Log the portrait to the Gallery, linked back to the new deity.
-  if (result.portrait_url) {
-    void logImageGeneration({
-      kind: "deity", imageUrl: result.portrait_url, prompt: genConcept.value,
-      targetId: deity.id, targetColumn: "portrait_url",
-    });
-  }
 
   completedEntityId.value = deity.id;
   generatorsUi.deityGeneratorOpen = false;

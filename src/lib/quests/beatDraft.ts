@@ -1,4 +1,7 @@
 import { hasBeatText } from "./beatText";
+import type { BeatFill } from "./beatFill";
+import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
+import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import type { QuestBeat, QuestBeatUpdate } from "@/types/quest.types";
 
@@ -91,6 +94,29 @@ export function applyBeatFill(
   if (fill.read_aloud !== undefined) draft.read_aloud = fill.read_aloud;
   draft.ai_provenance = provenance;
   draft.ai_content = contentSignature(draft);
+}
+
+// A title the DM never chose: blank, or the placeholder the flow shows for one.
+const PLACEHOLDER_TITLES = ["untitled beat", "new beat"];
+
+const hasText = (value: string) => !!tiptapToPlainText(value).trim();
+
+/**
+ * Applies one AI fill to a beat's draft: the beat editor's rule, shared with Ask Grimoire so the two cannot
+ * disagree. The title is replaced only when it is a placeholder, and each prose field only when it is empty or the DM
+ * agreed to replace the existing text (`overwrite`). The provenance is stamped against the resulting text.
+ */
+export function applyFilledBeat(
+  draft: QuestBeatDraft,
+  { fill, provenance, overwrite }: { fill: BeatFill; provenance: AiProvenance | null; overwrite: boolean },
+): void {
+  const title = draft.title.trim();
+  const isPlaceholder = !title || PLACEHOLDER_TITLES.includes(title.toLowerCase());
+  applyBeatFill(draft, {
+    title: fill.title && isPlaceholder ? fill.title : undefined,
+    read_aloud: fill.readAloud && (overwrite || !hasText(draft.read_aloud)) ? toTiptapJson(fill.readAloud) : undefined,
+    dm_content: fill.dmContent && (overwrite || !hasText(draft.dm_content)) ? toTiptapJson(fill.dmContent) : undefined,
+  }, provenance);
 }
 
 export function questBeatDraftsEqual(a: QuestBeatDraft, b: QuestBeatDraft) {

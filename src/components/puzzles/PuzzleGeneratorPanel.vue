@@ -5,8 +5,8 @@
     v-model:generate-image="generateImage"
     title="Puzzle Generator"
     concept-placeholder="A flooded crypt where water levels rise unless the players reroute flow through a series of ancient stone sluices…"
-    :credits="textCreditCost"
-    :byok="textIsByok"
+    :credits="quote.total"
+    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     blank-to="/puzzles/new"
@@ -41,38 +41,33 @@
 import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
-import { useCampaignStore } from "@/stores/campaign";
-import { useCreatePuzzle } from "@/composables/dungeon-features/usePuzzles";
+import { useGeneratePuzzle } from "@/composables/dungeon-features/useGeneratePuzzle";
+import { usePuzzleQuote } from "@/composables/ai/quotes/puzzleQuote";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { usePuzzleGeneration } from "@/ai/usePuzzleGeneration";
-import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES } from "@/types/puzzle.types";
 
 const puzzlesUi = usePuzzlesUiStore();
 const router   = useRouter();
-const campaign = useCampaignStore();
-const { mutateAsync: createPuzzle } = useCreatePuzzle();
+const { saveGeneratedPuzzle } = useGeneratePuzzle();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = usePuzzleGeneration();
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("puzzle_rooms");
 
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const textCreditCost = computed(
-  () => textCredits(costOf("puzzle_generation")),
-);
+// The price is the quote's, the one Ask Grimoire shows too: it counts the picture the panel paints by default.
+const quotePuzzle = usePuzzleQuote();
 
 const concept       = ref("");
 const constraints   = reactive({ puzzle_type: "", difficulty: "" });
 const generateImage = ref(true);
 
+const quote = computed(() => quotePuzzle({ image: generateImage.value }));
+
 async function generateAndCreate() {
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(quote.value.total, quote.value.byok)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();
@@ -90,33 +85,7 @@ async function generateAndCreate() {
 
   let puzzle;
   try {
-    puzzle = await createPuzzle({
-      name:                result.name,
-      puzzle_type:         (result.puzzle_type as typeof PUZZLE_TYPES[number]) ?? "Logic",
-      difficulty:          (result.difficulty as typeof PUZZLE_DIFFICULTIES[number]) ?? "Medium",
-      description:         toTiptapJson(result.description),
-      hints:               result.hints,
-      solution:            toTiptapJson(result.solution),
-      skill_checks:        result.skill_checks,
-      success_outcome:     toTiptapJson(result.success_outcome),
-      failure_consequence: toTiptapJson(result.failure_consequence),
-      notes:               toTiptapJson(result.notes),
-      tags:                result.tags,
-      image_url:           result.image_url,
-      image_focal_point:   null,
-      // Scoped to the campaign it was generated for, like every other new
-      // puzzle (#597) — the Scope control widens it if the DM wants it in all
-      // of them. This was the one creation path still hardcoding null.
-      campaign_id:         campaign.activeCampaignId,
-      location_id:         null,
-      dungeon_feature_id:  null,
-      library_dungeon_feature_id: null,
-      is_shared:           false,
-      shared_hints:        [],
-      player_visible_to:   [],
-      read_aloud:          null,
-      ai_provenance:       result.ai_provenance ?? null,
-    });
+    puzzle = await saveGeneratedPuzzle(result);
   } catch (e) {
     if (gateQuotaError(e)) return;
     throw e;

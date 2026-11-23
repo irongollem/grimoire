@@ -59,7 +59,10 @@ import { sceneFrom } from "./sceneRows.ts";
 import { travelMapFrom } from "./travelRows.ts";
 import { afterUse, asCompanion, characterInsert, characterRewrite, companionMemoriesText, companionRows, foundCharacters, isUntouchedTableCharacter, memoryRowsFor, profileWithBelongings } from "./characterRows.ts";
 import { escapeLike } from "./likeEscape.ts";
-import { nextSessionNumber, openedSession, prologueFrom, sessionRow, wholeCredits } from "./sessionRows.ts";
+import { nextSessionNumber, openedSession, prologueFrom, sessionRow } from "./sessionRows.ts";
+import { appendAgentTurns, saveAgentSummary } from "../_shared/agent/conversation/turnStore.ts";
+import { insertAgentSession } from "../_shared/agent/conversation/session.ts";
+import { eventStreamResponse, refusalResponse } from "../_shared/agent/conversation/stream.ts";
 import type { AgentEvent, AgentTurnDeps, CampaignRow, Refusal, SessionRow } from "./turnTypes.ts";
 
 /** How many of a party member's memories their own call is given: the newest. */
@@ -78,14 +81,7 @@ function dateOrNull(row: Record<string, unknown>): string | null {
   }
 }
 
-/** A refusal before the stream opened. A code (`sitting_ended`, `rate_limited`...) is the page's to branch on; a sentence is for a person. */
-function refusalResponse(refusal: Refusal): Response {
-  return /^[a-z][a-z_]*$/.test(refusal.error)
-    ? jsonError(refusal.status, refusal.error)
-    : jsonError(refusal.status, "refused", refusal.error);
-}
-
-const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id, pressure_clock_id, party_member_id, opened_play_session, left_at, pending_roll, fight_encounter_id, pursuit_encounter_id, updated_at";
+const SESSION_COLUMNS = "id, user_id, kind, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id, pressure_clock_id, party_member_id, opened_play_session, left_at, pending_roll, fight_encounter_id, pursuit_encounter_id, updated_at";
 
 serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
   const body = await readJsonBody(req);
@@ -244,25 +240,22 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     },
 
     async createSession({ userId, campaignId, provider, model, sceneLocationId, campaignSessionId, openedPlaySession, partyMemberId, narratorVoice }): Promise<SessionRow> {
-      const { data, error } = await admin
-        .from("agent_sessions")
-        .insert({
-          user_id: userId,
-          campaign_id: campaignId,
-          kind: "solo_table",
-          provider,
-          model,
+      return sessionRow(await insertAgentSession(admin, {
+        kind: "solo_table",
+        userId,
+        campaignId,
+        provider,
+        model,
+        columns: SESSION_COLUMNS,
+        extra: {
           scene_location_id: sceneLocationId,
           campaign_session_id: campaignSessionId,
           opened_play_session: openedPlaySession,
           party_member_id: partyMemberId,
           // Left out when the page named none, so the column's own default decides and is said in one place.
           ...(narratorVoice === null ? {} : { narrator_voice: narratorVoice }),
-        })
-        .select(SESSION_COLUMNS)
-        .single();
-      if (error) throw error;
-      return sessionRow(data);
+        },
+      }));
     },
 
     loadTurns: (sessionId, summaryThroughSeq) => loadTurnsInReach(admin, sessionId, summaryThroughSeq),
@@ -340,38 +333,9 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
         }
       }),
 
-    async appendTurns(sessionId, afterSeq, rows: TurnRow[], credits) {
-      const { data, error } = await admin.rpc("append_agent_turns", {
-        p_session_id: sessionId,
-        p_after_seq: afterSeq,
-        p_rows: rows,
-        p_credits: credits,
-      });
-      if (error) {
-        if (error.code === "40001") return "conflict";
-        throw error;
-      }
-      return { due: wholeCredits(data) };
-    },
+    appendTurns: (sessionId, afterSeq, rows: TurnRow[], credits) => appendAgentTurns(admin, sessionId, afterSeq, rows, credits),
 
-    async saveSummary({ sessionId, expectedThroughSeq, throughSeq, summary, usage, credits }) {
-      const { data, error } = await admin.rpc("summarise_agent_session", {
-        p_session_id: sessionId,
-        p_expected_through_seq: expectedThroughSeq,
-        p_through_seq: throughSeq,
-        p_summary: summary,
-        p_input_tokens: usage.inputTokens,
-        p_output_tokens: usage.outputTokens,
-        p_cache_read_tokens: usage.cacheReadTokens,
-        p_cache_write_tokens: usage.cacheWriteTokens,
-        p_credits: credits,
-      });
-      if (error) {
-        if (error.code === "40001") return "stale";
-        throw error;
-      }
-      return { due: wholeCredits(data) };
-    },
+    saveSummary: (input) => saveAgentSummary(admin, input),
 
     // One character, for its own call: the same profile and memory block the Voice Coach sends, so a disguised
     // character's true name is withheld here as it is there. Read with the service role after the handler has
@@ -877,23 +841,6 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
   // A refused hold (no credits, a frozen account) is answered here, as JSON, before any stream opens.
   return deps.withHold(user.id, begun.reserve, async (hold) => {
     const reservationIds = hold.handOff();
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream<Uint8Array>({
-      async start(controller) {
-        const send = (event: AgentEvent) => {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
-        };
-        try {
-          await begun.run(send, req.signal, reservationIds);
-        } finally {
-          try {
-            controller.close();
-          } catch {
-            // already closed by the client going away
-          }
-        }
-      },
-    });
-    return new Response(stream, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
+    return eventStreamResponse<AgentEvent>((send) => begun.run(send, req.signal, reservationIds));
   });
 }));

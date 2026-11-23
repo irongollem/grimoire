@@ -140,8 +140,9 @@ describe("DungeonFeatureGeneratorPanel", () => {
       image_url: "asset-images/x.webp",
       ai_provenance: { edited: false },
     }));
+    // The save now runs through the shared workflow, one await deeper than the inline version, so wait for the end.
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/dungeon-features/f1"));
     expect(mocks.logImage).toHaveBeenCalledWith(expect.objectContaining({ kind: "dungeon_feature", targetId: "f1" }));
-    expect(mocks.push).toHaveBeenCalledWith("/dungeon-features/f1");
     expect(mocks.ui.dungeonFeatureGeneratorOpen).toBe(false);
   });
 

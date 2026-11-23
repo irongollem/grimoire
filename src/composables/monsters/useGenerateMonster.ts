@@ -24,6 +24,15 @@ export interface GenerateMonsterOutcome {
   id: string | null;
   /** A user-facing reason for a `null` id, or `null` on success. */
   error: string | null;
+  /** The saved name (the importer's override, else the model's), or `null` with a `null` id. */
+  name: string | null;
+  /**
+   * What became of the picture: `none` when not asked for, `failed` when asked for and not painted. The row is
+   * saved either way, so a caller can say so and offer to paint it again (Ask Grimoire does).
+   */
+  picture: "none" | "saved" | "failed";
+  /** The saved picture's URL when `picture` is "saved", so a caller can show it (Ask's result card). */
+  pictureUrl: string | null;
 }
 
 export function useGenerateMonster() {
@@ -50,21 +59,22 @@ export function useGenerateMonster() {
     options: MonsterGenerationOptions & { nameOverride?: string } = {},
   ): Promise<GenerateMonsterOutcome> {
     if (isAnyAiGenerating.value) {
-      return { id: null, error: "Another AI generation is already in progress." };
+      return { id: null, error: "Another AI generation is already in progress.", name: null, picture: "none", pictureUrl: null };
     }
 
     const { nameOverride, ...generationOptions } = options;
     const result = await generate(concept, generationOptions);
     if (!result) {
-      return { id: null, error: genError.value ?? "Monster generation failed." };
+      return { id: null, error: genError.value ?? "Monster generation failed.", name: null, picture: "none", pictureUrl: null };
     }
 
+    const name = nameOverride ?? result.name;
     const created = await createMonster({
       // Scoped to the campaign it was generated for, same as the panel's own
       // create — the DM can widen it to all campaigns from the monster's
       // Scope control afterward.
       campaign_id: campaign.activeCampaignId,
-      name: nameOverride ?? result.name,
+      name,
       monster_type: result.monster_type,
       size: result.size,
       alignment: (result.alignment || "unaligned").toLowerCase(),
@@ -81,7 +91,8 @@ export function useGenerateMonster() {
       ai_provenance: result.ai_provenance ?? null,
     });
 
-    return { id: created.id, error: null };
+    const asked = generationOptions.generateImage !== false;
+    return { id: created.id, error: null, name, picture: !asked ? "none" : result.image_url ? "saved" : "failed", pictureUrl: result.image_url ?? null };
   }
 
   return { generateAndCreateMonster };

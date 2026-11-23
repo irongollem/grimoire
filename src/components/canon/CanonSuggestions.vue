@@ -106,7 +106,7 @@ import { useAcceptForce } from "@/composables/canon/useCanonForces";
 import { splitReplacement, useAcceptLore } from "@/composables/canon/useAcceptLore";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useKnownTo } from "@/composables/canon/useKnownTo";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useCanonSuggestionsQuote } from "@/composables/ai/quotes/canonSuggestionsQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useConfirm } from "@/composables/useConfirm";
@@ -143,7 +143,6 @@ const COPY = {
     placeholder: "A drowned kingdom, a gentle tone, a party of lamplighters…",
     waiting: "Reading your campaign and your pitch. This takes a little while.",
     heading: "Suggested premise entries",
-    ledger: "canon_premise_suggestion",
   },
   truths: {
     open: "Suggest truths",
@@ -152,7 +151,6 @@ const COPY = {
     placeholder: "e.g. something about the river, and one the guild keeps quiet",
     waiting: "Reading your campaign for truths. This takes a little while.",
     heading: "Suggested truths",
-    ledger: "canon_truth_suggestion",
   },
   clues: {
     open: "Place clues",
@@ -161,7 +159,6 @@ const COPY = {
     placeholder: "e.g. keep one clue in the Mint Fields, make one a song",
     waiting: "Reading your campaign for places to put clues. This takes a little while.",
     heading: "Suggested clues",
-    ledger: "canon_clue_suggestion",
   },
   questions: {
     open: "Suggest questions",
@@ -170,7 +167,6 @@ const COPY = {
     placeholder: "e.g. something about the guild, and one about the river",
     waiting: "Reading your campaign for questions to keep open. This takes a little while.",
     heading: "Suggested questions",
-    ledger: "canon_question_suggestion",
   },
   forces: {
     open: "Suggest forces",
@@ -179,7 +175,6 @@ const COPY = {
     placeholder: "e.g. one faction with a slow plan, and a power the party has not met",
     waiting: "Reading your campaign for what could be moving. This takes a little while.",
     heading: "Suggested forces",
-    ledger: "canon_force_suggestion",
   },
   lore: {
     open: "Draft a lore entry",
@@ -188,7 +183,6 @@ const COPY = {
     placeholder: "e.g. told in four passages, the last one a secret",
     waiting: "Reading your campaign to draft this lore. This takes a little while.",
     heading: "Suggested lore",
-    ledger: "canon_lore_suggestion",
   },
   split: {
     open: "Split into passages",
@@ -197,7 +191,6 @@ const COPY = {
     placeholder: "e.g. keep the ending for last",
     waiting: "Reading the entry to split it into passages. This takes a little while.",
     heading: "Suggested passages",
-    ledger: "canon_lore_suggestion",
   },
 } as const;
 const copy = computed(() => (mode === "lore" && lore?.entryId ? COPY.split : COPY[mode]));
@@ -223,9 +216,10 @@ const steerId = useId();
 
 const { suggest, suggestions, setAside, provenance, isGenerating, error, dismiss, dismissAll } = useCanonSuggestions(mode, mode === "lore" ? (lore?.entryId ?? "new") : undefined);
 const { canSpend } = useGenerationGate();
-const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
-const cost = computed(() => textCredits(costOf(copy.value.ledger)));
+const quoteFor = useCanonSuggestionsQuote();
+const { textIsByok } = useCampaignProviders();
+// The split of one entry is priced as lore, as the server does: the mode, not the button's wording, is what is charged.
+const cost = computed(() => quoteFor(mode).total);
 
 const { mutateAsync: createEntry } = useCreateCanonEntry();
 const { mutateAsync: createClue } = useCreateCanonClue();

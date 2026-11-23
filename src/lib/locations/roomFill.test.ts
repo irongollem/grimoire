@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRoomFillConstraints, neighboursOf, normalizeRoomFill, roomFillToTiptap } from "./roomFill";
+import { buildRoomFillConstraints, neighboursOf, normalizeRoomFill, roomFillConstraintsFor, roomFillSaveUpdate, roomFillToTiptap } from "./roomFill";
 import type { RoomFillDoorEdge, RoomNeighbour } from "./roomFill";
 import type { Location } from "@/types/location.types";
 
@@ -88,5 +88,44 @@ describe("roomFillToTiptap", () => {
   it("omits empty parts", () => {
     const doc = JSON.parse(roomFillToTiptap({ readAloud: "", description: "Only.", features: [] }));
     expect(doc.content).toHaveLength(1);
+  });
+});
+
+describe("roomFillSaveUpdate", () => {
+  const provenance = { generatorType: "room_generation", provider: "openai", model: "m", generatedAt: "t", edited: false };
+
+  it("keeps the provenance as generated when the text is saved untouched", () => {
+    expect(roomFillSaveUpdate({ description: "AI", aiDraft: "AI", provenance })).toEqual({ description: "AI", ai_provenance: provenance });
+  });
+
+  it("marks it edited once the DM changed the text", () => {
+    expect(roomFillSaveUpdate({ description: "mine", aiDraft: "AI", provenance }).ai_provenance).toEqual({ ...provenance, edited: true });
+  });
+
+  it("writes no provenance for text the DM wrote", () => {
+    expect(roomFillSaveUpdate({ description: "mine", aiDraft: null, provenance: null })).toEqual({ description: "mine" });
+  });
+});
+
+describe("roomFillConstraintsFor", () => {
+  const atlas = [
+    loc("s", "Keep", { location_type: "dungeon", parent_id: null }),
+    loc("f2", "Crypt", { location_type: "dungeon", parent_id: "s", is_level: true }),
+    loc("r1", "Armoury", { parent_id: "f2" }),
+    loc("r2", "Hall", { parent_id: "f2" }),
+  ] as never[];
+
+  it("names the room's floor out of the site's floors, its exits and the other rooms on that floor", () => {
+    const doors = [{
+      from_location_id: "r1", to_location_id: "r2", is_one_way: false, door_kind: "door", label: "", starts_locked: false,
+      lock_note: null, is_secret: false, from_location: { id: "r1", name: "Armoury" }, to_location: { id: "r2", name: "Hall" },
+    }] as RoomFillDoorEdge[];
+    const lines = roomFillConstraintsFor({
+      atlas, site: loc("s", "Keep", { location_type: "dungeon" }), room: loc("r1", "Armoury", { parent_id: "f2" }),
+      doors, siblings: [loc("r2", "Hall")],
+    });
+    expect(lines).toContain("Level: Crypt (floor 2 of 2)");
+    expect(lines).toContain("Exits: Hall via door");
+    expect(lines).toContain("Other rooms on this level: Hall");
   });
 });
