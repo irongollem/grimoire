@@ -1,11 +1,12 @@
 <template>
-  <section id="canon-moving" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-moving-heading">
+  <section id="canon-moving" class="@container flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-moving-heading">
     <CanonRubric id="canon-moving-heading" numeral="III" title="What is moving" />
     <p class="text-caption text-muted-foreground">The world's own business, beyond the party's quests. Never shown to players.</p>
 
     <CanonSuggestions mode="forces" :entries="forces" />
 
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
+    <!-- By the section's own width, not the viewport: beside the page-body ledger of an open force the log drops under the list. -->
+    <div class="flex flex-col gap-4 @2xl:flex-row @2xl:items-start">
       <div class="flex min-w-0 flex-1 flex-col gap-3">
         <ul v-if="moving.length > 0" class="flex flex-col border border-border bg-card" data-testid="force-ledger">
           <ForceRow
@@ -51,7 +52,7 @@
           </Transition>
         </div>
       </div>
-      <ForceLog v-if="forces.length > 0" class="lg:w-64 lg:shrink-0" :ticks="data?.ticks ?? []" :force-name="nameOf" @undo="undo" />
+      <ForceLog v-if="forces.length > 0" class="@2xl:w-64 @2xl:shrink-0" :ticks="data?.ticks ?? []" :force-name="nameOf" @undo="undo" />
     </div>
 
     <form class="flex flex-col gap-2" @submit.prevent="addForce">

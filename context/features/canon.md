@@ -108,8 +108,39 @@ What the review of the beta changed (#1255, 23 Nov 2026):
   to and ringed for two seconds (`sectionOfPart` in `canonParts.ts` names the part to highlight).
 - **Below a desktop a selected entry's detail opens directly under its ledger** and is scrolled into view; the secret's
   opens above the open questions (a slot in `SecretsSection`).
+- **Long entries open beside their ledger, not in the side column** (#1255 item 26). A lore entry and a force are
+  edited at two thirds of the page body, next to their own ledger, as a backstory is: `CanonSplit.vue` is the one
+  layout (ledger a third, entry two thirds from a body width of 56rem, the entry under its ledger below that) and
+  the lore, forces and backstories all use it. Only a truth and a secret, a line and a few clues, keep the side column
+  at a desktop. The page body widens while any split is open (`data-split-open`). Each entry has a quiet close button at
+  its top right that clears `?entry` (and `?backstory`). The entry's wrapper is `#canon-inline-detail` at every width, so
+  a tap scrolls to it. A force ledger's "The world moved" log sits beside the list from 42rem of the section's own
+  width and under it below that, so beside an open entry it is under the list. Inside the entry, a passage's margin sits
+  beside its text from 32rem of the passage's own row, and a force runs in two columns from 32rem of its own width.
 - The World field's element id is `canon-world-name`: `canon-world` is part V's, and sharing it sent "How the world
   works" to the top of the page.
+
+## Tonight (#1255 item 14)
+
+`/canon/tonight` (`CanonTonightView.vue`, header button **Tonight** beside Bring in a book, and under the page on a phone; a link
+back, "The whole canon") gathers what the next session needs from the canon. It is read-only and stores nothing: every line links to
+where it is edited. A DM route like the rest of the canon (the lens fence derives it: only `/play` is the player area). All gathering
+is the pure `src/lib/canon/canonTonight.ts`; the view reads through the Canon page's own composables, so the doorbell keeps it fresh.
+Five blocks, each left out when empty, in this order:
+
+1. **Lore to tell**: untold lore and DM backstory passages that come out at a place, person or beat, grouped by where, each with its
+   entry's title linking to `/canon?entry=<id>`. A passage that comes out nowhere is not listed (no cue), nor an entry's first passage
+   (told with the entry).
+2. **Clues to find**: clues not found, of secrets not revealed, grouped by where they lie, "Not placed anywhere yet" last; a clue that
+   is a lore passage lies where the passage comes out. Each names its secret.
+3. **What moves next**: each force still moving, its first unreached step ("No next step written" when none) and its clock as "3 of 6",
+   "The clock is full" when it is.
+4. **Threads left open**: per character, the open threads of their backstory (`openThreads`) and the DM's passages not yet told to them,
+   linking to `/canon?backstory=<party member id>`. A character with neither is left out.
+5. **The table added**: the count of unreviewed table facts, only above zero, linking to the Canon's `#canon-table` part (the Canon page
+   does not yet scroll to a hash).
+
+When all five are empty the page says nothing is waiting and links back to the Canon. There is no dashboard widget yet.
 
 ## Secrets, clues and open questions
 
@@ -242,8 +273,9 @@ secret…** in the passage's margin (`PassageClues.vue`, #1255) files that clue:
 nowhere of its own, and already found when the passage had been told (`passageClue`, since the database only finds a
 passage's clues at the moment it is told). The × beside a secret deletes the clue and leaves the passage. An entry's
 first passage and a player's own backstory passage cannot be made a clue. Passages are added,
-reordered (renumbered from position) and removed in the entry. Lore detail takes the page's side column at a desktop, so
-a passage's margin sits under its text; below a desktop it opens under the part.
+reordered (renumbered from position) and removed in the entry. Lore detail opens beside the lore ledger in the page body
+(`CanonSplit`), so a passage's margin sits beside its text from 32rem of the row and under it below that; below 56rem of
+page body it opens under the ledger.
 
 At the table `CanonHere.vue` is one block for everything the canon placed at a place, person or beat: the clues lying
 there and the lore passages that come out there and are not yet told (never an entry's first passage), each with

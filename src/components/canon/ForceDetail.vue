@@ -1,60 +1,63 @@
 <template>
-  <section class="flex min-w-0 flex-col gap-4 border border-border bg-card p-4" aria-label="A force" data-testid="force-detail">
+  <section class="@container flex min-w-0 flex-col gap-4 border border-border bg-card p-4" aria-label="A force" data-testid="force-detail">
     <div v-if="outcome !== null" class="flex flex-col gap-1.5 border border-border bg-muted/40 px-3 py-2" data-testid="force-ended">
       <span class="text-body font-bold text-foreground" data-testid="force-ended-line">{{ FORCE_OUTCOME_ENDED[outcome] }}</span>
       <span v-if="entry.closed_note !== null" class="text-body text-foreground" data-testid="force-ended-note">{{ entry.closed_note }}</span>
       <AppButton variant="outline" size="sm" label="Set it moving again" class="self-start" data-testid="force-resume" @click="resume" />
     </div>
-    <div class="flex flex-col gap-1">
-      <span class="text-eyebrow text-muted-foreground">Who</span>
-      <AppInput :key="whoRevision" v-model.lazy="who" size="body" tone="filled" aria-label="Who moves" placeholder="A faction, a person, a power…" />
-    </div>
-    <div class="flex flex-col gap-1">
-      <span class="text-eyebrow text-muted-foreground">Wants</span>
-      <AppInput :key="wantsRevision" v-model.lazy="wants" wrap size="body" tone="filled" aria-label="What it wants" placeholder="What it wants, in one line…" />
-    </div>
-
-    <CanonEntryNotes
-      :key="entry.id"
-      :entry="entry"
-      label="Notes"
-      help="Never shown to players."
-      placeholder="How it plays, what it will do next…"
-    />
-
-    <div class="flex flex-col gap-2">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <span class="text-eyebrow text-muted-foreground">Clock</span>
-        <AppSelect v-model="clockSize" size="sm" aria-label="Clock size">
-          <option :value="null">No clock</option>
-          <option v-for="n in CLOCK_SIZES" :key="n" :value="n">{{ n }} ticks</option>
-        </AppSelect>
-      </div>
-      <div v-if="entry.clock_size !== null" class="flex flex-wrap items-center gap-3">
-        <ForceClock :force="entry" :ticks="ticks" />
-        <span class="text-body text-foreground" data-testid="force-clock-tally">{{ filled }} of {{ entry.clock_size }}</span>
-        <AppInput v-model="note" size="body" tone="filled" class="min-w-0 flex-1 basis-40" aria-label="Why the world moved" placeholder="Why, if you want to say…" />
-        <AppButton variant="outline" size="sm" label="Tick back" :disabled="outcome !== null || filled === 0" data-testid="tick-back" @click="tick(-1)" />
-        <AppButton variant="primary" size="sm" label="Tick forward" :disabled="outcome !== null || filled === entry.clock_size" data-testid="tick-forward" @click="tick(1)" />
-      </div>
-      <div v-if="clockIsFull" class="flex flex-col gap-2" data-testid="force-clock-full">
-        <p class="text-body font-bold text-foreground">The clock is full. What happened?</p>
-        <div class="flex flex-wrap gap-2">
-          <AppButton v-for="option in FORCE_OUTCOME_OPTIONS" :key="option.value" variant="outline" size="sm" :label="option.label" :data-testid="`force-full-${option.value}`" @click="end(option.value, '')" />
+    <!-- From 32rem of the detail's own width two columns: who it is, its clock and its ending, then what it does. One column below that. -->
+    <div class="flex flex-col gap-4 @lg:grid @lg:grid-cols-2 @lg:items-start @lg:gap-6">
+      <div class="flex min-w-0 flex-col gap-4">
+        <div class="flex flex-col gap-1">
+          <span class="text-eyebrow text-muted-foreground">Who</span>
+          <AppInput :key="whoRevision" v-model.lazy="who" size="body" tone="filled" aria-label="Who moves" placeholder="A faction, a person, a power…" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <span class="text-eyebrow text-muted-foreground">Wants</span>
+          <AppInput :key="wantsRevision" v-model.lazy="wants" wrap size="body" tone="filled" aria-label="What it wants" placeholder="What it wants, in one line…" />
+        </div>
+        <CanonEntryNotes
+          :key="entry.id"
+          :entry="entry"
+          label="Notes"
+          help="Never shown to players."
+          placeholder="How it plays, what it will do next…"
+        />
+        <div class="flex flex-col gap-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="text-eyebrow text-muted-foreground">Clock</span>
+            <AppSelect v-model="clockSize" size="sm" aria-label="Clock size">
+              <option :value="null">No clock</option>
+              <option v-for="n in CLOCK_SIZES" :key="n" :value="n">{{ n }} ticks</option>
+            </AppSelect>
+          </div>
+          <div v-if="entry.clock_size !== null" class="flex flex-wrap items-center gap-3">
+            <ForceClock :force="entry" :ticks="ticks" />
+            <span class="text-body text-foreground" data-testid="force-clock-tally">{{ filled }} of {{ entry.clock_size }}</span>
+            <AppInput v-model="note" size="body" tone="filled" class="min-w-0 flex-1 basis-40" aria-label="Why the world moved" placeholder="Why, if you want to say…" />
+            <AppButton variant="outline" size="sm" label="Tick back" :disabled="outcome !== null || filled === 0" data-testid="tick-back" @click="tick(-1)" />
+            <AppButton variant="primary" size="sm" label="Tick forward" :disabled="outcome !== null || filled === entry.clock_size" data-testid="tick-forward" @click="tick(1)" />
+          </div>
+          <div v-if="clockIsFull" class="flex flex-col gap-2" data-testid="force-clock-full">
+            <p class="text-body font-bold text-foreground">The clock is full. What happened?</p>
+            <div class="flex flex-wrap gap-2">
+              <AppButton v-for="option in FORCE_OUTCOME_OPTIONS" :key="option.value" variant="outline" size="sm" :label="option.label" :data-testid="`force-full-${option.value}`" @click="end(option.value, '')" />
+            </div>
+          </div>
+        </div>
+        <div v-if="outcome === null" class="flex flex-col gap-2">
+          <ForceEndForm v-if="ending" @end="end" @cancel="ending = false" />
+          <AppButton v-else variant="outline" size="sm" label="End this force…" class="self-start" data-testid="force-end" @click="ending = true" />
         </div>
       </div>
+      <div class="flex min-w-0 flex-col gap-4">
+        <ForceSteps :force="entry" :steps="steps" :frozen="outcome !== null" />
+        <EntryQuests :entry="entry" :links="links" label="Where the party meets it" empty="In no quest yet: the party has not crossed its path." />
+        <ForceLog :ticks="ticks" @undo="undo" />
+      </div>
     </div>
-
-    <ForceSteps :force="entry" :steps="steps" :frozen="outcome !== null" />
-    <EntryQuests :entry="entry" :links="links" label="Where the party meets it" empty="In no quest yet: the party has not crossed its path." />
-    <ForceLog :ticks="ticks" @undo="undo" />
 
     <ConnectionsSection :subject="subject" :subject-name="entry.title" />
-
-    <div v-if="outcome === null" class="flex flex-col gap-2">
-      <ForceEndForm v-if="ending" @end="end" @cancel="ending = false" />
-      <AppButton v-else variant="outline" size="sm" label="End this force…" class="self-start" data-testid="force-end" @click="ending = true" />
-    </div>
 
     <AppButton variant="destructive" size="sm" :icon="IconDelete" icon-size="xs" label="Delete this force" class="self-start" @click="emit('delete')" />
   </section>
@@ -64,6 +67,7 @@
 /**
  * The selected force (frame 06): who it is and what it wants, its clock with Tick forward and back, its steps, the
  * quests where the party meets it and the log of what moved. The clock's fill is the sum of the ticks, never stored.
+ * It opens beside the forces ledger (`CanonSplit`) and, from 32rem of its own width, runs in two columns.
  */
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";

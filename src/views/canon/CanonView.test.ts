@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, onTestFinished } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { reactive, ref } from "vue";
 import type { CanonEntry } from "@/types/canon.types";
@@ -49,7 +49,7 @@ const mounted: { unmount: () => void }[] = [];
 function mountView() {
   const w = mount(CanonView, {
     attachTo: document.body,
-    global: { stubs: { PremiseSection: true, ForcesSection: true, ForceDetail: ForceDetailStub, SecretsSection: true, WorldWorksSection: true, LoreSection: true, ChronicleSection: true, TableAddedSection: true, AppButton: { template: '<a data-testid="bring-in" :href="to"><slot /></a>', props: ['to'] }, LoreDetail: LoreDetailStub, SecretDetail: SecretDetailStub, TruthDetail: TruthDetailStub, TruthsSection: TruthsStub, CanonContents: true, BackstoriesSection: true, BackstoryDetail: BackstoryDetailStub } },
+    global: { stubs: { PremiseSection: true, ForcesSection: true, ForceDetail: ForceDetailStub, SecretsSection: true, WorldWorksSection: true, LoreSection: true, ChronicleSection: true, TableAddedSection: true, AppButton: { template: '<a :data-testid="label === \'Tonight\' ? \'tonight\' : \'bring-in\'" :href="to"><slot /></a>', props: ['to', 'label'] }, LoreDetail: LoreDetailStub, SecretDetail: SecretDetailStub, TruthDetail: TruthDetailStub, TruthsSection: TruthsStub, CanonContents: true, BackstoriesSection: true, BackstoryDetail: BackstoryDetailStub } },
   });
   mounted.push(w);
   return w;
@@ -101,6 +101,100 @@ describe("CanonView", () => {
     await flushPromises();
     expect(w.find("[data-testid=force-detail]").text()).toBe("The Stain spreads");
     expect(w.find("[data-testid=detail]").exists()).toBe(false);
+  });
+
+  // Bug caught: a lore entry or a force edited in the 20rem side pane (rich text wrapping every few words, a ribbon of steps).
+  describe("a long entry opens beside its ledger in the page body, never in the side pane", () => {
+    const forceRow = () => ({ ...truth("f1", "The Stain spreads"), part: "force" as const, knowledge: null });
+    const loreRow = () => canonEntry({ id: "l1", campaign_id: "c1", part: "lore", title: "The Fall" });
+
+    it("renders a selected lore entry in the body's split and not in the aside, at desktop width", async () => {
+      data.value = [loreRow()];
+      route.query = { entry: "l1" };
+      const w = mountView();
+      await flushPromises();
+      expect(w.find("[data-testid=page-body] [data-testid=canon-split-detail] [data-testid=lore-detail]").exists()).toBe(true);
+      expect(w.find("aside").exists()).toBe(false);
+    });
+
+    it("renders a selected force in the body's split and not in the aside", async () => {
+      data.value = [forceRow()];
+      route.query = { entry: "f1" };
+      const w = mountView();
+      await flushPromises();
+      expect(w.find("[data-testid=page-body] [data-testid=canon-split-detail] [data-testid=force-detail]").exists()).toBe(true);
+      expect(w.find("aside").exists()).toBe(false);
+    });
+
+    // Bug caught: moving lore and forces out also moved the truth, or left it unrendered.
+    it("keeps a selected truth and a selected secret in the aside at desktop width", async () => {
+      route.query = { entry: "t1" };
+      const truthView = mountView();
+      await flushPromises();
+      expect(truthView.find("aside [data-testid=detail]").exists()).toBe(true);
+      expect(truthView.find("[data-testid=canon-split-detail]").exists()).toBe(false);
+      data.value = [{ ...truth("s1", "Sift"), part: "secret", knowledge: null }];
+      route.query = { entry: "s1" };
+      const secretView = mountView();
+      await flushPromises();
+      expect(secretView.find("aside [data-testid=secret-detail]").exists()).toBe(true);
+    });
+
+    // Bug caught: the body stayed 48rem wide with a split open, so two thirds of it was no wider than before.
+    it("widens the page body only while a split is open, for a lore entry, a force and a backstory alike", async () => {
+      const closed = mountView();
+      await flushPromises();
+      expect(closed.find("[data-testid=page-body] > div > div").classes()).not.toContain("max-w-5xl");
+      for (const [rows, query] of [[[loreRow()], { entry: "l1" }], [[forceRow()], { entry: "f1" }], [data.value, { backstory: "m1" }]] as const) {
+        data.value = [...rows];
+        route.query = { ...query };
+        const open = mountView();
+        await flushPromises();
+        expect(open.find("[data-testid=page-body] > div > div").classes()).toContain("max-w-5xl");
+      }
+    });
+
+    // Bug caught: the close button did nothing, or cleared only ?backstory so a backstory opened by ?entry stayed open.
+    it("closes an open lore entry by clearing ?entry", async () => {
+      data.value = [loreRow()];
+      route.query = { entry: "l1" };
+      const w = mountView();
+      await flushPromises();
+      await w.find("[data-testid=canon-split-close]").trigger("click");
+      expect(mocks.replace).toHaveBeenCalledWith({ query: { entry: undefined, backstory: undefined } });
+    });
+
+    it("closes an open backstory by clearing ?backstory", async () => {
+      route.query = { backstory: "m2" };
+      const w = mountView();
+      await flushPromises();
+      await w.find("[data-testid=canon-split-close]").trigger("click");
+      expect(mocks.replace).toHaveBeenCalledWith({ query: { entry: undefined, backstory: undefined } });
+    });
+
+    // Bug caught: a deep link to a lore entry landed on the wrong part of the contents column.
+    it("sets the Lore part active for a deep link to a lore entry", async () => {
+      data.value = [loreRow()];
+      route.query = { entry: "l1" };
+      const w = mountView();
+      await flushPromises();
+      expect(w.findComponent({ name: "CanonContents" }).props("active")).toBe("lore");
+    });
+
+    // Bug caught: the split's detail lost the id the tap-scroll looks for, so on a phone a tapped lore row opened off screen.
+    it("scrolls a tapped lore row's entry into view, at any width", async () => {
+      data.value = [loreRow()];
+      const loreStub = { name: "LoreSection", props: ["lore"], emits: ["select"], template: "<section><i id='tap-lore' @click=\"$emit('select', 'l1')\" /></section>" };
+      const w = mount(CanonView, {
+        attachTo: document.body,
+        global: { stubs: { PremiseSection: true, ForcesSection: true, SecretsSection: true, WorldWorksSection: true, LoreSection: loreStub, LoreDetail: LoreDetailStub, ChronicleSection: true, TableAddedSection: true, TruthsSection: true, CanonContents: true, BackstoriesSection: true, AppButton: true } },
+      });
+      mounted.push(w);
+      await w.find("#tap-lore").trigger("click");
+      route.query = { entry: "l1" };
+      await flushPromises();
+      expect(mocks.scroll.mock.contexts.at(-1)).toBe(document.getElementById("canon-inline-detail"));
+    });
   });
 
   it("opens the lore entry named by ?entry=<id> with the lore detail, so a link from a passage lands on its entry", async () => {
@@ -226,6 +320,14 @@ describe("CanonView", () => {
     expect(w.find("[data-testid=bring-in]").attributes("href")).toBe("/canon/import");
   });
 
+  // Bug caught: the prep view built but unreachable, because the Canon header never linked to it (and once under the page for a phone).
+  it("offers Tonight in the header and under the page, leading to /canon/tonight", () => {
+    const w = mountView();
+    const links = w.findAll("[data-testid=tonight]");
+    expect(links).toHaveLength(2);
+    expect(links.map((l) => l.attributes("href"))).toEqual(["/canon/tonight", "/canon/tonight"]);
+  });
+
   // Bug caught: the contents column counting kept, struck and corrected lines as "new", so the badge never reached zero.
   it("hands the contents the chronicle's written entries and only the table's unreviewed lines", () => {
     const fact = (id: string, over: Record<string, unknown> = {}) => ({ id, source: "table", supersedes_id: null, kept_at: null, struck_at: null, created_at: `2026-11-20T10:00:0${id}Z`, ...over });
@@ -253,6 +355,27 @@ describe("CanonView", () => {
       mounted.push(w);
       return w;
     }
+
+    // Bug caught (#1255 item 14): Tonight's link to "What the table added" landed at the top of the page, because
+    // nothing read which part a link meant.
+    it("opens at the part named by ?section, and ignores a part that does not exist", async () => {
+      // The parts are stubbed here, so the part's element is put on the page by hand.
+      const part = document.createElement("div");
+      part.id = "canon-table";
+      document.body.appendChild(part);
+      onTestFinished(() => part.remove());
+      route.query = { section: "table" };
+      const w = mountLanding();
+      await flushPromises();
+      expect(w.findComponent({ name: "CanonContents" }).props("active")).toBe("table");
+      expect(mocks.scroll.mock.contexts[0]).toBe(part);
+
+      mocks.scroll.mockClear();
+      route.query = { section: "nowhere" };
+      await flushPromises();
+      expect(mocks.scroll).not.toHaveBeenCalled();
+      expect(w.findComponent({ name: "CanonContents" }).props("active")).toBe("table");
+    });
 
     it("sets Secrets active and scrolls to the open question named by ?entry", async () => {
       data.value = [canonEntry({ id: "q1", campaign_id: "c1", part: "question", title: "Who burned the mill?" })];

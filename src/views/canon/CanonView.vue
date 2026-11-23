@@ -1,6 +1,7 @@
 <template>
   <PageHeader owns-phone-bar title="Canon" description="The world's larger shape: what is true, what you keep back, how it feels to play, and what has happened.">
     <template #actions>
+      <AppButton to="/canon/tonight" variant="ghost" size="md" :icon="IconMoon" label="Tonight" />
       <AppButton to="/canon/import" variant="outline" size="md" :icon="IconUpload" label="Bring in a book" />
     </template>
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
@@ -8,7 +9,7 @@
 
       <div
         class="@container flex min-w-0 flex-1 flex-col gap-8 max-lg:[&_#canon-inline-detail]:scroll-mt-16 max-lg:[&_section]:scroll-mt-16"
-        :class="selectedBackstoryMember ? 'max-w-5xl [&>:not(.canon-backstories)]:max-w-3xl' : 'max-w-3xl'"
+        :class="splitOpen ? 'max-w-5xl [&>:not([data-split-open])]:max-w-3xl' : 'max-w-3xl'"
       >
         <ListSkeleton v-if="isLoading || campaign === null" variant="rows" :count="4" />
         <p v-else-if="isError" role="alert" class="text-body text-destructive">Could not load the canon.</p>
@@ -20,10 +21,12 @@
           <div v-if="selectedTruth && !wide" id="canon-inline-detail">
             <TruthDetail :key="selectedTruth.id" :entry="selectedTruth" @delete="removeSelected" />
           </div>
-          <ForcesSection :forces="forces" :selected-id="selectedForce?.id ?? null" @select="select" />
-          <div v-if="selectedForce && !wide" id="canon-inline-detail">
-            <ForceDetail :key="selectedForce.id" :entry="selectedForce" @delete="removeSelected" />
-          </div>
+          <CanonSplit close-label="Close this force" @close="closeEntry">
+            <ForcesSection :forces="forces" :selected-id="selectedForce?.id ?? null" @select="select" />
+            <template v-if="selectedForce" #detail>
+              <ForceDetail :key="selectedForce.id" :entry="selectedForce" @delete="removeSelected" />
+            </template>
+          </CanonSplit>
           <SecretsSection :secrets="secrets" :questions="questions" :selected-id="selectedSecret?.id ?? null" @select="select">
             <!-- In the part's slot, so it opens under the ledger and not past the open questions. -->
             <div v-if="selectedSecret && !wide" id="canon-inline-detail">
@@ -31,30 +34,31 @@
             </div>
           </SecretsSection>
           <WorldWorksSection />
-          <LoreSection :lore="lore" :selected-id="selectedLore?.id ?? null" @select="select" />
-          <div v-if="selectedLore && !wide" id="canon-inline-detail">
-            <LoreDetail :key="selectedLore.id" :entry="selectedLore" @delete="removeSelected" />
-          </div>
-          <div
-            class="canon-backstories grid min-w-0 items-start gap-4"
-            :class="selectedBackstoryMember ? '@4xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] @4xl:gap-6' : ''"
-          >
+          <CanonSplit close-label="Close this lore entry" @close="closeEntry">
+            <LoreSection :lore="lore" :selected-id="selectedLore?.id ?? null" @select="select" />
+            <template v-if="selectedLore" #detail>
+              <LoreDetail :key="selectedLore.id" :entry="selectedLore" @delete="removeSelected" />
+            </template>
+          </CanonSplit>
+          <CanonSplit close-label="Close this backstory" @close="closeEntry">
             <BackstoriesSection :party="party" :entries="backstories" :passages="allPassages ?? []" :selected-id="selectedBackstoryMember?.id ?? null" @select="selectBackstory" />
-            <BackstoryDetail v-if="selectedBackstoryMember" :key="selectedBackstoryMember.id" :member="selectedBackstoryMember" />
-          </div>
+            <template v-if="selectedBackstoryMember" #detail>
+              <BackstoryDetail :key="selectedBackstoryMember.id" :member="selectedBackstoryMember" />
+            </template>
+          </CanonSplit>
           <ChronicleSection :lore="lore" :forces="forces" />
           <TableAddedSection :truths="truths" />
           <!-- The header holds Bring in a book from a tablet up; a phone's header is the page's own bar. -->
+          <AppButton to="/canon/tonight" variant="ghost" size="md" :icon="IconMoon" label="Tonight" class="self-start md:hidden" />
           <AppButton to="/canon/import" variant="outline" size="md" :icon="IconUpload" label="Bring in a book" class="self-start md:hidden" />
         </template>
       </div>
     </div>
 
-    <template v-if="selected && wide" #sidebar>
+    <!-- Only the short entries take the side column: a lore entry and a force are long, and open beside their ledger. -->
+    <template v-if="(selectedTruth || selectedSecret) && wide" #sidebar>
       <TruthDetail v-if="selectedTruth" :key="selectedTruth.id" :entry="selectedTruth" @delete="removeSelected" />
-      <ForceDetail v-else-if="selectedForce" :key="selectedForce.id" :entry="selectedForce" @delete="removeSelected" />
       <SecretDetail v-else-if="selectedSecret" :key="selectedSecret.id" :entry="selectedSecret" @delete="removeSelected" />
-      <LoreDetail v-else-if="selectedLore" :key="selectedLore.id" :entry="selectedLore" @delete="removeSelected" />
     </template>
   </PageHeader>
 </template>
@@ -72,6 +76,7 @@ import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import BackstoriesSection from "@/components/canon/BackstoriesSection.vue";
 import BackstoryDetail from "@/components/canon/BackstoryDetail.vue";
+import CanonSplit from "@/components/canon/CanonSplit.vue";
 import ChronicleSection from "@/components/canon/ChronicleSection.vue";
 import TableAddedSection from "@/components/canon/TableAddedSection.vue";
 import CanonStart from "@/components/canon/CanonStart.vue";
@@ -94,7 +99,7 @@ import { useCanonScrollSpy } from "@/composables/canon/useCanonScrollSpy";
 import { useChronicle } from "@/composables/canon/useChronicle";
 import { useParty } from "@/composables/party/useParty";
 import { useTableFacts } from "@/composables/canon/useTableFacts";
-import { IconUpload } from "@/lib/icons";
+import { IconMoon, IconUpload } from "@/lib/icons";
 import { useAbove } from "@/composables/useBreakpoint";
 import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
@@ -147,13 +152,19 @@ const selectedBackstoryMember = computed(() => {
   return id === null ? null : party.value.find((m) => m.id === id) ?? null;
 });
 
-// A tap below a desktop opens the detail under its part, which can be off screen: bring it into view once it is there.
+// A split (a ledger with its entry beside it) widens the page body; the entries that take the side column do not.
+const splitOpen = computed(() => selectedBackstoryMember.value !== null || selectedForce.value !== null || selectedLore.value !== null);
+
+// A tap that opens the detail under its part, which can be off screen: bring it into view once it is there.
 let tapped = false;
 
 function select(id: string) {
   scrolledTo = id; // the DM is already looking at it: no scroll to the row
   tapped = true;
   void router.replace({ query: { ...route.query, entry: id, backstory: undefined } });
+}
+function closeEntry() {
+  void router.replace({ query: { ...route.query, entry: undefined, backstory: undefined } });
 }
 function selectBackstory(memberId: string) {
   void router.replace({ query: { ...route.query, backstory: memberId, entry: undefined } });
@@ -226,10 +237,30 @@ watch(() => selected.value?.id, async (id) => {
   if (!id || !tapped) return;
   tapped = false;
   await nextTick();
-  // Only a phone renders this wrapper (the side column shows the detail at lg and up), so nothing scrolls there.
+  // The wrapper exists for a split's entry at every width (it is under its ledger below 56rem of page body) and for a truth or secret
+  // below lg; a truth or secret in the side column has none, so nothing scrolls there.
   const detail = document.getElementById("canon-inline-detail");
   if (typeof detail?.scrollIntoView === "function") detail.scrollIntoView({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
 });
+
+// `?section=<part>` opens the page at a part ("What the table added" from Tonight). Once per value, after the page
+// has loaded, so the part is on the page to scroll to.
+const sectionParam = computed<CanonSectionId | null>(() => {
+  const raw = route.query.section;
+  return CANON_SECTIONS.find((s) => s.id === raw)?.id ?? null;
+});
+watch(
+  () => (campaign.value && !isLoading.value && !isError.value ? sectionParam.value : null),
+  async (id) => {
+    if (!id) return;
+    hold();
+    active.value = id;
+    await nextTick();
+    const part = document.getElementById(`canon-${id}`);
+    if (typeof part?.scrollIntoView === "function") part.scrollIntoView({ block: "start" });
+  },
+  { immediate: true },
+);
 
 watch(
   () => campaign.value && !isLoading.value && !isError.value ? selectedBackstoryMember.value?.id : undefined,

@@ -63,8 +63,8 @@
 <script setup lang="ts">
 /**
  * The selected lore entry (frames 04 and 04b): title, picture (upload, or Paint with AI), kind, its date in the world,
- * who it is shared with, then its passages in the order they are told. It takes the page's side column at a desktop,
- * as every other part's detail does, so a passage's margin (told, where it comes out) sits under its text.
+ * who it is shared with, then its passages in the order they are told. It opens beside the lore ledger in the page body (two thirds wide, `CanonSplit`),
+ * so a passage's margin (told, where it comes out) sits beside its text.
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
