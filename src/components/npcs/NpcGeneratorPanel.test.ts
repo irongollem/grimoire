@@ -6,6 +6,7 @@ import NpcGeneratorForm from "./NpcGeneratorForm.vue";
 import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { ASSOCIATE_CHOICES } from "@/lib/npcGenerator/associate";
+import { typeChoices } from "@/lib/worldLinks/connections";
 const mocks = vi.hoisted(() => ({
   createNpc: vi.fn(),
   generate: vi.fn(),
@@ -356,6 +357,21 @@ describe("NpcGeneratorPanel: the known associate becomes a connection", () => {
 
   it("and the other way round", async () => {
     expect((await quickCreateWith("superior_of")).choice).toMatchObject({ key: "superior_of", subjectIsFrom: true });
+  });
+
+  // Bug caught: a tie chosen under "Tie it to…" lived in the form but Quick Create never wrote it.
+  it("writes a tie chosen in the Ties field, to the new NPC", async () => {
+    const wrapper = mountPanel();
+    const form = wrapper.findComponent(NpcGeneratorForm);
+    const worships = typeChoices("npc", "deity").find((c) => c.key === "worships")!;
+    form.vm.$emit("update:quickForm", { ...form.props("quickForm"), links: [{ kind: "deity", id: "d1", name: "Auril", choice: worships }] });
+    await wrapper.findAll("button").find((b) => b.text().includes("Quick Create NPC"))!.trigger("click");
+    await vi.waitFor(() => expect(mocks.createConnection).toHaveBeenCalledTimes(1));
+    expect(mocks.createConnection.mock.calls[0][0].input).toMatchObject({
+      subject: { kind: "npc", id: "wren" },
+      other: { kind: "deity", id: "d1", name: "Auril" },
+      choice: { key: "worships", subjectIsFrom: true },
+    });
   });
 });
 

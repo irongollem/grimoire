@@ -7,7 +7,8 @@
 // table's loop and knows nothing of Ask), so `endAware` answers the call that would follow with an empty step.
 // Pure with its dependencies passed in, so every guard below is tested without a database.
 
-import type { AskEvent, AskProposal } from "./askContract.ts";
+import type { AskEvent, AskGenerator, AskInputSchema, AskProposal } from "./askContract.ts";
+import { linkableKinds, relationWords } from "./askLinks.ts";
 import { checkProposal, generatorsFor } from "./askPropose.ts";
 import { checkIdeas } from "./askIdeas.ts";
 import { recordsRead, type ReadLog } from "./askReads.ts";
@@ -27,6 +28,30 @@ const FIND_QUERY_MAX = 200;
 export type AskEnd = "ask" | "propose";
 
 const STOP_NOW = "It is shown to the DM. Stop now and write nothing more in this turn.";
+
+/** One option as the model reads it: its key, its type or its words, and what it means. */
+function inputLine(key: string, schema: AskInputSchema): string {
+  switch (schema.type) {
+    case "string": return `${key} (${schema.enum ? `one of ${schema.enum.join(", ")}` : "text"}): ${schema.description}`;
+    case "integer": return `${key} (whole number): ${schema.description}`;
+    case "boolean": return `${key} (true or false): ${schema.description}`;
+    case "links": {
+      // The words are the catalogue's, per kind, so a tie the app can hold is one the model can name and no other.
+      const per = linkableKinds(schema.subject, schema.kinds)
+        .map((kind) => `${kind}: ${relationWords(schema.subject, kind).join(", ")}`)
+        .join("; ");
+      return `${key} (list of {kind, id, relation}): ${schema.description} Relation words by kind of record: ${per}.`;
+    }
+  }
+}
+
+/** The options of every generator the campaign may propose, so the model knows which keys `inputs` takes. */
+export function generatorInputGuide(generators: readonly AskGenerator[]): string {
+  return generators
+    .filter((g) => Object.keys(g.inputs).length > 0)
+    .map((g) => `${g.id}: ${Object.entries(g.inputs).map(([key, schema]) => inputLine(key, schema)).join(" | ")}`)
+    .join("\n");
+}
 
 /** Ask's own tool schemas. The generator enum is the campaign's: no 5e generator is offered where there are no 5e rules. */
 export function askOwnTools(fiveE: boolean): AgentTool[] {
@@ -131,7 +156,11 @@ export function askOwnTools(fiveE: boolean): AgentTool[] {
         properties: {
           generator: { type: "string", enum: generatorsFor(fiveE).map((g) => g.id) },
           concept: { type: "string", description: "What the DM described, in their words, with every detail they gave." },
-          inputs: { type: "object", description: "The generator's options, only the keys it lists and only what the DM said or you resolved with the readers.", additionalProperties: true },
+          inputs: {
+            type: "object",
+            description: `The generator's options, only the keys it lists and only what the DM said or you resolved with the readers. The keys, by generator:\n${generatorInputGuide(generatorsFor(fiveE))}`,
+            additionalProperties: true,
+          },
           target: {
             type: "object",
             description: "For a generator that works on an existing record: the record, which you must have read.",

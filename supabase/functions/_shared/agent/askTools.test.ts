@@ -129,6 +129,19 @@ describe("ask_choice", () => {
   });
 });
 
+describe("propose's inputs", () => {
+  // Bug caught: the model was never told which keys `inputs` takes, so it could not name a tie it was never shown.
+  it("tells the model every generator's option keys, and a tie's words by kind of record", () => {
+    const propose = setup({ fiveE: true }).tools.tools.find((t) => t.name === "propose")!;
+    const inputs = (propose.inputSchema.properties as Record<string, { description: string }>).inputs.description;
+    expect(inputs).toMatch(/(^|\n)npc: /);
+    expect(inputs).toContain("links (list of {kind, id, relation})");
+    expect(inputs).toContain("deity: ");
+    expect(inputs).toContain("worships");
+    expect(inputs).toContain("works_at");
+  });
+});
+
 describe("propose", () => {
   it("emits one proposal with an id of the server's making, and ends the turn", async () => {
     const { tools, events } = setup();

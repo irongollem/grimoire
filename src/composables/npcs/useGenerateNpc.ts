@@ -4,7 +4,7 @@
  * for monsters.
  *
  * Deliberately narrow: generate, create the row, log the pictures, then the ties the DM chose (faction, family,
- * associate) and the starter inventory. The panel keeps what is its own: navigation, the paywall and credit gates,
+ * associate, and any other tie of the catalogue through `links`) and the starter inventory. The panel keeps what is its own: navigation, the paywall and credit gates,
  * the toasts, and the cost display. A caller reads the outcome, not a toast: the page shows the link errors in one,
  * Ask lists them as part of the result.
  *
@@ -17,6 +17,7 @@ import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
 import { useCreateKinLinkInCampaign } from "@/composables/kinship/useKinLinks";
 import { useAddFactionNpc } from "@/composables/factions/useFactions";
 import { useCreateConnectionInCampaign } from "@/composables/connections/useConnections";
+import { useApplyGeneratorLinks } from "@/composables/worldLinks/useApplyGeneratorLinks";
 import { useAddNpcInventoryItemInCampaign } from "@/composables/items/useNpcInventory";
 import { useNpcStarterPacks } from "@/composables/npcs/useNpcStarterPacks";
 import { useGameSystem } from "@/composables/rules/useGameSystem";
@@ -33,6 +34,7 @@ import { npcStarterStatTemplate } from "@/lib/npcGenerator/starterStats";
 import { npcStarterInventory, type NpcStarterInventoryPack } from "@/lib/npcGenerator/inventorySets";
 import { itemRefColumns } from "@/lib/itemRef";
 import type { TypeChoice } from "@/lib/worldLinks/connections";
+import { linksContextLine, type GeneratorLink } from "@/lib/worldLinks/generatorLinks";
 import type { PersonKey } from "@/types/kinship.types";
 import type { ItemIndexEntry } from "@/types/item.types";
 import type { NpcInsert, NpcRelationship } from "@/types/npc.types";
@@ -73,6 +75,7 @@ export function buildNpcAiContext(
   locationId: string | null,
   items: readonly ItemIndexEntry[],
   sources: NpcContextSources,
+  links: readonly GeneratorLink[] = [],
 ): string {
   const constraints: string[] = [];
   const location = sources.locations.find((loc) => loc.id === locationId);
@@ -100,6 +103,9 @@ export function buildNpcAiContext(
       constraints.push(`Known associate: ${other.name} (this NPC is ${form.related_npc_tie.word} ${other.name})`);
     }
   }
+  // The ties the DM chose beyond the associate: said to the model so the NPC it writes agrees with them.
+  const ties = linksContextLine(links);
+  if (ties) constraints.push(ties);
   if (items.length) {
     constraints.push(`Starting inventory (include each exact item in this NPC's inventory): ${items.map((item) => item.name).join(", ")}`);
   }
@@ -137,6 +143,8 @@ export interface GenerateNpcRequest {
   inventoryItems: readonly ItemIndexEntry[];
   /** The associate the form names, when it still exists in this campaign. */
   associate: { id: string; name: string } | null;
+  /** Any other ties to existing records ("worships Auril"), written after the NPC is saved; a failure is a `linkErrors` entry. */
+  links: readonly GeneratorLink[];
 }
 
 /** What became of a picture: not asked for, painted and saved, or asked for and not painted. */
@@ -176,6 +184,7 @@ export function useGenerateNpc() {
   const { mutateAsync: addFactionNpc } = useAddFactionNpc();
   const { mutateAsync: createConnection } = useCreateConnectionInCampaign();
   const { mutateAsync: createKinLink } = useCreateKinLinkInCampaign();
+  const { applyGeneratorLinks } = useApplyGeneratorLinks();
   const { mutateAsync: addNpcInventoryItem } = useAddNpcInventoryItemInCampaign();
   // Read on demand with `refetch`: the packs are the admin's, and only a generation needs them.
   const starterPackQuery = useNpcStarterPacks(() => false);
@@ -358,7 +367,10 @@ export function useGenerateNpc() {
       });
     }
 
-    const linkErrors = await applyNpcLinks(created.id, form, campaignId, request.associate);
+    const linkErrors = [
+      ...await applyNpcLinks(created.id, form, campaignId, request.associate),
+      ...await applyGeneratorLinks({ kind: "npc", id: created.id }, request.links, campaignId),
+    ];
     let inventoryError: string | null = null;
     try {
       await seedNpcInventory(created.id, { occupation: result.occupation || null, tags: result.tags ?? [] }, request.inventoryItems, campaignId, starterPacks);
@@ -380,7 +392,7 @@ export function useGenerateNpc() {
     };
   }
 
-  return { generateAndCreateNpc, applyNpcLinks };
+  return { generateAndCreateNpc, applyNpcLinks, applyGeneratorLinks };
 }
 
 function pictureState(asked: boolean, url: string | null | undefined): PictureState {

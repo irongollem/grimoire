@@ -77,6 +77,59 @@ describe("checkProposal", () => {
     }
   });
 
+  describe("links", () => {
+    const propose = (links: unknown, loadTarget: () => Promise<{ name: string } | null> = found) => checkProposal({ generator: "npc", concept: "x", inputs: { links } }, { fiveE: true, loadTarget });
+
+    it("keeps a tie to a record of this campaign, its relation as the catalogue's word", async () => {
+      const out = await propose([{ kind: "deity", id: ID, relation: "Worships", name: "Impostor" }]);
+      // The model's name is never kept: the browser reads the record's own.
+      expect(out).toMatchObject({ ok: true, dropped: [], proposal: { inputs: { links: [{ kind: "deity", id: ID, relation: "worships" }] } } });
+    });
+
+    // Bug caught: a relation outside the pair was dropped silently, so "worships" an item made an untied NPC.
+    it("answers a relation the pair does not hold with the words it does", async () => {
+      const out = await propose([{ kind: "item", id: ID, relation: "worships" }]);
+      expect(out).toMatchObject({ ok: false });
+      expect((out as { error: string }).error).toContain("seeks");
+    });
+
+    it("answers a kin word, since family has its own input", async () => {
+      expect(await propose([{ kind: "npc", id: ID, relation: "parent_of" }])).toMatchObject({ ok: false });
+    });
+
+    // Bug caught: a link to another campaign's record would be quoted and written. Same answer as a record that does not exist.
+    it("drops a record that is not this campaign's, and tells nothing more", async () => {
+      const out = await propose([{ kind: "deity", id: ID, relation: "worships" }], none);
+      expect(out).toMatchObject({ ok: true, dropped: ["links[0]"] });
+      expect((out as { proposal: { inputs: object } }).proposal.inputs).toEqual({});
+    });
+
+    it("drops a link whose id is not a uuid, and never looks it up", async () => {
+      const loadTarget = vi.fn(found);
+      const out = await propose([{ kind: "deity", id: "Auril", relation: "worships" }], loadTarget);
+      expect(out).toMatchObject({ dropped: ["links[0]"] });
+      expect(loadTarget).not.toHaveBeenCalled();
+    });
+
+    it("drops a kind the generator does not offer, and a malformed entry", async () => {
+      const out = await propose([{ kind: "quest", id: ID, relation: "seeks" }, "worships", { kind: "deity" }]);
+      expect((out as { dropped: string[] }).dropped).toEqual(["links[0]", "links[1]", "links[2]"]);
+    });
+
+    it("keeps one tie per record and word, and no more than eight", async () => {
+      const same = await propose([{ kind: "deity", id: ID, relation: "worships" }, { kind: "deity", id: ID, relation: "worships" }]);
+      expect((same as unknown as { proposal: { inputs: { links: unknown[] } } }).proposal.inputs.links).toHaveLength(1);
+      const many = Array.from({ length: 9 }, (_, i) => ({ kind: "deity", id: `00000000-0000-4000-8000-00000000010${i}`, relation: "worships" }));
+      const out = await propose(many);
+      expect((out as unknown as { proposal: { inputs: { links: unknown[] } } }).proposal.inputs.links).toHaveLength(8);
+      expect((out as { dropped: string[] }).dropped).toHaveLength(1);
+    });
+
+    it("drops a links input that is not a list", async () => {
+      expect(await propose("worships Auril")).toMatchObject({ ok: true, dropped: ["links"] });
+    });
+  });
+
   it("drops an integer out of the generator's range", async () => {
     const out = await checkProposal({ generator: "spell", concept: "x", inputs: { level: 12 } }, five);
     expect((out as { proposal: { inputs: object } }).proposal.inputs).toEqual({});

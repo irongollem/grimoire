@@ -8,6 +8,8 @@
 // server never creates a record the DM did not ask for, and credits, quota, likeness checks and provenance all stay
 // on the path they take today. Design: the "Ask Grimoire" canvas, decisions on issue #1253.
 
+import type { LinkKind } from "../worldLinkCatalogue.ts";
+
 /** Plain questions and brainstorms free per account per UTC day (maintainer, 23 Nov 2026); `charge_ask_answer` holds it. */
 export const FREE_ASKS_PER_DAY = 5;
 
@@ -29,7 +31,10 @@ export type AskRecordType =
 export type AskInputSchema =
   | { type: "string"; description: string; enum?: readonly string[] }
   | { type: "integer"; description: string; minimum?: number; maximum?: number }
-  | { type: "boolean"; description: string };
+  | { type: "boolean"; description: string }
+  // Ties to existing records (an array of `{kind, id, relation}`): `subject` is the kind of the NEW record and `kinds`
+  // the kinds it may be tied to. The words come from the catalogue (`askLinks.ts`), so they are not listed here.
+  | { type: "links"; description: string; subject: LinkKind; kinds: readonly LinkKind[] };
 
 export interface AskGenerator {
   /** Stable id: the `propose` tool's enum and the panel's adapter key. */
@@ -50,6 +55,14 @@ export interface AskGenerator {
   /** Only offered where the campaign's game system offers stat blocks and 5e rules (`offers("stat-blocks")`). */
   fiveE?: true;
 }
+
+/** The ties an NPC may be given beyond the kin and associate inputs: any kind the catalogue holds for a person. */
+const npcLinks = {
+  type: "links",
+  description: "Ties to existing records of this campaign (a god they worship, a place they work at, a faction's ally, an item they seek, a party member they are bonded to). Each is {kind, id, relation}; relation is what the NEW NPC is to that record, read from the NPC. Use this for any tie that has no input of its own above.",
+  subject: "npc",
+  kinds: ["npc", "party_member", "faction", "location", "deity", "item", "canon"],
+} as const satisfies AskInputSchema;
 
 const image = { type: "boolean", description: "Paint a picture of it as well. Costs extra; ask unless the DM said." } as const;
 
@@ -84,6 +97,7 @@ export const ASK_GENERATORS: readonly AskGenerator[] = [
       related_pc_id: { type: "string", description: "Id of an existing party member (player character) in this campaign this one is kin to. Only for the family words of `relation`." },
       relation: { type: "string", description: "What the NEW NPC is to the one in related_npc_id or related_pc_id, read from the new NPC: \"sibling\" = the new NPC is their sibling; \"mentor\" = the new NPC mentors them; \"betrayed\" = the new NPC betrayed them; \"betrayed_by\" = they betrayed the new NPC. Without it a related id is ignored.", enum: NPC_RELATIONS },
       second_parent_id: { type: "string", description: "Id of an existing NPC who is the other parent, when relation is child. Only with related_npc_id or related_pc_id." },
+      links: npcLinks,
       portrait: image,
       alter_ego: { type: "boolean", description: "Give them a disguise or second identity." },
     },

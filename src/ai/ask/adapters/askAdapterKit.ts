@@ -7,6 +7,10 @@
  * Not an adapter: the registry finds adapters by the `*AskAdapter.ts` name, which this file does not have.
  */
 import type { AskQuoteBlock, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
+import { ASK_GENERATORS, type AskInputSchema } from "@edge-shared/agent/askContract";
+import { LINKS_MAX, choiceForRelation, isLinkKind, relationWord, type AskLink } from "@edge-shared/agent/askLinks";
+import type { GeneratorLink } from "@/lib/worldLinks/generatorLinks";
+import { isUuid } from "@/lib/library/contentIdentity";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import { isQuotaExceeded } from "@/lib/quotaError";
 
@@ -100,4 +104,72 @@ export function picturePart(args: {
       },
     },
   };
+}
+
+// ── Ties to existing records (the generic `links` input) ────────────────────────────────────────────────────────────
+
+type LinksSchema = Extract<AskInputSchema, { type: "links" }>;
+
+/** The generator's `links` option: its key and what it may tie to, or null for a generator that takes no ties. */
+function linksInput(generatorId: string): { key: string; schema: LinksSchema } | null {
+  const generator = ASK_GENERATORS.find((g) => g.id === generatorId);
+  for (const [key, schema] of Object.entries(generator?.inputs ?? {})) {
+    if (schema.type === "links") return { key, schema };
+  }
+  return null;
+}
+
+/**
+ * The `links` of a proposal, read again in the browser against the contract (the server already checked them, and the
+ * panel's Adjust or a stale proposal can still carry anything): only the kinds the generator offers, a uuid id, and a
+ * relation word the catalogue holds between the generator's kind and that kind, at most `LINKS_MAX`, one per record
+ * and word. A malformed entry is skipped, never an error: the DM sees the quote without it.
+ */
+export function readAskLinks(generatorId: string, inputs: Readonly<Record<string, unknown>>): AskLink[] {
+  const found = linksInput(generatorId);
+  if (!found) return [];
+  const { key, schema } = found;
+  const given = inputs[key];
+  if (!Array.isArray(given)) return [];
+  const links: AskLink[] = [];
+  const seen = new Set<string>();
+  for (const entry of given) {
+    if (links.length >= LINKS_MAX) break;
+    const raw = typeof entry === "object" && entry !== null && !Array.isArray(entry) ? entry as Record<string, unknown> : null;
+    if (raw === null || !isLinkKind(raw.kind) || !schema.kinds.includes(raw.kind) || typeof raw.id !== "string" || !isUuid(raw.id) || typeof raw.relation !== "string") continue;
+    const choice = choiceForRelation(schema.subject, raw.kind, raw.relation);
+    if (choice === null) continue;
+    const word = relationWord(choice);
+    const id = `${raw.kind}:${raw.id}:${word}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    links.push({ kind: raw.kind, id: raw.id, relation: word });
+  }
+  return links;
+}
+
+/**
+ * The links as pending ties, with each record's name from this campaign (`names` keyed `kind:id`, filled by
+ * `useAskLinkRecords`). A link whose record is not found is left out, so a record of another campaign is never tied;
+ * the choice is the catalogue's own, resolved from the word again, so the stored direction is the page's.
+ */
+export function resolveAskLinks(generatorId: string, links: readonly AskLink[], names: ReadonlyMap<string, string>): GeneratorLink[] {
+  const schema = linksInput(generatorId)?.schema;
+  if (!schema) return [];
+  const resolved: GeneratorLink[] = [];
+  for (const link of links) {
+    const name = names.get(`${link.kind}:${link.id}`);
+    const choice = choiceForRelation(schema.subject, link.kind, link.relation);
+    if (name !== undefined && choice !== null) resolved.push({ kind: link.kind, id: link.id, name, choice });
+  }
+  return resolved;
+}
+
+/** A quote line per tie: "Worships: Auril". */
+export function askLinkLines(links: readonly GeneratorLink[]): AskQuoteLine[] {
+  return links.map((link) => ({
+    label: `${link.choice.word.charAt(0).toUpperCase()}${link.choice.word.slice(1)}`,
+    value: link.name,
+    credits: null,
+  }));
 }
