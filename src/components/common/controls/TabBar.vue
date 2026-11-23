@@ -7,9 +7,10 @@
     ref="rootEl"
     class="tab-bar flex items-center gap-0 border-b border-border [&.overflow-x-auto]:overflow-y-hidden"
     role="tablist"
-    :class="wrapperClass"
+    :class="[wrapperClass, { 'tab-bar--overflowing': overflowing }]"
     :style="fadeStyle"
     @scroll.passive="measure"
+    @wheel="onWheel"
   >
     <button
       v-for="(tab, i) in tabs"
@@ -91,10 +92,33 @@ function onKeydown(event: KeyboardEvent, current: number) {
 const rootEl = ref<HTMLElement | null>(null);
 const fadeStart = ref(false);
 const fadeEnd = ref(false);
+/**
+ * The tabs are wider than the row. Vellum lets a row overflow visibly on wider screens so its bookmark ribbon can hang
+ * below the rule, which cut off a row too long for a small laptop with no way to reach the rest (the admin page's,
+ * 23 Nov 2026). An overflowing row scrolls in every theme (`.tab-bar--overflowing` in vellum.css).
+ */
+const overflowing = ref(false);
+
+/** A mouse wheel moves an overflowing row sideways: a laptop with no sideways scroll could not reach its last tabs. */
+function onWheel(event: WheelEvent) {
+  const el = rootEl.value;
+  if (!el || !overflowing.value || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+  const before = el.scrollLeft;
+  el.scrollLeft += event.deltaY;
+  // Only take the wheel while the row moved; at either end the page scrolls as usual.
+  if (el.scrollLeft !== before) event.preventDefault();
+}
 
 function measure() {
   const el = rootEl.value;
   if (!el) return;
+  const nowOverflowing = el.scrollWidth > el.clientWidth + 1;
+  // The row only becomes scrollable once it is marked overflowing, so the selected tab is brought into view again then:
+  // at mount it could not move, and a tab at the far end stayed half cut off.
+  const becameOverflowing = nowOverflowing && !overflowing.value;
+  overflowing.value = nowOverflowing;
+  // After the change above, so the reveal runs once the class (and with it the scrolling) is on the row.
+  if (becameOverflowing) void nextTick(revealSelected);
   const overflowX = getComputedStyle(el).overflowX;
   const scrolls = (overflowX === 'auto' || overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 1;
   fadeStart.value = scrolls && el.scrollLeft > 1;
