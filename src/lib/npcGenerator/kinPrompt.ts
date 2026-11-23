@@ -39,12 +39,18 @@ export function onlySpouseOf(links: KinLink[], key: PersonKey): PersonKey | null
 export interface PromptPerson {
   name: string;
   bornYear: number | null;
+  /** Their people (an NPC's race), so blood kin are made of the same one; null when not known. */
+  species: string | null;
 }
 
 function describe(p: PromptPerson, todayYear: number | null): string {
-  if (p.bornYear === null) return p.name;
-  const age = todayYear === null ? null : completedYears({ year: p.bornYear, month: null, day: null }, { year: todayYear, month: 1, day: 1 });
-  return age === null ? `${p.name} (born ${p.bornYear})` : `${p.name} (born ${p.bornYear}, ${age} now)`;
+  const facts: string[] = [];
+  if (p.species) facts.push(p.species);
+  if (p.bornYear !== null) {
+    const age = todayYear === null ? null : completedYears({ year: p.bornYear, month: null, day: null }, { year: todayYear, month: 1, day: 1 });
+    facts.push(age === null ? `born ${p.bornYear}` : `born ${p.bornYear}, ${age} now`);
+  }
+  return facts.length === 0 ? p.name : `${p.name} (${facts.join(", ")})`;
 }
 
 const RELATION_WORDS: Record<GeneratorKinRelation, string> = {
@@ -62,5 +68,7 @@ export function kinPromptLine(relation: GeneratorKinRelation, others: PromptPers
   const names = others.map((p) => describe(p, todayYear));
   const who = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
   const year = todayYear === null ? "" : ` The current year is ${todayYear}.`;
-  return `The new NPC is the ${RELATION_WORDS[relation]} of ${who}.${year} Give an age that fits.`;
+  // A live run made a halfling's younger sister human (23 Nov 2026): the relative's people was never said.
+  const people = relation === "spouse" ? "" : " Unless the request says otherwise, they are of the same people as their blood kin.";
+  return `The new NPC is the ${RELATION_WORDS[relation]} of ${who}.${year} Give an age that fits.${people}`;
 }

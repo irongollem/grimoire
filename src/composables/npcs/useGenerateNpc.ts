@@ -62,7 +62,7 @@ export interface NpcGenerateForm {
 export interface NpcContextSources {
   locations: readonly { id: string; name: string; player_summary?: string | null }[];
   factions: readonly { id: string; name: string; faction_type?: string | null }[];
-  npcs: readonly { id: string; name: string; born_year?: number | null }[];
+  npcs: readonly { id: string; name: string; born_year?: number | null; race?: string | null }[];
   party: readonly { id: string; name: string; born_year?: number | null }[];
   todayYear: number | null;
 }
@@ -118,7 +118,7 @@ function kinPromptPeople(form: NpcGenerateForm, sources: NpcContextSources): Pro
   for (const key of keys) {
     const { type, id } = parsePersonKey(key);
     const row = (type === "npc" ? sources.npcs : sources.party).find((p) => p.id === id);
-    if (row) people.push({ name: row.name, bornYear: row.born_year ?? null });
+    if (row) people.push({ name: row.name, bornYear: row.born_year ?? null, species: "race" in row && typeof row.race === "string" && row.race.trim() !== "" ? row.race.trim() : null });
   }
   return people;
 }

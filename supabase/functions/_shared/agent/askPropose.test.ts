@@ -30,14 +30,23 @@ describe("checkProposal", () => {
     expect(await checkProposal({ generator: "npc", concept: "   " }, five)).toMatchObject({ ok: false });
   });
 
-  it("drops input keys the generator does not take, and values of the wrong type, range or enum", async () => {
+  it("drops input keys the generator does not take, and values of the wrong type or range", async () => {
     const out = await checkProposal({
       generator: "monster",
       concept: "x",
-      inputs: { challenge_rating: "3", size: "colossal", image: "yes", secret_flag: true, monster_type: "beast" },
+      inputs: { challenge_rating: "3", image: "yes", secret_flag: true, monster_type: "beast" },
     }, five);
     expect(out).toMatchObject({ ok: true, proposal: { inputs: { challenge_rating: "3", monster_type: "beast" } } });
-    expect((out as { dropped: string[] }).dropped.sort()).toEqual(["image", "secret_flag", "size"]);
+    expect((out as { dropped: string[] }).dropped.sort()).toEqual(["image", "secret_flag"]);
+  });
+
+  // Bug caught (live run, 23 Nov 2026): relation "younger sister" was dropped, the panel fell back to "contact", and
+  // the innkeeper's sister was made a mere contact. A word outside the list is answered, so the model chooses again.
+  it("answers a word outside an option's list with the words it may use, instead of dropping it", async () => {
+    const out = await checkProposal({ generator: "npc", concept: "his sister", inputs: { relation: "younger sister", related_npc_id: ID } }, five);
+    expect(out).toMatchObject({ ok: false });
+    expect((out as { error: string }).error).toContain("sibling");
+    expect(await checkProposal({ generator: "npc", concept: "his sister", inputs: { relation: "sibling", related_npc_id: ID } }, five)).toMatchObject({ ok: true });
   });
 
   it("drops an id input that is not a uuid, so a made-up id never reaches the quote", async () => {
@@ -45,14 +54,14 @@ describe("checkProposal", () => {
     expect(out).toMatchObject({ ok: true, proposal: { inputs: { faction_id: ID } } });
   });
 
-  it("keeps the links an NPC can be given (related person, relation word, other parent, role) and drops a word that is not one", async () => {
+  it("keeps the links an NPC can be given (related person, relation word, other parent, role) and drops a name given as an id", async () => {
     const ok = await checkProposal({
       generator: "npc", concept: "x",
       inputs: { related_npc_id: ID, relation: "betrayed_by", related_pc_id: ID, second_parent_id: ID, faction_role: "Spy" },
     }, five);
     expect(ok).toMatchObject({ ok: true, dropped: [], proposal: { inputs: { related_npc_id: ID, relation: "betrayed_by", related_pc_id: ID, second_parent_id: ID, faction_role: "Spy" } } });
-    const bad = await checkProposal({ generator: "npc", concept: "x", inputs: { related_npc_id: "Perf the smuggler", relation: "cousin" } }, five);
-    expect((bad as { dropped: string[] }).dropped.sort()).toEqual(["related_npc_id", "relation"]);
+    const bad = await checkProposal({ generator: "npc", concept: "x", inputs: { related_npc_id: "Perf the smuggler", relation: "sibling" } }, five);
+    expect((bad as { dropped: string[] }).dropped).toEqual(["related_npc_id"]);
   });
 
   it("keeps every link id of the other generators that can tie into the campaign, and drops a name given in its place", async () => {

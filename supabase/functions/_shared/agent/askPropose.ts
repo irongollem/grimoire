@@ -72,6 +72,12 @@ export async function checkProposal(
   const dropped: string[] = [];
   for (const [key, value] of Object.entries(given)) {
     const schema = generator.inputs[key];
+    // A word outside an option's list is answered, not dropped: dropped, the panel falls back to the option's
+    // default and makes something the DM did not ask for (live run, 23 Nov 2026: "younger sister" for `relation`
+    // made the sister a mere contact of the innkeeper). Told the words it may use, the model asks again at once.
+    if (schema?.type === "string" && schema.enum !== undefined && typeof value === "string" && value.trim() !== "" && !schema.enum.includes(value.trim())) {
+      return { ok: false, error: `\`${key}\` must be one of: ${schema.enum.join(", ")}. "${value.trim().slice(0, 60)}" is not one of them; choose the nearest and propose again.` };
+    }
     // A key the generator does not take is dropped, never forwarded: the panel's adapter would read it as an option.
     const kept = schema === undefined ? undefined : inputValue(schema, value);
     if (kept === undefined || (isIdInput(key) && (typeof kept !== "string" || !UUID_RE.test(kept)))) dropped.push(key);
