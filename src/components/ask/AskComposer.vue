@@ -6,7 +6,7 @@
         <textarea
           ref="field"
           v-model="draft"
-          data-hand
+          data-hand="text"
           rows="1"
           maxlength="4000"
           placeholder="Ask about your campaign, or ask for something to be made"
@@ -50,12 +50,3 @@ function onKeydown(event: KeyboardEvent) {
 defineExpose({ focus: () => field.value?.focus() });
 </script>
 
-<style scoped>
-:root[data-theme^="vellum"] .ask-composer {
-  font-family: "Fondamento", var(--vl-serif);
-  color: var(--vl-hand-ink);
-}
-:root[data-theme^="vellum"] .ask-composer::placeholder {
-  font-family: var(--vl-serif);
-}
-</style>

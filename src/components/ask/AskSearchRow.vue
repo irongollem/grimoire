@@ -11,7 +11,7 @@
     <IconAsk class="size-4 shrink-0 text-primary" />
     <span class="flex min-w-0 flex-1 flex-col">
       <span>Ask Grimoire</span>
-      <AskHandText class="truncate text-caption">{{ query.trim() }}</AskHandText>
+      <span data-hand="text" class="truncate text-caption">{{ query.trim() }}</span>
     </span>
     <KeyCap v-if="!touch">{{ combo }}</KeyCap>
   </AppButton>
@@ -27,7 +27,6 @@ import { IconAsk } from "@/lib/icons";
 import { formatCombo, isMacPlatform } from "@/lib/hotkeys";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import KeyCap from "@/components/common/controls/KeyCap.vue";
-import AskHandText from "@/components/ask/AskHandText.vue";
 
 const { query, padding = "px-3", touch = false } = defineProps<{
   query: string;
