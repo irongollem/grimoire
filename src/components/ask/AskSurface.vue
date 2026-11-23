@@ -4,7 +4,7 @@
       <div class="flex min-w-0 items-center gap-2">
         <IconAsk class="size-4 shrink-0 text-primary" />
         <h2 class="text-heading font-semibold text-foreground">Ask Grimoire</h2>
-        <span class="text-eyebrow uppercase text-muted-foreground">Beta</span>
+        <AppButton as="span" variant="tinted" size="xs" tone="info" emphasis="outline" label="Beta" data-testid="ask-beta" />
       </div>
       <div class="flex items-center gap-1">
         <AppButton variant="ghost" size="inline" label="New conversation" data-testid="ask-new" @click="emit('new')" />

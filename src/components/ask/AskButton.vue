@@ -6,7 +6,7 @@
       :icon="IconAsk"
       icon-size="md"
       :aria-label="ask.hasUnread ? 'Ask Grimoire, a result is ready' : 'Ask Grimoire'"
-      :tooltip="`Ask Grimoire (${hotkeyText})`"
+      :tooltip="`Ask Grimoire, beta (${hotkeyText})`"
       data-testid="ask-button"
       @click="ask.openPanel()"
     />
