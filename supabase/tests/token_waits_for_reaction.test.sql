@@ -1,4 +1,4 @@
--- A token cannot move while the fight waits for a Reaction (#1021, 20261123233319).
+-- A token cannot move while the fight waits for a Reaction (#1021, 20261123234845).
 --
 --   1 DM   2 player seated on the character pm (token "p-<pm>")
 --

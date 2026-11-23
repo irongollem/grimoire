@@ -1,7 +1,7 @@
 -- A token stays where it is while the person at the AI table decides a Reaction (#1021, review of PR #1261).
 --
 -- While `encounter_state.pending_reaction` is set, the paused creature turn is replayed from the fight as it stood
--- (20261123194128): `encounter-command` refuses every other command until it is answered. A token move did not go
+-- (20261123234844): `encounter-command` refuses every other command until it is answered. A token move did not go
 -- through that path: `update_combatant_position` wrote `combatants_live` directly, so a drag during the wait changed
 -- the fight the answer replays, and the replayed turn could come out other than the one the player was asked about.
 -- The RPC now refuses while a Reaction waits, as the command path does. Its body is otherwise unchanged
