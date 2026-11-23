@@ -201,6 +201,19 @@
       />
     </div>
 
+    <!-- The rest of the family, never assumed: half-siblings exist, so each starts unticked. -->
+    <fieldset v-if="familyOffers.length" class="flex flex-col gap-1" data-testid="npc-kin-offers">
+      <legend class="mb-1 text-caption text-muted-foreground">Also family to</legend>
+      <AppCheckbox
+        v-for="offer in familyOffers"
+        :key="offer.id"
+        :model-value="offer.ticked"
+        size="sm"
+        :label="offer.label"
+        @update:model-value="toggleOffer(offer.offer, $event === true)"
+      />
+    </fieldset>
+
     <!-- Every other tie (a god, a place, a faction, an item, a character) has no field of its own above. -->
     <GeneratorLinksField
       :model-value="quickForm.links"
@@ -295,7 +308,7 @@ import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { useParty } from "@/composables/party/useParty";
 import { useKinLinks } from "@/composables/kinship/useKinLinks";
-import { personKey } from "@/lib/kinship/keys";
+import { parsePersonKey, personKey } from "@/lib/kinship/keys";
 import {
   GENERATOR_KIN_LABELS,
   GENERATOR_KIN_RELATIONS,
@@ -303,6 +316,7 @@ import {
   onlySpouseOf,
 } from "@/lib/npcGenerator/kinPrompt";
 import type { PersonKey } from "@/types/kinship.types";
+import { kinOfferKey, kinOffers, type KinOffer } from "@/lib/npcGenerator/kinOffers";
 import type { Location } from "@/types/location.types";
 import type { NpcGenerateForm } from "@/composables/npcs/useGenerateNpc";
 import type { GeneratorLink } from "@/lib/worldLinks/generatorLinks";
@@ -467,6 +481,36 @@ watch([associateKey, () => quickForm.related_npc_kin, kinLinks], () => {
   if (secondParentTouched || !followsAuto || suggested === quickForm.second_parent) return;
   autoSecondParent = suggested;
   patchForm("second_parent", suggested);
+});
+// The rest of the family the new NPC could join (a parent's other children...), each the DM's yes or no.
+const offered = computed<KinOffer[]>(() => {
+  if (!quickForm.related_npc_kin || !associateKey.value) return [];
+  const exclude = quickForm.second_parent ? [quickForm.second_parent] : [];
+  return kinOffers(kinLinks.value ?? [], associateKey.value, quickForm.related_npc_kin, exclude);
+});
+function personName(key: PersonKey): string | null {
+  const { type, id } = parsePersonKey(key);
+  const row = type === "npc" ? (npcs.value ?? []).find((n) => n.id === id) : (party.value ?? []).find((p) => p.id === id);
+  return row ? row.name : null;
+}
+const familyOffers = computed(() =>
+  offered.value.flatMap((offer) => {
+    const name = personName(offer.key);
+    if (name === null) return [];
+    const id = kinOfferKey(offer);
+    return [{ id, offer, label: `${GENERATOR_KIN_LABELS[offer.relation]} ${name}`, ticked: quickForm.also_kin.some((o) => kinOfferKey(o) === id) }];
+  }),
+);
+function toggleOffer(offer: KinOffer, on: boolean) {
+  const id = kinOfferKey(offer);
+  const rest = quickForm.also_kin.filter((o) => kinOfferKey(o) !== id);
+  patchForm("also_kin", on ? [...rest, offer] : rest);
+}
+// A tick for someone no longer offered (the DM changed the relative or the tie) must not be written behind their back.
+watch(offered, (now) => {
+  const still = new Set(now.map(kinOfferKey));
+  const kept = quickForm.also_kin.filter((o) => still.has(kinOfferKey(o)));
+  if (kept.length !== quickForm.also_kin.length) patchForm("also_kin", kept);
 });
 // ToggleSwitch requires a v-model; generateImage is a prop paired with a
 // single update:generateImage emit, so bridge it the same way as the fields

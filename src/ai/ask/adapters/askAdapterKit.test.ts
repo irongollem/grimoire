@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
-import { askLinkLines, conceptBlock, failedRun, matchKey, matchOption, picturePart, readAskLinks, resolveAskLinks, sameWord, saveFailure, spent } from "./askAdapterKit";
+import { askLinkLines, chosenAskLinks, conceptBlock, failedRun, matchKey, matchOption, picturePart, readAskLinks, resolveAskLinks, sameWord, saveFailure, spent } from "./askAdapterKit";
 
 const isQuotaExceeded = vi.hoisted(() => vi.fn((e: unknown) => e instanceof Error && e.message === "quota"));
 vi.mock("@/lib/quotaError", () => ({ isQuotaExceeded }));
@@ -71,7 +71,8 @@ describe("picturePart", () => {
     const paint = vi.fn().mockResolvedValueOnce("u").mockResolvedValueOnce(null);
     const part = picturePart({ saved: false, credits: 4, noun: "item", retry: { credits: null, paint, error: () => "Out of luck." } });
     expect(part.retry?.credits).toBeNull();
-    expect(await part.retry?.run()).toEqual({ label: "Picture", ok: true, credits: 4 });
+    // The repainted picture rides on the part, so the chat shows the new one.
+    expect(await part.retry?.run()).toEqual({ label: "Picture", ok: true, credits: 4, picture: "u" });
     expect(await part.retry?.run()).toEqual({ label: "Picture", ok: false, credits: 0, error: "Out of luck." });
   });
   it("charges a retry at its own price once it is known", async () => {
@@ -111,6 +112,16 @@ describe("links", () => {
     const links = [{ kind: "npc" as const, id: A, relation: "apprentice_of" }, { kind: "deity" as const, id: A, relation: "worships" }];
     const resolved = resolveAskLinks("npc", links, new Map([[`npc:${A}`, "Brenna"]]));
     expect(resolved).toMatchObject([{ kind: "npc", id: A, name: "Brenna", choice: { key: "mentor_of", subjectIsFrom: false } }]);
-    expect(askLinkLines(resolved)).toEqual([{ label: "Apprentice of", value: "Brenna", credits: null }]);
+    const key = `link:npc:${A}:mentor_of:false`;
+    expect(askLinkLines(resolved)).toEqual([{ label: "Apprentice of", value: "Brenna", credits: null, choice: { key, on: true } }]);
+  });
+
+  // Bug caught: a tie the DM set to no still written, or one they never touched dropped.
+  it("starts each tie at yes and keeps only the ties left at yes", () => {
+    const resolved = resolveAskLinks("npc", [{ kind: "npc", id: A, relation: "apprentice_of" }], new Map([[`npc:${A}`, "Brenna"]]));
+    const key = `link:npc:${A}:mentor_of:false`;
+    expect(chosenAskLinks(resolved)).toHaveLength(1);
+    expect(chosenAskLinks(resolved, { [key]: false })).toEqual([]);
+    expect(askLinkLines(resolved, { [key]: false })[0].choice).toEqual({ key, on: false });
   });
 });

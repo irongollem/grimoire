@@ -36,6 +36,8 @@ export interface GenerateLocationOutcome {
   name: string | null;
   /** `none` when no scene was asked for, `failed` when asked for and not painted (the place is saved either way). */
   picture: "none" | "saved" | "failed";
+  /** The saved picture's URL when `picture` is "saved", so a caller can show it (Ask's result card). */
+  pictureUrl: string | null;
   map: "none" | "saved" | "failed";
   /** One sentence per tie that could not be written; the place is saved either way. */
   linkErrors: string[];
@@ -50,7 +52,7 @@ export function useGenerateLocation() {
 
   async function generateAndCreateLocation(concept: string, options: GenerateLocationOptions = {}): Promise<GenerateLocationOutcome> {
     if (isAnyAiGenerating.value) {
-      return { id: null, error: "Another AI generation is already in progress.", name: null, picture: "none", map: "none", linkErrors: [] };
+      return { id: null, error: "Another AI generation is already in progress.", name: null, picture: "none", pictureUrl: null, map: "none", linkErrors: [] };
     }
     // The campaign the run started in: a run that outlives the DM's navigation still ties into it.
     const campaignId = campaign.activeCampaignId;
@@ -63,7 +65,7 @@ export function useGenerateLocation() {
       generateImage: options.generateImage,
       generateMap: options.generateMap,
     });
-    if (!result) return { id: null, error: genError.value ?? "Location generation failed.", name: null, picture: "none", map: "none", linkErrors: [] };
+    if (!result) return { id: null, error: genError.value ?? "Location generation failed.", name: null, picture: "none", pictureUrl: null, map: "none", linkErrors: [] };
 
     const location = await createLocation({
       name:                  result.name,
@@ -109,6 +111,7 @@ export function useGenerateLocation() {
       error: null,
       name: result.name,
       picture: !sceneAsked ? "none" : result.image_url ? "saved" : "failed",
+      pictureUrl: result.image_url ?? null,
       map: !options.generateMap ? "none" : result.map_url ? "saved" : "failed",
       linkErrors,
     };

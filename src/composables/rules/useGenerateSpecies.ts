@@ -14,6 +14,8 @@ export interface GenerateSpeciesOutcome {
   error: string | null;
   /** `failed` when a picture was asked for and not painted: the species is saved either way. */
   picture: "none" | "saved" | "failed";
+  /** The saved picture's URL when `picture` is "saved", so a caller can show it (Ask's result card). */
+  pictureUrl: string | null;
 }
 
 export function useGenerateSpecies() {
@@ -22,15 +24,15 @@ export function useGenerateSpecies() {
 
   async function generateAndCreateSpecies(concept: string, options: SpeciesGenerationOptions): Promise<GenerateSpeciesOutcome> {
     if (isAnyAiGenerating.value) {
-      return { id: null, name: null, error: "Another AI generation is already in progress.", picture: "none" };
+      return { id: null, name: null, error: "Another AI generation is already in progress.", picture: "none", pictureUrl: null };
     }
     generation.concept.value = concept;
     generation.clearCompleted();
     const draft = await generation.generate(concept, options);
-    if (!draft) return { id: null, name: null, error: generation.error.value ?? "Species generation failed.", picture: "none" };
+    if (!draft) return { id: null, name: null, error: generation.error.value ?? "Species generation failed.", picture: "none", pictureUrl: null };
     const created = await createSpecies(draft);
     const asked = options.generateImage !== false;
-    return { id: created.id, name: draft.name, error: null, picture: !asked ? "none" : draft.image_url ? "saved" : "failed" };
+    return { id: created.id, name: draft.name, error: null, picture: !asked ? "none" : draft.image_url ? "saved" : "failed", pictureUrl: draft.image_url ?? null };
   }
 
   return { generation, generateAndCreateSpecies };

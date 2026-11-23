@@ -94,4 +94,12 @@ describe("useDungeonFeatureAskAdapter", () => {
     mocks.generateAndCreate.mockRejectedValueOnce(new Error("save failed"));
     expect((await useDungeonFeatureAskAdapter().run(proposal())).parts[0]).toMatchObject({ ok: false, error: "save failed" });
   });
+
+  // Bug caught: a painted feature was saved but never reached the result card, so the DM could not see it in the chat.
+  it("puts a saved picture's URL on the result so the chat can show it, and leaves it unset when the picture failed", async () => {
+    mocks.generateAndCreate.mockResolvedValueOnce(saved({ picture: "saved", pictureUrl: "https://img/feature.webp" }));
+    expect((await useDungeonFeatureAskAdapter().run(proposal({ image: true }))).picture).toBe("https://img/feature.webp");
+    mocks.generateAndCreate.mockResolvedValueOnce(saved({ picture: "failed", pictureUrl: null }));
+    expect((await useDungeonFeatureAskAdapter().run(proposal({ image: true }))).picture).toBeUndefined();
+  });
 });

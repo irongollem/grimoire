@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(11);
 
 -- Ask Grimoire (#1253): a routed turn is free only when the DM ran the generator. settle_ask_routes confirms a route
 -- against a generation charged after it (one route per charge) and meters every other one by its tokens.
@@ -21,16 +21,16 @@ values ('12530000-0000-4000-8000-0000000001a1', (now() at time zone 'utc')::date
 -- Two routes, oldest first, both before the one charged generation.
 insert into public.ask_pending_routes (proposal_id, user_id, session_id, credits, created_at)
 values
-  ('12530000-0000-4000-8000-0000000001d1', '12530000-0000-4000-8000-0000000001a1', '12530000-0000-4000-8000-0000000001c1', 0.7, now() - interval '3 minutes'),
-  ('12530000-0000-4000-8000-0000000001d2', '12530000-0000-4000-8000-0000000001a1', '12530000-0000-4000-8000-0000000001c1', 0.6, now() - interval '2 minutes');
+  ('12530000-0000-4000-8000-0000000001d1', '12530000-0000-4000-8000-0000000001a1', '12530000-0000-4000-8000-0000000001c1', 0.7, now() - interval '30 minutes'),
+  ('12530000-0000-4000-8000-0000000001d2', '12530000-0000-4000-8000-0000000001a1', '12530000-0000-4000-8000-0000000001c1', 0.6, now() - interval '20 minutes');
 insert into public.ai_credit_ledger (id, user_id, delta, reason, created_at)
 values
   -- A free line, an Ask line, and another account's spend never confirm.
-  ('12530000-0000-4000-8000-0000000001e0', '12530000-0000-4000-8000-0000000001a1', 0, 'npc_text', now() - interval '150 seconds'),
-  ('12530000-0000-4000-8000-0000000001e9', '12530000-0000-4000-8000-0000000001a1', -1, 'ask_answer', now() - interval '150 seconds'),
-  ('12530000-0000-4000-8000-0000000001e2', '12530000-0000-4000-8000-0000000001a2', -1, 'npc_text', now() - interval '150 seconds'),
+  ('12530000-0000-4000-8000-0000000001e0', '12530000-0000-4000-8000-0000000001a1', 0, 'npc_text', now() - interval '25 minutes'),
+  ('12530000-0000-4000-8000-0000000001e9', '12530000-0000-4000-8000-0000000001a1', -1, 'ask_answer', now() - interval '25 minutes'),
+  ('12530000-0000-4000-8000-0000000001e2', '12530000-0000-4000-8000-0000000001a2', -1, 'npc_text', now() - interval '25 minutes'),
   -- The one real generation, after d1 and d2.
-  ('12530000-0000-4000-8000-0000000001e1', '12530000-0000-4000-8000-0000000001a1', -1, 'npc_text', now() - interval '90 seconds');
+  ('12530000-0000-4000-8000-0000000001e1', '12530000-0000-4000-8000-0000000001a1', -1, 'npc_text', now() - interval '25 minutes');
 
 -- A signed-in account cannot settle (or so dodge) anything.
 set local role authenticated;
@@ -71,10 +71,21 @@ select isnt_empty(
   'a confirmed route is kept as the record of what confirmed it'
 );
 
--- A new route after every generation: nothing confirms it, and with the carry at 0.6 its 0.5 takes the meter past
--- one whole credit.
+-- A route made a minute ago with nothing charged yet: its generator may still be painting, so it is left open, not
+-- metered.
 insert into public.ask_pending_routes (proposal_id, user_id, session_id, credits, created_at)
-values ('12530000-0000-4000-8000-0000000001d3', '12530000-0000-4000-8000-0000000001a1', '12530000-0000-4000-8000-0000000001c1', 0.5, now());
+values ('12530000-0000-4000-8000-0000000001d3', '12530000-0000-4000-8000-0000000001a1', '12530000-0000-4000-8000-0000000001c1', 0.5, now() - interval '1 minute');
+select is(
+  (select credits from public.settle_ask_routes('12530000-0000-4000-8000-0000000001a1', 5)),
+  0, 'a route whose generator may still be running is not metered'
+);
+select isnt_empty(
+  $$ select 1 from public.ask_pending_routes where proposal_id = '12530000-0000-4000-8000-0000000001d3' and confirmed_at is null $$,
+  'it stays open for a later turn'
+);
+
+-- Past the window, nothing confirmed it, and with the carry at 0.6 its 0.5 takes the meter past one whole credit.
+update public.ask_pending_routes set created_at = now() - interval '11 minutes' where proposal_id = '12530000-0000-4000-8000-0000000001d3';
 select is(
   (select credits from public.settle_ask_routes('12530000-0000-4000-8000-0000000001a1', 5)),
   1, 'unconfirmed routes add up on the meter: 0.6 and 0.5 charge one credit'

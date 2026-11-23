@@ -1,6 +1,6 @@
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import NpcGeneratorPanel from "./NpcGeneratorPanel.vue";
 import NpcGeneratorForm from "./NpcGeneratorForm.vue";
 import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
@@ -21,6 +21,8 @@ const fixtures = vi.hoisted(() => ({
   pcs: [] as { id: string; name: string; born_year: number | null }[],
   locations: [] as { id: string; name: string; player_summary: string }[],
   query: {} as Record<string, string>,
+  /** The campaign's kin links, as rows. */
+  kinLinks: [] as { id: string; kind: string; from_npc_id: string | null; from_party_member_id: string | null; to_npc_id: string | null; to_party_member_id: string | null }[],
 }));
 
 // The campaign's AI toggle, mutable per test (#thisspec: "AI for every plan
@@ -43,7 +45,7 @@ vi.mock("vue-router", async (importOriginal) => ({
 }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref(fixtures.pcs) }) }));
 vi.mock("@/composables/kinship/useKinLinks", () => ({
-  useKinLinks: () => ({ data: ref([]) }),
+  useKinLinks: () => ({ data: ref(fixtures.kinLinks) }),
   useCreateKinLink: () => ({ mutateAsync: mocks.createKin }),
   useCreateKinLinkInCampaign: () => ({ mutateAsync: mocks.createKin }),
 }));
@@ -309,6 +311,66 @@ describe("NpcGeneratorPanel — family tie from the Add relative link", () => {
       ["parent", brenna, "wren"],
       ["parent", corwin, "wren"],
     ]);
+  });
+});
+
+describe("NpcGeneratorPanel: the rest of the family is offered, never assumed", () => {
+  const tam = "00000000-0000-4000-8000-0000000000b1";
+  const nella = "00000000-0000-4000-8000-0000000000b2";
+  const odo = "00000000-0000-4000-8000-0000000000b3";
+
+  beforeEach(() => {
+    mocks.createNpc.mockReset();
+    mocks.createKin.mockReset();
+    campaignState.isAiEnabled = true;
+    canCreateNpc.value = true;
+    fixtures.npcs = [{ id: tam, name: "Tam", born_year: 1480 }, { id: nella, name: "Nella", born_year: 1478 }, { id: odo, name: "Odo", born_year: 1450 }];
+    fixtures.pcs = [];
+    // Odo is the parent of Tam and of Nella; the new NPC is made a parent of Tam.
+    fixtures.kinLinks = [
+      { id: "k1", kind: "parent", from_npc_id: odo, from_party_member_id: null, to_npc_id: tam, to_party_member_id: null },
+      { id: "k2", kind: "parent", from_npc_id: odo, from_party_member_id: null, to_npc_id: nella, to_party_member_id: null },
+    ];
+    fixtures.query = { kin: "parent", of: `npc:${tam}` };
+    mocks.createNpc.mockResolvedValue({ id: "mara" });
+  });
+  afterEach(() => {
+    fixtures.kinLinks = [];
+    fixtures.query = {};
+  });
+
+  async function quickCreate(wrapper: ReturnType<typeof mountPanel>) {
+    await wrapper.findAll("button").find((b) => b.text().includes("Quick Create NPC"))!.trigger("click");
+    await flushPromises();
+    return mocks.createKin.mock.calls.map(([row]) => [row.input.kind, row.input.from_npc_id, row.input.to_npc_id]);
+  }
+
+  // Bug caught: a new parent silently made the parent of every sibling, half-siblings included.
+  it("offers the relative's sibling unticked, and writes only the named tie until it is ticked", async () => {
+    const wrapper = mountPanel();
+    await flushPromises();
+    const offer = wrapper.get('[data-testid="npc-kin-offers"]');
+    expect(offer.text()).toContain("Parent of Nella");
+    expect((offer.get("input").element as HTMLInputElement).checked).toBe(false);
+    expect(await quickCreate(wrapper)).toEqual([["parent", "mara", tam]]);
+  });
+
+  it("writes the sibling too once the DM ticks them", async () => {
+    const wrapper = mountPanel();
+    await flushPromises();
+    await wrapper.get('[data-testid="npc-kin-offers"] input').setValue(true);
+    expect(await quickCreate(wrapper)).toEqual([["parent", "mara", tam], ["parent", "mara", nella]]);
+  });
+
+  // Bug caught: a tick left behind when the DM changes the tie, written behind their back.
+  it("drops a tick that is no longer offered", async () => {
+    const wrapper = mountPanel();
+    await flushPromises();
+    await wrapper.get('[data-testid="npc-kin-offers"] input').setValue(true);
+    const form = wrapper.findComponent(NpcGeneratorForm);
+    form.vm.$emit("update:quickForm", { ...form.props("quickForm"), related_npc_kin: "child" });
+    await flushPromises();
+    expect(form.props("quickForm").also_kin).toEqual([]);
   });
 });
 

@@ -24,10 +24,26 @@
     <template v-else-if="quote">
       <!-- The ledger: what Ask understood, and what each part costs. -->
       <dl class="flex flex-col gap-1 text-body">
-        <div v-for="line in quote.lines" :key="line.label" class="flex items-baseline gap-2">
-          <dt class="text-muted-foreground">{{ line.label }}</dt>
-          <dd class="min-w-0 flex-1 truncate">{{ line.value }}</dd>
-          <dd v-if="line.credits !== null" class="shrink-0 tabular-nums">{{ line.credits }}</dd>
+        <div v-for="line in quote.lines" :key="line.choice?.key ?? line.label" class="flex items-baseline gap-2">
+          <!-- A line that changes a record that already exists is the DM's yes or no; it is written only while ticked. -->
+          <template v-if="line.choice">
+            <dt class="min-w-0 flex-1">
+              <AppCheckbox
+                :model-value="line.choice.on"
+                size="sm"
+                data-testid="ask-line-choice"
+                @update:model-value="emit('decide', line.choice.key, $event === true)"
+              >
+                <span class="text-muted-foreground">{{ line.label }}</span>
+                <span :class="['ml-2', line.choice.on ? '' : 'text-muted-foreground line-through']">{{ line.value }}</span>
+              </AppCheckbox>
+            </dt>
+          </template>
+          <template v-else>
+            <dt class="text-muted-foreground">{{ line.label }}</dt>
+            <dd class="min-w-0 flex-1 truncate">{{ line.value }}</dd>
+            <dd v-if="line.credits !== null" class="shrink-0 tabular-nums">{{ line.credits }}</dd>
+          </template>
         </div>
       </dl>
       <div class="flex items-baseline justify-between border-t border-foreground/60 pt-1 text-body font-semibold" data-testid="ask-total">
@@ -79,12 +95,20 @@ import { askGeneratorPage } from "@/composables/ask/askRecordRoute";
 import type { AskItem } from "@/composables/ask/useAskConversation";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AskAdjust from "@/components/ask/AskAdjust.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 
 const { item, adapters } = defineProps<{
   item: Extract<AskItem, { kind: "proposal" }>;
   adapters: AskAdapters;
 }>();
-const emit = defineEmits<{ confirm: []; cancel: []; adjust: [inputs: Record<string, unknown>]; credits: [needed: number]; upgrade: [] }>();
+const emit = defineEmits<{
+  confirm: [];
+  cancel: [];
+  adjust: [inputs: Record<string, unknown>];
+  decide: [key: string, on: boolean];
+  credits: [needed: number];
+  upgrade: [];
+}>();
 
 const router = useRouter();
 const adjusting = ref(false);
@@ -94,7 +118,7 @@ const adapter = computed(() => adapters.adapterFor(item.proposal.generator));
 const screen = computed(() => adapters.screenFor(item.proposal.generator));
 const pageRoute = computed(() => askGeneratorPage(item.proposal.generator));
 // Re-read whenever the proposal's inputs change: Adjust re-quotes by being the thing this reads.
-const quote = computed(() => adapter.value?.quote(item.proposal) ?? null);
+const quote = computed(() => adapter.value?.quote(item.proposal, item.choices) ?? null);
 
 const working = computed(() => item.state === "running");
 /** The provider, and so the price, is not known yet: the button waits and never guesses. */

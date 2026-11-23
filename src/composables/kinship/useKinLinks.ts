@@ -8,8 +8,11 @@ import type { KinLink, KinLinkInsert, KinLinkUpdate } from "@/types/kinship.type
 // Defined beside the live-sync registry, which cannot import from composables.
 export { KIN_LINKS_KEY };
 
-/** Every kin link of the active campaign; the tree, the House lineage and the sorting review all read from this one list. */
-export function useKinLinks() {
+/**
+ * Every kin link of the active campaign; the tree, the House lineage and the sorting review all read from this one list.
+ * `enabled` lets a reader that is always mounted (Ask's NPC adapter) read it only once it needs it.
+ */
+export function useKinLinks(enabled?: () => boolean) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
@@ -24,7 +27,7 @@ export function useKinLinks() {
       if (error) throw error;
       return data as KinLink[];
     },
-    enabled: computed(() => !!campaignId.value),
+    enabled: computed(() => !!campaignId.value && (enabled === undefined || enabled())),
   });
 }
 

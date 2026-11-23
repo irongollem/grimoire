@@ -94,4 +94,12 @@ describe("useSpellAskAdapter", () => {
     mocks.generateAndCreateSpell.mockRejectedValueOnce(new Error("save failed"));
     expect((await useSpellAskAdapter().run(proposal())).parts[0]).toMatchObject({ ok: false, error: "save failed" });
   });
+
+  // Bug caught: a painted spell was saved but never reached the result card, so the DM could not see it in the chat.
+  it("puts a saved picture's URL on the result so the chat can show it, and leaves it unset when the picture failed", async () => {
+    mocks.generateAndCreateSpell.mockResolvedValueOnce(saved({ picture: "saved", pictureUrl: "https://img/spell.webp" }));
+    expect((await useSpellAskAdapter().run(proposal({ image: true }))).picture).toBe("https://img/spell.webp");
+    mocks.generateAndCreateSpell.mockResolvedValueOnce(saved({ picture: "failed", pictureUrl: null }));
+    expect((await useSpellAskAdapter().run(proposal({ image: true }))).picture).toBeUndefined();
+  });
 });

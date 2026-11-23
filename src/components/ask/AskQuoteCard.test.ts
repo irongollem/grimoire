@@ -22,7 +22,7 @@ function adapters(quote: AskQuote | null, screen = false): AskAdapters {
 
 function card(quote: AskQuote | null, over: { state?: "quote" | "running" | "cancelled"; screen?: boolean } = {}) {
   return mount(AskQuoteCard, {
-    props: { item: { kind: "proposal", id: 1, proposal, state: over.state ?? "quote" }, adapters: adapters(quote, over.screen) },
+    props: { item: { kind: "proposal", id: 1, proposal, state: over.state ?? "quote", choices: {} }, adapters: adapters(quote, over.screen) },
     global: { stubs: { RouterLink: true } },
   });
 }
@@ -44,6 +44,20 @@ describe("AskQuoteCard", () => {
     expect(button.attributes("disabled")).toBeDefined();
     await button.trigger("click");
     expect(w.emitted("confirm")).toBeUndefined();
+  });
+
+  // Bug caught: a tie to an existing record written with no way for the DM to say no.
+  it("draws a line that changes an existing record as a checkbox, and says the DM's answer", async () => {
+    const w = card({ ...ready, lines: [
+      { label: "Parent of", value: "Tam", credits: null, choice: { key: "related", on: true } },
+      { label: "Also parent of", value: "Nella", credits: null, choice: { key: "kin:parent:npc:n", on: false } },
+      { label: "NPC", value: "a baker", credits: 4 },
+    ] });
+    const boxes = w.findAll<HTMLInputElement>('input[data-testid="ask-line-choice"]');
+    expect(boxes.map((b) => b.element.checked)).toEqual([true, false]);
+    await boxes[1].setValue(true);
+    await boxes[0].setValue(false);
+    expect(w.emitted("decide")).toEqual([["kin:parent:npc:n", true], ["related", false]]);
   });
 
   // Bug caught: a one-credit price read "1 credits" on the button and the total.

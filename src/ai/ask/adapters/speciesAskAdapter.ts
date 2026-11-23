@@ -71,7 +71,7 @@ export function useSpeciesAskAdapter(): AskAdapter {
         ? { label: "Picture", ok: true, credits: spent(current.lines.find((l) => l.label === "Picture")) }
         : picturePart({ saved: false, credits: 0, noun: "species" }));
     }
-    return { record: { type: "other", id: outcome.id, name: outcome.name }, route: `/species/${outcome.id}`, parts };
+    return { record: { type: "other", id: outcome.id, name: outcome.name }, route: `/species/${outcome.id}`, parts, picture: outcome.picture === "saved" && outcome.pictureUrl !== null ? outcome.pictureUrl : undefined };
   }
 
   return { id: "species", quote, run };

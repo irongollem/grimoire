@@ -12,6 +12,11 @@
 --     left today, else the exact credits on the meter, whole credits charged and the fraction carried). So six
 --     unconfirmed proposals that came to 1.6 credits cost one credit, not six.
 --
+-- A route not yet confirmed is left open for ten minutes rather than metered. A generation is written to the ledger
+-- only when it finishes, and the DM may keep talking to Ask while it runs (a portrait takes a minute), so a turn sent
+-- meanwhile must not meter the route of a generator that is still painting. This defers nothing a DM can exploit:
+-- routes were only ever settled at the DM's next turn, and a route older than the window is settled at the next one.
+--
 -- The check is the server's, against the ledger, at settlement: nothing a browser sends can mark a route confirmed,
 -- and a generator the DM ran from its own screen (the Quest Designer, a map style) confirms it as well.
 
@@ -80,6 +85,9 @@ begin
 
     if v_ledger is not null then
       update public.ask_pending_routes r set confirmed_at = now(), confirmed_by = v_ledger where r.proposal_id = v_route.proposal_id;
+    elsif v_route.created_at > now() - interval '10 minutes' then
+      -- Its generator may still be running: settle it at a later turn.
+      continue;
     else
       select * into v_charge from public.charge_ask_answer(p_user_id, v_route.credits, p_free_per_day);
       v_owed := v_owed + v_charge.credits;

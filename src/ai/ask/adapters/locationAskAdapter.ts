@@ -18,10 +18,10 @@
  */
 import { computed, ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
-import type { AskAdapter, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
+import type { AskAdapter, AskChoices, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
 import { askFlag, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
-import { askLinkLines, conceptBlock, failedRun, matchKey, picturePart, readAskLinks, resolveAskLinks, spent } from "@/ai/ask/adapters/askAdapterKit";
+import { askChoice, askLinkLines, chosenAskLinks, conceptBlock, failedRun, matchKey, picturePart, readAskLinks, resolveAskLinks, spent } from "@/ai/ask/adapters/askAdapterKit";
 import { useAskLinkRecords } from "@/ai/ask/adapters/askLinkRecords";
 import type { AskLink } from "@edge-shared/agent/askLinks";
 import { useCampaignStore } from "@/stores/campaign";
@@ -84,15 +84,19 @@ export function useLocationAskAdapter(): AskAdapter {
     };
   }
 
-  function quote(proposal: AskProposal): AskQuote {
+  function quote(proposal: AskProposal, choices?: AskChoices): AskQuote {
     const read = understand(proposal);
     const priced = quoteLocation({ image: read.image, map: false });
 
+    // Where it sits and who keeps it are ties to records that already exist, each a yes or no.
+    const parentChoice = askChoice(choices, "parent_id", true);
+    const keeperChoice = askChoice(choices, "keeper_npc_id", true);
+
     const lines: AskQuoteLine[] = [];
     if (read.locationType) lines.push({ label: "Kind", value: LOCATION_TYPE_LABELS[read.locationType], credits: null });
-    if (read.parent) lines.push({ label: "Inside", value: read.parent.name, credits: null });
-    if (read.keeper) lines.push({ label: "Kept by", value: read.keeper.name, credits: null });
-    lines.push(...askLinkLines(read.links));
+    if (read.parent) lines.push({ label: "Inside", value: read.parent.name, credits: null, choice: parentChoice });
+    if (read.keeper) lines.push({ label: "Kept by", value: read.keeper.name, credits: null, choice: keeperChoice });
+    lines.push(...askLinkLines(read.links, choices));
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
@@ -106,22 +110,25 @@ export function useLocationAskAdapter(): AskAdapter {
     return { lines, total: priced.total, byok: priced.byok, block };
   }
 
-  async function run(proposal: AskProposal): Promise<AskRunResult> {
+  async function run(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult> {
     // The state may have moved since the DM read the quote: the same gates, again, before anything is spent.
-    const current = quote(proposal);
+    const current = quote(proposal, choices);
     if (current.block) return failedRun("Place", current.block.message);
     const read = understand(proposal);
+    // A tie at no is written as if the proposal had not named it.
+    const parent = askChoice(choices, "parent_id", true).on ? read.parent : null;
+    const keeper = askChoice(choices, "keeper_npc_id", true).on ? read.keeper : null;
 
     let outcome;
     try {
       outcome = await generateAndCreateLocation(read.concept, {
         locationType: read.locationType ?? undefined,
-        parent: read.parent,
-        keeperNpcId: read.keeper?.id ?? null,
+        parent,
+        keeperNpcId: keeper?.id ?? null,
         // Explicit either way: left out, the generator paints a scene. The map sketch is not Ask's to spend on.
         generateImage: read.image,
         generateMap: false,
-        links: read.links,
+        links: chosenAskLinks(read.links, choices),
       });
     } catch (e) {
       const message = isQuotaExceeded(e)
@@ -144,7 +151,7 @@ export function useLocationAskAdapter(): AskAdapter {
     if (outcome.linkErrors.length) {
       parts.push({ label: "Connections", ok: false, credits: 0, error: `Some connections could not be added: ${outcome.linkErrors.join("; ")}` });
     }
-    return { record: { type: "location", id, name: outcome.name }, route: placeRoute(id), parts };
+    return { record: { type: "location", id, name: outcome.name }, route: placeRoute(id), parts, picture: outcome.picture === "saved" && outcome.pictureUrl !== null ? outcome.pictureUrl : undefined };
   }
 
   return { id: "location", quote, run };

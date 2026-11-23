@@ -27,6 +27,8 @@ export interface GenerateItemOutcome {
   name: string | null;
   /** `none` when no picture was asked for, `failed` when asked for and not painted (the item is saved either way). */
   picture: "none" | "saved" | "failed";
+  /** The saved picture's URL when `picture` is "saved", so a caller can show it (Ask's result card). */
+  pictureUrl: string | null;
   /** One sentence per tie that could not be written; the item is saved either way. */
   linkErrors: string[];
 }
@@ -41,21 +43,21 @@ export function useGenerateItem() {
     // Checked up front: `generate` bails silently on the same flag without touching its error, so reading `genError`
     // afterwards could report an unrelated earlier failure.
     if (isAnyAiGenerating.value) {
-      return { id: null, error: "Another AI generation is already in progress.", name: null, picture: "none", linkErrors: [] };
+      return { id: null, error: "Another AI generation is already in progress.", name: null, picture: "none", pictureUrl: null, linkErrors: [] };
     }
     const campaignId = campaign.activeCampaignId;
     const { links = [], ...generation } = options;
     // The ties go to the model in the prompt, so the item it writes agrees with them.
     const ties = linksContextLine(links);
     const result = await generate(ties ? `${concept}\n\n${ties}` : concept, generation);
-    if (!result) return { id: null, error: genError.value ?? "Item generation failed.", name: null, picture: "none", linkErrors: [] };
+    if (!result) return { id: null, error: genError.value ?? "Item generation failed.", name: null, picture: "none", pictureUrl: null, linkErrors: [] };
 
     const created = await createItem(generatedItemPayload(result, campaignId));
     const linkErrors = campaignId
       ? await applyGeneratorLinks({ kind: "item", id: created.id }, links, campaignId)
       : links.map((link) => `${link.name}: no campaign is open`);
     const asked = options.generateImage !== false;
-    return { id: created.id, error: null, name: result.name, picture: !asked ? "none" : result.image_url ? "saved" : "failed", linkErrors };
+    return { id: created.id, error: null, name: result.name, picture: !asked ? "none" : result.image_url ? "saved" : "failed", pictureUrl: result.image_url ?? null, linkErrors };
   }
 
   return { generateAndCreateItem };

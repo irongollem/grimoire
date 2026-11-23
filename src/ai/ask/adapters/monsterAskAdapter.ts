@@ -93,7 +93,7 @@ export function useMonsterAskAdapter(): AskAdapter {
         retry: { credits: missing.cost.value, paint: () => missing.paint(id, `${name}. ${read.concept}`), error: () => missing.error.value },
       }));
     }
-    return { record: { type: "monster", id, name }, route: `/monsters/${id}`, parts };
+    return { record: { type: "monster", id, name }, route: `/monsters/${id}`, parts, picture: outcome.picture === "saved" && outcome.pictureUrl !== null ? outcome.pictureUrl : undefined };
   }
 
   return { id: "monster", quote, run };

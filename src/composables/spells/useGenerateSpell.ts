@@ -18,6 +18,8 @@ export interface GenerateSpellOutcome {
   name: string | null;
   /** `none` when no picture was asked for, `failed` when asked for and not painted (the spell is saved either way). */
   picture: "none" | "saved" | "failed";
+  /** The saved picture's URL when `picture` is "saved", so a caller can show it (Ask's result card). */
+  pictureUrl: string | null;
 }
 
 export function useGenerateSpell() {
@@ -27,10 +29,10 @@ export function useGenerateSpell() {
 
   async function generateAndCreateSpell(concept: string, options: SpellGenerationOptions = {}): Promise<GenerateSpellOutcome> {
     if (isAnyAiGenerating.value) {
-      return { id: null, error: "Another AI generation is already in progress.", name: null, picture: "none" };
+      return { id: null, error: "Another AI generation is already in progress.", name: null, picture: "none", pictureUrl: null };
     }
     const result = await generate(concept, options);
-    if (!result) return { id: null, error: genError.value ?? "Spell generation failed.", name: null, picture: "none" };
+    if (!result) return { id: null, error: genError.value ?? "Spell generation failed.", name: null, picture: "none", pictureUrl: null };
 
     const insert = spellInsertFromAi(result);
     const created = await createSpell({
@@ -41,7 +43,7 @@ export function useGenerateSpell() {
       campaign_id: campaign.activeCampaignId ?? null,
     });
     const asked = options.generateImage !== false;
-    return { id: created.id, error: null, name: insert.name, picture: !asked ? "none" : result.image_url ? "saved" : "failed" };
+    return { id: created.id, error: null, name: insert.name, picture: !asked ? "none" : result.image_url ? "saved" : "failed", pictureUrl: result.image_url ?? null };
   }
 
   return { generateAndCreateSpell };

@@ -235,6 +235,7 @@ const quickForm = reactive<QuickForm>({
   related_npc_kin: null,
   related_pc_id: null,
   second_parent: null,
+  also_kin: [],
   links: [],
 });
 

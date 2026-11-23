@@ -58,6 +58,8 @@ export interface GenerateDeityOutcome {
   /** A user-facing reason for a `null` deity. */
   error: string | null;
   picture: "none" | "saved" | "failed";
+  /** The saved picture's URL when `picture` is "saved", so a caller can show it (Ask's result card). */
+  pictureUrl: string | null;
 }
 
 export function useGenerateDeity() {
@@ -144,13 +146,13 @@ export function useGenerateDeity() {
   /** Generate then save. Checks `isAnyAiGenerating` first: `generate` returns null silently on it. */
   async function generateAndCreateDeity(concept: string, input: DeityGenerateInput): Promise<GenerateDeityOutcome> {
     if (isAnyAiGenerating.value) {
-      return { deity: null, error: "Another AI generation is already in progress.", picture: "none" };
+      return { deity: null, error: "Another AI generation is already in progress.", picture: "none", pictureUrl: null };
     }
     const draft = await generateDeityDraft(concept, input);
-    if (!draft) return { deity: null, error: generation.error.value ?? "Deity generation failed.", picture: "none" };
+    if (!draft) return { deity: null, error: generation.error.value ?? "Deity generation failed.", picture: "none", pictureUrl: null };
     const deity = await saveDeity(draft, concept);
     const picture = !input.generateImage ? "none" : draft.result.portrait_url ? "saved" : "failed";
-    return { deity, error: null, picture };
+    return { deity, error: null, picture, pictureUrl: draft.result.portrait_url ?? null };
   }
 
   return { generation, generateDeityDraft, saveDeity, generateAndCreateDeity };

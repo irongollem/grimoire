@@ -18,7 +18,7 @@ export function useNpcQuote(): (options: NpcQuoteOptions) => GeneratorQuote {
     const lines = [textLine("NPC text", "Written by AI", "npc_text")];
     if (portrait) {
       const count = alterEgo ? 2 : 1;
-      lines.push(artLine("Portrait", count === 2 ? "Portrait and alter ego" : "Portrait", count));
+      lines.push(artLine("Portrait", count === 2 ? "Painted by AI, with the alter ego" : "Painted by AI", count));
     }
     return quoteOf(lines, textIsByok.value && (!portrait || imageIsByok.value));
   };

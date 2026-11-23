@@ -208,7 +208,7 @@ describe("useAskConversation: the quote", () => {
     const { convo, card, run } = await withProposal();
     convo.adjust(card.id, { portrait: true });
     await convo.confirm(card.id);
-    expect(run).toHaveBeenCalledWith(expect.objectContaining({ proposalId: "p1", inputs: { portrait: true } }));
+    expect(run).toHaveBeenCalledWith(expect.objectContaining({ proposalId: "p1", inputs: { portrait: true } }), {});
   });
 
   // Bug caught: the run's end not telling the panel (no notice, no dot) or reporting the wrong price.
@@ -229,6 +229,59 @@ describe("useAskConversation: the quote", () => {
     await pending;
     expect(convo.items.value).toEqual([]);
     expect(onFinished).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useAskConversation: yes or no, and a run that never holds the conversation", () => {
+  // Bug caught: a tie the DM unticked still written, because the answer never reached the run.
+  it("hands the DM's answers to the quote and the run, as they stood at the press", async () => {
+    const { convo, card, run } = await withProposal();
+    convo.decide(card.id, "location", false);
+    const pending = convo.confirm(card.id);
+    // A change after the press cannot reach the run already under way.
+    convo.decide(card.id, "location", true);
+    await pending;
+    expect(run).toHaveBeenCalledWith(expect.objectContaining({ proposalId: "p1" }), { location: false });
+  });
+
+  // Bug caught: an answer changed on a card that has already run or been cancelled.
+  it("takes no answer once the quote is no longer a quote", async () => {
+    const { convo, card } = await withProposal();
+    convo.cancel(card.id);
+    convo.decide(card.id, "location", false);
+    expect(card).toMatchObject({ choices: {} });
+  });
+
+  // Bug caught: the DM unable to ask anything while a portrait paints.
+  it("lets the DM keep talking while a run is under way, and links the card to where the result landed", async () => {
+    let finish: (r: AskRunResult) => void = () => undefined;
+    const { convo, card, transport } = await withProposal({ run: () => new Promise<AskRunResult>((r) => (finish = r)) });
+    const pending = convo.confirm(card.id);
+    expect(card.state).toBe("running");
+    await convo.send("and her brother?");
+    expect(transport).toHaveBeenCalledTimes(2);
+    finish(okResult);
+    await pending;
+    const items = convo.items.value;
+    const landed = items.find((i) => i.id === (card as { landedAt?: number }).landedAt);
+    expect(landed).toMatchObject({ kind: "result", name: "Mara" });
+    // It lands at the bottom, after the question asked meanwhile.
+    expect(items.at(-1)).toBe(landed);
+  });
+
+  // Bug caught: a run that failed outright leaving its card pointing nowhere.
+  it("links a failed run to the error it left at the bottom", async () => {
+    const { convo, card } = await withProposal({ run: async () => { throw new Error("boom"); } });
+    await convo.confirm(card.id);
+    const landedAt = (card as { landedAt?: number }).landedAt;
+    expect(convo.items.value.find((i) => i.id === landedAt)).toMatchObject({ kind: "error" });
+  });
+
+  // Bug caught: the portrait painted for the result never reaching the chat.
+  it("puts the run's picture on its result", async () => {
+    const { convo, card } = await withProposal({ run: async () => ({ ...okResult, picture: "https://img/mara.webp" }) });
+    await convo.confirm(card.id);
+    expect(convo.items.value.find((i) => i.kind === "result")).toMatchObject({ picture: "https://img/mara.webp" });
   });
 });
 

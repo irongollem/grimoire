@@ -96,6 +96,7 @@ const surfaceHandlers = {
   confirm: (id: number) => void convo.confirm(id),
   cancel: convo.cancel,
   adjust: convo.adjust,
+  decide: convo.decide,
   retry: (id: number, i: number) => void convo.retryPart(id, i),
   leave: convo.leavePart,
   credits: (needed: number) => openOutOfCredits(needed),

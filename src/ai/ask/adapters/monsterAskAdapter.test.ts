@@ -101,4 +101,12 @@ describe("useMonsterAskAdapter", () => {
     mocks.generateAndCreateMonster.mockRejectedValueOnce(new Error("save failed"));
     expect((await useMonsterAskAdapter().run(proposal())).parts[0]).toMatchObject({ ok: false, error: "save failed" });
   });
+
+  // Bug caught: a painted monster was saved but never reached the result card, so the DM could not see it in the chat.
+  it("puts a saved picture's URL on the result so the chat can show it, and leaves it unset when the picture failed", async () => {
+    mocks.generateAndCreateMonster.mockResolvedValueOnce(saved({ picture: "saved", pictureUrl: "https://img/monster.webp" }));
+    expect((await useMonsterAskAdapter().run(proposal({ image: true }))).picture).toBe("https://img/monster.webp");
+    mocks.generateAndCreateMonster.mockResolvedValueOnce(saved({ picture: "failed", pictureUrl: null }));
+    expect((await useMonsterAskAdapter().run(proposal({ image: true }))).picture).toBeUndefined();
+  });
 });

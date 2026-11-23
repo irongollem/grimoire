@@ -27,7 +27,7 @@ describe("useGenerateSpell", () => {
   it("stamps the active campaign on the spell, which the pure adapter never does", async () => {
     const outcome = await useGenerateSpell().generateAndCreateSpell("moths", { level: 3, generateImage: true });
     expect(mocks.create).toHaveBeenCalledWith({ name: "Moth Storm", campaign_id: "c1" });
-    expect(outcome).toEqual({ id: "s1", error: null, name: "Moth Storm", picture: "saved" });
+    expect(outcome).toEqual({ id: "s1", error: null, name: "Moth Storm", picture: "saved", pictureUrl: "https://img/s.webp" });
   });
 
   it("with no active campaign the spell is genuinely global", async () => {

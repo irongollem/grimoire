@@ -116,4 +116,15 @@ describe("useEncounterAskAdapter", () => {
     state.places = undefined;
     expect(useEncounterAskAdapter().quote(proposal({ location_id: "l1" })).block?.reason).toBe("missing");
   });
+
+  // Bug caught: unticking the place on the quote still anchored the encounter there.
+  it("the place line carries a choice keyed location_id; at no the encounter is unanchored, unanswered it is anchored", async () => {
+    const adapter = useEncounterAskAdapter();
+    expect(adapter.quote(proposal({ location_id: "l1" })).lines.find((l) => l.label === "In")?.choice).toEqual({ key: "location_id", on: true });
+    await adapter.run(proposal({ location_id: "l1" }));
+    expect(mocks.generateAndCreate.mock.calls[0][1]).toMatchObject({ locationId: "l1" });
+    expect(adapter.quote(proposal({ location_id: "l1" }), { location_id: false }).lines.find((l) => l.label === "In")?.choice?.on).toBe(false);
+    await adapter.run(proposal({ location_id: "l1" }), { location_id: false });
+    expect(mocks.generateAndCreate.mock.calls[1][1]).toMatchObject({ locationId: null });
+  });
 });

@@ -11,6 +11,7 @@ import AskUpsell from "./AskUpsell.vue";
 import AskComposer from "./AskComposer.vue";
 import AskResultNotice from "./AskResultNotice.vue";
 import AskIdeas from "./AskIdeas.vue";
+import AskPending from "./AskPending.vue";
 
 const stubs = { RouterLink: { template: "<a><slot /></a>" } };
 
@@ -89,10 +90,40 @@ describe("AskResultCard", () => {
     expect(order).toEqual(["push /quests", "open"]);
   });
 
+  // Bug caught: the portrait a run painted never shown in the chat.
+  it("shows the run's picture, and a repainted part's picture in its place", async () => {
+    const w = mount(AskResultCard, { props: { item: item({ picture: "https://img/first.webp" }) }, global: { stubs: { ...stubs, AiImageBadge: true } } });
+    expect(w.get('[data-testid="ask-result-picture"]').attributes("src")).toBe("https://img/first.webp");
+    // Marked as AI like every other picture (#611): the badge looks the picture up by its URL.
+    expect(w.findComponent({ name: "AiImageBadge" }).props("src")).toBe("https://img/first.webp");
+    await w.setProps({ item: item({ picture: "https://img/first.webp", parts: [{ label: "Portrait", ok: true, credits: 3, picture: "https://img/again.webp" }] }) });
+    expect(w.get('[data-testid="ask-result-picture"]').attributes("src")).toBe("https://img/again.webp");
+    await w.setProps({ item: item() });
+    expect(w.find('[data-testid="ask-result-picture"]').exists()).toBe(false);
+  });
+
   // Bug caught: a review generator opening "Open NPC" instead of the page's own review.
   it("says Review suggestions for a review generator", () => {
     const w = mount(AskResultCard, { props: { item: item({ review: true, noun: "quest" }) }, global: { stubs } });
     expect(w.text()).toContain("Review suggestions");
+  });
+});
+
+describe("AskPending", () => {
+  // Bug caught: a creation under way looking finished, or a finished one leaving no way down to its result.
+  it("shows the flag while running, then a link to where it landed", async () => {
+    const w = mount(AskPending, { props: { state: "running", action: "Create NPC" } });
+    expect(w.get('[data-testid="ask-pending"]').text()).toContain("Create NPC");
+    expect(w.find('[data-testid="ask-landed-jump"]').exists()).toBe(false);
+    await w.setProps({ state: "done", landedAt: 7, landedName: "Mara" });
+    expect(w.text()).toContain("Mara is ready.");
+    await w.get('[data-testid="ask-landed-jump"]').trigger("click");
+    expect(w.emitted("jump")).toEqual([[7]]);
+  });
+
+  it("says a failed run did not finish", () => {
+    const w = mount(AskPending, { props: { state: "failed", action: "Create NPC", landedAt: 3 } });
+    expect(w.text()).toContain("Create NPC did not finish.");
   });
 });
 

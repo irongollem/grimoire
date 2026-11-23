@@ -6,7 +6,7 @@
  * that decides what the model's free text means, why a save threw, and the part a failed picture leaves behind.
  * Not an adapter: the registry finds adapters by the `*AskAdapter.ts` name, which this file does not have.
  */
-import type { AskQuoteBlock, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
+import type { AskChoices, AskQuoteBlock, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
 import { ASK_GENERATORS, type AskInputSchema } from "@edge-shared/agent/askContract";
 import { LINKS_MAX, choiceForRelation, isLinkKind, relationWord, type AskLink } from "@edge-shared/agent/askLinks";
 import type { GeneratorLink } from "@/lib/worldLinks/generatorLinks";
@@ -99,7 +99,7 @@ export function picturePart(args: {
       run: async (): Promise<AskRunPart> => {
         const url = await retry.paint();
         return url
-          ? { label, ok: true, credits: retry.credits === null ? args.credits : retry.credits }
+          ? { label, ok: true, credits: retry.credits === null ? args.credits : retry.credits, picture: url }
           : { label, ok: false, credits: 0, error: retry.error() ?? `The ${label.toLowerCase()} could not be painted.` };
       },
     },
@@ -165,11 +165,28 @@ export function resolveAskLinks(generatorId: string, links: readonly AskLink[], 
   return resolved;
 }
 
-/** A quote line per tie: "Worships: Auril". */
-export function askLinkLines(links: readonly GeneratorLink[]): AskQuoteLine[] {
+/** The yes or no in effect for a line: the DM's answer, else `byDefault`. */
+export function askChoice(choices: AskChoices | undefined, key: string, byDefault: boolean): { key: string; on: boolean } {
+  const given = choices?.[key];
+  return { key, on: given === undefined ? byDefault : given };
+}
+
+/** One tie's key on the quote: the record and the catalogue choice, so two ties to one record are two answers. */
+function linkChoiceKey(link: GeneratorLink): string {
+  return `link:${link.kind}:${link.id}:${link.choice.key}:${link.choice.subjectIsFrom}`;
+}
+
+/** A quote line per tie, each a yes or no that starts at yes (the DM asked for it): "Worships: Auril". */
+export function askLinkLines(links: readonly GeneratorLink[], choices?: AskChoices): AskQuoteLine[] {
   return links.map((link) => ({
     label: `${link.choice.word.charAt(0).toUpperCase()}${link.choice.word.slice(1)}`,
     value: link.name,
     credits: null,
+    choice: askChoice(choices, linkChoiceKey(link), true),
   }));
+}
+
+/** The ties the DM left at yes: what the workflow writes and what the model is told about. */
+export function chosenAskLinks(links: readonly GeneratorLink[], choices?: AskChoices): GeneratorLink[] {
+  return links.filter((link) => askChoice(choices, linkChoiceKey(link), true).on);
 }

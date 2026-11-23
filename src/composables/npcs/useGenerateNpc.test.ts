@@ -47,6 +47,7 @@ const form: NpcGenerateForm = {
   name: "", race: "", alignment: "", relationship: "unknown", templateId: "auto",
   location_id: null, faction_id: null, faction_role: "Member", related_npc_id: null,
   related_npc_tie: DEFAULT_ASSOCIATE, related_npc_kin: null, related_pc_id: null, second_parent: null,
+  also_kin: [],
 };
 const request = (over: Partial<GenerateNpcRequest> = {}): GenerateNpcRequest => ({
   concept: "A baker", prompt: "A baker", context: "", generateAlterEgo: false, generateImage: true,
@@ -145,6 +146,31 @@ describe("useGenerateNpc ties an Ask-made NPC into the campaign", () => {
     expect(mocks.createConnection).not.toHaveBeenCalled();
   });
 
+  it("writes each ticked relative as its own kin link, and a person the named tie covers under the named tie", async () => {
+    await useGenerateNpc().generateAndCreateNpc(request({
+      form: {
+        ...form, related_npc_id: "n-tam", related_npc_kin: "parent",
+        also_kin: [{ key: "npc:n-nella", relation: "parent" }, { key: "npc:n-tam", relation: "sibling" }],
+      },
+    }));
+    // "Mara is the parent of Tam and Nella": a stale offer naming Tam again never turns the parent into a sibling.
+    expect(mocks.createKinLink.mock.calls.map(([arg]) => arg.input)).toEqual([
+      kinInsertFor(personKey("npc", "npc-1"), "parent", personKey("npc", "n-tam")),
+      kinInsertFor(personKey("npc", "npc-1"), "parent", personKey("npc", "n-nella")),
+    ]);
+  });
+
+  it("writes a ticked relative under their own relation, not the named tie's", async () => {
+    await useGenerateNpc().generateAndCreateNpc(request({
+      form: { ...form, related_npc_id: "n-tam", related_npc_kin: "sibling", also_kin: [{ key: "npc:n-mara", relation: "child" }] },
+    }));
+    // A new sibling of Tam ticked as Mara's child: the parent link runs from Mara to the new NPC.
+    expect(mocks.createKinLink.mock.calls.map(([arg]) => arg.input)).toEqual([
+      kinInsertFor(personKey("npc", "npc-1"), "sibling", personKey("npc", "n-tam")),
+      kinInsertFor(personKey("npc", "npc-1"), "child", personKey("npc", "n-mara")),
+    ]);
+  });
+
   it("writes a world link from the new NPC to a related NPC with the chosen tie", async () => {
     const betrayed = ASSOCIATE_CHOICES.find((c) => c.key === "betrayed" && c.subjectIsFrom);
     if (!betrayed) throw new Error("catalogue lost betrayed");
@@ -231,6 +257,21 @@ describe("buildNpcAiContext", () => {
       ...sources, npcs: [{ id: "n1", name: "Perf", born_year: 1450 }],
     });
     expect(text).toContain("The new NPC is the sibling of Perf (born 1450, 45 now).");
+  });
+
+  it("names every ticked child of a new parent, so the parent is old enough for the eldest", () => {
+    const text = buildNpcAiContext({
+      ...form, related_npc_id: "n1", related_npc_kin: "parent", also_kin: [{ key: "npc:n2", relation: "parent" }],
+    }, null, [], { ...sources, npcs: [{ id: "n1", name: "Tam", born_year: 1480 }, { id: "n2", name: "Nella", born_year: 1470 }] });
+    expect(text).toContain("The new NPC is the parent of Tam (born 1480, 15 now) and Nella (born 1470, 25 now).");
+  });
+
+  it("gives a ticked relative of another relation a line of their own", () => {
+    const text = buildNpcAiContext({
+      ...form, related_npc_id: "n1", related_npc_kin: "sibling", also_kin: [{ key: "npc:n2", relation: "child" }],
+    }, null, [], { ...sources, npcs: [{ id: "n1", name: "Tam", born_year: 1480 }, { id: "n2", name: "Mara", born_year: 1450 }] });
+    expect(text).toContain("The new NPC is the sibling of Tam");
+    expect(text).toContain("The new NPC is the child of Mara");
   });
 
   it("names a related party member for a bond, which the page's own picker never offers", () => {

@@ -28,8 +28,11 @@
  */
 import { computed, ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
-import type { AskAdapter, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
-import { askLinkLines, conceptBlock, failedRun, picturePart, readAskLinks, resolveAskLinks, spent } from "@/ai/ask/adapters/askAdapterKit";
+import type { AskAdapter, AskChoices, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
+import { askChoice, askLinkLines, chosenAskLinks, conceptBlock, failedRun, picturePart, readAskLinks, resolveAskLinks, spent } from "@/ai/ask/adapters/askAdapterKit";
+import { useKinLinks } from "@/composables/kinship/useKinLinks";
+import { kinOfferKey, kinOffers, type KinOffer } from "@/lib/npcGenerator/kinOffers";
+import { GENERATOR_KIN_LABELS } from "@/lib/npcGenerator/kinPrompt";
 import { useAskLinkRecords } from "@/ai/ask/adapters/askLinkRecords";
 import type { AskLink } from "@edge-shared/agent/askLinks";
 import { askFlag, askInteger, askString, readAskInputs } from "@/ai/ask/askInputs";
@@ -41,7 +44,7 @@ import { useAllFactions } from "@/composables/factions/useFactions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useParty } from "@/composables/party/useParty";
 import { DEFAULT_RELATION, npcRelation } from "@/ai/ask/adapters/npcRelations";
-import { personKey } from "@/lib/kinship/keys";
+import { parsePersonKey, personKey } from "@/lib/kinship/keys";
 import { useNpcQuote } from "@/composables/ai/quotes/npcQuote";
 import { buildNpcAiContext, useGenerateNpc, type NpcGenerateForm } from "@/composables/npcs/useGenerateNpc";
 import { isQuotaExceeded } from "@/lib/quotaError";
@@ -69,7 +72,9 @@ export function useNpcAskAdapter(): AskAdapter {
   const peopleWanted = ref(false);
   const { data: npcs } = useNpcs(() => peopleWanted.value);
   const { data: party } = useParty(() => peopleWanted.value);
-  const peopleLoading = computed(() => peopleWanted.value && (npcs.value === undefined || party.value === undefined));
+  // The family, to offer the rest of it (a new parent's other children); read with the people, for the same reason.
+  const { data: kinLinks } = useKinLinks(() => peopleWanted.value);
+  const peopleLoading = computed(() => peopleWanted.value && (npcs.value === undefined || party.value === undefined || kinLinks.value === undefined));
 
   // The records the ties name, read only once a proposal has some.
   const wantedLinks = ref<AskLink[]>([]);
@@ -103,8 +108,20 @@ export function useNpcAskAdapter(): AskAdapter {
       wantedLinks.value = askedLinks;
     }
     const links = linkRecords.names.value ? resolveAskLinks("npc", askedLinks, linkRecords.names.value) : [];
+    // The rest of the family, offered and never assumed (half-siblings exist): each starts at no on the quote.
+    const offers: { offer: KinOffer; name: string }[] = [];
+    if (related && relation?.kind === "kin") {
+      const relatedKey = personKey(related.kind, related.row.id);
+      const exclude = secondParent ? [personKey("npc", secondParent.id)] : [];
+      for (const offer of kinOffers(kinLinks.value ?? [], relatedKey, relation.kin, exclude)) {
+        const { type, id } = parsePersonKey(offer.key);
+        const row = type === "npc" ? npcs.value?.find((n) => n.id === id) : party.value?.find((p) => p.id === id);
+        if (row) offers.push({ offer, name: row.name });
+      }
+    }
     return {
       links,
+      offers,
       related,
       relation,
       secondParent,
@@ -122,7 +139,24 @@ export function useNpcAskAdapter(): AskAdapter {
     };
   }
 
-  function quote(proposal: AskProposal): AskQuote {
+  /**
+   * What the DM left at yes. Every line that ties the NPC to something that exists is a yes or no; what the proposal
+   * named starts at yes, the family Ask offers on its own starts at no, and without the relative there is no family
+   * to offer.
+   */
+  function decided(read: ReturnType<typeof understand>, choices: AskChoices | undefined) {
+    const related = read.related && askChoice(choices, "related", true).on ? read.related : null;
+    return {
+      location: read.location && askChoice(choices, "location", true).on ? read.location : null,
+      faction: read.faction && askChoice(choices, "faction", true).on ? read.faction : null,
+      related,
+      secondParent: related && read.secondParent && askChoice(choices, "second_parent", true).on ? read.secondParent : null,
+      alsoKin: related ? read.offers.filter((o) => askChoice(choices, kinOfferKey(o.offer), false).on).map((o) => o.offer) : [],
+      links: chosenAskLinks(read.links, choices),
+    };
+  }
+
+  function quote(proposal: AskProposal, choices?: AskChoices): AskQuote {
     const read = understand(proposal);
     const priced = quoteFor({ portrait: read.portrait, alterEgo: read.alterEgo });
 
@@ -131,11 +165,20 @@ export function useNpcAskAdapter(): AskAdapter {
     if (read.name) lines.push({ label: "Name", value: read.name, credits: null });
     lines.push({ label: "Who", value: who || "As the description says", credits: null });
     if (read.role) lines.push({ label: "Role", value: read.role, credits: null });
-    if (read.location) lines.push({ label: "Lives in", value: read.location.name, credits: null });
-    if (read.faction) lines.push({ label: "Faction", value: read.factionRole ? `${read.faction.name}, as ${read.factionRole}` : read.faction.name, credits: null });
-    if (read.related && read.relation) lines.push({ label: read.relation.label, value: read.related.row.name, credits: null });
-    if (read.secondParent) lines.push({ label: "Other parent", value: read.secondParent.name, credits: null });
-    lines.push(...askLinkLines(read.links));
+    if (read.location) lines.push({ label: "Lives in", value: read.location.name, credits: null, choice: askChoice(choices, "location", true) });
+    if (read.faction) {
+      const value = read.factionRole ? `${read.faction.name}, as ${read.factionRole}` : read.faction.name;
+      lines.push({ label: "Faction", value, credits: null, choice: askChoice(choices, "faction", true) });
+    }
+    if (read.related && read.relation) lines.push({ label: read.relation.label, value: read.related.row.name, credits: null, choice: askChoice(choices, "related", true) });
+    const relatedOn = read.related !== null && askChoice(choices, "related", true).on;
+    if (read.secondParent && relatedOn) lines.push({ label: "Other parent", value: read.secondParent.name, credits: null, choice: askChoice(choices, "second_parent", true) });
+    if (relatedOn) {
+      for (const { offer, name } of read.offers) {
+        lines.push({ label: `Also ${GENERATOR_KIN_LABELS[offer.relation].toLowerCase()}`, value: name, credits: null, choice: askChoice(choices, kinOfferKey(offer), false) });
+      }
+    }
+    lines.push(...askLinkLines(read.links, choices));
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.portrait) lines.push({ label: "Portrait", value: "None", credits: null });
@@ -154,11 +197,12 @@ export function useNpcAskAdapter(): AskAdapter {
     return { lines, total: priced.total, byok: priced.byok, block };
   }
 
-  async function run(proposal: AskProposal): Promise<AskRunResult> {
+  async function run(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult> {
     // The state may have moved since the DM read the quote: the same gates, again, before anything is spent.
-    const current = quote(proposal);
+    const current = quote(proposal, choices);
     if (current.block) return failedRun("NPC text", current.block.message);
     const read = understand(proposal);
+    const chosen = decided(read, choices);
     const campaignId = campaign.activeCampaignId;
     if (!campaignId) return failedRun("NPC text", "No active campaign selected.");
 
@@ -168,14 +212,15 @@ export function useNpcAskAdapter(): AskAdapter {
       alignment: blankIfUnsaid(read.alignment),
       relationship: "unknown",
       templateId: "auto",
-      location_id: read.location?.id ?? null,
-      faction_id: read.faction?.id ?? null,
+      location_id: chosen.location?.id ?? null,
+      faction_id: chosen.faction?.id ?? null,
       faction_role: blankIfUnsaid(read.factionRole) || "Member",
-      related_npc_id: read.related?.kind === "npc" ? read.related.row.id : null,
-      related_npc_tie: read.relation?.kind === "tie" ? read.relation.choice : DEFAULT_ASSOCIATE,
-      related_npc_kin: read.relation?.kind === "kin" ? read.relation.kin : null,
-      related_pc_id: read.related?.kind === "pc" ? read.related.row.id : null,
-      second_parent: read.secondParent ? personKey("npc", read.secondParent.id) : null,
+      related_npc_id: chosen.related?.kind === "npc" ? chosen.related.row.id : null,
+      related_npc_tie: chosen.related && read.relation?.kind === "tie" ? read.relation.choice : DEFAULT_ASSOCIATE,
+      related_npc_kin: chosen.related && read.relation?.kind === "kin" ? read.relation.kin : null,
+      related_pc_id: chosen.related?.kind === "pc" ? chosen.related.row.id : null,
+      second_parent: chosen.secondParent ? personKey("npc", chosen.secondParent.id) : null,
+      also_kin: chosen.alsoKin,
     };
     // The schema's age and role have no field on the page's form; the model reads them as constraint lines.
     const extra = [
@@ -185,12 +230,19 @@ export function useNpcAskAdapter(): AskAdapter {
     const context = [
       ...extra,
       buildNpcAiContext(form, form.location_id, [], {
-        locations: read.location ? [read.location] : [],
-        factions: read.faction ? [read.faction] : [],
-        npcs: [read.related?.kind === "npc" ? read.related.row : null, read.secondParent].filter((row) => row !== null),
-        party: read.related?.kind === "pc" ? [read.related.row] : [],
+        locations: chosen.location ? [chosen.location] : [],
+        factions: chosen.faction ? [chosen.faction] : [],
+        npcs: [
+          chosen.related?.kind === "npc" ? chosen.related.row : null,
+          chosen.secondParent,
+          ...chosen.alsoKin.map((o) => personRow(o, "npc")),
+        ].filter((row) => row !== null),
+        party: [
+          chosen.related?.kind === "pc" ? chosen.related.row : null,
+          ...chosen.alsoKin.map((o) => personRow(o, "pc")),
+        ].filter((row) => row !== null),
         todayYear: campaign.todayYear,
-      }, read.links),
+      }, chosen.links),
     ].filter((line) => line !== "").join("\n");
 
     const textCredits = spent(current.lines.find((l) => l.label === "NPC text"));
@@ -208,8 +260,8 @@ export function useNpcAskAdapter(): AskAdapter {
         locationId: form.location_id,
         inventoryItems: [],
         // The workflow writes a bond only when it is told who the associate is, in this campaign.
-        associate: read.related && read.relation?.kind === "tie" ? { id: read.related.row.id, name: read.related.row.name } : null,
-        links: read.links,
+        associate: chosen.related && read.relation?.kind === "tie" ? { id: chosen.related.row.id, name: chosen.related.row.name } : null,
+        links: chosen.links,
       });
     } catch (e) {
       // A quota race on the create, or a save that failed: the generated text is lost, so say so plainly.
@@ -231,7 +283,15 @@ export function useNpcAskAdapter(): AskAdapter {
       parts.push({ label: "Connections", ok: false, credits: 0, error: `Some connections could not be added: ${outcome.linkErrors.join("; ")}` });
     }
     if (outcome.inventoryError) parts.push({ label: "Starter items", ok: false, credits: 0, error: outcome.inventoryError });
-    return { record: { type: "npc", id, name }, route: `/npcs/${id}`, parts };
+    const picture = outcome.portrait === "saved" && outcome.portraitUrl ? { picture: outcome.portraitUrl } : {};
+    return { record: { type: "npc", id, name }, route: `/npcs/${id}`, ...picture, parts };
+  }
+
+  /** A ticked relative's row, for the prompt's ages and people. */
+  function personRow(offer: KinOffer, type: "npc" | "pc") {
+    const { type: is, id } = parsePersonKey(offer.key);
+    if (is !== type) return null;
+    return (type === "npc" ? npcs.value : party.value)?.find((row) => row.id === id) ?? null;
   }
 
   function portraitPart(

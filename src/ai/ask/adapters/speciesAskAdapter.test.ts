@@ -103,4 +103,12 @@ describe("useSpeciesAskAdapter", () => {
     await useSpeciesAskAdapter().run(proposal());
     expect(mocks.gen.mock.calls[0][1]).toMatchObject({ generateImage: false });
   });
+
+  // Bug caught: a painted species was saved but never reached the result card, so the DM could not see it in the chat.
+  it("puts a saved picture's URL on the result so the chat can show it, and leaves it unset when the picture failed", async () => {
+    mocks.gen.mockResolvedValueOnce(saved({ picture: "saved", pictureUrl: "https://img/species.webp" }));
+    expect((await useSpeciesAskAdapter().run(proposal({ image: true }))).picture).toBe("https://img/species.webp");
+    mocks.gen.mockResolvedValueOnce(saved({ picture: "failed", pictureUrl: null }));
+    expect((await useSpeciesAskAdapter().run(proposal({ image: true }))).picture).toBeUndefined();
+  });
 });

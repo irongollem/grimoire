@@ -165,4 +165,40 @@ describe("useLocationAskAdapter", () => {
     mocks.generateAndCreateLocation.mockRejectedValueOnce({ message: "quota_exceeded" });
     expect((await useLocationAskAdapter().run(proposal())).parts[0].error).toContain("limit of places");
   });
+
+  // Bug caught: a painted place was saved but never reached the result card, so the DM could not see it in the chat.
+  it("puts a saved picture's URL on the result so the chat can show it, and leaves it unset when the picture failed", async () => {
+    mocks.generateAndCreateLocation.mockResolvedValueOnce(saved({ picture: "saved", pictureUrl: "https://img/place.webp" }));
+    expect((await useLocationAskAdapter().run(proposal({ image: true }))).picture).toBe("https://img/place.webp");
+    mocks.generateAndCreateLocation.mockResolvedValueOnce(saved({ picture: "failed", pictureUrl: null }));
+    expect((await useLocationAskAdapter().run(proposal({ image: true }))).picture).toBeUndefined();
+  });
+
+  describe("yes or no on ties to existing records", () => {
+    // Bug caught: unticking the parent or the keeper on the quote still wrote them.
+    it("parent and keeper lines carry their field as the key; at no the workflow gets null for that field only", async () => {
+      const adapter = useLocationAskAdapter();
+      const inputs = { parent_id: "p1", keeper_npc_id: "n1" };
+      const lines = adapter.quote(proposal(inputs)).lines;
+      expect(lines.find((l) => l.label === "Inside")?.choice).toEqual({ key: "parent_id", on: true });
+      expect(lines.find((l) => l.label === "Kept by")?.choice).toEqual({ key: "keeper_npc_id", on: true });
+      await adapter.run(proposal(inputs));
+      expect(mocks.generateAndCreateLocation.mock.calls[0][1]).toMatchObject({ parent: { id: "p1" }, keeperNpcId: "n1" });
+      await adapter.run(proposal(inputs), { parent_id: false });
+      expect(mocks.generateAndCreateLocation.mock.calls[1][1]).toMatchObject({ parent: null, keeperNpcId: "n1" });
+      await adapter.run(proposal(inputs), { keeper_npc_id: false });
+      expect(mocks.generateAndCreateLocation.mock.calls[2][1]).toMatchObject({ parent: { id: "p1" }, keeperNpcId: null });
+    });
+
+    // Bug caught: a tie the DM unticked was still written, because run read the unfiltered list.
+    it("a tie at no never reaches the workflow's links", async () => {
+      const RED_HAND = "00000000-0000-4000-8000-0000000000b1";
+      const links = [{ kind: "faction", id: RED_HAND, relation: "controlled_by" }];
+      state.linkNames = new Map([[`faction:${RED_HAND}`, "The Red Hand"]]);
+      const adapter = useLocationAskAdapter();
+      const key = adapter.quote(proposal({ links })).lines.find((l) => l.value === "The Red Hand")!.choice!.key;
+      await adapter.run(proposal({ links }), { [key]: false });
+      expect(mocks.generateAndCreateLocation.mock.calls[0][1].links).toEqual([]);
+    });
+  });
 });

@@ -90,7 +90,7 @@ export function useSpellAskAdapter(): AskAdapter {
         retry: { credits: missing.cost.value, paint: () => missing.paint(id, `${name}. ${read.concept}`), error: () => missing.error.value },
       }));
     }
-    return { record: { type: "spell", id, name }, route: `/spells/${id}`, parts };
+    return { record: { type: "spell", id, name }, route: `/spells/${id}`, parts, picture: outcome.picture === "saved" && outcome.pictureUrl !== null ? outcome.pictureUrl : undefined };
   }
 
   return { id: "spell", quote, run };

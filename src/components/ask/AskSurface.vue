@@ -27,6 +27,7 @@
       @confirm="emit('confirm', $event)"
       @cancel="emit('cancel', $event)"
       @adjust="(id, inputs) => emit('adjust', id, inputs)"
+      @decide="(id, key, on) => emit('decide', id, key, on)"
       @retry="(id, i) => emit('retry', id, i)"
       @leave="(id, i) => emit('leave', id, i)"
       @credits="emit('credits', $event)"
@@ -65,6 +66,7 @@ const emit = defineEmits<{
   confirm: [itemId: number];
   cancel: [itemId: number];
   adjust: [itemId: number, inputs: Record<string, unknown>];
+  decide: [itemId: number, key: string, on: boolean];
   retry: [itemId: number, index: number];
   leave: [itemId: number, index: number];
   credits: [needed: number];
