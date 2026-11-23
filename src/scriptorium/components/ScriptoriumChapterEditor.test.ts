@@ -1,11 +1,13 @@
 // @vitest-environment happy-dom
-import { flushPromises, mount } from "@vue/test-utils";
+import { enableAutoUnmount, flushPromises, mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { useScriptoriumUiStore } from "@/scriptorium/stores/ui";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ScriptoriumChapterEditor from "./ScriptoriumChapterEditor.vue";
 import type { ScriptoriumChapter } from "@/scriptorium/types";
+
+enableAutoUnmount(afterEach);
 
 const mocks = vi.hoisted(() => ({
   invalidateQuota: vi.fn(),
@@ -187,7 +189,6 @@ describe("ScriptoriumChapterEditor zoom", () => {
     const wrapper = open();
     await flushPromises();
     expect(wrapper.get("[data-scale]").attributes("data-scale")).toBe("1.5");
-    wrapper.unmount();
   });
 });
 
