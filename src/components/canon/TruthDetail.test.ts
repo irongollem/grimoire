@@ -17,7 +17,16 @@ vi.mock("@/composables/canon/useCanonEntries", () => ({
   useUpdateCanonEntry: () => ({ mutate: mocks.update }),
 }));
 
+const questData = vi.hoisted(() => ({ quests: [] as unknown[] }));
+vi.mock("@/composables/canon/useCanonForces", async (orig) => ({
+  ...(await orig<typeof import("@/composables/canon/useCanonForces")>()),
+  useCanonForceData: () => ({ data: { value: { steps: [], ticks: [], quests: questData.quests } } }),
+}));
+const EntryQuestsStub = { name: "EntryQuests", props: ["entry", "links", "label", "empty"], template: "<div data-testid='entry-quests' />" };
+vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
+
 import TruthDetail from "./TruthDetail.vue";
+import CanonEntryNotes from "./CanonEntryNotes.vue";
 
 const entry = (over: Partial<CanonEntry> = {}): CanonEntry => canonEntry({
   id: "t1", part: "truth", knowledge: "some", title: "The river gives back.", ...over,
@@ -35,10 +44,13 @@ const PickerStub = {
   template: `<button data-testid="pick" @click="$emit('pick', { kind: 'faction', id: 'f9', name: 'The Gilded' })">pick</button>`,
 };
 
+const EntryStoryLinksStub = { name: "EntryStoryLinks", props: ["entry"], template: "<div data-testid='story-links' />" };
+const ConnectionsStub = { name: "ConnectionsSection", props: ["hide"], template: "<div />" };
+
 function mountDetail(e: CanonEntry) {
   return mount(TruthDetail, {
     props: { entry: e },
-    global: { stubs: { ConnectionsSection: true, WorldEntityPicker: PickerStub } },
+    global: { stubs: { EntryQuests: EntryQuestsStub, EntryStoryLinks: EntryStoryLinksStub, RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" }, ConnectionsSection: ConnectionsStub, CanonEntryNotes: true, WorldEntityPicker: PickerStub } },
   });
 }
 
@@ -47,6 +59,11 @@ describe("TruthDetail", () => {
     rows.value = [];
     Object.values(mocks).forEach((m) => m.mockReset());
     mocks.create.mockResolvedValue(undefined);
+  });
+
+  // Bug caught (#1255 item 8): the truth had nowhere to write why it matters, or the notes were bound to another entry.
+  it("mounts the notes for this truth", () => {
+    expect(mountDetail(entry()).getComponent(CanonEntryNotes).props("entry")).toMatchObject({ id: "t1" });
   });
 
   it("asks the DM to name who knows a truth marked 'some' while nobody is named", () => {
@@ -104,7 +121,7 @@ describe("TruthDetail", () => {
 
   it("saves edited words once, and a blank edit puts the old words back instead of saving nothing", async () => {
     const w = mountDetail(entry());
-    const input = w.find("input[aria-label='The truth']");
+    const input = w.find("textarea[aria-label='The truth']");
     await input.setValue("The river gives back, changed.");
     await input.trigger("change");
     expect(mocks.update).toHaveBeenCalledWith({ id: "t1", patch: { title: "The river gives back, changed." } });
@@ -113,6 +130,48 @@ describe("TruthDetail", () => {
     await input.trigger("change");
     expect(mocks.update).not.toHaveBeenCalled();
     // The field is remade on a revert, so look it up again.
-    expect((w.find("input[aria-label='The truth']").element as HTMLInputElement).value).toBe("The river gives back.");
+    expect((w.find("textarea[aria-label='The truth']").element as HTMLInputElement).value).toBe("The river gives back.");
+  });
+
+  // Bug caught (#1255 item 22): a truth made at the table not saying so, or every truth claiming to have begun there.
+  it("says a truth began at the table only when it was made from a fact", () => {
+    expect(mountDetail(entry()).find("[data-testid=truth-from-table]").exists()).toBe(false);
+    const w = mountDetail(entry({ from_fact_id: "f1" }));
+    expect(w.find("[data-testid=truth-from-table]").text()).toBe("First said at the table.");
+    expect(w.find("[data-testid=truth-from-table] a").attributes("href")).toBe("/table/story");
+  });
+  // Bug caught: the block showing another entry's quests (or another part's words), so a truth read as a force's "where the party meets it".
+  it("shows this truth's own quest links, in the truth's words", () => {
+    questData.quests = [
+      { id: "l1", entry_id: "t1", quest_id: "q1" },
+      { id: "l2", entry_id: "someone-else", quest_id: "q2" },
+    ];
+    const block = mountDetail(entry()).getComponent(EntryQuestsStub);
+    expect(block.props("links")).toEqual([expect.objectContaining({ id: "l1" })]);
+    expect(block.props("label")).toBe("The quests that turn on it");
+    expect(block.props("empty")).toBe("No quest turns on this yet.");
+  });
+
+  // Bug caught (#1258 item 6): "who knows it" was drawn twice, once as Known to and again in the Connections block,
+  // because the block got no filter. Other ties (a place, a faction it is about) must still show.
+  // Bug caught (#1258 item 18): cause and effect listed twice, once in the story links and again as raw led_to / carries rows.
+  it("hides led_to and carries ties, in either direction, from the Connections block", () => {
+    const hide = mountDetail(entry()).getComponent(ConnectionsStub).props("hide") as (c: Connection) => boolean;
+    for (const type of ["led_to", "carries"]) {
+      expect(hide(knower({ type }))).toBe(true);
+      expect(hide(knower({ type, outward: false }))).toBe(true);
+    }
+    expect(hide(knower({ type: "related_to" }))).toBe(false);
+  });
+
+  it("mounts the story links for this truth", () => {
+    expect(mountDetail(entry()).getComponent(EntryStoryLinksStub).props("entry")).toMatchObject({ id: "t1" });
+  });
+
+  it("hides the known_to ties from the Connections block, and only those", () => {
+    const hide = mountDetail(entry()).getComponent(ConnectionsStub).props("hide") as (c: Connection) => boolean;
+    expect(hide(knower())).toBe(true);
+    expect(hide(knower({ type: "about" }))).toBe(false);
+    expect(hide(knower({ outward: false }))).toBe(false);
   });
 });

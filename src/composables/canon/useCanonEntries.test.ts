@@ -11,7 +11,7 @@ vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => 
 const queue = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/canon/queueCanonEmbedding", () => ({ queueCanonEmbedding: queue }));
 
-import { createCanonEntry, deleteCanonEntry, updateCanonEntry } from "./useCanonEntries";
+import { createCanonEntry, trashCanonEntry, updateCanonEntry } from "./useCanonEntries";
 
 const row = (over: Record<string, unknown>) => ({
   id: "e1", user_id: "dm-1", campaign_id: "c1", part: "truth", premise_kind: null, knowledge: "all", title: "t",
@@ -49,10 +49,18 @@ describe("canon entries", () => {
     expect(fake.rows("canon_entries").map((r) => r.title)).toEqual(["new", "keep"]);
   });
 
-  it("deletes only the named entry", async () => {
-    fake.seed("canon_entries", [row({ id: "a" }), row({ id: "b" })]);
-    await deleteCanonEntry("a");
-    expect(fake.rows("canon_entries").map((r) => r.id)).toEqual(["b"]);
+  // Bug caught: the page deleted the row outright, so a stray click lost an entry and everything hanging off it for good.
+  it("trashes through the RPC, naming the entry, and answers the trash row", async () => {
+    fake.onRpc("trash_canon_entry", () => "t1");
+    await expect(trashCanonEntry("a")).resolves.toBe("t1");
+    expect(fake.calls.filter((c) => c.target === "trash_canon_entry").map((c) => c.payload)).toEqual([{ p_entry_id: "a" }]);
+    expect(fake.calls.some((c) => c.target === "canon_entries" && c.op === "delete")).toBe(false);
+  });
+
+  // Bug caught: a refused trash (the entry gone, not the caller's) looked like a success, so the page said Deleted.
+  it("throws what the database refused with", async () => {
+    fake.failNext("trash_canon_entry", { message: "gone", code: "P0002" });
+    await expect(trashCanonEntry("a")).rejects.toMatchObject({ code: "P0002" });
   });
 
   // Bug caught: a new entry never reached the by-meaning lookup, so the Narrator could not find what the DM just wrote.
@@ -76,13 +84,6 @@ describe("canon entries", () => {
     expect(queue).toHaveBeenCalledWith("a");
     queue.mockClear();
     await expect(updateCanonEntry("missing", { title: "x" })).rejects.toThrow(/gone/);
-    expect(queue).not.toHaveBeenCalled();
-  });
-
-  // Bug caught: the embedding table cascades from the entry, so queueing on delete would embed a row that is gone.
-  it("never queues on delete", async () => {
-    fake.seed("canon_entries", [row({ id: "a" })]);
-    await deleteCanonEntry("a");
     expect(queue).not.toHaveBeenCalled();
   });
 });

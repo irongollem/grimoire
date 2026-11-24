@@ -2,7 +2,9 @@ import { sortLore, type WorldDate } from "./canonLore";
 import { sortSessionLog } from "@/lib/sessions/sessionPrefill";
 import { sessionLabel } from "@/lib/sessions/sessionLabel";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
-import type { CanonEntry, CanonForceTick } from "@/types/canon.types";
+import { dueSteps } from "./canonForces";
+import type { CanonEntry, CanonForceStep, CanonForceTick } from "@/types/canon.types";
+import type { CalendarEvent, CalendarEventType } from "@/types/calendar.types";
 import type { Note } from "@/types/notes.types";
 import type { CampaignSession } from "@/types/session.types";
 
@@ -78,19 +80,43 @@ export function firstNoteImage(content: string | null): string | null {
   }
 }
 
-export type AlmanacKind = "lore" | "moving" | "session";
+export type AlmanacKind = "lore" | "moving" | "due" | "session" | "calendar";
 
 export interface AlmanacEvent {
   key: string;
   kind: AlmanacKind;
   title: string;
   date: WorldDate;
-  /** The session's evening, so a played session reads as one. */
+  /** A calendar event's own kind ("Festival", "Discovery"), the small word shown beside the date. Null for the other kinds. */
+  word: string | null;
+  /** Where it is edited: the lore entry, the force, the session's note, or the Calendar at that date. */
   to: { path: string; query?: Record<string, string> };
 }
 
 type Dated = { world_year: number | null; world_month: number | null; world_day: number | null };
 const asDated = (date: WorldDate): Dated => ({ world_year: date.year, world_month: date.month, world_day: date.day });
+
+/** The small word for a calendar event's type, as the Calendar's own filter and list name it. */
+export const CALENDAR_TYPE_WORD: Record<CalendarEventType, string> = {
+  campaign: "Campaign",
+  world: "World",
+  session: "Session",
+  festival: "Festival",
+  deadline: "Deadline",
+  player_death: "A hero fell",
+  boss_fight: "Boss fight",
+  discovery: "Discovery",
+  npc_death: "A death",
+  travel: "Travel",
+  quest: "Quest",
+  encounter: "Encounter",
+  location: "Place",
+};
+
+/** The Calendar page at a date: it opens the month grid on that year and month (`CalendarView` reads these two). */
+export function calendarDateRoute(year: number, month: number | null): { path: string; query: Record<string, string> } {
+  return { path: "/calendar", query: month === null ? { year: String(year) } : { year: String(year), month: String(month) } };
+}
 
 /** What a tick says: the DM's note, or which way the clock moved. */
 export function tickTitle(forceTitle: string, tick: Pick<CanonForceTick, "note" | "delta">): string {
@@ -100,17 +126,22 @@ export function tickTitle(forceTitle: string, tick: Pick<CanonForceTick, "note" 
 }
 
 /**
- * One timeline in the world's calendar: lore with a date in the world, force ticks that carry a world date, and every
+ * One timeline in the world's calendar: lore with a date in the world, force ticks that carry a world date, the Calendar's own events
+ * (read, never copied; its session events are left out because every session is already here from its note), and every
  * session by the date its note gives. Dated events are in world order (a year with no month before a month, as the
- * lore list reads); a tie keeps lore, then ticks, then sessions. Sessions with no world date come last, oldest first,
+ * lore list reads); a tie keeps lore, then ticks, then due steps, then calendar events, then sessions. Sessions with no world date come last, oldest first,
  * so the almanac never hides an evening for want of a date. Undated lore and ticks are not part of it.
  */
 export function almanac(input: {
   lore: readonly CanonEntry[];
   forces: readonly CanonEntry[];
   ticks: readonly CanonForceTick[];
+  /** A force's steps: the unreached ones with a due date are listed as "due", beside the ticks already past. Left out, none is. */
+  steps?: readonly CanonForceStep[];
   /** Newest first, as `chronicleItems` returns them. */
   items: readonly ChronicleItem[];
+  /** The campaign's Calendar events. Left alone when omitted. Events of type `session` are never listed: each session already is one, from its note. */
+  calendarEvents?: readonly CalendarEvent[];
 }): AlmanacEvent[] {
   const forceTitle = new Map(input.forces.map((f) => [f.id, f.title]));
   const dated: (AlmanacEvent & Dated)[] = [];
@@ -119,18 +150,29 @@ export function almanac(input: {
   for (const entry of input.lore) {
     if (entry.world_year === null) continue;
     const date = { year: entry.world_year, month: entry.world_month, day: entry.world_day };
-    dated.push({ key: `lore:${entry.id}`, kind: "lore", title: entry.title, date, to: { path: "/canon", query: { entry: entry.id } }, ...asDated(date) });
+    dated.push({ key: `lore:${entry.id}`, kind: "lore", title: entry.title, date, word: null, to: { path: "/canon", query: { entry: entry.id } }, ...asDated(date) });
   }
   for (const tick of input.ticks) {
     const forceName = forceTitle.get(tick.force_id);
     if (tick.world_year === null || forceName === undefined) continue;
     const date = { year: tick.world_year, month: tick.world_month, day: tick.world_day };
-    dated.push({ key: `tick:${tick.id}`, kind: "moving", title: tickTitle(forceName, tick), date, to: { path: "/canon", query: { entry: tick.force_id } }, ...asDated(date) });
+    dated.push({ key: `tick:${tick.id}`, kind: "moving", title: tickTitle(forceName, tick), date, word: null, to: { path: "/canon", query: { entry: tick.force_id } }, ...asDated(date) });
+  }
+  for (const { step, force } of dueSteps(input.steps ?? [], input.forces)) {
+    if (step.due_year === null) continue;
+    const date = { year: step.due_year, month: step.due_month, day: step.due_day };
+    dated.push({ key: `due:${step.id}`, kind: "due", title: `${force.title}: ${step.title}`, date, word: null, to: { path: "/canon", query: { entry: force.id } }, ...asDated(date) });
+  }
+  for (const event of input.calendarEvents ?? []) {
+    // The session's own event is a mirror of its note's dates (useNoteCalendarSync); the note already makes it an entry.
+    if (event.event_type === "session") continue;
+    const date = { year: event.year, month: event.month, day: event.day };
+    dated.push({ key: `calendar:${event.id}`, kind: "calendar", title: event.title, date, word: CALENDAR_TYPE_WORD[event.event_type], to: calendarDateRoute(event.year, event.month), ...asDated(date) });
   }
   for (const { session, note } of [...input.items].reverse()) {
     const date = sessionWorldDate(note);
     const title = note?.title.trim() || sessionLabel(session);
-    const event: AlmanacEvent = { key: `session:${session.id}`, kind: "session", title, date, to: { path: note ? `/notes/${note.id}` : `/sessions/${session.id}` } };
+    const event: AlmanacEvent = { key: `session:${session.id}`, kind: "session", title, date, word: null, to: { path: note ? `/notes/${note.id}` : `/sessions/${session.id}` } };
     if (date.year === null) undatedSessions.push(event);
     else dated.push({ ...event, ...asDated(date) });
   }

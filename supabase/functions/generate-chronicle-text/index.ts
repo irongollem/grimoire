@@ -146,6 +146,10 @@ serve(serveUser(async ({ user, req, report }) => {
   // predate this field.
   const exclude_note_id = typeof body.exclude_note_id === "string" && body.exclude_note_id ? body.exclude_note_id : null;
 
+  // What the canon did in this note's session (#1258 item 8), as text the client built from the DM's own canon. Optional,
+  // and capped so a long session cannot crowd the notes it sits beside.
+  const canon_this_session = typeof body.canon_this_session === "string" ? body.canon_this_session.trim().slice(0, 4000) : "";
+
   const promptCheck = validatePromptInput(raw_text, AI_PROMPT_LIMIT_CHRONICLE);
   if (!promptCheck.ok) return promptCheck.errorResponse;
 
@@ -357,7 +361,9 @@ serve(serveUser(async ({ user, req, report }) => {
     // formatEntityBlock()/formatPriorChroniclesBlock() only format -- whether
     // to call them at all was decided above, so a zero-candidate retrieval
     // produces no prompt text at all rather than an empty ---BEGIN/END--- shell.
-    const userContent = `${wrapUserInput(raw_text)}${retrievedEntityBlock}${priorChroniclesBlock}`;
+    // Built in the browser, so it is the caller's words: wrapped like the notes.
+    const canonBlock = canon_this_session === "" ? "" : `\n\nWhat the canon did this session:\n${wrapUserInput(canon_this_session)}`;
+    const userContent = `${wrapUserInput(raw_text)}${canonBlock}${retrievedEntityBlock}${priorChroniclesBlock}`;
 
     let textResult: TextResult;
     try {

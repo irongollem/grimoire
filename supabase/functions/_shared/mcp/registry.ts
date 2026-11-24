@@ -779,7 +779,9 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     table: "canon_entries",
     nameField: "title",
     searchFields: ["title"],
-    extraListColumns: ["part", "knowledge", "premise_kind", "sort_order"],
+    // How an entry ended and what it became are read here, not written: closing needs `closed_at` set and cleared
+    // together with `closed_as`, which a field-by-field update cannot do (the table refuses either alone, 23514).
+    extraListColumns: ["part", "knowledge", "premise_kind", "sort_order", "closed_as", "closed_at", "closed_note", "became_entry_id"],
     campaignScope: "owned",
     imageFields: { picture: "image_url" },
     create: {

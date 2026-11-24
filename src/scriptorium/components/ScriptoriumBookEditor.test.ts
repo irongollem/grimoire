@@ -162,6 +162,7 @@ function open(forDoc: ScriptoriumDocument = doc) {
         HandoutShareDialog: true,
         HandoutShareControl: true,
         HandoutAudienceLine: true,
+        CanonHere: { props: ["kind", "id"], template: "<div data-testid='canon-here' :data-kind='kind' :data-id='id' />" },
       },
     },
   });
@@ -325,6 +326,18 @@ describe("ScriptoriumBookEditor", () => {
     const wrapper = open();
     await flushPromises();
     expect(wrapper.findAll("button").some((b) => b.text().includes("Add chapter"))).toBe(offered);
+  });
+
+  // Fails on: the clues placed in a handout never showing to the DM on it, or a book (which no clue lies in) asking.
+  it("shows the clues that lie in a handout, asked by the handout's id, and not on a book", async () => {
+    mocks.kind = "handout";
+    const handout = open({ ...doc, kind: "handout" } as ScriptoriumDocument);
+    await flushPromises();
+    expect(handout.get("[data-testid=canon-here]").attributes()).toMatchObject({ "data-kind": "document", "data-id": "d1" });
+    mocks.kind = "book";
+    const book = open();
+    await flushPromises();
+    expect(book.find("[data-testid=canon-here]").exists()).toBe(false);
   });
 
   // Fails on: a deleted book leaving its chapters' Illuminator files behind, or sweeping before they are marked.

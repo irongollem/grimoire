@@ -8,6 +8,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
+import { collectMentions, loadMentionNames, type MentionNameOf } from "../_shared/mentionNames.ts";
 import { worldBlockText } from "../_shared/worldBlock.ts";
 import { toVectorLiteral } from "../_shared/embeddings.ts";
 import {
@@ -17,6 +18,7 @@ import {
   type ChronicleRow,
   type SittingRow,
   LOOKUP_PARTS,
+  PASSAGE_TEXT_MAX,
   plain,
   readableMatches,
   type BroughtOut,
@@ -51,9 +53,9 @@ type Row = Record<string, unknown>;
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
 
 /** A truth is its title, the way the world block words it; a body stands in for an empty title. */
-const entryText = (row: Row): string => {
+const entryText = (row: Row, nameOf?: MentionNameOf): string => {
   const title = str(row.title).trim();
-  return title !== "" ? title : plain(str(row.body), 300);
+  return title !== "" ? title : plain(str(row.body), 300, nameOf);
 };
 
 export function canonStore(input: {
@@ -63,6 +65,13 @@ export function canonStore(input: {
   embedQuery: (query: string) => Promise<{ vector: number[]; model: string } | null>;
 }): CanonStore {
   const { supabase, admin } = input;
+
+  /**
+   * What the @mentions in these texts are called (they store no name, #932), read once for the lot; DM-only passages are
+   * skipped. The Narrator speaks to the players, so a disguised NPC is named by the disguise.
+   */
+  const namesIn = (campaignId: string, texts: ReadonlyArray<string | null>): Promise<MentionNameOf> =>
+    loadMentionNames(supabase, campaignId, texts.flatMap((t) => collectMentions(t, { skipSecrets: true })), "table");
 
   /** The names of the people (and, through them, of the factions' members present) these links name. */
   async function knownToNames(campaignId: string, entryIds: string[], present: ReadonlyArray<{ id: string; name: string }>): Promise<Map<string, string[]>> {
@@ -172,7 +181,7 @@ export function canonStore(input: {
 
   return {
     async worldText(campaignId) {
-      return worldBlockText(await loadWorldBlock(admin, campaignId)).trim();
+      return worldBlockText(await loadWorldBlock(admin, campaignId, "table")).trim();
     },
 
     async previously(campaignId, runningSessionId) {
@@ -201,7 +210,7 @@ export function canonStore(input: {
         tied === ""
           ? Promise.resolve({ data: [] as Row[], error: null })
           : supabase.from("canon_lore_passages").select("id, entry_id, title, body").eq("campaign_id", campaignId).is("told_at", null).or(tied).order("sort_order").limit(LIST_READ_MAX),
-        supabase.from("canon_entries").select("title").eq("campaign_id", campaignId).eq("part", "question").order("sort_order").limit(LIST_READ_MAX),
+        supabase.from("canon_entries").select("title").eq("campaign_id", campaignId).eq("part", "question").is("closed_as", null).order("sort_order").limit(LIST_READ_MAX),
       ]);
       if (clues.error) throw clues.error;
       if (passages.error) throw passages.error;
@@ -216,9 +225,10 @@ export function canonStore(input: {
         if (some.error) throw some.error;
         const rows = (some.data ?? []) as Row[];
         const names = await knownToNames(campaignId, rows.map((r) => str(r.id)), present);
+        const nameOf = await namesIn(campaignId, rows.map((r) => (str(r.title).trim() === "" ? str(r.body) : null)));
         for (const row of rows) {
           const who = [...new Set((names.get(str(row.id)) ?? []).filter((n) => presentNames.has(n)))];
-          if (who.length > 0) knows.push({ who, truth: entryText(row) });
+          if (who.length > 0) knows.push({ who, truth: entryText(row, nameOf) });
         }
       }
 
@@ -236,7 +246,8 @@ export function canonStore(input: {
         if (links.error) throw links.error;
         const entryIds = [...new Set(((links.data ?? []) as Row[]).map((r) => str(r.from_canon_entry_id)).filter((v) => v !== ""))];
         if (entryIds.length > 0) {
-          const entries = await supabase.from("canon_entries").select("id, title").eq("campaign_id", campaignId).eq("part", "force").in("id", entryIds).order("sort_order");
+          // A force that has ended no longer moves: it is not one that moved here.
+          const entries = await supabase.from("canon_entries").select("id, title").eq("campaign_id", campaignId).eq("part", "force").is("closed_as", null).in("id", entryIds).order("sort_order");
           if (entries.error) throw entries.error;
           const rows = (entries.data ?? []) as Row[];
           const steps = await latestSteps(campaignId, rows.map((r) => str(r.id)));
@@ -245,10 +256,12 @@ export function canonStore(input: {
       }
 
       const offered = await offerablePassages(campaignId, (passages.data ?? []) as Row[]);
+      const passageNames = await namesIn(campaignId, offered.map((r) => str(r.body)));
 
       return capCanonHere({
         clues: ((clues.data ?? []) as Row[]).map((r) => ({ id: str(r.id), secretId: str(r.secret_id), line: str(r.title) })),
-        passages: offered.map((r) => ({ id: str(r.id), title: str(r.title), text: str(r.body) })),
+        // Already plain, so the cap's own flattening (which has no names to give) leaves the names in.
+        passages: offered.map((r) => ({ id: str(r.id), title: str(r.title), text: plain(str(r.body), PASSAGE_TEXT_MAX, passageNames) })),
         knows,
         questions: ((questions.data ?? []) as Row[]).map((r) => str(r.title)).filter((t) => t !== ""),
         forces,
@@ -281,7 +294,7 @@ export function canonStore(input: {
       const forceIds = hits.filter((h) => h.part === "force").map((h) => h.id);
       const someIds = hits.filter((h) => h.part === "truth" && h.knowledge === "some").map((h) => h.id);
       const [bodies, passages, steps, knownTo] = await Promise.all([
-        supabase.from("canon_entries").select("id, body, wants, party_member_id").eq("campaign_id", campaignId).in("id", ids),
+        supabase.from("canon_entries").select("id, body, wants, party_member_id, closed_as, closed_note").eq("campaign_id", campaignId).in("id", ids),
         loreIds.length === 0
           ? Promise.resolve({ data: [] as Row[], error: null })
           : supabase.from("canon_lore_passages").select("entry_id, title, body").eq("campaign_id", campaignId).in("entry_id", loreIds).order("sort_order"),
@@ -297,17 +310,21 @@ export function canonStore(input: {
         : await supabase.from("party_members").select("id, name").eq("campaign_id", campaignId).in("id", characterIds);
       if (characters.error) throw characters.error;
       const characterName = new Map(((characters.data ?? []) as Row[]).map((r) => [str(r.id), str(r.name)]));
+      const nameOf = await namesIn(campaignId, [
+        ...((bodies.data ?? []) as Row[]).map((r) => str(r.body)),
+        ...((passages.data ?? []) as Row[]).map((r) => str(r.body)),
+      ]);
       const passagesOf = new Map<string, string[]>();
       for (const p of (passages.data ?? []) as Row[]) {
         const list = passagesOf.get(str(p.entry_id)) ?? [];
-        list.push(`${str(p.title)}: ${plain(str(p.body), 400)}`);
+        list.push(`${str(p.title)}: ${plain(str(p.body), 400, nameOf)}`);
         passagesOf.set(str(p.entry_id), list);
       }
       return hits.map((h): CanonLookupEntry => {
         const row = body.get(h.id);
         const wants = row === undefined ? "" : str(row.wants).trim();
         const text = [
-          row === undefined ? "" : plain(str(row.body), 600),
+          row === undefined ? "" : plain(str(row.body), 600, nameOf),
           wants === "" ? "" : `It wants: ${wants}`,
           ...(passagesOf.get(h.id) ?? []),
         ].filter((t) => t !== "").join(" ");
@@ -316,6 +333,8 @@ export function canonStore(input: {
           part: h.part,
           title: h.part === "backstory" && character !== undefined ? character : h.title,
           knowledge: h.knowledge,
+          closedAs: row === undefined || typeof row.closed_as !== "string" ? null : row.closed_as,
+          closedNote: row === undefined || typeof row.closed_note !== "string" ? null : row.closed_note,
           text,
           knownTo: knownTo.get(h.id) ?? [],
           step: steps.get(h.id) ?? null,
@@ -326,16 +345,18 @@ export function canonStore(input: {
     async material(campaignId) {
       const { data, error } = await supabase
         .from("canon_entries")
-        .select("id, part, knowledge, title, body, sort_order")
+        .select("id, part, knowledge, title, body, sort_order, closed_as")
         .eq("campaign_id", campaignId)
         .in("part", ["truth", "question", "secret"])
         .order("sort_order");
       if (error) throw error;
       const rows = (data ?? []) as Row[];
-      const body = (r: Row): string => plain(str(r.body), 300);
+      const nameOf = await namesIn(campaignId, rows.map((r) => str(r.body)));
+      const body = (r: Row): string => plain(str(r.body), 300, nameOf);
       return {
-        truths: rows.filter((r) => r.part === "truth").map((r) => ({ text: entryText(r), secret: r.knowledge === "secret" })).filter((t) => t.text !== ""),
-        questions: rows.filter((r) => r.part === "question").map((r) => str(r.title).trim()).filter((t) => t !== ""),
+        truths: rows.filter((r) => r.part === "truth").map((r) => ({ text: entryText(r, nameOf), secret: r.knowledge === "secret" })).filter((t) => t.text !== ""),
+        // An answered question is no longer kept open: an invention that agrees with the DM's answer is not refused for it.
+        questions: rows.filter((r) => r.part === "question" && r.closed_as == null).map((r) => str(r.title).trim()).filter((t) => t !== ""),
         secrets: rows
           .filter((r) => r.part === "secret")
           .map((r) => ({ id: str(r.id), statement: [str(r.title).trim(), body(r)].filter((t) => t !== "").join(": ") }))

@@ -27,6 +27,32 @@ export async function fetchQuestClocks(questId: string): Promise<QuestClock[]> {
   return (data ?? []) as QuestClock[];
 }
 
+/** Every clock of a campaign, for a surface that is not a quest's own (a force listing the clocks that move it). */
+export async function fetchCampaignQuestClocks(campaignId: string): Promise<QuestClock[]> {
+  const { data, error } = await supabase
+    .from("quest_clocks")
+    .select("*")
+    .eq("campaign_id", campaignId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as QuestClock[];
+}
+
+/**
+ * The campaign's clocks under `[CLOCKS_KEY, "campaign", id]`. `quest_clocks` rings the doorbell with `CLOCKS_KEY`
+ * (registry), and that prefix covers this key, so another device's tick, or the one the database writes to a force,
+ * refreshes it with no poll. A quest id is a uuid, so the word "campaign" cannot collide with `[CLOCKS_KEY, questId]`.
+ */
+export function useCampaignQuestClocks(campaignId: string | Ref<string>) {
+  const id = asRef(campaignId);
+  return useQuery({
+    queryKey: computed(() => [CLOCKS_KEY, "campaign", id.value] as const),
+    queryFn: () => fetchCampaignQuestClocks(id.value),
+    enabled: computed(() => !!id.value),
+  });
+}
+
 export function useQuestClocks(questId: string | Ref<string>) {
   const id = asRef(questId);
   return useQuery({
@@ -56,7 +82,10 @@ export function useUpdateQuestClock() {
       if (error) throw error;
       return questId;
     },
-    onSuccess: (questId) => queryClient.invalidateQueries({ queryKey: [CLOCKS_KEY, questId] }),
+    onSuccess: (questId) => {
+      queryClient.invalidateQueries({ queryKey: [CLOCKS_KEY, questId] });
+      queryClient.invalidateQueries({ queryKey: [CLOCKS_KEY, "campaign"] });
+    },
   });
 }
 
@@ -101,6 +130,7 @@ export function useTickQuestClock() {
     },
     onSuccess: (result, { questId }) => {
       queryClient.invalidateQueries({ queryKey: [CLOCKS_KEY, questId] });
+      queryClient.invalidateQueries({ queryKey: [CLOCKS_KEY, "campaign"] });
       if (result.filled_up) {
         queryClient.invalidateQueries({ queryKey: [OBJECTIVES_KEY] });
         for (const key of QUEST_RUNTIME_QUERY_KEYS) queryClient.invalidateQueries({ queryKey: [key] });

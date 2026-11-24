@@ -376,6 +376,8 @@ export const WORLD_LINK_PAIRS: readonly LinkPair[] = [
     types: [
       dir("led_to", "led to", "came of", "lore", true),
       sym("related_to", "related to", "lore", true),
+      // A theme of the premise that an entry carries (#1258 item 17); the premise is never the `from` end.
+      dir("carries", "carries", "carried by", "lore", true),
     ],
   },
 ];

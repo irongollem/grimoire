@@ -39,6 +39,7 @@ const quest = (dm_content: string | null) => ({ id: "quest-1", title: "Targos", 
 const doc = (...lines: string[]) => JSON.stringify({ type: "doc", content: lines.map((text) => ({ type: "paragraph", content: [{ type: "text", text }] })) });
 
 const stubs = {
+  CanonHere: { name: "CanonHere", props: { kind: String, id: String, compact: Boolean }, template: "<div data-testid='canon-here' />" },
   QuestBeatAttachmentsPanel: { name: "QuestBeatAttachmentsPanel", props: ["beat", "attachments"], emits: ["open"], template: "<div data-testid='attachments' />" },
   QuestPayoffPanel: { name: "QuestPayoffPanel", props: ["beat", "loot"], template: "<div data-testid='payoff' />" },
   QuestBeatWideRead: { name: "QuestBeatWideRead", props: ["beat", "reachedBeatIds", "partyBeatIds"], emits: ["edit-text"], template: "<div data-testid='read' />" },
@@ -173,5 +174,12 @@ describe("QuestBeatWide", () => {
   it("says so when the beat is gone", () => {
     mocks.beats = [];
     expect(mountWide().text()).toContain("This beat is missing or unavailable.");
+  });
+
+  // Bug caught: the run cockpit mounting no Canon here, or for the wrong beat, so the DM leaves the run to find what lies at this beat.
+  it("mounts a compact Canon here for the beat being run", () => {
+    const here = mountWide().findComponent({ name: "CanonHere" });
+    expect(here.exists()).toBe(true);
+    expect(here.props()).toMatchObject({ kind: "quest_beat", id: "beat-1", compact: true });
   });
 });

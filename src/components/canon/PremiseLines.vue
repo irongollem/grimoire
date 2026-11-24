@@ -2,7 +2,14 @@
   <div class="flex flex-col gap-1.5" :data-testid="`premise-${kinds.join('-')}`">
     <span class="text-eyebrow text-muted-foreground">{{ title }}</span>
     <ul v-if="rows.length > 0" class="flex flex-col border border-border bg-card">
-      <PremiseLineRow v-for="row in rows" :key="row.id" :entry="row" :label="itemLabel" />
+      <PremiseLineRow
+        v-for="row in rows"
+        :key="row.id"
+        :entry="row"
+        :label="itemLabel"
+        :move="endsOf(sameKind(row), row.id)"
+        @move="(direction) => reorder(sameKind(row), row.id, direction)"
+      />
     </ul>
     <form class="flex items-center gap-2" @submit.prevent="add">
       <AppInput v-model="draft" tone="filled" size="body" :placeholder="placeholder" :aria-label="`Add: ${title}`" />
@@ -26,6 +33,8 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import PremiseLineRow from "./PremiseLineRow.vue";
 import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useCanonReorder } from "@/composables/canon/useCanonReorder";
+import { endsOf } from "@/lib/canon/canonOrder";
 import { IconAdd } from "@/lib/icons";
 import type { CanonEntry, PremiseKind } from "@/types/canon.types";
 
@@ -42,6 +51,9 @@ const { title, itemLabel, placeholder, kinds, entries } = defineProps<{
 const KIND_LABEL: Partial<Record<PremiseKind, string>> = { line: "Line", veil: "Veil" };
 
 const rows = computed(() => entries.filter((e) => e.premise_kind !== null && kinds.includes(e.premise_kind)));
+// A line moves among the lines and a veil among the veils: the two read as different things.
+const sameKind = (row: CanonEntry) => rows.value.filter((r) => r.premise_kind === row.premise_kind);
+const reorder = useCanonReorder();
 const kindOptions = computed<SegmentedOption<PremiseKind>[]>(() => kinds.map((value) => ({ value, label: KIND_LABEL[value] ?? value })));
 
 const draft = ref("");

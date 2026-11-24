@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
-import type { ClueSuggestion, ForceSuggestion, LoreSuggestion, PremiseSuggestion, QuestionSuggestion, TruthSuggestion } from "@/ai/useCanonSuggestions";
+import type { ClueSuggestion, ForceSuggestion, LoreSuggestion, PremiseSuggestion, QuestionSuggestion, SecretSuggestion, TruthSuggestion } from "@/ai/useCanonSuggestions";
 import type { CanonEntry } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
 
@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   aiEnabled: { value: true },
 }));
-const suggestions = ref<(PremiseSuggestion | TruthSuggestion | ClueSuggestion | QuestionSuggestion | ForceSuggestion | LoreSuggestion)[]>([]);
+const suggestions = ref<(PremiseSuggestion | TruthSuggestion | ClueSuggestion | QuestionSuggestion | ForceSuggestion | LoreSuggestion | SecretSuggestion)[]>([]);
 const setAside = ref<{ claim: string; reason: string }[]>([]);
 const provenance = ref<{ generatorType: string } | null>({ generatorType: "canon_premise_suggestion" });
 
@@ -65,7 +65,7 @@ import CanonSuggestions from "./CanonSuggestions.vue";
 const entry = (over: Partial<CanonEntry>): CanonEntry => canonEntry({ campaign_id: "c1", part: "premise", premise_kind: "theme", ...over });
 
 type Lore = { title: string; kind: null; entryId: string | null; text: string };
-function mountIt(mode: "premise" | "truths" | "clues" | "questions" | "forces" | "lore", entries: CanonEntry[] = [], secretId: string | null = null, lore: Lore | null = null) {
+function mountIt(mode: "premise" | "truths" | "clues" | "questions" | "forces" | "lore" | "secrets", entries: CanonEntry[] = [], secretId: string | null = null, lore: Lore | null = null) {
   return mount(CanonSuggestions, { props: { mode, entries, secretId, lore }, global: { stubs: { CanonRef: true, GenerationCostBadge: true } } });
 }
 const click = async (w: ReturnType<typeof mountIt>, label: string) => {
@@ -87,6 +87,43 @@ beforeEach(() => {
 });
 
 describe("CanonSuggestions", () => {
+  // Bug caught: accepting a suggested secret wrote only the secret (its clues lost), or put a clue on two places, or
+  // placed an unplaced clue somewhere (a stale id carried over); the clues are the point of the suggestion.
+  it("accepts a secret as the secret and its three clues, each on its own place, and opens the secret", async () => {
+    suggestions.value = [{
+      title: "The guildmaster is dead.",
+      clues: [
+        { title: "A fresh grave", spot: { kind: "location", id: "l1", name: "The Mint Fields" } },
+        { title: "A letter in her hand", spot: { kind: "npc", id: "n1", name: "Sift" } },
+        { title: "A rumour with no place", spot: null },
+      ],
+    }];
+    mocks.create.mockResolvedValue({ id: "s-new" });
+    const w = mountIt("secrets", [entry({ id: "s0", part: "secret", premise_kind: null }), entry({ id: "t0", part: "truth", premise_kind: null })]);
+    await click(w, "Accept");
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ part: "secret", title: "The guildmaster is dead.", sort_order: 1, ai_provenance: expect.anything() }));
+    expect(mocks.createClue).toHaveBeenCalledTimes(3);
+    const clues = mocks.createClue.mock.calls.map(([c]) => c);
+    expect(clues[0]).toMatchObject({ secret_id: "s-new", title: "A fresh grave", sort_order: 0, location_id: "l1" });
+    expect(clues[1]).toMatchObject({ secret_id: "s-new", sort_order: 1, npc_id: "n1" });
+    expect(clues[2]).toMatchObject({ secret_id: "s-new", sort_order: 2 });
+    for (const key of ["location_id", "npc_id", "quest_beat_id"]) expect(clues[2]).not.toHaveProperty(key);
+    expect(clues[0]).not.toHaveProperty("npc_id");
+    expect(w.emitted("accepted")?.[0]).toEqual(["s-new"]);
+    expect(mocks.dismiss).toHaveBeenCalled();
+  });
+
+  // Bug caught: a clue that failed to save was swallowed, so the DM saw "accepted" on a secret missing its clues.
+  it("tells the DM and keeps the proposal when a clue cannot be saved", async () => {
+    const s: SecretSuggestion = { title: "A secret.", clues: [{ title: "A clue", spot: null }] };
+    suggestions.value = [s];
+    mocks.createClue.mockRejectedValue(new Error("clue refused"));
+    const w = mountIt("secrets");
+    await click(w, "Accept");
+    expect(mocks.toastError).toHaveBeenCalledWith("clue refused");
+    expect(mocks.dismiss).not.toHaveBeenCalled();
+  });
+
   it("renders nothing when AI is off for the campaign, so no spend can start", () => {
     mocks.aiEnabled.value = false;
     expect(mountIt("premise").find("button").exists()).toBe(false);

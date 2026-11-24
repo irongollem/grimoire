@@ -56,7 +56,7 @@ export function choiceHomeNote(choice: Pick<TypeChoice, "home">): string | null 
 export const COLLAPSE_AT = 5;
 
 export type BlockEntry =
-  | { kind: "row"; key: string; connection: Connection; canonOrigin?: Connection }
+  | { kind: "row"; key: string; connection: Connection; canonOrigin?: Pick<Connection, "other_id"> }
   | { kind: "summary"; key: string; text: string; points: string; home: string };
 
 export interface BlockGroup {
@@ -105,17 +105,36 @@ function backstoryOrigins(subject: WorldRef, connections: readonly Connection[])
   return origins;
 }
 
+/**
+ * A character's own list, seen from the backstory: the NPCs that backstory entry is `about` carry the "From Canon"
+ * marker, linking back to the entry. The caller knows them (it read the entry's own connections), because the
+ * character's read does not say which of its people came from the backstory.
+ */
+export interface BackstoryOrigin {
+  entryId: string;
+  npcIds: ReadonlySet<string>;
+}
+
+export interface GroupOptions {
+  origin?: BackstoryOrigin;
+  /** Rows to leave out of the block, for a block that shows only what another block does not. */
+  hide?: (connection: Connection) => boolean;
+}
+
 /** Rows grouped by the other end's kind, in the order every sheet uses; an empty group is absent. */
-export function groupConnections(subject: WorldRef, connections: readonly Connection[]): BlockGroup[] {
+export function groupConnections(subject: WorldRef, connections: readonly Connection[], options: GroupOptions = {}): BlockGroup[] {
+  const { origin: given, hide } = options;
   const origins = backstoryOrigins(subject, connections);
   const shownAsOrigins = new Set(origins.values());
-  return groupByKind(connections.filter((connection) => !shownAsOrigins.has(connection)), (c) => c.other_kind).map(({ group, items: rows }) => {
+  const kept = connections.filter((connection) => !shownAsOrigins.has(connection) && !(hide?.(connection) ?? false));
+  return groupByKind(kept, (c) => c.other_kind).map(({ group, items: rows }) => {
     const fold = collapsed(subject, rows);
     const entries: BlockEntry[] = [];
     if (fold) entries.push(fold.summary);
     for (const c of rows) {
       if (fold?.folded.has(c)) continue;
-      const origin = origins.get(c);
+      const fromEntry = given && c.other_kind === "npc" && given.npcIds.has(c.other_id) ? { other_id: given.entryId } : undefined;
+      const origin = origins.get(c) ?? fromEntry;
       entries.push({ kind: "row", key: rowKey(c), connection: c, ...(origin ? { canonOrigin: origin } : {}) });
     }
     return { group, title: CONNECTION_GROUP_TITLES[group], entries };

@@ -6,6 +6,7 @@ import { isAccountSuspended, isChildAccount, suspendedResponse } from "../_share
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
+import { collectMentions, loadMentionNames, type MentionKey, type MentionNameOf } from "../_shared/mentionNames.ts";
 import { buildCanonEmbedText, buildFactionEmbedText, buildItemEmbedText, buildLocationEmbedText, buildNoteEmbedText, buildNpcEmbedText, buildQuestEmbedText, entityEmbedHash } from "../_shared/entityEmbedText.ts";
 import { loadTieExtras, type TieExtras, type TieSubjectKind } from "../_shared/embedTies.ts";
 import { upsertEmbeddingsInChunks } from "../_shared/embeddingUpsert.ts";
@@ -114,7 +115,13 @@ interface EntityConfig {
    * same reason embed-monsters' TARGET_CONFIG routes both its targets
    * through one shared row shape rather than typing `build` per-target.
    */
-  build: (row: Record<string, unknown>, ties?: TieExtras) => string;
+  build: (row: Record<string, unknown>, ties?: TieExtras, nameOf?: MentionNameOf) => string;
+  /**
+   * The rich-text fields of a row that may hold @mentions (stored without a name, #932). `buildTexts` reads their true
+   * names once per campaign and hands `build` a `nameOf`, so a mention is embedded as the name it points at. Requires
+   * `campaign_id` in the select.
+   */
+  richTextOf?: (row: Record<string, unknown>) => (string | null)[];
   /**
    * Set for the kinds whose text carries World Web ties (#1084). Every caller
    * of `build` goes through `buildTexts`, which loads the ties first, so the
@@ -240,7 +247,11 @@ const ENTITIES: Record<EntityKind, EntityConfig> = {
     select: "id, user_id, campaign_id, updated_at, part, title, wants, body, passages:canon_lore_passages(id, sort_order, title, body), character:party_members(name)",
     sideTable: "canon_embeddings",
     idColumn: "entry_id",
-    build: (row) =>
+    richTextOf: (row) => [
+      (row.body as string | null) ?? null,
+      ...(row.passages as { body: string | null }[]).map((p) => p.body),
+    ],
+    build: (row, _ties, nameOf) =>
       buildCanonEmbedText({
         part: row.part as string,
         title: row.title as string,
@@ -248,7 +259,7 @@ const ENTITIES: Record<EntityKind, EntityConfig> = {
         body: (row.body as string | null) ?? null,
         passages: row.passages as { id: string; sort_order: number; title: string; body: string | null }[],
         character: (row.character as { name: string } | null)?.name ?? null,
-      }),
+      }, nameOf),
   },
 };
 
@@ -279,6 +290,23 @@ function toEmbeddableItem(row: Record<string, unknown>): Parameters<typeof build
   };
 }
 
+/** The true names behind the @mentions in `rows`' rich text, one `nameOf` per campaign (each read scoped to its campaign). */
+async function loadMentionNamesByCampaign(
+  richTextOf: (row: Record<string, unknown>) => (string | null)[],
+  rows: readonly Record<string, unknown>[],
+): Promise<Map<string, MentionNameOf>> {
+  const byCampaign = new Map<string, MentionKey[]>();
+  for (const row of rows) {
+    const campaignId = row.campaign_id as string;
+    const list = byCampaign.get(campaignId) ?? [];
+    for (const text of richTextOf(row)) list.push(...collectMentions(text, { skipSecrets: false }));
+    byCampaign.set(campaignId, list);
+  }
+  const out = new Map<string, MentionNameOf>();
+  for (const [campaignId, mentions] of byCampaign) out.set(campaignId, await loadMentionNames(admin, campaignId, mentions));
+  return out;
+}
+
 /**
  * Embed text for every row, id -> text, with World Web ties loaded in bulk for
  * the kinds that carry them. The one door to `config.build`: the stale scan,
@@ -294,10 +322,11 @@ async function buildTexts(config: EntityConfig, rows: readonly Record<string, un
         seat_location_id: (r.seat_location_id as string | null | undefined) ?? null,
       })))
     : null;
+  const names = config.richTextOf ? await loadMentionNamesByCampaign(config.richTextOf, rows) : null;
   const texts = new Map<string, string>();
   for (const row of rows) {
     const id = row.id as string;
-    texts.set(id, config.build(row, ties?.get(id)));
+    texts.set(id, config.build(row, ties?.get(id), names?.get(row.campaign_id as string)));
   }
   return texts;
 }

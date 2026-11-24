@@ -1,7 +1,7 @@
 <template>
-  <section class="w-full" data-testid="connections-block" aria-labelledby="connections-heading">
+  <section class="w-full" data-testid="connections-block" :aria-labelledby="headingId">
     <div class="mb-1 flex w-full flex-wrap items-center justify-between gap-2">
-      <h2 id="connections-heading" class="text-heading-sm font-bold text-foreground">Connections</h2>
+      <h2 :id="headingId" class="text-heading-sm font-bold text-foreground">{{ title }}</h2>
       <div class="flex flex-wrap items-center gap-2">
         <AppButton
           variant="outline"
@@ -79,12 +79,12 @@
  * from there and says so; a long list of those folds into one line that points
  * at the section which already lists them.
  */
-import { computed, defineAsyncComponent, ref } from "vue";
+import { computed, defineAsyncComponent, ref, useId } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import ConnectionRow from "@/components/connections/ConnectionRow.vue";
 import ConnectionSuggestions from "@/components/connections/ConnectionSuggestions.vue";
-import { groupConnections } from "@/components/connections/connectionRows";
+import { groupConnections, type BackstoryOrigin } from "@/components/connections/connectionRows";
 import { useConnections } from "@/composables/connections/useConnections";
 import { useLazyMount } from "@/composables/useLazyMount";
 import { IconAdd, IconNetwork } from "@/lib/icons";
@@ -94,7 +94,17 @@ import type { Connection, WorldRef } from "@/types/connections.types";
 // flow on every sheet that shows connections (#1138).
 const AddConnectionDialog = defineAsyncComponent(() => import("@/components/connections/AddConnectionDialog.vue"));
 
-const { subject, subjectName } = defineProps<{ subject: WorldRef; subjectName: string }>();
+const { subject, subjectName, title = "Connections", origin, hide } = defineProps<{
+  subject: WorldRef;
+  subjectName: string;
+  /** The block's heading, when two blocks share a page. */
+  title?: string;
+  /** The people a backstory entry is about: their rows carry the "From Canon" marker. */
+  origin?: BackstoryOrigin;
+  /** Rows to leave out, for a block that shows only what another block beside it does not. */
+  hide?: (connection: Connection) => boolean;
+}>();
+const headingId = useId();
 
 const { data, isLoading, isError } = useConnections(() => subject.kind, () => subject.id);
 const addOpen = ref(false);
@@ -102,5 +112,5 @@ const addOpen = ref(false);
 const addMounted = useLazyMount(addOpen);
 
 const connections = computed<readonly Connection[]>(() => data.value ?? []);
-const groups = computed(() => groupConnections(subject, connections.value));
+const groups = computed(() => groupConnections(subject, connections.value, { origin, hide }));
 </script>

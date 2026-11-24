@@ -275,6 +275,33 @@
           </div>
         </template>
 
+        <!-- The canon: dated lore and force moves, read-only, quieter than a real event -->
+        <template v-if="positionedCanon.length > 0">
+          <span
+            class="absolute font-cinzel font-bold tracking-widest text-muted-foreground uppercase"
+            style="font-size: 0.5625rem; left: 0.25rem"
+            :style="{ top: CANON_STRIP_Y - 18 + 'px' }"
+            >Canon</span
+          >
+          <template v-for="pc in positionedCanon" :key="pc.item.key">
+            <RouterLink
+              :to="pc.item.to"
+              :title="`${pc.item.label}: ${pc.item.title}`"
+              :aria-label="`${pc.item.label}: ${pc.item.title}`"
+              class="absolute z-10 size-2.5 rotate-45 border border-muted-foreground bg-card opacity-70 hover:opacity-100"
+              :style="{ left: pc.x + 'px', top: CANON_STRIP_Y + 'px', transform: 'translate(-50%, -50%) rotate(45deg)' }"
+              data-testid="canon-marker"
+            />
+            <RouterLink
+              v-if="pc.labelled"
+              :to="pc.item.to"
+              class="absolute w-32 truncate text-center text-caption-sm italic text-muted-foreground hover:text-foreground"
+              :style="{ left: pc.x + 'px', top: CANON_STRIP_Y + 10 + 'px', transform: 'translateX(-50%)' }"
+              >{{ pc.item.title }}</RouterLink
+            >
+          </template>
+        </template>
+
         <!-- Empty state -->
         <div
           v-if="
@@ -306,6 +333,23 @@
       <template v-if="!readOnly">· click any to edit</template>
     </p>
 
+    <!-- The canon in view, in words: read-only, edited on the Canon page -->
+    <div v-if="canonInView.length > 0" class="mt-6" data-testid="canon-in-view">
+      <p class="text-label-lg font-semibold text-muted-foreground mb-3">FROM THE CANON</p>
+      <div class="space-y-1.5">
+        <RouterLink
+          v-for="item in canonInView"
+          :key="item.key"
+          :to="item.to"
+          class="flex items-center gap-2 rounded-md border border-dashed border-border px-3 py-2 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+        >
+          <span class="text-label-lg uppercase">{{ item.label }}</span>
+          <span class="text-body flex-1 italic">{{ item.title }}</span>
+          <span class="text-caption italic">{{ formatCanonDate(item) }}</span>
+        </RouterLink>
+      </div>
+    </div>
+
     <!-- Events in view list -->
     <CalendarTimelineEventList
       :events="visibleEvents"
@@ -318,6 +362,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted } from "vue";
+import { RouterLink } from "vue-router";
 import type { Component } from "vue";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
@@ -326,6 +371,7 @@ import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import CalendarTimelineControls from "@/components/calendar/CalendarTimelineControls.vue";
 import CalendarTimelineEventList from "@/components/calendar/CalendarTimelineEventList.vue";
 import { buildYearIndex, daysInMonth, monthStartFraction, ordinalWithinYear, yearFraction } from "@/lib/calendar/dayMath";
+import type { CanonCalendarItem } from "@/lib/canon/canonCalendar";
 import { eventColor } from "@/types/calendar.types";
 import type { CalendarEvent } from "@/types/calendar.types";
 import { IconClock, IconEncounter, IconFire, IconGenerate, IconGlobe, IconMap, IconMonster, IconReveal, IconStar, IconUndead } from '@/lib/icons';
@@ -333,6 +379,8 @@ import { IconClock, IconEncounter, IconFire, IconGenerate, IconGlobe, IconMap, I
 const AXIS_PADDING = 60; // px padding left + right
 const LANE_HEIGHT = 30; // px between stacked event lanes
 const CONTAINER_HEIGHT = 330;
+const CANON_STRIP_Y = 350; // the quiet row for the canon, below the session strip
+const CANON_CONTAINER_HEIGHT = 376;
 const SESSION_STRIP_Y = 280;
 const SESSION_STRIP_HEIGHT = 22;
 
@@ -380,9 +428,11 @@ const ZOOM_PRESETS = computed(() => [
   { value: 100, label: "100yr" },
 ]);
 
-const { eventsOverride = null, readOnly = false } = defineProps<{
+const { eventsOverride = null, readOnly = false, canonItems = [] } = defineProps<{
   eventsOverride?: CalendarEvent[] | null;
   readOnly?: boolean;
+  /** The canon's dated lore and force moves, shown quietly and read-only. Only the DM's Calendar passes them. */
+  canonItems?: readonly CanonCalendarItem[];
 }>();
 
 const emit = defineEmits<{
@@ -467,7 +517,7 @@ const pixelsPerYear = computed(
   () => (containerWidth.value - AXIS_PADDING * 2) / zoomYears.value,
 );
 
-const containerHeight = CONTAINER_HEIGHT;
+const containerHeight = computed(() => (canonItems.length > 0 ? CANON_CONTAINER_HEIGHT : CONTAINER_HEIGHT));
 const axisY = 170;
 
 // Convert a fractional year to an x pixel position
@@ -719,6 +769,32 @@ const positionedSessionEvents = computed((): PositionedSessionEvent[] => {
     return { event, x, naturalX, endX, barWidth };
   });
 });
+
+// ── The canon ───────────────────────────────────────────────────────────────
+
+const canonFrac = (item: CanonCalendarItem): number => yearFraction(calendar.adapter, item.year, item.month, item.day);
+
+const canonInView = computed(() =>
+  canonItems.filter((item) => {
+    const frac = canonFrac(item);
+    return frac >= startFrac.value - 0.01 && frac <= endFrac.value + 0.01;
+  }),
+);
+
+// A label is drawn only when it clears the previous one, so a crowd of moves is a row of markers, not a smear.
+const positionedCanon = computed(() => {
+  let labelEdge = -Infinity;
+  return canonInView.value.map((item) => {
+    const x = fractionalYearToX(canonFrac(item));
+    const labelled = x - 64 >= labelEdge;
+    if (labelled) labelEdge = x + 64;
+    return { item, x, labelled };
+  });
+});
+
+function formatCanonDate(item: CanonCalendarItem): string {
+  return calendar.adapter.formatDate(item.year, item.month, item.day, null);
+}
 
 // ── Events list ─────────────────────────────────────────────────────────────
 

@@ -14,6 +14,7 @@
           <span v-if="review === 'kept' && fact.kept_at" class="font-semibold text-tone-success">Kept {{ day(fact.kept_at) }}</span>
           <span v-if="review === 'kept' && fact.source === 'correction'">Your version</span>
           <span v-if="review === 'corrected'">Corrected: your version follows</span>
+          <AppButton v-if="truthId" :to="`/canon?entry=${truthId}`" variant="link" size="inline" label="Now a truth" />
         </template>
       </div>
     </div>
@@ -25,7 +26,7 @@
       <AppButton v-if="review === 'new'" variant="tinted" tone="success" size="sm" label="Keep" @click="emit('keep')" />
       <AppButton variant="outline" size="sm" label="Edit" @click="emit('edit')" />
       <AppButton variant="tinted" tone="danger" size="sm" label="Strike" @click="emit('strike')" />
-      <OverflowMenu variant="ghost" size="icon-sm" :label="`More actions for this fact`" :items="MENU" @select="emit('truth')" />
+      <OverflowMenu v-if="!truthId" variant="ghost" size="icon-sm" :label="`More actions for this fact`" :items="MENU" @select="emit('truth')" />
     </div>
   </li>
 </template>
@@ -34,7 +35,7 @@
 /**
  * One line the Narrator put on record (frame 03): the sentence, what it is about, and the DM's three answers. Keep says
  * it stands, Edit files a correction that overtakes it, Strike says it never happened (and offers Undo here, where the
- * struck line stays on screen). The menu holds Make it a truth. Nothing here writes; the section does.
+ * struck line stays on screen). The menu holds Make it a truth, until the fact has become one: then the row says "Now a truth" and links to it. Nothing here writes; the section does.
  */
 import AppButton from "@/components/common/controls/AppButton.vue";
 import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
@@ -43,6 +44,8 @@ import type { FactReview } from "@/lib/canon/canonTableFacts";
 
 defineProps<{
   fact: StoryFact;
+  /** The truth this fact already became, when it has; the fact then links to it and is not offered Make it a truth again. */
+  truthId?: string | null;
   review: FactReview;
   /** What the fact is about, already named and routed. */
   about: readonly { kind: string; id: string; label: string; to: string }[];

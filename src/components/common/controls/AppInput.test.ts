@@ -105,3 +105,75 @@ describe("AppInput v-model", () => {
     expect(input.attributes("data-field-tone")).toBe("muted");
   });
 });
+
+describe("AppInput wrap", () => {
+  function mountWrap() {
+    const state = ref("");
+    let updates = 0;
+    const wrapper = mount(AppInput, {
+      props: {
+        modelValue: "",
+        modelModifiers: { lazy: true },
+        wrap: true,
+        "onUpdate:modelValue": (v: unknown) => {
+          updates += 1;
+          state.value = v as string;
+        },
+      },
+    });
+    return { wrapper, state, updates: () => updates };
+  }
+
+  it("a plain field stays a one-line <input>", () => {
+    // Bug: wrap leaking into every field and turning them all into textareas.
+    const wrapper = mount(AppInput, { props: { modelValue: "x" } });
+    expect(wrapper.find("input").exists()).toBe(true);
+    expect(wrapper.find("textarea").exists()).toBe(false);
+  });
+
+  it("Enter commits a lazy sentence once and adds no line break", async () => {
+    // Bug: Enter inserting a newline into a statement, or never committing.
+    const { wrapper, state, updates } = mountWrap();
+    const area = wrapper.get("textarea");
+    (area.element as HTMLTextAreaElement).value = "Debts outlive the people who owe them";
+    await area.trigger("input");
+    expect(updates()).toBe(0);
+    const enter = new KeyboardEvent("keydown", { key: "Enter", cancelable: true, bubbles: true });
+    area.element.dispatchEvent(enter);
+    await nextTick();
+    expect(enter.defaultPrevented).toBe(true);
+    expect(state.value).toBe("Debts outlive the people who owe them");
+    expect(updates()).toBe(1);
+  });
+
+  it("pasted line breaks are committed as single spaces", async () => {
+    // Bug: a pasted paragraph carrying raw newlines into a one-paragraph statement.
+    const { wrapper, state } = mountWrap();
+    const area = wrapper.get("textarea");
+    (area.element as HTMLTextAreaElement).value = "First\r\n\nsecond\n  third";
+    await area.trigger("input");
+    await area.trigger("change");
+    expect(state.value).toBe("First second third");
+  });
+
+  // Bug: Enter in a lazy wrap field saved, and the blur it caused fired `change`, which saved the same words again.
+  it("saves once when Enter ends a wrap field", async () => {
+    const saves: unknown[] = [];
+    const wrapper = mount(AppInput, { props: { wrap: true, modelValue: "", modelModifiers: { lazy: true }, "onUpdate:modelValue": (v: unknown) => saves.push(v) } });
+    const area = wrapper.find("textarea");
+    (area.element as HTMLTextAreaElement).value = "The stakes";
+    await area.trigger("keydown", { key: "Enter" });
+    await area.trigger("change");
+    expect(saves).toEqual(["The stakes"]);
+  });
+
+  // Bug: the Enter that confirms an IME candidate ended the field mid-word and saved half a phrase.
+  it("lets Enter confirm an IME composition without saving or leaving", async () => {
+    const saves: unknown[] = [];
+    const wrapper = mount(AppInput, { props: { wrap: true, modelValue: "", modelModifiers: { lazy: true }, "onUpdate:modelValue": (v: unknown) => saves.push(v) } });
+    const area = wrapper.find("textarea");
+    (area.element as HTMLTextAreaElement).value = "とう";
+    await area.trigger("keydown", { key: "Enter", isComposing: true });
+    expect(saves).toEqual([]);
+  });
+});

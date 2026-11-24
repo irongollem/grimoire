@@ -34,6 +34,10 @@ export const LORE_KINDS = ["history", "legend", "culture", "magic", "place", "fa
 export type LoreKind = (typeof LORE_KINDS)[number];
 export type KnowledgeMark = (typeof KNOWLEDGE_MARKS)[number];
 
+/** How an entry ended (`canon_entries.closed_as`): a question is answered; a force succeeded, was stopped or faded. */
+export const CANON_CLOSED_AS = ["answered", "succeeded", "stopped", "faded"] as const;
+export type CanonClosedAs = (typeof CANON_CLOSED_AS)[number];
+
 export interface CanonEntry {
   id: string;
   user_id: string;
@@ -48,6 +52,10 @@ export interface CanonEntry {
   player_visible_to: string[];
   /** Set by the DM's Reveal button, only on a secret: until then players never read it. */
   revealed_at: string | null;
+  /** The session that was running when the secret was revealed; only ever set with `revealed_at` (#1258). */
+  revealed_session_id: string | null;
+  /** What happens if nobody stops a force (#1258). Set only when `part` is `force`. */
+  if_succeeds: string | null;
   /** What a force wants, in one line. Set only when `part` is `force`. */
   wants: string | null;
   /** How many ticks fill a force's clock (2 to 12); null is no clock. Set only when `part` is `force`. */
@@ -64,6 +72,18 @@ export interface CanonEntry {
   /** Set only when `part` is `backstory`: the character whose past this is (one entry per character). */
   party_member_id: string | null;
   ai_provenance: AiProvenance | null;
+  /** How the entry ended, with when and what became of it. Set together, only on a question or a force. */
+  closed_as: CanonClosedAs | null;
+  closed_at: string | null;
+  closed_note: string | null;
+  /** The entry this one turned into (the truth or secret that answers a question, the truth a revealed secret became). */
+  became_entry_id: string | null;
+  /** The table fact (`story_facts`) this truth was made from. Set only when `part` is `truth`; one fact makes at most one truth. */
+  from_fact_id: string | null;
+  /** The arc this entry belongs to (`canon_arcs`); never set on a premise entry. */
+  arc_id: string | null;
+  /** The habitat this truth belongs to (`campaign_habitats`, the Ecology part); set only when `part` is `truth`. */
+  habitat_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -110,6 +130,9 @@ export interface CanonClue {
   location_id: string | null;
   npc_id: string | null;
   quest_beat_id: string | null;
+  /** An item the clue lies in (a letter, a locket), or a Scriptorium handout (#1258). One place at most, as above. */
+  item_id: string | null;
+  document_id: string | null;
   found_at: string | null;
   found_session_id: string | null;
   /** The lore passage this clue is, when it points at one: telling the passage finds the clue (in the database). */
@@ -130,6 +153,10 @@ export interface CanonForceStep {
   reached_at: string | null;
   /** The session that was running when it was reached; only ever set with `reached_at`. */
   reached_session_id: string | null;
+  /** When the step is due in the world's calendar: a year, a year and month, or a whole date (#1258). */
+  due_year: number | null;
+  due_month: number | null;
+  due_day: number | null;
   ai_provenance: AiProvenance | null;
   created_at: string;
   updated_at: string;
@@ -157,12 +184,29 @@ export interface CanonForceTick {
   created_at: string;
 }
 
-/** A quest where the party meets a force. Unique per (force, quest). Written and deleted. */
-export interface CanonForceQuest {
+/** The parts of the canon that may be tied to a quest; the database refuses a premise entry or an open question (23514). */
+export const QUEST_LINKED_PARTS = ["force", "secret", "truth", "lore", "backstory"] as const;
+export type QuestLinkedPart = (typeof QUEST_LINKED_PARTS)[number];
+
+/** A quest a canon entry matters in: where the party meets a force, the quest that uncovers a secret. Unique per (entry, quest). Written and deleted. */
+export interface CanonEntryQuest {
   id: string;
   user_id: string;
   campaign_id: string;
-  force_id: string;
+  entry_id: string;
   quest_id: string;
   created_at: string;
+}
+
+/** A player's question about the world (#1258 item 24). The DM adopts it as an open question or lets it be. */
+export interface CanonWonder {
+  id: string;
+  user_id: string;
+  campaign_id: string;
+  party_member_id: string | null;
+  body: string;
+  adopted_entry_id: string | null;
+  dismissed_at: string | null;
+  created_at: string;
+  updated_at: string;
 }

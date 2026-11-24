@@ -24,6 +24,14 @@ vi.mock("@/stores/calendar", () => ({
   useCalendarStore: () => ({ adapter: { epochName: "DR", months: [{ num: 1, name: "Hammer", days: 30 }], formatDate: (y: number, m: number | null) => `${m ?? "-"}/${y}` } }),
 }));
 
+const questData = vi.hoisted(() => ({ quests: [] as unknown[] }));
+vi.mock("@/composables/canon/useCanonForces", async (orig) => ({
+  ...(await orig<typeof import("@/composables/canon/useCanonForces")>()),
+  useCanonForceData: () => ({ data: { value: { steps: [], ticks: [], quests: questData.quests } } }),
+}));
+const EntryQuestsStub = { name: "EntryQuests", props: ["entry", "links", "label", "empty"], template: "<div data-testid='entry-quests' />" };
+vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
+
 import LoreDetail from "./LoreDetail.vue";
 
 const p = (id: string, sort: number): CanonLorePassage => ({
@@ -34,7 +42,7 @@ const p = (id: string, sort: number): CanonLorePassage => ({
 const mountIt = (over = {}) =>
   mount(LoreDetail, {
     props: { entry: canonEntry({ id: "l1", part: "lore", title: "The Fall", ...over }) },
-    global: { stubs: { EntityImageBlock: true, AudienceRevealControl: true, ConnectionsSection: true, CanonSuggestions: true, LorePassageRow: { props: ["passage"], emits: ["move", "remove"], template: "<li data-testid='row'>{{ passage.id }}<button data-testid='up' @click=\"$emit('move', -1)\" /><button data-testid='rm' @click=\"$emit('remove')\" /></li>" } } },
+    global: { stubs: { EntryQuests: EntryQuestsStub, EntryStoryLinks: { props: ["entry"], template: "<div data-testid='story-links' :data-id='entry.id' />" }, EntityImageBlock: true, AudienceRevealControl: true, ConnectionsSection: true, CanonSuggestions: true, LorePassageRow: { props: ["passage"], emits: ["move", "remove"], template: "<li data-testid='row'>{{ passage.id }}<button data-testid='up' @click=\"$emit('move', -1)\" /><button data-testid='rm' @click=\"$emit('remove')\" /></li>" } } },
   });
 
 describe("LoreDetail", () => {
@@ -43,6 +51,20 @@ describe("LoreDetail", () => {
     mocks.createPassage.mockResolvedValue({});
     mocks.updatePassage.mockResolvedValue(undefined);
     passages.value = [];
+  });
+
+  // Bug: the first passage looked like any other, so the DM could not tell it is read when the entry is shared.
+  it("labels the first passage as the opening, read when the entry is shared, once there is a passage", () => {
+    expect(mountIt().find("[data-testid=lore-opening]").exists()).toBe(false);
+    passages.value = [p("a", 0)];
+    const opening = mountIt().get("[data-testid=lore-opening]");
+    expect(opening.text()).toContain("The opening, read when the entry is shared");
+    expect(opening.text()).toContain("never waits at a place");
+  });
+
+  // Bug: a lore entry showed no "Because of" and "Led to", so its cause and effect were only visible from other entries.
+  it("shows what the entry came of and led to", () => {
+    expect(mountIt().get("[data-testid=story-links]").attributes("data-id")).toBe("l1");
   });
 
   it("clears the month and day with the year, so the table never gets a month with no year", async () => {
@@ -81,5 +103,16 @@ describe("LoreDetail", () => {
 
   it("offers Split only when the entry has text to split", () => {
     expect(mountIt().findComponent({ name: "CanonSuggestions" }).exists()).toBe(false);
+  });
+  // Bug caught: the block showing another entry's quests (or another part's words), so a lore read as a force's "where the party meets it".
+  it("shows this lore's own quest links, in the lore's words", () => {
+    questData.quests = [
+      { id: "l1", entry_id: "l1", quest_id: "q1" },
+      { id: "l2", entry_id: "someone-else", quest_id: "q2" },
+    ];
+    const block = mountIt().getComponent(EntryQuestsStub);
+    expect(block.props("links")).toEqual([expect.objectContaining({ id: "l1" })]);
+    expect(block.props("label")).toBe("The quests that tell it");
+    expect(block.props("empty")).toBe("No quest tells this yet.");
   });
 });

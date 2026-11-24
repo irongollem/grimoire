@@ -47,3 +47,12 @@ describe("PremiseWorld", () => {
     expect(mocks.toastError).toHaveBeenCalled();
   });
 });
+
+describe("PremiseWorld ids", () => {
+  // Bug caught (#1255): the World field took the id of part V ("How the world works"), so choosing that part in the
+  // contents column scrolled back to the top of the page, and the scroll-following highlight read part V at the top.
+  it("does not take the id of the How the world works part", async () => {
+    const source = (await import("./PremiseWorld.vue?raw")).default as string;
+    expect(source).not.toMatch(/\bid="canon-world"/);
+  });
+});

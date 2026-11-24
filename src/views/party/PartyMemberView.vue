@@ -33,7 +33,7 @@
     />
 
     <!-- Everything this character is tied to, factions and patron deity included (#1084). -->
-    <ConnectionsSection v-if="member" :subject="{ kind: 'party_member', id: member.id }" :subject-name="member.name" />
+    <ConnectionsSection v-if="member" :subject="{ kind: 'party_member', id: member.id }" :subject-name="member.name" :origin="origin" />
 
     <!-- Distinct from the character's own "Notes" above, which players read. -->
     <DmNoteBox v-if="member" type="party_member" :id="member.id" :label="member.name" />
@@ -66,6 +66,7 @@ import { computed, ref, defineAsyncComponent } from "vue";
 import { useRoute, RouterLink } from "vue-router";
 import { IconEdit } from '@/lib/icons';
 import { useParty } from "@/composables/party/useParty";
+import { useBackstoryOrigin } from "@/composables/canon/useBackstoryOrigin";
 import PlayerCharacterView from "@/views/player/PlayerCharacterView.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
@@ -89,6 +90,10 @@ const { data: party } = useParty();
 const member = computed(() => (party.value ?? []).find((m) => m.id === id.value) ?? null);
 
 const editOpen = ref(false);
+
+// The people this character's backstory brought in carry the same "From Canon" marker here as on the Canon page.
+// Read-only: it never makes the backstory entry a character does not have yet.
+const origin = useBackstoryOrigin(id);
 
 const { data: memorials } = useCampaignMemorials();
 const memorialInEffect = computed(

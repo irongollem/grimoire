@@ -7,27 +7,22 @@ import { toast } from "@/lib/toast";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { useCampaignSession } from "@/composables/campaign/useCampaignSession";
 import { useCreateCanonEntry, type NewCanonEntry } from "@/composables/canon/useCanonEntries";
+import { createEntryQuests, fetchCanonEntryQuests } from "@/composables/canon/useCanonEntryQuests";
 import { useCreateConnection, type NamedRef } from "@/composables/connections/useConnections";
 import { typeChoices } from "@/lib/worldLinks/connections";
 import type { Campaign } from "@/types/campaign.types";
-import type { CanonForceQuest, CanonForceStep, CanonForceTick } from "@/types/canon.types";
+import type { CanonEntryQuest, CanonForceStep, CanonForceTick } from "@/types/canon.types";
 import type { ForceSuggestion } from "@/ai/useCanonSuggestions";
 
 /**
- * What is moving (#1226 story 4): a force's steps, the ticks of its clock and the quests where the party meets it.
- * The three are read together, once for the whole campaign, and every write rings the doorbell.
+ * What is moving (#1226 story 4): a force's steps, the ticks of its clock and every quest link of the campaign (a force's
+ * are the ones where the party meets it; the other parts' are read by their own blocks). The three are read together, once for the whole campaign, and every write rings the doorbell.
  */
 
 export interface CanonForceData {
   steps: CanonForceStep[];
   ticks: CanonForceTick[];
-  quests: CanonForceQuest[];
-}
-
-/** A force's clock never runs past its size or below nothing; the ticks keep whatever was written. */
-export function clockFilled(ticks: readonly Pick<CanonForceTick, "delta">[], size: number): number {
-  const sum = ticks.reduce((total, t) => total + t.delta, 0);
-  return Math.min(size, Math.max(0, sum));
+  quests: CanonEntryQuest[];
 }
 
 /** The tick Undo may take back: the newest one. An older tick stays, so the log never reads as a clock that skipped. */
@@ -85,17 +80,16 @@ export function moveStep(steps: readonly CanonForceStep[], id: string, direction
 
 // ── Reads and writes ─────────────────────────────────────────────────────────
 
-/** The campaign's steps, ticks and force quests, each scoped in its own query: RLS only bounds who may read. */
+/** The campaign's steps, ticks and quest links, each scoped in its own query: RLS only bounds who may read. */
 export async function fetchCanonForceData(campaignId: string): Promise<CanonForceData> {
   const [steps, ticks, quests] = await Promise.all([
     supabase.from("canon_force_steps").select("*").eq("campaign_id", campaignId).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
     supabase.from("canon_force_ticks").select("*").eq("campaign_id", campaignId).order("created_at", { ascending: true }),
-    supabase.from("canon_force_quests").select("*").eq("campaign_id", campaignId).order("created_at", { ascending: true }),
+    fetchCanonEntryQuests(campaignId),
   ]);
   if (steps.error) throw steps.error;
   if (ticks.error) throw ticks.error;
-  if (quests.error) throw quests.error;
-  return { steps: steps.data as CanonForceStep[], ticks: ticks.data as CanonForceTick[], quests: quests.data as CanonForceQuest[] };
+  return { steps: steps.data as CanonForceStep[], ticks: ticks.data as CanonForceTick[], quests };
 }
 
 function signedInUser() {
@@ -119,7 +113,7 @@ export async function createForceSteps(inputs: readonly NewForceStep[]): Promise
   if (error) throw error;
 }
 
-export type ForceStepPatch = Partial<Pick<CanonForceStep, "title" | "sort_order" | "reached_at" | "reached_session_id">>;
+export type ForceStepPatch = Partial<Pick<CanonForceStep, "title" | "sort_order" | "reached_at" | "reached_session_id" | "due_year" | "due_month" | "due_day">>;
 
 export async function updateForceStep(id: string, patch: ForceStepPatch): Promise<void> {
   // RLS answers a write it refuses with no error and no row; asking for the row back is how that is told from a save.
@@ -153,21 +147,6 @@ export async function createForceTick(input: NewForceTick): Promise<void> {
 
 export async function deleteForceTick(id: string): Promise<void> {
   const { error } = await supabase.from("canon_force_ticks").delete().eq("id", id);
-  if (error) throw error;
-}
-
-export async function createForceQuests(inputs: readonly { campaign_id: string; force_id: string; quest_id: string }[]): Promise<void> {
-  if (inputs.length === 0) return;
-  const user = signedInUser();
-  // Ignoring a duplicate is how "linked once" holds when two tabs add the same quest; the table's unique index is the guard.
-  const { error } = await supabase
-    .from("canon_force_quests")
-    .upsert(inputs.map((i) => ({ ...i, user_id: user.id })), { onConflict: "force_id,quest_id", ignoreDuplicates: true });
-  if (error) throw error;
-}
-
-export async function deleteForceQuest(id: string): Promise<void> {
-  const { error } = await supabase.from("canon_force_quests").delete().eq("id", id);
   if (error) throw error;
 }
 
@@ -223,8 +202,6 @@ export const useCreateForceSteps = () => useForceWrite(createForceSteps);
 export const useUpdateForceStep = () => useForceWrite(({ id, patch }: { id: string; patch: ForceStepPatch }) => updateForceStep(id, patch));
 export const useDeleteForceStep = () => useForceWrite(deleteForceStep);
 export const useUndoForceTick = () => useForceWrite(undoForceTick);
-export const useCreateForceQuests = () => useForceWrite(createForceQuests);
-export const useDeleteForceQuest = () => useForceWrite(deleteForceQuest);
 
 /** Move a step up or down: every step whose place changed is written. */
 export function useMoveForceStep() {
@@ -274,7 +251,7 @@ export async function writeAcceptedForce(s: ForceSuggestion, ctx: AcceptForceCon
   const created = await ctx.createEntry({ part: "force", title: s.title, wants: s.wants, clock_size: s.clockSize, sort_order: ctx.sortOrder, ...stamp });
   await createForceSteps(s.steps.map((title, index) => ({ campaign_id: ctx.campaignId, force_id: created.id, title, sort_order: index, ...stamp })));
   // A quest named twice is linked once: the table's unique index and the insert's ignore-duplicates say so.
-  await createForceQuests(s.quests.map((q) => ({ campaign_id: ctx.campaignId, force_id: created.id, quest_id: q.id })));
+  await createEntryQuests(s.quests.map((q) => ({ campaign_id: ctx.campaignId, entry_id: created.id, quest_id: q.id })));
   if (s.who) await ctx.connectAbout(created.id, { kind: s.who.kind, id: s.who.id, name: s.who.name }, ctx.provenance);
 }
 

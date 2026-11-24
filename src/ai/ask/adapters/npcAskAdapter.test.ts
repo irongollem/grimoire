@@ -40,6 +40,8 @@ vi.mock("@/composables/ai/useCampaignProviders", () => ({
 }));
 vi.mock("@/composables/billing/useQuota", () => ({ useQuota: () => ({ canCreate: { get value() { return state.canCreate; } } }) }));
 vi.mock("@/composables/rules/useGameSystem", () => ({ useGameSystem: () => ({ offers: () => state.offersStatBlocks }) }));
+// The world lists no peoples here: the species the DM asked for, or none, goes through as said.
+vi.mock("@/composables/canon/useCampaignPeoples", () => ({ useCampaignPeoples: () => ({ peoples: { value: [] } }) }));
 vi.mock("@/composables/locations/useLocations", () => ({
   useAllLocations: () => ({ data: { get value() { return state.locations; } } }),
 }));

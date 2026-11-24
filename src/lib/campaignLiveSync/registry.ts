@@ -324,7 +324,16 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   // What is moving (#1226 story 4) and lore told in passages (story 5): DM-only rows read under the canon root.
   ["canon_force_steps", [CANON_KEY]],
   ["canon_force_ticks", [CANON_KEY]],
-  ["canon_force_quests", [CANON_KEY]],
+  ["canon_entry_quests", [CANON_KEY]],
+  ["canon_arcs", [CANON_KEY]],
+  ["canon_trash", [CANON_KEY]],
+  // What the players wonder (#1258 item 24): a player reads their own, the DM all, under the canon root.
+  ["canon_wonders", [CANON_KEY]],
+  ["campaign_habitats", [CANON_KEY]],
+  ["campaign_habitat_places", [CANON_KEY]],
+  ["campaign_habitat_life", [CANON_KEY]],
+  // Who lives in the world (#1255 item 30): DM-only rows, read by name through campaign_peoples_named under the canon root.
+  ["campaign_peoples", [CANON_KEY]],
   ["canon_lore_passages", [CANON_KEY]],
   // The record (#1021). A member re-reads through RLS, which shows only what the party knows.
   ["story_facts", [STORY_RECORD_KEY]],

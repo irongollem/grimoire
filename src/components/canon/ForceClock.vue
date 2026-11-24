@@ -9,7 +9,7 @@
 <script setup lang="ts">
 /** A force's clock: the quest clock dial filled by the sum of its ticks, or the empty ring when it keeps none. */
 import QuestClockDial from "@/components/quests/inspector/QuestClockDial.vue";
-import { clockFilled } from "@/composables/canon/useCanonForces";
+import { clockFilled } from "@/lib/canon/canonForces";
 import type { CanonEntry, CanonForceTick } from "@/types/canon.types";
 
 defineProps<{ force: CanonEntry; ticks: readonly CanonForceTick[] }>();

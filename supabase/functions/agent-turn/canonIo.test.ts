@@ -63,6 +63,20 @@ describe("canonStore.lookup", () => {
   });
 });
 
+describe("canonStore.lookup: mentions", () => {
+  const NPC = "11111111-1111-4111-8111-111111111111";
+  // Bug: a mention stores no name, so the Narrator read "The bell was sold by" and could not say who.
+  it("tells the Narrator whom a mention names", async () => {
+    const fake = createSupabaseFake();
+    fake.onRpc("match_campaign_canon", () => [{ id: "e1", part: "lore", knowledge: null, title: "The Bell", distance: 0.1 }]);
+    const body = doc({ type: "paragraph", content: [{ type: "text", text: "Sold by " }, { type: "entityMention", attrs: { id: NPC, entityType: "npc" } }, { type: "text", text: "." }] });
+    fake.seed("canon_entries", [{ id: "e1", campaign_id: "c1", body, wants: null }]);
+    fake.seed("npcs", [{ id: NPC, campaign_id: "c1", name: "Maren Voss" }]);
+    const [entry] = (await store(fake).lookup("c1", "bell")) ?? [];
+    expect(entry.text).toBe("Sold by Maren Voss.");
+  });
+});
+
 describe("canonStore.lookup: a backstory", () => {
   const backstory = () => {
     const fake = createSupabaseFake();
@@ -153,5 +167,49 @@ describe("canonStore.bringOut: who a passage is told to", () => {
     const fake = seed();
     await store(fake).bringOut({ campaignId: "c1", campaignSessionId: null }, { kind: "passage", id: "lp" });
     expect(told(fake, "lp").sort()).toEqual(["pm1", "pm2"]);
+  });
+});
+
+describe("canonStore: an answered question or an ended force is no longer open (#1255)", () => {
+  const seed = () => {
+    const fake = createSupabaseFake();
+    fake.seed("canon_entries", [
+      { id: "q-open", campaign_id: "c1", part: "question", title: "Who made the Stain?", sort_order: 0, closed_as: null },
+      { id: "q-done", campaign_id: "c1", part: "question", title: "Who built the mill?", sort_order: 1, closed_as: "answered", closed_note: "The guild did." },
+      { id: "f-live", campaign_id: "c1", part: "force", title: "The Brewlings", sort_order: 0, closed_as: null },
+      { id: "f-over", campaign_id: "c1", part: "force", title: "The Old Guild", sort_order: 1, closed_as: "stopped" },
+    ]);
+    return fake;
+  };
+
+  // Bug caught: every question was kept open for the Narrator, so it would not mention what the DM had already answered.
+  it("tells the Narrator only the questions still open", async () => {
+    const here = await store(seed()).here("c1", null, []);
+    expect(here.questions).toEqual(["Who made the Stain?"]);
+  });
+
+  // Bug caught: the invention check refused an invention for "answering" a question the DM had already answered.
+  it("holds an invention against only the questions still open", async () => {
+    const material = await store(seed()).material("c1");
+    expect(material.questions).toEqual(["Who made the Stain?"]);
+  });
+
+  // Bug caught: a force that had stopped was shown as one that moved here.
+  it("leaves an ended force out of the forces that moved here", async () => {
+    const fake = seed();
+    fake.seed("world_links", [
+      { campaign_id: "c1", from_kind: "canon", type: "took_place_at", from_canon_entry_id: "f-live", to_kind: "location", to_location_id: "l1" },
+      { campaign_id: "c1", from_kind: "canon", type: "took_place_at", from_canon_entry_id: "f-over", to_kind: "location", to_location_id: "l1" },
+    ]);
+    const here = await store(fake).here("c1", "l1", []);
+    expect(here.forces.map((f) => f.title)).toEqual(["The Brewlings"]);
+  });
+
+  // Bug caught: a lookup hit carried no sign of how it ended, so an answered question read as open.
+  it("hands the lookup how a question or force ended", async () => {
+    const fake = seed();
+    fake.onRpc("match_campaign_canon", () => [{ id: "q-done", part: "question", knowledge: null, title: "Who built the mill?", distance: 0.1 }]);
+    const [entry] = (await store(fake).lookup("c1", "mill")) ?? [];
+    expect(entry).toMatchObject({ closedAs: "answered", closedNote: "The guild did." });
   });
 });

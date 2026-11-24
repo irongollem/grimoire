@@ -30,6 +30,7 @@ import { serveUser } from "../_shared/pipeline/serveUser.ts";
 import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
 import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
+import { readClientConstraints } from "../_shared/clientConstraints.ts";
 
 /**
  * Party-aware AI encounter suggester (#337).
@@ -149,6 +150,8 @@ serve(serveUser(async ({ user, req, report }) => {
   const prompt = typeof body?.prompt === "string" && body.prompt ? body.prompt : undefined;
   if (!body || !campaign_id || !prompt) return jsonError(400, "invalid_body", "Need { campaign_id, prompt }.");
   const difficulty = typeof body.difficulty === "string" ? body.difficulty : "auto";
+  // The creature rolled from the habitat of the party's place, among others (#1255). User input: wrapped with the prompt.
+  const clientConstraints = readClientConstraints(body.constraints);
 
   if (!VALID_DIFFICULTIES.includes(difficulty)) {
     return jsonError(400, "invalid_difficulty", `Invalid difficulty: must be one of ${VALID_DIFFICULTIES.join(", ")}.`);
@@ -360,7 +363,8 @@ serve(serveUser(async ({ user, req, report }) => {
         "\n---END AVAILABLE MONSTERS---",
       );
     }
-    const userContent = `${wrapUserInput(prompt)}\n\nConstraints:\n${constraints.join("\n")}`;
+    const dmInput = clientConstraints.length > 0 ? `${prompt}\n\n${clientConstraints.join("\n")}` : prompt;
+    const userContent = `${wrapUserInput(dmInput)}\n\nConstraints:\n${constraints.join("\n")}`;
 
     let textResult: TextResult;
     try {

@@ -1301,6 +1301,25 @@ describe("runImportSweep: deities and canon (#1226)", () => {
     expect(stepCalls[0]![1]).toEqual([expect.objectContaining({ force_id: "canon-2", title: "buy it", campaign_id: CAMPAIGN_ID })]);
   });
 
+  // Bug caught: a book's force-quest rows still written to the table the rename removed, or under the old `force_id` column.
+  it("writes a force's quest links to canon_entry_quests under entry_id", async () => {
+    const deps = fakeDeps();
+    await runImportSweep(
+      IMPORT_ROW,
+      input({
+        entitiesByKind: {
+          quests: [usable("q1", { title: "The Sunken Bell" })],
+          canon: [usable("c1", { title: "The Ferrymen", part: "force", wants: "the bridge", quests: ["The Sunken Bell"] })],
+        },
+        decisions: new Map([["quests", new Map([["q1", CREATE]])], ["canon", new Map([["c1", CREATE]])]]),
+      }),
+      deps,
+    );
+    const calls = vi.mocked(deps.insertCanonRows).mock.calls.filter(([table]) => table === "canon_entry_quests");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]![1]).toEqual([{ campaign_id: CAMPAIGN_ID, entry_id: "canon-1", quest_id: "quests-1" }]);
+  });
+
   it("writes no children for a canon entry the DM linked to an existing one", async () => {
     const deps = fakeDeps();
     await runImportSweep(

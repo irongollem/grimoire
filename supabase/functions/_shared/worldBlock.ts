@@ -11,6 +11,7 @@
  * `@edge-shared/worldBlock.ts`.
  */
 import { plainWithoutSecrets } from "./secretBlocks.ts";
+import type { MentionNameOf } from "./mentionNames.ts";
 
 export interface WorldBlock {
   world: string | null;
@@ -24,6 +25,82 @@ export interface WorldBlock {
   lines: string[];
   veils: string[];
   truths: string[];
+  /** "Elf 80%, Human 15%, anyone else 5%", largest first; null when the DM has not said who lives there. */
+  peoples: string | null;
+  /** One line per habitat ("Salt marsh (the Marsh): Marsh eel 40%, anything else 60%"); null when the DM has described none. */
+  habitats: string | null;
+}
+
+/** One people of the world and its share of the population, as `campaign_peoples_named` reads it. */
+export interface People {
+  name: string;
+  percent: number;
+}
+
+const roundShare = (n: number): number => Math.round(n * 100) / 100;
+
+/**
+ * Shares as words for a prompt, largest first, the unlisted remainder last under `rest`:
+ * "Elf 80%, Human 15%, anyone else 5%". "" for an empty list. Shares of zero are left out.
+ */
+export function sharesLine(list: readonly People[], rest: string): string {
+  const listed = list.filter((p) => p.percent > 0);
+  if (listed.length === 0) return "";
+  const parts = [...listed]
+    .sort((a, b) => b.percent - a.percent)
+    .map((p) => `${p.name} ${roundShare(p.percent)}%`);
+  const left = roundShare(100 - listed.reduce((sum, p) => sum + p.percent, 0));
+  if (left > 0) parts.push(`${rest} ${left}%`);
+  return parts.join(", ");
+}
+
+export const peoplesLine = (list: readonly People[]): string => sharesLine(list, "anyone else");
+
+/** One habitat as `campaign_habitats`, its places by name and its life by name, for the block. */
+export interface HabitatForBlock {
+  name: string;
+  places: string[];
+  life: People[];
+}
+
+/** What the block reads of `campaign_habitats`, `campaign_habitat_places` (with its place's name) and `campaign_habitat_life_named`. */
+export const WORLD_BLOCK_HABITAT_COLUMNS = "id, name";
+export const WORLD_BLOCK_HABITAT_PLACE_COLUMNS = "habitat_id, location:locations(name)";
+export const WORLD_BLOCK_HABITAT_LIFE_COLUMNS = "habitat_id, name, percent";
+
+/** An embedded many-to-one row: PostgREST sends an object, supabase-js types it as a list when the table has no generated types. */
+type Embedded<T> = T | readonly T[] | null;
+
+export interface HabitatRows {
+  habitats: readonly { id: string; name: string }[];
+  /** A place this reader may not read comes with no `location`, and is left out. */
+  places: readonly { habitat_id: string; location: Embedded<{ name: string }> }[];
+  /** Already without the creatures this reader may not name: their share falls under "anything else". */
+  life: readonly { habitat_id: string; name: string; percent: number }[];
+}
+
+/** Joins the three reads into the habitats the block names, in the order given. One rule for both loaders. */
+export function habitatsForBlock(rows: HabitatRows): HabitatForBlock[] {
+  return rows.habitats.map((h) => ({
+    name: h.name,
+    places: rows.places.filter((p) => p.habitat_id === h.id).flatMap((p) => (Array.isArray(p.location) ? p.location : p.location ? [p.location] : []).map((l) => l.name)),
+    life: rows.life.filter((l) => l.habitat_id === h.id),
+  }));
+}
+
+/**
+ * One line a habitat: "Salt marsh (the Marsh, Saltmere's edge): Marsh eel 40%, Giant frog 20%, anything else 40%".
+ * A habitat with neither a place nor a creature tells a generator nothing and is left out; "" when none is left.
+ */
+export function habitatsLines(list: readonly HabitatForBlock[]): string {
+  return list
+    .filter((h) => h.places.length > 0 || h.life.some((l) => l.percent > 0))
+    .map((h) => {
+      const where = h.places.length > 0 ? ` (${h.places.join(", ")})` : "";
+      const life = sharesLine(h.life, "anything else");
+      return `${h.name}${where}${life ? `: ${life}` : ""}`;
+    })
+    .join("\n");
 }
 
 export interface CanonRowForBlock {
@@ -35,6 +112,9 @@ export interface CanonRowForBlock {
   sort_order: number;
   reference_images: string[];
 }
+
+/** What the block reads of `campaign_peoples_named`, in the DM's order, for both loaders. */
+export const WORLD_BLOCK_PEOPLES_COLUMNS = "name, percent";
 
 /** Columns the block reads, for both the server and the client loader. */
 export const WORLD_BLOCK_CANON_COLUMNS = "part, premise_kind, knowledge, title, body, sort_order, reference_images";
@@ -50,11 +130,12 @@ const TEXT_KINDS: ReadonlySet<string> = new Set(["pitch", "voice", "look", "tabl
 /**
  * What a premise entry says: for a kind that carries text, its body's plain text, headed by its title when both
  * exist and differ; a title alone stands. A line, a veil or a truth is its title, a body standing in when empty.
- * One rule for every generator and for the canon suggester's "already have" list.
+ * One rule for every generator and for the canon suggester's "already have" list. A body's @mentions store no name,
+ * so `nameOf` says what each is called (`mentionNames.ts`); without it they read as nothing.
  */
-export function premiseEntryText(kind: string | null, titleRaw: string, bodyRaw: string | null): string {
+export function premiseEntryText(kind: string | null, titleRaw: string, bodyRaw: string | null, nameOf?: MentionNameOf): string {
   const title = titleRaw.trim();
-  const body = plainWithoutSecrets(bodyRaw).trim();
+  const body = plainWithoutSecrets(bodyRaw, nameOf).trim();
   if (kind !== null && TEXT_KINDS.has(kind)) {
     if (body === "") return title;
     return title === "" || title === body ? body : `${title}: ${body}`;
@@ -62,9 +143,15 @@ export function premiseEntryText(kind: string | null, titleRaw: string, bodyRaw:
   return title !== "" ? title : body;
 }
 
-const entryText = (row: CanonRowForBlock): string => premiseEntryText(row.part === "premise" ? row.premise_kind : null, row.title, row.body);
-
-export function worldBlockFromRows(setting: string | null, rows: CanonRowForBlock[]): WorldBlock {
+export function worldBlockFromRows(
+  setting: string | null,
+  rows: CanonRowForBlock[],
+  peoples: readonly People[],
+  habitats: readonly HabitatForBlock[],
+  nameOf?: MentionNameOf,
+): WorldBlock {
+  const entryText = (row: CanonRowForBlock): string =>
+    premiseEntryText(row.part === "premise" ? row.premise_kind : null, row.title, row.body, nameOf);
   const ordered = [...rows].sort((a, b) => a.sort_order - b.sort_order);
   const ofKind = (kind: string): string[] =>
     ordered
@@ -92,6 +179,8 @@ export function worldBlockFromRows(setting: string | null, rows: CanonRowForBloc
       .filter((r) => r.part === "truth" && r.knowledge === "all")
       .map(entryText)
       .filter((t) => t.length > 0),
+    peoples: peoplesLine(peoples) || null,
+    habitats: habitatsLines(habitats) || null,
   };
 }
 
@@ -106,6 +195,16 @@ export function worldBlockText(block: WorldBlock): string {
   if (block.table.length) sections.push(`## At the table\n${bullets(block.table)}`);
   if (block.voice) sections.push(`## Voice\n${block.voice}`);
   if (block.truths.length) sections.push(`## Truths of the world\n${bullets(block.truths)}`);
+  if (block.peoples) {
+    sections.push(
+      `## Peoples of the world\n${block.peoples}\nWhen you invent a person, choose who they are at these odds; do not default to humans.`,
+    );
+  }
+  if (block.habitats) {
+    sections.push(
+      `## Life of the world\n${block.habitats}\nWhen a creature turns up somewhere, choose it at these odds for the country it is in.`,
+    );
+  }
   if (block.lines.length) {
     sections.push(`## Lines\nNever include, in any form:\n${bullets(block.lines)}`);
   }

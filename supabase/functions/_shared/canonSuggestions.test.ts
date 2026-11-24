@@ -9,6 +9,8 @@ import {
   sanitizeLore,
   sanitizePremise,
   sanitizeQuestions,
+  sanitizeSecrets,
+  MAX_SECRET_CLUES,
   sanitizeTruths,
   type ForceWho,
   type KnowerCandidate,
@@ -243,5 +245,54 @@ describe("sanitizeLore", () => {
     const out = sanitizeLore({ title: "T", passages }, spots, [], requested);
     expect(out.suggestions[0].passages).toHaveLength(5);
     expect(out.suggestions[0].passages[0].body.length).toBe(1500);
+  });
+});
+
+describe("sanitizeSecrets", () => {
+  const spots: SpotCandidate[] = [
+    { kind: "location", id: "l1", name: "Mint Fields" },
+    { kind: "npc", id: "n1", name: "Sift" },
+    { kind: "quest_beat", id: "b1", name: "The ferry" },
+  ];
+  const clue = (title: string, at: unknown) => ({ title, at });
+
+  it("keeps a secret with three clues placed on real ids", () => {
+    const out = sanitizeSecrets({ suggestions: [{ title: "The guildmaster is dead", clues: [
+      clue("A grave", { kind: "location", id: "l1" }), clue("A letter", { kind: "npc", id: "n1" }), clue("A ticket", { kind: "quest_beat", id: "b1" }),
+    ] }] }, spots, []);
+    expect(out.suggestions).toEqual([{ title: "The guildmaster is dead", clues: [
+      { title: "A grave", spot: spots[0] }, { title: "A letter", spot: spots[1] }, { title: "A ticket", spot: spots[2] },
+    ] }]);
+  });
+
+  // Bug caught: an id the model invented (or took from another campaign) became a reference, or failed the whole answer.
+  it("drops an unknown id and keeps the clue unplaced, not the answer failed", () => {
+    const out = sanitizeSecrets({ suggestions: [{ title: "S", clues: [
+      clue("Elsewhere", { kind: "location", id: "from-another-campaign" }), clue("Kind mismatch", { kind: "npc", id: "l1" }), clue("Fine", { kind: "npc", id: "n1" }),
+    ] }] }, spots, []);
+    expect(out.suggestions[0].clues).toEqual([
+      { title: "Elsewhere", spot: null }, { title: "Kind mismatch", spot: null }, { title: "Fine", spot: spots[1] },
+    ]);
+  });
+
+  // Bug caught: two clues of one secret lay at one place, which "Place clues" already refuses.
+  it("leaves a second clue at the same place unplaced", () => {
+    const out = sanitizeSecrets({ suggestions: [{ title: "S", clues: [clue("One", { kind: "npc", id: "n1" }), clue("Two", { kind: "npc", id: "n1" })] }] }, spots, []);
+    expect(out.suggestions[0].clues.map((c) => c.spot?.id ?? null)).toEqual(["n1", null]);
+  });
+
+  // Bug caught: more than three clues came through, so an accept wrote an unbounded number of rows.
+  it("caps the clues of a secret", () => {
+    const many = Array.from({ length: 6 }, (_, i) => clue(`C${i}`, null));
+    expect(sanitizeSecrets({ suggestions: [{ title: "S", clues: many }] }, spots, []).suggestions[0].clues).toHaveLength(MAX_SECRET_CLUES);
+  });
+
+  // Bug caught: a secret with no clue was offered, which is exactly the loose end "Read it through" reports.
+  it("sets aside a secret with no readable clue, and skips one the campaign already has", () => {
+    const out = sanitizeSecrets({ suggestions: [
+      { title: "No clues", clues: [{ title: "  " }] }, { title: "Known", clues: [clue("c", null)] }, { title: "Fresh", clues: [clue("c", null)] },
+    ] }, spots, ["known"]);
+    expect(out.suggestions.map((s) => s.title)).toEqual(["Fresh"]);
+    expect(out.setAside).toEqual([{ claim: "No clues", reason: expect.stringContaining("no clues") }]);
   });
 });

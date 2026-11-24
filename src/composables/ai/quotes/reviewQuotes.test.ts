@@ -11,6 +11,8 @@ const PRICES: Record<string, number> = {
   canon_question_suggestion: 24,
   canon_force_suggestion: 25,
   canon_lore_suggestion: 26,
+  canon_secret_suggestion: 27,
+  canon_read_through: 28,
 };
 const byok = vi.hoisted(() => ({ value: false }));
 
@@ -42,6 +44,8 @@ describe("the review generators' quotes", () => {
     expect(quoteFor("questions").total).toBe(24);
     expect(quoteFor("forces").total).toBe(25);
     expect(quoteFor("lore").total).toBe(26);
+    expect(quoteFor("secrets").total).toBe(27);
+    expect(quoteFor("read").total).toBe(28);
   });
 
   it("cost nothing on the DM's own key", () => {

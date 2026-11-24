@@ -79,20 +79,30 @@ export function validatePromptInput(
   return { ok: true };
 }
 
-interface TiptapNode { text?: string; content?: TiptapNode[] }
+interface TiptapNode { type?: string; text?: string; content?: TiptapNode[]; attrs?: { id?: unknown; entityType?: unknown } }
 
 /**
  * Flatten content to plain text. Accepts a Tiptap JSON string (extracts all
  * text nodes) or a plain string (returned trimmed). Safe on null/invalid JSON.
  * Used to build AI image-prompt context from entity description fields.
  */
-export function toPlainText(content: string | null | undefined): string {
+export function toPlainText(
+  content: string | null | undefined,
+  /** Names an `entityMention` (the node stores none, #932); without it a mention reads as nothing. */
+  nameOf?: (entityType: string, id: string) => string | null,
+): string {
   if (!content) return "";
   const trimmed = content.trim();
   if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return trimmed;
   try {
     const parts: string[] = [];
     const walk = (n: TiptapNode) => {
+      if (n.type === "entityMention") {
+        const { id, entityType } = n.attrs ?? {};
+        const name = nameOf && typeof id === "string" && typeof entityType === "string" ? nameOf(entityType, id) : null;
+        if (name) parts.push(name);
+        return;
+      }
       if (n.text) parts.push(n.text);
       n.content?.forEach(walk);
     };

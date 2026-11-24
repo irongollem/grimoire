@@ -1,4 +1,4 @@
-import { flushPromises, mount } from "@vue/test-utils";
+import { config, flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { QuestBeat } from "@/types/quest.types";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
@@ -21,11 +21,18 @@ vi.mock("@/composables/notes/useEntityMentionItems", () => ({
   useEntityMentionItems: () => ({ mentionItems: [] }),
 }));
 
-const stubs = { RichTextEditor: true, MentionTextarea: true };
+const secrets = vi.hoisted(() => ({ entries: [] as unknown[] }));
+vi.mock("@/composables/canon/useCanonEntries", () => ({ useCanonEntries: () => ({ data: { value: secrets.entries } }) }));
+vi.mock("@/composables/canon/useCanonClues", () => ({ useCanonClues: () => ({ data: { value: [] } }) }));
+
+// EntityCombobox (the canon secret picker) uses the password-manager directive the app registers globally.
+config.global.directives = { noPwm: {} };
+
+const stubs = { RichTextEditor: true, MentionTextarea: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } };
 
 const beat = (): QuestBeat => ({
   id: "beat-1", quest_id: "quest-1", campaign_id: "campaign-1", title: "The bargain",
-  dm_content: null, secret: false, visible_to: null, read_aloud: null, how_it_plays: null, converge_mode: "any",
+  dm_content: null, secret: false, canon_secret_id: null, visible_to: null, read_aloud: null, how_it_plays: null, converge_mode: "any",
   rumor_text: null, reveal_text: null, visibility: "hidden", kind: "social",
   presentation_hint: null, staged_at_location_id: null, canvas_x: 0, canvas_y: 0, is_improvised: false,
   improv_reviewed_at: null, created_by: "dm", created_at: "now", updated_at: "version-1",
@@ -40,6 +47,41 @@ describe("QuestBeatFields", () => {
     }));
   });
   afterEach(() => vi.useRealTimers());
+
+  describe("canon secret", () => {
+    const entry = { id: "s1", part: "secret", title: "Sift is the guild master's daughter.", revealed_at: null };
+    beforeEach(() => { secrets.entries = [entry]; });
+    const lead = (w: ReturnType<typeof mount>) => w.findAllComponents({ name: "RichTextEditor" }).filter((c) => c.props("placeholder") === "What should the DM know first?");
+
+    // Bug caught: tying wrote nothing, or wrote another column, so the beat was never linked to the secret.
+    it("saves the secret the DM picks", async () => {
+      const w = mount(QuestBeatFields, { props: { beat: beat() }, global: { stubs } });
+      w.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "s1");
+      await flushPromises();
+      expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ id: "beat-1", update: { canon_secret_id: "s1" }, expectedUpdatedAt: "version-1" }));
+    });
+
+    // Bug caught: the beat kept showing its own DM lead beside the secret, so the secret lived in two places.
+    it("shows the secret's words, not the beat's own DM lead, once tied", () => {
+      const w = mount(QuestBeatFields, { props: { beat: { ...beat(), canon_secret_id: "s1" } }, global: { stubs } });
+      expect(w.find("[data-testid=beat-canon-secret-statement]").text()).toBe("Sift is the guild master's daughter.");
+      expect(w.find("[data-testid=beat-canon-secret-state]").text()).toContain("Hidden");
+      expect(lead(w)).toHaveLength(0);
+    });
+
+    // Bug caught: an untied beat lost its DM lead field, so a beat with no secret could not be written.
+    it("keeps the DM lead for a beat that is not a canon secret", () => {
+      expect(lead(mount(QuestBeatFields, { props: { beat: beat() }, global: { stubs } }))).toHaveLength(1);
+    });
+
+    // Bug caught: untying wrote the empty string or left the tie, so the beat stayed bound to the secret.
+    it("clears the tie with null", async () => {
+      const w = mount(QuestBeatFields, { props: { beat: { ...beat(), canon_secret_id: "s1" } }, global: { stubs } });
+      await w.findAll("button").find((b) => b.text() === "Not a canon secret")!.trigger("click");
+      await flushPromises();
+      expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ update: { canon_secret_id: null } }));
+    });
+  });
 
   it("keeps a blank title local and resumes autosave with the pending draft", async () => {
     const wrapper = mount(QuestBeatFields, {
@@ -129,7 +171,8 @@ describe("QuestBeatFields", () => {
   it("no longer offers kind, visibility or staged-location controls", () => {
     const wrapper = mount(QuestBeatFields, { props: { beat: beat() }, global: { stubs } });
     expect(wrapper.find("select").exists()).toBe(false);
-    expect(wrapper.findComponent({ name: "EntityCombobox" }).exists()).toBe(false);
+    // The one picker is the canon secret's; there is none for a staged location.
+    expect(wrapper.findAllComponents({ name: "EntityCombobox" })).toHaveLength(1);
   });
 
   it("shows no title warning on an untouched beat that has no title yet", () => {

@@ -1,6 +1,6 @@
 <template>
   <section id="canon-backstories" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-backstories-heading">
-    <CanonRubric id="canon-backstories-heading" numeral="VII" title="Backstories" />
+    <CanonRubric id="canon-backstories-heading" numeral="VIII" title="Backstories" />
     <p class="m-0 text-caption text-muted-foreground">Each character's past is told in passages. The player writes theirs and keeps adding to it; you add what they have not been told, and tell it when the story gets there.</p>
 
     <ul v-if="party.length > 0" class="flex flex-col border border-border bg-card" data-testid="backstory-ledger">
@@ -10,6 +10,7 @@
         :member="member"
         :passages="countOf(member.id)"
         :untold="untoldOf(member.id)"
+        :threads="threadsOf(member.id)"
         :selected="member.id === selectedId"
         @select="emit('select', member.id)"
       />
@@ -24,15 +25,19 @@
 </template>
 
 <script setup lang="ts">
-/** Part VII (frame 14): one row per party member, with how many passages their past holds and how many are still untold. */
+/** Part VIII (frame 14): one row per party member, with how many passages their past holds, how many are still untold and how many threads it leaves open. */
 import { computed } from "vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import BackstoryRow from "./BackstoryRow.vue";
 import CanonRubric from "./CanonRubric.vue";
+import { useCanonEntries } from "@/composables/canon/useCanonEntries";
+import { useCampaignLinks } from "@/composables/connections/useConnections";
+import { openThreads } from "@/lib/canon/backstoryThreads";
 import type { CanonEntry, CanonLorePassage } from "@/types/canon.types";
 import type { PartyMember } from "@/types/party.types";
 
 const { party, entries, passages, selectedId = null } = defineProps<{
+  /** The whole party: a character spans arcs, so no arc narrows this part. */
   party: readonly PartyMember[];
   /** The campaign's backstory entries (a character has one once it is opened). */
   entries: readonly CanonEntry[];
@@ -51,6 +56,17 @@ const ofMember = computed(() => {
   }
   return grouped;
 });
+// The open threads of a past are read off the campaign's canon and its links, the same way the detail lists them.
+const { data: allEntries } = useCanonEntries();
+const { data: links } = useCampaignLinks();
+const threadCount = computed(() => {
+  const counts = new Map<string, number>();
+  for (const e of entries) {
+    if (e.party_member_id !== null) counts.set(e.party_member_id, openThreads(e.id, allEntries.value ?? [], links.value ?? []).length);
+  }
+  return counts;
+});
+const threadsOf = (memberId: string) => threadCount.value.get(memberId) ?? 0;
 const countOf = (memberId: string) => ofMember.value.get(memberId)?.length ?? 0;
 const untoldOf = (memberId: string) => (ofMember.value.get(memberId) ?? []).filter((p) => p.told_at === null).length;
 </script>

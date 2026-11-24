@@ -12,16 +12,16 @@
 
 <script setup lang="ts">
 /**
- * One person, faction, place or beat named beside a truth ("Known to") or a clue ("where it lies"), as the design draws a world-web reference. `size="lg"` is
+ * One person, faction, place, beat or handout named beside a truth ("Known to") or a clue ("where it lies"), as the design draws a world-web reference. `size="lg"` is
  * the thumbnail badge alone (the "F" or "P" in a slip), for a row that sets the name beside it itself.
  */
 import { computed } from "vue";
 import type { ConnectionKind } from "@edge-shared/worldLinkCatalogue.ts";
 
-const { kind, name, size = "sm" } = defineProps<{ kind: ConnectionKind | "quest_beat"; name: string; size?: "sm" | "lg" }>();
+const { kind, name, size = "sm" } = defineProps<{ kind: ConnectionKind | "quest_beat" | "document"; name: string; size?: "sm" | "lg" }>();
 
-const LETTER: Record<ConnectionKind | "quest_beat", string> = {
-  npc: "P", party_member: "P", faction: "F", location: "L", deity: "D", item: "I", canon: "C", quest: "Q", quest_beat: "B",
+const LETTER: Record<ConnectionKind | "quest_beat" | "document", string> = {
+  npc: "P", party_member: "P", faction: "F", location: "L", deity: "D", item: "I", canon: "C", quest: "Q", quest_beat: "B", document: "H",
 };
 const letter = computed(() => LETTER[kind]);
 </script>

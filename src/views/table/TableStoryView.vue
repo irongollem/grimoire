@@ -32,8 +32,12 @@
                 :closed="entry.closed"
                 :about="aboutFor(entry.fact.id)"
                 :can-write="canWrite"
+                :can-review="canReview && entry.fact.source === 'table'"
                 @correct="correcting = $event"
                 @reveal="reveal"
+                @keep="keep"
+                @strike="strike"
+                @undo="undo"
               />
             </ul>
           </section>
@@ -55,6 +59,7 @@ import SoloCorrectDialog from "@/components/table/solo/SoloCorrectDialog.vue";
 import SoloRecordAdd from "@/components/table/solo/SoloRecordAdd.vue";
 import SoloRecordFact from "@/components/table/solo/SoloRecordFact.vue";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
+import { useFactReview } from "@/composables/canon/useFactReview";
 import { useFactAbout } from "@/composables/table/useFactAbout";
 import { useStoryRecord } from "@/composables/table/useStoryRecord";
 import { useStoryRecordWrites } from "@/composables/table/useStoryRecordWrites";
@@ -71,6 +76,8 @@ const ui = useTableUiStore();
 const toast = useToast();
 const { confirm } = useConfirm();
 const writes = useStoryRecordWrites();
+// Keep and Strike are the Canon page's own writes: a DM reviewing here can do what the Canon page offers.
+const { keep, strike, undo } = useFactReview();
 
 // Whoever may write the record. The database decides who truly can; this only decides what is offered.
 const canWrite = computed(() => auth.isDM);
@@ -80,6 +87,8 @@ const canWrite = computed(() => auth.isDM);
 // either (those are the Dungeon Master's); a correction stays, since the story is the player's to set right.
 const appUi = useAppUiStore();
 const asPlayer = computed(() => appUi.tablePlay !== null);
+// The review of what the table added is the DM's, never offered from a played seat.
+const canReview = computed(() => canWrite.value && !asPlayer.value);
 const backTo = computed(() => {
   const play = appUi.tablePlay;
   return play === null ? "/table" : `/play/table/${play.sessionId ?? "new"}`;

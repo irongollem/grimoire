@@ -17,6 +17,7 @@ import { fetchMentionedMonsters } from "@/composables/monsters/useMentionedMonst
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
+import { fetchSessionCanonText } from "./sessionCanonContext";
 import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
 
 export type ChroniclerTone = "dramatic" | "humorous" | "mysterious" | "epic";
@@ -106,6 +107,10 @@ export function useChroniclerTextGeneration() {
     });
     const entities = parseSceneEntities(rawText, { npcs, monsters, partyMembers, factions, locations, locationDescriptions, npcAppearances });
     const campaignId = campaign.activeCampaign?.id;
+    // What the canon did in this note's session (#1258 item 8). Optional context: a draft is still worth writing without it.
+    const canonThisSession = campaignId && excludeNoteId
+      ? await fetchSessionCanonText(campaignId, excludeNoteId).catch(() => "")
+      : "";
 
     isGenerating.value = true;
     error.value = null;
@@ -121,13 +126,13 @@ export function useChroniclerTextGeneration() {
       const isLocalMode = await textRunsOnLocalKey();
 
       if (!isLocalMode && campaignId) {
-        return await generateServerSide({ rawText, tone, entities, campaignId, existingTags, excludeNoteId });
+        return await generateServerSide({ rawText, tone, entities, campaignId, existingTags, excludeNoteId, canonThisSession });
       }
       // The `{settingPrompt}` placeholder now carries the world block (#1226).
       const settingPrompt = campaignId
         ? buildCampaignContext(await fetchWorldBlock(campaignId)).trim() || "No setting configured."
         : "No setting configured.";
-      return await generateClientSide({ rawText, tone, entities, settingPrompt, existingTags });
+      return await generateClientSide({ rawText, tone, entities, settingPrompt, existingTags, canonThisSession });
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Generation failed.";
       throw e;
@@ -143,8 +148,9 @@ export function useChroniclerTextGeneration() {
     campaignId: string;
     existingTags: string[];
     excludeNoteId?: string;
+    canonThisSession: string;
   }): Promise<ChroniclerTextResult> {
-    const { rawText, tone, entities, campaignId, existingTags, excludeNoteId } = params;
+    const { rawText, tone, entities, campaignId, existingTags, excludeNoteId, canonThisSession } = params;
 
     const tone_instruction = TONE_INSTRUCTIONS[tone];
     const entity_descriptions = entities
@@ -159,6 +165,8 @@ export function useChroniclerTextGeneration() {
         entity_descriptions,
         existing_tags: existingTags,
         exclude_note_id: excludeNoteId,
+        // The edge function must read this field and add it to the model's input; until it does it is ignored.
+        canon_this_session: canonThisSession,
       },
     });
 
@@ -174,8 +182,9 @@ export function useChroniclerTextGeneration() {
     entities: ResolvedSceneEntity[];
     settingPrompt: string;
     existingTags: string[];
+    canonThisSession: string;
   }): Promise<ChroniclerTextResult> {
-    const { rawText, tone, entities, settingPrompt, existingTags } = params;
+    const { rawText, tone, entities, settingPrompt, existingTags, canonThisSession } = params;
 
     // The local (BYOK) path can't retrieve the DM's notes -- that's a DB read
     // the edge function does with service-role access the browser doesn't
@@ -196,7 +205,8 @@ export function useChroniclerTextGeneration() {
         .replace("{settingPrompt}", settingPrompt)
         .replace("{toneInstruction}", TONE_INSTRUCTIONS[tone])
         .replace("{existingTags}", buildExistingTagsBlock(existingTags)) +
-      (rulesetContext ? `\n\n${rulesetContext}` : "");
+      (rulesetContext ? `\n\n${rulesetContext}` : "") +
+      (canonThisSession !== "" ? `\n\n${canonThisSession}` : "");
 
     const provider = getTextProvider();
     const { content, usage: textUsage } = await provider.complete(systemPrompt, wrapUserInput(rawText));

@@ -18,7 +18,7 @@ vi.mock("@/stores/campaign", () => ({
 vi.mock("@/composables/useTheme", () => ({ useTheme: () => ({ themes: [], setTheme: vi.fn() }) }));
 
 function mountTab() {
-  return mount(DetailsTab, { global: { stubs: { DemoCampaignPanel: true } } });
+  return mount(DetailsTab, { global: { stubs: { DemoCampaignPanel: true, RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" } } } });
 }
 
 function option(wrapper: ReturnType<typeof mountTab>, caption: string) {
@@ -91,6 +91,16 @@ describe("DetailsTab violence dial", () => {
   // Bug caught: the fixed rule left unsaid, so a DM reads the dial as the whole of the table's content settings.
   it("says the sexual-content rules cannot be changed", () => {
     expect(mountTab().text()).toContain("The rules on sexual content are the same at every table and cannot be changed.");
+  });
+});
+
+describe("DetailsTab and the canon's lines", () => {
+  // Bug caught (#1255 item 25): the dial saying nothing of the lines and veils the Narrator also reads, so a DM sets one and forgets the other.
+  it("says what must never happen is set in the canon's lines and veils, and links there", () => {
+    mocks.row = { id: "c1", name: "Test", theme: "vellum", table_violence: "standard" };
+    const line = mountTab().find("[data-testid=violence-canon-link]");
+    expect(line.text()).toContain("What must never happen, or only off screen, is set in the canon's lines and veils.");
+    expect(line.find("a").attributes("href")).toBe("/canon");
   });
 });
 

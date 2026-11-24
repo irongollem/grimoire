@@ -99,3 +99,25 @@ describe("CalendarTimeline today marker", () => {
     expect(mountTimeline().text()).not.toContain("Today");
   });
 });
+
+describe("CalendarTimeline canon items", () => {
+  const lore = { key: "lore:l1", label: "Lore" as const, title: "The roads are first spun", year: 1495, month: 1, day: 3, to: { path: "/canon", query: { entry: "l1" } } };
+  const far = { ...lore, key: "lore:far", year: 1600 };
+  const global = { stubs: { CalendarTimelineControls: ControlsStub, CalendarTimelineEventList: true, RouterLink: { props: ["to"], template: "<a :data-to='JSON.stringify(to)'><slot /></a>" } } };
+
+  // Bug it fails on: dated lore never drawn on the DM's Chronicle timeline, or drawn as an editable event.
+  it("draws a marker and a read-only row linking to the canon entry, for items in view", () => {
+    const w = mount(CalendarTimeline, { props: { canonItems: [lore, far] }, global });
+    expect(w.findAll("[data-testid=canon-marker]")).toHaveLength(1);
+    const row = w.find("[data-testid=canon-in-view] a");
+    expect(row.text()).toContain("Lore");
+    expect(row.attributes("data-to")).toBe(JSON.stringify(lore.to));
+  });
+
+  // Bug it fails on: the player's timeline (which passes no canon) growing a canon strip.
+  it("draws nothing canon without items", () => {
+    const w = mount(CalendarTimeline, { global });
+    expect(w.find("[data-testid=canon-marker]").exists()).toBe(false);
+    expect(w.find("[data-testid=canon-in-view]").exists()).toBe(false);
+  });
+});

@@ -82,11 +82,14 @@ export function buildNpcAiContext(
   items: readonly ItemIndexEntry[],
   sources: NpcContextSources,
   links: readonly GeneratorLink[] = [],
+  /** `npcSpecies`' lines, when the species was rolled from the world's peoples; otherwise the form's race is said. */
+  raceLines?: readonly string[],
 ): string {
   const constraints: string[] = [];
   const location = sources.locations.find((loc) => loc.id === locationId);
   if (form.name.trim()) constraints.push(`Name: ${form.name.trim()}`);
-  if (form.race) constraints.push(`Race: ${form.race}`);
+  if (raceLines) constraints.push(...raceLines);
+  else if (form.race) constraints.push(`Race: ${form.race}`);
   if (form.alignment) constraints.push(`Alignment: ${form.alignment}`);
   if (form.relationship) constraints.push(`Party relationship: ${form.relationship}`);
   if (location) constraints.push(`Location: ${location.name}`);

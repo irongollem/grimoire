@@ -93,6 +93,19 @@ describe("ConnectionsSection", () => {
     expect(w.find("[data-testid='add-connection']").exists()).toBe(true);
   });
 
+  // Bug caught: a block beside another could not leave out what the other shows, so a person was listed twice.
+  it("leaves out the rows `hide` names and keeps the rest", () => {
+    rows.value = [conn({ row_id: "a", other_id: "maren", other_name: "Maren" }), conn({ row_id: "b", other_id: "harl", other_name: "Harl" })];
+    const w = mount(ConnectionsSection, {
+      props: { subject: { kind: "canon", id: "e1" }, subjectName: "Tansy", title: "Places and things from this past", hide: (c: Connection) => c.other_id === "maren" },
+      global: { stubs: { ConnectionSuggestions: true, AddConnectionDialog: true, RouterLink: true, AudienceRevealControl: true } },
+    });
+    expect(w.text()).toContain("Harl");
+    expect(w.text()).not.toContain("Maren");
+    expect(w.get("h2").text()).toBe("Places and things from this past");
+    expect(w.text()).toContain("Add connection");
+  });
+
   it("says so when there is nothing yet", () => {
     expect(render().text()).toContain("No connections yet.");
   });

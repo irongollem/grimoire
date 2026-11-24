@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
+import { collectMentions, tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 
 describe("tiptapToPlainText", () => {
   it("returns empty string for null/undefined/empty", () => {
@@ -100,5 +100,53 @@ describe("tiptapToPlainText", () => {
   it("returns an empty string for an empty doc", () => {
     const doc = JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] });
     expect(tiptapToPlainText(doc)).toBe("");
+  });
+});
+
+const mention = (id: string, entityType = "npc") => ({ type: "entityMention", attrs: { id, entityType } });
+const withMention = JSON.stringify({
+  type: "doc",
+  content: [{ type: "paragraph", content: [{ type: "text", text: "The bell was sold by " }, mention("n1"), { type: "text", text: " to the ferryman." }] }],
+});
+
+describe("tiptapToPlainText with mentions", () => {
+  // Bug: a mention stores no name, so canon text read by the AI lost it: "sold by  to the ferryman".
+  it("puts the resolved name between its neighbours", () => {
+    expect(tiptapToPlainText(withMention, (type, id) => (type === "npc" && id === "n1" ? "Maren Voss" : null))).toBe(
+      "The bell was sold by Maren Voss to the ferryman.",
+    );
+  });
+
+  // Bug: changing what no-resolver callers read (the PDF, previews) or emitting "null"/"undefined" for an unknown id.
+  it("emits nothing without a resolver, or when the resolver does not know the id", () => {
+    expect(tiptapToPlainText(withMention)).toBe("The bell was sold by  to the ferryman.");
+    expect(tiptapToPlainText(withMention, () => null)).toBe("The bell was sold by  to the ferryman.");
+  });
+});
+
+describe("collectMentions", () => {
+  const doc = JSON.stringify({
+    type: "doc",
+    content: [
+      { type: "paragraph", content: [mention("n1"), mention("n1"), mention("l1", "location")] },
+      { type: "secretBlock", content: [{ type: "paragraph", content: [mention("n2")] }] },
+    ],
+  });
+
+  // Bug: one name read per occurrence, or the same id under two types collapsed into one.
+  it("lists each mention once and keeps the same id under another type apart", () => {
+    const both = JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [mention("x"), mention("x", "faction"), mention("x")] }] });
+    expect(collectMentions(both)).toEqual([{ entityType: "npc", id: "x" }, { entityType: "faction", id: "x" }]);
+  });
+
+  // Bug: a DM-only passage's mention was read for the AI, so its name would be looked up for a block the AI never sees.
+  it("skips a secret block only when asked", () => {
+    expect(collectMentions(doc).map((m) => m.id)).toEqual(["n1", "l1", "n2"]);
+    expect(collectMentions(doc, { skipSecrets: true }).map((m) => m.id)).toEqual(["n1", "l1"]);
+  });
+
+  it("reads legacy plain text and null as holding none", () => {
+    expect(collectMentions("just words")).toEqual([]);
+    expect(collectMentions(null)).toEqual([]);
   });
 });

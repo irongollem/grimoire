@@ -46,6 +46,8 @@ import { useParty } from "@/composables/party/useParty";
 import { DEFAULT_RELATION, npcRelation } from "@/ai/ask/adapters/npcRelations";
 import { parsePersonKey, personKey } from "@/lib/kinship/keys";
 import { useNpcQuote } from "@/composables/ai/quotes/npcQuote";
+import { useCampaignPeoples } from "@/composables/canon/useCampaignPeoples";
+import { npcSpecies } from "@/lib/canon/npcSpecies";
 import { buildNpcAiContext, useGenerateNpc, type NpcGenerateForm } from "@/composables/npcs/useGenerateNpc";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { DEFAULT_ASSOCIATE } from "@/lib/npcGenerator/associate";
@@ -60,6 +62,7 @@ export function useNpcAskAdapter(): AskAdapter {
   const quoteFor = useNpcQuote();
   const { blockFor } = useAskGate("npcs", "NPC");
   const { generateAndCreateNpc } = useGenerateNpc();
+  const { peoples } = useCampaignPeoples();
   const missing = useMissingPortrait("npc");
 
   // The places and factions are read only once a proposal names one: this adapter lives as long as the panel, which
@@ -210,9 +213,11 @@ export function useNpcAskAdapter(): AskAdapter {
     const campaignId = campaign.activeCampaignId;
     if (!campaignId) return failedRun("NPC text", "No active campaign selected.");
 
+    // The species asked for, else one rolled at the world's shares, as the page does (#1255 item 30).
+    const species = npcSpecies(blankIfUnsaid(read.race), peoples.value);
     const form: NpcGenerateForm = {
       name: blankIfUnsaid(read.name),
-      race: blankIfUnsaid(read.race),
+      race: species.race,
       alignment: blankIfUnsaid(read.alignment),
       relationship: "unknown",
       templateId: "auto",
@@ -247,7 +252,7 @@ export function useNpcAskAdapter(): AskAdapter {
           ...chosen.alsoKin.map((o) => personRow(o, "pc")),
         ].filter((row) => row !== null),
         todayYear: campaign.todayYear,
-      }, chosen.links),
+      }, chosen.links, species.lines),
     ].filter((line) => line !== "").join("\n");
 
     const textCredits = spent(current.lines.find((l) => l.label === "NPC text"));

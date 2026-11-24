@@ -14,7 +14,8 @@ import type { CanonLorePassage } from "@/types/canon.types";
  * told or not yet, and may come out at a place, a person or a beat (at most one of the three, as a clue does).
  */
 
-const WHERE_COLUMN: Record<ClueKind, "location_id" | "npc_id" | "quest_beat_id"> = {
+/** A passage comes out at a place, a person or a beat; an item or a handout is where a clue lies, never a passage. */
+const WHERE_COLUMN: Partial<Record<ClueKind, "location_id" | "npc_id" | "quest_beat_id">> = {
   location: "location_id",
   npc: "npc_id",
   quest_beat: "quest_beat_id",
@@ -137,6 +138,7 @@ export function toldTally(passages: readonly CanonLorePassage[]): { told: number
 /** The passages that come out at one place, person or beat and are not yet told. A first passage is told with its entry, so it never waits at a spot. */
 export function untoldPassagesAt(all: readonly CanonLorePassage[], kind: ClueKind, id: string): CanonLorePassage[] {
   const column = WHERE_COLUMN[kind];
+  if (column === undefined) return [];
   const firsts = firstPassageIds(all);
   return all.filter((p) => p[column] === id && p.told_at === null && !firsts.has(p.id));
 }
@@ -155,6 +157,10 @@ export function passageWhere(p: Pick<CanonLorePassage, "location_id" | "npc_id" 
  */
 export function wherePatch(where: { kind: ClueKind; id: string } | null): Pick<CanonLorePassage, "location_id" | "npc_id" | "quest_beat_id"> {
   const patch = { location_id: null, npc_id: null, quest_beat_id: null } as Pick<CanonLorePassage, "location_id" | "npc_id" | "quest_beat_id">;
-  if (where !== null) patch[WHERE_COLUMN[where.kind]] = where.id;
+  if (where !== null) {
+    const column = WHERE_COLUMN[where.kind];
+    if (column === undefined) throw new Error(`A passage cannot come out at ${where.kind}`);
+    patch[column] = where.id;
+  }
   return patch;
 }

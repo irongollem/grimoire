@@ -530,6 +530,17 @@ describe("tie clauses", () => {
 describe("buildCanonEmbedText (#1226)", () => {
   const doc = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
 
+  // Bug: a mention stores no name, so the vector (and the Narrator's lookup) never knew who the entry was about.
+  it("embeds a mention under the name the resolver gives, and nothing without one", () => {
+    const body = JSON.stringify({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "Sold by " }, { type: "entityMention", attrs: { id: "n1", entityType: "npc" } }, { type: "text", text: " last year." }] }],
+    });
+    const entry = { part: "lore", title: "The Bell", wants: null, body, passages: [{ id: "p", sort_order: 1, title: "", body }] };
+    expect(buildCanonEmbedText(entry, () => "Maren Voss")).toBe("lore. The Bell. Sold by Maren Voss last year. Sold by Maren Voss last year.");
+    expect(buildCanonEmbedText(entry)).toBe("lore. The Bell. Sold by last year. Sold by last year.");
+  });
+
   it("leads with the part and the title, then what a force wants and the body as plain text", () => {
     expect(
       buildCanonEmbedText({ part: "force", title: "The Gilt Hand", wants: "the ferry", body: doc("A guild of river-tolls."), passages: [] }),

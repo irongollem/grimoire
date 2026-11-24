@@ -90,4 +90,21 @@ describe("useCanonSuggestions", () => {
     expect(questions.suggestions.value).toEqual([{ title: "Why?" }]);
     expect(forces.suggestions.value).toEqual([]);
   });
+
+  // Bug caught: a read that found nothing was treated as "No usable suggestions" and thrown, so a clean canon could
+  // never be told from a failed run.
+  it("holds an empty read as a result, where an empty suggester reply is a failure", async () => {
+    invoke.mockResolvedValueOnce({ data: { suggestions: [], setAside: [], ai_provenance: { generated: true } }, error: null });
+    const read = useCanonSuggestions("read");
+    expect(read.hasResult.value).toBe(false);
+    expect(await read.suggest("")).toBe(true);
+    expect(read.hasResult.value).toBe(true);
+    expect(read.suggestions.value).toEqual([]);
+    expect(invoke).toHaveBeenCalledWith("suggest-canon", { body: { campaign_id: "c1", mode: "read", prompt: "" } });
+
+    invoke.mockResolvedValueOnce({ data: { suggestions: [], setAside: [], ai_provenance: null }, error: null });
+    const secrets = useCanonSuggestions("secrets");
+    expect(await secrets.suggest("")).toBe(false);
+    expect(secrets.error.value).toContain("No usable suggestions");
+  });
 });

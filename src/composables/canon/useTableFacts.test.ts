@@ -69,6 +69,13 @@ describe("makeFactATruth", () => {
     expect(fake.rows("story_facts").every((r) => r["kept_at"] !== null)).toBe(true);
   });
 
+  // Bug caught (#1255 item 22): nothing linked the truth to its fact, so the fact could be filed as a truth twice.
+  it("files the truth with the id of the fact it came from", async () => {
+    fake.seed("story_facts", [row("a")]);
+    await makeFactATruth(asFact(row("a")), 0);
+    expect(fake.rows("canon_entries")[0]).toMatchObject({ part: "truth", from_fact_id: "a" });
+  });
+
   // Bug caught: a fact kept with no truth behind it when the truth could not be written.
   it("leaves the fact unreviewed when the truth could not be made", async () => {
     fake.seed("story_facts", [row("a")]);

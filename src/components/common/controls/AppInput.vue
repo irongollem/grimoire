@@ -1,5 +1,23 @@
 <template>
+  <textarea
+    v-if="wrap"
+    ref="el"
+    rows="1"
+    data-field="input"
+    data-wrap
+    :data-field-size="size"
+    :data-field-tone="tone"
+    :value="model"
+    :disabled="disabled"
+    :readonly="readonly"
+    :placeholder="placeholder"
+    :class="cn(fieldClass, 'block resize-none overflow-hidden [field-sizing:content]')"
+    @input="onInput"
+    @change="onChange"
+    @keydown.enter="onEnter"
+  />
   <input
+    v-else
     ref="el"
     data-field="input"
     :data-field-size="size"
@@ -9,7 +27,7 @@
     :disabled="disabled"
     :readonly="readonly"
     :placeholder="placeholder"
-    :class="cn(fieldVariants({ tone, size, control: 'input', shape }), alignClass, block ? 'w-full' : '', className)"
+    :class="fieldClass"
     @input="onInput"
     @change="onChange"
   />
@@ -36,8 +54,16 @@
  * moves the image while you are still typing the number. Without this modifier
  * those sites could not use the primitive at all — three separate agents in the
  * #648 sweep reached them independently and each correctly refused to convert.
+ *
+ * `wrap` is for a field that holds one whole sentence (a canon truth, a clue, a
+ * step). It renders a one-row <textarea> that grows with its text, so nothing is
+ * cut off, with the same chrome and padding as the one-line input. It is still
+ * ONE paragraph: Enter (and Shift+Enter) commits like a native input instead of
+ * adding a line, and pasted line breaks become single spaces. `type` is ignored
+ * and `.number` is not supported in wrap mode. `el` is then a textarea; reach for
+ * `focus()` / `select()` rather than the element if the difference matters.
  */
-import { computed, useTemplateRef, type HTMLAttributes } from "vue";
+import { computed, nextTick, onMounted, useTemplateRef, watch, type HTMLAttributes } from "vue";
 import { cn } from "@/lib/utils";
 import { fieldVariants, type FieldTone, type FieldSize, type FieldShape } from "./fieldVariants";
 
@@ -63,6 +89,7 @@ const {
   align = "left",
   shape = "default",
   block = true,
+  wrap = false,
   disabled = false,
   readonly = false,
   placeholder,
@@ -76,6 +103,8 @@ const {
   /** `pill` rounds the field fully — the mobile search bars. */
   shape?: FieldShape;
   block?: boolean;
+  /** One-paragraph text that wraps and grows instead of clipping; see the docblock. */
+  wrap?: boolean;
   disabled?: boolean;
   readonly?: boolean;
   placeholder?: string;
@@ -86,21 +115,56 @@ const alignClass = computed(() =>
   align === "center" ? "text-center" : align === "right" ? "text-right" : "",
 );
 
+const fieldClass = computed(() =>
+  cn(fieldVariants({ tone, size, control: "input", shape }), alignClass.value, block ? "w-full" : "", className),
+);
+
 /**
  * `.lazy` swaps which DOM event commits. `change` covers both ways a field is
  * finished — blurring it and pressing Enter — which is why the hand-rolled sites
  * that listened for `@blur` *and* `@keydown.enter` need only this one.
  */
 function onInput(event: Event) {
+  if (wrap) collapseBreaks(event.target as HTMLTextAreaElement);
+  fit();
   if (!modifiers.lazy) commit(event);
 }
 
+/** A statement is one paragraph: a pasted line break becomes a single space. */
+function collapseBreaks(field: HTMLTextAreaElement) {
+  const flat = field.value.replace(/\s*[\r\n]+\s*/g, " ");
+  if (flat !== field.value) field.value = flat;
+}
+
+/** Enter finishes the field the way a native input does; `change` is what `.lazy` listens to. */
+// The value Enter already saved: leaving the field then fires `change` for the same words, which must not save again.
+let savedOnEnter: string | null = null;
+
+function onEnter(event: KeyboardEvent) {
+  // Enter that confirms an IME composition (Japanese, Chinese, Korean) picks the candidate; it does not end the line.
+  if (event.isComposing || event.keyCode === 229) return;
+  event.preventDefault();
+  const field = event.target as HTMLTextAreaElement;
+  if (modifiers.lazy) {
+    commit(event);
+    savedOnEnter = field.value;
+  }
+  field.blur();
+}
+
 function onChange(event: Event) {
+  const value = (event.target as HTMLInputElement).value;
+  if (savedOnEnter !== null && savedOnEnter === value) {
+    savedOnEnter = null;
+    return;
+  }
+  savedOnEnter = null;
   if (modifiers.lazy) commit(event);
 }
 
 function commit(event: Event) {
-  const raw = (event.target as HTMLInputElement).value;
+  const typed = (event.target as HTMLInputElement).value;
+  const raw = wrap ? typed.replace(/\s*[\r\n]+\s*/g, " ") : typed;
   if (modifiers.number) {
     // An empty numeric field is absent, not zero — `?? 0` here would silently
     // turn a cleared box into a real value the user never typed.
@@ -115,6 +179,20 @@ function commit(event: Event) {
 // editor would silently do nothing. Expose the element and the methods callers
 // actually reach for.
 const el = useTemplateRef<HTMLInputElement>("el");
+
+/**
+ * Browsers without `field-sizing: content` (older Firefox and Safari) get the
+ * height from the content here instead. Where the CSS does it, this does nothing.
+ */
+const sizesItself = typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports("field-sizing", "content");
+function fit() {
+  const field = el.value;
+  if (!wrap || sizesItself || !field) return;
+  field.style.height = "auto";
+  field.style.height = `${field.scrollHeight + (field.offsetHeight - field.clientHeight)}px`;
+}
+onMounted(fit);
+watch(model, () => nextTick(fit));
 defineExpose({
   el,
   focus: (options?: FocusOptions) => el.value?.focus(options),

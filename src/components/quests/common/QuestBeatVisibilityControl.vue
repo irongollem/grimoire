@@ -11,6 +11,7 @@
       aria-haspopup="dialog"
       @click="open = !open"
     />
+    <QuestBeatRevealSecret v-if="secretToOffer !== null" :secret-id="secretToOffer" @done="secretToOffer = null" />
     <Teleport to="body">
       <div
         v-if="open"
@@ -54,6 +55,7 @@ import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 import { useToast } from "@/composables/useToast";
 import { audienceLabel, toggleAudienceMember } from "@/lib/quests/visibility";
 import type { QuestBeat, QuestBeatVisibility } from "@/types/quest.types";
+import QuestBeatRevealSecret from "./QuestBeatRevealSecret.vue";
 import QuestVisibilityTrack from "./QuestVisibilityTrack.vue";
 
 /**
@@ -86,10 +88,14 @@ watchEffect(() => {
   trigger.value = root instanceof Element ? root : null;
 });
 
+// A beat tied to a canon secret offers to reveal the secret too, once the beat itself is revealed (#1255 item 21).
+const secretToOffer = ref<string | null>(null);
+
 async function pick(visibility: QuestBeatVisibility) {
   if (visibility === beat.visibility) return;
   try {
     await setBeatVisibility(beat, visibility);
+    secretToOffer.value = visibility === "revealed" ? beat.canon_secret_id : null;
   } catch (caught) {
     toast.error(toast.fromError(caught));
   }

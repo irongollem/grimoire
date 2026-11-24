@@ -429,6 +429,20 @@
     </CatalogueSection>
 
     <CatalogueSection
+      title="AppInput: wrap"
+      note="For a field that holds one sentence (canon truths, clues, steps). A one-row textarea that grows with its text, same chrome as the plain input, so a short value looks identical. Enter commits instead of adding a line; pasted line breaks become spaces."
+    >
+      <div class="flex flex-wrap items-start gap-3">
+        <div class="w-48">
+          <AppInput v-model="wrapValue" wrap size="body" tone="filled" aria-label="Wrapping field, narrow" />
+        </div>
+        <div class="w-48">
+          <AppInput v-model="inputValue" size="body" tone="filled" placeholder="Plain input, for comparison" />
+        </div>
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection
       title="AppCheckbox"
       note="size × labelRole from checkboxVariants. One box recipe: the 100 raw checkboxes it replaced had drifted into twelve visual states (#751). Two accents only: `amber` is semantic (DM-private, like the amber DM Notes panel). There is no `gold`: gold-500 is a fixed literal that happens to equal the default theme's primary, so five soundboard checkboxes had silently opted out of theming; switch this page to ?theme=tome to see what that would have looked like. labelWeight/labelTone are opt-out axes: omit them and the role's own bundle stands. Bound to a string[] it behaves as Vue's checkbox group."
     >
@@ -733,6 +747,7 @@ const SWITCH_ROWS = [
 
 const switchStates = ref<Record<string, boolean>>({ md: true, lg: true });
 const insetValue = ref("");
+const wrapValue = ref("Debts outlive the people who owe them, and a ledger page is never really closed.");
 
 const SEGMENT_OPTIONS = [
   { value: "url", label: "URL" },

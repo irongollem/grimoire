@@ -32,6 +32,7 @@
         </div>
       </template>
       <ChronicleLearned :session-id="session.id" />
+      <ChronicleCanon v-if="canon" :canon="canon" />
     </div>
   </li>
 </template>
@@ -40,7 +41,7 @@
 /**
  * One session's chronicle entry (frame 12): its number and title, the day it was played, its date in the world, who
  * the note is shared with, and its excerpt with the first picture the Chronicler put in it. A session with no note
- * offers the two ways to start one, the same two the Sessions page offers.
+ * offers the two ways to start one, the same two the Sessions page offers. Under it, what the canon did that session.
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -52,11 +53,13 @@ import { sessionLabel, sessionShortLabel } from "@/lib/sessions/sessionLabel";
 import { sessionNoteRoute } from "@/lib/sessions/sessionRoutes";
 import { audienceLabel } from "@/lib/sessions/learned";
 import { useCalendarStore } from "@/stores/calendar";
+import ChronicleCanon from "./ChronicleCanon.vue";
 import ChronicleLearned from "./ChronicleLearned.vue";
+import type { SessionCanon } from "@/lib/canon/canonSession";
 import { chronicleExcerpt, firstNoteImage, sessionWorldDate, type ChronicleItem } from "@/lib/canon/canonChronicle";
 import { worldDateLabel } from "@/lib/canon/canonLore";
 
-const { session, note } = defineProps<ChronicleItem>();
+const { session, note, canon = null } = defineProps<ChronicleItem & { canon?: SessionCanon | null }>();
 
 const { lowArt } = useLowArt();
 const { data: party } = useParty();

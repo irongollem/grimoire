@@ -19,6 +19,8 @@
 
       <LocationStateControls :location-id="room.id" />
 
+      <CanonHere kind="location" :id="room.id" compact />
+
       <section v-if="waiting.length" class="flex flex-col gap-2" aria-label="Waiting here">
         <h3 class="text-eyebrow uppercase text-muted-foreground">Waiting here</h3>
         <div v-for="fight in waiting" :key="fight.id" class="flex items-center gap-2 rounded-lg border border-border bg-muted/40 p-2">
@@ -41,6 +43,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import CanonHere from "@/components/canon/CanonHere.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import LocationStateControls from "@/components/locations/place/LocationStateControls.vue";
 import SiteRunBeatCard from "@/components/locations/run/SiteRunBeatCard.vue";

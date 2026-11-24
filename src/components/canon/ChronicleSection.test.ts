@@ -8,6 +8,11 @@ import type { CampaignSession } from "@/types/session.types";
 
 const items = ref<ChronicleItem[]>([]);
 vi.mock("@/composables/canon/useChronicle", () => ({ useChronicle: () => ({ items, isLoading: computed(() => false), isError: computed(() => false), written: computed(() => 0) }) }));
+const canonBySession = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
+vi.mock("@/composables/canon/useSessionCanon", () => ({
+  useSessionCanon: () => ({ value: (session: { id: string }) => canonBySession.current[session.id] ?? { groups: [], total: 0 } }),
+}));
+vi.mock("@/composables/calendar/useCampaignCalendarEvents", () => ({ useCampaignCalendarEvents: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/canon/useCanonForces", () => ({ useCanonForceData: () => ({ data: ref({ ticks: [], steps: [], quests: [] }) }) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref([{ id: "m1", name: "Wren" }, { id: "m2", name: "Brakka" }]) }) }));
 vi.mock("@/composables/sessions/useSessionLearned", () => ({ useSessionLearned: () => ({ entries: ref([]) }) }));
@@ -35,6 +40,7 @@ const mountIt = () =>
 describe("ChronicleSection", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    canonBySession.current = {};
     items.value = [
       { session: session("s2", { number: 15, played_on: "2026-11-14" }), note: note({ session_id: "s2", player_visible_to: ["m1", "m2"] }) },
       { session: session("s1", { number: 14, title: "The Toll" }), note: null },
@@ -83,5 +89,24 @@ describe("ChronicleSection", () => {
     expect(w.findAll("[data-testid=chronicle-entry]")).toHaveLength(10);
     await w.findAll("button").find((b: { text: () => string }) => b.text() === "Show 2 more")!.trigger("click");
     expect(w.findAll("[data-testid=chronicle-entry]")).toHaveLength(12);
+  });
+
+  const canonOf = (title: string) => ({ groups: [{ kind: "clues", label: "Clues found", items: [{ key: "clue:1", title, to: { path: "/canon", query: { entry: "sec1" } } }] }], total: 1 });
+
+  // Bug caught (#1258 item 8): a session's canon changes not shown under its entry, or shown under another session's.
+  it("shows the counts of what the canon did under the session they belong to, and nothing under one with none", () => {
+    canonBySession.current = { s2: canonOf("A torn ledger") };
+    const entries = mountIt().findAll("[data-testid=chronicle-entry]");
+    expect(entries[0]!.get("[data-testid=chronicle-canon-count]").text()).toBe("Clues found 1");
+    expect(entries[1]!.find("[data-testid=chronicle-canon]").exists()).toBe(false);
+  });
+
+  // Bug caught: the list opening on its own (crowding every entry), or its items not leading to their entry.
+  it("opens the list on demand, each item leading to its entry", async () => {
+    canonBySession.current = { s2: canonOf("A torn ledger") };
+    const entry = mountIt().findAll("[data-testid=chronicle-entry]")[0]!;
+    expect(entry.find("[data-testid=chronicle-canon-list]").exists()).toBe(false);
+    await entry.get("[data-testid=chronicle-canon-toggle]").trigger("click");
+    expect(entry.get("[data-testid=chronicle-canon-item]").text()).toBe("A torn ledger");
   });
 });

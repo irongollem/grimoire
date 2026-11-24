@@ -2,16 +2,30 @@
   <section id="canon-secrets" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-secrets-heading">
     <CanonRubric id="canon-secrets-heading" numeral="IV" title="Secrets and questions" />
 
-    <ul v-if="secrets.length > 0" class="flex flex-col border border-border bg-card" data-testid="secret-ledger">
+    <CanonSuggestFold part="secrets">
+      <CanonSuggestions mode="secrets" :entries="secrets" @accepted="(id) => emit('select', id)" />
+    </CanonSuggestFold>
+
+    <p v-if="arcLabel !== null" class="m-0 text-caption text-muted-foreground" data-testid="arc-note">Showing {{ arcLabel }} only.</p>
+
+    <ul v-if="shown.length > 0" class="flex flex-col border border-border bg-card" data-testid="secret-ledger">
       <SecretRow
-        v-for="secret in secrets"
+        v-for="secret in shown"
         :key="secret.id"
         :entry="secret"
         :clues="cluesOf(secret.id)"
         :selected="secret.id === selectedId"
+        :move="canReorder ? endsOf(groupOf(secret), secret.id) : null"
         @select="emit('select', secret.id)"
+        @move="(direction) => reorder(groupOf(secret), secret.id, direction)"
       />
     </ul>
+    <EmptyState
+      v-else-if="arcLabel !== null"
+      class="border border-dashed border-border bg-card"
+      title="No secrets in this arc"
+      :description="`Nothing of this part is in ${arcLabel}.`"
+    />
     <EmptyState
       v-else
       class="border border-dashed border-border bg-card"
@@ -21,31 +35,52 @@
 
     <CanonAddRow placeholder="A new secret, as one statement…" input-label="A new secret" label="Add secret" :create="addSecret" />
 
-    <QuestionsList :questions="questions" class="mt-4" />
+    <!-- Below a desktop the open secret's detail opens here, right under the ledger, not past the open questions. -->
+    <slot />
+
+    <QuestionsList :questions="questions" :arc-label="arcLabel" class="mt-4" />
   </section>
 </template>
 
 <script setup lang="ts">
 /**
  * Part IV (frame 05): every secret with its state and how many clues are found, and the open questions beside them.
- * The clues are read once for the whole list, never one per secret.
+ * The clues are read once for the whole list, never one per secret. "Suggest secrets" sits above the list, as the other parts' helpers do.
  */
 import { computed } from "vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import CanonAddRow from "./CanonAddRow.vue";
 import CanonRubric from "./CanonRubric.vue";
+import CanonSuggestFold from "./CanonSuggestFold.vue";
+import CanonSuggestions from "./CanonSuggestions.vue";
 import QuestionsList from "./QuestionsList.vue";
 import SecretRow from "./SecretRow.vue";
+import { revealedLast } from "@/lib/canon/canonSecrets";
+import { endsOf } from "@/lib/canon/canonOrder";
+import { useCanonReorder } from "@/composables/canon/useCanonReorder";
 import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCanonClues } from "@/composables/canon/useCanonClues";
 import type { CanonClue, CanonEntry } from "@/types/canon.types";
 
-const { secrets, questions, selectedId = null } = defineProps<{
+const { secrets, questions, selectedId = null, arcLabel = null } = defineProps<{
+  /** The secrets and questions of the page's arc (all of them when none is chosen). */
   secrets: readonly CanonEntry[];
   questions: readonly CanonEntry[];
   selectedId?: string | null;
+  /** The name of the arc narrowing this part, or null. */
+  arcLabel?: string | null;
 }>();
 const emit = defineEmits<{ select: [id: string] }>();
+
+// What is still to find reads first; a revealed secret settles to the end.
+const ordered = computed(() => revealedLast(secrets));
+
+const shown = ordered;
+// Moving inside a narrowed list would be ambiguous, so the buttons wait for the whole list.
+const canReorder = computed(() => arcLabel === null);
+const reorder = useCanonReorder();
+// A secret moves among those in its own state: the ledger draws the revealed after the rest whatever their order.
+const groupOf = (secret: CanonEntry) => ordered.value.filter((s) => (s.revealed_at === null) === (secret.revealed_at === null));
 
 const { data: allClues } = useCanonClues();
 const bySecret = computed(() => {

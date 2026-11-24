@@ -24,14 +24,7 @@
           block
         />
       </div>
-      <div>
-        <label class="block text-caption text-muted-foreground mb-1">Place</label>
-        <EntityCombobox
-          v-model="locationId"
-          :options="locationOptions"
-          placeholder="Search locations…"
-        />
-      </div>
+      <EncounterWhere v-model:place-id="where" @habitat="(h) => (habitat = h)" />
     </template>
 
     <template v-if="result" #results>
@@ -167,12 +160,14 @@ import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useGenerateEncounter, unmatchedLabel } from "@/composables/encounters/useGenerateEncounter";
 import { useEncounterQuote } from "@/composables/ai/quotes/encounterQuote";
 import { useEncounterGeneration } from "@/ai/useEncounterGeneration";
+import EncounterWhere from "./EncounterWhere.vue";
+import { useCampaignStore } from "@/stores/campaign";
+import { lifeConstraints, type EncounterHabitat } from "@/lib/canon/habitats";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
-import { useLocationTree } from "@/composables/locations/useLocations";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import {
@@ -224,11 +219,17 @@ const quote = computed(() => quoteEncounter());
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("encounters");
 
-// Mounted on every DM page: the place tree is read only while the panel is open.
-const { locationOptions } = useLocationTree(() => generatorsUi.encounterGeneratorOpen);
 const concept = ref("");
-// The place the encounter is set in (`encounters.location_id`), where the Atlas then lists it.
-const locationId = ref("");
+// The party's place until the DM picks another (or clears it): the party may move while this panel stays mounted.
+const campaign = useCampaignStore();
+const picked = ref<string | null | undefined>(undefined);
+const where = computed<string | null>({
+  get: () => (picked.value !== undefined ? picked.value : (campaign.activeCampaign?.current_location_id ?? null)),
+  set: (id) => {
+    picked.value = id;
+  },
+});
+const habitat = ref<EncounterHabitat | null>(null);
 const difficulty = ref<EncounterDifficultyOption>("auto");
 
 const creating = ref(false);
@@ -301,7 +302,9 @@ async function runGenerate() {
   genConcept.value = concept.value.trim();
   clearCompleted();
   createdEncounterId.value = null;
-  await generate(concept.value.trim(), { difficulty: difficulty.value });
+  // Rolled once per generation, in code, at the habitat's shares; a constraint beside the concept, never over it.
+  const constraints = habitat.value === null ? [] : lifeConstraints(habitat.value.name, habitat.value.life);
+  await generate(concept.value.trim(), { difficulty: difficulty.value, ...(constraints.length > 0 ? { constraints } : {}) });
 }
 
 async function createEncounterFromResult() {
@@ -315,7 +318,8 @@ async function createEncounterFromResult() {
       result.value,
       finalMatches.value.map((m) => m.def),
       resolved.value.unmatched,
-      locationId.value || null,
+      // The place it is set in (`encounters.location_id`): the same place its creatures were rolled from.
+      where.value,
     );
     createdEncounterId.value = encounter.id;
     completedEntityId.value = encounter.id;

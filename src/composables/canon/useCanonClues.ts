@@ -8,24 +8,49 @@ import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { useCampaignSession } from "@/composables/campaign/useCampaignSession";
 import type { CanonClue } from "@/types/canon.types";
 
-/** Where a clue may lie. A clue lies at most at one of these, or nowhere yet. */
-export type ClueKind = "location" | "npc" | "quest_beat";
-const CLUE_COLUMN: Record<ClueKind, "location_id" | "npc_id" | "quest_beat_id"> = {
+/** Where a clue may lie: a place, a person, a beat, an item (a letter, a locket) or a handout. At most one, or nowhere yet. */
+export type ClueKind = "location" | "npc" | "quest_beat" | "item" | "document";
+export type ClueColumn = "location_id" | "npc_id" | "quest_beat_id" | "item_id" | "document_id";
+const CLUE_COLUMN: Record<ClueKind, ClueColumn> = {
   location: "location_id",
   npc: "npc_id",
   quest_beat: "quest_beat_id",
+  item: "item_id",
+  document: "document_id",
 };
 
-/** What a new clue needs. At most one of the three places may be set (the table refuses two, 23514). */
+/** At most one place column set: the others are `never`, so two cannot be given (the table refuses two, 23514). */
+export type CluePlace = { [C in ClueColumn]: { [K in ClueColumn]?: K extends C ? string : never } }[ClueColumn];
+
+/**
+ * The one column a clue's place sets, as an insert fragment. Every caller that turns a chosen `{ kind, id }` into a
+ * clue goes through this, so a new kind cannot fall into another kind's column.
+ */
+export function cluePlacement(where: { kind: ClueKind; id: string }): CluePlace {
+  switch (where.kind) {
+    case "location": return { location_id: where.id };
+    case "npc": return { npc_id: where.id };
+    case "quest_beat": return { quest_beat_id: where.id };
+    case "item": return { item_id: where.id };
+    case "document": return { document_id: where.id };
+  }
+}
+
+/** What a new clue needs. At most one of the five places may be set. */
 export type NewCanonClue = {
   secret_id: string;
   title: string;
   sort_order?: number;
   /** Set when the clue came from an accepted AI suggestion. */
   ai_provenance?: AiProvenance | null;
-} & ({ location_id?: string; npc_id?: never; quest_beat_id?: never } | { npc_id?: string; location_id?: never; quest_beat_id?: never } | { quest_beat_id?: string; location_id?: never; npc_id?: never });
+  /** The lore passage this clue is (`passageClue`): such a clue lies nowhere of its own. */
+  passage_id?: string;
+  /** Only for a clue made from a passage that was already told: it is filed found, at that time. */
+  found_at?: string;
+  found_session_id?: string | null;
+} & CluePlace;
 
-export type CanonCluePatch = Partial<Pick<CanonClue, "title" | "sort_order" | "location_id" | "npc_id" | "quest_beat_id" | "found_at" | "found_session_id">>;
+export type CanonCluePatch = Partial<Pick<CanonClue, "title" | "sort_order" | ClueColumn | "found_at" | "found_session_id">>;
 
 /** Every clue of the campaign, read once: scoped in the query, because RLS only bounds who may read. */
 export async function fetchCanonClues(campaignId: string): Promise<CanonClue[]> {
@@ -77,7 +102,7 @@ export function useCanonClues(enabled?: () => boolean) {
   });
 }
 
-/** The clues that lie at one place, person or beat. Empty while loading, so a block built on it renders nothing. */
+/** The clues that lie at one place, person, beat, item or handout. Empty while loading, so a block built on it renders nothing. */
 export function cluesAt(clues: readonly CanonClue[], kind: ClueKind, id: string): CanonClue[] {
   const column = CLUE_COLUMN[kind];
   return clues.filter((c) => c[column] === id);

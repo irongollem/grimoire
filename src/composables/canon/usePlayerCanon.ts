@@ -26,6 +26,10 @@ export interface PlayerCanonEntry {
   world_day: number | null;
   /** Set on a backstory: the character whose past it is. */
   party_member_id: string | null;
+  /** On a secret: the truth it became. Absent until `get_player_canon` returns the column (#1258 item 13). */
+  became_entry_id?: string | null;
+  /** On a truth known to some: the other party characters who know it, alphabetical, possibly empty. Null on every other entry (#1258 item 14). */
+  known_with?: string[] | null;
 }
 
 /** One row of `get_player_lore_passages`: a passage this player has been told. */
@@ -60,14 +64,21 @@ export interface PlayerLore {
 }
 
 export interface PlayerWorld {
-  /** Truths only this player's character, or a faction it belongs to, knows. */
+  /** Truths only this player's character, or a faction it belongs to, knows: no other character shares them. */
   onlyMine: PlayerCanonEntry[];
-  /** Truths known to all. */
+  /** Truths known to all, and truths this player shares with some other characters (each says who, `knownWithLabel`). */
   known: PlayerCanonEntry[];
   lore: PlayerLore[];
   /** The backstories this player reads: their own character's, and any the DM shared. */
   backstories: PlayerBackstory[];
+  /** The premise entries the DM shared (never voice or look), in kind order, then the DM's order within a kind. */
+  premise: PlayerCanonEntry[];
+  /** Secrets the DM has revealed to this player, in the DM's order. */
+  revealed: PlayerCanonEntry[];
 }
+
+/** The order the campaign page reads its premise in; voice and look are never shared with a player. */
+const PREMISE_ORDER = ["pitch", "theme", "table", "line", "veil"] as const;
 
 /**
  * A passage is New when it was told after the player last opened its entry. A player who has never opened the entry
@@ -75,6 +86,20 @@ export interface PlayerWorld {
  */
 export function isPassageNew(toldAt: string | null, lastVisit: Date | null): boolean {
   return lastVisit !== null && toldAt !== null && new Date(toldAt) > lastVisit;
+}
+
+/** The names of the other characters who know a truth the player knows, or none when it is theirs alone. */
+const othersWho = (e: PlayerCanonEntry): readonly string[] => e.known_with ?? [];
+
+/**
+ * "You and Mira know" / "You, Bram and Mira know": who shares a truth that only some know. Null when nobody else does
+ * (the truth stays under "Only you know") or when the truth is known to all (it needs no list).
+ */
+export function knownWithLabel(e: PlayerCanonEntry): string | null {
+  const names = othersWho(e);
+  if (e.knowledge !== "some" || names.length === 0) return null;
+  if (names.length === 1) return `You and ${names[0]} know`;
+  return `You, ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]} know`;
 }
 
 function dateKey(e: PlayerCanonEntry): [number, number, number] {
@@ -112,9 +137,20 @@ export function groupPlayerWorld(entries: readonly PlayerCanonEntry[], passages:
     const dmTimes = told.flatMap((p) => (p.by_dm && p.told_at !== null ? [p.told_at] : [])).sort();
     return [{ entry, memberId: entry.party_member_id, passages: told, latestDmAt: dmTimes.at(-1) ?? null }];
   });
+  const premise = PREMISE_ORDER.flatMap((kind) =>
+    entries.filter((e) => e.part === "premise" && e.premise_kind === kind).sort((a, b) => a.sort_order - b.sort_order),
+  );
+  // A secret that became a truth this player can read is already under "What we know": it is not listed twice.
+  const truthIds = new Set(truths.map((e) => e.id));
+  const revealed = entries
+    .filter((e) => e.part === "secret" && !(typeof e.became_entry_id === "string" && truthIds.has(e.became_entry_id)))
+    .sort((a, b) => a.sort_order - b.sort_order);
   return {
-    onlyMine: truths.filter((e) => e.knowledge === "some"),
-    known: truths.filter((e) => e.knowledge === "all"),
+    premise,
+    revealed,
+    // A truth some know is the player's alone only while no one else on the party shares it (#1258 item 14).
+    onlyMine: truths.filter((e) => e.knowledge === "some" && othersWho(e).length === 0),
+    known: truths.filter((e) => e.knowledge === "all" || (e.knowledge === "some" && othersWho(e).length > 0)),
     lore,
     backstories,
   };

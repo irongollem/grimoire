@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(29);
 
 -- canon_entries (20261120033038, #1226): the campaign's canon. Only the campaign's DMs read or write the table; a
 -- player reads get_player_canon, which applies each part's audience (a truth's knowledge mark, the premise's reveal
@@ -129,6 +129,15 @@ select throws_ok($$
   update public.canon_entries set part = 'lore' where id = '12260000-0000-4000-8000-000000000104'
 $$, '23514', null, 'an entry''s part never changes, so a secret cannot become lore its clues then hang off');
 
+-- Two revealed secrets: one became a truth known to all, the other a truth the player cannot read (#1258).
+insert into public.canon_entries (id, user_id, campaign_id, part, title, revealed_at, player_visible_to, became_entry_id) values
+  ('12260000-0000-4000-8000-000000000109', '12260000-0000-4000-8000-000000000001', '12260000-0000-4000-8000-000000000010',
+   'secret', 'The taste is the Stain leaking.', now(), array['12260000-0000-4000-8000-000000000020']::uuid[],
+   '12260000-0000-4000-8000-000000000101'),
+  ('12260000-0000-4000-8000-000000000110', '12260000-0000-4000-8000-000000000001', '12260000-0000-4000-8000-000000000010',
+   'secret', 'The dream bleeds into the river.', now(), array['12260000-0000-4000-8000-000000000020']::uuid[],
+   '12260000-0000-4000-8000-000000000104');
+
 -- ── The player reads ───────────────────────────────────────────────────────────
 select set_config('request.jwt.claim.sub', '12260000-0000-4000-8000-000000000002', true);
 
@@ -162,6 +171,14 @@ select ok(
 select ok(
   not exists (select 1 from public.get_player_canon('12260000-0000-4000-8000-000000000010') where part = 'force'),
   'what is moving never reaches a player');
+select is(
+  (select became_entry_id from public.get_player_canon('12260000-0000-4000-8000-000000000010') where id = '12260000-0000-4000-8000-000000000109'),
+  '12260000-0000-4000-8000-000000000101'::uuid,
+  'a revealed secret says which truth it became when the player reads that truth, so it is not shown twice');
+select is(
+  (select became_entry_id from public.get_player_canon('12260000-0000-4000-8000-000000000010') where id = '12260000-0000-4000-8000-000000000110'),
+  null,
+  'a secret that became a truth the player cannot read hands out no id for it');
 select ok(
   not exists (select 1 from pg_proc p, unnest(p.proargnames) as n
                where p.proname = 'get_player_canon' and n in ('player_visible_to', 'user_id')),

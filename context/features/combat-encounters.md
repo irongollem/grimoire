@@ -251,6 +251,7 @@ The "Generate" button on the Encounters list (`EncountersView.vue`) opens a righ
 
 - **Concept** — a free-text prompt (e.g. "Goblin ambush on the forest road, levels 3–5, a betrayal mid-fight")
 - **Difficulty** — Auto / Easy / Medium / Hard / Deadly
+- **Where** — the party's place unless changed; when it lies in a habitat (Canon, "Who and what lives here"), the panel rolls once at the habitat's shares and tells the model to build around the rolled creature (or away from the listed ones on "anything else"), as a constraint beside the concept (`lifeConstraints`, `EncounterWhere.vue`)
 
 Generation is dual-path like the other generators (`useEncounterGeneration.ts`): by default it calls the `generate-encounter` edge function; in local-vault BYOK mode (`grimoire_key_local_mode === "local"` in `localStorage`) it calls the model directly from the browser instead.
 

@@ -1,5 +1,5 @@
 import { factChains, groupRecord, type RecordGroup, type SittingInfo, type StoryFact } from "@/lib/table/solo/storyRecord";
-import type { KnowledgeMark } from "@/types/canon.types";
+import type { CanonEntry, KnowledgeMark } from "@/types/canon.types";
 
 /**
  * What the table added (#1226, frame 03): the facts the Narrator put on record (`story_facts.source = 'table'`) and the
@@ -78,7 +78,24 @@ export function undoStrikePatch(previousKeptAt: string | null): { struck_at: nul
   return { struck_at: null, kept_at: previousKeptAt };
 }
 
-/** The truth Make it a truth files: what the fact says, told to all when the party already knows it, else secret. */
-export function truthFromFact(fact: Pick<StoryFact, "body" | "known_to_player">): { part: "truth"; knowledge: KnowledgeMark; title: string } {
-  return { part: "truth", knowledge: fact.known_to_player ? "all" : "secret", title: fact.body };
+/**
+ * The truth Make it a truth files: what the fact says, told to all when the party already knows it, else secret, and
+ * remembering the fact it came from so the same fact is not filed twice.
+ */
+export function truthFromFact(
+  fact: Pick<StoryFact, "id" | "body" | "known_to_player">,
+): { part: "truth"; knowledge: KnowledgeMark; title: string; from_fact_id: string } {
+  return { part: "truth", knowledge: fact.known_to_player ? "all" : "secret", title: fact.body, from_fact_id: fact.id };
+}
+
+/** Which truth each fact already became, by fact id: a fact in this map is not offered Make it a truth again. */
+export function truthByFact(truths: readonly Pick<CanonEntry, "id" | "from_fact_id">[]): ReadonlyMap<string, string> {
+  const byFact = new Map<string, string>();
+  for (const truth of truths) if (truth.from_fact_id !== null) byFact.set(truth.from_fact_id, truth.id);
+  return byFact;
+}
+
+/** The database refused a second truth for one fact (the unique index on `from_fact_id`): two tabs made it at once. */
+export function isAlreadyATruth(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "23505";
 }

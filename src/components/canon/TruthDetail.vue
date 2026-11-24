@@ -5,12 +5,26 @@
       <AppInput
         :key="revision"
         v-model.lazy="text"
+        wrap
         size="body"
         tone="filled"
         aria-label="The truth"
         placeholder="What is true in this world…"
       />
+      <EntryArcPicker :entry="entry" />
+      <!-- The story record cannot be opened at one fact, so the line leads to the page. -->
+      <p v-if="entry.from_fact_id" class="m-0 text-caption text-muted-foreground" data-testid="truth-from-table">
+        <AppButton to="/table/story" variant="link" size="inline" label="First said at the table." />
+      </p>
     </div>
+
+    <CanonEntryNotes
+      :key="entry.id"
+      :entry="entry"
+      label="More about it"
+      help="Players who read this truth read this too. Put what only you should see in a DM-only block."
+      placeholder="Why it matters, what lies behind it…"
+    />
 
     <div class="flex flex-col gap-2">
       <span class="text-eyebrow text-muted-foreground">Who knows it</span>
@@ -62,7 +76,11 @@
       />
     </div>
 
-    <ConnectionsSection :subject="subject" :subject-name="entry.title" />
+    <EntryQuests :entry="entry" :links="questLinks" label="The quests that turn on it" empty="No quest turns on this yet." />
+
+    <EntryStoryLinks :entry="entry" />
+
+    <ConnectionsSection :subject="subject" :subject-name="entry.title" :hide="isShownAbove" />
 
     <AppButton
       variant="destructive"
@@ -87,19 +105,25 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import WorldEntityPicker from "@/components/common/entity/WorldEntityPicker.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
+import EntryArcPicker from "./EntryArcPicker.vue";
+import CanonEntryNotes from "./CanonEntryNotes.vue";
+import EntryQuests from "./EntryQuests.vue";
+import EntryStoryLinks from "./EntryStoryLinks.vue";
 import CanonRef from "./CanonRef.vue";
 import { KNOWLEDGE_HELP, MARK_OPTIONS } from "@/lib/canon/canonParts";
+import { useEntryQuestLinks } from "@/composables/canon/useEntryQuestLinks";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { KNOWER_KINDS, useKnownTo } from "@/composables/canon/useKnownTo";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { IconAdd, IconClose, IconDelete } from "@/lib/icons";
 import type { CanonEntry, KnowledgeMark } from "@/types/canon.types";
-import type { WorldRef } from "@/types/connections.types";
+import type { Connection, WorldRef } from "@/types/connections.types";
 
 const { entry } = defineProps<{ entry: CanonEntry }>();
 const emit = defineEmits<{ delete: [] }>();
 
 const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
+const questLinks = useEntryQuestLinks(() => entry.id);
 const knowledge = computed<KnowledgeMark>(() => {
   if (entry.knowledge === null) throw new Error("a truth without a knowledge mark");
   return entry.knowledge;
@@ -112,6 +136,10 @@ const { text, revision } = useCommittedText(() => entry.title, (next) => update(
 
 const pickerOpen = ref(false);
 watch(() => entry.id, () => { pickerOpen.value = false; });
+
+// Who knows it and the story links (because of, led to, carries) are the blocks above, so the Connections block does
+// not list the same ties again (#1258 items 6 and 18).
+const isShownAbove = (c: Connection): boolean => c.source === "link" && ((c.type === "known_to" && c.outward) || c.type === "led_to" || c.type === "carries");
 
 function setKnowledge(next: KnowledgeMark) {
   if (next === entry.knowledge) return;

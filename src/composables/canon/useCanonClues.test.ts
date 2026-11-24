@@ -8,12 +8,12 @@ const session = vi.hoisted(() => ({ user: { id: "dm-1" } as { id: string } | nul
 
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => session.user }));
 
-import { cluesAt, createCanonClue, fetchCanonClues, foundPatch, updateCanonClue } from "./useCanonClues";
+import { cluePlacement, cluesAt, createCanonClue, fetchCanonClues, foundPatch, updateCanonClue } from "./useCanonClues";
 import type { CanonClue } from "@/types/canon.types";
 
 const row = (over: Record<string, unknown>): Record<string, unknown> => ({
   id: "k1", user_id: "dm-1", campaign_id: "c1", secret_id: "s1", title: "A locket", sort_order: 0, location_id: null, npc_id: null,
-  quest_beat_id: null, found_at: null, found_session_id: null, passage_id: null, ai_provenance: null,
+  quest_beat_id: null, item_id: null, document_id: null, found_at: null, found_session_id: null, passage_id: null, ai_provenance: null,
   created_at: "2026-11-19T10:00:00Z", updated_at: "2026-11-19T10:00:00Z", ...over,
 });
 
@@ -38,6 +38,17 @@ describe("canon clues", () => {
     expect(fake.rows("canon_clues")).toMatchObject([{ user_id: "dm-1", campaign_id: "c1", secret_id: "s1", location_id: "p1" }]);
   });
 
+  // Bug: a clue placed in an item was written to another place's column (or to none), so the item never showed it.
+  it("files a clue in an item under item_id alone, and a handout under document_id alone", async () => {
+    expect(cluePlacement({ kind: "item", id: "i1" })).toEqual({ item_id: "i1" });
+    expect(cluePlacement({ kind: "document", id: "d1" })).toEqual({ document_id: "d1" });
+    await createCanonClue("c1", { secret_id: "s1", title: "A locket", ...cluePlacement({ kind: "item", id: "i1" }) });
+    const [saved] = fake.rows("canon_clues");
+    expect(saved).toMatchObject({ item_id: "i1" });
+    expect(saved).not.toHaveProperty("location_id");
+    expect(saved).not.toHaveProperty("document_id");
+  });
+
   it("says so when a write changed no row, which is what a refusal by RLS looks like", async () => {
     await expect(updateCanonClue("missing", { title: "x" })).rejects.toThrow("gone");
   });
@@ -50,6 +61,13 @@ describe("cluesAt", () => {
     expect(cluesAt(all, "location", "p1").map((c) => c.id)).toEqual(["a"]);
     expect(cluesAt(all, "npc", "p1").map((c) => c.id)).toEqual(["c"]);
     expect(cluesAt(all, "quest_beat", "p1").map((c) => c.id)).toEqual(["d"]);
+  });
+
+  // Bug: the item's block listed clues of a place that happens to share nothing with it, or none at all (no column for item).
+  it("lists the clues in an item or a handout by their own column", () => {
+    const clues = [{ id: "a", item_id: "i1" }, { id: "b", document_id: "i1" }, { id: "c", location_id: "i1" }] as unknown as CanonClue[];
+    expect(cluesAt(clues, "item", "i1").map((c) => c.id)).toEqual(["a"]);
+    expect(cluesAt(clues, "document", "i1").map((c) => c.id)).toEqual(["b"]);
   });
 
   it("lists nothing where no clue lies, so the block renders nothing", () => {

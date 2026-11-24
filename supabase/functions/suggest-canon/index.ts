@@ -17,6 +17,7 @@ import {
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
+import { collectMentions, loadMentionNames } from "../_shared/mentionNames.ts";
 import { premiseEntryText, worldBlockText } from "../_shared/worldBlock.ts";
 import { serveUser } from "../_shared/pipeline/serveUser.ts";
 import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
@@ -36,7 +37,9 @@ import {
   sanitizeLore,
   sanitizePremise,
   sanitizeQuestions,
+  sanitizeSecrets,
   sanitizeTruths,
+  secretShape,
   truthShape,
   type ForceQuestRef,
   type ForceWho,
@@ -44,11 +47,15 @@ import {
   type LoreKind,
   type SpotCandidate,
 } from "../_shared/canonSuggestions.ts";
+import { looseEnds, readShape, sanitizeContradictions, type ReadFinding } from "../_shared/canonReadThrough.ts";
 
 /**
  * Canon helpers (#1226 story 2, frame 13): "Draft from a pitch" proposes premise entries, "Suggest truths" proposes
  * truths with who knows them. NOTHING IS WRITTEN HERE: the reply is a list the DM accepts or dismisses one by one in
- * the client, which writes each (and a truth's `known_to` ties) itself.
+ * the client, which writes each (and a truth's `known_to` ties) itself. "Suggest secrets" (`secrets`) proposes a secret
+ * with up to three clues placed by id; "Read it through" (`read`) returns findings (contradictions from the model,
+ * loose ends from code) and is a mode here, not a function of its own, because it needs everything this does: the DM
+ * gate, the prompt row, the price, the hold and the grounding of ids. Its findings write nothing either.
  *
  * Server-path only, like suggest-connections: the premise and the candidate knowers are service-role reads the browser
  * cannot make. The prompt rows hold the editorial rules; the output shape and the grounding are code. Every answer
@@ -65,7 +72,7 @@ interface CanonCampaign extends BaseCampaign {
   game_system: string | null;
 }
 
-type Mode = "premise" | "truths" | "clues" | "questions" | "forces" | "lore";
+type Mode = "premise" | "truths" | "clues" | "questions" | "forces" | "lore" | "secrets" | "read";
 
 const MODES: Record<Mode, { promptRow: string; ledger: string }> = {
   premise: { promptRow: "canon_premise", ledger: "canon_premise_suggestion" },
@@ -74,6 +81,9 @@ const MODES: Record<Mode, { promptRow: string; ledger: string }> = {
   questions: { promptRow: "canon_questions", ledger: "canon_question_suggestion" },
   forces: { promptRow: "canon_forces", ledger: "canon_force_suggestion" },
   lore: { promptRow: "canon_lore", ledger: "canon_lore_suggestion" },
+  secrets: { promptRow: "canon_secrets", ledger: "canon_secret_suggestion" },
+  // "Read it through" is priced as its own row: it reads the whole canon, so it is not a suggester's price.
+  read: { promptRow: "canon_read_through", ledger: "canon_read_through" },
 };
 
 const isMode = (v: unknown): v is Mode => typeof v === "string" && Object.hasOwn(MODES, v);
@@ -85,6 +95,9 @@ const MAX_LOCATIONS = 40;
 const MAX_BEATS = 40;
 const MAX_QUESTS = 30;
 const MAX_TEXT_CHARS = 4000;
+/** "Read it through" lists this many entries to the model, each with this much of its text. */
+const MAX_READ_ENTRIES = 150;
+const READ_EXCERPT_CHARS = 300;
 
 /** Every read is filtered by campaign in the query: the service-role client has no RLS to lean on. */
 async function readRows<T>(query: PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
@@ -110,9 +123,13 @@ async function loadKnowers(db: SupabaseClient, campaignId: string): Promise<Know
   ];
 }
 
-/** Rows of a canon part (title and body), DM-only, read with the campaign in the query. */
+/**
+ * Titles of a canon part, DM-only, read with the campaign in the query. Only entries still open: an answered question
+ * is no longer kept open and an ended force no longer moves, so neither is offered as one (#1255). The other parts
+ * never close, so the filter leaves them whole.
+ */
 function canonTitles(db: SupabaseClient, campaignId: string, part: string) {
-  return readRows<{ title: string }>(db.from("canon_entries").select("title").eq("campaign_id", campaignId).eq("part", part));
+  return readRows<{ title: string }>(db.from("canon_entries").select("title").eq("campaign_id", campaignId).eq("part", part).is("closed_as", null));
 }
 
 const listOfTitles = (rows: { title: string }[]): string[] => rows.map((r) => r.title.trim()).filter((t) => t !== "");
@@ -158,6 +175,14 @@ function spotLines(spots: SpotCandidate[], beatQuest: Map<string, string>): stri
   }).join("\n");
 }
 
+/** Like `spotLines`, with the id the model must copy: "secrets" places a clue by id. */
+function spotLinesWithIds(spots: SpotCandidate[], beatQuest: Map<string, string>): string {
+  if (spots.length === 0) return "(nowhere yet)";
+  return spots.map((s) => {
+    const quest = s.kind === "quest_beat" ? beatQuest.get(s.id) : undefined;
+    return `${s.kind}|${s.id}|${s.name}${quest ? `|in quest: ${quest}` : ""}`;
+  }).join("\n");
+}
 
 serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate, including BYOK (#919).
@@ -238,12 +263,16 @@ serve(serveUser(async ({ user, req, report }) => {
       let system: string;
       let user_: string;
       let sanitize: (parsed: unknown) => { suggestions: unknown[]; setAside: unknown[] };
+      // "Read it through" only: loose ends come from code, and a canon too small to hold a contradiction skips the model.
+      let skipModelWith: ReadFinding[] | null = null;
 
       if (mode === "premise") {
         const rows = await readRows<{ premise_kind: string | null; title: string; body: string | null }>(
           admin.from("canon_entries").select("premise_kind, title, body").eq("campaign_id", campaign.id).eq("part", "premise"),
         );
-        const existing = rows.map((r) => ({ kind: r.premise_kind, text: premiseEntryText(r.premise_kind, r.title, r.body) }))
+        // A body's @mentions store no name; without theirs the list would offer the DM a duplicate of what they have.
+        const nameOf = await loadMentionNames(admin, campaign.id, rows.flatMap((r) => collectMentions(r.body, { skipSecrets: true })));
+        const existing = rows.map((r) => ({ kind: r.premise_kind, text: premiseEntryText(r.premise_kind, r.title, r.body, nameOf) }))
           .filter((r) => r.text !== "");
         system = base(premiseShape());
         user_ = `${steer}The DM's pitch is above. Entries the campaign already has (do not repeat them):\n` +
@@ -285,13 +314,47 @@ serve(serveUser(async ({ user, req, report }) => {
             (s.kind === "quest_beat" && s.id === c.quest_beat_id));
           return hit ? `${hit.kind} ${hit.name}` : c.passage_id ? "a lore passage" : "somewhere";
         };
-        const statement = [secret.title.trim(), toPlainText(secret.body).trim()].filter((t) => t !== "").join("\n");
+        const secretNames = await loadMentionNames(admin, campaign.id, collectMentions(secret.body));
+        const statement = [secret.title.trim(), toPlainText(secret.body, secretNames).trim()].filter((t) => t !== "").join("\n");
         system = base(clueShape());
         user_ = `${steer}The secret the clues point to (a clue hints at it and never states it):\n${wrapUserInput(statement)}\n\n` +
           `Clues already placed to this secret (do not repeat them):\n${bullets(clues.map((c) => `${c.title.trim()} (at ${where(c)})`))}\n\n` +
           "Places, people and quest beats a clue may lie at. Every 'at' must be copied exactly from one of these lines:\n" +
           `---BEGIN SPOTS---\n${spotLines(free, found.beatQuest)}\n---END SPOTS---`;
         sanitize = (parsed) => sanitizeClues(parsed, free, used);
+      } else if (mode === "secrets") {
+        const [secrets, found] = await Promise.all([canonTitles(admin, campaign.id, "secret"), loadSpots(admin, campaign.id)]);
+        const existing = listOfTitles(secrets);
+        system = base(secretShape());
+        user_ = `${steer}Secrets the campaign already has (do not repeat them):\n${bullets(existing)}\n\n` +
+          "Places, people and quest beats a clue may lie at. Every clue's 'at' id must be copied exactly from the second field of one of these lines (kind|id|name):\n" +
+          `---BEGIN SPOTS---\n${spotLinesWithIds(found.spots, found.beatQuest)}\n---END SPOTS---`;
+        sanitize = (parsed) => sanitizeSecrets(parsed, found.spots, existing);
+      } else if (mode === "read") {
+        const [entries, clues, steps, entryQuests] = await Promise.all([
+          readRows<{ id: string; part: string; title: string; body: string | null; revealed_at: string | null; closed_as: string | null }>(
+            admin.from("canon_entries").select("id, part, title, body, revealed_at, closed_as").eq("campaign_id", campaign.id)
+              .order("part", { ascending: true }).order("sort_order", { ascending: true }),
+          ),
+          readRows<{ secret_id: string }>(admin.from("canon_clues").select("secret_id").eq("campaign_id", campaign.id)),
+          readRows<{ force_id: string; reached_at: string | null }>(admin.from("canon_force_steps").select("force_id, reached_at").eq("campaign_id", campaign.id)),
+          readRows<{ entry_id: string }>(admin.from("canon_entry_quests").select("entry_id").eq("campaign_id", campaign.id)),
+        ]);
+        const loose = looseEnds({ entries, clueSecretIds: clues.map((c) => c.secret_id), steps, entryQuests });
+        const listed = entries.slice(0, MAX_READ_ENTRIES);
+        if (listed.length < 2) skipModelWith = loose;
+        const nameOf = await loadMentionNames(admin, campaign.id, listed.flatMap((r) => collectMentions(r.body)));
+        const lines = listed.map((e) => {
+          const excerpt = toPlainText(e.body, nameOf).replace(/\s+/g, " ").trim().slice(0, READ_EXCERPT_CHARS);
+          return `${e.id}|${e.part}|${e.title.trim()}${excerpt !== "" ? `|${excerpt}` : ""}`;
+        });
+        system = base(readShape());
+        user_ = `${steer}Every entry of the canon, one per line as id|part|title|start of its text:\n${wrapUserInput(lines.join("\n"))}`;
+        const knownIds = new Set(listed.map((e) => e.id));
+        sanitize = (parsed) => {
+          const { findings, setAside } = sanitizeContradictions(parsed, knownIds);
+          return { suggestions: [...findings, ...loose], setAside };
+        };
       } else if (mode === "questions") {
         const [truths, secrets, questions] = await Promise.all([
           readRows<{ title: string; knowledge: string | null }>(
@@ -365,9 +428,11 @@ serve(serveUser(async ({ user, req, report }) => {
           "\n---END PEOPLE---";
         sanitize = (parsed) => sanitizeTruths(parsed, candidates, titles);
       }
+      // Nothing to read two of: the loose ends are free, no model is called and nothing is charged.
+      if (skipModelWith) return json({ suggestions: skipModelWith, setAside: [], ai_provenance: null });
       let textResult: TextResult;
       try {
-        const maxTokens = mode === "premise" || mode === "forces" ? 5000 : mode === "lore" ? 4000 : 2500;
+        const maxTokens = mode === "premise" || mode === "forces" ? 5000 : mode === "lore" || mode === "secrets" ? 4000 : 2500;
         textResult = await callText({ text, model: text.config?.text_model, system, user: user_, maxTokens });
       } catch (e) {
         console.error("Canon suggestion text generation failed:", e);
@@ -382,12 +447,13 @@ serve(serveUser(async ({ user, req, report }) => {
       }
 
       const { suggestions, setAside } = sanitize(parsed);
-      if (suggestions.length === 0 && setAside.length === 0) {
+      // A read that found nothing wrong is an answer (and was paid for); a suggester that found nothing is not.
+      if (mode !== "read" && suggestions.length === 0 && setAside.length === 0) {
         return jsonError(502, "generation_failed", "No usable suggestions. Nothing was charged; please try again.");
       }
 
       // Nothing the DM can accept is not a generation they pay for: show why, charge nothing (no `hold.charge`).
-      if (suggestions.length === 0) return json({ suggestions, setAside, ai_provenance: null });
+      if (mode !== "read" && suggestions.length === 0) return json({ suggestions, setAside, ai_provenance: null });
       hold.charge(LEDGER_REASON, {
         cost,
         isByok: text.isByok,

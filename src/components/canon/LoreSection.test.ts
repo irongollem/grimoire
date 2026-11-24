@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import type { CanonLorePassage } from "@/types/canon.types";
@@ -17,10 +18,12 @@ vi.mock("@/composables/useLowArt", () => ({ useLowArt: () => ({ lowArt: ref(true
 import LoreSection from "./LoreSection.vue";
 
 const lore = (id: string, title: string, year: number | null) => canonEntry({ id, part: "lore", title, world_year: year, lore_kind: "history" });
+const FoldStub = { name: "CanonSuggestFold", props: ["part"], template: "<div data-testid='fold'><slot /></div>" };
 const mountIt = (entries = [lore("a", "Undated tale", null), lore("b", "Late", 412), lore("c", "Early", 7)]) =>
   mount(LoreSection, { props: { lore: entries }, global: { stubs: { CanonSuggestions: true, LoreRow: false, FocalImage: true } } });
 
 describe("LoreSection", () => {
+  beforeEach(() => setActivePinia(createPinia()));
   beforeEach(() => {
     mocks.create.mockReset();
     passages.value = [];
@@ -65,5 +68,23 @@ describe("LoreSection", () => {
     await flushPromises();
     expect((input.element as HTMLInputElement).value).toBe("The Fall");
     expect(w.emitted("select")).toBeUndefined();
+  });
+});
+
+describe("LoreSection order and helper (#1255 item 11, #1258 item 19)", () => {
+  beforeEach(() => setActivePinia(createPinia()));
+  const many = () => ["Flood", "Mill", "Guild", "Moon", "Fall", "Oath"].map((t, i) => lore(`l${i}`, t, i));
+
+  it("offers no manual order (lore reads by its date) and no search field of its own", () => {
+    const w = mountIt(many());
+    expect(w.find("[data-testid=move-buttons]").exists()).toBe(false);
+    expect(w.find("input[type=search]").exists()).toBe(false);
+  });
+
+  // Bug caught (#1258 item 19): the lore helper left open on the page, a second block of chrome above every visit to the part.
+  it("keeps Draft a lore entry inside the Suggest fold", () => {
+    const w = mount(LoreSection, { props: { lore: [] }, global: { stubs: { CanonSuggestions: true, CanonSuggestFold: FoldStub } } });
+    expect(w.get("[data-testid=fold]").findComponent({ name: "CanonSuggestions" }).exists()).toBe(true);
+    expect(w.getComponent({ name: "CanonSuggestFold" }).props("part")).toBe("lore");
   });
 });

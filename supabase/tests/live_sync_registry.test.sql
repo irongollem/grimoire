@@ -89,7 +89,7 @@ insert into live_sync_doorbell (name) values
   -- World Web (#1084).
   ('world_links'),
   -- The campaign's canon (#1226): players read it through get_player_canon.
-  ('canon_entries'), ('canon_clues'), ('canon_force_steps'), ('canon_force_ticks'), ('canon_force_quests'), ('canon_lore_passages'), ('note_sorting'),
+  ('canon_entries'), ('canon_clues'), ('canon_force_steps'), ('canon_force_ticks'), ('canon_entry_quests'), ('canon_lore_passages'), ('campaign_peoples'), ('canon_arcs'), ('canon_trash'), ('canon_wonders'), ('campaign_habitats'), ('campaign_habitat_places'), ('campaign_habitat_life'), ('note_sorting'),
   -- The record (#1021).
   ('story_facts'), ('story_fact_links'),
   -- A party member played by the AI (#1021 row 26).

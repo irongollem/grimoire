@@ -56,6 +56,8 @@ import { useCreateNpcInCampaign } from "@/composables/npcs/useNpcs";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useNpcQuote } from "@/composables/ai/quotes/npcQuote";
 import { buildNpcAiContext, useGenerateNpc } from "@/composables/npcs/useGenerateNpc";
+import { useCampaignPeoples } from "@/composables/canon/useCampaignPeoples";
+import { npcSpecies } from "@/lib/canon/npcSpecies";
 import { getNpcTemplate } from "@/data/npcTemplates";
 import type { NpcInsert, NpcRelationship } from "@/types/npc.types";
 import { DEFAULT_ASSOCIATE } from "@/lib/npcGenerator/associate";
@@ -108,6 +110,7 @@ const {
   completedEntityId: completedNpcId,
 } = useNpcGeneration();
 const { generateAndCreateNpc, applyNpcLinks, applyGeneratorLinks } = useGenerateNpc();
+const { peoples } = useCampaignPeoples();
 // This panel is mounted on every DM page (DefaultLayout) so background
 // generation survives navigation, but its dropdown data is only read while the
 // panel is open. Gate the fetches on that so a closed panel costs no egress.
@@ -142,14 +145,14 @@ function handleClose() {
   npcsUi.npcGeneratorOpen = false;
 }
 
-function aiContext(selectedLocationId: string | null, items: readonly ItemIndexEntry[]): string {
-  return buildNpcAiContext(quickForm, selectedLocationId, items, {
+function aiContext(form: typeof quickForm, raceLines: readonly string[], selectedLocationId: string | null, items: readonly ItemIndexEntry[]): string {
+  return buildNpcAiContext(form, selectedLocationId, items, {
     locations: locationOptions.value,
     factions: factions.value ?? [],
     npcs: npcs.value ?? [],
     party: party.value ?? [],
     todayYear: campaign.todayYear,
-  }, quickForm.links);
+  }, form.links, raceLines);
 }
 
 function mentionedItems(): ItemIndexEntry[] {
@@ -175,7 +178,9 @@ async function runGenerateAndCreate() {
   if (!canSpend(effectiveCreditCost.value, isFullyByok.value)) return;
   const campaignId = campaign.activeCampaignId;
   if (!campaignId) return;
-  const formAtStart = { ...quickForm };
+  // The species the DM picked, else one rolled at the world's shares (#1255 item 30).
+  const species = npcSpecies(quickForm.race, peoples.value);
+  const formAtStart = { ...quickForm, race: species.race };
   const locationId = formAtStart.location_id ?? locationNamedInStory(concept.value, locationOptions.value)?.id ?? null;
   const inventoryItems = [...mentionedItems()];
   const associate = formAtStart.related_npc_id
@@ -187,7 +192,7 @@ async function runGenerateAndCreate() {
     outcome = await generateAndCreateNpc({
       concept: concept.value.trim(),
       prompt: replaceItemTokens(concept.value.trim(), inventoryItems),
-      context: aiContext(locationId, inventoryItems),
+      context: aiContext(formAtStart, species.lines, locationId, inventoryItems),
       generateAlterEgo: generateAlterEgo.value,
       generateImage: generateImage.value,
       form: formAtStart,
@@ -281,7 +286,7 @@ async function quickCreate() {
 async function runQuickCreate() {
   const campaignId = campaign.activeCampaignId;
   if (!campaignId) return;
-  const formAtStart = { ...quickForm };
+  const formAtStart = { ...quickForm, race: npcSpecies(quickForm.race, peoples.value).race };
   const associateNpc = formAtStart.related_npc_id
     ? npcs.value?.find((n) => n.id === formAtStart.related_npc_id) ?? null
     : null;

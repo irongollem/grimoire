@@ -10,7 +10,7 @@ const { fake } = await vi.hoisted(async () => {
 });
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 
-import { groupPlayerWorld, isPassageNew, usePlayerCanon, type PlayerCanonEntry, type PlayerLorePassage } from "./usePlayerCanon";
+import { groupPlayerWorld, isPassageNew, knownWithLabel, usePlayerCanon, type PlayerCanonEntry, type PlayerLorePassage } from "./usePlayerCanon";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 
@@ -67,6 +67,87 @@ describe("groupPlayerWorld", () => {
     );
     expect(world.lore.find((l) => l.entry.id === "l1")?.latestAt).toBe("2026-11-09T10:00:00Z");
     expect(world.lore.find((l) => l.entry.id === "l2")?.latestAt).toBe("2026-10-01T00:00:00Z");
+  });
+});
+
+describe("groupPlayerWorld: who knows a truth (#1258 item 14)", () => {
+  // Bug caught: every truth marked "some" stayed under "Only you know", so a player who shared it with Mira was told
+  // it was theirs alone. A truth nobody else knows (empty, null or absent known_with) stays there.
+  it("keeps a truth under Only you know until another character shares it", () => {
+    const world = groupPlayerWorld(
+      [
+        entry({ id: "alone", knowledge: "some", known_with: [] }),
+        entry({ id: "absent", knowledge: "some" }),
+        entry({ id: "nulled", knowledge: "some", known_with: null }),
+        entry({ id: "shared", knowledge: "some", known_with: ["Mira"] }),
+        entry({ id: "all", knowledge: "all" }),
+      ],
+      [],
+    );
+    expect(world.onlyMine.map((e) => e.id)).toEqual(["alone", "absent", "nulled"]);
+    expect(world.known.map((e) => e.id)).toEqual(["shared", "all"]);
+  });
+
+  // Bug caught: the sentence read "You and Bram, Mira know" or dropped a name; one name takes "and", more join with commas.
+  it.each([
+    [["Mira"], "You and Mira know"],
+    [["Bram", "Mira"], "You, Bram and Mira know"],
+    [["Bram", "Jo", "Mira"], "You, Bram, Jo and Mira know"],
+  ])("says who knows it for %j", (names, words) => {
+    expect(knownWithLabel(entry({ knowledge: "some", known_with: names }))).toBe(words);
+  });
+
+  // Bug caught: a truth known to all, or one shared with nobody, wore a "You and … know" line.
+  it("says nothing for a truth known to all or one only the player knows", () => {
+    expect(knownWithLabel(entry({ knowledge: "all", known_with: ["Mira"] }))).toBeNull();
+    expect(knownWithLabel(entry({ knowledge: "some", known_with: [] }))).toBeNull();
+  });
+});
+
+describe("groupPlayerWorld: shared premise and revealed secrets", () => {
+  // Bug caught (#1255): the grouping dropped every secret row, so a secret the DM revealed ("shows on every player's
+  // screen") never reached any player.
+  it("lists a revealed secret and drops an entry of any other unknown part", () => {
+    const world = groupPlayerWorld(
+      [
+        entry({ id: "s2", part: "secret", knowledge: null, sort_order: 2 }),
+        entry({ id: "s1", part: "secret", knowledge: null, sort_order: 1 }),
+        entry({ id: "odd", part: "mystery", knowledge: null }),
+      ],
+      [],
+    );
+    expect(world.revealed.map((e) => e.id)).toEqual(["s1", "s2"]);
+    expect(world.known).toEqual([]);
+    expect(world.onlyMine).toEqual([]);
+    expect(world.premise).toEqual([]);
+  });
+
+  // Bug caught (#1258 item 13): a secret made a truth stayed under "Secrets revealed" beside the truth, so the player read
+  // the same words twice. A secret whose truth the player cannot see (or that never became one) stays listed.
+  it("leaves out a revealed secret that became a truth the player can read", () => {
+    const world = groupPlayerWorld(
+      [
+        entry({ id: "t1", knowledge: "all" }),
+        entry({ id: "s1", part: "secret", knowledge: null, became_entry_id: "t1" }),
+        entry({ id: "s2", part: "secret", knowledge: null, became_entry_id: "hidden-truth" }),
+        entry({ id: "s3", part: "secret", knowledge: null, became_entry_id: null }),
+      ],
+      [],
+    );
+    expect(world.revealed.map((e) => e.id)).toEqual(["s2", "s3"]);
+    expect(world.known.map((e) => e.id)).toEqual(["t1"]);
+  });
+
+  // Bug caught (#1255): shared premise rows dropped, or listed in arrival order instead of the campaign page's kind
+  // order (pitch, theme, table, line, veil) with the DM's order inside a kind.
+  it("lists shared premise in kind order, then the DM's order, and never voice or look", () => {
+    const p = (id: string, premise_kind: PlayerCanonEntry["premise_kind"], sort_order = 0) =>
+      entry({ id, part: "premise", premise_kind, knowledge: null, sort_order });
+    const world = groupPlayerWorld(
+      [p("veil", "veil"), p("t2", "theme", 2), p("voice", "voice"), p("line", "line"), p("t1", "theme", 1), p("pitch", "pitch"), p("table", "table"), p("look", "look")],
+      [],
+    );
+    expect(world.premise.map((e) => e.id)).toEqual(["pitch", "t1", "t2", "table", "line", "veil"]);
   });
 });
 

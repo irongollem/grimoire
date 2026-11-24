@@ -41,6 +41,7 @@
           <div class="border-t border-border pt-6">
             <ConnectionsSection :subject="{ kind: 'faction', id: faction.id }" :subject-name="faction.name" />
           </div>
+          <FactionForces class="border-t border-border pt-6" :faction-id="faction.id" />
           <div class="border-t border-border pt-6">
             <DmNoteBox type="faction" :id="faction.id" :label="faction.name" />
           </div>
@@ -64,6 +65,7 @@ import FactionSheet from "@/components/factions/FactionSheet.vue";
 import FactionMembersSection from "@/components/factions/FactionMembersSection.vue";
 import FactionPartyMembersSection from "@/components/factions/FactionPartyMembersSection.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
+import FactionForces from "@/components/factions/FactionForces.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import TabBar from "@/components/common/controls/TabBar.vue";
 import HouseLineage from "@/components/factions/HouseLineage.vue";

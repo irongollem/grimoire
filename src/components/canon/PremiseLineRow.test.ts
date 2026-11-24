@@ -6,7 +6,7 @@ import { canonEntry } from "@/test/canonEntry";
 const mocks = vi.hoisted(() => ({ update: vi.fn(), destroy: vi.fn(), confirm: vi.fn() }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({
   useUpdateCanonEntry: () => ({ mutate: mocks.update }),
-  useDeleteCanonEntry: () => ({ mutate: mocks.destroy }),
+  useTrashCanonEntry: () => ({ mutate: mocks.destroy }),
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 
@@ -15,31 +15,38 @@ import PremiseLineRow from "./PremiseLineRow.vue";
 const entry: CanonEntry = canonEntry({ id: "e1", part: "premise", premise_kind: "theme", title: "What is sweet can spoil." });
 
 function mountRow() {
-  return mount(PremiseLineRow, { props: { entry, label: "Theme" }, global: { stubs: { AudienceRevealControl: true } } });
+  return mount(PremiseLineRow, { props: { entry, label: "Theme" }, global: { stubs: { AudienceRevealControl: true, ThemeCarriedBy: true } } });
 }
 
 describe("PremiseLineRow", () => {
   beforeEach(() => Object.values(mocks).forEach((m) => m.mockReset()));
 
+  // Bug caught (#1258 item 17): "Carried by" drawn under a line or a veil, which nothing can carry.
+  it("shows what carries a theme, and only under a theme", () => {
+    expect(mountRow().findComponent({ name: "ThemeCarriedBy" }).exists()).toBe(true);
+    const line = mount(PremiseLineRow, { props: { entry: canonEntry({ id: "l1", part: "premise", premise_kind: "line", title: "No harm to children" }), label: "Line" }, global: { stubs: { AudienceRevealControl: true, ThemeCarriedBy: true } } });
+    expect(line.findComponent({ name: "ThemeCarriedBy" }).exists()).toBe(false);
+  });
+
   it("saves the new words once the field is left", async () => {
     const w = mountRow();
-    await w.find("input").setValue("Kindness is courage.");
-    await w.find("input").trigger("change");
+    await w.find("textarea").setValue("Kindness is courage.");
+    await w.find("textarea").trigger("change");
     expect(mocks.update).toHaveBeenCalledWith({ id: "e1", patch: { title: "Kindness is courage." } });
   });
 
   it("puts the old words back on a blank edit and saves nothing, so a slip of the keys never blanks a theme", async () => {
     const w = mountRow();
-    await w.find("input").setValue("   ");
-    await w.find("input").trigger("change");
+    await w.find("textarea").setValue("   ");
+    await w.find("textarea").trigger("change");
     expect(mocks.update).not.toHaveBeenCalled();
-    expect((w.find("input").element as HTMLInputElement).value).toBe("What is sweet can spoil.");
+    expect((w.find("textarea").element as HTMLTextAreaElement).value).toBe("What is sweet can spoil.");
   });
 
   it("saves nothing for an edit that leaves the words as they were", async () => {
     const w = mountRow();
-    await w.find("input").setValue("  What is sweet can spoil.  ");
-    await w.find("input").trigger("change");
+    await w.find("textarea").setValue("  What is sweet can spoil.  ");
+    await w.find("textarea").trigger("change");
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
@@ -55,5 +62,17 @@ describe("PremiseLineRow", () => {
     await mountRow().find("button[aria-label='Delete this entry']").trigger("click");
     await flushPromises();
     expect(mocks.destroy).toHaveBeenCalledWith("e1");
+  });
+
+  it("a Line reads upright, not struck through like a deleted entry", () => {
+    // Bug: line-through made "No harm to children" read as a removed row.
+    const line = canonEntry({ id: "l1", part: "premise", premise_kind: "line", title: "No harm to children" });
+    const w = mount(PremiseLineRow, { props: { entry: line, label: "Line" }, global: { stubs: { AudienceRevealControl: true, ThemeCarriedBy: true } } });
+    expect(w.find("textarea").classes()).not.toContain("line-through");
+    expect(w.find("textarea").classes()).not.toContain("italic");
+  });
+
+  it("carries the id a deep link scrolls to", () => {
+    expect(mountRow().find("li").attributes("id")).toBe("canon-entry-e1");
   });
 });

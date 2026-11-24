@@ -119,6 +119,12 @@ describe("passage helpers", () => {
     expect(wherePatch(null)).toEqual({ location_id: null, npc_id: null, quest_beat_id: null });
   });
 
+  // Bug: a passage "placed" in an item was written with no column (undefined key), silently losing the place.
+  it("refuses to put a passage in an item or a handout, and never lists one waiting there", () => {
+    expect(() => wherePatch({ kind: "item", id: "i1" })).toThrow("cannot come out at item");
+    expect(untoldPassagesAt([], "document", "d1")).toEqual([]);
+  });
+
   it("tells with the time, the running session and every party member, and takes back all three", () => {
     const now = new Date("2026-11-20T10:00:00Z");
     expect(tellPatch(["m1", "m2"], "s1", now)).toEqual({ told_at: "2026-11-20T10:00:00.000Z", told_session_id: "s1", player_visible_to: ["m1", "m2"] });

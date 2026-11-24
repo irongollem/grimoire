@@ -421,6 +421,10 @@ Objectives and Payoffs), `QuestRunClocks.vue` (the Clocks
 card, in its side column: dial, "n of N", Tick and Untick; a fill toasts "‹label› filled. Its
 rules fired."), `QuestClockDial.vue` (display only; `lib/quests/clockDial.ts`).
 
+A clock can also **move a force** (`moves_force_id`, set in `QuestClockEditRow.vue`): the database then ticks that
+force's canon clock whenever this one's fill changes (see canon.md, "What is moving"); `QuestRunClocks.vue` names the force
+and the client never writes the force tick, and `useCampaignQuestClocks` (`[CLOCKS_KEY, "campaign", id]`) feeds the force's list.
+
 **Backup (`useCampaignBackup`).** A backup carries `quest_clocks` (absent from
 older backups, read as empty). Restore inserts only the authored columns
 (`filled` and `created_by` have no client grant), so a restored clock starts
@@ -1433,6 +1437,14 @@ the prep gaps, kind and staged-at place). The drawer used to run one thread at a
 time through a thread bar; the thread is still `?thread=`, defaulting to the
 quest's oldest live thread, and switching it is pure navigation (the quest's
 threads panel in the wide quest part focuses one).
+
+**A beat can be a canon secret (#1255 item 21).** In the beat editor, "This is the canon secret…" picks one of the
+campaign's canon secrets (`quest_beats.canon_secret_id`; "Not a canon secret" unties it). A tied beat shows the secret's
+words, its state (a word and a shape) and "Edit it in the canon" in place of its own DM lead, which stays in the database
+and shows again when the beat is untied. Revealing a tied beat (the visibility circles, `QuestBeatVisibilityControl`) then
+asks inline "Reveal the secret to the party too?" (`QuestBeatRevealSecret`) while the secret is not yet revealed; "Reveal it"
+is the canon's own reveal (`useRevealSecret`), "Not yet" leaves it. Revealing the beat alone works as before. The column is
+never in a player projection.
 
 Where the party stands decides the moves: with the party here, **Take** on a
 route and **Undo**; elsewhere, **Party here** on the marks, which fills in the way
