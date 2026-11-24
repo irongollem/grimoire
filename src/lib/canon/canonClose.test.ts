@@ -51,6 +51,7 @@ describe("endForce", () => {
     createTruth: vi.fn().mockResolvedValue({ id: "truth1" }),
     updateForce: vi.fn().mockResolvedValue(undefined),
     linkLedTo: vi.fn().mockResolvedValue(undefined),
+    discardTruth: vi.fn().mockResolvedValue(undefined),
     ...over,
   });
 
@@ -80,6 +81,14 @@ describe("endForce", () => {
     const w = writers({ createTruth: vi.fn().mockRejectedValue(new Error("no")) });
     await expect(endForce("stopped", "", "It is over.", "t", w)).rejects.toThrow("no");
     expect(w.updateForce).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: the force could not be closed, but its truth (known to all) stayed, read by players beside a moving force.
+  it("takes the truth back when the force cannot be closed", async () => {
+    const w = writers({ updateForce: vi.fn().mockRejectedValue(new Error("refused")) });
+    await expect(endForce("succeeded", "", "The orchards are dead.", "t", w)).rejects.toThrow("refused");
+    expect(w.discardTruth).toHaveBeenCalledWith("truth1");
+    expect(w.linkLedTo).not.toHaveBeenCalled();
   });
 
   // Bug caught: a failed link threw away the close that had already been written, so the caller could not tell the force had ended.

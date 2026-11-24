@@ -80,6 +80,15 @@ export async function updateCanonEntry(id: string, patch: CanonEntryPatch): Prom
 }
 
 /**
+ * Take back an entry this tab made a moment ago and could not finish (a truth whose force could not be closed): gone for
+ * good, never to the Deleted list, because the DM never saw it. A failure throws.
+ */
+export async function discardCanonEntry(id: string): Promise<void> {
+  const { error } = await supabase.from("canon_entries").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/**
  * Delete an entry the way the page does: it goes to the Deleted list for thirty days with everything hanging off it
  * (`trash_canon_entry`, #1255 item 17). Answers the trash row's id, which Restore takes.
  */

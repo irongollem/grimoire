@@ -41,7 +41,7 @@ describe("CanonHere", () => {
     mocks.rpc.mockReset();
     answer.clues = [];
     answer.passages = [];
-    mocks.rpc.mockImplementation(async () => ({ data: { clues: answer.clues, passages: answer.passages } satisfies CanonHereData, error: null }));
+    mocks.rpc.mockImplementation(async () => ({ data: { clues: answer.clues, passages: answer.passages, lore: [] } satisfies CanonHereData, error: null }));
   });
 
   it("reads through get_canon_here only, never the whole campaign's clues, entries or passages", async () => {

@@ -5,7 +5,7 @@
       <li v-for="row in rows" :key="row.clue.id" class="px-4 py-3">
         <p class="text-body text-foreground">{{ row.clue.title }}</p>
         <p v-if="row.where" class="text-caption text-muted-foreground/70 italic mt-0.5" data-testid="found-where">
-          {{ row.where.kind === "place" ? "Found at" : "Found with" }} {{ row.where.name }}
+          {{ row.where.kind === "place" ? "Found at" : row.where.kind === "handout" ? "Found in" : "Found with" }} {{ row.where.name }}
         </p>
       </li>
     </ul>

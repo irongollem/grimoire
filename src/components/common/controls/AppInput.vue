@@ -14,7 +14,7 @@
     :class="cn(fieldClass, 'block resize-none overflow-hidden [field-sizing:content]')"
     @input="onInput"
     @change="onChange"
-    @keydown.enter.prevent="onEnter"
+    @keydown.enter="onEnter"
   />
   <input
     v-else
@@ -137,13 +137,28 @@ function collapseBreaks(field: HTMLTextAreaElement) {
 }
 
 /** Enter finishes the field the way a native input does; `change` is what `.lazy` listens to. */
+// The value Enter already saved: leaving the field then fires `change` for the same words, which must not save again.
+let savedOnEnter: string | null = null;
+
 function onEnter(event: KeyboardEvent) {
+  // Enter that confirms an IME composition (Japanese, Chinese, Korean) picks the candidate; it does not end the line.
+  if (event.isComposing || event.keyCode === 229) return;
+  event.preventDefault();
   const field = event.target as HTMLTextAreaElement;
-  if (modifiers.lazy) commit(event);
+  if (modifiers.lazy) {
+    commit(event);
+    savedOnEnter = field.value;
+  }
   field.blur();
 }
 
 function onChange(event: Event) {
+  const value = (event.target as HTMLInputElement).value;
+  if (savedOnEnter !== null && savedOnEnter === value) {
+    savedOnEnter = null;
+    return;
+  }
+  savedOnEnter = null;
   if (modifiers.lazy) commit(event);
 }
 

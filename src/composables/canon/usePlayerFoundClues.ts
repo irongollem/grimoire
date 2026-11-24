@@ -16,13 +16,15 @@ export interface PlayerFoundClue {
   location_id: string | null;
   npc_id: string | null;
   item_id: string | null;
+  /** A Scriptorium handout the clue lay in. Named only as "a handout": the player reads it through their own handouts. */
+  document_id: string | null;
 }
 
 /** A found clue with where it lay, named only when this player may see that record. */
 export interface FoundClueRow {
   clue: PlayerFoundClue;
-  /** "place", "person" or "item" with the record's name; null when it is nowhere in particular or not one the player can see. */
-  where: { kind: "place" | "person" | "item"; name: string } | null;
+  /** Where it lay, with the record's name; null when it is nowhere in particular or not one the player can see. */
+  where: { kind: "place" | "person" | "item" | "handout"; name: string } | null;
 }
 
 /** Newest first, the way the party found them. */
@@ -61,6 +63,7 @@ export function usePlayerFoundClues() {
       if (place !== undefined) return { clue, where: { kind: "place", name: place } };
       if (person !== undefined) return { clue, where: { kind: "person", name: person } };
       if (item !== undefined) return { clue, where: { kind: "item", name: item } };
+      if (clue.document_id !== null) return { clue, where: { kind: "handout", name: "a handout" } };
       return { clue, where: null };
     });
   });

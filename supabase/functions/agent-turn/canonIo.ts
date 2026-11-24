@@ -66,9 +66,12 @@ export function canonStore(input: {
 }): CanonStore {
   const { supabase, admin } = input;
 
-  /** What the @mentions in these texts are called (they store no name, #932), read once for the lot; DM-only passages are skipped. */
+  /**
+   * What the @mentions in these texts are called (they store no name, #932), read once for the lot; DM-only passages are
+   * skipped. The Narrator speaks to the players, so a disguised NPC is named by the disguise.
+   */
   const namesIn = (campaignId: string, texts: ReadonlyArray<string | null>): Promise<MentionNameOf> =>
-    loadMentionNames(supabase, campaignId, texts.flatMap((t) => collectMentions(t, { skipSecrets: true })));
+    loadMentionNames(supabase, campaignId, texts.flatMap((t) => collectMentions(t, { skipSecrets: true })), "table");
 
   /** The names of the people (and, through them, of the factions' members present) these links name. */
   async function knownToNames(campaignId: string, entryIds: string[], present: ReadonlyArray<{ id: string; name: string }>): Promise<Map<string, string[]>> {
@@ -178,7 +181,7 @@ export function canonStore(input: {
 
   return {
     async worldText(campaignId) {
-      return worldBlockText(await loadWorldBlock(admin, campaignId)).trim();
+      return worldBlockText(await loadWorldBlock(admin, campaignId, "table")).trim();
     },
 
     async previously(campaignId, runningSessionId) {

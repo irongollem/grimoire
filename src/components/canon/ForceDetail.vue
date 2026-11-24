@@ -96,7 +96,7 @@ import EntryArcPicker from "./EntryArcPicker.vue";
 import EntryQuests from "./EntryQuests.vue";
 import EntryStoryLinks from "./EntryStoryLinks.vue";
 import ForceSteps from "./ForceSteps.vue";
-import { useCreateCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { discardCanonEntry, useCreateCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCreateConnection } from "@/composables/connections/useConnections";
 import { useForceFactions } from "@/composables/canon/useForceFactions";
 import { clockFilled, clockStepsDivergence } from "@/lib/canon/canonForces";
@@ -173,6 +173,7 @@ async function end(how: ForceOutcome, why: string, trueNow: string) {
     const { linkError } = await endForce(how, why, trueNow, new Date().toISOString(), {
       createTruth: createEntry,
       updateForce: (patch) => updateAsync({ id: entry.id, patch }),
+      discardTruth: discardCanonEntry,
       linkLedTo: async (truthId, truthTitle) => {
         const choice = typeChoices("canon", "canon").find((c) => c.key === "led_to" && c.subjectIsFrom);
         if (!choice) throw new Error("A force cannot be linked to the truth it led to.");

@@ -155,4 +155,25 @@ describe("AppInput wrap", () => {
     await area.trigger("change");
     expect(state.value).toBe("First second third");
   });
+
+  // Bug: Enter in a lazy wrap field saved, and the blur it caused fired `change`, which saved the same words again.
+  it("saves once when Enter ends a wrap field", async () => {
+    const saves: unknown[] = [];
+    const wrapper = mount(AppInput, { props: { wrap: true, modelValue: "", modelModifiers: { lazy: true }, "onUpdate:modelValue": (v: unknown) => saves.push(v) } });
+    const area = wrapper.find("textarea");
+    (area.element as HTMLTextAreaElement).value = "The stakes";
+    await area.trigger("keydown", { key: "Enter" });
+    await area.trigger("change");
+    expect(saves).toEqual(["The stakes"]);
+  });
+
+  // Bug: the Enter that confirms an IME candidate ended the field mid-word and saved half a phrase.
+  it("lets Enter confirm an IME composition without saving or leaving", async () => {
+    const saves: unknown[] = [];
+    const wrapper = mount(AppInput, { props: { wrap: true, modelValue: "", modelModifiers: { lazy: true }, "onUpdate:modelValue": (v: unknown) => saves.push(v) } });
+    const area = wrapper.find("textarea");
+    (area.element as HTMLTextAreaElement).value = "とう";
+    await area.trigger("keydown", { key: "Enter", isComposing: true });
+    expect(saves).toEqual([]);
+  });
 });

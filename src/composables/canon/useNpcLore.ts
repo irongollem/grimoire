@@ -1,9 +1,9 @@
 import { computed, ref, toValue, type MaybeRefOrGetter } from "vue";
 import { useRouter } from "vue-router";
 import { toast } from "@/lib/toast";
-import { useCanonEntries, useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
-import { passagesOf, toldTally, useCanonPassages } from "@/composables/canon/useCanonPassages";
-import { useConnections, useCreateConnection } from "@/composables/connections/useConnections";
+import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useCanonHere } from "@/composables/canon/useCanonHere";
+import { useCreateConnection } from "@/composables/connections/useConnections";
 import { typeChoices } from "@/lib/worldLinks/connections";
 
 /** A lore entry that is about a person, and how much of it the party has been told. */
@@ -22,20 +22,14 @@ export interface NpcLoreRow {
  */
 export function useNpcLore(npcId: MaybeRefOrGetter<string>, npcName: MaybeRefOrGetter<string>) {
   const router = useRouter();
-  const { data: ties } = useConnections("npc", () => toValue(npcId));
-  const { data: entries } = useCanonEntries();
-  const { data: passages } = useCanonPassages();
+  // The lore about this person comes with the sheet's own "Canon here" read (`get_canon_here`), so the block costs the
+  // sheet no request of its own (the dm-npc-detail budget); it reads no canon or passages of its own.
+  const { data: here } = useCanonHere("npc", () => toValue(npcId));
   const { mutateAsync: createEntry } = useCreateCanonEntry();
   const { mutateAsync: connect } = useCreateConnection();
   const writing = ref(false);
 
-  const rows = computed<NpcLoreRow[]>(() => {
-    const aboutIds = new Set((ties.value ?? []).filter((c) => c.type === "about" && !c.outward && c.other_kind === "canon").map((c) => c.other_id));
-    const all = passages.value ?? [];
-    return (entries.value ?? [])
-      .filter((e) => e.part === "lore" && aboutIds.has(e.id))
-      .map((e) => ({ id: e.id, title: e.title, ...toldTally(passagesOf(all, e.id)) }));
-  });
+  const rows = computed<NpcLoreRow[]>(() => (here.value?.lore ?? []).map((l) => ({ id: l.id, title: l.title, told: l.told, total: l.total })));
 
   async function writeLore(): Promise<void> {
     if (writing.value) return;

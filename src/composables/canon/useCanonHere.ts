@@ -18,7 +18,9 @@ export type CanonHereClue = {
 /** An untold passage that comes out here (never an entry's first), with the title of the entry it belongs to. */
 export type CanonHerePassage = { id: string; title: string; entry_id: string; entry_title: string };
 
-export type CanonHere = { clues: CanonHereClue[]; passages: CanonHerePassage[] };
+/** On a person: a lore entry told about them, with how many of its passages are told. */
+export type CanonHereLore = { id: string; title: string; told: number; total: number };
+export type CanonHere = { clues: CanonHereClue[]; passages: CanonHerePassage[]; lore: CanonHereLore[] };
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const isStringOrNull = (v: unknown): v is string | null => v === null || typeof v === "string";
@@ -39,11 +41,17 @@ function isPassage(v: unknown): v is CanonHerePassage {
   return isRecord(v) && typeof v.id === "string" && typeof v.title === "string" && typeof v.entry_id === "string" && typeof v.entry_title === "string";
 }
 
+function isLore(v: unknown): v is CanonHereLore {
+  return isRecord(v) && typeof v.id === "string" && typeof v.title === "string" && typeof v.told === "number" && typeof v.total === "number";
+}
+
 /** Narrows `get_canon_here`'s jsonb; a shape the client does not know is an error, never an empty block. */
 export function parseCanonHere(data: unknown): CanonHere {
   if (!isRecord(data) || !Array.isArray(data.clues) || !Array.isArray(data.passages)) throw new Error("get_canon_here returned an unexpected shape");
-  if (!data.clues.every(isClue) || !data.passages.every(isPassage)) throw new Error("get_canon_here returned an unexpected row");
-  return { clues: data.clues, passages: data.passages };
+  const lore = data.lore === undefined ? [] : data.lore;
+  if (!Array.isArray(lore)) throw new Error("get_canon_here returned an unexpected shape");
+  if (!data.clues.every(isClue) || !data.passages.every(isPassage) || !lore.every(isLore)) throw new Error("get_canon_here returned an unexpected row");
+  return { clues: data.clues, passages: data.passages, lore };
 }
 
 export async function fetchCanonHere(kind: ClueKind, id: string): Promise<CanonHere> {

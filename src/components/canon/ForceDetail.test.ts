@@ -11,6 +11,7 @@ vi.mock("@/stores/calendar", () => ({ useCalendarStore: () => ({ adapter: { form
 vi.mock("@/composables/canon/useCanonEntries", () => ({
   useUpdateCanonEntry: () => ({ mutate: mocks.update, mutateAsync: (arg: unknown) => Promise.resolve(mocks.update(arg)) }),
   useCreateCanonEntry: () => ({ mutateAsync: mocks.createTruth }),
+  discardCanonEntry: vi.fn(),
 }));
 vi.mock("@/composables/connections/useConnections", () => ({ useCreateConnection: () => ({ mutateAsync: mocks.connect }) }));
 vi.mock("@/composables/canon/useForceFactions", () => ({ useForceFactions: () => ({ factionOf: () => mocks.faction.current, whoOf: () => mocks.faction.current?.name ?? null }) }));

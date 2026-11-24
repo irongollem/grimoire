@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { groupMentions, loadMentionNames } from "./mentionNames";
+import { groupMentions, loadMentionNames, tableName } from "./mentionNames";
 
 const NPC_A = "11111111-1111-4111-8111-111111111111";
 const NPC_B = "22222222-2222-4222-8222-222222222222";
@@ -8,21 +8,24 @@ const NPC_C = "33333333-3333-4333-8333-333333333333";
 const PLACE = "44444444-4444-4444-8444-444444444444";
 
 /** A client that records every query and answers each table from `rows`. */
-function recordingClient(rows: Record<string, { id: string; name: string }[]>, failOn?: string) {
+function recordingClient(rows: Record<string, Record<string, unknown>[]>, failOn?: string) {
   const queries: { table: string; ids: string[]; filters: string[] }[] = [];
   const client = {
     from(table: string) {
       const q = { table, ids: [] as string[], filters: [] as string[] };
       queries.push(q);
+      // A read with no `in` (the campaign's DMs) answers every row of its table.
+      const answer = () => (table === failOn ? { data: null, error: { message: "boom" } } : { data: (rows[table] ?? []).filter((r) => q.ids.length === 0 || q.ids.includes(r.id as string)), error: null });
       const chain: Record<string, unknown> = {
         select: () => chain,
+        // oxlint-disable-next-line unicorn/no-thenable
+        maybeSingle: () => ({ then: (resolve: (v: unknown) => void) => { const a = answer(); resolve({ data: a.data?.[0] ?? null, error: a.error }); } }),
         in: (_c: string, ids: string[]) => ((q.ids = ids), chain),
         eq: (c: string, v: string) => (q.filters.push(`${c}=${v}`), chain),
         or: (f: string) => (q.filters.push(f), chain),
         // The query builder is awaited, so the stand-in must be thenable.
         // oxlint-disable-next-line unicorn/no-thenable
-        then: (resolve: (v: unknown) => void) =>
-          resolve(table === failOn ? { data: null, error: { message: "boom" } } : { data: (rows[table] ?? []).filter((r) => q.ids.includes(r.id)), error: null }),
+        then: (resolve: (v: unknown) => void) => resolve(answer()),
       };
       return chain;
     },
@@ -81,5 +84,31 @@ describe("groupMentions", () => {
       { entityType: "party", id: "party-group" },
     ]);
     expect([...groups.keys()].sort()).toEqual(["library_monsters", "monsters"]);
+  });
+
+  // Bug (#932): the Narrator was handed a disguised NPC's true name through a mention, and told it to the players.
+  it("names a disguised NPC by the disguise for the table, and truly for the DM", async () => {
+    const { client } = recordingClient({ npcs: [{ id: NPC_A, name: "Maren Voss", disguise_name: "the hooded woman", is_revealed: false }] });
+    const mention = [{ entityType: "npc", id: NPC_A }];
+    expect((await loadMentionNames(client, "camp", mention, "table"))("npc", NPC_A)).toBe("the hooded woman");
+    expect((await loadMentionNames(client, "camp", mention))("npc", NPC_A)).toBe("Maren Voss");
+    expect(tableName({ name: "Maren Voss", disguise_name: "the hooded woman", is_revealed: true })).toBe("Maren Voss");
+  });
+
+  // Bug: a mention holding another account's shelf monster (no campaign) read that private name with the service role.
+  it("names a shelf monster only when it is this campaign's DM's", async () => {
+    const MINE = "55555555-5555-4555-8555-555555555555";
+    const THEIRS = "66666666-6666-4666-8666-666666666666";
+    const { client } = recordingClient({
+      monsters: [
+        { id: MINE, name: "Bog hag", campaign_id: null, user_id: "dm-1" },
+        { id: THEIRS, name: "Someone else's secret", campaign_id: null, user_id: "stranger" },
+      ],
+      campaigns: [{ user_id: "dm-1" }],
+      campaign_members: [{ user_id: "dm-2" }],
+    });
+    const nameOf = await loadMentionNames(client, "camp", [{ entityType: "monster", id: MINE }, { entityType: "monster", id: THEIRS }]);
+    expect(nameOf("monster", MINE)).toBe("Bog hag");
+    expect(nameOf("monster", THEIRS)).toBeNull();
   });
 });

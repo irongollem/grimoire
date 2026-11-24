@@ -22,7 +22,7 @@ import { newestFirst, usePlayerFoundClues, type PlayerFoundClue } from "./usePla
 import { useCampaignStore } from "@/stores/campaign";
 
 const clue = (over: Partial<PlayerFoundClue>): PlayerFoundClue => ({
-  id: "k", title: "A locket", found_at: "2026-11-10T20:00:00Z", found_session_id: null, location_id: null, npc_id: null, item_id: null, ...over,
+  id: "k", title: "A locket", found_at: "2026-11-10T20:00:00Z", found_session_id: null, location_id: null, npc_id: null, item_id: null, document_id: null, ...over,
 });
 
 describe("newestFirst", () => {
@@ -67,9 +67,12 @@ describe("usePlayerFoundClues", () => {
       clue({ id: "d", found_at: "2026-11-04T00:00:00Z", npc_id: "npc2" }),
       clue({ id: "e", found_at: "2026-11-05T00:00:00Z", location_id: "unshared" }),
       clue({ id: "f", found_at: "2026-11-06T00:00:00Z" }),
+      // Bug caught: a clue found in a handout read as lying nowhere.
+      clue({ id: "g", found_at: "2026-11-07T00:00:00Z", document_id: "doc1" }),
     ]);
     const { rows } = await read();
     expect(rows.value.map((r) => [r.clue.id, r.where])).toEqual([
+      ["g", { kind: "handout", name: "a handout" }],
       ["f", null],
       ["e", null],
       ["d", null],

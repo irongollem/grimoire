@@ -75,6 +75,8 @@ export interface EndForceWriters {
   updateForce: (patch: CanonEntryPatch) => Promise<void>;
   /** Ties the force to the truth with a `led_to` link. */
   linkLedTo: (truthId: string, title: string) => Promise<void>;
+  /** Takes back the truth when the force could not be closed, so no truth known to all is left beside a moving force. */
+  discardTruth: (truthId: string) => Promise<void>;
 }
 
 /**
@@ -97,7 +99,13 @@ export async function endForce(
     return { linkError: null };
   }
   const truth = await writers.createTruth({ part: "truth", knowledge: "all", title });
-  await writers.updateForce({ ...patch, became_entry_id: truth.id });
+  try {
+    await writers.updateForce({ ...patch, became_entry_id: truth.id });
+  } catch (error) {
+    // Players would already read a truth the force never reached; take it back, and report the close's own failure.
+    await writers.discardTruth(truth.id).catch(() => undefined);
+    throw error;
+  }
   try {
     await writers.linkLedTo(truth.id, title);
   } catch (error) {

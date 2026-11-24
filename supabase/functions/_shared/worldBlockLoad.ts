@@ -13,9 +13,10 @@ import {
   worldBlockFromRows,
   type WorldBlock,
 } from "./worldBlock.ts";
-import { collectMentions, loadMentionNames } from "./mentionNames.ts";
+import { collectMentions, loadMentionNames, type MentionAudience } from "./mentionNames.ts";
 
-export async function loadWorldBlock(admin: SupabaseClient, campaignId: string): Promise<WorldBlock> {
+/** `audience` is whose names the block's mentions carry: the table's when the Narrator reads it to the players. */
+export async function loadWorldBlock(admin: SupabaseClient, campaignId: string, audience: MentionAudience = "dm"): Promise<WorldBlock> {
   const [campaign, canon, peoples, habitats, places, life] = await Promise.all([
     admin.from("campaigns").select("setting").eq("id", campaignId).single(),
     admin
@@ -55,6 +56,6 @@ export async function loadWorldBlock(admin: SupabaseClient, campaignId: string):
   if (life.error) throw life.error;
   // A mention in a body stores no name; read the true ones once so the block says "sold by Maren", not "sold by".
   const mentions = canon.data.flatMap((r) => collectMentions(r.body, { skipSecrets: true }));
-  const nameOf = await loadMentionNames(admin, campaignId, mentions);
+  const nameOf = await loadMentionNames(admin, campaignId, mentions, audience);
   return worldBlockFromRows(campaign.data.setting, canon.data, peoples.data, habitatsForBlock({ habitats: habitats.data, places: places.data, life: life.data }), nameOf);
 }

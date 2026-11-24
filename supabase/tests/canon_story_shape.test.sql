@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(26);
 
 -- 20261123235703_canon_story_shape (#1258): arcs with a shape and a theme, quests in arcs, the session a secret came
 -- out, a force's schedule, clues in items, questions tied to quests, what the players wonder, and a player telling
@@ -148,6 +148,37 @@ select is(
 select set_config('request.jwt.claim.sub', '12580000-0000-4000-8000-000000000004', true);
 select is_empty($$ select 1 from public.get_player_found_clues('12580000-0000-4000-8000-000000000010') $$,
   'someone outside the campaign reads none of its clues');
+
+-- ── Review fixes (20261123235921) ───────────────────────────────────────────────
+select set_config('request.jwt.claim.sub', '12580000-0000-4000-8000-000000000003', true);
+select throws_ok($$
+  insert into public.canon_wonders (campaign_id, party_member_id, body) values
+    ('12580000-0000-4000-8000-000000000010', '12580000-0000-4000-8000-000000000020', 'Is Tansy hiding something?')
+$$, '42501', null, 'a player cannot file a wonder under another player''s character');
+
+select set_config('request.jwt.claim.sub', '12580000-0000-4000-8000-000000000001', true);
+select lives_ok($$ select public.restore_canon_entry(public.trash_canon_entry('12580000-0000-4000-8000-000000000101')) $$,
+  'the DM deletes the theme an arc carries and brings it back');
+select is((select theme_id from public.canon_arcs where id = '12580000-0000-4000-8000-000000000050'),
+  '12580000-0000-4000-8000-000000000101'::uuid,
+  'restoring a theme gives the arc that carried it its theme again');
+
+-- Lore about a person comes with Canon here, with its told count; other parts about them do not.
+insert into public.npcs (id, user_id, campaign_id, name) values
+  ('12580000-0000-4000-8000-000000000031', '12580000-0000-4000-8000-000000000001', '12580000-0000-4000-8000-000000000010', 'Maren');
+insert into public.canon_entries (id, user_id, campaign_id, part, title) values
+  ('12580000-0000-4000-8000-000000000111', '12580000-0000-4000-8000-000000000001', '12580000-0000-4000-8000-000000000010', 'lore', 'The bell-founder''s daughter');
+insert into public.canon_lore_passages (user_id, campaign_id, entry_id, title, sort_order, told_at) values
+  ('12580000-0000-4000-8000-000000000001', '12580000-0000-4000-8000-000000000010', '12580000-0000-4000-8000-000000000111', 'Who she was', 0, null),
+  ('12580000-0000-4000-8000-000000000001', '12580000-0000-4000-8000-000000000010', '12580000-0000-4000-8000-000000000111', 'What she sold', 1, null),
+  ('12580000-0000-4000-8000-000000000001', '12580000-0000-4000-8000-000000000010', '12580000-0000-4000-8000-000000000111', 'Where she went', 2, now());
+insert into public.world_links (user_id, campaign_id, from_kind, from_canon_entry_id, to_kind, to_npc_id, type) values
+  ('12580000-0000-4000-8000-000000000001', '12580000-0000-4000-8000-000000000010', 'canon', '12580000-0000-4000-8000-000000000111', 'npc', '12580000-0000-4000-8000-000000000031', 'about'),
+  ('12580000-0000-4000-8000-000000000001', '12580000-0000-4000-8000-000000000010', 'canon', '12580000-0000-4000-8000-000000000105', 'npc', '12580000-0000-4000-8000-000000000031', 'about');
+select is(
+  public.get_canon_here('npc', '12580000-0000-4000-8000-000000000031') -> 'lore',
+  jsonb_build_array(jsonb_build_object('id', '12580000-0000-4000-8000-000000000111', 'title', 'The bell-founder''s daughter', 'told', 2, 'total', 3)),
+  'Canon here on a person lists the lore told of them (the opening counts as told), and no truth that is about them');
 
 select * from finish();
 rollback;
