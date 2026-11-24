@@ -10,7 +10,7 @@ vi.mock("@/composables/voices/useSpeechVoices", async () => {
   const { toValue } = await import("vue");
   return {
     useSpeechVoices: (enabled: () => boolean) => (h.readEnabled.push(toValue(enabled)), { data: h.voices }),
-    useVoiceSample: () => ({ toggle: h.toggle, playing: ref(null), loading: ref(null), problem: ref(null) }),
+    useVoiceSample: () => ({ toggle: h.toggle, stop: vi.fn(), playing: ref(null), loading: ref(null), problem: ref(null) }),
   };
 });
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ isAiEnabled: h.aiOn }) }));
@@ -27,7 +27,8 @@ function slot(over: Partial<SpeechVoice>): SpeechVoice {
 function mountVoice(speech_voice_id: string | null) {
   return mount(NpcSpokenVoice, {
     props: { npc: { id: "npc-1", speech_voice_id } },
-    global: { stubs: { Teleport: true }, directives: { "no-pwm": {} } },
+    // The modal renders inline: the browser's own rows are what is under test.
+    global: { stubs: { Teleport: true, AppModal: { props: ["open"], template: "<div v-if='open'><slot /></div>" } }, directives: { "no-pwm": {} } },
   });
 }
 
@@ -64,22 +65,37 @@ describe("NpcSpokenVoice", () => {
     expect(buttonByLabel(w, "Listen")).toBeUndefined();
   });
 
-  it("offers only filled, active slots in the picker", async () => {
+  // Bug caught: planned or retired slots offered, where a pick could never speak.
+  it("offers only filled, active voices in the browser", async () => {
     const w = mountVoice(null);
     await buttonByLabel(w, "Change")!.trigger("click");
-    await w.get("input").trigger("focus");
-    const names = w.findAll("li").map((li) => li.text());
-    expect(names.some((n) => n.includes("Maren"))).toBe(true);
-    expect(names.some((n) => n.includes("Bram"))).toBe(true);
-    expect(names.some((n) => n.includes("Planned") || n.includes("Retired"))).toBe(false);
+    const rows = w.findAll("[data-testid^=npc-voice-s]").map((r) => r.text());
+    expect(rows.some((n) => n.includes("Maren"))).toBe(true);
+    expect(rows.some((n) => n.includes("Bram"))).toBe(true);
+    expect(rows.some((n) => n.includes("Planned") || n.includes("Retired"))).toBe(false);
   });
 
-  it("picking a voice writes that slot's id", async () => {
+  // Bug caught (seen live): a voice could only be heard once it was chosen, and a pick wrote the wrong slot.
+  it("lets each voice be heard before it is chosen, and Use this voice writes that slot", async () => {
     const w = mountVoice(null);
     await buttonByLabel(w, "Change")!.trigger("click");
-    await w.get("input").trigger("focus");
-    await w.findAll("li").find((li) => li.text().includes("Bram"))!.trigger("mousedown");
+    const bram = w.get("[data-testid=npc-voice-s2]");
+    await bram.findAll("button").find((b) => b.text().includes("Listen"))!.trigger("click");
+    expect(h.toggle).toHaveBeenCalledWith("s2");
+    expect(h.mutateAsync).not.toHaveBeenCalled();
+    await bram.findAll("button").find((b) => b.text().includes("Use this voice"))!.trigger("click");
     expect(h.mutateAsync).toHaveBeenCalledWith({ id: "npc-1", update: { speech_voice_id: "s2" } });
+  });
+
+  // Bug caught (seen live): a voice described as "man, old" only, with nothing of its accent or character.
+  it("shows each voice's description in the browser, and finds voices by it", async () => {
+    h.voices = ref([slot({ description: "A haughty noble, British" }), slot({ id: "s2", name: "Bram", sex: "man", age: "adult", description: "A gruff sailor" })]);
+    const w = mountVoice(null);
+    await buttonByLabel(w, "Change")!.trigger("click");
+    expect(w.get("[data-testid=npc-voice-s1]").text()).toContain("A haughty noble, British");
+    await w.get("[data-testid=npc-voice-browser] input").setValue("british");
+    expect(w.find("[data-testid=npc-voice-s2]").exists()).toBe(false);
+    expect(w.find("[data-testid=npc-voice-s1]").exists()).toBe(true);
   });
 
   it("'Let the table cast' writes null", async () => {
@@ -96,6 +112,6 @@ describe("NpcSpokenVoice", () => {
     await buttonByLabel(w, "Let the table cast")!.trigger("click");
     await flushPromises();
     expect(h.toastError).toHaveBeenCalledWith("That voice cannot be given to a character.");
-    expect(w.find("input").exists()).toBe(true);
+    expect(w.find("[data-testid=npc-voice-browser]").exists()).toBe(true);
   });
 });

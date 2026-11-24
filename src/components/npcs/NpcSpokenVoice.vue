@@ -26,47 +26,30 @@
           :label="playing === current.id ? 'Stop' : 'Listen'"
           @click="sample.toggle(current.id)"
         />
-        <AppButton
-          variant="outline"
-          size="sm"
-          :label="changing ? 'Done' : 'Change'"
-          :disabled="saving"
-          @click="changing = !changing"
-        />
+        <AppButton variant="outline" size="sm" label="Change" :disabled="saving" data-testid="voice-change" @click="changing = true" />
       </div>
     </div>
 
     <p v-if="problem" class="text-caption text-destructive" role="alert">{{ problem }}</p>
 
-    <div v-if="changing" class="flex flex-wrap items-center gap-2">
-      <EntityCombobox
-        :model-value="current?.id ?? ''"
-        :options="options"
-        placeholder="Pick a voice…"
-        :match-text="(o: VoiceOption) => `${o.name} ${o.detail}`"
-        @update:model-value="pick"
-      >
-        <template #option="{ opt }">
-          <span class="font-medium">{{ opt.name }}</span>
-          <span v-if="opt.detail" class="text-caption text-muted-foreground">{{ opt.detail }}</span>
-        </template>
-      </EntityCombobox>
-      <AppButton
-        v-if="npc.speech_voice_id !== null"
-        variant="ghost"
-        size="sm"
-        label="Let the table cast"
-        :disabled="saving"
-        @click="write(null)"
-      />
-    </div>
+    <NpcVoiceBrowser
+      :open="changing"
+      :voices="usable"
+      :current-id="current?.id ?? null"
+      :playing="playing"
+      :loading="loading"
+      :saving="saving"
+      @close="closeBrowser"
+      @listen="sample.toggle"
+      @pick="write"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import NpcVoiceBrowser from "@/components/npcs/NpcVoiceBrowser.vue";
 import { useUpdateNpc } from "@/composables/npcs/useNpcs";
 import { useSpeechVoices, useVoiceSample } from "@/composables/voices/useSpeechVoices";
 import { useToast } from "@/composables/useToast";
@@ -78,12 +61,6 @@ import type { Npc } from "@/types/npc.types";
 // control: the sheet's Save/Cancel editor is not involved.
 
 const { npc } = defineProps<{ npc: Pick<Npc, "id" | "speech_voice_id"> }>();
-
-interface VoiceOption {
-  id: string;
-  name: string;
-  detail: string;
-}
 
 const toast = useToast();
 // Only where the campaign has AI on: the voice is heard at the AI table and nowhere else, so elsewhere the control
@@ -101,9 +78,6 @@ const saving = computed(() => update.isPending.value);
 
 // Only a filled, active slot can be spoken in; a slot that is only planned or was retired is not offered.
 const usable = computed(() => (voices.value ?? []).filter((v) => v.active && v.voice_id !== null && v.service !== null));
-const options = computed<VoiceOption[]>(() =>
-  usable.value.map((v) => ({ id: v.id, name: v.name, detail: [v.sex, v.age].filter((part) => part !== null).join(", ") })),
-);
 // A retired or unreadable slot reads as uncast: the table will recast.
 const current = computed(() => usable.value.find((v) => v.id === npc.speech_voice_id) ?? null);
 
@@ -114,10 +88,12 @@ async function write(slotId: string | null): Promise<void> {
     toast.error(toast.fromError(error, "That voice could not be saved."));
     return;
   }
-  changing.value = false;
+  closeBrowser();
 }
 
-function pick(slotId: string): void {
-  void write(slotId === "" ? null : slotId);
+/** Closing the browser stops whatever voice it was playing. */
+function closeBrowser(): void {
+  sample.stop();
+  changing.value = false;
 }
 </script>
