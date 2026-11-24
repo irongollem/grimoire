@@ -153,6 +153,12 @@ const surfaceProps = computed(() => ({
 const surfaceHandlers = {
   new: () => void startOver(),
   voice: (on: boolean) => voice.setOn(on),
+  // Read a reply again: the server answers from the clip it kept, so one already read costs nothing.
+  replay: (text: string) => {
+    const campaignId = campaign.activeCampaignId;
+    const sessionId = convo.sessionId();
+    if (campaignId !== null && sessionId !== null && voicePerMinute.value !== null) voice.replay({ campaignId, sessionId, text });
+  },
   close: () => ui.closePanel(),
   send: (text: string) => void convo.send(text),
   choose: convo.choose,

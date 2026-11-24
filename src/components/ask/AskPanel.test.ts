@@ -247,6 +247,21 @@ describe("AskPanel", () => {
     w.unmount();
   });
 
+  // Bug caught (seen live): no way to hear a reply again once Oolu had read it.
+  it("reads a finished reply again on Read again, and offers it only while the voice is on", async () => {
+    useAskUiStore().openPanel();
+    transport.mockResolvedValueOnce(sse([{ type: "session", sessionId: "s1" }, { type: "text", delta: "Harl runs it." }, done]));
+    const w = mount(AskPanel, { global: { stubs } });
+    await ask(w);
+    expect(w.find('[data-testid="ask-reply-replay"]').exists()).toBe(false);
+    await w.get('[data-testid="ask-voice"]').trigger("click");
+    voiceTransport.mockClear();
+    await w.get('[data-testid="ask-reply-replay"]').trigger("click");
+    await flushPromises();
+    expect(voiceTransport).toHaveBeenCalledWith(expect.objectContaining({ sessionId: "s1", role: "familiar", text: "Harl runs it." }));
+    w.unmount();
+  });
+
   // Bug caught: a switch offered where the server has no voices, which would only ever fail.
   it("hides the switch when voices are off or ElevenLabs has no rate", async () => {
     useAskUiStore().openPanel();

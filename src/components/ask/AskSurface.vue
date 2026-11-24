@@ -38,6 +38,8 @@
       :items="items"
       :adapters="adapters"
       :running="running"
+      :replayable="voice.shown && voice.on && voice.note === null"
+      @replay="emit('replay', $event)"
       @choose="(id, c) => emit('choose', id, c)"
       @hand-off="(id, i) => emit('hand-off', id, i)"
       @confirm="emit('confirm', $event)"
@@ -114,6 +116,8 @@ const emit = defineEmits<{
   upgrade: [];
   review: [report: AskReportDraft];
   voice: [on: boolean];
+  /** Read this reply of Oolu's again. */
+  replay: [text: string];
 }>();
 
 const voiceLabel = computed(() => {

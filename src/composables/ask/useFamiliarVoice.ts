@@ -41,6 +41,15 @@ export function useFamiliarVoice(options: { transport?: VoiceTransport; player?:
     );
   }
 
+  /**
+   * Reads one reply again, now: whatever plays gives way. The server answers from the clip it kept, so a reply already
+   * read costs nothing; one never read is made and charged like any.
+   */
+  function replay(input: { campaignId: string; sessionId: string; text: string }): void {
+    voice.stop();
+    say({ campaignId: input.campaignId, sessionId: input.sessionId, texts: [input.text] });
+  }
+
   function setOn(value: boolean): void {
     const id = userId.value;
     if (id === null) return;
@@ -49,5 +58,5 @@ export function useFamiliarVoice(options: { transport?: VoiceTransport; player?:
     else voice.clearRefusals();
   }
 
-  return { on, setOn, speaking: voice.speaking, unavailable: voice.unavailable, spent: voice.spent, broke: voice.broke, say, stop: voice.stop };
+  return { on, setOn, speaking: voice.speaking, unavailable: voice.unavailable, spent: voice.spent, broke: voice.broke, say, replay, stop: voice.stop };
 }

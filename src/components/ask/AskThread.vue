@@ -8,7 +8,13 @@
       <div v-if="item.kind === 'user'" class="flex justify-end">
         <span data-hand="text" class="max-w-[85%] whitespace-pre-line bg-muted/50 px-3 py-1.5 text-right text-base leading-6" data-testid="ask-user-message">{{ item.text }}</span>
       </div>
-      <AskReply v-else-if="item.kind === 'reply'" :text="item.text" :who="item.who" />
+      <AskReply
+        v-else-if="item.kind === 'reply'"
+        :text="item.text"
+        :who="item.who"
+        :replayable="replayable && !(running && item === items.at(-1))"
+        @replay="emit('replay', item.text)"
+      />
       <AskReply
         v-else-if="item.kind === 'ask'"
         :text="item.question"
@@ -116,9 +122,16 @@ import AskResultCard from "@/components/ask/AskResultCard.vue";
 import AskReportCard from "@/components/ask/AskReportCard.vue";
 import AskUpsell from "@/components/ask/AskUpsell.vue";
 
-const { items, adapters, running = false } = defineProps<{ items: AskItem[]; adapters: AskAdapters; running?: boolean }>();
+const { items, adapters, running = false, replayable = false } = defineProps<{
+  items: AskItem[];
+  adapters: AskAdapters;
+  running?: boolean;
+  /** Oolu's voice is on, so a finished reply may be read again. */
+  replayable?: boolean;
+}>();
 const emit = defineEmits<{
   choose: [itemId: number, choice: AskChoice];
+  replay: [text: string];
   "hand-off": [itemId: number, index: number];
   confirm: [itemId: number];
   cancel: [itemId: number];

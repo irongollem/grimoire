@@ -12,6 +12,9 @@
         </component>
       </template>
     </div>
+    <div v-if="replayable" class="flex">
+      <AppButton variant="ghost" size="xs" :icon="IconVolume" label="Read again" data-testid="ask-reply-replay" @click="emit('replay')" />
+    </div>
     <div v-if="choices.length > 0" class="flex flex-wrap gap-1.5" role="group" aria-label="Answers">
       <AppButton
         v-for="choice in choices"
@@ -35,14 +38,17 @@ import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AskRuns from "@/components/ask/AskRuns.vue";
 import { parseAskMarkdown } from "@/lib/ask/askMarkdown";
+import { IconVolume } from "@/lib/icons";
 
-const { text, who = null, choices = [], answered = false } = defineProps<{
+const { text, who = null, choices = [], answered = false, replayable = false } = defineProps<{
   text: string;
   who?: string | null;
   choices?: AskChoice[];
   /** The DM has answered; the chips stay as a record of what was offered but no longer press. */
   answered?: boolean;
+  /** Oolu may read this reply again (its voice is on, and the reply has finished arriving). */
+  replayable?: boolean;
 }>();
 const blocks = computed(() => parseAskMarkdown(text));
-const emit = defineEmits<{ choose: [choice: AskChoice] }>();
+const emit = defineEmits<{ choose: [choice: AskChoice]; replay: [] }>();
 </script>
