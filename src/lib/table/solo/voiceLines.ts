@@ -1,7 +1,7 @@
 import type { StoryItem } from "./soloTypes";
 
 /** Whose words a clip is: a character of the story, the narrator, or the player's own character. */
-export type VoiceRole = "character" | "narrator" | "player";
+export type VoiceRole = "character" | "narrator" | "player" | "familiar";
 
 /** The three things that can be read aloud, each with a switch of its own. */
 export type VoicePart = "narrator" | "characters" | "player";

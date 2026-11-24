@@ -43,16 +43,16 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     voiceOn: () => voicesOn(speech),
 
     async loadSession(sessionId) {
-      const { data, error } = await admin.from("agent_sessions").select("id, user_id, campaign_id, narrator_voice").eq("id", sessionId).maybeSingle();
+      const { data, error } = await admin.from("agent_sessions").select("id, user_id, campaign_id, narrator_voice, kind").eq("id", sessionId).maybeSingle();
       if (error) throw error;
       if (!data) return null;
       // The column's check allows the two voices only, so anything else is a row this code cannot read: say so.
       if (!isNarratorVoice(data.narrator_voice)) throw new Error("table-voice: a table's narrator_voice is neither of the two voices");
-      return { id: data.id as string, user_id: data.user_id as string, campaign_id: data.campaign_id as string, narrator_voice: data.narrator_voice };
+      return { id: data.id as string, user_id: data.user_id as string, campaign_id: data.campaign_id as string, narrator_voice: data.narrator_voice, kind: data.kind as string };
     },
 
-    // The DM only: the AI table is theirs.
-    loadCampaign: (campaignId, userId) => loadAiCampaign(admin, campaignId, userId, { aiSwitch: "table", forbiddenMessage: VOICE_MESSAGES.forbidden }),
+    // The DM only. The table's voices follow the table switch; Oolu, in Ask, follows the campaign's AI switch alone.
+    loadCampaign: (campaignId, userId, aiSwitch) => loadAiCampaign(admin, campaignId, userId, { aiSwitch, forbiddenMessage: VOICE_MESSAGES.forbidden }),
     rateLimit: (userId) => checkRateLimit(admin, userId, "table_voice"),
 
     keyFits: (sessionId, line, key) => lineKeyFits(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", sessionId, line, key),
@@ -80,7 +80,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     // The conversation's own turns, read as the caller (their own rows). The cue is cleaned again: it was stored
     // by this code but comes back from jsonb and ends up inside a voice's instruction.
     async findShown(sessionId, line) {
-      const { data, error } = await supabase.from("agent_turns").select("role, blocks").eq("session_id", sessionId).eq("user_id", user.id);
+      const { data, error } = await supabase.from("agent_turns").select("role, blocks").eq("session_id", sessionId).eq("user_id", user.id).order("seq", { ascending: true });
       if (error) throw error;
       const found = shownInTurns((data ?? []) as Array<{ role: string; blocks: unknown }>, line);
       return found === null ? null : { how: found.how === null ? null : deliveryCue(found.how) };
@@ -114,7 +114,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
 
     modelOf: (service) => speechModelOf(speech, service),
 
-    withHold: (userId, credits, work) => withCreditHold(admin, { payerId: userId, reason: "table_voice", cost: credits, report }, work),
+    withHold: (userId, credits, reason, work) => withCreditHold(admin, { payerId: userId, reason, cost: credits, report }, work),
 
     // The exact cost goes on the conversation; only the whole credits its running total newly crossed are billed.
     async accrue(sessionId, credits) {

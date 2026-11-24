@@ -107,6 +107,12 @@ export interface AskConversationDeps {
   routePath: () => string;
   transport?: AskTransport;
   onFinished?: (finished: AskRunFinished) => void;
+  /**
+   * A turn's own words, once, after its stream ended with a `done` event: the texts of the `reply` items it wrote that
+   * are still on screen, exactly as they were accumulated. Not called for an aborted or withheld turn. Read aloud by
+   * the Familiar's voice, which speaks nothing but these.
+   */
+  onReplied?: (replied: { sessionId: string; texts: string[] }) => void;
 }
 
 const NOT_ANSWERED = "Your Familiar could not answer that. Try again.";
@@ -208,6 +214,8 @@ export function useAskConversation(deps: AskConversationDeps) {
     const written = new Set<number>();
     /** The read lines this turn pushed: only these may take more records, never an earlier turn's. */
     const readLines = new Set<number>();
+    let ended = false;
+    let withheld = false;
     try {
       const response = await transport(body, mine.signal);
       if (!response.ok) {
@@ -277,10 +285,12 @@ export function useAskConversation(deps: AskConversationDeps) {
             break;
           case "done":
             freeLeft.value = event.freeLeft;
+            ended = true;
             break;
           case "error":
             // A withheld answer was already streamed: what it showed is taken back, so the sentence stands alone.
             if (event.withheld === true) {
+              withheld = true;
               items.value = items.value.filter((i) => !written.has(i.id));
               hush();
             }
@@ -291,6 +301,10 @@ export function useAskConversation(deps: AskConversationDeps) {
           case "tool_end":
             break;
         }
+      }
+      if (ended && !withheld && !mine.signal.aborted && sessionId !== undefined) {
+        const texts = items.value.filter((i): i is ReplyItem => i.kind === "reply" && written.has(i.id) && i.text.trim() !== "").map((i) => i.text);
+        if (texts.length > 0) deps.onReplied?.({ sessionId, texts });
       }
     } catch (e) {
       if (!(e instanceof DOMException && e.name === "AbortError")) push({ kind: "error", message: NOT_ANSWERED });
