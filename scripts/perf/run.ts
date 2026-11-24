@@ -38,7 +38,9 @@ async function main(): Promise<void> {
       runs: { type: "string", default: "3" },
       out: { type: "string" },
       cpu: { type: "string", default: "4" },
-      delay: { type: "string", default: "150" },
+      // Longer than the main thread's stalls while the first render runs under the CPU throttle, so a read that only
+      // started late is not counted a round trip deeper (#1269; README "Profile").
+      delay: { type: "string", default: "400" },
       latency: { type: "string", default: "0" },
     },
   });
