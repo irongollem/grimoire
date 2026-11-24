@@ -108,7 +108,7 @@
             v-if="isAiEnabled"
             :icon="IconGenerate"
             label="Generate"
-            @click="generatorsUi.customClassGeneratorOpen = true"
+            @click="openGenerator('class')"
           />
           <ListCreateButton
             label="New Class"
@@ -123,7 +123,7 @@
             v-if="isAiEnabled"
             :icon="IconGenerate"
             label="Generate"
-            @click="generatorsUi.customSubclassGeneratorOpen = true"
+            @click="openGenerator('subclass')"
           />
           <ListCreateButton
             label="New Archetype"
@@ -276,7 +276,6 @@ import ArchetypeList from "@/components/levelup/ArchetypeList.vue";
 import AbilityList from "@/components/features/AbilityList.vue";
 import FeatList from "@/components/feats/FeatList.vue";
 import { useCodexUiStore } from "@/stores/ui/codex";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { useSpeciesUiStore } from "@/stores/ui/species";
 import { useAvailableLibrarySpeciesSources, useAvailableLibraryBackgroundSources } from "@/composables/library/useEnabledSources";
@@ -306,7 +305,6 @@ const SIZE_OPTIONS = [
 
 const codexUi = useCodexUiStore();
 const backgroundSourceOptions = useBackgroundSourceOptions();
-const generatorsUi = useGeneratorUiStore();
 const { open: openGenerator } = useOpenGenerator();
 const speciesUi = useSpeciesUiStore();
 const isAiEnabled = computed(() => useCampaignStore().isAiEnabled);

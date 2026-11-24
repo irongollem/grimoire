@@ -2,7 +2,7 @@ import { generateEntityText } from "./entityTextGeneration";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useAskUiStore } from "@/stores/ui/ask";
 import { captureImageGenerationContext } from "./useImageGeneration";
 import {
   classDraftFromAi,
@@ -21,8 +21,9 @@ registerAiGenerator({
   ..._state,
   label: "Class",
   entityRoute: (id) => `/levelup/classes/${id}`,
+  // The generator is a card in the Familiar now: the badge brings the DM back to it.
   openPanel: () => {
-    useGeneratorUiStore().customClassGeneratorOpen = true;
+    useAskUiStore().openPanel();
   },
 });
 

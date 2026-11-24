@@ -34,30 +34,40 @@ describe("useGenerateCustomClass", () => {
     error.value = null;
   });
 
-  it("creates the abilities first, then the class pointing at them, and passes the draft's warnings on", async () => {
-    const outcome = await useGenerateCustomClass().generateAndCreateClass("a warrior-priest", {});
-    expect(mocks.createFeature).toHaveBeenCalledTimes(1);
-    expect(mocks.createClass).toHaveBeenCalledWith({ class_name: "Emberwarden", ids: ["f1", "asi"] });
-    expect(outcome).toMatchObject({ id: "k1", name: "Emberwarden", error: null, warnings: draft.warnings });
+  // Bug caught: the draft step writing rows, so a DM who pressed Discard on the preview was left with a class they never kept.
+  it("generates a draft and writes nothing until the DM keeps it", async () => {
+    const outcome = await useGenerateCustomClass().generateClassDraft("a warrior-priest", { hitDie: 8 });
+    expect(outcome).toEqual({ draft, error: null });
+    expect(mocks.generate).toHaveBeenCalledWith("a warrior-priest", { hitDie: 8 });
+    expect(mocks.createFeature).not.toHaveBeenCalled();
+    expect(mocks.createClass).not.toHaveBeenCalled();
   });
 
+  // Bug caught: the class row written before its abilities, pointing at ids that did not exist.
+  it("creates the abilities first, then the class pointing at them, when the DM keeps the draft", async () => {
+    const created = await useGenerateCustomClass().createClassFromDraft(draft as never);
+    expect(mocks.createFeature).toHaveBeenCalledTimes(1);
+    expect(mocks.createClass).toHaveBeenCalledWith({ class_name: "Emberwarden", ids: ["f1", "asi"] });
+    expect(created).toEqual({ id: "k1" });
+  });
+
+  // Bug caught: abilities left behind as orphans when the class row could not be written.
   it("removes the abilities already made when the class cannot be written, and still throws", async () => {
     mocks.createClass.mockRejectedValue(new Error("save failed"));
-    await expect(useGenerateCustomClass().generateAndCreateClass("a warrior-priest", {})).rejects.toThrow("save failed");
+    await expect(useGenerateCustomClass().createClassFromDraft(draft as never)).rejects.toThrow("save failed");
     expect(mocks.deleteFeature).toHaveBeenCalledWith("f1");
   });
 
-  it("creates nothing while another generation is running", async () => {
+  // Bug caught: a second generation started while one runs, charging twice.
+  it("generates nothing while another generation is running", async () => {
     busy.value = true;
-    const outcome = await useGenerateCustomClass().generateAndCreateClass("a warrior-priest", {});
-    expect(outcome).toMatchObject({ id: null, name: null });
+    expect(await useGenerateCustomClass().generateClassDraft("a warrior-priest", {})).toMatchObject({ draft: null });
     expect(mocks.generate).not.toHaveBeenCalled();
   });
 
-  it("saves nothing and says why when generation fails", async () => {
+  it("says why when generation fails", async () => {
     mocks.generate.mockResolvedValue(null);
     error.value = "Provider down";
-    expect(await useGenerateCustomClass().generateAndCreateClass("a warrior-priest", {})).toMatchObject({ id: null, error: "Provider down" });
-    expect(mocks.createFeature).not.toHaveBeenCalled();
+    expect(await useGenerateCustomClass().generateClassDraft("a warrior-priest", {})).toEqual({ draft: null, error: "Provider down" });
   });
 });

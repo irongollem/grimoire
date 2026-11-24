@@ -37,26 +37,36 @@ describe("useGenerateCustomSubclass", () => {
     lists.custom = [{ class_name: "Wizard", subclass_level: 5 }];
   });
 
-  it("creates the abilities first, then the archetype pointing at them", async () => {
-    const outcome = await useGenerateCustomSubclass().generateAndCreateSubclass("smiths", { parentClassName: "Fighter", subclassLevel: 3 });
-    expect(mocks.createSub).toHaveBeenCalledWith({ subclass_name: "Cinder Smith", ids: ["f1"] });
-    expect(outcome).toMatchObject({ id: "u1", name: "Cinder Smith", error: null });
+  // Bug caught: the draft step writing rows, so Discard on the preview left an archetype the DM never kept.
+  it("generates a draft and writes nothing until the DM keeps it", async () => {
+    const outcome = await useGenerateCustomSubclass().generateSubclassDraft("smiths", { parentClassName: "Fighter", subclassLevel: 3 });
+    expect(outcome).toEqual({ draft, error: null });
+    expect(mocks.createFeature).not.toHaveBeenCalled();
+    expect(mocks.createSub).not.toHaveBeenCalled();
   });
 
+  // Bug caught: the archetype row written before its abilities, pointing at ids that did not exist.
+  it("creates the abilities first, then the archetype pointing at them", async () => {
+    await useGenerateCustomSubclass().createSubclassFromDraft(draft as never);
+    expect(mocks.createSub).toHaveBeenCalledWith({ subclass_name: "Cinder Smith", ids: ["f1"] });
+  });
+
+  // Bug caught: abilities left behind as orphans when the archetype row could not be written.
   it("removes the abilities already made when the archetype cannot be written, and still throws", async () => {
     mocks.createSub.mockRejectedValue(new Error("save failed"));
-    await expect(useGenerateCustomSubclass().generateAndCreateSubclass("smiths", { parentClassName: "Fighter", subclassLevel: 3 })).rejects.toThrow("save failed");
+    await expect(useGenerateCustomSubclass().createSubclassFromDraft(draft as never)).rejects.toThrow("save failed");
     expect(mocks.deleteFeature).toHaveBeenCalledWith("f1");
   });
 
-  it("creates nothing while another generation is running, and says why when generation fails", async () => {
+  // Bug caught: a second generation started while one runs, charging twice.
+  it("generates nothing while another generation is running, and says why when generation fails", async () => {
     busy.value = true;
-    expect(await useGenerateCustomSubclass().generateAndCreateSubclass("smiths", { parentClassName: "Fighter", subclassLevel: 3 })).toMatchObject({ id: null });
+    expect(await useGenerateCustomSubclass().generateSubclassDraft("smiths", { parentClassName: "Fighter", subclassLevel: 3 })).toMatchObject({ draft: null });
     expect(mocks.generate).not.toHaveBeenCalled();
     busy.value = false;
     mocks.generate.mockResolvedValue(null);
     error.value = "Provider down";
-    expect(await useGenerateCustomSubclass().generateAndCreateSubclass("smiths", { parentClassName: "Fighter", subclassLevel: 3 })).toMatchObject({ id: null, error: "Provider down" });
+    expect(await useGenerateCustomSubclass().generateSubclassDraft("smiths", { parentClassName: "Fighter", subclassLevel: 3 })).toEqual({ draft: null, error: "Provider down" });
   });
 });
 

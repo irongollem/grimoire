@@ -1,10 +1,10 @@
 /**
- * "Generate a recipe with AI and save it": the generation-to-create mapping `RecipeGeneratorPanel.vue` used to own
- * inline, extracted so Ask Grimoire (#1253) runs the same pipeline. The page generates, shows "this will create",
- * and calls `saveRecipe` on Create; Ask has its own quote instead of that step and calls `generateAndCreateRecipe`.
+ * "Generate a recipe with AI, look at it, and save it": the steps the recipe panel used to own inline, now the
+ * Familiar's recipe card (#1270). The generation is one step (`generateRecipeDraft`, charged) and the save another
+ * (`saveRecipe`, free), so the DM sees what will be created before anything is written.
  *
  * A recipe is several writes. The first stage (the output item when the model invented one, then the recipe row)
- * throws, so the page can keep its confirm step and toast. Once the recipe exists, the second stage (outputs,
+ * throws, so the card can keep its preview and say why. Once the recipe exists, the second stage (outputs,
  * ingredients, modifiers) never throws: a failure there is `partsFailure`, so nobody is stranded without the recipe
  * and a retry cannot make a second one.
  */
@@ -39,8 +39,8 @@ export interface SavedRecipe {
   partsFailure: unknown;
 }
 
-export interface GenerateRecipeOutcome {
-  recipe: SavedRecipe | null;
+export interface RecipeDraftOutcome {
+  draft: RecipeDraft | null;
   error: string | null;
 }
 
@@ -152,24 +152,23 @@ export function useGenerateRecipe() {
   }
 
   /**
-   * `items` is the campaign's item index, which the output is matched against. `output` is the item the DM chose to be
-   * made, as the page's "Output item" picker holds it: the model is told its name and the recipe produces that row
-   * instead of one it matched or invented.
+   * Generates a recipe and decides which item it makes, and saves nothing. `items` is the campaign's item index, which
+   * the output is matched against. `output` is the item the DM chose to be made, as the card's "Output item" picker
+   * holds it: the model is told its name and the recipe produces that row instead of one it matched or invented.
    */
-  async function generateAndCreateRecipe(
+  async function generateRecipeDraft(
     concept: string,
     options: Omit<RecipeGenerationOptions, "outputName"> & { items: readonly NamedItem[]; output?: NamedItem | null },
-  ): Promise<GenerateRecipeOutcome> {
-    if (isAnyAiGenerating.value) return { recipe: null, error: "Another AI generation is already in progress." };
+  ): Promise<RecipeDraftOutcome> {
+    if (isAnyAiGenerating.value) return { draft: null, error: "Another AI generation is already in progress." };
     generation.concept.value = concept;
     generation.clearCompleted();
     const { items, output, ...generationOptions } = options;
     const picked = output ?? null;
     const recipe = await generation.generate(concept, { ...generationOptions, ...(picked ? { outputName: picked.name } : {}) });
-    if (!recipe) return { recipe: null, error: generation.error.value ?? "Recipe generation failed." };
-    const saved = await saveRecipe({ recipe, resolution: resolveRecipeOutputFor(recipe, items, picked) });
-    return { recipe: saved, error: null };
+    if (!recipe) return { draft: null, error: generation.error.value ?? "Recipe generation failed." };
+    return { draft: { recipe, resolution: resolveRecipeOutputFor(recipe, items, picked) }, error: null };
   }
 
-  return { generation, saveRecipe, generateAndCreateRecipe };
+  return { generation, saveRecipe, generateRecipeDraft };
 }

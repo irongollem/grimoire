@@ -28,7 +28,7 @@
         v-if="campaign.isAiEnabled && offers('rules-ai')"
         :icon="IconGenerate"
         label="Generate"
-        @click="generatorsUi.recipeGeneratorOpen = true"
+        @click="openGenerator('recipe')"
       />
       <ListCreateButton
         label="New Recipe"
@@ -205,14 +205,14 @@ import { useListLayout } from "@/composables/useListLayout";
 import { useLowArt } from "@/composables/useLowArt";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { useCraftingUiStore } from "@/stores/ui/crafting";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { useGameSystem } from "@/composables/rules/useGameSystem";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import type { CraftingRecipe } from "@/types/crafting.types";
 
 const craftingUi = useCraftingUiStore();
-const generatorsUi = useGeneratorUiStore();
+const { open: openGenerator } = useOpenGenerator();
 const campaign = useCampaignStore();
 const { offers } = useGameSystem();
 const auth = useAuthStore();
