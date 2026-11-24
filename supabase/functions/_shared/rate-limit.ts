@@ -24,6 +24,10 @@ export const RATE_LIMITS = {
   // Reading a note aloud (#1234). `make` voices a whole note through a paid speech service and `estimate` runs an
   // unmetered moderation call, and neither had a bound. A DM reads a handful of notes a session; this stops a loop.
   note_reading:  { action: "note_reading",  limit: 20, windowSeconds: 60 },
+  // A voice's sample on the Voices page or an NPC sheet (#1272). The first listen of a slot speaks its preview line
+  // once through a paid speech service and keeps it; every later one reads the kept file. Its own bucket, so a DM
+  // trying voices never eats the table's speech allowance.
+  voice_sample:  { action: "voice_sample",  limit: 30, windowSeconds: 60 },
   // A chat line a played character might answer or speak up about (#1021 row 26): one unit a line, spent before
   // moderation and the platform-paid judge run, whether or not anyone answers. Its own bucket, so a chatty table
   // never eats the allowance its other AI work draws on (#1271 review); 30 a minute is far above people talking.

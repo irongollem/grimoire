@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sexFromGender, ageOf, pickVoice, sexOf, SPEECH_MAX_CHARS, speechText, STOCK_VOICES, type StockVoice } from "./voicePick";
+import { sexFromGender, ageOf, sexOf, SPEECH_MAX_CHARS, speechText } from "./voicePick";
 
 describe("sexOf", () => {
   it("reads a record about a woman as a woman even when it mentions a man once", () => {
@@ -24,6 +24,9 @@ describe("sexOf", () => {
 
 describe("ageOf", () => {
   it.each([
+    ["7", "child"],
+    ["12", "child"],
+    ["13", "young"],
     ["~20 Pours by Sugarspun reckoning", "young"],
     ["29", "young"],
     ["30", "adult"],
@@ -37,46 +40,13 @@ describe("ageOf", () => {
 
   it("goes by a word when there is no number, and by nothing when there is neither", () => {
     expect(ageOf("Unreckonable: generations, older than the Well's own memory")).toBe("old");
-    expect(ageOf("a child of the Lost-and-Found")).toBe("young");
+    // Bug caught: a child cast as an adult, since the bands began at "young".
+    expect(ageOf("a child of the Lost-and-Found")).toBe("child");
+    expect(ageOf("the baker's boy")).toBe("child");
+    expect(ageOf("a young smith")).toBe("young");
+    // "little" says small, but a little old man is old.
+    expect(ageOf("a little old man")).toBe("old");
     expect(ageOf("unknown")).toBeNull();
-  });
-});
-
-describe("pickVoice", () => {
-  const voices: StockVoice[] = [
-    { id: "w-young-1", name: "A", sex: "woman", age: "young" },
-    { id: "w-young-2", name: "B", sex: "woman", age: "young" },
-    { id: "w-adult", name: "C", sex: "woman", age: "adult" },
-    { id: "m-old", name: "D", sex: "man", age: "old" },
-  ];
-
-  it("casts within the character's sex and age", () => {
-    expect(pickVoice("honeycomb", { sex: "woman", age: "adult" }, voices).id).toBe("w-adult");
-    expect(pickVoice("gaffer", { sex: "man", age: "old" }, voices).id).toBe("m-old");
-  });
-
-  it("gives the same character the same voice every time, so nobody changes voice between lines", () => {
-    const first = pickVoice("honeycomb", { sex: "woman", age: "young" }, voices).id;
-    for (let i = 0; i < 5; i++) expect(pickVoice("honeycomb", { sex: "woman", age: "young" }, voices).id).toBe(first);
-  });
-
-  it("spreads different characters of one kind over the voices of that kind", () => {
-    const cast = new Set(["a", "b", "c", "d", "e", "f", "g", "h"].map((k) => pickVoice(k, { sex: "woman", age: "young" }, voices).id));
-    expect(cast).toEqual(new Set(["w-young-1", "w-young-2"]));
-  });
-
-  it("keeps to the sex when no voice of that age exists, rather than crossing to the other sex", () => {
-    // The ready-made set has no old woman: she is cast from the women, not given the old man's voice.
-    for (const key of ["ribbon", "a", "b", "c", "d", "e", "f", "g"]) expect(pickVoice(key, { sex: "woman", age: "old" }, voices).sex).toBe("woman");
-  });
-
-  it("casts from everyone when nothing is known", () => {
-    expect(voices.map((v) => v.id)).toContain(pickVoice("stranger", { sex: null, age: null }, voices).id);
-  });
-
-  it("has a voice of each sex in every age band it claims, and no voice listed twice", () => {
-    expect(new Set(STOCK_VOICES.map((v) => v.id)).size).toBe(STOCK_VOICES.length);
-    for (const sex of ["woman", "man"] as const) expect(STOCK_VOICES.some((v) => v.sex === sex)).toBe(true);
   });
 });
 

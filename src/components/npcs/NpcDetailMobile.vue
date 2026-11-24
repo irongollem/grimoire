@@ -102,6 +102,7 @@
     </AccordionSection>
 
     <AccordionSection v-model:open="openSections.voice" title="Voice Coach">
+      <NpcSpokenVoice v-if="full" :npc="full" class="mb-4" />
       <NpcVoiceCoach v-if="full" :npc="full" />
       <div v-else class="flex min-h-40 items-center justify-center"><BannerLoader class="h-8" /></div>
     </AccordionSection>
@@ -193,6 +194,7 @@ import QuickFact from "@/components/common/entity/QuickFact.vue";
 import NpcMemoryTab from "@/components/npcs/NpcMemoryTab.vue";
 import AccordionSection from "@/components/common/AccordionSection.vue";
 import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
+import NpcSpokenVoice from "@/components/npcs/NpcSpokenVoice.vue";
 import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";

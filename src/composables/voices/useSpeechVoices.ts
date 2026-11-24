@@ -1,4 +1,4 @@
-import { onBeforeUnmount, ref } from "vue";
+import { computed, onBeforeUnmount, ref, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import type { SampleResponse, SpeechVoice, VoiceStudioRequest } from "@/types/speechVoice.types";
@@ -8,9 +8,11 @@ import type { SampleResponse, SpeechVoice, VoiceStudioRequest } from "@/types/sp
 
 export const SPEECH_VOICES_KEY = ["speech-voices"] as const;
 
-export function useSpeechVoices() {
+/** `enabled` lets a surface that only shows where AI is on skip the read where it is off. */
+export function useSpeechVoices(enabled: MaybeRefOrGetter<boolean> = true) {
   return useQuery({
     queryKey: SPEECH_VOICES_KEY,
+    enabled: computed(() => toValue(enabled)),
     queryFn: async (): Promise<SpeechVoice[]> => {
       const { data, error } = await supabase.from("speech_voices").select("*").order("kind").order("name");
       if (error) throw error;

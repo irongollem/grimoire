@@ -29,6 +29,7 @@
       <AdminAuditTab     v-else-if="activeTab === 'audit'" />
       <AdminDsrTab       v-else-if="activeTab === 'requests'" />
       <AdminLegalTab     v-else-if="activeTab === 'legal'" />
+      <AdminVoicesTab    v-else-if="activeTab === 'voices'" />
     </div>
   </div>
 </template>
@@ -36,7 +37,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAddUser, IconBookMarked, IconBug, IconCoins, IconDocument, IconGridView, IconLibrary, IconParty, IconSettings, IconShieldCheck, IconTag } from "@/lib/icons";
+import { IconAddUser, IconBookMarked, IconBug, IconCoins, IconDocument, IconGridView, IconLibrary, IconParty, IconSettings, IconShieldCheck, IconTag, IconVolume } from "@/lib/icons";
 import TabBar from "@/components/common/controls/TabBar.vue";
 import AdminPlansTab     from "@/components/admin/AdminPlansTab.vue";
 import AdminUsersTab     from "@/components/admin/AdminUsersTab.vue";
@@ -51,18 +52,19 @@ import AdminManualGapsTab from "@/components/admin/AdminManualGapsTab.vue";
 import AdminAuditTab     from "@/components/admin/AdminAuditTab.vue";
 import AdminDsrTab       from "@/components/admin/AdminDsrTab.vue";
 import AdminLegalTab     from "@/components/admin/AdminLegalTab.vue";
+import AdminVoicesTab    from "@/components/admin/voices/AdminVoicesTab.vue";
 
 const route = useRoute();
 const router = useRouter();
 
-type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" | "prompts" | "providers" | "reports" | "manual-gaps" | "audit" | "requests" | "legal";
-const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts", "providers", "reports", "manual-gaps", "audit", "requests", "legal"]);
+type TabId = "plans" | "users" | "invites" | "content" | "pricing" | "credits" | "prompts" | "providers" | "reports" | "manual-gaps" | "audit" | "requests" | "legal" | "voices";
+const VALID_TABS = new Set<string>(["plans", "users", "invites", "content", "pricing", "credits", "prompts", "providers", "reports", "manual-gaps", "audit", "requests", "legal", "voices"]);
 const TABS = [
   { id: "plans"     as TabId, label: "Plans",     icon: IconGridView },
   { id: "users"     as TabId, label: "Users",     icon: IconParty },
   { id: "invites"   as TabId, label: "Invites",   icon: IconAddUser },
   { id: "content"   as TabId, label: "Content",   icon: IconLibrary },
-  { id: "pricing"   as TabId, label: "Pricing",   icon: IconTag },
+  { id: "pricing"   as TabId, label: "Pricing",   icon: IconTag, IconVolume },
   { id: "credits"   as TabId, label: "Credits",   icon: IconCoins },
   { id: "prompts"   as TabId, label: "Prompts",   icon: IconDocument },
   { id: "providers" as TabId, label: "Providers", icon: IconSettings },
@@ -71,6 +73,7 @@ const TABS = [
   { id: "audit"     as TabId, label: "Audit",     icon: IconShieldCheck },
   { id: "requests"  as TabId, label: "Requests",  icon: IconDocument },
   { id: "legal"     as TabId, label: "Legal",     icon: IconShieldCheck },
+  { id: "voices"    as TabId, label: "Voices",    icon: IconVolume },
 ];
 
 const activeTab = computed<TabId>({

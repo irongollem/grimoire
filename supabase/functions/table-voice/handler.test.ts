@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { jsonError } from "../_shared/pipeline/respond";
 import { familiarShown, shownInTurns, spokenFromMarkdown, speakLine, voiceRates, VoicesSpent, type SpeakerTraits, type TableVoiceDeps, type VoiceHold, type VoiceSession } from "./handler";
-import { inworldText, NARRATOR_VOICES, speechText, STOCK_VOICES } from "./voicePick";
+import { inworldText, NARRATOR_VOICES, speechText } from "./voicePick";
+import { NO_TRAITS } from "./handler";
+import type { Judgment, SlotAssignment, VoiceSlot } from "./casting";
 import { lineKey, lineKeyFits, NARRATOR_SPEAKER } from "../_shared/agent/lineKey";
 import { FAMILIAR_VOICE } from "../_shared/narratorVoice";
 
@@ -12,13 +14,37 @@ const OTHER_CAMPAIGN = "00000000-0000-4000-8000-0000000000c2";
 const SESSION = "00000000-0000-4000-8000-0000000000a1";
 const ALDA = "00000000-0000-4000-8000-0000000000d1";
 
+const slotId = (n: number) => `00000000-0000-4000-8000-00000000f${String(n).padStart(3, "0")}`;
+const makeSlot = (n: number, over: Partial<VoiceSlot> = {}): VoiceSlot => ({ id: slotId(n), name: `Slot ${n}`, description: `voice number ${n}`, sex: null, age: null, service: "elevenlabs", voiceId: `voice-id-${String(n).padStart(4, "0")}`, ...over });
+// A registry as the DM's client reads it: two adult women, a young woman, an old man, and a child on the second service.
+const SLOTS = {
+  womanA: makeSlot(1, { sex: "woman", age: "adult" }),
+  womanB: makeSlot(2, { sex: "woman", age: "adult" }),
+  girl: makeSlot(3, { sex: "woman", age: "young" }),
+  oldMan: makeSlot(4, { sex: "man", age: "old" }),
+  child: makeSlot(5, { sex: null, age: "child", service: "inworld" }),
+};
+const TOWN = "00000000-0000-4000-8000-0000000000b1";
+
 function harness() {
   const h = {
     on: true,
     session: { id: SESSION, user_id: DM, campaign_id: CAMPAIGN, narrator_voice: "male", kind: "solo_table" } as VoiceSession | null,
     campaignRefusal: null as Response | null,
     allowed: true,
-    traits: { sex: "woman", age: "adult", voiceId: null } as SpeakerTraits,
+    traits: { ...NO_TRAITS, hasRecord: true, sex: "woman", age: "adult", fitting: "A baker with flour on her sleeves." } as SpeakerTraits,
+    /** The registry as the caller reads it, and which slots a single read by id can still see. */
+    slots: Object.values(SLOTS) as VoiceSlot[],
+    gone: new Set<string>(),
+    assignments: [] as SlotAssignment[],
+    slotReadThrows: false,
+    /** What the judgment model answers; null when it has no key. Receives the option names it was shown. */
+    jev: null as null | ((names: string[]) => Judgment | null),
+    jevThrows: false,
+    asked: [] as Array<{ names: string[]; fitting: string }>,
+    saved: [] as Array<{ npcId: string; slotId: string }>,
+    saveThrows: false,
+    freed: [] as Array<{ reason: string; tokens: number | undefined }>,
     traitsThrow: false,
     synthThrows: false,
     spent: false,
@@ -64,7 +90,22 @@ function harness() {
       h.kept.set(`${line.role}:${line.speaker.name}:${line.text}`, audio);
     },
     findShown: async (_sessionId, line) => shownInTurns(h.turns, line),
-    loadPlayerTraits: async () => ({ sex: "man", age: null, voiceId: null }),
+    loadPlayerTraits: async () => ({ ...NO_TRAITS, sex: "man" }),
+    loadSlot: async (id) => {
+      if (h.slotReadThrows) throw new Error("db down");
+      return h.gone.has(id) ? null : (h.slots.find((x) => x.id === id) ?? null);
+    },
+    loadSlots: async () => h.slots.filter((x) => !h.gone.has(x.id)),
+    loadAssignments: async () => h.assignments,
+    judgeSlot: async (options, fitting) => {
+      h.asked.push({ names: options.map((o) => o.name), fitting });
+      if (h.jevThrows) throw new Error("jev down");
+      return h.jev === null ? null : h.jev(options.map((o) => o.name));
+    },
+    saveSlot: async (_c, npcId, slot) => {
+      if (h.saveThrows) throw new Error("rls");
+      h.saved.push({ npcId, slotId: slot });
+    },
     hasService: (service) => (service === "elevenlabs" ? h.elevenlabs : h.inworld),
     isFlagged: async (text) => {
       if (h.screenDown) throw new Error("moderation down");
@@ -78,7 +119,7 @@ function harness() {
       if (h.refuseHold) return h.refuseHold;
       h.held.push(credits);
       h.reasons.push(reason);
-      const hold: VoiceHold = { charge: (_reason, line) => void h.charged.push({ cost: line.cost, provider: line.log?.provider ?? "" }), free: () => {} };
+      const hold: VoiceHold = { charge: (_reason, line) => void h.charged.push({ cost: line.cost, provider: line.log?.provider ?? "" }), free: (reason, log) => void h.freed.push({ reason, tokens: log?.input_tokens }) };
       return work(hold);
     },
     accrue: async (_sessionId, credits) => {
@@ -128,26 +169,179 @@ describe("speakLine", () => {
     expect(out).toEqual({ ok: true, status: 200, audio: "AUDIO", mime: "audio/mpeg" });
     expect(h.spoken).toHaveLength(1);
     expect(h.spoken[0].text).toBe("[furious, shouting] Get out!");
-    const voice = STOCK_VOICES.find((v) => v.id === h.spoken[0].voiceId);
-    expect(voice).toMatchObject({ sex: "woman", age: "adult" });
+    expect([SLOTS.womanA.voiceId, SLOTS.womanB.voiceId]).toContain(h.spoken[0].voiceId);
   });
 
-  it("speaks in the voice the DM gave the character, instead of one cast for it", async () => {
+  // Casting from the registry (#1272). Each test names the bug it fails on.
+
+  // Bug caught: a character with a slot recast every line, so a person changes voice between lines.
+  it("speaks a character in the slot they already hold, without asking the judge or saving again", async () => {
     const h = harness();
-    h.traits = { sex: "woman", age: "adult", voiceId: "KK7qCbhAA7YXAftgG04I" };
+    h.traits = { ...h.traits, slotId: SLOTS.oldMan.id };
     await speak(h);
-    expect(h.spoken[0].voiceId).toBe("KK7qCbhAA7YXAftgG04I");
+    expect(h.spoken[0].voiceId).toBe(SLOTS.oldMan.voiceId);
+    expect(h.asked).toEqual([]);
+    expect(h.saved).toEqual([]);
   });
 
-  it.each(["../v1/user", "abc", "a".repeat(65), "voice id"])(
-    "casts a voice instead of using the stored id %j, which would otherwise go into the speech service's address",
-    async (voiceId) => {
-      const h = harness();
-      h.traits = { sex: "woman", age: "adult", voiceId };
-      await speak(h);
-      expect(STOCK_VOICES.some((v) => v.id === h.spoken[0].voiceId)).toBe(true);
-    },
-  );
+  // Bug caught: a slot the admin retired or deleted still used, silencing or mis-voicing the character for good.
+  it("casts a character again, and remembers the new slot, when theirs is gone", async () => {
+    const h = harness();
+    h.traits = { ...h.traits, slotId: SLOTS.oldMan.id };
+    h.gone.add(SLOTS.oldMan.id);
+    await speak(h);
+    expect(h.spoken).toHaveLength(1);
+    expect(h.spoken[0].voiceId).not.toBe(SLOTS.oldMan.voiceId);
+    expect(h.saved).toEqual([{ npcId: ALDA, slotId: expect.any(String) }]);
+  });
+
+  // Bug caught: a stack without a service's key overwriting the character's slot, so their own voice is lost
+  // whenever one environment lacks a key.
+  it("speaks around a slot whose service this stack lacks, and leaves the slot on the character", async () => {
+    const h = harness();
+    h.inworld = false;
+    h.traits = { ...h.traits, slotId: SLOTS.child.id };
+    await speak(h);
+    expect(h.spoken[0].service).toBe("elevenlabs");
+    expect(h.saved).toEqual([]);
+  });
+
+  // Bug caught: a slot on a service with no key used anyway, answering an error from the speech service.
+  it("never casts a slot on a service this stack has no key for", async () => {
+    const h = harness();
+    h.inworld = false;
+    h.traits = { ...h.traits, sex: null, age: "child" };
+    await speak(h);
+    expect(h.spoken[0].service).toBe("elevenlabs");
+  });
+
+  // Bug caught: the child age band missing, so a child is cast as a young adult.
+  it("casts a child from the child slot", async () => {
+    const h = harness();
+    h.traits = { ...h.traits, sex: null, age: "child" };
+    await speak(h);
+    expect(h.spoken[0]).toMatchObject({ service: "inworld", voiceId: SLOTS.child.voiceId });
+  });
+
+  // Bug caught: the judge's answer ignored, so every character just gets the least used slot.
+  it("casts the slot the judge chose among those that fit", async () => {
+    const h = harness();
+    h.jev = () => ({ choice: SLOTS.womanB.name, inputTokens: 90 });
+    await speak(h);
+    expect(h.spoken[0].voiceId).toBe(SLOTS.womanB.voiceId);
+    expect(h.saved).toEqual([{ npcId: ALDA, slotId: SLOTS.womanB.id }]);
+  });
+
+  // Bug caught: the record's words never reaching the judge, so the choice cannot depend on who the character is.
+  it("shows the judge the character's fitting text and only the slots that fit their sex and age", async () => {
+    const h = harness();
+    await speak(h);
+    expect(h.asked[0].fitting).toBe("A baker with flour on her sleeves.");
+    expect(h.asked[0].names.sort()).toEqual([SLOTS.womanA.name, SLOTS.womanB.name]);
+  });
+
+  // Bug caught: a judge that is down or answers nonsense leaving the line unspoken or the slot unsaved.
+  it.each<[string, "throw" | ((names: string[]) => Judgment | null)]>([
+    ["no key", () => null],
+    ["a failure", "throw"],
+    ["a name that was not offered", () => ({ choice: "Booming villain", inputTokens: 5 })],
+  ])("falls back to the least used slot when the judge gives %s", async (_label, jev) => {
+    const h = harness();
+    h.assignments = [{ npcId: "other", slotId: SLOTS.womanA.id, locationId: null }];
+    if (jev === "throw") h.jevThrows = true;
+    else h.jev = jev;
+    await speak(h);
+    expect(h.spoken[0].voiceId).toBe(SLOTS.womanB.voiceId);
+    expect(h.saved).toEqual([{ npcId: ALDA, slotId: SLOTS.womanB.id }]);
+  });
+
+  // Bug caught: two people at one tavern given the same voice while another fits.
+  it("steps aside from a voice another character at the same place holds", async () => {
+    const h = harness();
+    h.traits = { ...h.traits, locationId: TOWN };
+    h.assignments = [{ npcId: "innkeeper", slotId: SLOTS.womanA.id, locationId: TOWN }];
+    await speak(h);
+    expect(h.asked[0].names).toEqual([SLOTS.womanB.name]);
+  });
+
+  // Bug caught: the step-aside applied across places, so a voice used far away is wrongly forbidden here, or the
+  // character's own slot counted against themself.
+  it("does not count voices held at other places, or by the character themself", async () => {
+    const h = harness();
+    h.traits = { ...h.traits, locationId: TOWN };
+    h.assignments = [
+      { npcId: "far", slotId: SLOTS.womanA.id, locationId: "elsewhere" },
+      { npcId: ALDA, slotId: SLOTS.womanB.id, locationId: TOWN },
+    ];
+    await speak(h);
+    expect(h.asked[0].names.sort()).toEqual([SLOTS.womanA.name, SLOTS.womanB.name]);
+  });
+
+  // Bug caught: stepping aside emptying the pool, leaving a crowded town with no voice at all.
+  it("repeats a voice rather than go silent when every fitting slot is taken at the place", async () => {
+    const h = harness();
+    h.traits = { ...h.traits, locationId: TOWN };
+    h.assignments = [SLOTS.womanA, SLOTS.womanB].map((x, i) => ({ npcId: `n${i}`, slotId: x.id, locationId: TOWN }));
+    await speak(h);
+    expect(h.spoken).toHaveLength(1);
+  });
+
+  // Bug caught: the judge's tokens never recorded, so the platform's spend on casting is invisible.
+  it("records the judge's spend as a free line on the sitting", async () => {
+    const h = harness();
+    h.jev = () => ({ choice: SLOTS.womanA.name, inputTokens: 90 });
+    await speak(h);
+    expect(h.freed).toEqual([{ reason: "entity_judgment", tokens: 90 }]);
+    const quiet = harness();
+    await speak(quiet);
+    expect(quiet.freed).toEqual([]);
+  });
+
+  // Bug caught: a save the database refuses (RLS, a trigger) failing the line.
+  it("still speaks when remembering the choice fails", async () => {
+    const h = harness();
+    h.saveThrows = true;
+    expect((await speak(h)).ok).toBe(true);
+    expect(h.spoken).toHaveLength(1);
+  });
+
+  // Bug caught: a failed read of the slot treated as "gone", overwriting the character's slot on a blip.
+  it("speaks around a slot that could not be read and does not overwrite it", async () => {
+    const h = harness();
+    h.traits = { ...h.traits, slotId: SLOTS.oldMan.id };
+    h.slotReadThrows = true;
+    expect((await speak(h)).ok).toBe(true);
+    expect(h.saved).toEqual([]);
+  });
+
+  // Bug caught: someone with no record saved to, or judged, as though they were a character.
+  it("casts someone with no record from the whole pool by name, without the judge or a save", async () => {
+    const h = harness();
+    h.jev = () => ({ choice: SLOTS.oldMan.name, inputTokens: 5 });
+    expect((await speak(h, { body: SWEEPER })).ok).toBe(true);
+    const again = harness();
+    await speak(again, { body: SWEEPER });
+    expect(again.spoken[0].voiceId).toBe(h.spoken[0].voiceId);
+    expect(h.asked).toEqual([]);
+    expect(h.saved).toEqual([]);
+  });
+
+  // Bug caught: nothing filled leaving the line to fail instead of being told.
+  it("narrates in the table's narrator voice when no slot is filled for any service the stack has", async () => {
+    const h = harness();
+    h.slots = [];
+    expect((await speak(h)).ok).toBe(true);
+    expect(h.spoken[0].voiceId).toBe(NARRATOR_VOICES.male.elevenlabs);
+    expect(h.saved).toEqual([]);
+  });
+
+  // Bug caught: a slot id from the database used raw in the speech service's address.
+  it.each(["../v1/user", "abc", "a".repeat(65), "voice id"])("never speaks a slot whose voice id is %j", async (voiceId) => {
+    const h = harness();
+    h.slots = [makeSlot(9, { sex: "woman", age: "adult", voiceId }), SLOTS.womanA];
+    await speak(h);
+    expect(h.spoken[0].voiceId).toBe(SLOTS.womanA.voiceId);
+  });
 
   it("refuses words the sitting never showed, so it cannot be used to speak whatever a caller types", async () => {
     const h = harness();
@@ -289,12 +483,16 @@ describe("speakLine", () => {
   // Bug caught: the player's own line cast from an NPC record lookup instead of their character.
   it("speaks the player's own said line, cast from their character", async () => {
     const h = harness();
+    // Even a stand-in that claimed a record must not get a judge or a saved slot: that is for NPC rows only.
+    h.deps.loadPlayerTraits = async () => ({ ...NO_TRAITS, hasRecord: true, sex: "man" });
     const WREN = "00000000-0000-4000-8000-0000000000e1";
     const said = { campaignId: CAMPAIGN, sessionId: SESSION, speakerId: WREN, speakerName: "Wren", text: "Is the cellar safe?", role: "player",
       key: lineKey(SECRET, SESSION, { role: "player", speaker: { id: WREN, name: "Wren" }, text: "Is the cellar safe?" }) };
     expect((await speak(h, { body: said })).ok).toBe(true);
     expect(h.traitLoads).toEqual([]);
-    expect(STOCK_VOICES.find((v) => v.id === h.spoken[0].voiceId)).toMatchObject({ sex: "man" });
+    expect(h.spoken[0].voiceId).toBe(SLOTS.oldMan.voiceId);
+    expect(h.asked).toEqual([]);
+    expect(h.saved).toEqual([]);
   });
 
   const STORED = [
@@ -347,36 +545,7 @@ describe("speakLine", () => {
     expect(await speak(h)).toMatchObject({ ok: false, status: 402 });
   });
 
-  const CRUMB_VOICE = "snappy-magpie-0676__design-voice-7cb37010";
-
-  // Bug caught (Crumb, seven, for whom ElevenLabs will not make a voice): a voice kept on the second service sent
-  // to the first, which has no such voice and answers an error, leaving the character silent.
-  it("speaks a character whose voice lives on Inworld through Inworld", async () => {
-    const h = harness();
-    h.traits = { sex: null, age: "young", voiceId: `inworld:${CRUMB_VOICE}` };
-    expect((await speak(h)).ok).toBe(true);
-    expect(h.spoken[0]).toMatchObject({ service: "inworld", voiceId: CRUMB_VOICE });
-  });
-
-  // Bug caught: a stack with no Inworld key leaving such a character with no voice at all.
-  it("casts a ready-made voice for them where the second service is not set up", async () => {
-    const h = harness();
-    h.inworld = false;
-    h.traits = { sex: "woman", age: "adult", voiceId: `inworld:${CRUMB_VOICE}` };
-    expect((await speak(h)).ok).toBe(true);
-    expect(h.spoken[0].service).toBe("elevenlabs");
-    expect(STOCK_VOICES.some((v) => v.id === h.spoken[0].voiceId)).toBe(true);
-  });
-
-  // Bug caught: a reference to a service nobody speaks through, or with a path in it, taken as a voice.
-  it.each(["azure:abcdefgh1234", "inworld:../v1/voices", "inworld:", "inworld:short"])("casts a voice instead of using the reference %j", async (voiceId) => {
-    const h = harness();
-    h.traits = { sex: "woman", age: "adult", voiceId };
-    await speak(h);
-    expect(h.spoken[0].service).toBe("elevenlabs");
-    expect(STOCK_VOICES.some((v) => v.id === h.spoken[0].voiceId)).toBe(true);
-  });
-});
+}); 
 
 describe("the narrator on the second service", () => {
   const narration = "The lamps gutter as the door swings shut.";
@@ -473,7 +642,7 @@ describe("what a voiced line costs", () => {
   // Bug caught: a child's voice on the cheaper service charged at the dearer service's rate.
   it("charges a line on the cheaper service the cheaper rate", async () => {
     const h = harness();
-    h.traits = { sex: null, age: null, voiceId: "inworld:snappy-magpie-0676__design-voice-7cb37010" };
+    h.traits = { ...h.traits, sex: null, age: "child" };
     await speak(h);
     expect(h.charged[0].provider).toBe("inworld");
     expect(h.accrued[0]).toBeCloseTo(0.3394 / 4, 3);
