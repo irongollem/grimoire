@@ -129,23 +129,6 @@
     @event-created="onEventCreated"
   />
 
-  <ChroniclerGenerateDialog
-    :visible="showChroniclerGenerate"
-    :initial-prompt="illustrationTarget?.prompt"
-    :note-id="props.note?.id"
-    @close="showChroniclerGenerate = false; illustrationTarget = null"
-    @started="onChroniclerStarted"
-  />
-
-  <ChroniclerWriteDialog
-    :visible="showChroniclerWrite"
-    :note-id="props.note?.id"
-    :note-title="draft.title"
-    :note-session-num="linkedSession?.number ?? null"
-    @close="showChroniclerWrite = false"
-    @insert="onChroniclerWrite"
-  />
-
   <ChroniclerLibraryPicker
     :visible="showChroniclerLibrary"
     @close="showChroniclerLibrary = false"
@@ -165,9 +148,7 @@ import { useRoute, useRouter, type RouteLocationNormalized } from "vue-router";
 import { useUnsavedGuard } from "@/composables/useUnsavedGuard";
 import RichTextEditor from "../common/richtext/RichTextEditor.vue";
 import InlineCalendarEventModal from "@/components/calendar/InlineCalendarEventModal.vue";
-import ChroniclerGenerateDialog from "./ChroniclerGenerateDialog.vue";
 import ChroniclerLibraryPicker from "./ChroniclerLibraryPicker.vue";
-import ChroniclerWriteDialog from "./ChroniclerWriteDialog.vue";
 import NoteSessionDatesPanel from "./NoteSessionDatesPanel.vue";
 import NoteSessionPicker from "./NoteSessionPicker.vue";
 import { IconDelete, IconGenerate, IconImages, IconNote, IconPin, IconSave } from '@/lib/icons';
@@ -181,6 +162,9 @@ import {
   useDeleteNote,
 } from "@/composables/notes/useNotes";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
+import { provideNoteSurface } from "@/composables/notes/useNoteSurface";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
+import type { AskRecordRef } from "@edge-shared/agent/askContract";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
 import { useNoteSession } from "@/composables/notes/useNoteSession";
 import { useNoteCalendarSync } from "@/composables/notes/useNoteCalendarSync";
@@ -291,9 +275,7 @@ const saveError = ref("");
 const { mentionItems: entityMentionItems } = useEntityMentionItems();
 
 // ── Chronicler ────────────────────────────────────────────────────────────────
-const showChroniclerGenerate = ref(false);
 const showChroniclerLibrary  = ref(false);
-const showChroniclerWrite    = ref(false);
 
 const campaignStore = useCampaignStore();
 // The generate controls need AI on and a provider the campaign can actually
@@ -303,22 +285,32 @@ const { textProvider, imageProvider } = useCampaignProviders();
 const showWriteChronicle = computed(() => campaignStore.isAiEnabled && textProvider.value !== null);
 const showGenerateScene = computed(() => campaignStore.isAiEnabled && imageProvider.value !== null);
 
+// Write Chronicle and Scene illustration are cards in the Familiar (#1270), opened with this note as their target; a
+// note not saved yet has none, and the card fills the open editor all the same (`provideNoteSurface` below).
+const { open: openGenerator } = useOpenGenerator();
+
+function noteTarget(): { target: AskRecordRef } | Record<string, never> {
+  const note = props.note;
+  return note ? { target: { type: "note", id: note.id, name: draft.title.trim() || note.title } } : {};
+}
+
 function openChroniclerGenerate() {
   // Defensive: the toolbar button is hidden while AI is off, so this only
   // guards a stray keyboard/programmatic trigger.
   if (!campaignStore.isAiEnabled) return;
-  showChroniclerGenerate.value = true;
+  // A toolbar scene goes to the cursor: a suggestion clicked earlier and left is not what this one replaces.
+  illustrationTarget.value = null;
+  openGenerator("scene_illustration", noteTarget());
 }
 
 function openChroniclerWrite() {
   if (!campaignStore.isAiEnabled) return;
-  showChroniclerWrite.value = true;
+  openGenerator("chronicle", noteTarget());
 }
 
 function onChroniclerStarted(job: { jobId: string; prompt: string; size: string }) {
   rteRef.value?.insertPendingImage(job, illustrationTarget.value);
-  // The dialog stays open to queue more scenes; only the first one takes the
-  // suggestion's place, the rest go to the cursor like any other generation.
+  // Only the first scene takes the suggestion's place, the rest go to the cursor like any other generation.
   illustrationTarget.value = null;
 }
 
@@ -364,8 +356,17 @@ function onIllustrationClick(target: IllustrationTarget) {
   // The chip renders inert while AI is off; this guards a stray trigger.
   if (!campaignStore.isAiEnabled) return;
   illustrationTarget.value = target;
-  showChroniclerGenerate.value = true;
+  openGenerator("scene_illustration", { ...noteTarget(), concept: target.prompt });
 }
+
+// What the Familiar's cards fill: this editor's text, title, session and tags (see `useNoteSurface`).
+provideNoteSurface({
+  noteId: () => props.note?.id ?? null,
+  title: () => draft.title,
+  sessionNum: () => linkedSession.value?.number ?? null,
+  insertChronicle: onChroniclerWrite,
+  insertScene: onChroniclerStarted,
+});
 
 // ── Inline event modal ────────────────────────────────────────────────────────
 const showEventModal = ref(false);

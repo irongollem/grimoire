@@ -8,17 +8,6 @@
     <PaywallModal v-model="paintingPaywall" resource="paint_canvases" :message="PAINT_CANVAS_LIMIT_MESSAGE" />
     <ArtPickerModal :show="picker !== null" @select="onArtPicked" @close="picker = null" />
 
-    <!-- Only mounted while it is open: it reads the campaign's characters, which a closed panel has no use for. -->
-    <ChroniclerGenerateDialog
-      v-if="describing"
-      visible
-      title="Describe the picture"
-      :shapes="describeSceneShapes"
-      close-on-start
-      @close="describing = null"
-      @started="onDescribeStarted"
-    />
-
     <PicturePanelSection
       v-if="picture"
       :src="picture.src"
@@ -36,7 +25,7 @@
       @corner="(v) => onCorner(picture?.item ?? null, v)"
       @stays="(v) => onStays(picture?.item ?? null, v)"
       @pick="picker = { mode: 'replace' }"
-      @describe="describing = picture?.target ?? null"
+      @describe="describe(picture?.target ?? null)"
       @replace="(src) => picture && pictures.replaceSrc(picture.target, src)"
       @edit="emit('editPicture', $event)"
       @remove="picture && pictures.remove(picture.target)"
@@ -125,7 +114,6 @@ import DecorationPanelSection from "@/scriptorium/components/panel/DecorationPan
 import DividerPanelSection from "@/scriptorium/components/panel/DividerPanelSection.vue";
 import EmbedPanelSection from "@/scriptorium/components/panel/EmbedPanelSection.vue";
 import FooterPanelSection from "@/scriptorium/components/panel/FooterPanelSection.vue";
-import ChroniclerGenerateDialog from "@/components/notes/ChroniclerGenerateDialog.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { PAINT_CANVAS_LIMIT_MESSAGE } from "@/scriptorium/illuminator/lib/paintQuota";
 import { usePagePainting } from "@/scriptorium/composables/usePagePainting";
@@ -152,6 +140,8 @@ import { hashSettings, type IlluminateSettings } from "@/scriptorium/illuminator
 import type { WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
 import { IconClose } from "@/lib/icons";
 import { tableRowsOf, withTableRows } from "@/scriptorium/lib/tableRows";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
+import { provideDescribeSurface } from "@/scriptorium/composables/useDescribeSurface";
 import { describeShapes } from "@/scriptorium/lib/describeShapes";
 import { useCampaignStore } from "@/stores/campaign";
 
@@ -219,16 +209,28 @@ const { start: startPainting, busy: paintingBusy, showPaywall: paintingPaywall }
 const campaign = useCampaignStore();
 /** AI is per campaign, so a book of another campaign, or one with AI off, has no Describe it. */
 const canDescribe = computed(() => !!props.campaignId && props.campaignId === campaign.activeCampaignId && campaign.isAiEnabled);
-/** The picture being described: kept from the click, so what the dialog paints lands where the DM asked. */
+/** The picture being described: kept from the click, so what the Familiar's card paints lands where the DM asked. */
 const describing = ref<PictureTarget | null>(null);
 const A4_ASPECT = 1 / 1.414;
-const describeSceneShapes = computed(() =>
-  describeShapes(props.pageAspect ?? A4_ASPECT).map((s) => ({ id: s.id, label: s.label, size: s.aiSize })),
-);
-function onDescribeStarted(job: { jobId: string; shape: string }) {
-  const target = describing.value;
-  if (target) emit("describe", target, { jobId: job.jobId, shape: job.shape });
+const { open: openGenerator } = useOpenGenerator();
+function describe(target: PictureTarget | null) {
+  if (!target) return;
+  describing.value = target;
+  openGenerator("picture_description");
 }
+// What the card paints into: this picture, in this book's page shape (see `useDescribeSurface`).
+provideDescribeSurface({
+  campaignId: () => props.campaignId ?? null,
+  shapes: () => describeShapes(props.pageAspect ?? A4_ASPECT),
+  hasTarget: () => describing.value !== null,
+  start: (job) => {
+    const target = describing.value;
+    if (!target) return;
+    emit("describe", target, job);
+    // Painted for: the next card starts from a picture chosen again, never from this one by default.
+    describing.value = null;
+  },
+});
 
 function pagesOf(ed: Editor): PageBox[] {
   return (ed.storage as unknown as { pageFlow?: PageFlowStorage }).pageFlow?.pages ?? [];

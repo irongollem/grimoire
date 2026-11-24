@@ -3,6 +3,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Editor } from "@tiptap/core";
 import ScriptoriumPanel from "./ScriptoriumPanel.vue";
+import { currentDescribeSurface } from "@/scriptorium/composables/useDescribeSurface";
 import { createScriptoriumExtensions } from "@/scriptorium/lib/scriptoriumExtensions";
 import { FOOTER_SETTINGS_KEY } from "@/scriptorium/lib/footerTitle";
 import { PageFlow, type PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
@@ -36,12 +37,10 @@ const footerSettings = {
   draft: { showPageNumbers: true, pageNumberStart: 1, footerText: "", footerTitle: "chapter" as const },
   patch: vi.fn(),
 };
-const DialogStub = {
-  props: { shapes: Array, closeOnStart: Boolean, visible: Boolean, title: String },
-  emits: ["close", "started"],
-  template: '<div data-testid="describe-dialog" />',
-};
-const stubs = { ChroniclerGenerateDialog: DialogStub, NewSheetDialog: true, PaywallModal: true, ArtPickerModal: true, ImageUpload: true, EmbedRevealControl: true, AiImageBadge: true };
+// "Describe it" opens the Familiar's card; what the card needs from the panel is its surface.
+const ask = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock("@/composables/ask/useOpenGenerator", () => ({ useOpenGenerator: () => ({ open: ask.open }) }));
+const stubs = { NewSheetDialog: true, PaywallModal: true, ArtPickerModal: true, ImageUpload: true, EmbedRevealControl: true, AiImageBadge: true };
 const context: PanelPageContext = {
   paperLabel: "Grimoire · A4 · Two columns",
   chapterNumber: 3,
@@ -273,18 +272,28 @@ describe("ScriptoriumPanel", () => {
       expect(hasDescribe(open(picture, content(), [], { campaignId: "camp-1" }).wrapper)).toBe(false);
     });
 
-    // Fails on: the dialog offering the notes' two shapes, or the result being reported for no picture.
-    it("opens the dialog with the book's six shapes and reports the render for the picture that was selected", async () => {
+    // Fails on: the card painting for no picture (nothing chosen yet), or into another one than the one that was selected.
+    it("opens the Familiar's card for the picture that was selected, and reports the render for that picture", async () => {
       const { wrapper } = open(picture, content(), [], { campaignId: "camp-1", pageAspect: 1 / 1.414 });
-      expect(wrapper.find("[data-testid=describe-dialog]").exists()).toBe(false);
+      expect(currentDescribeSurface.value?.hasTarget()).toBe(false);
       await wrapper.find("[data-testid=panel-describe]").trigger("click");
-      const dialog = wrapper.findComponent(DialogStub);
-      expect((dialog.props("shapes") as { id: string }[]).map((s) => s.id)).toEqual(["page", "tall", "square", "landscape", "banner", "column"]);
-      expect(dialog.props("closeOnStart")).toBe(true);
-      await dialog.vm.$emit("started", { jobId: "j1", prompt: "a keep", size: "1536x1024", shape: "banner" });
+      expect(ask.open).toHaveBeenCalledWith("picture_description");
+      const surface = currentDescribeSurface.value;
+      if (!surface) throw new Error("the panel registers its surface");
+      expect(surface.hasTarget()).toBe(true);
+      expect(surface.campaignId()).toBe("camp-1");
+      surface.start({ jobId: "j1", shape: "banner" });
       expect(wrapper.emitted("describe")).toEqual([[{ source: "node", pos: 5 }, { jobId: "j1", shape: "banner" }]]);
-      await dialog.vm.$emit("close");
-      expect(wrapper.find("[data-testid=describe-dialog]").exists()).toBe(false);
+      // Painted for: the next card does not paint into this picture again unless it is chosen again.
+      expect(surface.hasTarget()).toBe(false);
+    });
+
+    // Fails on: the card offering the notes' two shapes in a book, where the page's own proportions are the point.
+    it("offers the card the book's six shapes, the full page cut to the page's own proportions", () => {
+      open(picture, content(), [], { campaignId: "camp-1", pageAspect: 0.5 });
+      const shapes = currentDescribeSurface.value?.shapes() ?? [];
+      expect(shapes.map((s) => s.id)).toEqual(["page", "tall", "square", "landscape", "banner", "column"]);
+      expect(shapes[0].aspect).toBe(0.5);
     });
 
     // Fails on: a second paint being started on a picture that is already being painted.
