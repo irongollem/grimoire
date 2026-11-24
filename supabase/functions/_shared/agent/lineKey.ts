@@ -71,6 +71,8 @@ function voiceLineDigest(secret: string, at: VoiceLineAt, text: string): Buffer 
  * voice with no conversation to prove it from. The campaign, the NPC, the DM and the exact words are under the signature.
  */
 export function voiceLineKey(secret: string, at: VoiceLineAt, text: string): string {
+  // A key minted without the secret could never be checked: say so where it is made, not as lines nobody can speak.
+  if (secret === "") throw new Error("voiceLineKey: no signing secret");
   return voiceLineDigest(secret, at, text).toString("base64url");
 }
 

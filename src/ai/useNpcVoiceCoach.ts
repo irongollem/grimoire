@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { buildAiProvenance, type AiProvenance } from "./provenance";
 import type { Npc } from "@/types/npc.types";
-import { parseVoiceLines } from "./npcVoiceLines";
+import { MAX_LINES, parseVoiceLines } from "./npcVoiceLines";
 
 /** The coach's reply; `lines` is parsed by parseVoiceLines. The provider and model ride along when the caller knows them. */
 interface VoiceReply {
@@ -62,14 +62,17 @@ export function useNpcVoiceCoach() {
     try {
       const result = await suggestServerSide(npc, npc.campaign_id, situation);
 
-      // Each reply entry keeps its own key through the parse, which drops and trims entries.
+      // Each reply entry is parsed on its own so it keeps the key at its own index (the parse drops empty entries,
+      // which would shift every key after them), then capped as the parse caps a whole reply.
       const raw = Array.isArray(result.lines) ? result.lines : [];
       const sent = Array.isArray(result.keys) && result.keys.length === raw.length ? result.keys : null;
-      const paired = raw.flatMap((entry, i) => {
-        const [line] = parseVoiceLines([entry]);
-        const key = sent !== null && typeof sent[i] === "string" && sent[i] !== "" ? (sent[i] as string) : null;
-        return line ? [{ line, key }] : [];
-      }).slice(0, parseVoiceLines(raw).length);
+      const paired = raw
+        .flatMap((entry, i) => {
+          const [line] = parseVoiceLines([entry]);
+          const key = sent !== null && typeof sent[i] === "string" && sent[i] !== "" ? (sent[i] as string) : null;
+          return line ? [{ line, key }] : [];
+        })
+        .slice(0, MAX_LINES);
       const sanitized = paired.map((p) => p.line);
       if (sanitized.length === 0) {
         error.value = "AI returned no usable dialogue. Please try again.";

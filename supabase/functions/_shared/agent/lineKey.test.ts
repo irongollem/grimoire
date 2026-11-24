@@ -63,7 +63,12 @@ describe("voiceLineKeyFits (#1273)", () => {
   });
 
   it("fits nothing under no secret or with a key that is not one", () => {
-    expect(voiceLineKeyFits("", at, "Mind your feet.", voiceLineKey("", at, "Mind your feet."))).toBe(false);
+    expect(voiceLineKeyFits("", at, "Mind your feet.", voiceLineKey("s3cret", at, "Mind your feet."))).toBe(false);
     expect(voiceLineKeyFits("s3cret", at, "Mind your feet.", "")).toBe(false);
+  });
+
+  // Bug caught: lines signed with no secret, whose keys can never fit, so every Speak aloud fails with no reason given.
+  it("refuses to sign without a secret", () => {
+    expect(() => voiceLineKey("", { campaignId: "c", npcId: "n", userId: "u" }, "Move along.")).toThrow();
   });
 });
