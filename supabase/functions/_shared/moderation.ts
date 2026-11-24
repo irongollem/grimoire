@@ -116,8 +116,8 @@ export function thresholdsFor(
   if (tighter === undefined) return standing;
   const out: Record<string, number> = { ...standing };
   for (const [category, limit] of Object.entries(tighter)) {
-    const standing = out[category];
-    if (standing !== undefined && limit < standing) out[category] = limit;
+    const current = out[category];
+    if (current !== undefined && limit < current) out[category] = limit;
   }
   return out;
 }

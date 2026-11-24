@@ -59,6 +59,7 @@ import { sceneFrom } from "./sceneRows.ts";
 import { travelMapFrom } from "./travelRows.ts";
 import { afterUse, asCompanion, characterInsert, characterRewrite, companionMemoriesText, companionRows, foundCharacters, isUntouchedTableCharacter, memoryRowsFor, profileWithBelongings } from "./characterRows.ts";
 import { escapeLike } from "./likeEscape.ts";
+import { nameCore } from "../_shared/agent/nameCheck.ts";
 import { nextSessionNumber, openedSession, prologueFrom, sessionRow } from "./sessionRows.ts";
 import { appendAgentTurns, saveAgentSummary } from "../_shared/agent/conversation/turnStore.ts";
 import { insertAgentSession } from "../_shared/agent/conversation/session.ts";
@@ -555,7 +556,8 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
       const plain = (c: string) => /^[\p{L}][\p{L}'’ -]*$/u.test(c);
       const safe = candidates.filter(plain);
       if (safe.length === 0) return candidates;
-      const patterns = (column: string) => safe.map((c) => `${column}.ilike."%${escapeLike(c)}%"`).join(",");
+      // A record holds the name without its title ("Ashfield" for "Lord Ashfield"), so the core is what is looked for.
+      const patterns = (column: string) => safe.map((c) => `${column}.ilike."%${escapeLike(nameCore(c))}%"`).join(",");
       const sources: Array<{ table: string; columns: string[] }> = [
         { table: "npcs", columns: ["name", "disguise_name"] },
         { table: "locations", columns: ["name"] },
@@ -575,7 +577,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
         return (data ?? []) as unknown as Array<Record<string, unknown>>;
       }));
       const texts = reads.flat().flatMap((row) => Object.values(row)).filter((v): v is string => typeof v === "string").map((v) => v.toLowerCase());
-      const known = new Set(safe.filter((c) => texts.some((t) => t.includes(c.toLowerCase()))).map((c) => c.toLowerCase()));
+      const known = new Set(safe.filter((c) => texts.some((t) => t.includes(nameCore(c).toLowerCase()))).map((c) => c.toLowerCase()));
       return candidates.filter((c) => !plain(c) || known.has(c.toLowerCase()));
     },
 

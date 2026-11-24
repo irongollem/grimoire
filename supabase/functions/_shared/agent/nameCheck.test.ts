@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { JudgeRequest, JudgeResult } from "../typesafe";
-import { candidateNames, NAME_CANDIDATES_MAX, nameCheckRequest, namesJudged, unknownNames, unknownNamesHint, UNKNOWN_NAME_MIN } from "./nameCheck";
+import { candidateNames, NAME_CANDIDATES_MAX, nameCheckRequest, nameCore, namesJudged, unknownNames, unknownNamesHint, UNKNOWN_NAME_MIN } from "./nameCheck";
 
 describe("candidateNames", () => {
   it.each([
@@ -47,7 +47,7 @@ describe("the judge's request and verdict", () => {
   });
 
   it("words the hint for one name and for several", () => {
-    expect(unknownNamesHint(["Floret"])).toContain("Floret, whom the campaign has no record of");
+    expect(unknownNamesHint(["Floret"])).toContain("Floret, which the campaign has no record of");
     expect(unknownNamesHint(["A", "B", "C"])).toContain("A, B and C");
     expect(unknownNamesHint(["A"])).toContain("introduce");
   });
@@ -127,5 +127,29 @@ describe("unknownNames", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+// #1268 review: the hint sent every name to `introduce`, which makes a person, so a place became an NPC.
+describe("unknownNamesHint for what is not a person", () => {
+  it("sends a place, group or thing to record, and only a person or creature to introduce", () => {
+    const hint = unknownNamesHint(["Saltmarsh Ferry"]);
+    expect(hint).toContain("a person or creature a record with introduce");
+    expect(hint).toContain("a place, group or thing on record with record");
+  });
+});
+
+// #1268 review: "Lord Ashfield" was looked up whole, missed the record "Ashfield" and was hinted as unknown.
+describe("nameCore", () => {
+  it.each([
+    ["Lord Ashfield", "Ashfield"],
+    ["Old Mother Hollow", "Hollow"],
+    ["Ashfield", "Ashfield"],
+    // A title alone keeps itself: there is nothing else to look up.
+    ["Captain", "Captain"],
+    // A title inside the name is part of it.
+    ["Ravi the Captain", "Ravi the Captain"],
+  ])("%s is looked up as %s", (name, core) => {
+    expect(nameCore(name)).toBe(core);
   });
 });

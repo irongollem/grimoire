@@ -5,7 +5,8 @@
  * At the start of a turn the narration the player was shown last turn is read for proper names in code, every name the
  * campaign already knows is dropped (the caller's lookup), the rest go to the judge in one request ("is this the name
  * of a specific person or place?", because capitals alone also mark exclamations and common words) and what passes is
- * told to the narrator as one sentence: give them a record with `introduce`, or leave them unnamed. A hint, not a ruling.
+ * told to the narrator as one sentence: a person gets a record with `introduce`, anything else a fact with `record`, or
+ * the name is left out. A hint, not a ruling.
  *
  * Pure except for the injected lookup and judge. Anything that cannot answer never changes the turn.
  */
@@ -151,6 +152,16 @@ export function candidateNames(text: string): string[] {
   return found;
 }
 
+/**
+ * The part of a candidate a record would hold: its leading titles dropped ("Lord Ashfield" is the record "Ashfield"),
+ * so a name told with its title is still found as known (#1268 review). A title alone is never a candidate.
+ */
+export function nameCore(name: string): string {
+  const words = name.trim().split(/\s+/);
+  while (words.length > 1 && TITLES.has(words[0].toLowerCase())) words.shift();
+  return words.join(" ");
+}
+
 function questionFor(name: string): NoulQuestion {
   return {
     type: "noul",
@@ -185,7 +196,9 @@ export function namesJudged(result: JudgeResult, names: readonly string[]): stri
 /** The one sentence the narrator reads. Plain: the names are the story's own. */
 export function unknownNamesHint(names: readonly string[]): string {
   const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-  return `Last turn you named ${list}, whom the campaign has no record of. If they will matter, give them a record with introduce; otherwise leave them unnamed.`;
+  // `introduce` makes a person; a place, a group or a thing goes on record as a fact (#1268 review: the hint sent every
+  // name to `introduce`, which would have made an NPC called "Saltmarsh Ferry").
+  return `Last turn you named ${list}, which the campaign has no record of. If they will matter, give a person or creature a record with introduce, and put a place, group or thing on record with record; otherwise leave them unnamed.`;
 }
 
 /**

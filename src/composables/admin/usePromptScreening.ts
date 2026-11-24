@@ -12,7 +12,8 @@ export interface PromptScreeningRow {
   id: string;
   created_at: string;
   generation_type: string;
-  image_provider: string;
+  /** Null for a chat line: it was never going to a picture service (20261124004634). */
+  image_provider: string | null;
   blocked: boolean;
   categories_over: string[];
   /** Null until the render resolves, or forever for a row we blocked before rendering. */
