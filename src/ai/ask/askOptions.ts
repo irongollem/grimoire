@@ -1,0 +1,89 @@
+/**
+ * Ask Grimoire (#1270): the option lists and record pickers the card's form draws from.
+ *
+ * The contract names a long or campaign-dependent list by key (`list: "species"`) and a record picker by kind
+ * (`record: "faction"`); this file is where those names meet the sources the generators' own panels read, so the card
+ * offers exactly what the panel did. A list is a function that returns a computed, so it is read only once a form
+ * asks for it (a closed panel must cost no egress).
+ */
+import { computed, type ComputedRef } from "vue";
+import type { AskRecordType } from "@edge-shared/agent/askContract";
+import { FACTION_ALIGNMENTS, NPC_FACTION_ROLES } from "@/types/faction.types";
+import { NPC_TEMPLATES } from "@/data/npcTemplates";
+import { useCampaignPeoples } from "@/composables/canon/useCampaignPeoples";
+import { useCampaignSpecies } from "@/composables/rules/useSpecies";
+import { useAllFactions } from "@/composables/factions/useFactions";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useParty } from "@/composables/party/useParty";
+import { useLocationTree } from "@/composables/locations/useLocations";
+
+export interface AskOption {
+  value: string;
+  label: string;
+}
+
+export interface AskRecordOption {
+  id: string;
+  name: string;
+}
+
+/** The "automatic" and "none" words of the stat block template list: the template the page picks, and no stat block. */
+export const STAT_TEMPLATE_AUTO = "auto";
+export const STAT_TEMPLATE_NONE = "none";
+
+function fixed(words: readonly string[]): AskOption[] {
+  return words.map((word) => ({ value: word, label: word }));
+}
+
+/** Every list a contract input may name by `list`. */
+export const ASK_LISTS: Readonly<Record<string, () => ComputedRef<AskOption[]>>> = {
+  /** The world's peoples in the DM's order, then the campaign's species not already listed (as the NPC page lists them). */
+  species: () => {
+    const { peoples } = useCampaignPeoples();
+    const { data: campaignSpecies } = useCampaignSpecies();
+    return computed(() => {
+      const names = peoples.value.filter((p) => p.readable).map((p) => p.name);
+      const listed = new Set(names.map((n) => n.toLowerCase()));
+      for (const { name } of campaignSpecies.value) {
+        if (listed.has(name.toLowerCase())) continue;
+        listed.add(name.toLowerCase());
+        names.push(name);
+      }
+      return fixed(names);
+    });
+  },
+  alignment: () => computed(() => fixed(FACTION_ALIGNMENTS)),
+  faction_role: () => computed(() => fixed(NPC_FACTION_ROLES)),
+  /** The NPC page's starter stat blocks, with its "automatic on Generate" and "none". */
+  npc_stat_template: () => computed(() => [
+    { value: STAT_TEMPLATE_AUTO, label: "Automatic on Generate" },
+    { value: STAT_TEMPLATE_NONE, label: "None" },
+    ...NPC_TEMPLATES.map((t) => ({ value: t.id, label: `${t.name} (CR ${t.stat_block.challenge_rating}), ${t.category}` })),
+  ]),
+};
+
+/** The record kinds a form can pick from so far; a kind a generator adds is added here with it. */
+export const ASK_RECORD_PICKERS = ["npc", "party_member", "location", "faction"] as const satisfies readonly AskRecordType[];
+export type AskRecordPickerType = (typeof ASK_RECORD_PICKERS)[number];
+
+export function isRecordPicker(type: AskRecordType): type is AskRecordPickerType {
+  return (ASK_RECORD_PICKERS as readonly AskRecordType[]).includes(type);
+}
+
+/**
+ * The pickers for the record kinds `wanted()` names, read from the composables the panels use. A kind nobody wants is
+ * not read, and its picker is an empty list.
+ */
+export function useAskRecordOptions(wanted: () => ReadonlySet<AskRecordType>): Record<AskRecordPickerType, ComputedRef<AskRecordOption[]>> {
+  const { data: npcs } = useNpcs(() => wanted().has("npc"));
+  const { data: party } = useParty(() => wanted().has("party_member"));
+  const { data: factions } = useAllFactions(() => wanted().has("faction"));
+  const { locationOptions } = useLocationTree(() => wanted().has("location"));
+  const named = (rows: readonly AskRecordOption[] | undefined) => (rows ?? []).map((r) => ({ id: r.id, name: r.name }));
+  return {
+    npc: computed(() => named(npcs.value)),
+    party_member: computed(() => named(party.value)),
+    faction: computed(() => named(factions.value)),
+    location: computed(() => named(locationOptions.value)),
+  };
+}

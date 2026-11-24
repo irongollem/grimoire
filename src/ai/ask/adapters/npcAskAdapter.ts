@@ -49,8 +49,21 @@ import { useNpcQuote } from "@/composables/ai/quotes/npcQuote";
 import { useCampaignPeoples } from "@/composables/canon/useCampaignPeoples";
 import { npcSpecies } from "@/lib/canon/npcSpecies";
 import { buildNpcAiContext, useGenerateNpc, type NpcGenerateForm } from "@/composables/npcs/useGenerateNpc";
+import type { NpcRelationship } from "@/types/npc.types";
+import { getNpcTemplate } from "@/data/npcTemplates";
+import { STAT_TEMPLATE_AUTO, STAT_TEMPLATE_NONE } from "@/ai/ask/askOptions";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { DEFAULT_ASSOCIATE } from "@/lib/npcGenerator/associate";
+
+/** The attitudes the schema lists, as the NPC page's `relationship`; `readAskInputs` already held the word to the enum. */
+const ATTITUDES: readonly NpcRelationship[] = ["unknown", "hostile", "unfriendly", "indifferent", "friendly", "helpful"];
+
+/** The page's starter stat block choice: "auto" (matched to the occupation), "none", or one of its templates; anything else is auto. */
+function templateChoice(word: string | null): { id: string; name: string | null } {
+  if (word === STAT_TEMPLATE_NONE) return { id: "", name: "None" };
+  const template = word === null || word === STAT_TEMPLATE_AUTO ? undefined : getNpcTemplate(word);
+  return template ? { id: template.id, name: template.name } : { id: STAT_TEMPLATE_AUTO, name: null };
+}
 
 /** The form's way to say "not given" is an empty string. */
 function blankIfUnsaid(value: string | null): string {
@@ -140,6 +153,8 @@ export function useNpcAskAdapter(): AskAdapter {
       location,
       faction,
       factionRole: askString(inputs, "faction_role"),
+      attitude: ATTITUDES.find((a) => a === askString(inputs, "attitude")) ?? "unknown",
+      template: templateChoice(askString(inputs, "stat_block_template")),
       portrait: askFlag(inputs, "portrait"),
       alterEgo: askFlag(inputs, "alter_ego"),
       concept: proposal.concept.trim(),
@@ -186,6 +201,8 @@ export function useNpcAskAdapter(): AskAdapter {
       }
     }
     lines.push(...askLinkLines(read.links, choices));
+    if (read.attitude !== "unknown") lines.push({ label: "Attitude", value: read.attitude, credits: null });
+    if (read.template.name !== null) lines.push({ label: "Stat block", value: read.template.name, credits: null });
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.portrait) lines.push({ label: "Portrait", value: "None", credits: null });
@@ -219,8 +236,8 @@ export function useNpcAskAdapter(): AskAdapter {
       name: blankIfUnsaid(read.name),
       race: species.race,
       alignment: blankIfUnsaid(read.alignment),
-      relationship: "unknown",
-      templateId: "auto",
+      relationship: read.attitude,
+      templateId: read.template.id,
       location_id: chosen.location?.id ?? null,
       faction_id: chosen.faction?.id ?? null,
       faction_role: blankIfUnsaid(read.factionRole) || "Member",

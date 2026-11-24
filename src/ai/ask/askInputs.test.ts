@@ -31,4 +31,18 @@ describe("readAskInputs", () => {
   it("reads nothing for a generator that does not exist", () => {
     expect(readAskInputs("nope", { race: "elf" })).toEqual({});
   });
+
+  const UUID = "00000000-0000-4000-8000-0000000000a1";
+
+  // Bug caught: a name or a made-up id in a record input reaching a lookup (and, for a model, an id of another campaign's row typed loosely).
+  it("holds a record input to a uuid", () => {
+    expect(readAskInputs("npc", { faction_id: "Tidewardens" })).toEqual({});
+    expect(readAskInputs("npc", { faction_id: UUID })).toEqual({ faction_id: UUID });
+  });
+
+  // Bug caught: a blank list pick (a cleared species) kept as an input, quoting an NPC "of  ".
+  it("drops a list input that is blank and keeps one that is a word", () => {
+    expect(readAskInputs("npc", { race: "   " })).toEqual({});
+    expect(readAskInputs("npc", { race: "Tiefling", stat_block_template: "commoner" })).toEqual({ race: "Tiefling", stat_block_template: "commoner" });
+  });
 });

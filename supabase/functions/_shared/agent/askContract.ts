@@ -27,14 +27,37 @@ export type AskRecordType =
   | "npc" | "monster" | "item" | "spell" | "location" | "faction" | "quest" | "quest_beat" | "encounter" | "deity"
   | "party_member" | "note" | "canon" | "room";
 
+/**
+ * What the form (the card's inputs, #1270) needs and the model never reads: the model sees `description` and `enum`
+ * only. Every field is optional, so an input not yet migrated still renders from its key.
+ */
+export interface AskInputMeta {
+  /** The DM's word for it, as the generator's panel labels it. */
+  label?: string;
+  /** A fold row's name: inputs sharing a group fold into one row that says what it holds. */
+  group?: string;
+  /** Shown only while another input is set (or set to one of `is`); with several keys, while any is. Cleared when the condition stops holding. */
+  when?: { key: string | readonly string[]; is?: readonly string[] };
+}
+
+/** String-only form metadata. */
+export interface AskStringMeta {
+  /** A key into the browser's option registry (`askOptions.ts`) for a long or campaign-dependent list. */
+  list?: string;
+  /** For an `*_id` string: which record picker to show; the value is that record's uuid. */
+  record?: AskRecordType;
+  /** The DM's words for enum values whose plain reading is wrong; any other value reads as itself, capitalised. */
+  optionLabels?: Readonly<Record<string, string>>;
+}
+
 /** A JSON Schema property, the subset the generators' inputs use. */
 export type AskInputSchema =
-  | { type: "string"; description: string; enum?: readonly string[] }
-  | { type: "integer"; description: string; minimum?: number; maximum?: number }
-  | { type: "boolean"; description: string }
+  | ({ type: "string"; description: string; enum?: readonly string[] } & AskInputMeta & AskStringMeta)
+  | ({ type: "integer"; description: string; minimum?: number; maximum?: number } & AskInputMeta)
+  | ({ type: "boolean"; description: string } & AskInputMeta)
   // Ties to existing records (an array of `{kind, id, relation}`): `subject` is the kind of the NEW record and `kinds`
   // the kinds it may be tied to. The words come from the catalogue (`askLinks.ts`), so they are not listed here.
-  | { type: "links"; description: string; subject: LinkKind; kinds: readonly LinkKind[] };
+  | ({ type: "links"; description: string; subject: LinkKind; kinds: readonly LinkKind[] } & AskInputMeta);
 
 export interface AskGenerator {
   /** Stable id: the `propose` tool's enum and the panel's adapter key. */
@@ -50,6 +73,11 @@ export interface AskGenerator {
   inputs: Readonly<Record<string, AskInputSchema>>;
   /** Inputs that change the result or the price enough that the panel asks when the DM did not say. */
   ask?: readonly string[];
+  /**
+   * The inputs a card opened by the generator's button starts with (the page's own defaults, such as the picture on).
+   * A request typed to the model keeps "unsaid = off" (`askFlag`); this is only for the button.
+   */
+  opened?: Readonly<Record<string, unknown>>;
   /** A `fill` generator's target kinds. */
   target?: readonly AskRecordType[];
   /** Only offered where the campaign's game system offers stat blocks and 5e rules (`offers("stat-blocks")`). */
@@ -95,22 +123,25 @@ export const ASK_GENERATORS: readonly AskGenerator[] = [
     id: "npc", action: "Create NPC", noun: "NPC", ending: "record",
     describe: "A new non-player character: name, look, voice, personality, secret. It can be tied to people, places and factions the campaign already has: say who it is to them (a sister, a former partner, a rival) with `related_npc_id` or `related_pc_id` and `relation`.",
     inputs: {
-      name: { type: "string", description: "A name the DM gave." },
-      race: { type: "string", description: "Species or race, as the DM said it." },
-      age: { type: "integer", description: "Age in years, when the DM gave one.", minimum: 0, maximum: 10000 },
-      alignment: { type: "string", description: "Alignment." },
-      role: { type: "string", description: "Occupation or role in the world." },
-      location_id: { type: "string", description: "Id of a place in this campaign where they live or work." },
-      faction_id: { type: "string", description: "Id of a faction in this campaign they belong to." },
-      faction_role: { type: "string", description: "Their role in that faction, e.g. Leader, Spy, Member. Only with faction_id." },
-      related_npc_id: { type: "string", description: "Id of an existing NPC in this campaign this one is tied to (kin, friend, rival, former partner...). Pair it with `relation`." },
-      related_pc_id: { type: "string", description: "Id of an existing party member (player character) in this campaign this one is kin to. Only for the family words of `relation`." },
-      relation: { type: "string", description: "What the NEW NPC is to the one in related_npc_id or related_pc_id, read from the new NPC: \"sibling\" = the new NPC is their sibling; \"mentor\" = the new NPC mentors them; \"betrayed\" = the new NPC betrayed them; \"betrayed_by\" = they betrayed the new NPC. Without it a related id is ignored.", enum: NPC_RELATIONS },
-      second_parent_id: { type: "string", description: "Id of an existing NPC who is the other parent, when relation is child. Only with related_npc_id or related_pc_id." },
-      links: npcLinks,
-      portrait: image,
-      alter_ego: { type: "boolean", description: "Give them a disguise or second identity." },
+      name: { type: "string", description: "A name the DM gave.", label: "Name" },
+      race: { type: "string", description: "Species or race, as the DM said it.", label: "Species", list: "species" },
+      age: { type: "integer", description: "Age in years, when the DM gave one.", minimum: 0, maximum: 10000, label: "Age" },
+      alignment: { type: "string", description: "Alignment.", label: "Alignment", list: "alignment" },
+      role: { type: "string", description: "Occupation or role in the world.", label: "Role" },
+      location_id: { type: "string", description: "Id of a place in this campaign where they live or work.", label: "Lives in", record: "location", group: "Where they stand" },
+      faction_id: { type: "string", description: "Id of a faction in this campaign they belong to.", label: "Faction", record: "faction", group: "Where they stand" },
+      faction_role: { type: "string", description: "Their role in that faction, e.g. Leader, Spy, Member. Only with faction_id.", label: "Role in faction", list: "faction_role", group: "Where they stand", when: { key: "faction_id" } },
+      related_npc_id: { type: "string", description: "Id of an existing NPC in this campaign this one is tied to (kin, friend, rival, former partner...). Pair it with `relation`.", label: "Tied to (NPC)", record: "npc", group: "Where they stand" },
+      related_pc_id: { type: "string", description: "Id of an existing party member (player character) in this campaign this one is kin to. Only for the family words of `relation`.", label: "Tied to (character)", record: "party_member", group: "Where they stand" },
+      relation: { type: "string", description: "What the NEW NPC is to the one in related_npc_id or related_pc_id, read from the new NPC: \"sibling\" = the new NPC is their sibling; \"mentor\" = the new NPC mentors them; \"betrayed\" = the new NPC betrayed them; \"betrayed_by\" = they betrayed the new NPC. Without it a related id is ignored.", enum: NPC_RELATIONS, label: "Relation to them", group: "Where they stand", when: { key: ["related_npc_id", "related_pc_id"] } },
+      second_parent_id: { type: "string", description: "Id of an existing NPC who is the other parent, when relation is child. Only with related_npc_id or related_pc_id.", label: "Other parent", record: "npc", group: "Where they stand", when: { key: "relation", is: ["child"] } },
+      links: { ...npcLinks, label: "Ties", group: "Where they stand" },
+      attitude: { type: "string", description: "How they feel about the party.", enum: ["unknown", "hostile", "unfriendly", "indifferent", "friendly", "helpful"], label: "Attitude to the party", group: "At the table" },
+      stat_block_template: { type: "string", description: "Starter stat block: a template id, \"auto\" (matched to their occupation) or \"none\". Leave out for auto.", label: "Stat block template", list: "npc_stat_template", group: "At the table" },
+      portrait: { ...image, label: "Portrait" },
+      alter_ego: { type: "boolean", description: "Give them a disguise or second identity.", label: "Alter ego" },
     },
+    opened: { portrait: true },
     ask: ["portrait"],
   },
   {

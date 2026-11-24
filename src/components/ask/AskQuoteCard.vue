@@ -51,7 +51,7 @@
         <span class="tabular-nums">{{ totalText }}</span>
       </div>
 
-      <AskAdjust v-if="adjusting && item.state === 'quote'" :generator="generator" :inputs="item.proposal.inputs" @update="emit('adjust', $event)" />
+      <AskForm v-if="adjusting && item.state === 'quote'" :generator="generator" :inputs="item.proposal.inputs" @update="emit('adjust', $event)" />
 
       <!-- A gate that says no replaces the gilt button with its reason, and the way past it. -->
       <div v-if="quote.block" class="flex flex-col gap-1.5" role="alert" data-testid="ask-block">
@@ -94,7 +94,7 @@ import type { AskAdapters } from "@/ai/ask/useAskAdapters";
 import { askGeneratorPage } from "@/composables/ask/askRecordRoute";
 import type { AskItem } from "@/composables/ask/useAskConversation";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import AskAdjust from "@/components/ask/AskAdjust.vue";
+import AskForm from "@/components/ask/AskForm.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 
 const { item, adapters } = defineProps<{

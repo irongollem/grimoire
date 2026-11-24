@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
+import { computed } from "vue";
 import { mount } from "@vue/test-utils";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote } from "@/lib/ask/askAdapter";
@@ -26,6 +27,14 @@ function card(quote: AskQuote | null, over: { state?: "quote" | "running" | "can
     global: { stubs: { RouterLink: true } },
   });
 }
+
+// The form reads this campaign's lists through composables that need an app; the card's own job is only to host it.
+vi.mock("@/ai/ask/askOptions", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/ai/ask/askOptions")>(),
+  ASK_LISTS: {},
+  useAskRecordOptions: () => ({ npc: computed(() => []), party_member: computed(() => []), faction: computed(() => []), location: computed(() => []) }),
+}));
+vi.mock("@/ai/ask/adapters/askLinkRecords", () => ({ useAskLinkRecords: () => ({ names: computed(() => undefined), loading: computed(() => false), failed: computed(() => false) }) }));
 
 describe("AskQuoteCard", () => {
   // Bug caught: the gilt button not carrying the price, so the DM confirms without seeing what it costs.
@@ -106,11 +115,11 @@ describe("AskQuoteCard", () => {
   });
 
   // Bug caught: Adjust not offering the generator's inputs, or an edit not reaching the card's owner to re-quote.
-  it("lists the generator's inputs under Adjust and emits an edit", async () => {
+  it("lists the generator's form under Adjust and emits an edit", async () => {
     const w = card(ready);
     await w.findAll("button").find((b) => b.text() === "Adjust")?.trigger("click");
-    expect(w.get('[data-testid="ask-adjust"]').text().toLowerCase()).toContain("portrait");
-    await w.get('[data-testid="ask-adjust"] [role="switch"]').trigger("click");
+    expect(w.get('[data-testid="ask-form"]').text().toLowerCase()).toContain("portrait");
+    await w.get('[data-testid="ask-form"] [role="switch"]').trigger("click");
     expect(w.emitted("adjust")?.[0]?.[0]).toMatchObject({ portrait: true });
   });
 });
