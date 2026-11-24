@@ -67,7 +67,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
         return { content: "from the campaign", isError: false };
       },
       loadSpeaker: async () => null,
-      setScene: async (_s, _c, id) => ({ id, name: "Cellar", kind: null, description: "", within: null, withinId: null, beside: [], places: [], characters: [] }),
+      setScene: async (_s, _c, id) => ({ id, name: "Cellar", kind: null, description: "", within: null, withinId: null, beside: [], places: [], characters: [], hasMap: true }),
       fileFact: async () => ({ id: "00000000-0000-4000-8000-00000000f001" }),
     },
     campaignId: CAMPAIGN,

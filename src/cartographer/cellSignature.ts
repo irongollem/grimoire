@@ -12,7 +12,7 @@
 // (`cartographer/structure.ts` producing, `lib/locations/publish.ts`
 // consuming) share one definition rather than each restating it.
 
-import type { CellKey } from "@/types/dungeonMap.types";
+import type { CellKey } from "../types/dungeonMap.types.ts";
 
 /** Sort a cell set numerically (by y, then x) and drop duplicates, so the
  *  signature — and every `cells` array the publish writes — is canonical. */

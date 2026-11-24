@@ -28,6 +28,8 @@ import {
   type SessionRow,
 } from "./turnTypes";
 import type { SceneView } from "../_shared/agent/scene";
+import type { MapPlan } from "../_shared/agent/mapPlan";
+import type { MadeMap } from "./mapMakeIo";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter";
 import type { RecordedFact } from "../_shared/agent/record";
 import type { PendingRoll } from "../_shared/agent/playerRoll";
@@ -71,6 +73,7 @@ function cellarScene(over: Partial<SceneView> = {}): SceneView {
     beside: [],
     places: [],
     characters: [{ id: HONEYCOMB, name: "Honeycomb", occupation: "apprentice" }],
+    hasMap: true,
     ...over,
   };
 }
@@ -213,6 +216,8 @@ interface Harness {
     advanceFails: boolean;
     rewindFails: boolean;
     announceFails: boolean;
+    /** What drawing the narrator's map answers: made, the place already has one, or fails. */
+    mapResult: "made" | "exists" | "fails";
     /** The canon (#1226): the world block, the last sitting, what lies here, the lookup, what an invention is held against. */
     canonWorld: string;
     canonPrevious: string;
@@ -233,6 +238,9 @@ interface Harness {
   inventionReads: Array<{ campaignId: string; memberId: string }>;
   rulingsMade: InventionRuling[];
   announced: string[];
+  /** Every map asked to be drawn, and every one sent on to be painted. */
+  mapsMade: Array<{ campaignId: string; placeId: string; plan: MapPlan }>;
+  mapsPainted: MadeMap[];
   questLoads: Array<{ campaignId: string; pressureClockId: string | null }>;
   fightLoads: Array<{ campaignId: string; locationId: string | null; fightEncounterId: string | null }>;
   introduced: Array<{ ctx: { campaignId: string; memberId: string | null; locationId: string | null }; intro: { replaces: string | null; name: string; about: string; known: boolean; here: boolean } }>;
@@ -364,6 +372,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       advanceFails: false,
       rewindFails: false,
       announceFails: false,
+      mapResult: "made",
       canonWorld: "",
       canonPrevious: "",
       canonHere: NO_CANON_HERE,
@@ -379,6 +388,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     inventionReads: [],
     rulingsMade: [],
     announced: [],
+    mapsMade: [],
+    mapsPainted: [],
     questLoads: [],
     pendingRolls: [],
     reveals: [],
@@ -671,6 +682,15 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       if (h.state.rewindFails) throw new Error("rpc failed");
       const date = { ...START_DATE, day: START_DATE.day - days };
       return { date, text: `day ${date.day} of month ${date.month}, ${date.year}` };
+    },
+    makeMap: async (campaignId, placeId, plan) => {
+      h.mapsMade.push({ campaignId, placeId, plan });
+      if (h.state.mapResult === "fails") throw new Error("rpc failed");
+      if (h.state.mapResult === "exists") return null;
+      return { placeId, drawingId: "drawing-1", name: plan.name, about: "", picture: { png: new Uint8Array(), width: 64, height: 64 }, calibration: { cells_per_image_width: 1, origin_x_pct: 0, origin_y_pct: 0 } };
+    },
+    paintMap: (_campaignId, made) => {
+      h.mapsPainted.push(made);
     },
     announce: async (_campaignId, text) => {
       if (h.state.announceFails) throw new Error("insert failed");
@@ -4594,5 +4614,110 @@ describe("the Narrator rules on the played character's inventions (#1021 row 14)
     expect(h.requests[0].tools.map((t) => t.name)).not.toContain("rule_invention");
     expect(answers(h, 1)[0]).toMatchObject({ isError: true });
     expect(h.rulingsMade).toEqual([]);
+  });
+});
+
+describe("the narrator draws a map for a place that has none", () => {
+  const BODY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "We search the cellar.", mode: "do" };
+  const PLAN = {
+    name: "The Honey Cellar", cols: 8, rows: 6, light: "dim",
+    rooms: [{ key: "a", name: "Cellar", x: 1, y: 1, w: 4, h: 3, about: "Barrels along the north wall." }],
+    doors: [{ from: "a", to: "outside", side: "south" }],
+  };
+  const draw = (input: Record<string, unknown> = PLAN, id = "m1"): ModelStep =>
+    step(10, { blocks: [{ type: "tool_call", id, name: "make_map", input }], stop: "tool_calls" });
+  /** A table standing in a place with no map, which is the only place the tool is offered. */
+  const bare = (script: Script, over: Partial<SessionRow> = {}): Harness => {
+    const h = harness(script);
+    h.state.places.set(CELLAR, cellarScene({ hasMap: false }));
+    existingSession(h, { scene_location_id: CELLAR, ...over });
+    return h;
+  };
+  const offered = (h: Harness) => h.requests[0].tools.map((t) => t.name).includes("make_map");
+  const answers = (h: Harness, request: number) =>
+    h.requests[request].messages.flatMap((m) => m.blocks).filter((b) => b.type === "tool_result");
+
+  // Bug caught: the tool offered over a map the DM drew, so the narrator replaced it; or never offered, so no map is made.
+  it("is offered only where the place has no map", async () => {
+    const without = bare([step(10)]);
+    await play(without, { body: BODY });
+    expect(offered(without)).toBe(true);
+    const withMap = harness([step(10)]);
+    existingSession(withMap, { scene_location_id: CELLAR });
+    await play(withMap, { body: BODY });
+    expect(offered(withMap)).toBe(false);
+  });
+
+  // Bug caught: a map drawn in the middle of a round, where the board is what is fought on.
+  it("is not offered, and is refused if called, in a fight on the board", async () => {
+    const h = bare([draw(), step(10)], { fight_encounter_id: FIGHT });
+    h.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "Rosie confronts Sift", phase: "running", round: 1, fighters: [] } };
+    await play(h, { body: BODY });
+    expect(offered(h)).toBe(false);
+    expect(answers(h, 1)[0]).toMatchObject({ isError: true });
+    expect(h.mapsMade).toEqual([]);
+  });
+
+  // Bug caught: a map written on the spot for a turn that was never kept, and again when the player sent it again.
+  it("draws nothing until the turn is kept, then once, and says so in the chat", async () => {
+    const h = bare([draw(), step(10)]);
+    await play(h, { body: BODY });
+    expect(h.mapsMade).toEqual([{ campaignId: CAMPAIGN, placeId: CELLAR, plan: expect.objectContaining({ name: "The Honey Cellar", cols: 8 }) }]);
+    expect(h.mapsPainted.map((m) => m.drawingId)).toEqual(["drawing-1"]);
+    expect(h.announced).toEqual(["🗺️ A map of The Honey Cellar is drawn"]);
+    expect(answers(h, 1)[0]).toMatchObject({ isError: false });
+
+    const unkept = bare([draw(), step(10)]);
+    unkept.state.conflict = true;
+    await play(unkept, { body: BODY });
+    expect(unkept.mapsMade).toEqual([]);
+    expect(unkept.mapsPainted).toEqual([]);
+  });
+
+  // Bug caught: a second plan silently replacing the first, or both written.
+  it("takes one map a reply", async () => {
+    const h = bare([draw(PLAN, "m1"), draw({ ...PLAN, name: "Another" }, "m2"), step(10)]);
+    await play(h, { body: BODY });
+    expect(answers(h, 2).map((r) => r.isError)).toEqual([false, true]);
+    expect(h.mapsMade.map((m) => m.plan.name)).toEqual(["The Honey Cellar"]);
+  });
+
+  // Bug caught: a plan the parser refuses written anyway, or the refusal never reaching the narrator to fix it.
+  it("sends a plan that does not parse back as an error, and writes nothing", async () => {
+    const h = bare([draw({ ...PLAN, rooms: [] }), step(10)]);
+    await play(h, { body: BODY });
+    expect(answers(h, 1)[0]).toMatchObject({ isError: true });
+    expect(h.mapsMade).toEqual([]);
+  });
+
+  // Bug caught: a plan drawn for the room the party then left, written to the wrong place.
+  it("refuses a map in a reply where the party moved", async () => {
+    const OTHER = "00000000-0000-4000-8000-0000000000a9";
+    const h = bare([step(10, { blocks: [{ type: "tool_call", id: "g1", name: "go_to", input: { location_id: OTHER } }], stop: "tool_calls" }), draw(), step(10)]);
+    h.state.places.set(OTHER, cellarScene({ id: OTHER, name: "The Yard", hasMap: false }));
+    await play(h, { body: BODY });
+    expect(h.mapsMade).toEqual([]);
+  });
+
+  // Bug caught: the DM's own map drawn meanwhile treated as a failure, or painted over.
+  it("treats a place that got a map meanwhile as skipped: no chat line, no painting, the turn kept", async () => {
+    const h = bare([draw(), step(10)]);
+    h.state.mapResult = "exists";
+    await play(h, { body: BODY });
+    expect(h.mapsMade).toHaveLength(1);
+    expect(h.announced).toEqual([]);
+    expect(h.mapsPainted).toEqual([]);
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
+  // Bug caught: a map the database refused throwing away a paid turn.
+  it("keeps the turn when the map cannot be written, and says nothing of it", async () => {
+    const h = bare([draw(), step(10)]);
+    h.state.mapResult = "fails";
+    await play(h, { body: BODY });
+    expect(h.appends).toHaveLength(1);
+    expect(h.announced).toEqual([]);
+    expect(h.mapsPainted).toEqual([]);
+    expect(last(h)).toMatchObject({ type: "done" });
   });
 });

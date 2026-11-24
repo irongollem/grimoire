@@ -12,6 +12,7 @@ import type { Introduction } from "../_shared/agent/introduce.ts";
 import type { FightPlan } from "../_shared/agent/fight.ts";
 import type { InventionRuling } from "../_shared/agent/invention.ts";
 import type { PendingRoll } from "../_shared/agent/playerRoll.ts";
+import type { MapPlan } from "../_shared/agent/mapPlan.ts";
 import type { QuestMove } from "../_shared/agent/quests.ts";
 import type { FiledFact } from "./turnTools.ts";
 import { safely } from "./turnSupport.ts";
@@ -56,6 +57,8 @@ export interface TurnEffects {
   daysPassed: number;
   // Days a correction takes the campaign's date back by; carried out only once the turn is kept.
   daysTakenBack: number;
+  // The map the narrator drew for the place it has none for; written (and painted) only once the turn is kept.
+  mapPlan: { placeId: string; plan: MapPlan } | null;
   // The fight the narrator starts this turn; started only once the turn is kept.
   fightPlan: FightPlan | null;
   // Clues found and passages told in play this turn (#1226); marked only once the turn is kept.
@@ -81,6 +84,7 @@ export function newEffects(): TurnEffects {
     madeHazards: [],
     daysPassed: 0,
     daysTakenBack: 0,
+    mapPlan: null,
     fightPlan: null,
     broughtOut: [],
     rulings: [],

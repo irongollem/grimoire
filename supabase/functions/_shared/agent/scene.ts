@@ -24,6 +24,8 @@ export interface SceneView {
   places: { id: string; name: string }[];
   /** The people here, by the name the party would know them by (a disguise, not the true name). */
   characters: { id: string; name: string; occupation: string | null }[];
+  /** Whether the place, or a place above it, has a map (a picture, a drawing or a blank grid): then `make_map` is not offered. */
+  hasMap: boolean;
 }
 
 /** A scene that fills the system text on every turn costs on every turn, so each part has a ceiling. */
@@ -95,6 +97,9 @@ export function parseGoToInput(
 
 const HEADING = "## Where the party is";
 
+/** Said only where there is no map, so the narrator knows `make_map` exists for this place. */
+export const NO_MAP_LINE = "This place has no map yet; make_map can draw one when the party explores it.";
+
 /** The block of the system text that says where the party is. */
 export function sceneSection(scene: TrimmedScene | null): string {
   if (!scene) {
@@ -135,6 +140,8 @@ export function sceneSection(scene: TrimmedScene | null): string {
         "These lists are where things are, not which doors exist. Only something in the story (a locked door, a guard, a collapse) keeps the party in.",
     );
   }
+
+  if (!scene.hasMap) lines.push("", NO_MAP_LINE);
 
   lines.push(
     "",

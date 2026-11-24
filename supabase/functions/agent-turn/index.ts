@@ -56,6 +56,9 @@ import type { TurnRow } from "../_shared/agent/transcript.ts";
 import { beginTurn } from "./handler.ts";
 import { candidateFactIds, factFailure, NEWEST_FACTS, openFacts, recordFrom, recordTies, sessionIdsOf, sessionNumbers } from "./recordRows.ts";
 import { sceneFrom } from "./sceneRows.ts";
+import { makeTableMap, paintTableMap, placeHasMap, writePlaceMap } from "./mapMakeIo.ts";
+import { makePaintDeps, uploadMapPicture } from "./mapPaintIo.ts";
+import { decryptValue } from "../_shared/vault.ts";
 import { travelMapFrom } from "./travelRows.ts";
 import { afterUse, asCompanion, characterInsert, characterRewrite, companionMemoriesText, companionRows, foundCharacters, isUntouchedTableCharacter, memoryRowsFor, profileWithBelongings } from "./characterRows.ts";
 import { escapeLike } from "./likeEscape.ts";
@@ -424,7 +427,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
       if (parent.error) throw parent.error;
       if (children.error) throw children.error;
       if (people.error) throw people.error;
-      return sceneFrom(place, parent.data, siblings.data ?? [], children.data ?? [], people.data ?? []);
+      return sceneFrom(place, parent.data, siblings.data ?? [], children.data ?? [], people.data ?? [], await placeHasMap(admin, campaignId, place.id as string));
     },
 
     async setPendingRoll(sessionId, campaignId, pending): Promise<void> {
@@ -771,6 +774,31 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     advanceDate: (campaignId, days) => moveDate("advance_campaign_date", campaignId, days),
     // A correction's days taken back: the same caller, the same reading of the new date.
     rewindDate: (campaignId, days) => moveDate("rewind_campaign_date", campaignId, days),
+    // As the caller: `make_place_map` is security invoker, so the DM's own RLS decides who may give a place its map.
+    makeMap: (campaignId, placeId, plan) =>
+      makeTableMap(
+        {
+          upload: async (bytes) => (await uploadMapPicture(admin, user.id, bytes, "image/png")).url,
+          write: (write) => writePlaceMap(supabase, write),
+          newRequestId: () => crypto.randomUUID(),
+        },
+        { placeId, plan },
+      ),
+    paintMap(campaignId, made) {
+      const run = paintTableMap(makePaintDeps({ admin, userId: user.id, campaignId, placeId: made.placeId, drawingId: made.drawingId, decrypt: decryptValue, report }), made)
+        .then((outcome) => {
+          if (outcome !== "painted") console.warn(`agent-turn: the map of ${made.name} stays the plain picture (${outcome}).`);
+        })
+        .catch((error) => {
+          console.error("agent-turn: painting the map failed; the plain picture stays:", error);
+        });
+      try {
+        // @ts-ignore EdgeRuntime is a Deno Deploy global, not in Deno's type defs; it keeps the isolate alive for the painting.
+        EdgeRuntime.waitUntil(run);
+      } catch (error) {
+        console.error("agent-turn: waitUntil failed; the painting runs while the isolate lives:", error);
+      }
+    },
     async announce(campaignId, text) {
       const { error } = await admin.from("campaign_messages").insert({
         campaign_id: campaignId, user_id: user.id, recipient_user_id: null, sender_name: null, message: text, type: "system", metadata: null,

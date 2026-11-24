@@ -180,6 +180,22 @@ async function carryOutKeptTurn(
       console.error("agent-turn: moving the campaign's date failed:", error);
     }
   }
+  // The map the narrator drew for a place that had none, now that the turn is kept. A place that has one by now (the
+  // DM drew it meanwhile) is skipped, never an error: the DM's map wins. One that cannot be written costs the map,
+  // never the turn. The painting runs on after this, in the background.
+  if (fx.mapPlan !== null) {
+    try {
+      const made = await deps.makeMap(campaign.id, fx.mapPlan.placeId, fx.mapPlan.plan);
+      if (made === null) {
+        console.warn("agent-turn: the place has a map already, so the narrator's was not drawn.");
+      } else {
+        await safely(() => deps.announce(campaign.id, `🗺️ A map of ${made.name} is drawn`));
+        deps.paintMap(campaign.id, made);
+      }
+    } catch (error) {
+      console.error("agent-turn: drawing the map failed:", error);
+    }
+  }
   // Only now: a turn that was not kept leaves the quests untouched, and the player's retry makes the moves again.
   if (questState !== null) {
     await applyKeptQuestMoves({

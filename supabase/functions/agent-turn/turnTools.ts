@@ -18,6 +18,7 @@ import type { FightState } from "../_shared/agent/fight.ts";
 import { alreadyRecorded, existsText, INTRODUCE_TOOL, INTRODUCE_TOOL_NAME, INTRODUCTIONS_PER_TURN, introducedText, parseIntroduction, type Introduction } from "../_shared/agent/introduce.ts";
 import { GO_TO_TOOL, makeSceneTool } from "../_shared/agent/scene.ts";
 import { parsePassDays, parseTakeDaysBack, PASS_DAYS_TOOL, PASS_DAYS_TOOL_NAME, passedText, TAKE_DAYS_BACK_TOOL, TAKE_DAYS_BACK_TOOL_NAME, takenBackText } from "../_shared/agent/days.ts";
+import { MAKE_MAP_TOOL, parseMapPlan, type MapPlan } from "../_shared/agent/mapPlan.ts";
 import { planRuling, RULE_INVENTION_TOOL, RULE_INVENTION_TOOL_NAME, type InventionRuling, type PendingInvention } from "../_shared/agent/invention.ts";
 import { FIRE_CONSEQUENCE_TOOL, FIRE_CONSEQUENCE_TOOL_NAME, parseFireInput, planFire } from "../_shared/agent/consequence.ts";
 import { ROLL_TABLE_TOOL, ROLL_TABLE_TOOL_NAME, rollAnswer } from "../_shared/agent/roadTables.ts";
@@ -106,6 +107,11 @@ export interface TurnToolsInput {
   } | null;
   /** The played character's hit points and where a change to them goes; null in a fight (the board keeps them) or with nobody played, and then the tool is not offered. */
   hitPoints: { now: { current: number; max: number } | null; onChange(change: HitPointChange): void } | null;
+  /**
+   * The place the party stands in when it has no map, and where the plan goes (`mapMakeIo.ts`, once the turn is kept).
+   * Null when the place has a map or a fight is on the board, and then `make_map` is not offered.
+   */
+  makeMap?: { placeId: string; onPlan(plan: MapPlan): void } | null;
   /** Where a hazard the narrator makes goes; left out, the tool is not offered (a fight on the board is fought with what is on it). */
   onHazard?: (hazard: HazardRules) => void;
   /** The turn is a correction ("That's not what happened"): `set_right` is offered beside the hit points tool. */
@@ -607,6 +613,20 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     return { content: takenBackText(parsed.days), isError: false };
   };
 
+  // Once a reply, and only for the place the reply began in: a plan drawn for a room the party then leaves would be
+  // written to the wrong place. A plan that does not parse goes back as an error, so the narrator may fix it.
+  let mapDrawn = false;
+  const makeMap = (toolInput: Record<string, unknown>) => {
+    if (!input.makeMap) return { content: "No map is drawn now.", isError: true };
+    if (mapDrawn) return { content: "A map was already drawn in this reply.", isError: true };
+    if (movedTo !== null) return { content: "The party moved in this reply, so the map is made in the next one, where they stand.", isError: true };
+    const parsed = parseMapPlan(toolInput);
+    if (!parsed.ok) return { content: parsed.error, isError: true };
+    mapDrawn = true;
+    input.makeMap.onPlan(parsed.plan);
+    return { content: "The map will be drawn when this reply is kept. Do not describe it as already there.", isError: false };
+  };
+
   // One request a turn: the story stops for a single roll, and a second would silently replace the first.
   let rollAsked = false;
   const askRoll = (toolInput: Record<string, unknown>) => {
@@ -623,7 +643,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, BRING_OUT_TOOL, CANON_LOOKUP_TOOL, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.onHazard === undefined ? [] : [HAZARD_TOOL]), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), ...(input.onDaysTakenBack && input.correcting === true ? [TAKE_DAYS_BACK_TOOL] : []), ...(input.quests !== null && input.fireHeld === true ? [FIRE_CONSEQUENCE_TOOL] : []), ...(input.rulings ? [RULE_INVENTION_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, BRING_OUT_TOOL, CANON_LOOKUP_TOOL, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.onHazard === undefined ? [] : [HAZARD_TOOL]), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.makeMap ? [MAKE_MAP_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), ...(input.onDaysTakenBack && input.correcting === true ? [TAKE_DAYS_BACK_TOOL] : []), ...(input.quests !== null && input.fireHeld === true ? [FIRE_CONSEQUENCE_TOOL] : []), ...(input.rulings ? [RULE_INVENTION_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
@@ -642,6 +662,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (input.travel && name === ROLL_TABLE_TOOL_NAME) return rollTable(toolInput);
       if (name === FIRE_CONSEQUENCE_TOOL_NAME) return Promise.resolve(fireConsequence(toolInput));
       if (name === RULE_INVENTION_TOOL_NAME) return Promise.resolve(ruleInvention(toolInput));
+      if (input.makeMap && name === MAKE_MAP_TOOL.name) return Promise.resolve(makeMap(toolInput));
       if (input.onDaysPassed && name === PASS_DAYS_TOOL_NAME) return Promise.resolve(passDays(toolInput));
       if (name === TAKE_DAYS_BACK_TOOL_NAME) return Promise.resolve(takeDaysBack(toolInput));
       if (name === KEEP_TALKING_TOOL_NAME) {

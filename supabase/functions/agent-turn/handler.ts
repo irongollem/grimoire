@@ -69,7 +69,7 @@ export async function beginTurn(input: {
       try {
         const { session, prologue } = await openSitting(scope);
         const ctx = await readTurnContext(scope, session);
-        const { character, stored, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere, inventions } = ctx;
+        const { scene, character, stored, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere, inventions } = ctx;
         const fightRunning = fights !== null && fights.fight !== null && fights.fight.phase === "running";
         // The canon's material is read once a turn and shared by the invention check and the narration check. A failed
         // read is forgotten so the next asker may try again.
@@ -122,6 +122,8 @@ export async function beginTurn(input: {
           show: character
             ? { handouts, picture: (what, id) => deps.loadPicture(campaign.id, what, id), place: (id) => deps.loadPlace(campaign.id, id), onPlace: (place) => { fx.sharedPlaces.push(place); }, onHandout: (handout) => { fx.handedOut.push(handout); } }
             : null,
+          // Only where the party's place has no map, and not in a fight: a map is for exploring, and the board is fought on.
+          makeMap: scene !== null && !scene.hasMap && !fightRunning ? { placeId: scene.id, onPlan: (plan) => { fx.mapPlan = { placeId: scene.id, plan }; } } : null,
           // Days that pass in the story move the campaign's date, on the server, once the turn is kept. Not in a fight.
           onDaysPassed: fightRunning ? null : (days) => { fx.daysPassed = days; },
           // A correction can take days back; not in a fight, like days passing.
