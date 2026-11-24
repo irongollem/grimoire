@@ -16,6 +16,8 @@ vi.mock("@/ai/ask/useAskAdapters", () => ({ useAskAdapters: () => ({ adapterFor:
 
 vi.mock("@/composables/table/useTableVoice", async (importOriginal) => ({ ...(await importOriginal<object>()), useTableVoiceRates: () => ({ data: ref(undefined) }) }));
 
+vi.mock("@/components/ask/AskGreeting.vue", () => ({ default: { template: '<p data-testid="ask-greeting-stub" />' } }));
+
 import AskPanel from "./AskPanel.vue";
 
 const stubs = { Teleport: true, Transition: false, RouterLink: { template: "<a><slot /></a>" } };

@@ -88,9 +88,10 @@ const refusedNote = computed(() => {
 
 const list = computed(() => voices.data.value ?? []);
 const groups = computed(() => [
-  { id: "design", title: "To design", empty: "Every slot has a voice.", items: list.value.filter((v) => v.voice_id === null) },
-  { id: "cast", title: "Cast pool", empty: "No voices in the pool yet.", items: list.value.filter((v) => v.voice_id !== null && v.kind === "cast") },
-  { id: "own", title: "Signature voices", empty: "No signature voices yet.", items: list.value.filter((v) => v.voice_id !== null && v.kind === "own") },
+  { id: "app", title: "The app's own voices", empty: "No bound voices yet.", items: list.value.filter((v) => v.binding !== null) },
+  { id: "design", title: "To design", empty: "Every slot has a voice.", items: list.value.filter((v) => v.binding === null && v.voice_id === null) },
+  { id: "cast", title: "Cast pool", empty: "No voices in the pool yet.", items: list.value.filter((v) => v.binding === null && v.voice_id !== null && v.kind === "cast") },
+  { id: "own", title: "Signature voices", empty: "No signature voices yet.", items: list.value.filter((v) => v.binding === null && v.voice_id !== null && v.kind === "own") },
 ]);
 
 // The editor is open for a saved slot (`editingId`) or a new one (`creating`).

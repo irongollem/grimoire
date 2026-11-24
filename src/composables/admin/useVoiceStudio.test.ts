@@ -33,6 +33,7 @@ function slot(overrides: Partial<SpeechVoice> = {}): SpeechVoice {
     voice_id: "voice-abcdefgh",
     library_voice_id: null,
     sample_key: null,
+    binding: null,
     active: true,
     created_at: "2026-11-24T00:00:00Z",
     updated_at: "2026-11-24T00:00:00Z",

@@ -17,6 +17,7 @@ import type {
   SpeechVoice,
   SpeechVoiceFields,
   VoiceAge,
+  VoiceBinding,
   VoiceSex,
 } from "@/types/speechVoice.types";
 
@@ -45,6 +46,21 @@ export function nextSlotName(name: string): string {
   const match = /^(.*\S)\s+(\d+)$/.exec(name.trim());
   if (match) return `${match[1]} ${Number(match[2]) + 1}`;
   return `${name.trim()} 2`;
+}
+
+/** What each bound slot is for, in the words the Voices page shows. */
+export const BINDING_LABEL: Record<VoiceBinding, string> = {
+  "narrator-man-elevenlabs": "The Narrator (man), at the table and in notes read with feeling",
+  "narrator-man-inworld": "The Narrator (man), in notes read plainly and when ElevenLabs is off",
+  "narrator-woman-inworld": "The Narrator (woman), at the table and in notes read plainly",
+  "narrator-woman-elevenlabs": "The Narrator (woman), in notes read with feeling and when Inworld is off",
+  familiar: "Ooru, the Familiar's owl, and its greeting",
+};
+
+/** The one service a bound slot designs on: the code asks each binding of one service only. Null for a character's slot. */
+export function bindingService(binding: VoiceBinding | null): SpeechService | null {
+  if (binding === null) return null;
+  return binding.endsWith("-inworld") ? "inworld" : "elevenlabs";
 }
 
 /** The slot-field set of a slot, for a copy. */

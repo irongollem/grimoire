@@ -26,7 +26,7 @@
           <option v-for="o in VOICE_AGE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
         </AppSelect>
       </label>
-      <div class="flex flex-col gap-1">
+      <div v-if="binding === null" class="flex flex-col gap-1">
         <span class="text-label text-muted-foreground">Used for</span>
         <SegmentedControl v-model="fields.kind" :options="KIND_OPTIONS" size="sm" block />
       </div>
@@ -45,7 +45,7 @@
       </label>
       <label class="flex flex-col gap-1">
         <span class="flex items-baseline justify-between gap-2">
-          <span class="text-label text-muted-foreground">Preview text</span>
+          <span class="text-label text-muted-foreground">{{ binding === "familiar" ? "Greeting (what the Familiar opens with)" : "Preview text" }}</span>
           <span class="text-caption" :class="previewLengthOk ? 'text-muted-foreground' : 'text-ink-caution'" data-testid="preview-counter">
             {{ previewLength }} / {{ ELEVENLABS_PREVIEW_MAX }} characters (ElevenLabs needs at least {{ ELEVENLABS_PREVIEW_MIN }})
           </span>
@@ -69,9 +69,9 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import { ELEVENLABS_PREVIEW_MAX, ELEVENLABS_PREVIEW_MIN } from "@/composables/admin/useVoiceStudio";
-import { VOICE_AGE_OPTIONS, VOICE_SEX_OPTIONS, type SpeechVoiceFields, type VoiceAge, type VoiceKind, type VoiceSex } from "@/types/speechVoice.types";
+import { VOICE_AGE_OPTIONS, VOICE_SEX_OPTIONS, type SpeechVoiceFields, type VoiceAge, type VoiceBinding, type VoiceKind, type VoiceSex } from "@/types/speechVoice.types";
 
-defineProps<{ prompts?: boolean }>();
+const { prompts = false, binding = null } = defineProps<{ prompts?: boolean; binding?: VoiceBinding | null }>();
 const fields = defineModel<SpeechVoiceFields>({ required: true });
 
 const KIND_OPTIONS: { value: VoiceKind; label: string }[] = [

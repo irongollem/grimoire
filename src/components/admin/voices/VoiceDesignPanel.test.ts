@@ -108,3 +108,27 @@ describe("VoiceDesignPanel keep into a slot", () => {
     expect(wrapper.text()).toContain("Kept in");
   });
 });
+
+describe("VoiceDesignPanel service choice", () => {
+  const studio = { design: { mutateAsync: vi.fn(), isPending: ref(false), isError: ref(false), error: ref(null) }, keep: { mutateAsync: vi.fn() }, saveSlot: { mutateAsync: vi.fn() } };
+  function services(voice: SpeechVoice | null, service: "elevenlabs" | "inworld") {
+    const w = mount(VoiceDesignPanel, { props: { slot: voice, fields, studio: studio as never, service }, global: { stubs: { AppModal: AppModalStub, AppCheckbox: CheckboxStub } } });
+    return w.findAll("button").map((b) => b.text());
+  }
+
+  // Bug caught: refilling Ooru (or an Inworld Narrator) on the other service, which the code never asks, so the new voice stays silent.
+  it("offers only the binding's service when refilling a bound slot", () => {
+    const familiar = services(slot({ binding: "familiar" }), "elevenlabs");
+    expect(familiar).toContain("ElevenLabs");
+    expect(familiar).not.toContain("Inworld");
+    const inworld = services(slot({ binding: "narrator-woman-inworld", service: "inworld" }), "inworld");
+    expect(inworld).toContain("Inworld");
+    expect(inworld).not.toContain("ElevenLabs");
+  });
+
+  it("offers both services for a character's slot", () => {
+    const both = services(slot({ binding: null }), "elevenlabs");
+    expect(both).toContain("ElevenLabs");
+    expect(both).toContain("Inworld");
+  });
+});

@@ -1,8 +1,6 @@
 <template>
   <div ref="scroller" class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-3" data-testid="ask-thread">
-    <p v-if="items.length === 0" class="py-6 text-center text-body text-muted-foreground">
-      Ask what your campaign already says, ask for ideas, or ask for something to be made.
-    </p>
+    <AskGreeting v-if="items.length === 0" />
     <div v-for="item in items" :key="item.id" :data-ask-item="item.id" class="flex flex-col">
       <!-- The DM's words, right-aligned and in the hand. -->
       <div v-if="item.kind === 'user'" class="flex justify-end">
@@ -108,6 +106,7 @@ import { isPreviewAdapter } from "@/lib/ask/askAdapter";
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
 import type { AskItem } from "@/composables/ask/useAskConversation";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
+import AskGreeting from "@/components/ask/AskGreeting.vue";
 import AskReply from "@/components/ask/AskReply.vue";
 import AskRead from "@/components/ask/AskRead.vue";
 import AskIdeas from "@/components/ask/AskIdeas.vue";

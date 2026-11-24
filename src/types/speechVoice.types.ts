@@ -9,6 +9,12 @@ export type VoiceKind = "cast" | "own";
 /** Where the voice came from. Only `designed` (and cloned) voices use one of the account's custom voice slots. */
 export type VoiceOrigin = "stock" | "designed" | "library" | "imported";
 
+/**
+ * The app's own use of a slot (#1272 follow-up): the code asks for the voice by this name, so a bound slot is always a
+ * signature voice, stays on its binding's service and is never removed, only refilled.
+ */
+export type VoiceBinding = "narrator-man-elevenlabs" | "narrator-man-inworld" | "narrator-woman-inworld" | "narrator-woman-elevenlabs" | "familiar";
+
 export interface SpeechVoice {
   id: string;
   name: string;
@@ -26,6 +32,8 @@ export interface SpeechVoice {
   /** For a Voice Library voice: its id in the library, which the account's copy need not share. */
   library_voice_id: string | null;
   sample_key: string | null;
+  /** Null for a character's voice. */
+  binding: VoiceBinding | null;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -185,13 +193,20 @@ export interface LookupResponse {
 }
 
 /** A slot's sample, made once (from `preview_text`, or a stock line) and kept. Anyone who may read the slot. */
-export interface SampleRequest {
-  action: "sample";
-  slotId: string;
-}
+export type SampleRequest = { action: "sample"; slotId: string } | { action: "sample"; binding: "familiar" };
 export interface SampleResponse {
   audio: string;
   mediaType: string;
+}
+
+/** What the Familiar opens with, and whether its voice can say it. Any signed-in user. */
+export interface GreetingRequest {
+  action: "greeting";
+}
+export interface GreetingResponse {
+  /** Null when no greeting is set. */
+  text: string | null;
+  canSpeak: boolean;
 }
 
 /** Delete a slot; `fromService` also deletes the voice from the service (never a stock voice). */
@@ -204,4 +219,4 @@ export interface RemoveResponse {
   ok: true;
 }
 
-export type VoiceStudioRequest = DesignRequest | KeepRequest | LibrarySearchRequest | LibraryAddRequest | AccountRequest | LookupRequest | SampleRequest | RemoveRequest;
+export type VoiceStudioRequest = DesignRequest | KeepRequest | LibrarySearchRequest | LibraryAddRequest | AccountRequest | LookupRequest | SampleRequest | GreetingRequest | RemoveRequest;

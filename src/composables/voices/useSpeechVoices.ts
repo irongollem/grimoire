@@ -1,7 +1,7 @@
 import { computed, onBeforeUnmount, ref, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import type { SampleResponse, SpeechVoice, VoiceStudioRequest } from "@/types/speechVoice.types";
+import type { GreetingResponse, SampleResponse, SpeechVoice, VoiceStudioRequest } from "@/types/speechVoice.types";
 
 // The voice registry (#1272), read by the admin's Voices page and the DM's voice picker on an NPC sheet. RLS decides
 // what comes back: a DM reads the filled, active cast slots; the admin reads every slot.
@@ -183,4 +183,21 @@ export function useUrlPreview() {
 
   onBeforeUnmount(stop);
   return { playing, toggle, stop };
+}
+
+/** The Familiar's greeting, read once (a long stale time: it changes only when the admin rewrites it). */
+export const FAMILIAR_GREETING_KEY = ["familiar-greeting"] as const;
+
+export function useFamiliarGreeting(transport: VoiceStudioTransport = sendToVoiceStudio) {
+  return useQuery({
+    queryKey: FAMILIAR_GREETING_KEY,
+    queryFn: () => voiceStudioCall<GreetingResponse>({ action: "greeting" }, transport),
+    staleTime: 60 * 60_000,
+    retry: false,
+  });
+}
+
+/** Hear Ooru: the recorded greeting, kept on the server, so it costs nothing. */
+export function useFamiliarSample(transport: VoiceStudioTransport = sendToVoiceStudio) {
+  return useAudioToggle(() => voiceStudioCall<SampleResponse>({ action: "sample", binding: "familiar" }, transport));
 }

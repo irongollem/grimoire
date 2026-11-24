@@ -5,6 +5,7 @@
         {{ voice.name }}
         <span v-if="!voice.active" class="ml-1 text-label font-normal text-ink-caution">inactive</span>
       </span>
+      <span v-if="voice.binding" class="text-caption text-foreground" data-testid="voice-binding">{{ BINDING_LABEL[voice.binding] }}</span>
       <span class="truncate text-caption text-muted-foreground">{{ detail }}</span>
     </div>
     <div class="flex shrink-0 items-center gap-1">
@@ -19,7 +20,8 @@
       />
       <AppButton variant="ghost" size="sm" :icon="IconEdit" label="Edit" @click="emit('edit')" />
       <AppButton variant="ghost" size="sm" :icon="IconGenerate" label="Design" @click="emit('design')" />
-      <AppButton variant="ghost" size="sm" :icon="IconDelete" label="Remove" @click="emit('remove')" />
+      <!-- A bound slot is the app's own voice: the code asks for it by name, so it is refilled, never removed. -->
+      <AppButton v-if="voice.binding === null" variant="ghost" size="sm" :icon="IconDelete" label="Remove" @click="emit('remove')" />
     </div>
   </li>
 </template>
@@ -27,6 +29,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import { BINDING_LABEL } from "@/composables/admin/useVoiceStudio";
 import { IconDelete, IconEdit, IconGenerate, IconPause, IconPlay } from "@/lib/icons";
 import type { SpeechVoice } from "@/types/speechVoice.types";
 

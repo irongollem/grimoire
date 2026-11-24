@@ -48,6 +48,8 @@ const stoppedClips: string[] = [];
 let voicePlayer = (_src: string) => ({ done: Promise.resolve(), stop: () => undefined as void });
 
 import FamiliarAvatar from "@/components/ask/FamiliarAvatar.vue";
+vi.mock("@/components/ask/AskGreeting.vue", () => ({ default: { template: '<p data-testid="ask-greeting-stub" />' } }));
+
 import AskPanel from "./AskPanel.vue";
 
 let accounts = 0;

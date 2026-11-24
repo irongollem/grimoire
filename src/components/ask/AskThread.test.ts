@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskItem } from "@/composables/ask/useAskConversation";
+vi.mock("@/components/ask/AskGreeting.vue", () => ({ default: { template: '<p data-testid="ask-greeting-stub" />' } }));
+
 import AskThread from "./AskThread.vue";
 
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));

@@ -3,7 +3,7 @@
     <!-- The body scrolls, never the panel: a scrolled panel slides its rows under its own see-through torn edge. -->
     <div class="flex min-h-0 flex-col gap-4 overflow-y-auto p-5">
       <h2 class="text-heading-sm font-semibold text-foreground">{{ voice ? voice.name : "New slot" }}</h2>
-      <VoiceFieldsForm v-model="draft" prompts />
+      <VoiceFieldsForm v-model="draft" prompts :binding="voice?.binding ?? null" />
       <div class="flex items-center gap-2">
         <ToggleSwitch v-model="active" aria-label="Active" />
         <span class="text-body text-foreground">Active</span>
@@ -24,7 +24,7 @@ import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
-import { fieldsOf, type useVoiceStudio } from "@/composables/admin/useVoiceStudio";
+import { bindingService, fieldsOf, type useVoiceStudio } from "@/composables/admin/useVoiceStudio";
 import { useToast } from "@/composables/useToast";
 import type { SpeechService, SpeechVoice, SpeechVoiceFields } from "@/types/speechVoice.types";
 import VoiceDesignPanel from "./VoiceDesignPanel.vue";
@@ -53,7 +53,7 @@ watch(
     if (!open) return;
     draft.value = voice ? fieldsOf(voice) : { ...BLANK };
     active.value = voice?.active ?? true;
-    service.value = voice?.service ?? "elevenlabs";
+    service.value = bindingService(voice?.binding ?? null) ?? voice?.service ?? "elevenlabs";
     saveError.value = null;
   },
   { immediate: true },

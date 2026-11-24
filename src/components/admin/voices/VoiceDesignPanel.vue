@@ -3,7 +3,7 @@
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2">
         <span class="text-label text-muted-foreground">Design on</span>
-        <SegmentedControl v-model="service" :options="SERVICE_OPTIONS" size="sm" />
+        <SegmentedControl v-model="service" :options="serviceOptions" size="sm" />
       </div>
       <AppButton variant="primary" size="sm" :icon="IconGenerate" label="Design voices" :loading="studio.design.isPending.value" :disabled="problem !== null" @click="design" />
     </div>
@@ -52,7 +52,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
-import { designProblem, nextSlotName, type useVoiceStudio } from "@/composables/admin/useVoiceStudio";
+import { bindingService, designProblem, nextSlotName, type useVoiceStudio } from "@/composables/admin/useVoiceStudio";
 import { useAudioToggle } from "@/composables/voices/useSpeechVoices";
 import { useToast } from "@/composables/useToast";
 import { IconGenerate, IconPause, IconPlay } from "@/lib/icons";
@@ -74,6 +74,11 @@ const SERVICE_OPTIONS = [
   { value: "elevenlabs" as const, label: "ElevenLabs" },
   { value: "inworld" as const, label: "Inworld" },
 ];
+// A bound slot is refilled on its binding's service only: the code asks each binding of one service.
+const serviceOptions = computed(() => {
+  const only = bindingService(slot?.binding ?? null);
+  return only === null ? SERVICE_OPTIONS : SERVICE_OPTIONS.filter((o) => o.value === only);
+});
 const serviceName = (s: SpeechService | null): string => (s === "inworld" ? "Inworld" : "ElevenLabs");
 const errorText = (e: unknown): string => (e instanceof Error ? e.message : "The designer did not answer.");
 
