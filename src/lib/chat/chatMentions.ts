@@ -75,13 +75,13 @@ export function insertMention(text: string, start: number, caret: number, name: 
 }
 
 /**
- * Whether a line just posted might be answered by a character played for its absent player (#1021 row 26): it
- * addresses a character or the party, or is a whisper, and the table has someone played. The server decides who
- * answers; this only spares it a call for the many lines that address nobody. A reader who is not shown who is
- * played (the flag missing from their party rows) asks the server.
+ * Whether a line just posted might be answered by a character played for its absent player (#1021 row 26): the table
+ * has someone played. Any line may be: one that addresses a character, the party or a whisper is answered, and since
+ * 24 Nov 2026 (the maintainer: "when it has cause") a line that names something a played character knows may draw a
+ * word from them unasked. The server decides who speaks, and a line no one answers costs nobody anything. A reader who
+ * is not shown who is played (the flag missing from their party rows) asks the server.
  */
-export function mightBeAnswered(recipientUserId: string | null, mentions: readonly StoredMention[], party: readonly { ai_stands_in?: boolean }[]): boolean {
-  if (recipientUserId === null && !mentions.some((m) => m.kind === "member" || m.kind === "party")) return false;
+export function mightBeAnswered(party: readonly { ai_stands_in?: boolean }[]): boolean {
   return party.length > 0 && !party.every((p) => p.ai_stands_in === false);
 }
 

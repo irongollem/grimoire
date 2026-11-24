@@ -6,6 +6,9 @@ import { createClient } from "@supabase/supabase-js";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
+import { recordFreeGeneration } from "../_shared/credits.ts";
+import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
+import { judge, JEV_MODEL, judgingKey } from "../_shared/typesafe.ts";
 import { loadAgentCalibration, loadModelPrice, resolveAgentProvider } from "../_shared/agent/providerIo.ts";
 import { STAND_IN_RECENT_LINES, type StandIn } from "../_shared/agent/standIn.ts";
 import { loadPartyMember } from "../_shared/agent/characterIo.ts";
@@ -15,6 +18,7 @@ import { jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respon
 import { tableAiEnabled } from "../_shared/featureAccess.ts";
 import { loadAiCampaign } from "../_shared/pipeline/aiCampaign.ts";
 import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
+import { UNPROMPTED_JUDGE_TIMEOUT_MS } from "./unprompted.ts";
 import { answerChatLine, GENERATION, type ReplyCampaign, type ReplyDeps } from "./handler.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -36,9 +40,6 @@ function mentionsOf(metadata: unknown): StoredMention[] {
 }
 
 serve(serveUser(async ({ user, req, report }) => {
-  // The one who types pays nothing, so the brake on them is the rate limit every generator shares.
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
-
   const body = await readJsonBody(req);
   if (body === null) return jsonError(400, "invalid_body", "The request is not valid.");
 
@@ -157,12 +158,18 @@ serve(serveUser(async ({ user, req, report }) => {
       return (data ?? []).reverse().map((row) => ({ from: (row.sender_name as string | null) ?? "Someone", text: row.message as string }));
     },
 
-    withHold: (ownerId, credits, work) => withCreditHold(admin, { payerId: ownerId, reason: GENERATION, cost: credits, report }, work),
+    // The one who types pays nothing, so the brake on them is the rate limit every generator shares. It is checked here,
+    // where a character is about to speak, not on arrival: every public line is asked about while someone is played,
+    // and a line no character answers (most of them) must not use up the sender's own allowance.
+    async withHold(ownerId, credits, work) {
+      if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
+      return withCreditHold(admin, { payerId: ownerId, reason: GENERATION, cost: credits, report }, work);
+    },
 
     // As the service role, in the name of the character's own player where it has one, so they find what their
     // character said (a whisper too) when they are back; an unclaimed character's lines are the Dungeon Master's.
     // `ai` marks the line as written by AI for every reader (AI Act Art. 50); `reply_to` is what makes asking twice answer once.
-    async postReply({ line, character, ownerId, text, recipientUserId, provider: by, model }) {
+    async postReply({ line, character, ownerId, text, recipientUserId, provider: by, model, unprompted }) {
       const { error } = await admin.from("campaign_messages").insert({
         campaign_id: line.campaign_id,
         user_id: character.playerUserId ?? ownerId,
@@ -170,10 +177,50 @@ serve(serveUser(async ({ user, req, report }) => {
         sender_name: character.name,
         message: text,
         type: "chat",
-        metadata: { for_party_member_id: character.id, ai: true, reply_to: line.id, ai_provenance: { generatorType: GENERATION, provider: by, model, generatedAt: new Date().toISOString(), edited: false } },
+        metadata: { for_party_member_id: character.id, ai: true, reply_to: line.id, ...(unprompted ? { unprompted: true } : {}), ai_provenance: { generatorType: GENERATION, provider: by, model, generatedAt: new Date().toISOString(), edited: false } },
       });
       if (error) throw error;
     },
+
+    // The rest of the party by name, and the quests this character's player's character is on (`player_visible_to`).
+    async loadKnown(campaignId, partyMemberId) {
+      const [others, quests] = await Promise.all([
+        admin.from("party_members").select("name").eq("campaign_id", campaignId).neq("id", partyMemberId),
+        admin.from("quests").select("title, player_visible_to").eq("campaign_id", campaignId),
+      ]);
+      if (others.error) throw others.error;
+      if (quests.error) throw quests.error;
+      return {
+        partyNames: (others.data ?? []).flatMap((row) => (typeof row.name === "string" ? [row.name] : [])),
+        questTitles: (quests.data ?? []).flatMap((row) =>
+          typeof row.title === "string" && Array.isArray(row.player_visible_to) && row.player_visible_to.includes(partyMemberId) ? [row.title] : []),
+      };
+    },
+
+    async countUnprompted(campaignId, partyMemberId, sinceIso) {
+      const { count, error } = await admin
+        .from("campaign_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("campaign_id", campaignId)
+        .eq("metadata->>for_party_member_id", partyMemberId)
+        .eq("metadata->>unprompted", "true")
+        .gte("created_at", sinceIso);
+      if (error) throw error;
+      if (count === null) throw new Error("the unprompted count came back empty");
+      return count;
+    },
+
+    // Only the platform's own key judges: the line goes to a third party. Platform-paid, logged like the narration check.
+    async judge(request) {
+      const key = judgingKey(true, (await fetchPlatformKeys(admin, ["typesafe"])).typesafe);
+      if (key === null) return null;
+      const result = await judge(request, { apiKey: key, timeoutMs: UNPROMPTED_JUDGE_TIMEOUT_MS });
+      // Delta 0 on the table's owner, whose table it is; a failure to log costs a ledger row, never the judgment (it logs itself).
+      if (campaignRow) await recordFreeGeneration(admin, campaignRow.user_id, "entity_judgment", { model: JEV_MODEL, provider: "typesafe", input_tokens: result.inputTokens });
+      return result;
+    },
+
+    now: () => Date.now(),
 
     async fileMemory({ campaignId, partyMemberId, ownerId: owner, body: text, provider: by, model }) {
       const { error } = await admin.from("party_member_memories").insert({

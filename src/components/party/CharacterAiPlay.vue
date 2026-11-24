@@ -16,7 +16,7 @@
       <AppCheckbox
         :model-value="member.ai_stands_in === true"
         :label="`Have the AI play ${member.name} while their player is away`"
-        :hint="`In the campaign chat ${member.name} then answers when addressed by name, with @party, or in a whisper to their player. Each answer is charged to you, the Dungeon Master. Turn it off when their player is back.`"
+        :hint="`In the campaign chat ${member.name} then answers when addressed by name, with @party, or in a whisper to their player. It may also speak up when the talk turns to something it knows, a few times an hour at most. Each line is charged to you, the Dungeon Master. Turn it off when their player is back.`"
         :disabled="saving || member.ai_speaks !== true"
         data-testid="character-ai-stands-in"
         @update:model-value="play"

@@ -510,7 +510,7 @@ async function handleSend({
 }): Promise<boolean> {
   try {
     const id = await sendMessage(text, recipientUserId, mentions);
-    if (id && mightBeAnswered(recipientUserId, mentions, party.value ?? [])) void askCharacterReply(id);
+    if (id && mightBeAnswered(party.value ?? [])) void askCharacterReply(id);
     return true;
   } catch (e) {
     reportMessageFailure(e, recipientUserId !== null);

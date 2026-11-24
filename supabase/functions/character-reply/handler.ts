@@ -7,7 +7,9 @@
 
 import type { AgentProvider } from "../_shared/agent/providerIo.ts";
 import { creditsForUsd, usableCalibration, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
-import { STAND_IN_MAX_OUTPUT_TOKENS, standInPrompt, standInReply, standInsAnswering, type StandIn } from "../_shared/agent/standIn.ts";
+import { STAND_IN_MAX_OUTPUT_TOKENS, STAND_IN_REPLIES_MAX, standInPrompt, standInReply, standInsAnswering, type StandIn } from "../_shared/agent/standIn.ts";
+import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
+import { causeRequest, hasCause, namesInLine, unpromptedCandidates, unpromptedLeft, unpromptedPrompt, UNPROMPTED_WINDOW_MS, type KnownThings } from "./unprompted.ts";
 import type { AgentBlock } from "../_shared/agent/types.ts";
 import type { StoredMention } from "../../../src/lib/chat/chatMentions.ts";
 import { UUID_RE } from "../_shared/agent/parse.ts";
@@ -59,7 +61,18 @@ export interface ReplyDeps {
    * releases the hold whatever happens. A refused hold answers its refusal without running `work`.
    */
   withHold(ownerId: string, credits: number, work: (hold: ReplyHold) => Promise<Response>): Promise<Response>;
-  postReply(reply: { line: ChatLine; character: StandIn; ownerId: string; text: string; recipientUserId: string | null; provider: string; model: string }): Promise<void>;
+  /** `unprompted` marks a line nobody asked for (`metadata.unprompted`), which is what the hourly cap counts. */
+  postReply(reply: { line: ChatLine; character: StandIn; ownerId: string; text: string; recipientUserId: string | null; provider: string; model: string; unprompted: boolean }): Promise<void>;
+  /** What the character knows by name beyond its own words: the rest of the party and the quests its player's character is on. */
+  loadKnown(campaignId: string, partyMemberId: string): Promise<KnownThings>;
+  /** How many unprompted lines the character has posted in this campaign since `sinceIso`. */
+  countUnprompted(campaignId: string, partyMemberId: string, sinceIso: string): Promise<number>;
+  /**
+   * One judgment on the platform's own key, logged as platform-paid; null when there is no key (nothing is judged, so
+   * nothing is said unasked). The line goes to a third party, so only the platform's key may be used.
+   */
+  judge(request: JudgeRequest): Promise<JudgeResult | null>;
+  now(): number;
   fileMemory(memory: { campaignId: string; partyMemberId: string; ownerId: string; body: string; provider: string; model: string }): Promise<void>;
 }
 
@@ -94,12 +107,13 @@ export async function answerChatLine(input: { userId: string; body: unknown; dep
   // AI off included: the chat asks on every line a stand-in might answer.
   if (!(await deps.aiOn(campaign))) return nobody();
 
+  const party = await deps.loadParty(campaign.id);
   const answered = new Set(await deps.answeredBy(line.id));
-  const answering = standInsAnswering(
-    { mentions: line.mentions, recipientUserId: line.recipient_user_id, senderUserId: line.user_id },
-    await deps.loadParty(campaign.id),
-  ).filter((c) => !answered.has(c.id));
-  if (answering.length === 0) return nobody();
+  const sender = { mentions: line.mentions, recipientUserId: line.recipient_user_id, senderUserId: line.user_id };
+  const answering = standInsAnswering(sender, party).filter((c) => !answered.has(c.id));
+  // Not addressed, not the sender's own, not already answered or spoken for this line: the ones who may speak up unasked.
+  const bystanders = unpromptedCandidates(sender, party).filter((c) => !answered.has(c.id));
+  if (answering.length === 0 && bystanders.length === 0) return nobody();
   if (await deps.ownerRefused(campaign.user_id)) return nobody();
   if (await deps.isFlagged(line.message, line.user_id)) return nobody();
 
@@ -115,15 +129,22 @@ export async function answerChatLine(input: { userId: string; body: unknown; dep
   }
 
   const callModel = provider.callModel;
+  const chosen = provider;
+  const said = line;
   const whisper = line.recipient_user_id !== null;
   const recent = whisper ? [] : await deps.loadRecent(line);
   const from = line.sender_name ?? "Someone";
   let replies = 0;
-  for (const character of answering) {
+
+  /** One character's line: held, written, screened by the shape of what came back, posted, charged, remembered. Null when the hold was refused. */
+  async function speak(character: StandIn, how: { unprompted: false } | { unprompted: true; names: readonly string[]; memories: readonly string[] }): Promise<Response | null> {
     let ran = false;
-    const answer = await deps.withHold(campaign.user_id, provider.isByok ? 0 : REPLY_RESERVE_CREDITS, async (hold) => {
+    const answer = await deps.withHold(campaign.user_id, chosen.isByok ? 0 : REPLY_RESERVE_CREDITS, async (hold) => {
       ran = true;
-      const prompt = standInPrompt({ character, memories: await deps.loadMemories(campaign.id, character.id), recent, line: { from, text: line.message }, whisper });
+      const memories = how.unprompted ? how.memories : await deps.loadMemories(campaign.id, character.id);
+      const prompt = how.unprompted
+        ? unpromptedPrompt({ character, memories, recent, line: { from, text: said.message }, names: how.names })
+        : standInPrompt({ character, memories, recent, line: { from, text: said.message }, whisper });
       const step = await callModel({
         system: prompt.system,
         messages: [{ role: "user", blocks: [{ type: "text", text: prompt.user }] }],
@@ -135,14 +156,14 @@ export async function answerChatLine(input: { userId: string; body: unknown; dep
       const text = step.stop === "refusal" ? "" : step.blocks.filter((b): b is Extract<AgentBlock, { type: "text" }> => b.type === "text").map((b) => b.text).join("");
       const reply = standInReply(text);
       if (reply === null) {
-        hold.charge(GENERATION, { cost: 0, isByok: provider.isByok, log });
+        hold.charge(GENERATION, { cost: 0, isByok: chosen.isByok, log });
         return nobody();
       }
-      // A whisper is answered in a whisper, back to the one who sent it.
-      await deps.postReply({ line, character, ownerId: campaign.user_id, text: reply.says, recipientUserId: whisper ? line.user_id : null, provider: usage.provider, model: usage.model });
+      // A whisper is answered in a whisper, back to the one who sent it. An unprompted line is only ever in the open.
+      await deps.postReply({ line: said, character, ownerId: campaign.user_id, text: reply.says, recipientUserId: whisper ? said.user_id : null, provider: usage.provider, model: usage.model, unprompted: how.unprompted });
       replies += 1;
-      const credits = provider.isByok || !price || !calibration ? 0 : Math.max(1, Math.ceil(creditsForUsd(usdForSteps([usage], price), calibration)));
-      hold.charge(GENERATION, { cost: credits, isByok: provider.isByok, log });
+      const credits = chosen.isByok || !price || !calibration ? 0 : Math.max(1, Math.ceil(creditsForUsd(usdForSteps([usage], price), calibration)));
+      hold.charge(GENERATION, { cost: credits, isByok: chosen.isByok, log });
       if (reply.remembers !== null) {
         // A memory is a nicety: failing to file it must not turn a posted, paid reply into an error.
         try {
@@ -153,9 +174,37 @@ export async function answerChatLine(input: { userId: string; body: unknown; dep
       }
       return nobody();
     });
+    return ran ? null : answer;
+  }
+
+  for (const character of answering) {
+    const refused = await speak(character, { unprompted: false });
     // The hold was refused (the DM is out of credits, or held back): its refusal is the answer, and the rest of the
     // party stays silent too.
-    if (!ran) return answer;
+    if (refused !== null) return refused;
+  }
+
+  // Speaking up unasked is never an error to the one who typed: every "no" from here is quiet.
+  let room = STAND_IN_REPLIES_MAX - answering.length;
+  for (const character of bystanders) {
+    if (room <= 0) break;
+    const memories = await deps.loadMemories(campaign.id, character.id);
+    const names = namesInLine({ line: line.message, character, memories, known: await deps.loadKnown(campaign.id, character.id) });
+    if (names.length === 0) continue;
+    const spoken = await deps.countUnprompted(campaign.id, character.id, new Date(deps.now() - UNPROMPTED_WINDOW_MS).toISOString());
+    if (unpromptedLeft(spoken) === 0) continue;
+    let verdict: JudgeResult | null;
+    try {
+      verdict = await deps.judge(causeRequest({ character, line: { from, text: line.message }, names, recent }));
+    } catch (e) {
+      console.error("character-reply: the cause check failed:", e);
+      continue;
+    }
+    // No platform key, or a judge that did not answer: nothing is said unasked.
+    if (verdict === null) break;
+    if (!hasCause(verdict)) continue;
+    if ((await speak(character, { unprompted: true, names, memories })) !== null) break;
+    room -= 1;
   }
   return nobody(replies);
 }
