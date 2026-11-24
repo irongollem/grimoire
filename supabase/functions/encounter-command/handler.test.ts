@@ -86,11 +86,13 @@ interface Harness {
   /** The weapons allies threw onto the ground, and the inventory writes their attacks led to, in the order they were made. */
   drops: Array<{ drop: ThrownDrop; memberId: string; speaker: string }>;
   gearWrites: GearWrite[][];
-  /** The spell slot lists written to allies' sheets after their casts, in order. */
+  /** The batches (member and batch id) that have spent from a sheet: the database's ledger, so a spend sent again changes nothing. */
+  spendsApplied: Set<string>;
+  /** The spell slot list each spend left on an ally's sheet, in order (the harness's sheet is `players`, and a spend changes it). */
   slotWrites: Array<{ memberId: string; slots: SpellSlotEntry[] }>;
-  /** The uses left written to allies' innate spell rows after their casts, in order. */
+  /** The uses each spend left on an ally's innate spell row, in order. */
   innateWrites: Array<{ memberId: string; spellRowId: string; remaining: number }>;
-  /** The `class_resources` written to allies' sheets after their class features were used, in order. */
+  /** The `class_resources` each spend left on an ally's sheet, in order. */
   resourceWrites: Array<{ memberId: string; resources: StoredClassResources }>;
   /** Swaps what the server reads of the player characters from now on (their sheet edited between two batches). */
   replacePlayers: (players: PlayerSheets) => void;
@@ -136,6 +138,8 @@ function harness(
     sources?: StatBlockSources;
     /** What the server reads of the fight's player characters. */
     players?: PlayerSheets;
+    /** A change to the stored sheets right after the server read them: the player editing their sheet while the batch runs. */
+    afterSheetsRead?: (players: PlayerSheets) => void;
     /** The party members the AI may play in the DM's own fight (consented and switched on). */
     standIns?: string[];
     /** A drop of a thrown weapon that fails (the chat could not be written to). */
@@ -181,6 +185,7 @@ function harness(
     posted: [],
     drops: [],
     gearWrites: [],
+    spendsApplied: new Set(),
     slotWrites: [],
     resourceWrites: [],
     innateWrites: [],
@@ -297,7 +302,9 @@ function harness(
     },
     async loadPlayerSheets(ids) {
       h.playerLoads.push(ids);
-      return structuredClone(options.players ?? { members: [], inventory: [], items: [], beasts: [], casting: NO_CASTING });
+      const read = structuredClone(options.players ?? { members: [], inventory: [], items: [], beasts: [], casting: NO_CASTING });
+      if (options.afterSheetsRead && options.players) options.afterSheetsRead(options.players);
+      return read;
     },
     async loadStandIns() {
       // Unless a test names the stand-ins, every character whose sheet it supplies is one the AI may play: most tests are about what the AI does.
@@ -328,24 +335,56 @@ function harness(
       h.log.push("gear");
       h.gearWrites.push(structuredClone(writes));
     },
-    async writeClassResources(memberId, resources) {
-      if (options.resourcesFail) throw new Error("sheet is down");
-      h.log.push("resources");
-      h.resourceWrites.push({ memberId, resources: structuredClone(resources) });
-    },
-    async writeInnateUses(memberId, spellRowId, remaining) {
-      if (options.innateFail) throw new Error("sheet is down");
-      h.log.push("innate");
-      h.innateWrites.push({ memberId, spellRowId, remaining });
-    },
-    async writeSpellSlots(memberId, slots) {
-      if (options.slotsFail === true) throw new Error("sheet is down");
-      if (typeof options.slotsFail === "number" && options.slotsFail > 0) {
-        options.slotsFail -= 1;
-        throw new Error("sheet is down");
+    async spendFromSheet(spend, batchId) {
+      // The database's own rules (`public.spend_from_sheet`): one spend per batch and member, taken off the sheet as it is now.
+      if (options.resourcesFail && spend.resources.length > 0) throw new Error("sheet is down");
+      if (options.innateFail && spend.innate.length > 0) throw new Error("sheet is down");
+      if (spend.slots.length > 0) {
+        if (options.slotsFail === true) throw new Error("sheet is down");
+        if (typeof options.slotsFail === "number" && options.slotsFail > 0) {
+          options.slotsFail -= 1;
+          throw new Error("sheet is down");
+        }
       }
-      h.log.push("slots");
-      h.slotWrites.push({ memberId, slots: structuredClone(slots) });
+      const key = `${spend.memberId}|${batchId}`;
+      if (h.spendsApplied.has(key)) return;
+      h.spendsApplied.add(key);
+      const sheets = options.players;
+      if (sheets === undefined) throw new Error("no such member in this campaign");
+      const at = sheets.members.findIndex((m) => m.id === spend.memberId);
+      if (at === -1) throw new Error("no such member in this campaign");
+      const member = sheets.members[at];
+      const slots = structuredClone(member.spell_slots);
+      for (const { level, pool, count } of spend.slots) {
+        for (let n = 0; n < count; n++) {
+          const open = slots.flatMap((sl, i) => (sl.level === level && sl.used < sl.max ? [i] : []));
+          const i = open.find((j) => (slots[j].pool ?? "spellcasting") === (pool ?? "spellcasting")) ?? open[0];
+          if (i === undefined) break;
+          slots[i] = { ...slots[i], used: slots[i].used + 1 };
+        }
+      }
+      const resources = structuredClone(member.class_resources === undefined ? {} : member.class_resources);
+      for (const { key: pool, count, fresh } of spend.resources) {
+        const entry = Object.hasOwn(resources, pool) ? resources[pool] : (fresh as StoredClassResources[string]);
+        resources[pool] = { ...entry, current: Math.max(entry.current - count, 0) };
+      }
+      sheets.members[at] = { ...member, spell_slots: slots, ...(spend.resources.length > 0 ? { class_resources: resources } : {}) };
+      if (spend.slots.length > 0) {
+        h.log.push("slots");
+        h.slotWrites.push({ memberId: spend.memberId, slots: structuredClone(slots) });
+      }
+      if (spend.resources.length > 0) {
+        h.log.push("resources");
+        h.resourceWrites.push({ memberId: spend.memberId, resources: structuredClone(resources) });
+      }
+      for (const { spellRowId, count } of spend.innate) {
+        const grant = sheets.casting.spells.find((r) => r.id === spellRowId && r.party_member_id === spend.memberId);
+        if (grant === undefined || grant.uses_remaining === null) continue;
+        const remaining = Math.max(grant.uses_remaining - count, 0);
+        sheets.casting = { ...sheets.casting, spells: sheets.casting.spells.map((r) => (r.id === spellRowId ? { ...r, uses_remaining: remaining } : r)) };
+        h.log.push("innate");
+        h.innateWrites.push({ memberId: spend.memberId, spellRowId, remaining });
+      }
     },
     rollDie(sides: number) {
       h.dieCalls += 1;
@@ -3354,6 +3393,20 @@ describe("take_turn: an ally casts the spells their character has ready", () => 
     expect(combatantOf(stored(h), "tam").action_uses).toEqual({ "slots/3": { used: 1, per_day: 2 } });
   });
 
+  // #1264: the fight read the two 3rd-level slots unspent, and while the batch ran the player marked one used on their own sheet. The Fireball's slot is
+  // taken off the sheet as it now is: both are spent. Bug caught: the fight writing back the whole slot list it read minus its cast (used 1), undoing the player's edit.
+  it("fails if a slot the player marked while the fight ran is put back by the fight's own spend", async () => {
+    const h = harness(archerFight(), {
+      sources: SOURCES, players: wizardTamSheets(), map: mapOf(), spells: [fireBolt(), fireball()], dieFaces: [2, 1, 1, 1, 1, 1, 1, 1, 1],
+      afterSheetsRead: (stored) => {
+        stored.members[0] = { ...stored.members[0], spell_slots: [{ level: 3, max: 2, used: 1 }] };
+      },
+    });
+    const result = await runBatch(batch("b", tamTurn({ optionId: BALL })), h.deps);
+    expect(result.effectFailures).toEqual([]);
+    expect(h.slotWrites).toEqual([{ memberId: "pm-tam", slots: [{ level: 3, max: 2, used: 2 }] }]);
+  });
+
   // A second turn: the first Fireball was already written to the sheet (1 of 2 spent) and the fight tallies it (used 1). The slot left
   // is the one slot, not none. Bug caught: the fight's tally subtracted from a sheet that already shows the cast, so the ally on its
   // second turn believed both slots gone and never cast again.
@@ -3370,7 +3423,7 @@ describe("take_turn: an ally casts the spells their character has ready", () => 
   it("reports a slot write that failed and keeps the fight", async () => {
     const h = harness(archerFight(), { sources: SOURCES, players: wizardTamSheets(), map: mapOf(), spells: [fireBolt(), fireball()], dieFaces: [2, 1, 1, 1, 1, 1, 1, 1, 1], slotsFail: true });
     const result = await runBatch(batch("b", tamTurn({ optionId: BALL })), h.deps);
-    expect(result.effectFailures).toEqual(["ally_spell_slots: sheet is down"]);
+    expect(result.effectFailures).toEqual(["ally_sheet: sheet is down"]);
     expect(hpOf(stored(h), "victim")).toBe(32);
   });
 
@@ -4110,7 +4163,7 @@ describe("take_turn: an ally's Second Wind", () => {
   it("reports a failed write of the use and keeps the fight", async () => {
     const h = harness(hurtFight(8), { sources: SOURCES, players: withClasses(tamSheets(), classRow("Fighter", 1)), map: mapOf(), dieFaces: [6, 8, 4], resourcesFail: true });
     const result = await runBatch(batch("b", tamTurn()), h.deps);
-    expect(result.effectFailures).toEqual(["ally_class_resources: sheet is down"]);
+    expect(result.effectFailures).toEqual(["ally_sheet: sheet is down"]);
     expect(combatantOf(stored(h), "tam").hp).toBe(15);
   });
 });
@@ -4917,7 +4970,7 @@ describe("take_turn: an ally's daily-limited innate spell", () => {
   it("reports a use that could not be written and keeps the fight", async () => {
     const h = harness(archerFight(), { sources: SOURCES, players: innateSheets(racialFireball()), map: mapOf(), spells: [fireball()], dieFaces: [2, 1, 1, 1, 1, 1, 1, 1, 1], innateFail: true });
     const result = await runBatch(batch("b", tamTurn({ optionId: BALL })), h.deps);
-    expect(result.effectFailures).toEqual(["ally_innate_uses: sheet is down"]);
+    expect(result.effectFailures).toEqual(["ally_sheet: sheet is down"]);
     expect(hpOf(stored(h), "victim")).toBe(32);
   });
 
@@ -5926,9 +5979,9 @@ describe("the person's own Reaction: Shield and Counterspell pause the turn", ()
     it("fails if the retried answer does not finish the slot write exactly once", async () => {
       const { h, result } = await castWithSheetDown();
       expect(result.applied).toBe(true);
-      expect(result.effectFailures).toEqual([expect.stringContaining("ally_spell_slots")]);
+      expect(result.effectFailures).toEqual([expect.stringContaining("ally_sheet")]);
       expect(h.slotWrites).toEqual([]);
-      expect(stored(h).owed_writes).toMatchObject({ batchId: "a1", slots: slotCost });
+      expect(stored(h).owed_writes).toEqual({ batchId: "a1", spends: [{ memberId: "pm-tam", slots: [{ level: 1, pool: null, count: 1 }], resources: [], innate: [] }] });
       expect(combatantOf(stored(h), "tam").reactionUsed).toBe(true);
       const retry = await runBatch(batch("a1", answer("cast", "t1")), h.deps);
       expect(retry.applied).toBe(false);
@@ -5958,7 +6011,7 @@ describe("the person's own Reaction: Shield and Counterspell pause the turn", ()
       const { h } = await castWithSheetDown();
       h.failSlots(3);
       const next = await runBatch(batch("n1", { type: "adjust_hp", instanceId: "wolf", delta: -1 }), h.deps);
-      expect(next.effectFailures).toEqual([expect.stringContaining("ally_spell_slots")]);
+      expect(next.effectFailures).toEqual([expect.stringContaining("ally_sheet")]);
       expect(stored(h).owed_writes).toMatchObject({ batchId: "a1" });
       expect(next.applied).toBe(true);
     });

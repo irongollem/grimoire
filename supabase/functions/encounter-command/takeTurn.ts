@@ -13,7 +13,7 @@
 // A creature that lists spells is offered its damage spells (#1021): a cone or a line is not offered, a cast is carried out by
 // `cast_spell` (which spends the slot or use and the Action), and nothing but damage is cast. A party member the AI plays (an ally, #1021) is seen
 // through a stat block made from their own sheet (`allyStatBlock`: their weapons and bare hands, or the form they are Wild Shaped into; a ranged attack
-// uses up ammunition and a throw the weapon, `env.spent`; the spells they have ready are a Spellcasting entry and a slot they cast with is written to the sheet, `env.slotsSpent`; Extra Attack and Action Surge are Multiattack entries on the block, Sneak Attack, Rage and Divine Smite are added by `resolve_attack`, and the Bonus Action (Second Wind, Rage, Flurry of Blows, Martial Arts) is a modifier on the picked turn, `tactics/bonusAction.ts`; their limited uses are written to the sheet after the save, `env.resourcesSpent`; `allies/features.ts`), so everything below plays them as it plays a monster; one at 0 hit points rolls a death save instead. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
+// uses up ammunition and a throw the weapon, `env.spent`; the spells they have ready are a Spellcasting entry and a slot they cast with is spent from the sheet in memory and written after the save, `sheetSpend.ts`; Extra Attack and Action Surge are Multiattack entries on the block, Sneak Attack, Rage and Divine Smite are added by `resolve_attack`, and the Bonus Action (Second Wind, Rage, Flurry of Blows, Martial Arts) is a modifier on the picked turn, `tactics/bonusAction.ts`; their limited uses are spent the same way; `allies/features.ts`), so everything below plays them as it plays a monster; one at 0 hit points rolls a death save instead. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
 // the fight after its move and the reply says so (`leftTheMap`); that is not a defeat. A broken creature with a way out (Etherealness, Invisible
 // Passage) uses it first (`escapedWith`). A Multiattack that drops its target does not redirect the swings it has left.
 
@@ -417,7 +417,7 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
         );
         next = done.state;
         effects.push(...done.effects);
-        // A slot an ally cast with is the sheet's: its whole list as it now stands, written once the fight is saved (#1021).
+        // A slot an ally cast with is the sheet's: spent in memory, and what was spent is written once the fight is saved (#1021, #1264).
         // The spell is paid where the block lists it: a slot line spends a slot (a Warlock's spell the Pact Magic pool first), a "N/day" line
         // spends one of that grant's uses, and at will or a cantrip spends nothing (an at-will innate spell of level 2 takes no 2nd-level slot).
         // RULE counterspell (PHB 2024: "If that spell was cast with a spell slot, the slot isn't expended"): a cast the caster's failed Constitution save
@@ -429,13 +429,11 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
           if (how === "slots") {
             const slots = allySlotSpend(env.players, memberId, step.castLevel, slotPoolFor(env.players, memberId, step.spell));
             if (slots !== null) {
-              env.slotsSpent.push({ memberId, slots });
               settleSlotSpend(env.players, memberId, slots);
             }
           } else if (how === "per_day") {
             const spend = allyInnateSpend(env.players, memberId, step.spell);
             if (spend !== null) {
-              env.innateSpent.push(spend);
               settleInnateSpend(env.players, spend);
             }
           }
@@ -556,7 +554,6 @@ function allyMayCastWithSurge(env: ResolveEnv, mover: RunCombatant): boolean {
 function paySheet(env: ResolveEnv, memberId: string, feature: AllyFeature): void {
   const resources = featureSpend(env.players, memberId, feature);
   if (resources === null) return;
-  env.resourcesSpent.push({ memberId, resources });
   settleFeatureSpend(env.players, memberId, resources);
 }
 

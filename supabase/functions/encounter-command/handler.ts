@@ -12,8 +12,9 @@
 
 import type { FactionSides } from "../../../src/rules/fight/sides.ts";
 import type { EncounterEvent, RunCombatant } from "../../../src/types/encounter.types.ts";
-import type { PartyMemberUpdate, SpellSlotEntry } from "../../../src/types/party.types.ts";
-import type { StoredClassResources } from "../../../src/rules/features/characterFeatures.ts";import type { ExploreParty } from "../../../src/types/exploreParty.types.ts";
+import type { PartyMemberUpdate } from "../../../src/types/party.types.ts";
+import { sheetsRead, sheetSpends, type SheetSpend, type SheetsRead } from "../../../src/rules/fight/allies/sheetSpend.ts";
+import type { ExploreParty } from "../../../src/types/exploreParty.types.ts";
 import type { AppliedCondition } from "../../../src/types/condition.types.ts";
 import { spellKey } from "../../../src/rules/fight/spells/castLimit.ts";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
@@ -36,7 +37,7 @@ import { NO_CASTING, type PlayerSheets } from "../../../src/rules/fight/playerSh
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import { FightCommandError } from "./commandError.ts";
-import { lastCosts, owedOf, parseOwedWrites, type OwedWrites, type SpentCosts } from "./owedWrites.ts";
+import { owedOf, parseOwedWrites, type OwedWrites } from "./owedWrites.ts";
 import {
   isAnswerReactionCommand, parsePendingReaction, pendingOf, playedRunOf, ReactionPause, validateAnswerReactionCommand,
   type AnswerReactionCommand, type PendingReaction, type PlayedRun,
@@ -369,12 +370,11 @@ export interface BatchDeps {
   dropThrown(drop: ThrownDrop, memberId: string, speaker: string): Promise<void>;
   /** Writes what an ally's attacks used up to the campaign's inventory (ammunition, the thrown weapon's stack). Every write is absolute, so a retry lands once. */
   writeGear(writes: GearWrite[]): Promise<void>;
-  /** Writes an ally's spell slots after a cast, the whole list as it now stands (absolute, so a retry lands once). */
-  writeSpellSlots(memberId: string, slots: SpellSlotEntry[]): Promise<void>;
-  /** Writes the uses an ally's innate spell has left (`character_spells.uses_remaining`) after a cast, as an absolute count (so a retry lands once). */
-  writeInnateUses(memberId: string, spellRowId: string, remaining: number): Promise<void>;
-  /** Writes an ally's `class_resources` after a class feature spent a use (Rage, Second Wind, Action Surge, Ki), the whole object as it now stands (absolute, so a retry lands once). */
-  writeClassResources(memberId: string, resources: StoredClassResources): Promise<void>;
+  /**
+   * Takes what a batch spent from an ally's sheet (slots, daily innate uses, class resources) off the sheet as it is now, so an
+   * edit the player made since the fight read it stands (#1264). Applied once per batch id and member: a retry changes nothing.
+   */
+  spendFromSheet(spend: SheetSpend, batchId: string): Promise<void>;
   /** Takes the owed record of `batchId` off the fight row once its writes landed (a no-op when another record is there). Raises the row's version like any update. */
   clearOwedWrites(rowId: string, batchId: string): Promise<void>;
   /** One die of any size, from the server's secure source: what a resolving command rolls with. */
@@ -482,7 +482,7 @@ async function attempt(
   notes: NoteJudgments,
   /** A turn the person's own Reaction may pause (`playedReaction.ts`): its dice and judgments are taped, and a moment of theirs asks them. Null: the DM's own fight and every other command. */
   played: PlayedRun | null = null,
-): Promise<{ state: FightState; effects: FightEffect[]; rolls: PostedRoll[]; spent: ResolveEnv["spent"]; slotsSpent: ResolveEnv["slotsSpent"]; resourcesSpent: ResolveEnv["resourcesSpent"]; innateSpent: ResolveEnv["innateSpent"]; noteTokens: number[] | null }> {
+): Promise<{ state: FightState; effects: FightEffect[]; rolls: PostedRoll[]; spent: ResolveEnv["spent"]; sheetSpends: SheetSpend[]; noteTokens: number[] | null }> {
   // Every die of the attempt comes from these three: a played turn draws them through its tape, so a replay throws the same dice.
   const dice = played === null ? { rollD20: deps.rollD20, rollD6: deps.rollD6, rollDie: deps.rollDie } : played.tape.wrap(deps);
   const fightDeps: FightDeps = {
@@ -507,12 +507,11 @@ async function attempt(
 
   const rolls: PostedRoll[] = [];
   const spent: ResolveEnv["spent"] = [];
-  const slotsSpent: ResolveEnv["slotsSpent"] = [];
-  const resourcesSpent: ResolveEnv["resourcesSpent"] = [];
-  const innateSpent: ResolveEnv["innateSpent"] = [];
   // The stat blocks and the player sheets are read once per attempt, and only when the batch has an action to resolve.
   let sources: StatBlockSources | null = null;
   let players: PlayerSheets | null = null;
+  // The sheets as read, before this attempt spent anything from them: what it spent is the difference (#1264).
+  const read: { sheets: SheetsRead; now: PlayerSheets }[] = [];
   let map: FightMap | null | undefined;
   let standIns: ReadonlySet<string> | null = null;
   // A spell is read the first time a cast names it, and once per attempt.
@@ -565,14 +564,16 @@ async function attempt(
       if (played !== null && played.frozen !== null && played.frozen.players !== null) players = played.frozen.players;
       else {
         players = memberIds.length > 0 ? await deps.loadPlayerSheets(memberIds) : { members: [], inventory: [], items: [], beasts: [], casting: NO_CASTING };
-        if (played !== null) played.seen.players = players;
+        // A copy: the turn spends from `players` in memory, and a pause must keep the sheets as they were read, or its replay would spend twice.
+        if (played !== null) played.seen.players = structuredClone(players);
       }
+      read.push({ sheets: sheetsRead(players), now: players });
     }
     // `undefined` is "not asked yet" (a null map is an answer: this fight has none).
     if (map === undefined) map = await deps.loadFightMap(request.encounterId);
     if (standIns === null) standIns = await deps.loadStandIns();
     return {
-      fightDeps, sources, players, map, standIns, factions: loaded.factions, rollDie: dice.rollDie, spells, spellsListed, posted: rolls, spent, slotsSpent, resourcesSpent, innateSpent,
+      fightDeps, sources, players, map, standIns, factions: loaded.factions, rollDie: dice.rollDie, spells, spellsListed, posted: rolls, spent,
       judgeNote: played === null ? notes.ask : (key, request) => played.tape.note(key, () => notes.ask(key, request)),
       ...(played === null ? {} : { askPlayed: played.ask }),
     };
@@ -620,7 +621,7 @@ async function attempt(
     effects.push(...result.effects);
   }
   // A played turn bills the judgments its tape holds (the ones a pause carried over included, once); any other bills what was asked (`notes.answered`).
-  return { state, effects, rolls, spent, slotsSpent, resourcesSpent, innateSpent, noteTokens: played === null ? null : played.tape.billedTokens() };
+  return { state, effects, rolls, spent, sheetSpends: read.flatMap(({ sheets, now }) => sheetSpends(sheets, now)), noteTokens: played === null ? null : played.tape.billedTokens() };
 }
 
 /** Whether a write would leave the fight exactly as the row has it (the batch id aside). */
@@ -913,17 +914,12 @@ function holdsFight(request: CommandRequest, row: FightRow, pending: PendingReac
   throw new FightCommandError(409, waitingFor(row, pending));
 }
 
-/** Every write of what the batches spent on the sheets: one absolute write per member or grant, so a retry lands once. */
-function costWrites(spent: SpentCosts, deps: BatchDeps): Array<{ name: string; run: () => Promise<void> }> {
-  const last = lastCosts(spent);
-  return [
-    // The slots an ally's casts used: the last cast's whole list.
-    ...last.slots.map((w) => ({ name: "ally_spell_slots", run: () => deps.writeSpellSlots(w.memberId, w.slots) })),
-    // The uses an ally's daily-limited innate spells spent: the last count.
-    ...last.innate.map((w) => ({ name: "ally_innate_uses", run: () => deps.writeInnateUses(w.memberId, w.spellRowId, w.remaining) })),
-    // The limited uses an ally's class features spent: the last whole object.
-    ...last.resources.map((w) => ({ name: "ally_class_resources", run: () => deps.writeClassResources(w.memberId, w.resources) })),
-  ];
+/**
+ * What a batch spent from the sheets (slots, daily innate uses, class resources), one spend per member, taken off each sheet as it is
+ * when written so an edit made since the fight read it stands, and applied once per batch id, so a retry or a second settling lands once (#1264).
+ */
+function costWrites(batchId: string, spends: SheetSpend[], deps: BatchDeps): Array<{ name: string; run: () => Promise<void> }> {
+  return spends.map((spend) => ({ name: "ally_sheet", run: () => deps.spendFromSheet(spend, batchId) }));
 }
 
 /**
@@ -934,7 +930,7 @@ async function settleOwed(row: FightRow, deps: BatchDeps): Promise<{ failures: s
   const owed = parseOwedWrites(row.owed_writes);
   if (owed === null) return { failures: [], cleared: false };
   if (owed === "malformed") return { failures: ["owed_writes: the saved sheet writes could not be read"], cleared: false };
-  const failures = await performAll(costWrites(owed, deps));
+  const failures = await performAll(costWrites(owed.batchId, owed.spends, deps));
   if (failures.length > 0) return { failures, cleared: false };
   const clearing = await performAll([{ name: "owed_writes", run: () => deps.clearOwedWrites(row.id, owed.batchId) }]);
   return { failures: clearing, cleared: clearing.length === 0 };
@@ -1019,11 +1015,10 @@ async function runBatchOnce(request: CommandRequest, deps: BatchDeps, settleFail
       if (!paused) continue;
       return resultOf(false, paused.version, row, row, [{ type: "reaction_offered", offer: e.offer, offerId: request.batchId }], []);
     }
-    const { state, effects, rolls, spent, slotsSpent, resourcesSpent, innateSpent } = outcome;
+    const { state, effects, rolls, spent, sheetSpends: spends } = outcome;
     // The answer that finishes the turn also takes the pending Reaction off the row, and records what it still owes the sheets in the same update,
     // so a cost write that fails after the save is finished by the next batch instead of lost (`owedWrites.ts`).
-    const spentCosts: SpentCosts = { slots: slotsSpent, innate: innateSpent, resources: resourcesSpent };
-    const owed = answering === null ? null : owedOf(request.batchId, spentCosts);
+    const owed = answering === null ? null : owedOf(request.batchId, spends);
     const write: FightWrite = {
       ...writeOf(state, row.applied_command_ids, request.batchId),
       ...(answering === null ? {} : { pending_reaction: null }),
@@ -1045,8 +1040,8 @@ async function runBatchOnce(request: CommandRequest, deps: BatchDeps, settleFail
       effectFailures.push(...dropFailures);
       if (dropFailures.length === 0) effectFailures.push(...(await performAll([{ name: "ally_gear", run: () => deps.writeGear(spend.writes) }])));
     }
-    // What the casts and class features used up on the sheets: absolute writes, so a retry lands once. An answered Reaction's are owed on the row until they land.
-    const costFailures = await performAll(costWrites(spentCosts, deps));
+    // What the casts and class features used up on the sheets, applied once per batch. An answered Reaction's are owed on the row until they land.
+    const costFailures = await performAll(costWrites(request.batchId, spends, deps));
     effectFailures.push(...costFailures);
     if (owed !== null && costFailures.length === 0) effectFailures.push(...(await performAll([{ name: "owed_writes", run: () => deps.clearOwedWrites(row.id, request.batchId) }])));
     // Billed after the save, like the rolls, and only for calls that answered: a refused or failed one cost nothing we know of.
