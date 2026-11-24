@@ -1,5 +1,5 @@
 <template>
-  <CanonLedgerRow :id="`canon-entry-${entry.id}`" :label="entry.title" :selected="selected" layout="flex-col gap-1 sm:flex-row sm:items-start sm:gap-3" @select="emit('select')">
+  <CanonRow :id="`canon-entry-${entry.id}`" :label="entry.title" :selected="selected" layout="flex-col gap-1 sm:flex-row sm:items-start sm:gap-3" @select="emit('select')">
     <span class="min-w-0 flex-1">
       <span class="block text-body leading-snug text-foreground">{{ entry.title }}</span>
       <span class="mt-1 block text-label text-muted-foreground" data-testid="secret-tally">{{ clueTally(clues) }}</span>
@@ -9,11 +9,11 @@
       {{ SECRET_STATE_LABEL[state] }}
     </span>
     <CanonMoveButtons v-if="move" :label="entry.title" :first="move.first" :last="move.last" @move="(d) => emit('move', d)" />
-  </CanonLedgerRow>
+  </CanonRow>
 </template>
 
 <script setup lang="ts">
-import CanonLedgerRow from "./CanonLedgerRow.vue";
+import CanonRow from "./kit/CanonRow.vue";
 import CanonMoveButtons from "./CanonMoveButtons.vue";
 import { computed } from "vue";
 import { SECRET_STATE_LABEL, SECRET_STATE_MARK, clueTally, secretState } from "@/lib/canon/canonSecrets";

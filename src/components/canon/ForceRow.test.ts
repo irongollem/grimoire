@@ -14,7 +14,7 @@ const step = (over: Partial<CanonForceStep>): CanonForceStep => ({
   due_year: 500, due_month: null, due_day: null, ai_provenance: null, created_at: "x", updated_at: "x", ...over,
 });
 const mountIt = (entry = canonEntry({ id: "f1", part: "force", title: "The Ferrymen" }), steps = [step({})]) =>
-  mount(ForceRow, { props: { entry, steps, ticks: [] }, global: { stubs: { CanonLedgerRow: { template: "<div><slot /></div>" }, ForceClock: true, CanonMoveButtons: true } } });
+  mount(ForceRow, { props: { entry, steps, ticks: [] }, global: { stubs: { CanonRow: { template: "<div><slot /></div>" }, ForceClock: true, CanonMoveButtons: true } } });
 
 describe("ForceRow", () => {
   // Bug caught (#1258 item 9): a force with a step past its due date looking on schedule in the list.

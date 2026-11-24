@@ -1,5 +1,5 @@
 <template>
-  <CanonLedgerRow :id="`canon-entry-${entry.id}`" :label="entry.title" :selected="selected" @select="emit('select')">
+  <CanonRow :id="`canon-entry-${entry.id}`" :label="entry.title" :selected="selected" @select="emit('select')">
     <ForceClock :force="entry" :ticks="ticks" />
     <span class="min-w-0 flex-1">
       <span class="flex flex-wrap items-baseline gap-x-2">
@@ -26,7 +26,7 @@
       </span>
     </span>
     <CanonMoveButtons v-if="move" :label="entry.title" :first="move.first" :last="move.last" @move="(d) => emit('move', d)" />
-  </CanonLedgerRow>
+  </CanonRow>
 </template>
 
 <script setup lang="ts">
@@ -34,7 +34,7 @@
  * One force in the list (frame 06): what it is doing, the faction behind it (by its current name), what it wants, its
  * clock dial and the step it has reached, and, once the campaign's date has passed a step's due date, a quiet line saying so.
  */
-import CanonLedgerRow from "./CanonLedgerRow.vue";
+import CanonRow from "./kit/CanonRow.vue";
 import { computed } from "vue";
 import CanonMoveButtons from "./CanonMoveButtons.vue";
 import ForceClock from "./ForceClock.vue";

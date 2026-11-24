@@ -15,13 +15,15 @@
       @click="emit('select')"
     />
     <slot />
+    <!-- A mark is text at the row's right edge; the one thing in it that takes a tap (the move buttons) lifts itself above the stretched button. -->
+    <span v-if="$slots.mark" class="pointer-events-none relative z-20 flex shrink-0 items-center gap-2" data-testid="row-mark"><slot name="mark" /></span>
   </li>
 </template>
 
 <script setup lang="ts">
 /**
- * The one row every canon ledger (truths, secrets, forces, lore) is drawn with: the card chrome, the selected mark and
- * the stretched button that selects it. The row's own content goes in the slot. `id` is the anchor the page scrolls to.
+ * The one row every canon list (truths, secrets, forces, lore) is drawn with: the card chrome, the selected mark and
+ * the stretched button that selects it. The row's own content goes in the slot, a mark at its right edge in `mark`. `id` is the anchor the page scrolls to.
  */
 const {
   id,

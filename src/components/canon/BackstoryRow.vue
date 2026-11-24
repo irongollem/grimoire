@@ -1,5 +1,5 @@
 <template>
-  <CanonLedgerRow :id="`canon-backstory-${member.id}`" :label="member.name" :selected="selected" @select="emit('select')">
+  <CanonRow :id="`canon-backstory-${member.id}`" :label="member.name" :selected="selected" @select="emit('select')">
     <span class="min-w-0 flex-1">
       <span class="block text-body leading-snug text-foreground">{{ member.name }}</span>
       <span class="mt-1 flex flex-wrap gap-x-3 text-label text-muted-foreground">
@@ -9,11 +9,11 @@
         <span v-if="threads > 0" data-testid="backstory-threads-open">{{ threads }} open {{ threads === 1 ? "thread" : "threads" }}</span>
       </span>
     </span>
-  </CanonLedgerRow>
+  </CanonRow>
 </template>
 
 <script setup lang="ts">
-import CanonLedgerRow from "./CanonLedgerRow.vue";
+import CanonRow from "./kit/CanonRow.vue";
 import type { PartyMember } from "@/types/party.types";
 
 defineProps<{ member: PartyMember; passages: number; untold: number; threads: number; selected?: boolean }>();

@@ -17,10 +17,8 @@ function go(to: { path?: string; query?: Record<string, string | undefined> }) {
   if (to.query) route.query = Object.fromEntries(Object.entries(to.query).filter(([, v]) => v !== undefined)) as Record<string, string>;
   else if (to.path !== undefined) route.query = {};
 }
-const wide = ref(true);
 const loading = ref(false);
 const data = ref<CanonEntry[]>([]);
-const tableFacts = ref<unknown[]>([]);
 const clues = ref<unknown[]>([]);
 const forceData = ref<{ steps: unknown[] }>({ steps: [] });
 const passages = ref<unknown[]>([]);
@@ -44,10 +42,7 @@ vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: party 
 vi.mock("@/composables/canon/useCanonPassages", () => ({ useCanonPassages: () => ({ data: passages }) }));
 vi.mock("@/composables/canon/useCanonClues", () => ({ useCanonClues: () => ({ data: clues }) }));
 vi.mock("@/composables/canon/useCanonForces", () => ({ useCanonForceData: () => ({ data: forceData }) }));
-vi.mock("@/composables/canon/useChronicle", () => ({ useChronicle: () => ({ written: ref(3) }) }));
-vi.mock("@/composables/canon/useTableFacts", () => ({ useTableFacts: () => ({ facts: { data: tableFacts } }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
-vi.mock("@/composables/useBreakpoint", () => ({ useAbove: () => wide }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaign: { id: "c1" } }) }));
 
 vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
@@ -57,12 +52,12 @@ import CanonView from "./CanonView.vue";
 
 const truth = (id: string, title: string): CanonEntry => canonEntry({ id, campaign_id: "c1", part: "truth", knowledge: "all", title });
 
-const TruthDetailStub = { name: "TruthDetail", props: ["entry"], emits: ["delete"], template: "<div data-testid='detail'>{{ entry.title }}<button data-testid='del' @click=\"$emit('delete')\" /></div>" };
+// The chapter draws its own list, entry wrapper and Back; this stub stands in for the rows and the open truth only.
 const TruthsStub = {
-  name: "TruthsSection",
-  props: ["truths", "selectedId"],
-  emits: ["select"],
-  template: "<section id=\"canon-truths\"><div v-for='t in truths' :id=\"'canon-entry-' + t.id\" :key='t.id' @click=\"$emit('select', t.id)\">{{ t.title }}</div></section>",
+  name: "TruthsChapter",
+  props: ["truths", "allTruths", "selected", "arcLabel"],
+  emits: ["select", "close", "delete"],
+  template: "<section id=\"canon-truths\"><div v-for='t in truths' :id=\"'canon-entry-' + t.id\" :key='t.id' @click=\"$emit('select', t.id)\">{{ t.title }}</div><div v-if='selected' id='canon-inline-detail' data-testid='detail'>{{ selected.title }}<button data-testid='del' @click=\"$emit('delete')\" /><button data-testid='truth-close' @click=\"$emit('close')\" /></div></section>",
 };
 
 const SecretDetailStub = { name: "SecretDetail", props: ["entry"], emits: ["delete"], template: "<div data-testid='secret-detail'>{{ entry.title }}<button data-testid='del-secret' @click=\"$emit('delete')\" /></div>" };
@@ -73,7 +68,7 @@ const LoreDetailStub = { name: "LoreDetail", props: ["entry"], emits: ["delete"]
 
 const BackstoryDetailStub = { name: "BackstoryDetail", props: ["member"], template: "<div data-testid='backstory-detail'>{{ member.name }}</div>" };
 
-const RouterLink = { props: ["to"], template: "<a data-testid='result-link' :href=\"`${to.path}?entry=${to.query.entry}`\"><slot /></a>" };
+const RouterLink = { props: ["to"], template: "<a :data-testid=\"typeof to === 'string' ? 'link' : 'result-link'\" :href=\"typeof to === 'string' ? to : `${to.path}?entry=${to.query.entry}`\"><slot /></a>" };
 
 const mounted: { unmount: () => void }[] = [];
 
@@ -84,11 +79,15 @@ async function settle() {
   await flushPromises();
 }
 
+// Every section and detail is another file's business; the page is what mounts them. Details are stubbed to a name and a delete.
+const STUBS = {
+  RouterLink, CanonArcs: true, PremiseSection: true, ForcesSection: true, ForceDetail: ForceDetailStub, SecretsSection: true, WorldWorksSection: true, WorldPeoples: true, HabitatsPanel: true,
+  AppButton: { props: ["to", "label"], template: "<component :is=\"to ? 'a' : 'button'\" :href=\"to\">{{ label }}<slot /></component>" },
+  LoreSection: true, CanonDeleted: true, LoreDetail: LoreDetailStub, SecretDetail: SecretDetailStub, TruthsChapter: TruthsStub, CanonContents: true, BackstoriesSection: true, BackstoryDetail: BackstoryDetailStub,
+};
+
 function mountView(stubs: Record<string, unknown> = {}) {
-  const w = mount(CanonView, {
-    attachTo: document.body,
-    global: { stubs: { RouterLink, CanonArcs: true, CanonAiTools: true, PremiseSection: true, ForcesSection: true, ForceDetail: ForceDetailStub, SecretsSection: true, WorldWorksSection: true, LifeSection: true, LoreSection: true, ChronicleSection: true, TableAddedSection: true, CanonDeleted: true, AppButton: { template: '<a :data-testid="label === \'Tonight\' ? \'tonight\' : \'bring-in\'" :href="to"><slot /></a>', props: ['to', 'label'] }, LoreDetail: LoreDetailStub, SecretDetail: SecretDetailStub, TruthDetail: TruthDetailStub, TruthsSection: TruthsStub, CanonContents: true, BackstoriesSection: true, BackstoryDetail: BackstoryDetailStub, ...stubs } },
-  });
+  const w = mount(CanonView, { attachTo: document.body, global: { stubs: { ...STUBS, ...stubs } } });
   mounted.push(w);
   return w;
 }
@@ -116,7 +115,6 @@ describe("CanonView", () => {
     mocks.destroy.mockReset();
     mocks.confirm.mockReset();
     mocks.scroll.mockReset();
-    wide.value = true;
     loading.value = false;
   });
 
@@ -155,59 +153,45 @@ describe("CanonView", () => {
     expect(w.find("[data-testid=detail]").exists()).toBe(false);
   });
 
-  // Bug caught: a lore entry or a force edited in the 20rem side pane (rich text wrapping every few words, a ribbon of steps).
-  describe("a long entry opens beside its ledger in the page body, never in the side pane", () => {
+  // Bug caught: an entry drawn under its list, in a side column, or nowhere: every chapter's entry opens in the chapter, beside its list.
+  describe("an entry opens in its chapter, beside the list", () => {
     const forceRow = () => ({ ...truth("f1", "The Stain spreads"), part: "force" as const, knowledge: null });
     const loreRow = () => canonEntry({ id: "l1", campaign_id: "c1", part: "lore", title: "The Fall" });
+    const entryPane = "[data-testid=canon-chapter-entry]";
 
-    it("renders a selected lore entry in the body's split and not in the aside, at desktop width", async () => {
+    it("renders a selected lore entry, force and secret in the chapter's entry, and no side column", async () => {
+      data.value = [loreRow(), forceRow(), { ...truth("s1", "Sift"), part: "secret", knowledge: null }];
+      for (const [part, id, detail] of [["lore", "l1", "lore-detail"], ["moving", "f1", "force-detail"], ["secrets", "s1", "secret-detail"]] as const) {
+        route.params = { part };
+        route.query = { entry: id };
+        const w = mountView();
+        await settle();
+        expect(w.find(`${entryPane} [data-testid=${detail}]`).exists()).toBe(true);
+        expect(w.find("aside").exists()).toBe(false);
+        expect(w.find("#canon-inline-detail").exists()).toBe(true);
+      }
+    });
+
+    it("keeps a selected truth's entry in the Truths chapter, and shows it once", async () => {
+      route.query = { entry: "t1" };
+      const w = mountView();
+      await settle();
+      expect(w.findAll("[data-testid=detail]")).toHaveLength(1);
+      expect(w.findComponent({ name: "TruthsChapter" }).props("selected")).toMatchObject({ id: "t1" });
+    });
+
+    // Bug caught: the chapter told it is open when only another chapter's entry is, so its list hid behind nothing.
+    it("opens the chapter only for an entry of its own part", async () => {
       data.value = [loreRow()];
+      route.params = { part: "moving" };
+      route.query = {};
+      const w = mountView();
+      await settle();
+      expect(w.find("[data-chapter=moving]").attributes("data-open")).toBeUndefined();
       route.params = { part: "lore" };
       route.query = { entry: "l1" };
-      const w = mountView();
       await settle();
-      expect(w.find("[data-testid=page-body] [data-testid=canon-split-detail] [data-testid=lore-detail]").exists()).toBe(true);
-      expect(w.find("aside").exists()).toBe(false);
-    });
-
-    it("renders a selected force in the body's split and not in the aside", async () => {
-      data.value = [forceRow()];
-      route.params = { part: "moving" };
-      route.query = { entry: "f1" };
-      const w = mountView();
-      await settle();
-      expect(w.find("[data-testid=page-body] [data-testid=canon-split-detail] [data-testid=force-detail]").exists()).toBe(true);
-      expect(w.find("aside").exists()).toBe(false);
-    });
-
-    // Bug caught: moving lore and forces out also moved the truth, or left it unrendered.
-    it("keeps a selected truth and a selected secret in the aside at desktop width", async () => {
-      route.query = { entry: "t1" };
-      const truthView = mountView();
-      await settle();
-      expect(truthView.find("aside [data-testid=detail]").exists()).toBe(true);
-      expect(truthView.find("[data-testid=canon-split-detail]").exists()).toBe(false);
-      data.value = [{ ...truth("s1", "Sift"), part: "secret", knowledge: null }];
-      route.params = { part: "secrets" };
-      route.query = { entry: "s1" };
-      const secretView = mountView();
-      await settle();
-      expect(secretView.find("aside [data-testid=secret-detail]").exists()).toBe(true);
-    });
-
-    // Bug caught: the body stayed 48rem wide with a split open, so two thirds of it was no wider than before.
-    it("widens the page body only while a split is open, for a lore entry, a force and a backstory alike", async () => {
-      const closed = mountView();
-      await settle();
-      expect(closed.find("[data-testid=page-body] > div > div").classes()).not.toContain("max-w-5xl");
-      for (const [rows, query, part] of [[[loreRow()], { entry: "l1" }, "lore"], [[forceRow()], { entry: "f1" }, "moving"], [data.value, { backstory: "m1" }, "backstories"]] as const) {
-        data.value = [...rows];
-        route.params = { part };
-        route.query = { ...query };
-        const open = mountView();
-        await settle();
-        expect(open.find("[data-testid=page-body] > div > div").classes()).toContain("max-w-5xl");
-      }
+      expect(w.find("[data-chapter=lore]").attributes("data-open")).toBeDefined();
     });
 
     // Bug caught: the close button did nothing, or cleared only ?backstory so a backstory opened by ?entry stayed open.
@@ -217,7 +201,7 @@ describe("CanonView", () => {
       route.query = { entry: "l1" };
       const w = mountView();
       await settle();
-      await w.find("[data-testid=canon-split-close]").trigger("click");
+      await w.find("[data-testid=canon-chapter-back]").trigger("click");
       expect(mocks.replace).toHaveBeenCalledWith({ query: { entry: undefined, backstory: undefined } });
     });
 
@@ -226,7 +210,7 @@ describe("CanonView", () => {
       route.query = { backstory: "m2" };
       const w = mountView();
       await settle();
-      await w.find("[data-testid=canon-split-close]").trigger("click");
+      await w.find("[data-testid=canon-chapter-back]").trigger("click");
       expect(mocks.replace).toHaveBeenCalledWith({ query: { entry: undefined, backstory: undefined } });
     });
 
@@ -254,7 +238,7 @@ describe("CanonView", () => {
       const w = mountView({ LoreSection: loreRows });
       await settle();
       expect(route.params.part).toBe("lore");
-      expect(w.findComponent({ name: "TruthsSection" }).exists()).toBe(false);
+      expect(w.findComponent({ name: "TruthsChapter" }).exists()).toBe(false);
       expect(mocks.scroll.mock.calls[0]?.[0]).toBe(document.getElementById("canon-entry-l1"));
     });
 
@@ -265,7 +249,7 @@ describe("CanonView", () => {
       const loreStub = { name: "LoreSection", props: ["lore"], emits: ["select"], template: "<section><i id='tap-lore' @click=\"$emit('select', 'l1')\" /></section>" };
       const w = mount(CanonView, {
         attachTo: document.body,
-        global: { stubs: { CanonArcs: true, CanonAiTools: true, PremiseSection: true, ForcesSection: true, SecretsSection: true, WorldWorksSection: true, LifeSection: true, LoreSection: loreStub, LoreDetail: LoreDetailStub, ChronicleSection: true, TableAddedSection: true, CanonDeleted: true, TruthsSection: true, CanonContents: true, BackstoriesSection: true, AppButton: true } },
+        global: { stubs: { ...STUBS, LoreSection: loreStub } },
       });
       mounted.push(w);
       await w.find("#tap-lore").trigger("click");
@@ -357,20 +341,11 @@ describe("CanonView", () => {
     expect(mountView().find("[data-testid=detail]").exists()).toBe(false);
   });
 
-  it("puts a clicked truth in the URL without scrolling the list away from the DM's hand", async () => {
+  it("puts a clicked truth in the URL, keeping the other query it carries", async () => {
+    route.query = { backstory: "m1" };
     const w = mountView();
     await w.find("#canon-entry-t1").trigger("click");
-    expect(mocks.replace).toHaveBeenCalledWith({ query: { entry: "t1" } });
-    route.query = { entry: "t1" };
-    await settle();
-    expect(mocks.scroll).not.toHaveBeenCalled();
-  });
-
-  it("shows the selected truth once, in the side column on a desktop and under its part on a phone", async () => {
-    route.query = { entry: "t1" };
-    expect(mountView().findAll("[data-testid=detail]")).toHaveLength(1);
-    wide.value = false;
-    expect(mountView().findAll("[data-testid=detail]")).toHaveLength(1);
+    expect(mocks.replace).toHaveBeenCalledWith({ query: { entry: "t1", backstory: undefined } });
   });
 
   describe("deleting the open truth", () => {
@@ -452,43 +427,53 @@ describe("CanonView", () => {
   });
 
   // Bug caught: the importer left Campaign settings with no way in from the Canon page, so a DM could not bring a book in at all.
-  it("offers Bring in a book, leading to the import page", () => {
+  it("offers Bring in a book in the header and under the title on a phone, leading to the import page", () => {
     const w = mountView();
-    expect(w.find("[data-testid=bring-in]").attributes("href")).toBe("/canon/import");
+    expect(w.findAll("a[href='/canon/import']")).toHaveLength(2);
+    expect(w.find("[data-testid=canon-phone-actions] a[href='/canon/import']").exists()).toBe(true);
   });
 
-  // Bug caught: the prep view built but unreachable, because the Canon header never linked to it.
-  it("offers Tonight in the header and in the phone actions, leading to /canon/tonight", () => {
-    const w = mountView();
-    const links = w.findAll("[data-testid=tonight]");
-    expect(links).toHaveLength(2);
-    expect(links.map((l) => l.attributes("href"))).toEqual(["/canon/tonight", "/canon/tonight"]);
-  });
-
-  // Bug caught (#1258 item 20): Tonight and Bring in a book sat at the very bottom of the page on a phone, past every part.
-  it("puts the phone actions under the title, before the contents and every part, and only on a phone", () => {
+  // Bug caught (#1258 item 20): the search and Bring in a book sat at the very bottom of the page on a phone, past every chapter.
+  it("puts the phone actions under the title, before the contents and every chapter, and only on a phone", () => {
     const w = mountView();
     const actions = w.get("[data-testid=canon-phone-actions]");
     expect(actions.classes()).toContain("md:hidden");
-    expect(actions.find("[data-testid=tonight]").exists()).toBe(true);
-    expect(actions.find("[data-testid=bring-in]").exists()).toBe(true);
+    expect(actions.find("input[type=search]").exists()).toBe(true);
     const html = w.html();
     expect(html.indexOf("canon-phone-actions")).toBeLessThan(html.indexOf("canon-contents-stub"));
   });
 
-  // Bug caught: the contents column counting kept, struck and corrected lines as "new", so the badge never reached zero.
-  it("hands the contents the chronicle's written entries and only the table's unreviewed lines", () => {
-    const fact = (id: string, over: Record<string, unknown> = {}) => ({ id, source: "table", supersedes_id: null, kept_at: null, struck_at: null, created_at: `2026-11-20T10:00:0${id}Z`, ...over });
-    tableFacts.value = [fact("1"), fact("2", { kept_at: "2026-11-20T11:00:00Z" }), fact("3", { struck_at: "2026-11-20T11:00:00Z" }), fact("4")];
+  // Bug caught: the Canon keeping an AI panel of its own, or the Tonight shortcut, after the Familiar took over.
+  it("holds no AI tools and no Tonight button of its own", () => {
+    const w = mountView();
+    expect(w.findComponent({ name: "CanonAiTools" }).exists()).toBe(false);
+    expect(w.find("a[href='/canon/tonight']").exists()).toBe(false);
+  });
+
+  // Bug caught: the contents still counting the Chronicle or the table's lines, which are no longer chapters.
+  it("hands the contents only its chapters' counts", () => {
     const counts = mountView().findComponent({ name: "CanonContents" }).props("counts") as Record<string, number>;
-    expect(counts.table).toBe(2);
-    expect(counts.chronicle).toBe(3);
+    expect(Object.keys(counts).sort()).toEqual(["backstories", "life", "lore", "moving", "peoples", "premise", "secrets", "truths", "world"]);
   });
 
   // Bug caught: the contents column counting only the backstories already opened, so a party of two read "0" over a ledger of two rows.
   it("counts one backstory per character, opened or not", () => {
     const counts = mountView().findComponent({ name: "CanonContents" }).props("counts") as Record<string, number>;
     expect(counts.backstories).toBe(2);
+  });
+
+  // Bug caught: Peoples and Life drawn with no heading (they are not list chapters), so the page did not say where the DM was.
+  it("draws Peoples and Life under their own heading and reason", async () => {
+    route.params = { part: "peoples" };
+    const w = mountView();
+    await settle();
+    expect(w.find("[data-chapter=peoples] h2").text()).toBe("Peoples");
+    expect(w.findComponent({ name: "WorldPeoples" }).exists()).toBe(true);
+    route.params = { part: "life" };
+    await settle();
+    expect(w.find("[data-chapter=life] h2").text()).toBe("Life");
+    expect(w.findComponent({ name: "HabitatsPanel" }).exists()).toBe(true);
+    expect(w.findComponent({ name: "WorldPeoples" }).exists()).toBe(false);
   });
 
   // Bug caught: a search hit on an open question or a premise entry opened the page with nothing scrolled to or marked,
@@ -498,21 +483,21 @@ describe("CanonView", () => {
     function mountLanding() {
       const w = mount(CanonView, {
         attachTo: document.body,
-        global: { stubs: { RouterLink, CanonArcs: true, CanonAiTools: true, PremiseSection: rowStub, SecretsSection: rowStub, TruthsSection: true, ForcesSection: true, WorldWorksSection: true, LifeSection: true, LoreSection: true, ChronicleSection: true, TableAddedSection: true, CanonDeleted: true, AppButton: true, CanonContents: true, BackstoriesSection: true } },
+        global: { stubs: { ...STUBS, PremiseSection: rowStub, SecretsSection: rowStub, TruthsChapter: true } },
       });
       mounted.push(w);
       return w;
     }
 
-    // Bug caught (#1255 item 14): Tonight's link to "What the table added" landed on the part the DM was last on, because
-    // nothing read which part a link meant.
-    it("opens at the part named by ?section, and keeps the part it was on for one that does not exist", async () => {
+    // Bug caught (#1255 item 14): a link to "What the table added" landed on the part the DM was last on, because nothing
+    // read which part a link meant; and, since the table's lines moved to Truths, an old link to a chapter that is gone.
+    it("opens at the chapter named by ?section (the old table link lands on Truths), and keeps the one it was on for one that does not exist", async () => {
       route.params = {};
       route.query = { section: "table" };
       const w = mountLanding();
       await settle();
-      expect(w.findComponent({ name: "CanonContents" }).props("active")).toBe("table");
-      expect(route.params.part).toBe("table");
+      expect(w.findComponent({ name: "CanonContents" }).props("active")).toBe("truths");
+      expect(route.params.part).toBe("truths");
 
       route.params = { part: "lore" };
       route.query = { section: "nowhere" };
@@ -551,25 +536,14 @@ describe("CanonView", () => {
     });
   });
 
-  // Bug caught: below a desktop a tapped row opened its detail under the part, off screen, and nothing brought it into view.
-  describe("a tapped row on a phone", () => {
-    it("scrolls the opened inline detail into view", async () => {
-      wide.value = false;
-      const w = mountView();
-      await w.find("#canon-entry-t1").trigger("click");
-      route.query = { entry: "t1" };
-      await settle();
-      expect(mocks.scroll).toHaveBeenCalledTimes(1);
-      expect(mocks.scroll.mock.calls[0]?.[0]).toBe(document.getElementById("canon-inline-detail"));
-    });
-
-    it("does not scroll at desktop width, where the side column already shows it", async () => {
-      const w = mountView();
-      await w.find("#canon-entry-t1").trigger("click");
-      route.query = { entry: "t1" };
-      await settle();
-      expect(mocks.scroll).not.toHaveBeenCalled();
-    });
+  // Bug caught: a tapped row opening its entry off screen (beside the list it is in sight; in place of it, it is the whole chapter), with nothing bringing it into view.
+  it("scrolls the opened entry into view after a tap, and never to the row the DM already touched", async () => {
+    const w = mountView();
+    await w.find("#canon-entry-t1").trigger("click");
+    route.query = { entry: "t1" };
+    await settle();
+    expect(mocks.scroll).toHaveBeenCalledTimes(1);
+    expect(mocks.scroll.mock.calls[0]?.[0]).toBe(document.getElementById("canon-inline-detail"));
   });
 
   // Bug caught (#1255 item 11): the arc filter narrowing only some parts, or narrowing the premise, which belongs to no arc.
@@ -589,7 +563,7 @@ describe("CanonView", () => {
     it("shows only the arc's truths, and still the whole premise", async () => {
       const w = mountView();
       await settle();
-      expect(w.findComponent({ name: "TruthsSection" }).props("truths").map((t: CanonEntry) => t.id)).toEqual(["t1"]);
+      expect(w.findComponent({ name: "TruthsChapter" }).props("truths").map((t: CanonEntry) => t.id)).toEqual(["t1"]);
       route.params = { part: "premise" };
       await settle();
       expect(w.findComponent({ name: "PremiseSection" }).props("entries").map((t: CanonEntry) => t.id)).toContain("p1");
@@ -606,12 +580,11 @@ describe("CanonView", () => {
       party.value = party.value.slice(0, 2);
     });
 
-    it("counts the contents column by what the arc shows, and 'Where to begin' by the whole canon", async () => {
+    it("counts the contents by what the arc shows", async () => {
       route.params = { part: "premise" };
       const w = mountView();
       await settle();
       expect(w.findComponent({ name: "CanonContents" }).props("counts")).toMatchObject({ truths: 1, premise: 1, backstories: 2 });
-      expect(w.findComponent({ name: "CanonStart" }).props("counts")).toMatchObject({ truths: 2, backstories: 2 });
     });
 
     it("keeps a truth open when the DM moves it to another arc, instead of closing it under them", async () => {
@@ -624,13 +597,13 @@ describe("CanonView", () => {
 
   // #1258 item 19: one part per view.
   describe("one part at a time", () => {
-    const names = (w: ReturnType<typeof mountView>) => ["PremiseSection", "TruthsSection", "ForcesSection", "SecretsSection", "LoreSection", "BackstoriesSection", "ChronicleSection", "TableAddedSection"].filter((n) => w.findComponent({ name: n }).exists());
+    const names = (w: ReturnType<typeof mountView>) => ["PremiseSection", "TruthsChapter", "ForcesSection", "SecretsSection", "LoreSection", "BackstoriesSection"].filter((n) => w.findComponent({ name: n }).exists());
 
     // Bug caught: the page still stacking every part (the old long scroll) behind a contents column that only highlights one.
     it("renders only the part in the address", async () => {
       const w = mountView();
       await settle();
-      expect(names(w)).toEqual(["TruthsSection"]);
+      expect(names(w)).toEqual(["TruthsChapter"]);
       route.params = { part: "lore" };
       await settle();
       expect(names(w)).toEqual(["LoreSection"]);
@@ -698,14 +671,12 @@ describe("CanonView", () => {
       expect(w.findComponent({ name: "LoreSection" }).exists()).toBe(true);
     });
 
-    // Bug caught: "Where to begin" repeating over every part, pushing each one's own content below the fold.
-    it("shows Where to begin on the premise only", async () => {
+    // Bug caught: the arc bar drawn over the skeleton, offering a filter for a canon that has not loaded.
+    it("shows no arc bar while the canon loads", async () => {
+      loading.value = true;
       const w = mountView();
       await settle();
-      expect(w.findComponent({ name: "CanonStart" }).exists()).toBe(false);
-      route.params = { part: "premise" };
-      await settle();
-      expect(w.findComponent({ name: "CanonStart" }).exists()).toBe(true);
+      expect(w.findComponent({ name: "CanonArcs" }).exists()).toBe(false);
     });
 
     // Bug caught: the arc bar missing from a part an arc narrows (no way to clear the arc), or shown over the premise, which no arc narrows.
@@ -755,11 +726,11 @@ describe("CanonView", () => {
       const w = mountView();
       useCanonUiStore().query = "river";
       await settle();
-      expect(w.findComponent({ name: "TruthsSection" }).exists()).toBe(false);
+      expect(w.findComponent({ name: "TruthsChapter" }).exists()).toBe(false);
       expect(w.find("[data-testid=canon-search-results]").exists()).toBe(true);
       await w.find("[data-testid=search-clear]").trigger("click");
       expect(useCanonUiStore().query).toBe("");
-      expect(w.findComponent({ name: "TruthsSection" }).exists()).toBe(true);
+      expect(w.findComponent({ name: "TruthsChapter" }).exists()).toBe(true);
     });
 
     // Bug caught: following a result with the query still set, so the entry opened behind the very list that was clicked.
@@ -775,15 +746,15 @@ describe("CanonView", () => {
       expect(ui.query).toBe("");
     });
 
-    // Bug caught: the open truth's side pane staying beside the results, so a detail the DM did not ask for sits next to the list.
-    it("closes the side pane while the results are shown", async () => {
+    // Bug caught: the open truth staying beside the results, so a detail the DM did not ask for sits next to the list.
+    it("closes the open entry while the results are shown", async () => {
       route.query = { entry: "t1" };
       const w = mountView();
       await settle();
-      expect(w.find("aside [data-testid=detail]").exists()).toBe(true);
+      expect(w.find("[data-testid=detail]").exists()).toBe(true);
       useCanonUiStore().query = "river";
       await settle();
-      expect(w.find("aside").exists()).toBe(false);
+      expect(w.find("[data-testid=detail]").exists()).toBe(false);
     });
 
     // Bug caught: an arc's other entries still turning up under the arc filter.

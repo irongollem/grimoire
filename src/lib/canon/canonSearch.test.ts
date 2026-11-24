@@ -74,9 +74,9 @@ describe("searchCanon", () => {
       passages: [passage({ title: "The last lamp", body: null }), passage({ id: "p2", title: "", body: doc("A lamplighter's oath") })],
     });
     expect(groups.map((g) => [g.section, g.hits.map((h) => [h.entryId, h.kind])])).toEqual([
+      ["lore", [["l1", "Passage"], ["l1", "Passage"]]],
       ["moving", [["f1", "Step"]]],
       ["secrets", [["s1", "Clue"]]],
-      ["lore", [["l1", "Passage"], ["l1", "Passage"]]],
     ]);
   });
 
@@ -86,10 +86,10 @@ describe("searchCanon", () => {
     expect(groups).toEqual([]);
   });
 
-  // Bug caught: groups in the order they were found, so Lore could read above Truths against the contents column.
+  // Bug caught: groups in the order they were found, so Moving could read above Lore against the contents column.
   it("orders the groups as the contents column does, and counts a question with the secrets", () => {
     const groups = searchCanon("the", { ...none, entries });
-    expect(groups.map((g) => g.section)).toEqual(["truths", "moving", "secrets", "lore"]);
+    expect(groups.map((g) => g.section)).toEqual(["truths", "lore", "moving", "secrets"]);
     expect(groups.find((g) => g.section === "secrets")!.hits.map((h) => h.entryId)).toEqual(["s1", "q1"]);
   });
 });

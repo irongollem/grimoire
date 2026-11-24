@@ -37,7 +37,7 @@ const TRUTHS = [canonEntry({ id: "t1" }), canonEntry({ id: "t2" })];
 const mountIt = (truths = TRUTHS) =>
   mount(TableAddedSection, {
     props: { truths },
-    global: { stubs: { SoloCorrectDialog: true, CanonRubric: true, OverflowMenu: { emits: ["select"], template: "<button data-testid='more' @click=\"$emit('select', 'truth')\" />" } } },
+    global: { stubs: { SoloCorrectDialog: true, OverflowMenu: { emits: ["select"], template: "<button data-testid='more' @click=\"$emit('select', 'truth')\" />" } } },
   });
 const button = (w: ReturnType<typeof mountIt>, label: string) => w.findAll("button, a").find((b) => b.text() === label);
 

@@ -1,5 +1,5 @@
 <template>
-  <CanonLedgerRow :id="`canon-entry-${entry.id}`" :label="entry.title" :selected="selected" @select="emit('select')">
+  <CanonRow :id="`canon-entry-${entry.id}`" :label="entry.title" :selected="selected" @select="emit('select')">
     <div v-if="!lowArt && entry.image_url" class="size-12 shrink-0 overflow-hidden bg-muted">
       <FocalImage :src="entry.image_url" alt="" format="portrait" class="size-full" />
     </div>
@@ -11,11 +11,11 @@
         <span data-testid="lore-told">Told {{ tally.told }} of {{ tally.total }}</span>
       </span>
     </span>
-  </CanonLedgerRow>
+  </CanonRow>
 </template>
 
 <script setup lang="ts">
-import CanonLedgerRow from "./CanonLedgerRow.vue";
+import CanonRow from "./kit/CanonRow.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { useLowArt } from "@/composables/useLowArt";
 import { LORE_KIND_LABEL } from "@/lib/canon/canonLore";

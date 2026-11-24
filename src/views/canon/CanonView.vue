@@ -1,113 +1,97 @@
 <template>
-  <PageHeader owns-phone-bar title="Canon" description="The world's larger shape: what is true, what you keep back, how it feels to play, and what has happened.">
+  <PageHeader owns-phone-bar title="Canon" description="The campaign's background book: what is true, what you keep back, and how it feels to play.">
     <template #actions>
-      <AppButton to="/canon/tonight" variant="ghost" size="md" :icon="IconMoon" label="Tonight" />
+      <CanonSearchField class="w-72" />
       <AppButton to="/canon/import" variant="outline" size="md" :icon="IconUpload" label="Bring in a book" />
-      <CanonAiTools />
     </template>
     <!-- The header holds these from a tablet up; a phone's header is the page's own bar, so they sit under the title where a thumb finds them. -->
-    <div class="mb-4 flex flex-wrap items-start gap-2 md:hidden" data-testid="canon-phone-actions">
-      <AppButton to="/canon/tonight" variant="outline" size="sm" :icon="IconMoon" label="Tonight" />
-      <AppButton to="/canon/import" variant="outline" size="sm" :icon="IconUpload" label="Bring in a book" />
-      <CanonAiTools />
+    <div class="mb-4 flex flex-col gap-2 md:hidden" data-testid="canon-phone-actions">
+      <CanonSearchField />
+      <AppButton to="/canon/import" variant="outline" size="sm" :icon="IconUpload" label="Bring in a book" class="self-start" />
     </div>
 
-    <!-- One search for the whole page: while a query is set its results stand in place of the part. -->
-    <div id="canon-page-top" class="mb-4 flex max-w-3xl items-center gap-2">
-      <AppInput v-model="ui.query" type="search" tone="filled" size="body" class="flex-1" placeholder="Search the whole canon…" aria-label="Search the whole canon" />
-      <AppButton v-if="searching" variant="ghost" size="sm" label="Clear" data-testid="search-clear" @click="ui.query = ''" />
-    </div>
+    <div id="canon-page-top" class="flex flex-col gap-4 min-[90rem]:flex-row min-[90rem]:items-start min-[90rem]:gap-6">
+      <!-- The contents: a column from 90rem (kept in sight), a chapter picker above the chapter below it. The arc filter is page-wide, so it sits with it. -->
+      <div class="flex min-w-0 flex-col gap-3 min-[90rem]:sticky min-[90rem]:top-0 min-[90rem]:w-56 min-[90rem]:shrink-0 min-[90rem]:self-start">
+        <CanonContents :active="active" :counts="counts" @select="goTo" />
+        <CanonArcs v-if="ready && (searching || ARC_NARROWED_SECTIONS.includes(active))" />
+      </div>
 
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
-      <CanonContents class="sticky top-0 z-10 lg:z-auto lg:shrink-0" :active="active" :counts="counts" @select="goTo" />
-
-      <div
-        class="@container flex min-w-0 flex-1 flex-col gap-8 max-lg:[&_#canon-inline-detail]:scroll-mt-16"
-        :class="splitOpen ? 'max-w-5xl [&>:not([data-split-open])]:max-w-3xl' : 'max-w-3xl'"
-      >
+      <div class="flex min-w-0 flex-1 flex-col gap-8">
         <ListSkeleton v-if="isLoading || campaign === null" variant="rows" :count="4" />
         <p v-else-if="isError" role="alert" class="text-body text-destructive">Could not load the canon.</p>
         <template v-else>
-          <CanonArcs v-if="searching || ARC_NARROWED_SECTIONS.includes(active)" />
-          <CanonSearchResults v-if="searching" :groups="hitGroups" :query="ui.query" @open="ui.query = ''" />
+          <CanonSearchResults v-if="searching" class="max-w-3xl" :groups="hitGroups" :query="ui.query" @open="ui.query = ''" />
           <template v-else>
-            <template v-if="active === 'premise'">
-              <CanonStart :counts="startCounts" :has-pitch="hasPitch" @go="goTo" />
-              <PremiseSection :campaign="campaign" :entries="entries" />
-            </template>
-            <template v-else-if="active === 'truths'">
-              <TruthsSection :truths="shownTruths" :arc-label="arcLabel" :selected-id="selected?.id ?? null" @select="select" />
-              <!-- Below a desktop there is no side column: the selected truth opens under its part. -->
-              <div v-if="selectedTruth && !wide" id="canon-inline-detail">
-                <TruthDetail :key="selectedTruth.id" :entry="selectedTruth" @delete="removeSelected" />
-              </div>
-            </template>
-            <CanonSplit v-else-if="active === 'moving'" close-label="Close this force" @close="closeEntry">
-              <ForcesSection :forces="shownForces" :arc-label="arcLabel" :selected-id="selectedForce?.id ?? null" @select="select" />
-              <template v-if="selectedForce" #detail>
-                <ForceDetail :key="selectedForce.id" :entry="selectedForce" @delete="removeSelected" />
+            <TruthsChapter
+              v-if="active === 'truths'"
+              :truths="shownTruths"
+              :all-truths="truths"
+              :selected="selectedTruth"
+              :arc-label="arcLabel"
+              @select="select"
+              @close="closeEntry"
+              @delete="removeSelected"
+            />
+            <CanonChapter
+              v-else-if="LIST_CHAPTERS.includes(active)"
+              :chapter="active"
+              :title="chapter.label"
+              :why="chapter.why"
+              :open="openEntryId !== null"
+              :back-label="chapter.label"
+              @close="closeEntry"
+            >
+              <ForcesSection v-if="active === 'moving'" :forces="shownForces" :arc-label="arcLabel" :selected-id="selectedForce?.id ?? null" @select="select" />
+              <SecretsSection v-else-if="active === 'secrets'" :secrets="shownSecrets" :questions="shownQuestions" :arc-label="arcLabel" :selected-id="selectedSecret?.id ?? null" @select="select" />
+              <LoreSection v-else-if="active === 'lore'" :lore="shownLore" :arc-label="arcLabel" :selected-id="selectedLore?.id ?? null" @select="select" />
+              <BackstoriesSection v-else :party="party" :entries="backstories" :passages="allPassages ?? []" :selected-id="selectedBackstoryMember?.id ?? null" @select="selectBackstory" />
+              <template #entry>
+                <ForceDetail v-if="active === 'moving' && selectedForce" :key="selectedForce.id" :entry="selectedForce" @delete="removeSelected" />
+                <SecretDetail v-else-if="active === 'secrets' && selectedSecret" :key="selectedSecret.id" :entry="selectedSecret" @delete="removeSelected" />
+                <LoreDetail v-else-if="active === 'lore' && selectedLore" :key="selectedLore.id" :entry="selectedLore" @delete="removeSelected" />
+                <BackstoryDetail v-else-if="active === 'backstories' && selectedBackstoryMember" :key="selectedBackstoryMember.id" :member="selectedBackstoryMember" />
               </template>
-            </CanonSplit>
-            <SecretsSection v-else-if="active === 'secrets'" :secrets="shownSecrets" :questions="shownQuestions" :arc-label="arcLabel" :selected-id="selectedSecret?.id ?? null" @select="select">
-              <!-- In the part's slot, so it opens under the ledger and not past the open questions. -->
-              <div v-if="selectedSecret && !wide" id="canon-inline-detail">
-                <SecretDetail :key="selectedSecret.id" :entry="selectedSecret" @delete="removeSelected" />
-              </div>
-            </SecretsSection>
-            <WorldWorksSection v-else-if="active === 'world'" />
-            <LifeSection v-else-if="active === 'life'" />
-            <CanonSplit v-else-if="active === 'lore'" close-label="Close this lore entry" @close="closeEntry">
-              <LoreSection :lore="shownLore" :arc-label="arcLabel" :selected-id="selectedLore?.id ?? null" @select="select" />
-              <template v-if="selectedLore" #detail>
-                <LoreDetail :key="selectedLore.id" :entry="selectedLore" @delete="removeSelected" />
-              </template>
-            </CanonSplit>
-            <CanonSplit v-else-if="active === 'backstories'" close-label="Close this backstory" @close="closeEntry">
-              <BackstoriesSection :party="party" :entries="backstories" :passages="allPassages ?? []" :selected-id="selectedBackstoryMember?.id ?? null" @select="selectBackstory" />
-              <template v-if="selectedBackstoryMember" #detail>
-                <BackstoryDetail :key="selectedBackstoryMember.id" :member="selectedBackstoryMember" />
-              </template>
-            </CanonSplit>
-            <ChronicleSection v-else-if="active === 'chronicle'" :lore="lore" :forces="forces" />
-            <TableAddedSection v-else :truths="truths" />
+            </CanonChapter>
+            <PremiseSection v-else-if="active === 'premise'" class="max-w-3xl" :campaign="campaign" :entries="entries" />
+            <WorldWorksSection v-else-if="active === 'world'" class="max-w-3xl" />
+            <section v-else class="flex max-w-3xl flex-col gap-3" :aria-labelledby="`canon-${active}-heading`" :data-chapter="active">
+              <header class="flex flex-col gap-0.5">
+                <h2 :id="`canon-${active}-heading`" class="m-0 text-heading-sm font-bold">{{ chapter.label }}</h2>
+                <p class="m-0 text-caption italic text-muted-foreground">{{ chapter.why }}</p>
+              </header>
+              <WorldPeoples v-if="active === 'peoples'" />
+              <HabitatsPanel v-else />
+            </section>
             <CanonDeleted />
           </template>
         </template>
       </div>
     </div>
-
-    <!-- Only the short entries take the side column: a lore entry and a force are long, and open beside their ledger. -->
-    <template v-if="(selectedTruth || selectedSecret) && wide && !searching" #sidebar>
-      <TruthDetail v-if="selectedTruth" :key="selectedTruth.id" :entry="selectedTruth" @delete="removeSelected" />
-      <SecretDetail v-else-if="selectedSecret" :key="selectedSecret.id" :entry="selectedSecret" @delete="removeSelected" />
-    </template>
   </PageHeader>
 </template>
 
 <script setup lang="ts">
 /**
- * The DM's Canon page (#1226): the premise, the truths, what is moving, the secrets and the open questions, how the world works, the lore, the chronicle and what the table added, one part
- * at a time (#1258 item 19), chosen in the contents column. The part is the route, `/canon/:part`; `/canon` opens the one
- * the DM was last on. `?entry=<id>` is the link to one entry (search results and the world web point there) and also the
- * page's own selection; it, `?section=<part>` and `?backstory=<member>` on a bare `/canon` resolve to the part that holds
- * them. One search at the top finds a word in any title or body, and stands in place of the part while it is set.
+ * The DM's Canon page (#1226, rebuilt in #1267): the campaign's background book, one chapter at a time, chosen in the
+ * contents (a column from 90rem, a picker below). The chapter is the route, `/canon/:part`; `/canon` opens the one the DM
+ * was last on. `?entry=<id>` is the link to one entry (search results and the world web point there) and also the page's
+ * own selection, which opens beside the chapter's list; it, `?section=<chapter>` and `?backstory=<member>` on a bare
+ * `/canon` resolve to the chapter that holds them. One search in the header finds a word in any title or body, and
+ * stands in place of the chapter while it is set.
  */
 import { computed, nextTick, onBeforeUnmount, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import AppInput from "@/components/common/controls/AppInput.vue";
 import BackstoriesSection from "@/components/canon/BackstoriesSection.vue";
 import BackstoryDetail from "@/components/canon/BackstoryDetail.vue";
-import CanonAiTools from "@/components/canon/CanonAiTools.vue";
 import CanonArcs from "@/components/canon/CanonArcs.vue";
 import CanonSearchResults from "@/components/canon/CanonSearchResults.vue";
-import CanonSplit from "@/components/canon/CanonSplit.vue";
-import ChronicleSection from "@/components/canon/ChronicleSection.vue";
-import TableAddedSection from "@/components/canon/TableAddedSection.vue";
+import CanonChapter from "@/components/canon/kit/CanonChapter.vue";
+import CanonSearchField from "@/components/canon/CanonSearchField.vue";
 import CanonDeleted from "@/components/canon/CanonDeleted.vue";
-import CanonStart from "@/components/canon/CanonStart.vue";
 import CanonContents from "@/components/canon/CanonContents.vue";
 import ForceDetail from "@/components/canon/ForceDetail.vue";
 import ForcesSection from "@/components/canon/ForcesSection.vue";
@@ -116,25 +100,21 @@ import LoreSection from "@/components/canon/LoreSection.vue";
 import PremiseSection from "@/components/canon/PremiseSection.vue";
 import SecretDetail from "@/components/canon/SecretDetail.vue";
 import SecretsSection from "@/components/canon/SecretsSection.vue";
-import TruthDetail from "@/components/canon/TruthDetail.vue";
-import TruthsSection from "@/components/canon/TruthsSection.vue";
+import TruthsChapter from "@/components/canon/TruthsChapter.vue";
 import WorldWorksSection from "@/components/canon/WorldWorksSection.vue";
-import LifeSection from "@/components/canon/ecology/LifeSection.vue";
+import HabitatsPanel from "@/components/canon/ecology/HabitatsPanel.vue";
+import WorldPeoples from "@/components/canon/WorldPeoples.vue";
 import { narrowToArc } from "@/lib/canon/canonNarrow";
 import { searchCanon } from "@/lib/canon/canonSearch";
 import { useCanonArcs } from "@/composables/canon/useCanonArcs";
 import { useCanonUiStore } from "@/stores/ui/canon";
-import { ARC_NARROWED_SECTIONS, isSectionId, sectionCounts, sectionFromWord, sectionOfPart, type CanonSectionId } from "@/lib/canon/canonParts";
-import { unreviewedCount } from "@/lib/canon/canonTableFacts";
+import { ARC_NARROWED_SECTIONS, chapterOf, isSectionId, sectionCounts, sectionFromWord, sectionOfPart, type CanonSectionId } from "@/lib/canon/canonParts";
 import { useCanonClues } from "@/composables/canon/useCanonClues";
 import { useCanonEntries, useTrashCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCanonForceData } from "@/composables/canon/useCanonForces";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
-import { useChronicle } from "@/composables/canon/useChronicle";
 import { useParty } from "@/composables/party/useParty";
-import { useTableFacts } from "@/composables/canon/useTableFacts";
-import { IconMoon, IconUpload } from "@/lib/icons";
-import { useAbove } from "@/composables/useBreakpoint";
+import { IconUpload } from "@/lib/icons";
 import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
 import { prefersReducedMotion } from "@/lib/motion";
@@ -143,7 +123,6 @@ import { scrollWithin } from "@/lib/scrollParent";
 const route = useRoute();
 const router = useRouter();
 const campaign = computed(() => useCampaignStore().activeCampaign);
-const wide = useAbove("lg");
 
 const { data, isLoading, isError } = useCanonEntries();
 const entries = computed(() => data.value ?? []);
@@ -152,15 +131,11 @@ const forces = computed(() => entries.value.filter((e) => e.part === "force"));
 const secrets = computed(() => entries.value.filter((e) => e.part === "secret"));
 const lore = computed(() => entries.value.filter((e) => e.part === "lore"));
 const backstories = computed(() => entries.value.filter((e) => e.part === "backstory"));
-const hasPitch = computed(() => entries.value.some((e) => e.part === "premise" && e.premise_kind === "pitch"));
 const { data: partyData } = useParty();
 const party = computed(() => partyData.value ?? []);
 const { data: allPassages } = useCanonPassages();
 const { data: allClues } = useCanonClues();
 const { data: forceData } = useCanonForceData();
-// The Chronicle counts the sessions with a chronicle entry written; What the table added, the lines still to review.
-const { written } = useChronicle();
-const tableRecord = useTableFacts();
 
 // The arc the page is narrowed to (CanonArcs holds the control). The selection below reads the whole lists, so an entry
 // the DM just moved to another arc stays open instead of vanishing under them.
@@ -174,18 +149,11 @@ const shownSecrets = computed(() => narrowed.value.filter((e) => e.part === "sec
 const shownQuestions = computed(() => narrowed.value.filter((e) => e.part === "question"));
 const shownLore = computed(() => narrowed.value.filter((e) => e.part === "lore"));
 
-// "Where to begin" asks what the canon holds at all, so it reads the whole canon; the contents column counts what the
-// narrowed parts show, so its numbers match the lists under the arc.
-const elsewhere = computed(() => ({
-  chronicle: written.value,
-  table: unreviewedCount(tableRecord.facts.data.value ?? []),
-}));
-const startCounts = computed(() => ({ ...sectionCounts(entries.value), backstories: party.value.length, ...elsewhere.value }));
+// The contents count what the narrowed chapters show, so its numbers match the lists under the arc.
 const counts = computed(() => ({
   ...sectionCounts(narrowed.value),
-  // One backstory per character, opened or not: the contents column counts the characters.
+  // One backstory per character, opened or not: the contents count the characters.
   backstories: party.value.length,
-  ...elsewhere.value,
 }));
 
 // The page's one search: it reads the arc-narrowed canon, and the clues, force steps and passages of what it reads.
@@ -239,8 +207,18 @@ const selectedBackstoryMember = computed(() => {
   return id === null ? null : party.value.find((m) => m.id === id) ?? null;
 });
 
-// A split (a ledger with its entry beside it) widens the page body; the entries that take the side column do not.
-const splitOpen = computed(() => selectedBackstoryMember.value !== null || selectedForce.value !== null || selectedLore.value !== null);
+// The chapters that are a list of entries, and which entry is open in the chapter on screen (the chapter lays itself out).
+const LIST_CHAPTERS: readonly CanonSectionId[] = ["moving", "secrets", "lore", "backstories"];
+const chapter = computed(() => chapterOf(active.value));
+const openEntryId = computed(() => {
+  switch (active.value) {
+    case "moving": return selectedForce.value?.id ?? null;
+    case "secrets": return selectedSecret.value?.id ?? null;
+    case "lore": return selectedLore.value?.id ?? null;
+    case "backstories": return selectedBackstoryMember.value?.id ?? null;
+    default: return null;
+  }
+});
 
 // Opening `?entry=<id>` brings that entry into view, once per id and only after the list has loaded.
 let scrolledTo: string | null = null;
@@ -287,7 +265,7 @@ function goTo(id: CanonSectionId) {
   void router.push({ path: `/canon/${id}` });
 }
 
-// A part opens at its top; an entry link scrolls to its own row below instead.
+// A chapter opens at its top; an entry link scrolls to its own row below instead.
 watch(active, async () => {
   if (entryParam.value !== null) return;
   await nextTick();
@@ -327,8 +305,7 @@ watch(() => selected.value?.id, async (id) => {
   if (!id || !tapped) return;
   tapped = false;
   await nextTick();
-  // The wrapper exists for a split's entry at every width (it is under its ledger below 56rem of page body) and for a truth or secret
-  // below lg; a truth or secret in the side column has none, so nothing scrolls there.
+  // The chapter's entry wrapper: beside the list from 56rem of the chapter, in place of it below that.
   const detail = document.getElementById("canon-inline-detail");
   if (detail) scrollWithin(detail, { block: "nearest", smooth: !prefersReducedMotion() });
 });
