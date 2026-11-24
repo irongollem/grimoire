@@ -3,7 +3,22 @@
   <div class="flex flex-col" data-testid="solo-scene">
     <section class="flex flex-col gap-2.5 px-4 py-3.5">
       <span class="text-eyebrow text-muted-foreground">Where you are</span>
-      <h2 v-if="placeName" class="text-heading text-foreground">{{ placeName }}</h2>
+      <div v-if="placeName || ambienceOffered" class="flex items-start justify-between gap-2">
+        <h2 v-if="placeName" class="text-heading text-foreground">{{ placeName }}</h2>
+        <!-- The room's ambience, on request (#1021): off until the player turns it on, and it follows them from place to place. -->
+        <AppButton
+          v-if="ambienceOffered"
+          variant="outline"
+          size="icon-sm"
+          :icon="ambienceOn ? IconStop : IconMusicNote"
+          :active="ambienceOn"
+          :aria-label="ambienceOn ? 'Stop the ambience' : 'Play the ambience'"
+          :tooltip="ambienceOn ? 'Stop the ambience' : 'Play the ambience'"
+          class="ml-auto shrink-0"
+          @click="toggleAmbience"
+        />
+      </div>
+      <p v-if="ambienceUnanswered" class="text-caption text-muted-foreground" data-testid="solo-ambience-unanswered">No ambient scene is tagged “{{ ambienceUnanswered }}” yet, so nothing plays.</p>
       <p v-if="placeName && placeSummary" class="text-body text-muted-foreground" data-testid="solo-place-summary">{{ placeSummary }}</p>
       <p v-else class="text-body italic text-muted-foreground">Nowhere in particular yet. The Narrator will say.</p>
     </section>
@@ -64,7 +79,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { IconChevronDown, IconChevronRight } from "@/lib/icons";
+import { IconChevronDown, IconChevronRight, IconMusicNote, IconStop } from "@/lib/icons";
+import { useTableAmbience } from "@/composables/table/useTableAmbience";
 import { drawerTransition } from "@/lib/motion";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { getNpcDisplayFocalPoint, getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
@@ -73,8 +89,10 @@ import type { HearthQuestNow } from "@/lib/hearth/currentBeats";
 import type { TablePressure } from "@/lib/table/solo/soloTypes";
 import SoloPressure from "./SoloPressure.vue";
 
-const { here, pressure = null, after = [], placeSummary = null, recorded = [] } = defineProps<{
+const { placeId = null, here, pressure = null, after = [], placeSummary = null, recorded = [] } = defineProps<{
   placeName: string | null;
+  /** The place the character is in, whose ambience the player can switch on. */
+  placeId?: string | null;
   /** What the character knows of the place; null until it has been shown to them. */
   placeSummary?: string | null;
   here: readonly SceneNpc[];
@@ -85,6 +103,8 @@ const { here, pressure = null, after = [], placeSummary = null, recorded = [] } 
   /** What this sitting put on record that the character knows, oldest first. */
   recorded?: ReadonlyArray<{ id: string; text: string }>;
 }>();
+
+const { offered: ambienceOffered, on: ambienceOn, unanswered: ambienceUnanswered, toggle: toggleAmbience } = useTableAmbience(() => placeId);
 
 const recordOpen = ref(false);
 // The latest thing on record is the one most likely to be looked for.

@@ -107,7 +107,7 @@
                under it: whoever is in the room and not in the fight is still there, and vanished from the page when
                the list took the whole column. -->
           <div :id="FIGHT_SLOTS.roster" :class="inFight ? 'border-b border-border' : ''" />
-          <SoloScene :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" :after="after" :place-summary="placeSummary" :recorded="recorded" />
+          <SoloScene :place-id="sceneId" :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" :after="after" :place-summary="placeSummary" :recorded="recorded" />
         </aside>
       </div>
 
