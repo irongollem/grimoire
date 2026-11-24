@@ -57,7 +57,7 @@ export function ageOf(text: string): AgeBand | null {
 }
 
 // The Narrator's voices live with the speech module's neighbours, since a note is read aloud in them too.
-export { isNarratorVoice, NARRATOR_CUE, NARRATOR_VOICES, narratorSpeaker, type NarratorVoice } from "../_shared/narratorVoice.ts";
+export { isNarratorVoice, NARRATOR_CUE, narratorSpeaker, type NarratorVoice } from "../_shared/narratorVoice.ts";
 
 /** The longest narration sent to be spoken: a narrator's reply is a few sentences, sometimes a full paragraph. */
 export const NARRATION_MAX_CHARS = 1500;

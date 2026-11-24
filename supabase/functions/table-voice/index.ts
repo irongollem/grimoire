@@ -20,6 +20,7 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { loadSpeechEnv } from "../_shared/speechKeys.ts";
 import { deliveryCue } from "../_shared/agent/characterTurn.ts";
 import { choiceOf, judge, JEV_MODEL } from "../_shared/typesafe.ts";
+import { loadAppVoices } from "../_shared/narratorVoice.ts";
 import type { VoiceSlot } from "./casting.ts";
 import { ageOf, inworldText, isNarratorVoice, NARRATION_MAX_CHARS, sexFromGender, sexOf, speechText } from "./voicePick.ts";
 
@@ -213,6 +214,8 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
       if (error) throw error;
       return typeof data === "number" && Number.isInteger(data) && data > 0 ? data : 0;
     },
+
+    loadAppVoices: () => loadAppVoices(admin),
 
     hasService: (service) => hasSpeechService(speech, service),
 

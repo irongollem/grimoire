@@ -18,7 +18,7 @@
 // (`accrue`; `accrue_agent_voice`). It answers only where the stack has voices on (`voicesOn`, `_shared/speech.ts`).
 //
 // A second speaker, Ooru (role `familiar`: Ask Grimoire reading its own replies aloud): the owl of
-// the Familiar box, on one ElevenLabs voice (`FAMILIAR_VOICE`, no stand-in). Ooru belongs to a conversation of kind
+// the Familiar box, on the registry's `familiar` slot (ElevenLabs only, no stand-in). Ooru belongs to a conversation of kind
 // `ask`, the table's roles to `solo_table`; each kind refuses the other's roles as "not found". Ask signs nothing, so
 // an Ooru line never carries a key (one that does is an invalid request) and is proven from the stored turns alone:
 // its words must be exactly what the assistant wrote (`familiarShown`). The reply is Markdown, so what is spoken is
@@ -32,7 +32,7 @@ import { NARRATOR_CUE, narratorSpeaker, type AgeBand, type NarratorVoice, type S
 import { castNpc, pickByKey, type Judgment, type SlotAssignment, type VoiceSlot } from "./casting.ts";
 import { JEV_MODEL } from "../_shared/typesafe.ts";
 import { FAMILIAR_SPEAKER, VOICE_ROLES, type VoiceRole } from "../_shared/agent/lineKey.ts";
-import { FAMILIAR_VOICE } from "../_shared/narratorVoice.ts";
+import { familiarVoice, type AppVoices } from "../_shared/narratorVoice.ts";
 import { UUID_RE } from "../_shared/agent/parse.ts";
 import type { BaseCampaign, CampaignLoad } from "../_shared/pipeline/aiCampaign.ts";
 import type { CreditHold } from "../_shared/pipeline/creditHold.ts";
@@ -105,6 +105,11 @@ export interface TableVoiceDeps {
    * once, so several may cast the same new character together; the first save wins). Throws when it cannot.
    */
   saveSlot(campaignId: string, npcId: string, slotId: string): Promise<string | null>;
+  /**
+   * The app's own voices, by binding (the Narrators, Ooru): rows of the registry read with the service role, since a
+   * bound slot is an `own` one an ordinary caller cannot see. A slot not filled is null.
+   */
+  loadAppVoices(): Promise<AppVoices>;
   /** Whether this stack can speak through the service (its key is set). */
   hasService(service: VoiceService): boolean;
   /**
@@ -237,11 +242,12 @@ export function parseVoiceBody(raw: unknown): VoiceBody | null {
 
 /**
  * Whose voice says the line: the narrator's one voice, or a slot of the registry cast from the speaker's record.
- * `inputTokens` is what the judgment model spent on the way (0 when it did not run), for the ledger.
+ * `inputTokens` is what the judgment model spent on the way (0 when it did not run), for the ledger. The voice is null
+ * when the Narrator has nothing this stack can speak (no slot filled on a service it has a key for).
  */
-async function voiceFor(deps: TableVoiceDeps, session: Pick<VoiceSession, "campaign_id" | "narrator_voice">, line: VoicedLine): Promise<{ voice: VoiceRef; inputTokens: number }> {
+async function voiceFor(deps: TableVoiceDeps, app: AppVoices, session: Pick<VoiceSession, "campaign_id" | "narrator_voice">, line: VoicedLine): Promise<{ voice: VoiceRef | null; inputTokens: number }> {
   const campaignId = session.campaign_id;
-  const narrator = () => narratorSpeaker(session.narrator_voice, deps.hasService);
+  const narrator = () => narratorSpeaker(session.narrator_voice, deps.hasService, app);
   if (line.role === "narrator") {
     // The table's choice, on that choice's own service; the same choice on the other where this stack lacks the key.
     return { voice: narrator(), inputTokens: 0 };
@@ -326,12 +332,15 @@ export async function speakLine(input: {
   if (!deps.voiceOn()) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
   // Ooru speaks on ElevenLabs alone: no stand-in on another service, so without its key Ooru is silent. Answered
   // here, before the rate limit, the kept-clip read, the stored-turn proof and the paid screen are spent on nothing.
-  if (body.role === "familiar" && !deps.hasService(FAMILIAR_VOICE.service)) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
+  // Its slot is read here too: an unfilled `familiar` binding is as silent as a missing key.
+  const app = await deps.loadAppVoices();
+  const owl = familiarVoice(app);
+  if (body.role === "familiar" && (owl === null || !deps.hasService(owl.service))) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
 
   if (body.sessionId === null) {
     // `parseVoiceBody` only lets a keyed character of a record through without a conversation.
     if (body.speakerId === null || body.key === null) return jsonError(400, "invalid_body", VOICE_MESSAGES.badBody);
-    return speakVoiceLine({ userId, deps, body: { campaignId: body.campaignId, speakerId: body.speakerId, speakerName: body.speakerName, text: body.text, key: body.key } });
+    return speakVoiceLine({ userId, deps, app, body: { campaignId: body.campaignId, speakerId: body.speakerId, speakerName: body.speakerName, text: body.text, key: body.key } });
   }
 
   // Someone else's conversation, or one in another campaign, is "not found": a 403 would say it exists.
@@ -381,7 +390,9 @@ export async function speakLine(input: {
     console.error("table-voice: screening the line failed:", error);
   }
 
-  const cast = familiar ? { voice: { ...FAMILIAR_VOICE }, inputTokens: 0 } : await voiceFor(deps, session, line);
+  const cast = familiar ? { voice: owl, inputTokens: 0 } : await voiceFor(deps, app, session, line);
+  // The Narrator with nothing this stack can speak (no slot filled on a service it has a key for) is silent.
+  if (cast.voice === null) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
   const voice: VoiceRef = cast.voice;
   // A line that is made is paid for: what it costs is worked out before it is made, from the admin's numbers.
   // Without them nothing is made, because nothing could be charged.
@@ -427,8 +438,8 @@ export async function speakLine(input: {
  * (there is no conversation to accrue on). No clip is kept here: the browser keeps it while the card lives.
  * The voice is cast from the true record, as at the table; a disguised NPC's cover is not applied (agent-runtime.md).
  */
-async function speakVoiceLine(input: { userId: string; body: { campaignId: string; speakerId: string; speakerName: string; text: string; key: string }; deps: TableVoiceDeps }): Promise<Response> {
-  const { userId, body, deps } = input;
+async function speakVoiceLine(input: { userId: string; app: AppVoices; body: { campaignId: string; speakerId: string; speakerName: string; text: string; key: string }; deps: TableVoiceDeps }): Promise<Response> {
+  const { userId, body, deps, app } = input;
   const load = await deps.loadCampaign(body.campaignId, userId, "campaign");
   if (!load.ok) return load.response;
   if (!(await deps.rateLimit(userId))) return rateLimited();
@@ -451,21 +462,23 @@ async function speakVoiceLine(input: { userId: string; body: { campaignId: strin
   }
 
   const line: VoicedLine = { role: "character", speaker: { id: body.speakerId, name: body.speakerName }, text: body.text, how: null };
-  const cast = await voiceFor(deps, { campaign_id: body.campaignId, narrator_voice: "male" }, line);
-  const rate = await deps.loadRate(cast.voice.service);
+  const cast = await voiceFor(deps, app, { campaign_id: body.campaignId, narrator_voice: "male" }, line);
+  const voice = cast.voice;
+  if (voice === null) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
+  const rate = await deps.loadRate(voice.service);
   if (rate === null) return jsonError(503, "metering_unavailable", VOICE_MESSAGES.unpriced);
   const credits = Math.max(1, Math.ceil(creditsForSpeech(speechChars(body.text, null), rate.usdPerMillionChars, rate.calibration)));
   return deps.withHold(userId, credits, "ask_voice", async (hold) => {
     if (cast.inputTokens > 0) hold.free("entity_judgment", { model: JEV_MODEL, provider: "typesafe", input_tokens: cast.inputTokens });
     let audio: string;
     try {
-      audio = await deps.synthesize(cast.voice, { text: body.text, how: null, narration: false });
+      audio = await deps.synthesize(voice, { text: body.text, how: null, narration: false });
     } catch (error) {
       if (error instanceof VoicesSpent) return jsonError(402, "voices_spent", VOICE_MESSAGES.spent);
       console.error("table-voice: the speech service failed:", error);
       return jsonError(502, "generation_failed", VOICE_MESSAGES.failed);
     }
-    hold.charge("ask_voice", { cost: credits, log: { provider: cast.voice.service, model: deps.modelOf(cast.voice.service) } });
+    hold.charge("ask_voice", { cost: credits, log: { provider: voice.service, model: deps.modelOf(voice.service) } });
     return json({ audio, mime: "audio/mpeg" });
   });
 }

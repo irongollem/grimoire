@@ -12,7 +12,7 @@
 
 import { creditsForSpeech } from "../_shared/agent/voiceCost.ts";
 import type { CreditCalibration } from "../_shared/agent/metering.ts";
-import { isNarratorVoice, NARRATOR_VOICES, type NarratorVoice } from "../_shared/narratorVoice.ts";
+import { firstSpeakable, isNarratorVoice, narratorOn, type AppVoices, type NarratorVoice } from "../_shared/narratorVoice.ts";
 import { isTelling, joinAudio, noteSpeechText, READING_MAX_CHARS, READING_PARALLEL, readingHash, readingKey, speechPieces, storytellerPieces, type Telling } from "../_shared/noteReading.ts";
 import type { SpeechService } from "../_shared/speech.ts";
 import { UUID_RE } from "../_shared/uuid.ts";
@@ -46,6 +46,8 @@ export interface NoteReadingDeps {
   mayRead(campaignId: string, noteId: string): Promise<boolean>;
   /** The note's text as a player may read it, the Dungeon Master's secret passages withheld; null when it cannot be checked. */
   playerText(noteId: string): Promise<string | null>;
+  /** The Narrators' voices, by binding: slots of the registry read with the service role. A slot not filled is null. */
+  loadAppVoices(): Promise<AppVoices>;
   hasService(service: SpeechService): boolean;
   loadRate(service: SpeechService): Promise<{ usdPerMillionChars: number; calibration: CreditCalibration } | null>;
   /** The same screen every text sent to a model goes through. */
@@ -107,15 +109,14 @@ const noteNotFound = () => jsonError(404, "note_not_found", READING_MESSAGES.not
 /**
  * Who speaks a reading. With feeling: ElevenLabs, which acts on cues, in the Narrator's voice of that choice there.
  * Plainly: the same choice on Inworld, the cheaper service. Either stands in for the other where this stack has
- * only one of them; a telling with feeling that lands on Inworld is told plainly, since it was not found to act on
- * cues.
+ * only one of them (or the slot is not filled); a telling with feeling that lands on Inworld is told plainly, since
+ * it was not found to act on cues. Null when neither can speak.
  */
-function speakerOf(deps: NoteReadingDeps, voice: NarratorVoice, telling: Telling): { service: SpeechService; id: string; cued: boolean } {
-  const v = NARRATOR_VOICES[voice];
-  const eleven = { service: "elevenlabs" as const, id: v.elevenlabs };
-  const inworld = { service: "inworld" as const, id: v.inworld };
-  if (telling === "storyteller") return deps.hasService("elevenlabs") ? { ...eleven, cued: true } : { ...inworld, cued: false };
-  return deps.hasService("inworld") ? { ...inworld, cued: false } : { ...eleven, cued: false };
+function speakerOf(deps: NoteReadingDeps, app: AppVoices, voice: NarratorVoice, telling: Telling): { service: SpeechService; id: string; cued: boolean } | null {
+  const eleven = narratorOn(voice, "elevenlabs", app);
+  const inworld = narratorOn(voice, "inworld", app);
+  const found = firstSpeakable(telling === "storyteller" ? [eleven, inworld] : [inworld, eleven], deps.hasService);
+  return found === null ? null : { ...found, cued: telling === "storyteller" && found.service === "elevenlabs" };
 }
 
 /**
@@ -169,7 +170,8 @@ export async function readNote(input: { userId: string; body: unknown; deps: Not
   if (text === "") return jsonError(422, "note_empty", READING_MESSAGES.empty);
   if (text.length > READING_MAX_CHARS) return jsonError(422, "note_too_long", READING_MESSAGES.tooLong);
 
-  const voice = speakerOf(deps, body.voice, body.telling);
+  const voice = speakerOf(deps, await deps.loadAppVoices(), body.voice, body.telling);
+  if (voice === null) return jsonError(503, "voices_off", READING_MESSAGES.off);
   const rate = await deps.loadRate(voice.service);
   if (rate === null) return jsonError(503, "no_price", READING_MESSAGES.noPrice);
   // What is sent is what is paid for: the words, and the cues of a telling with feeling.

@@ -30,6 +30,8 @@ export interface SpeechVoiceRow {
   /** For a Voice Library voice: its id in the library, which the account's copy need not share. */
   library_voice_id: string | null;
   sample_key: string | null;
+  /** The app's own use of the slot (a Narrator, Ooru); null for a character's voice. A bound slot is never removed. */
+  binding: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;
@@ -130,6 +132,8 @@ export interface StudioDb {
   listAll(): Promise<SpeechVoiceRow[]>;
   /** One row by the service role: the admin's actions. */
   loadAsAdmin(id: string): Promise<SpeechVoiceRow | null>;
+  /** The bound slot's row by service role: ordinary callers cannot read an `own` slot, and the app's voices are theirs to hear. */
+  loadBound(binding: string): Promise<SpeechVoiceRow | null>;
   /** One row as the caller: row level security decides whether it exists for them. */
   loadAsCaller(id: string): Promise<SpeechVoiceRow | null>;
   insert(row: Partial<SpeechVoiceRow> & { id: string }): Promise<SpeechVoiceRow>;
@@ -165,6 +169,8 @@ export const STUDIO_MESSAGES = {
   notFound: "That voice is not there.",
   empty: "That voice has not been made yet, so there is nothing to hear.",
   inRegistry: "That voice already fills a slot.",
+  boundVoice: "That voice is the app's own (a Narrator or Ooru): refill it with another voice instead of removing it.",
+  boundService: (service: SpeechService) => `This is one of the app's own voices, and it lives on ${service === "inworld" ? "Inworld" : "ElevenLabs"}: design its new voice there.`,
   badVoiceId: "That is not an ElevenLabs voice ID: it is the code of letters and numbers on the voice's page.",
   unknownVoice: "ElevenLabs does not know a voice with that ID, or it is not shared.",
 };
@@ -179,6 +185,8 @@ const SEXES: readonly string[] = ["woman", "man"];
 const AGES: readonly string[] = ["child", "young", "adult", "old"];
 const KINDS: readonly string[] = ["cast", "own"];
 const ADMIN_ACTIONS: readonly string[] = ["design", "keep", "library-search", "library-add", "account", "lookup", "remove"];
+/** The one bound slot anyone signed in may hear (the Familiar greeting); every other binding is the admin's. */
+const PUBLIC_BINDING = "familiar";
 
 const isService = (v: unknown): v is SpeechService => typeof v === "string" && SERVICES.includes(v);
 const isText = (v: unknown, max: number): v is string => typeof v === "string" && v.trim() !== "" && v.length <= max;
@@ -240,6 +248,7 @@ export async function handleStudio(input: { userId: string; isAdmin: boolean; bo
       case "lookup": return await lookup(body, deps);
       case "remove": return await remove(body, deps);
       case "sample": return await sample(userId, body, deps);
+      case "greeting": return await greeting(deps);
       default: return jsonError(400, "unknown_action", STUDIO_MESSAGES.invalid);
     }
   } catch (error) {
@@ -273,6 +282,11 @@ async function keep(body: Record<string, unknown>, deps: StudioDeps): Promise<Re
 
   const old = hasSlotId ? await deps.db.loadAsAdmin(slotId as string) : null;
   if (hasSlotId && old === null) return jsonError(404, "not_found", STUDIO_MESSAGES.notFound);
+  // An app voice stays on its binding's service (the code asks each binding of one service; the column's check holds
+  // it too): said here, before a voice is saved on the wrong service, rather than as a database error after.
+  if (old !== null && old.binding !== null && old.binding !== undefined && bindingServiceOf(old.binding) !== service) {
+    return jsonError(400, "bound_service", STUDIO_MESSAGES.boundService(bindingServiceOf(old.binding)));
+  }
 
   const name = old?.name ?? (fields as SlotFields).name;
   const description = old?.description ?? (fields as SlotFields).description;
@@ -369,6 +383,9 @@ async function libraryAdd(body: Record<string, unknown>, deps: StudioDeps): Prom
   }
 }
 
+/** The service a bound slot's voice must be on: the Narrators' Inworld voices on Inworld, the rest on ElevenLabs. */
+const bindingServiceOf = (binding: string): SpeechService => (binding.endsWith("-inworld") ? "inworld" : "elevenlabs");
+
 /** Whether the service refused the key for this call: the key's permissions, not a hiccup. */
 const refusedKey = (error: unknown): boolean => error instanceof ServiceError && (error.status === 401 || error.status === 403);
 
@@ -424,6 +441,9 @@ async function remove(body: Record<string, unknown>, deps: StudioDeps): Promise<
   if (typeof slotId !== "string" || !UUID.test(slotId) || typeof fromService !== "boolean") return jsonError(400, "invalid_body", STUDIO_MESSAGES.invalid);
   const row = await deps.db.loadAsAdmin(slotId);
   if (row === null) return jsonError(404, "not_found", STUDIO_MESSAGES.notFound);
+  // The code asks for a bound slot by name, so it is refilled, never removed. Answered before the service or the
+  // registry is touched (the database refuses it as well).
+  if (row.binding !== null) return jsonError(409, "bound_voice", STUDIO_MESSAGES.boundVoice);
 
   // Service first: if it fails the slot is still there to try again, where the other way round the voice is orphaned.
   // A stock voice is the service's own, never ours to delete.
@@ -436,13 +456,31 @@ async function remove(body: Record<string, unknown>, deps: StudioDeps): Promise<
   return json({ ok: true });
 }
 
+/**
+ * What Ooru opens the Familiar with, and whether its voice can say it: the `familiar` slot's preview text, and
+ * whether the slot is filled on a service this stack has the key for. Anyone signed in may ask (the Familiar box is
+ * every DM's); nothing but those two facts leaves.
+ */
+async function greeting(deps: StudioDeps): Promise<Response> {
+  const row = await deps.db.loadBound(PUBLIC_BINDING);
+  const text = row?.preview_text?.trim() ? row.preview_text : null;
+  const canSpeak = row !== null && row.service !== null && row.voice_id !== null && deps.services.hasService(row.service);
+  return json({ text, canSpeak });
+}
+
 async function sample(userId: string, body: Record<string, unknown>, deps: StudioDeps): Promise<Response> {
-  const { slotId } = body;
-  if (typeof slotId !== "string" || !UUID.test(slotId)) return jsonError(400, "invalid_body", STUDIO_MESSAGES.invalid);
+  const { slotId, binding } = body;
+  // Exactly one of a slot or a binding. Only the Familiar's binding is open to anyone: the Narrators' slots are not.
+  const bySlot = slotId !== undefined && slotId !== null;
+  const byBinding = binding !== undefined && binding !== null;
+  if (bySlot === byBinding) return jsonError(400, "invalid_body", STUDIO_MESSAGES.invalid);
+  if (bySlot && (typeof slotId !== "string" || !UUID.test(slotId))) return jsonError(400, "invalid_body", STUDIO_MESSAGES.invalid);
+  if (byBinding && binding !== PUBLIC_BINDING) return jsonError(400, "invalid_body", STUDIO_MESSAGES.invalid);
   if (!(await deps.rateLimit(userId))) return jsonError(429, "rate_limited", "That's a lot of requests in a short time. Wait a minute and try again.");
 
-  // Read as the caller: a slot they may not see is a slot that is not there, whoever asks.
-  const row = await deps.db.loadAsCaller(slotId);
+  // A slot is read as the caller: one they may not see is not there, whoever asks. The Familiar's own slot is the
+  // app's, an `own` one their policy hides, so it is read by service role, by its binding alone.
+  const row = byBinding ? await deps.db.loadBound(PUBLIC_BINDING) : await deps.db.loadAsCaller(slotId as string);
   if (row === null) return jsonError(404, "not_found", STUDIO_MESSAGES.notFound);
   if (row.service === null || row.voice_id === null) return jsonError(409, "empty_slot", STUDIO_MESSAGES.empty);
 

@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(14);
 
 -- The voice registry (#1272): every account reads the filled cast slots, only the admin reads the rest or writes,
 -- and a DM can give a character only a voice they can read, so nobody puts another table's signature voice on
@@ -89,6 +89,23 @@ select is(
 select lives_ok(
   $$insert into public.speech_voices (name, description) values ('Child, cheeky', 'A small child, quick and cheeky.')$$,
   'the admin adds a planned slot');
+
+-- The app's own voices (20261124230806): a bound slot is refilled, never removed, never cast, never moved off its
+-- binding's service, even by the admin.
+select throws_ok(
+  $$delete from public.speech_voices where binding = 'familiar'$$,
+  '42501', null,
+  'a bound slot (Ooru) cannot be removed, even by the admin');
+
+select throws_ok(
+  $$update public.speech_voices set kind = 'cast' where binding = 'narrator-man-elevenlabs'$$,
+  '23514', null,
+  'a bound slot cannot join the cast pool');
+
+select throws_ok(
+  $$update public.speech_voices set service = 'inworld', voice_id = 'snappy-magpie-0676__design-voice-1e599405' where binding = 'familiar'$$,
+  '23514', null,
+  'a bound slot stays on its binding''s service');
 
 reset role;
 select * from finish();

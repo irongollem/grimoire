@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { readingHash, readingKey } from "../_shared/noteReading";
 import { jsonError } from "../_shared/pipeline/respond";
+import type { AppVoices } from "../_shared/narratorVoice";
 import { READING_MESSAGES, readNote, type NoteReadingDeps, type ReadingHold, type ReadingNote } from "./handler";
 
+const APP: AppVoices = {
+  "narrator-man-elevenlabs": { service: "elevenlabs", id: "bound-man-eleven" },
+  "narrator-man-inworld": { service: "inworld", id: "bound-man-inworld" },
+  "narrator-woman-inworld": { service: "inworld", id: "bound-woman-inworld" },
+  "narrator-woman-elevenlabs": { service: "elevenlabs", id: "bound-woman-eleven" },
+  familiar: { service: "elevenlabs", id: "bound-ooru-owl" },
+};
 const NOTE = "00000000-0000-4000-8000-0000000000a1";
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
 const DM = "dm";
@@ -20,6 +28,7 @@ function harness(over: Partial<{ text: string | null; note: ReadingNote | null }
     campaignRefusal: null as Response | null,
     withinRate: true,
     inworld: true,
+    app: { ...APP } as AppVoices,
     flagged: false,
     refuseHold: null as Response | null,
     holds: [] as number[],
@@ -43,6 +52,7 @@ function harness(over: Partial<{ text: string | null; note: ReadingNote | null }
     withinRate: async () => h.withinRate,
     mayRead: async () => h.readers.has(h.caller),
     playerText: async () => h.text,
+    loadAppVoices: async () => h.app,
     hasService: (service) => service === "elevenlabs" || h.inworld,
     // 10 USD a million characters; a credit worth 0.0066 USD at a margin of 2.
     loadRate: async () => ({ usdPerMillionChars: 10, calibration: { usdPerCredit: 0.0066, margin: 2 } }),
@@ -344,5 +354,35 @@ describe("tidying up", () => {
     expect(h.sweeps).toBe(0);
     h.campaignThere = false;
     expect(await sweepAs(h, STRANGER)).toMatchObject({ status: 200 });
+  });
+});
+
+describe("the Narrators' voices come from the registry's bound slots", () => {
+  // Bug caught: a note read in a remembered voice id instead of the slot's, so refilling the slot changed nothing.
+  it.each([
+    ["male", "storyteller", "elevenlabs", "bound-man-eleven"],
+    ["male", "plain", "inworld", "bound-man-inworld"],
+    ["female", "storyteller", "elevenlabs", "bound-woman-eleven"],
+    ["female", "plain", "inworld", "bound-woman-inworld"],
+  ])("%s told %s speaks the %s slot", async (voice, telling, service, id) => {
+    const h = harness();
+    await ask(h, "make", DM, { voice, telling });
+    expect(h.spoken[0]).toMatchObject({ service, voiceId: id });
+  });
+
+  // Bug caught: a telling with feeling left silent (or on an unfilled slot) when the other service's slot is filled.
+  it("stands in with the other service's slot when the wanted one is unfilled", async () => {
+    const h = harness();
+    h.app = { ...APP, "narrator-man-elevenlabs": null };
+    await ask(h, "make", DM, { voice: "male", telling: "storyteller" });
+    expect(h.spoken[0]).toMatchObject({ service: "inworld", voiceId: "bound-man-inworld" });
+  });
+
+  // Bug caught: a reading charged and attempted with no voice to speak it.
+  it("is voices off, holding nothing, when neither slot of the choice is filled", async () => {
+    const h = harness();
+    h.app = { ...APP, "narrator-man-elevenlabs": null, "narrator-man-inworld": null };
+    expect(await ask(h, "make", DM, { voice: "male" })).toMatchObject({ status: 503, error: "voices_off" });
+    expect([h.holds, h.spoken]).toEqual([[], []]);
   });
 });

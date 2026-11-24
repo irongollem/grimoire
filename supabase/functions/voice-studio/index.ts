@@ -1,5 +1,5 @@
 // voice-studio (#1272): designs, keeps, imports and removes the voices of the registry. The rules are `handler.ts`'s;
-// this file wires the database, the speech services and the samples' store. Every action but `sample` is the admin's.
+// this file wires the database, the speech services and the samples' store. Every action but `sample` and `greeting` is the admin's.
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
@@ -30,10 +30,11 @@ serve(serveUser(async ({ user, req, report, userClient }) => {
   const body = await readJsonBody(req);
   if (body === null) return jsonError(400, "invalid_body", STUDIO_MESSAGES.invalid);
 
-  // `sample` is for anyone signed in (the slot's own row level security decides what they may hear); everything else
-  // goes through the admin gate before any key is read or any row written.
-  const isSample = body.action === "sample";
-  if (!isSample) {
+  // `sample` and `greeting` are for anyone signed in (a slot's own row level security decides what they may hear, and
+  // the Familiar's greeting is the one bound slot open to all); everything else goes through the admin gate before
+  // any key is read or any row written.
+  const forEveryone = body.action === "sample" || body.action === "greeting";
+  if (!forEveryone) {
     const gate = await requireAdmin(req);
     if (gate instanceof Response) return gate;
   }
@@ -54,6 +55,11 @@ serve(serveUser(async ({ user, req, report, userClient }) => {
       },
       async loadAsAdmin(id) {
         const { data, error } = await admin.from("speech_voices").select("*").eq("id", id).maybeSingle();
+        if (error) throw error;
+        return data as SpeechVoiceRow | null;
+      },
+      async loadBound(binding) {
+        const { data, error } = await admin.from("speech_voices").select("*").eq("binding", binding).maybeSingle();
         if (error) throw error;
         return data as SpeechVoiceRow | null;
       },
@@ -83,5 +89,5 @@ serve(serveUser(async ({ user, req, report, userClient }) => {
     },
   };
 
-  return handleStudio({ userId: user.id, isAdmin: !isSample, body, deps });
+  return handleStudio({ userId: user.id, isAdmin: !forEveryone, body, deps });
 }));

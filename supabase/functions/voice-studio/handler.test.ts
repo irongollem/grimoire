@@ -12,7 +12,7 @@ const LONG_TEXT = "x".repeat(120);
 
 const row = (over: Partial<SpeechVoiceRow> = {}): SpeechVoiceRow => ({
   id: SLOT, name: "Shady guy", description: "A man who sells things.", design_prompt: "A low, rough voice, selling something shady.", preview_text: null,
-  sex: "man", age: "adult", kind: "cast", origin: "designed", service: "elevenlabs", voice_id: "oldvoice1234", library_voice_id: null, sample_key: null, active: true,
+  sex: "man", age: "adult", kind: "cast", origin: "designed", service: "elevenlabs", voice_id: "oldvoice1234", library_voice_id: null, sample_key: null, binding: null, active: true,
   created_at: "", updated_at: "", ...over,
 });
 
@@ -51,6 +51,8 @@ function harness(rows: SpeechVoiceRow[] = [row()]) {
     db: {
       listAll: async () => h.rows,
       loadAsAdmin: async (id) => h.rows.find((r) => r.id === id) ?? null,
+      // The service role reads a bound slot, which the caller's policy would hide: so no `visible` check here.
+      loadBound: async (binding) => h.rows.find((r) => r.binding === binding) ?? null,
       loadAsCaller: async (id) => (h.visible.has(id) ? (h.rows.find((r) => r.id === id) ?? null) : null),
       insert: async (r) => {
         if (h.insertThrows) throw new Error("db down");
@@ -222,6 +224,15 @@ describe("design", () => {
     expect((await run({ action: "account" })).status).toBe(502);
   });
 
+  // Bug caught: an app voice refilled on the other service, saved there and then refused by the database with a
+  // generic error (and a custom slot spent on a voice nothing can use).
+  it("refuses to refill an app voice on another service before anything is saved", async () => {
+    const { h, run } = harness([row({ binding: "familiar" })]);
+    const res = await run({ action: "keep", service: "inworld", previewId: "draft-1", audio: base64FromBytes(WAV), slotId: SLOT });
+    expect(res.status).toBe(400);
+    expect(h.calls).toEqual([]);
+  });
+
   // Bug caught (seen live): a key not allowed to design voices answered "try again in a moment", which can never help.
   it("says the key is not allowed, not to try again, when the service refuses the key", async () => {
     const { h, run } = harness();
@@ -383,6 +394,68 @@ describe("remove", () => {
     h.deps.services.deleteVoice = async (s) => { throw new ServiceError(s, 500); };
     expect((await run({ action: "remove", slotId: SLOT, fromService: true })).status).toBe(502);
     expect(h.rows).toHaveLength(1);
+  });
+});
+
+const OORU = row({ id: "00000000-0000-4000-8000-0000000000f1", name: "Ooru", kind: "own", binding: "familiar", preview_text: "Ooh, there you are!", voice_id: "owlvoice1234" });
+const MAN = row({ id: "00000000-0000-4000-8000-0000000000f2", name: "Narrator", kind: "own", binding: "narrator-man-elevenlabs", voice_id: "manvoice1234" });
+
+describe("bound slots (the app's own voices)", () => {
+  // Bug caught: a Narrator or Ooru removed from the Voices page, leaving the code asking for a voice that is gone.
+  it("remove refuses a bound slot with a 409 before the service or the registry is touched", async () => {
+    const { h, run } = harness([MAN]);
+    const res = await run({ action: "remove", slotId: MAN.id, fromService: true });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: "bound_voice" });
+    expect(h.calls).toEqual([]);
+    expect(h.rows).toHaveLength(1);
+  });
+
+  // Bug caught: the greeting gated to the admin, so every DM's Familiar box stayed empty.
+  it("greeting answers the familiar's preview text to a non-admin", async () => {
+    const { run } = harness([OORU]);
+    const res = await run({ action: "greeting" }, false);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ text: "Ooh, there you are!", canSpeak: true });
+  });
+
+  // Bug caught: the greeting offering to speak where the slot is empty or the stack has no key (a button that fails).
+  it.each([
+    ["no key for its service", row({ ...OORU, preview_text: "Hi" }), false],
+    ["an unfilled slot", row({ ...OORU, service: null, voice_id: null }), true],
+  ])("greeting says it cannot speak with %s", async (_what, ooru, key) => {
+    const { h, run } = harness([ooru]);
+    h.keys.elevenlabs = key;
+    expect(await (await run({ action: "greeting" }, false)).json()).toMatchObject({ canSpeak: false });
+  });
+
+  // Bug caught: a missing familiar row answering an error that breaks the Familiar box instead of an empty greeting.
+  it("greeting with no familiar slot answers no text and cannot speak", async () => {
+    const { run } = harness([MAN]);
+    expect(await (await run({ action: "greeting" }, false)).json()).toEqual({ text: null, canSpeak: false });
+  });
+
+  // Bug caught: the non-admin sample by binding reading as the caller (their policy hides the `own` slot: 404).
+  it("sample by the familiar binding works for a non-admin, and keeps the sample", async () => {
+    const { h, run } = harness([OORU]);
+    h.visible.clear();
+    const res = await run({ action: "sample", binding: "familiar" }, false);
+    expect(res.status).toBe(200);
+    expect(h.rows[0].sample_key).toBe(`voice-samples/${OORU.id}/owlvoice1234.mp3`);
+  });
+
+  // Bug caught: any signed-in user hearing (and so spending a synthesis on) a Narrator's slot by naming its binding.
+  it.each(["narrator-man-elevenlabs", "narrator-woman-inworld", "nonsense"])("sample by binding %s is refused for a non-admin", async (binding) => {
+    const { h, run } = harness([OORU, MAN]);
+    const res = await run({ action: "sample", binding }, false);
+    expect(res.status).toBe(400);
+    expect(h.calls).toEqual([]);
+  });
+
+  // Bug caught: a request naming both, or neither, resolving one silently.
+  it.each([[{ slotId: SLOT, binding: "familiar" }], [{}]])("sample takes exactly one of slotId and binding: %j", async (extra) => {
+    const { run } = harness([OORU]);
+    expect((await run({ action: "sample", ...extra }, false)).status).toBe(400);
   });
 });
 

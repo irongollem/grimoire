@@ -9,7 +9,7 @@ import { jsonError, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { loadAiCampaign } from "../_shared/pipeline/aiCampaign.ts";
 import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 import { screenChatText } from "../_shared/moderation.ts";
-import { isNarratorVoice } from "../_shared/narratorVoice.ts";
+import { isNarratorVoice, loadAppVoices } from "../_shared/narratorVoice.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { sweepNoteReadings, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
@@ -72,6 +72,8 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
       if (error) throw error;
       return typeof data === "string" ? data : null;
     },
+
+    loadAppVoices: () => loadAppVoices(admin),
 
     hasService: (service) => speech !== undefined && hasSpeechService(speech, service),
     loadRate: async (service) => loadSpeechRate(admin, await loadSpeech(), service),

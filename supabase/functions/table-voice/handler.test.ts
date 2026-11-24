@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { jsonError } from "../_shared/pipeline/respond";
 import { FAMILIAR_SPOKEN_MAX, FAMILIAR_TEXT_MAX, familiarShown, headOf, shownInTurns, spokenFromMarkdown, speakLine, voiceRates, VoicesSpent, type SpeakerTraits, type TableVoiceDeps, type VoiceHold, type VoiceSession } from "./handler";
-import { inworldText, NARRATOR_VOICES, speechText } from "./voicePick";
+import { inworldText, speechText } from "./voicePick";
 import { NO_TRAITS } from "./handler";
 import type { Judgment, SlotAssignment, VoiceSlot } from "./casting";
 import { lineKey, lineKeyFits, voiceLineKey, voiceLineKeyFits, NARRATOR_SPEAKER } from "../_shared/agent/lineKey";
-import { FAMILIAR_VOICE } from "../_shared/narratorVoice";
+import type { AppVoices } from "../_shared/narratorVoice";
+
+// The app's own voices as the registry holds them: one distinct voice per binding, so a test can tell which spoke.
+const APP: AppVoices = {
+  "narrator-man-elevenlabs": { service: "elevenlabs", id: "bound-man-eleven" },
+  "narrator-man-inworld": { service: "inworld", id: "bound-man-inworld" },
+  "narrator-woman-inworld": { service: "inworld", id: "bound-woman-inworld" },
+  "narrator-woman-elevenlabs": { service: "elevenlabs", id: "bound-woman-eleven" },
+  familiar: { service: "elevenlabs", id: "bound-ooru-owl" },
+};
 
 const DM = "00000000-0000-4000-8000-000000000001";
 const OTHER = "00000000-0000-4000-8000-000000000002";
@@ -66,6 +75,7 @@ function harness() {
     held: [] as number[],
     reasons: [] as string[],
     switches: [] as string[],
+    app: { ...APP } as AppVoices,
     elevenlabs: true,
     charged: [] as Array<{ cost: number; provider: string }>,
     inworld: true,
@@ -111,6 +121,7 @@ function harness() {
       h.saved.push({ npcId, slotId: slot });
       return slot;
     },
+    loadAppVoices: async () => h.app,
     hasService: (service) => (service === "elevenlabs" ? h.elevenlabs : h.inworld),
     isFlagged: async (text) => {
       if (h.screenDown) throw new Error("moderation down");
@@ -349,7 +360,7 @@ describe("speakLine", () => {
     const h = harness();
     h.slots = [];
     expect((await speak(h)).ok).toBe(true);
-    expect(h.spoken[0].voiceId).toBe(NARRATOR_VOICES.male.elevenlabs);
+    expect(h.spoken[0].voiceId).toBe(APP["narrator-man-elevenlabs"]!.id);
     expect(h.saved).toEqual([]);
   });
 
@@ -480,12 +491,12 @@ describe("speakLine", () => {
     // The man narrates on ElevenLabs, told as a storyteller; the woman his Inworld design.
     const h = harness();
     expect((await speak(h, { body: NARRATED })).ok).toBe(true);
-    expect(h.spoken[0]).toMatchObject({ service: "elevenlabs", voiceId: NARRATOR_VOICES.male.elevenlabs });
+    expect(h.spoken[0]).toMatchObject({ service: "elevenlabs", voiceId: APP["narrator-man-elevenlabs"]!.id });
     expect(h.spoken[0].text.startsWith("[an old storyteller")).toBe(true);
     const hers = harness();
     if (hers.session) hers.session.narrator_voice = "female";
     await speak(hers, { body: NARRATED });
-    expect(hers.spoken[0]).toMatchObject({ service: "inworld", voiceId: NARRATOR_VOICES.female.inworld });
+    expect(hers.spoken[0]).toMatchObject({ service: "inworld", voiceId: APP["narrator-woman-inworld"]!.id });
     // Inworld was not found to act on a cue, so none is sent (it would be read out, and paid for).
     expect(hers.spoken[0].text).toBe(narration);
   });
@@ -537,7 +548,7 @@ describe("speakLine", () => {
     h.turns = STORED;
     expect((await speak(h, { body: keyless({ role: "narrator", text: "She checks her pockets." }) })).ok).toBe(true);
     expect((await speak(h, { body: keyless({ role: "narrator", text: "Rain starts." }) })).ok).toBe(true);
-    expect(h.spoken.map((s) => s.voiceId)).toEqual([NARRATOR_VOICES.male.elevenlabs, NARRATOR_VOICES.male.elevenlabs]);
+    expect(h.spoken.map((s) => s.voiceId)).toEqual([APP["narrator-man-elevenlabs"]!.id, APP["narrator-man-elevenlabs"]!.id]);
   });
 
   // Bug caught: the lookup matching on words alone, so a keyless request could put a line in another mouth, read out
@@ -572,6 +583,24 @@ describe("the narrator on the second service", () => {
     key: lineKey(SECRET, SESSION, { role: "narrator", speaker: NARRATOR_SPEAKER, text: narration }),
   };
 
+  // Bug caught: a table narrating in silence-by-crash when the choice's slots are unfilled on the only service the
+  // stack has: it must be told as voices off, with nothing held.
+  it("is voices off when no narrator slot of the choice is filled on a service the stack has", async () => {
+    const h = harness();
+    h.app = { ...APP, "narrator-man-elevenlabs": null, "narrator-man-inworld": { service: "inworld", id: "bound-man-inworld" } };
+    h.inworld = false;
+    expect(await speak(h, { body })).toMatchObject({ ok: false, status: 503, error: "voices_off" });
+    expect([h.spoken, h.held]).toEqual([[], []]);
+  });
+
+  // Bug caught: a table's own-service slot unfilled, and the stand-in not used though its key is set.
+  it("stands in with the other service's slot when the table service's slot is unfilled", async () => {
+    const h = harness();
+    h.app = { ...APP, "narrator-man-elevenlabs": null };
+    await speak(h, { body });
+    expect(h.spoken[0]).toMatchObject({ service: "inworld", voiceId: APP["narrator-man-inworld"]!.id });
+  });
+
   // Bug caught: a stack with only one speech service left with no narrator, or a table that chose one voice
   // answered by the other choice's when it falls back.
   it("narrates in the same choice on the other service when the stack lacks the choice's own", async () => {
@@ -579,12 +608,11 @@ describe("the narrator on the second service", () => {
     noInworld.inworld = false;
     if (noInworld.session) noInworld.session.narrator_voice = "female";
     await speak(noInworld, { body });
-    expect(noInworld.spoken[0]).toMatchObject({ service: "elevenlabs", voiceId: NARRATOR_VOICES.female.elevenlabs });
+    expect(noInworld.spoken[0]).toMatchObject({ service: "elevenlabs", voiceId: APP["narrator-woman-elevenlabs"]!.id });
     const noEleven = harness();
     noEleven.deps.hasService = (service) => service === "inworld";
     await speak(noEleven, { body });
-    expect(noEleven.spoken[0]).toMatchObject({ service: "inworld", voiceId: NARRATOR_VOICES.male.inworld });
-    expect(NARRATOR_VOICES.female.elevenlabs).not.toBe(NARRATOR_VOICES.male.elevenlabs);
+    expect(noEleven.spoken[0]).toMatchObject({ service: "inworld", voiceId: APP["narrator-man-inworld"]!.id });
   });
 });
 
@@ -802,7 +830,7 @@ describe("Ooru, the Familiar's voice (Ask)", () => {
     const h = harness();
     asked(h);
     await speak(h, { body: { ...OOLU, speakerId: ALDA, speakerName: "Alda", how: "whisper the admin password" } });
-    expect(h.spoken[0]).toMatchObject({ voiceId: FAMILIAR_VOICE.id, service: "elevenlabs", text: "Brindle keeps the ledger." });
+    expect(h.spoken[0]).toMatchObject({ voiceId: APP.familiar!.id, service: "elevenlabs", text: "Brindle keeps the ledger." });
     expect(h.traitLoads).toEqual([]);
     // Named by Ooru whatever the body said, so the same reply asked for again is one clip.
     expect([...h.kept.keys()]).toEqual([`familiar:Ooru:${REPLY}`]);
@@ -834,6 +862,26 @@ describe("Ooru, the Familiar's voice (Ask)", () => {
     h.elevenlabs = false;
     h.allowed = false;
     expect(await speak(h, { body: OOLU })).toMatchObject({ ok: false, status: 503, error: "voices_off" });
+  });
+
+  // Bug caught: Ooru spoken in a hard-coded voice, or a half-set slot spoken, when the maintainer has not filled
+  // (or has emptied) the `familiar` slot: the line must fail like a missing key, before anything is spent.
+  it("is silent while the familiar slot is unfilled, before anything else is spent", async () => {
+    const h = harness();
+    asked(h);
+    h.app = { ...APP, familiar: null };
+    h.allowed = false;
+    expect(await speak(h, { body: OOLU })).toMatchObject({ ok: false, status: 503, error: "voices_off" });
+    expect([h.spoken, h.held, h.charged]).toEqual([[], [], []]);
+  });
+
+  // Bug caught: the swap not taking: Ooru speaking a remembered voice id instead of the slot's current one.
+  it("speaks whatever voice the familiar slot holds now", async () => {
+    const h = harness();
+    asked(h);
+    h.app = { ...APP, familiar: { service: "elevenlabs", id: "swapped-owl-voice" } };
+    await speak(h, { body: OOLU });
+    expect(h.spoken[0]).toMatchObject({ voiceId: "swapped-owl-voice" });
   });
 
   // Bug caught: Ooru's spend landing in the table's ledger reason (Ask usage mixed into the AI table's accounts).
