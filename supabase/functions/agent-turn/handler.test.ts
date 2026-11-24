@@ -4589,7 +4589,7 @@ describe("the roll check", () => {
   const askStep = (): ModelStep =>
     step(10, { blocks: [{ type: "tool_call", id: "r1", name: "ask_roll", input: { kind: "check", skill: "sleight_of_hand", dc: 15 } }], stop: "tool_calls" });
   const told = (h: Harness): string => opening(h.requests[0]);
-  const faults = (warn: ReturnType<typeof vi.spyOn>) => warn.mock.calls.filter((c) => String(c[0]).includes("without a roll"));
+  const faults = (warn: ReturnType<typeof vi.spyOn>) => warn.mock.calls.filter((c: unknown[]) => String(c[0]).includes("without a roll"));
 
   it("tells the narrator to call ask_roll when the attempt is judged uncertain, in what it reads this turn", async () => {
     const h = played([step(10)]);
@@ -4738,7 +4738,7 @@ describe("the name check", () => {
     return { judge, requests };
   };
   const told = (h: Harness): string => opening(h.requests[0]);
-  const faults = (warn: ReturnType<typeof vi.spyOn>) => warn.mock.calls.filter((c) => String(c[0]).includes("has no record of"));
+  const faults = (warn: ReturnType<typeof vi.spyOn>) => warn.mock.calls.filter((c: unknown[]) => String(c[0]).includes("has no record of"));
 
   it("tells the narrator to introduce a name last turn's narration used and the campaign does not know", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
