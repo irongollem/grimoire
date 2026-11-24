@@ -394,9 +394,6 @@ function parseMusicRequest(body: Record<string, unknown>): ParsedMusicRequest | 
   };
 }
 
-interface MusicCampaign extends BaseCampaign {
-}
-
 serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
@@ -419,7 +416,7 @@ serve(serveUser(async ({ user, req, report }) => {
 
   // DMs only: no player surface calls this, and it spends the campaign's
   // credits (see _shared/campaignAccess.ts).
-  const load = await loadAiCampaign<MusicCampaign>(admin, campaignId, user.id, {});
+  const load = await loadAiCampaign<BaseCampaign>(admin, campaignId, user.id);
   if (!load.ok) return load.response;
 
   const existing = await findGenerationJob(admin, user.id, "music", requestId);

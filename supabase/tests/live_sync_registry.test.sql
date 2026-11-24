@@ -115,6 +115,7 @@ insert into live_sync_doorbell (name) values
 -- routed nor listed here, so leaving one off has to be argued (#1033).
 create temporary table live_sync_exempt (name text primary key, reason text not null) on commit drop;
 insert into live_sync_exempt (name, reason) values
+  ('campaign_api_keys',         'the owner''s own BYOK credentials (#1228): only the owner reads them, on opening the campaign and after their own save, and a ring would tell every player that the DM changed a key'),
   ('ai_generation_jobs',        'server job progress, awaited by row id (waitForRow); not campaign content any member reads'),
   ('agent_sessions',            'a private conversation between one account and the model (#1205): only its owner reads it, and the page that runs it streams the turn itself'),
   ('ask_pending_routes',        'Ask Grimoire''s routed turns awaiting a generator (#1253): written and settled only by the server, read only by their owner, and nothing on any page shows them'),

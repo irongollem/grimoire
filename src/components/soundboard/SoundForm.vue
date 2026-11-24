@@ -206,7 +206,6 @@
           <IconGenerate class="h-6 w-6 text-primary animate-pulse" />
           <p class="text-body text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
           <p class="text-caption-sm text-muted-foreground/60 text-center">A full track can take a few minutes.</p>
-          <!-- Server runs only: the local-key path lives in this tab. -->
           <AppButton
             v-if="music.isGenerating.value"
             variant="ghost"
@@ -617,8 +616,8 @@ async function handleSubmit() {
   // Browse tab has its own per-row add flow; nothing for the form to do.
   if (activeSourceTab.value === "browse") return;
 
-  // Wraps every branch below: none of the four `mutateAsync` create calls
-  // (url, spotify, generated-then-uploaded, plain upload) had a catch of
+  // Wraps every branch below: none of the three `mutateAsync` create calls
+  // (url, spotify, plain upload) had a catch of
   // their own, so a quota rejection — or any other failure — on the actual
   // create wrote nothing to the screen at all, not even the per-branch
   // `uploadError`/`generateError` those branches already show for their own

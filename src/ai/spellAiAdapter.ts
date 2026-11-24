@@ -114,7 +114,8 @@ export function spellInsertFromAi(ai: SpellAiGenerated): SpellInsert {
     target_description: ai.target_description ?? null,
     aoe_shape,
     aoe_size: aoe_shape ? ai.aoe_size ?? null : null,
-    // The server vets this already; the same rule runs here so a local-key answer is held to it too (#1021).
+    // The server vets this already (#1021); the answer reaches the browser untyped, so it is parsed into the typed shape
+    // here by the same rule, which keeps an entry the server kept and drops nothing else.
     condition_effect: vetConditionEffect(ai.condition_effect, {
       description: ai.description ?? "",
       higher_levels: ai.level === 0 ? null : ai.higher_levels ?? null,

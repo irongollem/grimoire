@@ -5,16 +5,15 @@
  * Moved here from the browser (src/lib/audio/aiMusic.ts) on 25 Sep 2026.
  * `structureMusicPrompt` used to run client-side through a text
  * provider that threw when a campaign had no local key, so structuring
- * silently fell back to `composeFallbackPrompt` for every DM on platform
+ * silently fell back to a hand-composed prompt for every DM on platform
  * credits since the feature shipped (ada26322, 1 Jun 2026). Structuring now runs here, inside generate-music's
  * worker, using the same shared `_shared/textGen.ts` dispatcher every other
  * text generator uses.
  *
  * Pure: no Deno/network/DB imports, so this is unit-tested exactly like
- * lyria.ts (see musicPrompt.test.ts), and the browser imports it directly —
- * src/lib/audio/aiMusic.ts re-exports `composeFallbackPrompt` and
- * `MUSIC_PROMPT_MAX_CHARS` from here, so there is one
- * copy of each.
+ * lyria.ts (see musicPrompt.test.ts), and the browser imports it directly:
+ * src/lib/audio/aiMusic.ts re-exports `MUSIC_PROMPT_MAX_CHARS` from here, so
+ * there is one copy.
  */
 
 export type MusicLengthSeconds = 60 | 120 | 180;
@@ -156,34 +155,4 @@ export function buildStructureMessage(req: MusicRequest): string {
     lines.push("", "Lyrics:", lyrics);
   }
   return lines.join("\n");
-}
-
-/**
- * Built when structuring fails and there is no expanded prompt to fall back
- * to. Pure so it can be tested without a network call.
- *
- * Server-side (generate-music) deliberately does NOT call this — a silent
- * downgrade to a hand-composed prompt is exactly what hid the structuring
- * bug for four months (see this file's top comment), so a failed structuring
- * step fails the job instead. This stays exported only for the client-side
- path (src/lib/audio/aiMusic.ts), which keeps its own copy —
- * Deno can't import that browser module — kept identical by the cross-copy
- * test in aiMusic.test.ts.
- */
-export function composeFallbackPrompt(req: MusicRequest): string {
-  // A description ending in ./!/? used to produce a doubled "..": strip one
-  // trailing sentence punctuation mark before appending our own sentence.
-  const description = req.description.replace(/[.!?]$/, "");
-  let prompt = `${description}. A ${req.lengthSeconds / 60}-minute track.`;
-  if (req.vocals === "instrumental") prompt += " Instrumental only, no vocals.";
-  if (req.vocals === "choir") prompt += " Wordless choir only: sung vowels such as ooh and aah, no lyrics, no solo singer.";
-  // Mentions and the title are ignored here on purpose: a fallback stays minimal.
-  if (req.imageCount && req.imageCount > 0) {
-    prompt += " Take the instrumentation, colour and atmosphere from the attached images.";
-  }
-  const lyrics = req.lyrics?.trim();
-  if (lyrics && req.vocals === "vocals") {
-    prompt += `\n\nLyrics:\n${lyrics}`;
-  }
-  return prompt;
 }

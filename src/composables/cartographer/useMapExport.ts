@@ -161,7 +161,7 @@ export function useMapExport(opts: {
   const { costOf: costOfCredits } = useAiCredits();
   /**
    * `resolvedImageProvider` is the provider style-map will actually run on (the
-   * campaign's pick resolved against its own keys and the admin's switches),
+   * campaign's pick resolved against the admin's switches),
    * used for the AI input's sizing (`bake.ts`'s `StyleImageProvider`) and for
    * pricing below. It is null until provider_config loads, and the input
    * is never baked for a guessed shape: a Gemini render sent an OpenAI-sized

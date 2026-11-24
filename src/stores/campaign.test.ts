@@ -394,7 +394,18 @@ describe("retired key storage is swept when the store module loads (#1260)", () 
     expect(localStorage.getItem("grimoire_active_campaign")).toBe("kept");
   });
 
+  // Fails if the sweep runs on every boot: a device that never used local mode
+  // would issue a database delete on every start, forever.
+  it("leaves a device that never kept its own keys alone", async () => {
+    const deleteDatabase = vi.fn();
+    vi.stubGlobal("indexedDB", { deleteDatabase });
+    vi.resetModules();
+    await import("./campaign");
+    expect(deleteDatabase).not.toHaveBeenCalled();
+  });
+
   it("still boots when reading indexedDB throws (Firefox with site data blocked)", async () => {
+    localStorage.setItem("grimoire_key_local_mode", "local");
     vi.stubGlobal("indexedDB", undefined);
     Object.defineProperty(globalThis, "indexedDB", { configurable: true, get() { throw new Error("SecurityError"); } });
     vi.resetModules();

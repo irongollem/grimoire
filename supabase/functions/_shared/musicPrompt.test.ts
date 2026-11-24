@@ -8,7 +8,6 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import {
   buildStructureMessage,
-  composeFallbackPrompt,
   MUSIC_STRUCTURE_SYSTEM,
   type MusicRequest,
 } from "./musicPrompt.ts";
@@ -79,56 +78,6 @@ describe("buildStructureMessage", () => {
     expect(buildStructureMessage({ ...base, imageCount: 3 })).toContain("Images attached for Lyria: 3");
     expect(buildStructureMessage({ ...base, imageCount: 0 })).not.toContain("Images attached");
     expect(buildStructureMessage(base)).not.toContain("Images attached");
-  });
-});
-
-// ── composeFallbackPrompt ────────────────────────────────────────────────────
-
-describe("composeFallbackPrompt", () => {
-  it("is the description plus a length sentence for a sung track", () => {
-    expect(composeFallbackPrompt({ ...base, lengthSeconds: 120, vocals: "vocals" })).toBe("a tense chase. A 2-minute track.");
-  });
-
-  it("says instrumental tracks are instrumental and choir tracks are wordless", () => {
-    expect(composeFallbackPrompt(base)).toContain("Instrumental only, no vocals.");
-    expect(composeFallbackPrompt({ ...base, vocals: "choir" })).toContain("no lyrics, no solo singer");
-  });
-
-  it("appends lyrics verbatim and last for a sung track, even with images attached", () => {
-    const prompt = composeFallbackPrompt({ ...base, vocals: "vocals", lyrics: "[Chorus]\nOnward!", imageCount: 1 });
-    expect(prompt.endsWith("\n\nLyrics:\n[Chorus]\nOnward!")).toBe(true);
-    expect(prompt.indexOf("attached images")).toBeLessThan(prompt.indexOf("Lyrics:"));
-  });
-
-  it.each(["instrumental", "choir"] as const)("leaves lyrics off a %s track", (vocals) => {
-    expect(composeFallbackPrompt({ ...base, vocals, lyrics: "should not appear" })).not.toContain("should not appear");
-  });
-
-  it("points at the attached images only when there are some", () => {
-    expect(composeFallbackPrompt({ ...base, imageCount: 2 })).toContain("from the attached images");
-    expect(composeFallbackPrompt({ ...base, imageCount: 0 })).not.toContain("attached images");
-    expect(composeFallbackPrompt(base)).not.toContain("attached images");
-  });
-
-  it("stays minimal: mentions and the title are not copied in", () => {
-    const prompt = composeFallbackPrompt({ ...base, title: "Rosie's Defense", mentions: [{ label: "Kael", description: "A weary paladin." }] });
-    expect(prompt).not.toContain("Kael");
-    expect(prompt).not.toContain("Rosie");
-  });
-
-  // Regression: a description ending in sentence punctuation used to produce a
-  // doubled "..", "!." or "?." before the length sentence (25 Sep 2026).
-  it.each(["a tense conversation.", "charge into battle!", "who goes there?"])(
-    "strips one trailing sentence mark from %j rather than doubling it",
-    (description) => {
-      const prompt = composeFallbackPrompt({ ...base, description });
-      expect(prompt).toContain(`${description.slice(0, -1)}. A 1-minute track.`);
-    },
-  );
-
-  it("strips only one mark, and none from a description without one", () => {
-    expect(composeFallbackPrompt({ ...base, description: "wait..." })).toContain("wait... A 1-minute track.");
-    expect(composeFallbackPrompt({ ...base, description: "a quiet library" })).toContain("a quiet library. A 1-minute track.");
   });
 });
 

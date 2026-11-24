@@ -2,9 +2,7 @@
  * Ask Grimoire (#1253): composing a soundboard track, as a quote and a run.
  *
  * The price is the Generate tab's (`useMusicTrackQuote`), the gates are the tab's (AI on, a balance), and the run is
- * `useMusicGeneration().generate`, the durable `generate-music` job the tab calls. Only the server path is offered:
- * a DM on the legacy local-key path composes in `SoundForm`, in the foreground, so Ask blocks there rather than start
- * a second local path.
+ * `useMusicGeneration().generate`, the durable `generate-music` job the tab calls.
  *
  * The job takes minutes, and `generate` waits for it, so `run` waits too and the panel shows the button loading, as it
  * does for any run. The track lands on the board by itself (the sound row is made with the charge); the result opens

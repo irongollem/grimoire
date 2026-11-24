@@ -52,9 +52,8 @@ interface EntityCampaign extends BaseCampaign {
 }
 
 /** generator → the `ai_system_prompts` row it reads and the ledger reason it charges. */
-// The prompt key is the generator's own name, because the client's local-key
-// path (src/ai/entityTextGeneration.ts) reads `ai_system_prompts` by it; the
-// first four predate that rule and keep their historical ledger reasons.
+// The prompt key is the generator's own name; the first four predate that rule
+// and keep their historical ledger reasons.
 interface GeneratorSpec {
   promptKey: string;
   reason: string;

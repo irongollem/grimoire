@@ -21,10 +21,13 @@ const RETIRED_KEY_STORAGE = [
 
 // Every AI request runs on the server now (#1260). A device that once kept its
 // own keys (the removed local mode) still holds them, plus an IndexedDB vault of
-// the encryption key, and nothing reads them any more: purge, best effort.
+// the encryption key, and nothing reads them any more: purge, best effort. A
+// device that never used local mode holds none of them, and is left alone.
 function sweepRetiredKeyStorage() {
   const storage = safeLocalStorage();
-  for (const key of RETIRED_KEY_STORAGE) storage.removeItem(key);
+  const held = RETIRED_KEY_STORAGE.filter((key) => storage.getItem(key) !== null);
+  if (held.length === 0) return;
+  for (const key of held) storage.removeItem(key);
   try {
     indexedDB.deleteDatabase("grimoire-keyvault");
   } catch {

@@ -2,7 +2,7 @@
  * Ask Grimoire (#1253): drafting a Scriptorium document, as a quote and a run.
  *
  * The price is the dialog's (`useScriptoriumDraftQuote`), the gates are the dialog's (`useAskGate` with the
- * `scriptorium_documents` quota, plus the local-key refusal `useScriptoriumDraft` throws), and the run is the dialog's
+ * `scriptorium_documents` quota), and the run is the dialog's
  * two steps: `generate` then `saveDraft` (`useGenerateScriptoriumDraft`).
  *
  * The draft is grounded in one record, so the proposal must name it: a subject type and id the model took from the
