@@ -1,5 +1,6 @@
 <template>
-  <section class="flex flex-col gap-2" aria-label="Arcs" data-testid="canon-arcs">
+  <!-- A column under the contents from 90rem; one row beside the chapter picker below that. -->
+  <section class="flex flex-wrap items-center gap-2 min-[90rem]:flex-col min-[90rem]:flex-nowrap min-[90rem]:items-stretch" aria-label="Arcs" data-testid="canon-arcs">
     <span class="text-eyebrow text-muted-foreground">Arc</span>
     <div v-if="arcs.length > 0" class="flex min-w-0 items-center gap-1">
       <AppSelect v-model="filter" tone="filled" weight="normal" size="body" class="min-w-0 flex-1" aria-label="Show the canon of one arc">

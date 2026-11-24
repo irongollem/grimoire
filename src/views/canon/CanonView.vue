@@ -4,7 +4,7 @@
       <CanonSearchField class="w-72" />
       <AppButton to="/canon/import" variant="outline" size="md" :icon="IconUpload" label="Bring in a book" />
       <CanonOpenAsBook />
-      <AppButton to="/canon/tonight" variant="ghost" size="md" :icon="IconMoon" label="Prepare the next session" class="min-[90rem]:hidden" />
+      <AppButton to="/canon/tonight" variant="outline" size="md" :icon="IconMoon" label="Prepare the next session" class="min-[90rem]:hidden" />
     </template>
     <!-- The header holds these from a tablet up; a phone's header is the page's own bar, so they sit under the title where a thumb finds them. -->
     <div class="mb-4 flex flex-col gap-2 md:hidden" data-testid="canon-phone-actions">
@@ -17,7 +17,7 @@
 
     <div id="canon-page-top" class="flex flex-col gap-4 min-[90rem]:flex-row min-[90rem]:items-start min-[90rem]:gap-6">
       <!-- The contents: a column from 90rem (kept in sight), a chapter picker above the chapter below it. The arc filter is page-wide, so it sits with it. -->
-      <div class="flex min-w-0 flex-col gap-3 min-[90rem]:sticky min-[90rem]:top-0 min-[90rem]:w-56 min-[90rem]:shrink-0 min-[90rem]:self-start">
+      <div class="flex min-w-0 flex-wrap items-end gap-x-4 gap-y-2 min-[90rem]:flex-col min-[90rem]:flex-nowrap min-[90rem]:items-stretch min-[90rem]:gap-3 min-[90rem]:sticky min-[90rem]:top-0 min-[90rem]:w-56 min-[90rem]:shrink-0 min-[90rem]:self-start">
         <CanonContents :active="active" :counts="counts" @select="goTo" />
         <CanonArcs v-if="ready && (searching || ARC_NARROWED_SECTIONS.includes(active))" />
         <!-- The next session under the contents; below 90rem the header has the button instead. -->

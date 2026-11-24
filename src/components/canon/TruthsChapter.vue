@@ -28,16 +28,26 @@
       <div v-for="group in groups" :key="group.key" class="flex flex-col gap-1.5" :data-testid="store.truthsGrouped ? 'truth-group' : undefined">
         <h3 v-if="store.truthsGrouped" class="m-0 text-eyebrow text-muted-foreground">{{ group.label ?? "Not about anyone in particular" }}</h3>
         <ul class="flex flex-col rounded-lg border border-border bg-card" data-testid="truth-ledger">
-          <TruthRow
+          <CanonRow
             v-for="truth in group.truths"
+            :id="`canon-entry-${truth.id}`"
             :key="truth.id"
-            :entry="truth"
+            :title="truth.title"
             :selected="truth.id === selected?.id"
-            :knowers="byEntry.get(truth.id) ?? NO_KNOWERS"
+            layout="flex-col gap-1 sm:flex-row sm:items-start sm:gap-3"
             :move="canReorder ? endsOf(shown, truth.id) : null"
             @select="emit('select', truth.id)"
             @move="(direction) => reorder(shown, truth.id, direction)"
-          />
+          >
+            <span v-if="truth.knowledge === 'some'" class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-muted-foreground">
+              <template v-if="knowersOf(truth.id).length > 0">
+                Known to
+                <CanonRef v-for="k in knowersOf(truth.id)" :key="k.rowId" :kind="k.kind" :name="k.name" />
+              </template>
+              <span v-else data-testid="nobody-named" class="italic">Nobody named yet: say who knows it.</span>
+            </span>
+            <template #mark><CanonKnowledgeMark v-if="truth.knowledge" :mark="truth.knowledge" /></template>
+          </CanonRow>
         </ul>
       </div>
     </template>
@@ -80,9 +90,11 @@ import CanonAddRow from "./CanonAddRow.vue";
 import CanonReview from "./CanonReview.vue";
 import CanonChapter from "./kit/CanonChapter.vue";
 import CanonEmpty from "./kit/CanonEmpty.vue";
+import CanonRow from "./kit/CanonRow.vue";
 import TableAddedSection from "./TableAddedSection.vue";
 import TruthDetail from "./TruthDetail.vue";
-import TruthRow from "./TruthRow.vue";
+import CanonKnowledgeMark from "./CanonKnowledgeMark.vue";
+import CanonRef from "./CanonRef.vue";
 import { MARK_OPTIONS, chapterOf } from "@/lib/canon/canonParts";
 import { unreviewedCount } from "@/lib/canon/canonTableFacts";
 import { TRUTH_FILTER_OPTIONS, aboutByTruth, filterTruths, groupTruths } from "@/lib/canon/canonTruthView";
@@ -114,6 +126,7 @@ const chapter = chapterOf("truths");
 // One read of every tie for the whole list, never one per truth.
 const { byEntry } = useKnowersByEntry();
 const NO_KNOWERS: readonly Knower[] = [];
+const knowersOf = (id: string) => byEntry.value.get(id) ?? NO_KNOWERS;
 
 const store = useCanonUiStore();
 const shown = computed(() => filterTruths(truths, store.truthFilter));

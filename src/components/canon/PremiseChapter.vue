@@ -15,7 +15,7 @@
       <PremisePitch :pitches="ofKind('pitch')" :calendar-id="campaign.calendar_id" />
 
       <!-- Side by side only when the column itself is wide enough, whatever the screen. -->
-      <div class="grid gap-4 @3xl:grid-cols-2">
+      <div class="grid items-start gap-4 @3xl:grid-cols-2">
         <PremiseLines title="Themes" item-label="Theme" placeholder="Kindness is a kind of courage…" :kinds="['theme']" :entries="premise" />
         <PremiseLines title="At the table" item-label="Table note" placeholder="Talk and wandering more than fights…" :kinds="['table']" :entries="premise" />
       </div>
@@ -34,7 +34,7 @@
       </p>
 
       <CanonBlock title="For the AI, never printed" data-testid="premise-ai">
-        <div class="grid gap-4 @3xl:grid-cols-2">
+        <div class="grid items-start gap-4 @3xl:grid-cols-2">
           <PremiseTextField
             kind="voice"
             label="Voice"

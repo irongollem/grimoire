@@ -32,8 +32,8 @@
       <SegmentedControl
         :model-value="knowledge"
         :options="MARK_OPTIONS"
-        block
-        orientation="vertical"
+        wrap
+        class="self-start"
         aria-label="Who knows it"
         @update:model-value="setKnowledge"
       />

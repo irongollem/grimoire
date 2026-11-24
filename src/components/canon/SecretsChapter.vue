@@ -8,16 +8,24 @@
 
     <template v-if="store.secretsView === 'secrets'">
       <ul v-if="shown.length > 0" class="flex flex-col rounded-lg border border-border bg-card" data-testid="secret-ledger">
-        <SecretRow
+        <CanonRow
           v-for="secret in shown"
+          :id="`canon-entry-${secret.id}`"
           :key="secret.id"
-          :entry="secret"
-          :clues="cluesOf(secret.id)"
+          :title="secret.title"
           :selected="secret.id === selected?.id"
+          layout="flex-col gap-1 sm:flex-row sm:items-start sm:gap-3"
           :move="canReorder ? endsOf(groupOf(secret), secret.id) : null"
           @select="emit('select', secret.id)"
           @move="(direction) => reorder(groupOf(secret), secret.id, direction)"
-        />
+        >
+          <template #mark>
+            <span class="inline-flex items-center gap-1.5 whitespace-nowrap text-label font-bold text-foreground" data-testid="secret-state">
+              <span aria-hidden="true">{{ SECRET_STATE_MARK[secretState(secret, cluesOf(secret.id))] }}</span>
+              {{ stateWord(secret) }}
+            </span>
+          </template>
+        </CanonRow>
       </ul>
       <CanonEmpty v-else-if="arcLabel !== null" title="No secrets in this arc" :text="`Nothing of this chapter is in ${arcLabel}.`" />
       <CanonEmpty v-else title="No secrets yet" :text="EMPTY_TEXT" ask="Suggest a secret for my canon, with clues." />
@@ -47,11 +55,11 @@ import CanonAddRow from "./CanonAddRow.vue";
 import CanonReview from "./CanonReview.vue";
 import CanonChapter from "./kit/CanonChapter.vue";
 import CanonEmpty from "./kit/CanonEmpty.vue";
+import CanonRow from "./kit/CanonRow.vue";
 import QuestionsList from "./QuestionsList.vue";
 import SecretDetail from "./SecretDetail.vue";
-import SecretRow from "./SecretRow.vue";
 import { chapterOf } from "@/lib/canon/canonParts";
-import { revealedLast } from "@/lib/canon/canonSecrets";
+import { SECRET_STATE_MARK, revealedLast, secretState } from "@/lib/canon/canonSecrets";
 import { endsOf } from "@/lib/canon/canonOrder";
 import { useCanonReorder } from "@/composables/canon/useCanonReorder";
 import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
@@ -97,6 +105,13 @@ const bySecret = computed(() => {
 });
 const NO_CLUES: readonly CanonClue[] = [];
 const cluesOf = (id: string) => bySecret.value.get(id) ?? NO_CLUES;
+// The sign beside a secret: "Revealed", or how many of its clues are found.
+function stateWord(secret: CanonEntry): string {
+  const clues = cluesOf(secret.id);
+  if (secretState(secret, clues) === "revealed") return "Revealed";
+  if (clues.length === 0) return "No clues";
+  return `${clues.filter((c) => c.found_at !== null).length} of ${clues.length} found`;
+}
 
 const { mutateAsync: create } = useCreateCanonEntry();
 

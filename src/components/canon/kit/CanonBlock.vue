@@ -1,7 +1,7 @@
 <template>
-  <section class="flex flex-col gap-3 rounded-lg border border-border bg-card p-4" :aria-label="title">
+  <section class="flex flex-col gap-2" :aria-label="title">
     <div class="flex items-center gap-2">
-      <h3 class="m-0 min-w-0 flex-1 text-body font-bold">{{ title }}</h3>
+      <h3 class="m-0 min-w-0 flex-1 text-heading-xs font-bold">{{ title }}</h3>
       <CanonSuggest v-if="suggest !== undefined" :request="suggest" />
     </div>
     <slot />

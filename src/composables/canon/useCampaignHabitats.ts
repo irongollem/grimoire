@@ -15,7 +15,7 @@ import { UNREADABLE_CREATURE, type Habitat, type HabitatLife } from "@/lib/canon
  */
 
 /** Postgres `check_violation`: the commit-time total when a habitat's shares would pass 100. */
-const CHECK_VIOLATION = "23514";
+export const CHECK_VIOLATION = "23514";
 /** Postgres `unique_violation`: a place already in a habitat, or a creature already in this one. */
 const UNIQUE_VIOLATION = "23505";
 
@@ -101,7 +101,8 @@ export interface NewHabitatLife {
   percent: number;
 }
 
-async function nextSortOrder(table: "campaign_habitats" | "campaign_habitat_life", campaignId: string, habitatId?: string): Promise<number> {
+/** The place after the last row of a table's list (within one habitat when `habitatId` is given). */
+export async function nextSortOrder(table: "campaign_habitats" | "campaign_habitat_life" | "campaign_peoples", campaignId: string, habitatId?: string): Promise<number> {
   let query = supabase.from(table).select("sort_order").eq("campaign_id", campaignId);
   if (habitatId !== undefined) query = query.eq("habitat_id", habitatId);
   const last = await query.order("sort_order", { ascending: false }).limit(1);

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
-import { ref } from "vue";
 import { VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia, setActivePinia } from "pinia";
 import { canonEntry } from "@/test/canonEntry";
@@ -10,9 +9,11 @@ const { fake } = await vi.hoisted(async () => {
   return { fake: createSupabaseFake() };
 });
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "dm-1" }) }));
-vi.mock("@/composables/canon/useKnownToByEntry", () => ({
-  useKnowersByEntry: () => ({ byEntry: ref(new Map()), isLoading: ref(false) }),
-}));
+const knowers = vi.hoisted(() => ({ value: new Map<string, unknown[]>() }));
+vi.mock("@/composables/canon/useKnownToByEntry", async () => {
+  const { computed, ref } = await import("vue");
+  return { useKnowersByEntry: () => ({ byEntry: computed(() => knowers.value), isLoading: ref(false) }) };
+});
 const ties = vi.hoisted(() => ({ value: [] as unknown[] }));
 vi.mock("@/composables/world/useWorldTies", async () => {
   const { computed } = await import("vue");
@@ -167,6 +168,31 @@ describe("TruthsChapter filter, group and order (#1255 item 11, #1258 item 22)",
     const w = mountSection({ truths: [], arcLabel: "The drowned god" });
     expect(w.find("[data-testid=arc-note]").text()).toBe("Showing The drowned god only.");
     expect(w.text()).toContain("Nothing of this chapter is in The drowned god.");
+  });
+});
+
+describe("TruthsChapter row: who knows it", () => {
+  beforeEach(() => {
+    fake.reset();
+    knowers.value = new Map();
+  });
+  const truth = (knowledge: CanonEntry["knowledge"]) => [canonEntry({ id: "t1", part: "truth", knowledge, title: "The Stain is a wound." })];
+  const ferrymen = { rowId: "k", kind: "faction", id: "f1", name: "The Ferrymen" };
+
+  // Bug caught: a 'some' truth with no knowers looking finished, so the gap (nobody can know it) is invisible in the list.
+  it("says nobody is named for a 'some' truth with no knowers, and names them when there are some", () => {
+    expect(mountSection({ truths: truth("some") }).find("[data-testid=nobody-named]").exists()).toBe(true);
+    knowers.value = new Map([["t1", [ferrymen]]]);
+    const w = mountSection({ truths: truth("some") });
+    expect(w.text()).toContain("The Ferrymen");
+    expect(w.find("[data-testid=nobody-named]").exists()).toBe(false);
+  });
+
+  // Bug caught: knowers listed under a truth everyone knows, whatever the list handed the row.
+  it("lists no knowers for a truth known to all, and states a secret's mark in words", () => {
+    knowers.value = new Map([["t1", [ferrymen]]]);
+    expect(mountSection({ truths: truth("all") }).text()).not.toContain("The Ferrymen");
+    expect(mountSection({ truths: truth("secret") }).text()).toContain("Secret");
   });
 });
 

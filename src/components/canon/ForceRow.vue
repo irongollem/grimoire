@@ -1,20 +1,16 @@
 <template>
-  <CanonRow :id="`canon-entry-${entry.id}`" :label="entry.title" :selected="selected" @select="emit('select')">
-    <span class="min-w-0 flex-1">
-      <span class="block text-body font-semibold leading-snug text-foreground">{{ entry.title }}</span>
-      <span v-if="outcome !== null" class="mt-0.5 block text-caption font-bold text-foreground" data-testid="force-outcome">
-        {{ FORCE_OUTCOME_ENDED[outcome] }}<template v-if="entry.closed_note !== null"> · {{ entry.closed_note }}</template>
-      </span>
-      <span v-else class="mt-0.5 block text-caption text-muted-foreground" data-testid="force-next">
-        <template v-if="next">Next: {{ next.title }}</template>
-        <template v-else>No next step written</template>
-      </span>
-      <span v-if="late !== null" class="mt-0.5 block text-caption text-muted-foreground" data-testid="force-overdue">{{ late }}</span>
+  <CanonRow :id="`canon-entry-${entry.id}`" :title="entry.title" strong :selected="selected" :move="move" @select="emit('select')" @move="(d) => emit('move', d)">
+    <span v-if="outcome !== null" class="mt-0.5 block text-caption font-bold text-foreground" data-testid="force-outcome">
+      {{ FORCE_OUTCOME_ENDED[outcome] }}<template v-if="entry.closed_note !== null"> · {{ entry.closed_note }}</template>
     </span>
+    <span v-else class="mt-0.5 block text-caption text-muted-foreground" data-testid="force-next">
+      <template v-if="next">Next: {{ next.title }}</template>
+      <template v-else>No next step written</template>
+    </span>
+    <span v-if="late !== null" class="mt-0.5 block text-caption text-muted-foreground" data-testid="force-overdue">{{ late }}</span>
     <template #mark>
       <ForceClock :force="entry" :ticks="ticks" small />
       <span class="text-label text-muted-foreground" data-testid="force-clock-tally">{{ entry.clock_size === null ? "No clock" : `${clockFilled(ticks, entry.clock_size)} of ${entry.clock_size}` }}</span>
-      <CanonMoveButtons v-if="move" class="pointer-events-auto" :label="entry.title" :first="move.first" :last="move.last" @move="(d) => emit('move', d)" />
     </template>
   </CanonRow>
 </template>
@@ -26,7 +22,6 @@
  */
 import { computed } from "vue";
 import CanonRow from "./kit/CanonRow.vue";
-import CanonMoveButtons from "./CanonMoveButtons.vue";
 import ForceClock from "./ForceClock.vue";
 import { FORCE_OUTCOME_ENDED, forceOutcome } from "@/lib/canon/canonClose";
 import { clockFilled, firstOverdueStep, overdueLine } from "@/lib/canon/canonForces";

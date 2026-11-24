@@ -1,6 +1,6 @@
 import { computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
-import { fetchCanonEntries } from "@/lib/canon/canonEntries";
+import { useCanonEntries } from "@/composables/canon/useCanonEntries";
 import { canonCalendarItems, canonOnCalendarEnabled, type CanonCalendarItem } from "@/lib/canon/canonCalendar";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { fetchCanonForceData } from "@/composables/canon/useCanonForces";
@@ -24,14 +24,7 @@ export function useCanonOnCalendar() {
     canonOnCalendarEnabled({ isDM: auth.isDM, dmPreview: app.dmPreviewMode, show: ui.showCanonOnCalendar, campaignId: campaignId.value }),
   );
 
-  const entries = useQuery({
-    queryKey: computed(() => [CANON_KEY, campaignId.value] as const),
-    queryFn: ({ queryKey: [, cid] }) => {
-      if (cid === null) throw new Error("useCanonOnCalendar fetched without a campaign");
-      return fetchCanonEntries(cid);
-    },
-    enabled,
-  });
+  const entries = useCanonEntries({ enabled });
   const forceData = useQuery({
     queryKey: computed(() => [CANON_KEY, "forces", campaignId.value] as const),
     queryFn: ({ queryKey: [, , cid] }) => {

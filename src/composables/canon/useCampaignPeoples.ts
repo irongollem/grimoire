@@ -5,6 +5,7 @@ import { toast } from "@/lib/toast";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { useCampaignStore } from "@/stores/campaign";
 import { UNREADABLE_PEOPLE, type People } from "@/lib/canon/peoples";
+import { CHECK_VIOLATION, nextSortOrder } from "@/composables/canon/useCampaignHabitats";
 
 /**
  * The peoples of the world (#1255 item 30): `campaign_peoples`, each row a species or a creature the campaign already
@@ -12,9 +13,6 @@ import { UNREADABLE_PEOPLE, type People } from "@/lib/canon/peoples";
  * database holds the shares to 100 and checks that at commit, so a write that would pass it fails here with 23514
  * and the screen shows what the server has.
  */
-
-/** Postgres `check_violation`: what the commit-time total raises when the shares would pass 100. */
-const CHECK_VIOLATION = "23514";
 
 interface NamedRow {
   id: string;
@@ -61,14 +59,7 @@ export function peopleColumn(kind: People["kind"], fromLibrary: boolean): "speci
 
 /** Adds a people after the last one. */
 export async function insertPeople(campaignId: string, people: NewPeople): Promise<void> {
-  const last = await supabase
-    .from("campaign_peoples")
-    .select("sort_order")
-    .eq("campaign_id", campaignId)
-    .order("sort_order", { ascending: false })
-    .limit(1);
-  if (last.error) throw last.error;
-  const sortOrder = last.data.length > 0 ? (last.data[0] as { sort_order: number }).sort_order + 1 : 0;
+  const sortOrder = await nextSortOrder("campaign_peoples", campaignId);
   const { error } = await supabase.from("campaign_peoples").insert({
     campaign_id: campaignId,
     [peopleColumn(people.kind, people.fromLibrary)]: people.recordId,

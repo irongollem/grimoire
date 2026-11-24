@@ -3,7 +3,7 @@
     <!-- Below 90rem: one picker, which the page puts above the chapter. -->
     <label class="flex items-center gap-2 min-[90rem]:hidden">
       <span class="text-eyebrow text-muted-foreground">Chapter</span>
-      <AppSelect v-model="chosen" tone="filled" size="body" class="min-w-0 flex-1" aria-label="Chapter" data-testid="canon-chapter-picker">
+      <AppSelect v-model="chosen" tone="filled" size="body" class="min-w-0" aria-label="Chapter" data-testid="canon-chapter-picker">
         <option v-for="chapter in CANON_SECTIONS" :key="chapter.id" :value="chapter.id">{{ pickerText(chapter.id) }}</option>
       </AppSelect>
     </label>

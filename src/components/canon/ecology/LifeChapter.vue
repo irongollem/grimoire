@@ -1,18 +1,27 @@
 <template>
   <CanonChapter chapter="life" :title="chapter.label" :why="chapter.why" :open="selected !== null" back-label="habitats" @close="selectedId = null">
     <ul v-if="habitats.length > 0" class="flex flex-col rounded-lg border border-border bg-card" data-testid="habitat-list">
-      <HabitatRow
+      <CanonRow
         v-for="(habitat, index) in habitats"
+        :id="`canon-habitat-${habitat.id}`"
         :key="habitat.id"
-        :habitat="habitat"
-        :places="placeNames(habitat.id)"
-        :summary="summaryOf(habitat.id)"
+        :title="habitat.name"
+        strong
         :selected="habitat.id === selectedId"
-        :first="index === 0"
-        :last="index === habitats.length - 1"
+        :move="{ first: index === 0, last: index === habitats.length - 1 }"
         @select="selectedId = habitat.id"
         @move="(by) => move(index, by)"
-      />
+      >
+        <span v-for="place in placeNames(habitat.id)" :key="place" class="mr-2 text-label text-muted-foreground" data-testid="habitat-place">{{ place }}</span>
+        <span v-if="summaryOf(habitat.id)" class="mt-1 block text-caption text-muted-foreground" data-testid="habitat-summary">{{ summaryOf(habitat.id) }}</span>
+        <span v-else class="mt-1 block text-caption italic text-muted-foreground">Nothing lives here yet.</span>
+        <template #mark>
+          <span class="inline-flex items-center gap-1.5 whitespace-nowrap text-label font-bold text-foreground" data-testid="habitat-mark">
+            <IconLocation class="size-3.5 shrink-0" aria-hidden="true" />
+            {{ placeNames(habitat.id).length === 0 ? "No places" : placeNames(habitat.id).length === 1 ? "1 place" : `${placeNames(habitat.id).length} places` }}
+          </span>
+        </template>
+      </CanonRow>
     </ul>
     <CanonEmpty v-else-if="!isLoading" title="Nothing lives here yet" :text="EMPTY_TEXT" ask="Suggest the creatures and habitats of my world." />
 
@@ -36,10 +45,11 @@ import { computed, ref } from "vue";
 import CanonAddRow from "../CanonAddRow.vue";
 import CanonChapter from "../kit/CanonChapter.vue";
 import CanonEmpty from "../kit/CanonEmpty.vue";
+import CanonRow from "../kit/CanonRow.vue";
 import HabitatEditor from "./HabitatEditor.vue";
-import HabitatRow from "./HabitatRow.vue";
 import { useHabitatEditing } from "@/composables/canon/useCampaignHabitats";
 import { useLocationTree } from "@/composables/locations/useLocations";
+import { IconLocation } from "@/lib/icons";
 import { chapterOf } from "@/lib/canon/canonParts";
 import { sharesLine } from "@edge-shared/worldBlock.ts";
 

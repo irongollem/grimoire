@@ -6,15 +6,18 @@
     </template>
 
     <ul v-if="shown.length > 0" class="flex flex-col rounded-lg border border-border bg-card" data-testid="lore-ledger">
-      <LoreRow
-        v-for="entry in shown"
-        :key="entry.id"
-        :entry="entry"
-        :tally="tallyOf(entry.id)"
-        :date="dateOf(entry)"
-        :selected="entry.id === selected?.id"
-        @select="emit('select', entry.id)"
-      />
+      <CanonRow v-for="entry in shown" :id="`canon-entry-${entry.id}`" :key="entry.id" :title="entry.title" :selected="entry.id === selected?.id" @select="emit('select', entry.id)">
+        <template v-if="!lowArt && entry.image_url" #lead>
+          <div class="size-12 shrink-0 overflow-hidden rounded bg-muted">
+            <FocalImage :src="entry.image_url" alt="" format="portrait" class="size-full" />
+          </div>
+        </template>
+        <span class="mt-1 flex flex-wrap gap-x-3 text-label text-muted-foreground">
+          <span v-if="entry.lore_kind" data-testid="lore-kind">{{ LORE_KIND_LABEL[entry.lore_kind] }}</span>
+          <span v-if="dateOf(entry)" data-testid="lore-date">{{ dateOf(entry) }}</span>
+        </span>
+        <template #mark><span class="text-label font-bold text-foreground" data-testid="lore-told">{{ toldWords(tallyOf(entry.id)) }}</span></template>
+      </CanonRow>
     </ul>
     <CanonEmpty v-else-if="arcLabel !== null" title="No lore in this arc" :text="`Nothing of this chapter is in ${arcLabel}.`" />
     <CanonEmpty v-else title="No lore yet" :text="EMPTY_TEXT" ask="Suggest a piece of lore for my world." />
@@ -42,16 +45,18 @@
  */
 import { computed, ref } from "vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
 import CanonAddRow from "./CanonAddRow.vue";
 import CanonReview from "./CanonReview.vue";
 import CanonChapter from "./kit/CanonChapter.vue";
 import CanonEmpty from "./kit/CanonEmpty.vue";
+import CanonRow from "./kit/CanonRow.vue";
 import LoreDetail from "./LoreDetail.vue";
-import LoreRow from "./LoreRow.vue";
 import { chapterOf } from "@/lib/canon/canonParts";
-import { LORE_KIND_OPTIONS, entryDate, sortLore, worldDateLabel } from "@/lib/canon/canonLore";
+import { LORE_KIND_LABEL, LORE_KIND_OPTIONS, entryDate, sortLore, worldDateLabel } from "@/lib/canon/canonLore";
 import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { passagesOf, toldTally, useCanonPassages } from "@/composables/canon/useCanonPassages";
+import { useLowArt } from "@/composables/useLowArt";
 import { useCalendarStore } from "@/stores/calendar";
 import type { CanonEntry, LoreKind } from "@/types/canon.types";
 
@@ -73,6 +78,12 @@ const chapter = chapterOf("lore");
 const shown = computed(() => sortLore(lore));
 const { data: passages } = useCanonPassages();
 const tallyOf = (id: string) => toldTally(passagesOf(passages.value ?? [], id));
+const { lowArt } = useLowArt();
+// The row's sign: how much of the entry has been told. The first passage is told with the entry, so an entry with any passage has told at least one.
+function toldWords({ told, total }: { told: number; total: number }): string {
+  if (total === 0) return "None told";
+  return told >= total ? "All told" : `${told} of ${total} told`;
+}
 const calendar = useCalendarStore();
 const dateOf = (e: CanonEntry) => worldDateLabel(entryDate(e), (y, m, d, f) => calendar.adapter.formatDate(y, m, d, f));
 
