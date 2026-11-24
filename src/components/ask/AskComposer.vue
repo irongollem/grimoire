@@ -23,13 +23,15 @@
 
 <script setup lang="ts">
 /** The DM's box: Enter sends, Shift+Enter breaks the line, and the one line under it says what a question costs. */
-import { computed, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
+import { useAskUiStore } from "@/stores/ui/ask";
 import { IconSend } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 
 const { running = false, line = "" } = defineProps<{ running?: boolean; line?: string }>();
 const emit = defineEmits<{ send: [text: string] }>();
 
+const ui = useAskUiStore();
 const draft = ref("");
 const field = ref<HTMLTextAreaElement | null>(null);
 const canSend = computed(() => draft.value.trim() !== "" && !running);
@@ -46,6 +48,23 @@ function onKeydown(event: KeyboardEvent) {
   event.preventDefault();
   submit();
 }
+
+// A request left unsent by the Canon's Suggest: written in, focused, caret at the end, for the DM to change and send.
+watch(
+  () => ui.prefill,
+  async (pending) => {
+    if (pending === null) return;
+    const text = ui.takePrefill();
+    if (text === null) return;
+    draft.value = text;
+    await nextTick();
+    const el = field.value;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(text.length, text.length);
+  },
+  { immediate: true },
+);
 
 defineExpose({ focus: () => field.value?.focus() });
 </script>

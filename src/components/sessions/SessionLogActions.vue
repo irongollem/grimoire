@@ -1,7 +1,10 @@
 <template>
   <SessionRecapChip :recap="recap" />
   <AppButton v-if="recap === 'running'" variant="outline" size="xs" label="End" @click="emit('end')" />
-  <AppButton v-if="recap === 'none'" variant="primary" size="xs" label="Write notes" @click="emit('write')" />
+  <template v-if="recap === 'none'">
+    <AppButton variant="primary" size="xs" label="Write notes" @click="emit('write')" />
+    <AppButton variant="outline" size="xs" label="Draft with the Chronicler" @click="emit('draft')" />
+  </template>
   <template v-if="session.number === null">
     <form v-if="numbering" class="flex items-center gap-1.5" @submit.prevent="submitNumber">
       <AppInput
@@ -23,7 +26,7 @@
 <script setup lang="ts">
 /**
  * The recap chip and the controls that belong to a session in the log: End
- * while it runs, Write notes while there is no recap, Number it / Delete on an
+ * while it runs, Write notes and Draft with the Chronicler while there is no recap, Number it / Delete on an
  * unnumbered row. Shared by the row and the card so the two layouts offer the
  * same things; the parent puts them in its own flex wrapper.
  */
@@ -41,6 +44,7 @@ const { session, hasNote } = defineProps<{
 
 const emit = defineEmits<{
   write: [];
+  draft: [];
   end: [];
   delete: [];
   number: [value: number];

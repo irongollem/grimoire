@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => 
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
 vi.mock("@/lib/toast", () => ({ toast: { error: toasts.error, fromError: (e: unknown) => (e instanceof Error ? e.message : "failed") } }));
 
-import { fetchPeoples, insertPeople, usePeoplesEditing } from "./useCampaignPeoples";
+import { fetchPeoples, insertPeople, updatePeopleBody, usePeoplesEditing } from "./useCampaignPeoples";
 
 function inSetup<T>(use: () => T): T {
   let result!: T;
@@ -65,7 +65,7 @@ it("writes nothing when the last sort order cannot be read", async () => {
 
 describe("fetchPeoples", () => {
   const named = (id: string, campaign_id: string, sort_order: number) => ({
-    id, campaign_id, sort_order, percent: "12.50", kind: "species", record_id: `r-${id}`, from_library: true, name: `Name ${id}`,
+    id, campaign_id, sort_order, percent: "12.50", kind: "species", record_id: `r-${id}`, from_library: true, name: `Name ${id}`, body: null,
   });
 
   // Bug (Client Reads): the read took every campaign the account's policy allows, so a DM of two worlds saw both lists.
@@ -73,7 +73,7 @@ describe("fetchPeoples", () => {
     fake.seed("campaign_peoples_named", [named("b", "c1", 2), named("a", "c1", 1), named("x", "c2", 0)]);
     const list = await fetchPeoples("c1");
     expect(list.map((p) => p.id)).toEqual(["a", "b"]);
-    expect(list[0]).toEqual({ id: "a", kind: "species", recordId: "r-a", fromLibrary: true, name: "Name a", readable: true, percent: 12.5 });
+    expect(list[0]).toEqual({ id: "a", kind: "species", recordId: "r-a", fromLibrary: true, name: "Name a", readable: true, percent: 12.5, body: null });
   });
 
   // Bug caught (the security audit, #1255): a species on a co-DM's own shelf has no name for this reader. Dropping the
@@ -113,5 +113,21 @@ describe("the writes", () => {
     removePeople("a");
     await flushPromises();
     expect(fake.rows("campaign_peoples").map((r) => r.id)).toEqual(["b"]);
+  });
+});
+
+describe("what a people is like", () => {
+  // Bug: the view's body column was left out of the read, so written words never came back to the screen.
+  it("reads the body with the people", async () => {
+    fake.seed("campaign_peoples_named", [{ id: "a", campaign_id: "c1", sort_order: 1, percent: 5, kind: "species", record_id: "r", from_library: true, name: "Elf", body: "<p>Proud</p>" }]);
+    expect((await fetchPeoples("c1"))[0].body).toBe("<p>Proud</p>");
+  });
+
+  // Bug: a refused write (no row back) looked like a save, so the autosave said Saved over words that were lost.
+  it("writes the body to the one row, and throws when no row took it", async () => {
+    fake.seed("campaign_peoples", [{ id: "a", campaign_id: "c1", body: null }, { id: "b", campaign_id: "c1", body: null }]);
+    await updatePeopleBody("a", "<p>Proud</p>");
+    expect(fake.rows("campaign_peoples").map((r) => r.body)).toEqual(["<p>Proud</p>", null]);
+    await expect(updatePeopleBody("gone", "x")).rejects.toThrow("That people is gone");
   });
 });

@@ -60,8 +60,9 @@
           <SessionLogCard
             :session="row"
             :facts="factsFor(row.id)"
-            :has-note="noteIds.has(row.id)"
+            :note="noteBySession.get(row.id) ?? null"
             @write="writeNotes(row)"
+            @draft="writeNotes(row, true)"
             @end="endSession"
             @number="(value) => numberIt(row, value)"
             @delete="remove(row)"
@@ -71,16 +72,15 @@
           <SessionLogRow
             :session="row"
             :facts="factsFor(row.id)"
-            :has-note="noteIds.has(row.id)"
+            :note="noteBySession.get(row.id) ?? null"
             @write="writeNotes(row)"
+            @draft="writeNotes(row, true)"
             @end="endSession"
             @number="(value) => numberIt(row, value)"
             @delete="remove(row)"
           />
         </template>
       </EntityCollection>
-
-      <ChronicleSection :lore="lore" :forces="forces" />
     </div>
   </PageHeader>
 
@@ -107,8 +107,6 @@ import SessionLogCard from "@/components/sessions/SessionLogCard.vue";
 import SessionLogRow from "@/components/sessions/SessionLogRow.vue";
 import SessionRunningCard from "@/components/sessions/SessionRunningCard.vue";
 import PastSessionDialog from "@/components/sessions/PastSessionDialog.vue";
-import ChronicleSection from "@/components/sessions/ChronicleSection.vue";
-import { useCanonEntries } from "@/composables/canon/useCanonEntries";
 import {
   useCampaignSessions,
   useCreatePastSession,
@@ -133,6 +131,7 @@ import {
   type SharedNumber,
 } from "@/lib/sessions/sessionLog";
 import { sessionNoteRoute } from "@/lib/sessions/sessionRoutes";
+import type { Note } from "@/types/notes.types";
 import type { CampaignSession } from "@/types/session.types";
 
 const router = useRouter();
@@ -148,10 +147,6 @@ const update = useUpdateCampaignSession();
 const remove_ = useDeleteCampaignSession();
 const adding = useCreatePastSession();
 const merging = useMergeCampaignSessions();
-
-const { data: canonEntries } = useCanonEntries();
-const lore = computed(() => (canonEntries.value ?? []).filter((e) => e.part === "lore"));
-const forces = computed(() => (canonEntries.value ?? []).filter((e) => e.part === "force"));
 
 const pastOpen = ref(false);
 
@@ -174,9 +169,18 @@ const listed = computed(() => {
   const current = running.value;
   return isMobile.value && current ? all.filter((row) => row.id !== current.id) : all;
 });
-const noteIds = computed(() => new Set((notes.value ?? []).flatMap((n) => (n.session_id ? [n.session_id] : []))));
+// A session's chronicle is its newest linked note.
+const noteBySession = computed(() => {
+  const bySession = new Map<string, Note>();
+  for (const n of notes.value ?? []) {
+    if (!n.session_id) continue;
+    const have = bySession.get(n.session_id);
+    if (have === undefined || n.updated_at > have.updated_at) bySession.set(n.session_id, n);
+  }
+  return bySession;
+});
 const summary = computed(() =>
-  logSummaryParts(log.value?.length ?? 0, sessionsWithoutNotes(log.value ?? [], noteIds.value).length, unsorted.value ?? 0),
+  logSummaryParts(log.value?.length ?? 0, sessionsWithoutNotes(log.value ?? [], new Set(noteBySession.value.keys())).length, unsorted.value ?? 0),
 );
 
 const shared = computed(() => sessionsSharingANumber(log.value ?? []));
@@ -215,8 +219,8 @@ function factsFor(id: string): SessionFacts {
   return facts.value.get(id) ?? NO_FACTS;
 }
 
-function writeNotes(row: CampaignSession) {
-  void router.push(sessionNoteRoute(row.id));
+function writeNotes(row: CampaignSession, chronicler = false) {
+  void router.push(sessionNoteRoute(row.id, { chronicler }));
 }
 
 async function numberIt(row: CampaignSession, value: number) {

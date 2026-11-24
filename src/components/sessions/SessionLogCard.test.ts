@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
+import type { Note } from "@/types/notes.types";
 import SessionLogCard from "@/components/sessions/SessionLogCard.vue";
 import type { CampaignSession } from "@/types/session.types";
 
+// The chronicle line reads the party, the canon and the learned list; its own test covers it.
+vi.mock("@/components/sessions/SessionChronicleLine.vue", () => ({ default: { template: "<div />" } }));
+const NOTE = { id: "n1" } as Note;
 const routerStub = { global: { stubs: { RouterLink: { template: "<a><slot /></a>" } } } };
 
 function session(over: Partial<CampaignSession> = {}): CampaignSession {
@@ -23,7 +27,7 @@ function session(over: Partial<CampaignSession> = {}): CampaignSession {
 
 function mountCard(row: CampaignSession, hasNote: boolean) {
   return mount(SessionLogCard, {
-    props: { session: row, facts: { people: 2, encounters: 1 }, hasNote },
+    props: { session: row, facts: { people: 2, encounters: 1 }, note: hasNote ? NOTE : null },
     ...routerStub,
   });
 }
@@ -41,6 +45,13 @@ describe("SessionLogCard", () => {
     const wrapper = mountCard(session(), false);
     await wrapper.findAll("button").find((b) => b.text() === "Write notes")?.trigger("click");
     expect(wrapper.emitted("write")).toHaveLength(1);
+  });
+
+  // Bug caught: the Chronicler draft reachable only from the notes page, so a session in the log could not be started from it.
+  it("offers Draft with the Chronicler beside Write notes, and emits draft", async () => {
+    const wrapper = mountCard(session(), false);
+    await wrapper.findAll("button").find((b) => b.text() === "Draft with the Chronicler")?.trigger("click");
+    expect(wrapper.emitted("draft")).toHaveLength(1);
   });
 
   it("names an untitled session by its number, and an unnumbered one as untitled", () => {

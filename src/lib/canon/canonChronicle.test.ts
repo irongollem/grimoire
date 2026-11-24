@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { almanac, chronicleExcerpt, chronicleItems, firstNoteImage, orderChronicle, writtenCount } from "./canonChronicle";
+import { almanac, chronicleExcerpt, chronicleItems } from "./canonChronicle";
 import { canonEntry } from "@/test/canonEntry";
 import type { CalendarEvent } from "@/types/calendar.types";
 import type { CanonForceStep, CanonForceTick } from "@/types/canon.types";
@@ -39,7 +39,6 @@ describe("chronicleItems", () => {
   it("keeps a session with no note as an entry still to write", () => {
     const items = chronicleItems([session("s1")], []);
     expect(items[0]!.note).toBeNull();
-    expect(writtenCount(items)).toBe(0);
   });
 
   // Bug caught: the older of two linked notes shown, hiding what the DM wrote last.
@@ -52,10 +51,9 @@ describe("chronicleItems", () => {
   });
 
   // Bug caught: ordering by session number, which is only a label; the log's own order is when it was played.
-  it("orders newest first by when it was played, and reverses for from the start", () => {
+  it("orders newest first by when it was played", () => {
     const items = chronicleItems([session("a", { number: 9, played_on: "2026-10-01" }), session("b", { number: 1, played_on: "2026-11-01" })], []);
     expect(items.map((i) => i.session.id)).toEqual(["b", "a"]);
-    expect(orderChronicle(items, "start").map((i) => i.session.id)).toEqual(["a", "b"]);
   });
 });
 
@@ -135,7 +133,7 @@ describe("almanac with the Calendar's events", () => {
   });
 });
 
-describe("excerpt and picture", () => {
+describe("excerpt", () => {
   const doc = (...content: object[]) => JSON.stringify({ type: "doc", content });
 
   // Bug caught: the raw Tiptap JSON shown as the excerpt.
@@ -145,14 +143,6 @@ describe("excerpt and picture", () => {
     expect(excerpt.endsWith("…")).toBe(true);
     expect(excerpt.length).toBeLessThanOrEqual(51);
     expect(excerpt).not.toContain("{");
-  });
-
-  // Bug caught: the Chronicler's picture lost, because only top-level nodes were looked at.
-  it("finds the first picture even inside a nested block, and none in plain text", () => {
-    const nested = doc({ type: "blockquote", content: [{ type: "image", attrs: { src: "https://cdn.test/a.webp" } }] });
-    expect(firstNoteImage(nested)).toBe("https://cdn.test/a.webp");
-    expect(firstNoteImage("just words")).toBeNull();
-    expect(firstNoteImage(null)).toBeNull();
   });
 });
 

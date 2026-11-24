@@ -104,7 +104,7 @@ async function settle() {
 
 // Every chapter is another file's business; the page is what mounts them and hands them their slice of the canon.
 const STUBS = {
-  RouterLink, CanonArcs: true, CanonDeleted: true, CanonOpenAsBook: true, CanonNextSession: true, CanonReview: true, CanonContents: true, WorldChapter: true, PeoplesChapter: true, LifeChapter: true,
+  RouterLink, CanonArcs: true, CanonDeleted: true, ArcsChapter: true, CanonOpenAsBook: true, CanonNextSession: true, CanonReview: true, CanonContents: true, WorldChapter: true, PeoplesChapter: true, LifeChapter: true,
   AppButton: { props: ["to", "label"], template: "<component :is=\"to ? 'a' : 'button'\" :href=\"to\">{{ label }}<slot /></component>" },
   TruthsChapter: TruthsStub, LoreChapter: LoreStub, SecretsChapter: SecretsStub, ForcesChapter: ForcesStub, BackstoriesChapter: BackstoriesStub, PremiseChapter: PremiseStub,
 };

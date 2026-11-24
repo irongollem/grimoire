@@ -41,7 +41,7 @@ const carriers = computed(() => {
     out.push({ key: `entry-${from.id}`, name: from.title, to: { path: "/canon", query: { entry: from.id } } });
   }
   for (const a of arcs.value ?? []) {
-    if (a.theme_id === entry.id) out.push({ key: `arc-${a.id}`, name: `the arc ${a.name}`, to: `/canon/arcs/${a.id}` });
+    if (a.theme_id === entry.id) out.push({ key: `arc-${a.id}`, name: `the arc ${a.name}`, to: `/canon/arcs?arc=${a.id}` });
   }
   return out;
 });

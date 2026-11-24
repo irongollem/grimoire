@@ -420,7 +420,7 @@ export const routes: RouteRecordRaw[] = [
 
   // Canon (#1226)
   {
-    // One part at a time (#1258 item 19). The pattern lists the parts, so `/canon/tonight`, `/canon/arcs/:id` and
+    // One part at a time (#1258 item 19). The pattern lists the parts, so `/canon/tonight` and
     // `/canon/import` are never read as one; a bare `/canon` opens the part the DM was last on.
     path: `/canon/:part(${CANON_PART_PATTERN})?`,
     name: "canon",
@@ -434,9 +434,10 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "Tonight" },
   },
   {
+    // An arc is a chapter of the Canon: the old page address opens the chapter on that arc.
     path: "/canon/arcs/:id",
     name: "canon-arc",
-    component: () => import("@/views/canon/ArcView.vue"),
+    redirect: (to) => ({ path: "/canon/arcs", query: { arc: to.params.id } }),
     meta: { requiresAuth: true, title: "Arc" },
   },
   {

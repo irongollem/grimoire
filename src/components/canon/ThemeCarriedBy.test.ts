@@ -36,7 +36,7 @@ describe("ThemeCarriedBy", () => {
     arcs.value = [{ id: "a1", name: "The drowned god", theme_id: "t1" }, { id: "a2", name: "The guild", theme_id: "t-other" }];
     const w = mountIt();
     expect(w.findAll("[data-testid=theme-carrier]").map((a) => a.text())).toEqual(["The mill", "the arc The drowned god"]);
-    expect(w.findAll("[data-testid=theme-carrier]")[1]!.attributes("data-to")).toBe(JSON.stringify("/canon/arcs/a1"));
+    expect(w.findAll("[data-testid=theme-carrier]")[1]!.attributes("data-to")).toBe(JSON.stringify("/canon/arcs?arc=a1"));
     expect(w.text()).not.toContain("Nothing carries");
   });
 });

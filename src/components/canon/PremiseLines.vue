@@ -1,6 +1,6 @@
 <template>
   <CanonBlock :title="title" :data-testid="`premise-${kinds.join('-')}`">
-    <ul v-if="rows.length > 0" class="flex flex-col rounded-lg border border-border">
+    <ul v-if="rows.length > 0" class="flex flex-col rounded-lg border border-border bg-card">
       <PremiseLineRow
         v-for="row in rows"
         :key="row.id"

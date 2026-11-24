@@ -53,7 +53,8 @@ import { IconLocation } from "@/lib/icons";
 import { chapterOf } from "@/lib/canon/canonParts";
 import { sharesLine } from "@edge-shared/worldBlock.ts";
 
-const EMPTY_TEXT = "Creatures and habitats: what lives where, what eats what, and what the land gives.";
+// Not the chapter's own line again: what one habitat is, so the DM knows what to add.
+const EMPTY_TEXT = "A habitat is a kind of country: a marsh, a deep forest, the high ice. Name one, choose the places it covers and what lives there, and how common each is.";
 const chapter = chapterOf("life");
 
 const { habitats, places, life, isLoading, addHabitat, reorderHabitats } = useHabitatEditing();

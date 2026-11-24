@@ -141,6 +141,15 @@ watch(
   { immediate: true },
 );
 
+// A request written into the box unsent (the Canon's Suggest) also starts a fresh conversation; the composer takes the text.
+watch(
+  () => ui.prefill,
+  (text) => {
+    if (text !== null) convo.newConversation();
+  },
+  { immediate: true },
+);
+
 // The hotkey and the button both ask for the input; the surface is only there once the panel is open.
 watch(
   () => ui.focusRequest,

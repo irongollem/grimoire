@@ -15,13 +15,14 @@ describe("CanonSuggest", () => {
     canAsk.value = true;
   });
 
-  // Bug caught: the button opening the Familiar empty, or with its own words, so the DM had to retype what the page already knew.
-  it("opens the Familiar with exactly the request", async () => {
+  // Bug caught: Suggest sending the request itself, so the DM could not change it first; or opening the Familiar empty.
+  it("opens the Familiar with exactly the request, written and unsent", async () => {
     const w = mount(CanonSuggest, { props: { request: "Suggest three truths for my canon." } });
     await w.get("[data-testid=canon-suggest]").trigger("click");
     const ask = useAskUiStore();
     expect(ask.open).toBe(true);
-    expect(ask.pendingQuery).toBe("Suggest three truths for my canon.");
+    expect(ask.prefill).toBe("Suggest three truths for my canon.");
+    expect(ask.pendingQuery).toBeNull();
   });
 
   // Bug caught: a Suggest button on a player's lens or a campaign with AI off, leading to a panel that is not there.

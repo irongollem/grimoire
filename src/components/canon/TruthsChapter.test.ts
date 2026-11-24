@@ -161,7 +161,7 @@ describe("TruthsChapter filter, group and order (#1255 item 11, #1258 item 22)",
     const w = mountSection({ truths: [] });
     expect(w.find("[data-testid=canon-suggest-fold]").exists()).toBe(false);
     await w.get("[data-testid=canon-suggest]").trigger("click");
-    expect(useAskUiStore().pendingQuery).toBe("Suggest three truths for my canon.");
+    expect(useAskUiStore().prefill).toBe("Suggest three truths for my canon.");
   });
 
   it("names the arc once in a quiet line, and its empty state says nothing of this part is in it", () => {

@@ -13,6 +13,8 @@ export interface People extends Share {
   kind: "species" | "creature";
   recordId: string;
   fromLibrary: boolean;
+  /** What they are like: a rich-text document as text, null while nothing is written. */
+  body: string | null;
 }
 
 /** What stands where a name would, for a people listed by a co-DM from their own shelf. */

@@ -1,6 +1,5 @@
 <template>
-  <aside class="flex flex-col gap-2 border border-border bg-card p-4" aria-labelledby="sessions-almanac-heading" data-testid="almanac">
-    <h3 id="sessions-almanac-heading" class="m-0 text-heading-xs font-semibold text-foreground">The almanac</h3>
+  <div class="flex flex-col gap-2" data-testid="almanac">
     <p class="m-0 text-caption text-muted-foreground">One timeline of the world: lore, moving forces and the steps still due, with a date in the world, the events on the Calendar, and every session, in the world's own calendar. The Calendar's events are edited there; follow one to its month.</p>
     <ol v-if="events.length > 0" class="relative m-0 mt-1 flex list-none flex-col gap-2.5 p-0 pl-4 before:absolute before:top-1 before:bottom-1 before:left-1 before:w-px before:bg-border">
       <li v-for="event in events" :key="event.key" class="relative text-body" :data-kind="event.kind">
@@ -14,30 +13,37 @@
       </li>
     </ol>
     <p v-else class="m-0 text-body italic text-muted-foreground">Nothing is dated yet. Give lore a date in the world, or a session its dates, and it lands here.</p>
-  </aside>
+  </div>
 </template>
 
 <script setup lang="ts">
-/** The almanac (frame 12): lore with a date, force ticks with a date, the Calendar's events (read-only here) and every session on one timeline, in the world's calendar. */
+/** The timeline of the world (frame 12): lore with a date, force ticks and steps due, the Calendar's events (read-only here) and every session, in the world's calendar. It reads what it needs itself. */
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useCalendarStore } from "@/stores/calendar";
-import { almanac, type AlmanacEvent, type AlmanacKind, type ChronicleItem } from "@/lib/canon/canonChronicle";
+import { useCampaignCalendarEvents } from "@/composables/calendar/useCampaignCalendarEvents";
+import { useCanonEntries } from "@/composables/canon/useCanonEntries";
+import { useCanonForceData } from "@/composables/canon/useCanonForces";
+import { useChronicle } from "@/composables/sessions/useChronicle";
+import { almanac, type AlmanacEvent, type AlmanacKind } from "@/lib/canon/canonChronicle";
 import { worldDateLabel } from "@/lib/canon/canonLore";
-import type { CalendarEvent } from "@/types/calendar.types";
-import type { CanonEntry, CanonForceStep, CanonForceTick } from "@/types/canon.types";
-
-const { lore, forces, ticks, steps = [], items, calendarEvents = [] } = defineProps<{
-  lore: readonly CanonEntry[];
-  forces: readonly CanonEntry[];
-  ticks: readonly CanonForceTick[];
-  steps?: readonly CanonForceStep[];
-  items: readonly ChronicleItem[];
-  calendarEvents?: readonly CalendarEvent[];
-}>();
 
 const calendar = useCalendarStore();
-const events = computed(() => almanac({ lore, forces, ticks, steps, items, calendarEvents }));
+const { data: entries } = useCanonEntries();
+const { data: forceData } = useCanonForceData();
+const { data: calendarEventData } = useCampaignCalendarEvents();
+const { items } = useChronicle();
+
+const events = computed(() =>
+  almanac({
+    lore: (entries.value ?? []).filter((e) => e.part === "lore"),
+    forces: (entries.value ?? []).filter((e) => e.part === "force"),
+    ticks: forceData.value?.ticks ?? [],
+    steps: forceData.value?.steps ?? [],
+    items: items.value,
+    calendarEvents: calendarEventData.value ?? [],
+  }),
+);
 
 const KIND_WORD: Record<AlmanacKind, string> = { lore: "Lore", moving: "Moving", due: "Due", session: "Session", calendar: "Calendar" };
 function whenOf(event: AlmanacEvent): string {

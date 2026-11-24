@@ -54,6 +54,17 @@ describe("AskPanel", () => {
     w.unmount();
   });
 
+  // Bug caught: Suggest sending the request itself, or leaving the box empty, so the DM could not change it first.
+  it("writes an unsent request into the box and sends nothing", async () => {
+    const ui = useAskUiStore();
+    ui.openPanel("Suggest three truths.", { send: false });
+    const w = mount(AskPanel, { global: { stubs } });
+    await flushPromises();
+    expect(transport).not.toHaveBeenCalled();
+    expect((w.get('[data-testid="ask-input"]').element as HTMLTextAreaElement).value).toBe("Suggest three truths.");
+    w.unmount();
+  });
+
   // Bug caught: the chip under the header naming the wrong world, or no page.
   it("says which campaign and page it is asked from", () => {
     const ui = useAskUiStore();

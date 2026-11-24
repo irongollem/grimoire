@@ -65,7 +65,7 @@ describe("SecretDetail", () => {
   it("asks the Familiar for clues for this secret from the Clues block", async () => {
     const open = vi.spyOn(useAskUiStore(), "openPanel").mockImplementation(() => undefined);
     await mountDetail(secret()).get("section[aria-label=Clues] [data-testid=canon-suggest]").trigger("click");
-    expect(open).toHaveBeenCalledWith('Suggest clues for the secret "Sift is the guild master\'s daughter.".');
+    expect(open).toHaveBeenCalledWith('Suggest clues for the secret "Sift is the guild master\'s daughter.".', { send: false });
   });
 
   // Bug caught (#1258 item 3): the outlets block was handed another secret, or none of this secret's clues, so it could not group them.

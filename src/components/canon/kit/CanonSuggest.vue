@@ -7,7 +7,7 @@
     icon-size="xs"
     :label="label"
     data-testid="canon-suggest"
-    @click="ask.openPanel(request)"
+    @click="ask.openPanel(request, { send: false })"
   />
 </template>
 

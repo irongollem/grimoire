@@ -121,7 +121,7 @@ chapter on one kit, so learning one chapter teaches them all.
 `CANON_GROUPS` in `canonParts.ts`, the only place a chapter is added; `chapterOf(id)` gives its label and its one line of
 why): **Front matter** (Premise and tone, How the world works), **The world** (Truths, Lore, Peoples, Life), **The story,
 yours only** (What is moving, Secrets and questions), **The characters** (Backstories). The Chronicle lives on the Sessions
-page (`src/components/sessions/ChronicleSection.vue`); the AI table's lines arrive as an inbox on Truths ("n lines from the
+page, in each session's own row (`SessionChronicleLine`); the AI table's lines arrive as an inbox on Truths ("n lines from the
 table to keep or strike", **Review** opens `TableAddedSection` in a dialog); `?section=table` lands on Truths. A bare `/canon`
 opens the chapter the DM was last on (`useCanonUiStore().lastPart`); `?entry=<id>`, `?section=<chapter>` (and the helpers'
 words `forces`, `questions`) and `?backstory=<member>` resolve to the chapter that holds them and are rewritten to its address.
@@ -129,7 +129,7 @@ words `forces`, `questions`) and `?backstory=<member>` resolve to the chapter th
 - **The header**: the search (`CanonSearchField`), **Bring in a book**, **Open as a book**, and below 90rem **Prepare the next
   session**. On a phone they sit under the title.
 - **The contents** (`CanonContents`): from 90rem a sticky column of the groups and their chapters with counts, the arc
-  control under it (`CanonArcs`: an "Arc" picker, Clear, and **Manage arcs** opening the arcs in a dialog) and the next
+  control under it (`CanonArcs`: an "Arc" picker and Clear) and the next
   session's card (`CanonNextSession`: what the canon has waiting, from `useTonight`, the same gathering as the Tonight
   page, and **Prepare the session**). Below 90rem the contents are a chapter picker above the chapter.
 - **The kit** (`src/components/canon/kit/`): `CanonChapter` (the list, and the open entry beside it from 56rem of the
@@ -152,6 +152,9 @@ words `forces`, `questions`) and `?backstory=<member>` resolve to the chapter th
 - **A new canon is led in** (`CanonWayIn`, `canonWayIn.ts`): until it has a pitch, three truths, a force and a secret with a
   clue, the page shows four steps in place of the chapter, each writing into its real chapter, with "Bring in a book you
   have" and "Let the Familiar walk you through it". **Skip to the chapters** is kept per campaign (`wayInDismissed`).
+- **Rumours are not a chapter.** A rumour is a stage-1 quest: the quest tree already holds it, and a quest there can be
+  hidden, rumoured or revealed (maintainer, 24 Nov 2026). A truth is true by definition; what the party hears and may
+  not be so belongs on the quest tree.
 - **One scroller.** Only the page body scrolls; the app shell and PageHeader are `overflow: clip` (#1266), so no jump moves
   the header or the sound deck, and every jump goes through `scrollWithin`.
 
@@ -160,19 +163,20 @@ Under "Lines and veils" one quiet line reads the violence and horror dial back (
 how the AI table plays, not a fact about the world. The Canon line shows only where the AI table is open (`useTableAccess`).
 
 **Arcs, narrowing, search and order (#1255 item 11).** An arc is the one grouping, so there are no free tags: it stays a
-story tool and not a filing system. `CanonArcs.vue` sits under the contents: **Arc** (Everything, or one arc; a native
-select, since the DM made a short list) with a **Clear** button while an arc is chosen, and **Manage arcs**, which opens a
-dialog to add an arc (a name and one line), rename it, edit its line,
-put it in order and delete it ("Delete this arc? Its entries stay, in no arc."). An arc has a shape (#1258 item 7): a status
-(`SegmentedControl`: Planned, Running, Ended), "The question it asks", "What is at stake", a theme (a premise theme line,
-`theme_id`) and, once Ended, "How it ended"; every field saves when it is left and emptying one writes null. Leaving Ended
-asks first and clears the ending in the same write (`statusPatch`; the table refuses an ending on an arc that has not
-ended, 23514). **Open** on a row leads to `/canon/arcs/:id` (`ArcView.vue`, read-only): its question, stakes, theme and
-ending, its forces with their clocks, its secrets with their clue tallies, its open questions, its quests
-(`quests.arc_id`, chosen in the quest's Details as **Arc**) with their status, and the backstories in it with their open
-threads, each line opening where it lives. A theme line in the premise says what carries it ("Carried by": entries with a
-`carries` link to it, and arcs whose `theme_id` is it, `ThemeCarriedBy.vue`), or "Nothing carries this yet." With no arcs the bar shows only
-**Arcs…** and "Group the canon by the story it belongs to." Each truth, force, secret, lore entry, backstory and open
+story tool and not a filing system. Arcs are a chapter (`arcs`, first of "The story", `ArcsChapter.vue` on the kit; the
+contents' count is the number of arcs, `sectionCounts(entries, arcCount)`): rows are the arcs in the DM's order (name,
+the question it asks, where it stands, Up and Down), the add row makes one by its name and opens it, and the open arc
+(`?arc=<id>`, which the chapter owns) reads as a `CanonEntryPane kind="Arc"`: its status (`SegmentedControl`: Planned,
+Running, Ended) on the who line, then **The arc** (its line, "The question it asks", "What is at stake", a theme from the
+premise's theme lines `theme_id`, and "How it ended" once Ended) and **What is in it** (`ArcContents.vue`: its forces with
+their clocks, its secrets with their clue tallies, its open questions, its quests (`quests.arc_id`, chosen in the quest's
+Details as **Arc**) with their status, and the backstories in it with their open threads, each line opening where it
+lives). Every field saves when it is left and emptying an optional one writes null. Leaving Ended asks first and clears the
+ending in the same write (`statusPatch`; the table refuses an ending on an arc that has not ended, 23514). Delete asks
+"Delete this arc? Its entries stay, in no arc.". `/canon/arcs/:id` redirects to `/canon/arcs?arc=<id>`. `CanonArcs.vue`
+under the contents is only the filter: **Arc** (Everything, or one arc; a native select) with **Clear**, hidden while there
+are no arcs. A theme line in the premise says what carries it ("Carried by": entries with a
+`carries` link to it, and arcs whose `theme_id` is it, `ThemeCarriedBy.vue`), or "Nothing carries this yet." Each truth, force, secret, lore entry, backstory and open
 question has a small **Arc** picker under its title (`EntryArcPicker.vue`, the one component, shown once an arc exists; a
 premise entry never has it).
 
@@ -674,7 +678,7 @@ Session notes are canon, because they are what happened. A note linked to a sess
 
 ### The Chronicle (Part IX, frame 12; now on the Sessions page)
 
-Since the 24 Nov rebuild the Chronicle is no longer a Canon chapter: `ChronicleSection` and its parts live in `src/components/sessions/` and `SessionsView` shows it under the log. The paragraphs below describe its content.
+Since the 24 Nov rebuild the Chronicle is no longer a Canon chapter, and since the review that followed it is no longer a second list either: each session's row in the Sessions log carries its chronicle (`SessionChronicleLine`: the excerpt, the date in the world, who it is shared with, what the party learned, the canon this session), and **Draft with the Chronicler** sits with Write notes. The almanac is the Canon's again, in How the world works (`WorldAlmanac`). The paragraphs below describe the content; the component names in them are the old ones.
 
 `ChronicleSection` lists the campaign's **sessions**, newest first or from the start (`SegmentedControl`, state in
 `useCanonUiStore`), each with the note linked to it (`chronicleItems` in `canonChronicle.ts`; its newest when several are

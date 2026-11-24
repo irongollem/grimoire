@@ -11,16 +11,20 @@ export const useAskUiStore = defineStore("ask-ui", () => {
   const hasUnread = ref(false);
   /** A question to send as the first message the moment the panel is there. */
   const pendingQuery = ref<string | null>(null);
+  /** A request to write into the box unsent (the Canon's Suggest): the DM may change it, then sends. */
+  const prefill = ref<string | null>(null);
   /** Rises each time the input should take focus (the hotkey, the button). */
   const focusRequest = ref(0);
 
-  function openPanel(query?: string) {
+  function openPanel(query?: string, { send = true }: { send?: boolean } = {}) {
     open.value = true;
     everOpened.value = true;
     hasUnread.value = false;
     focusRequest.value += 1;
     const q = query?.trim();
-    if (q) pendingQuery.value = q;
+    if (!q) return;
+    if (send) pendingQuery.value = q;
+    else prefill.value = q;
   }
 
   function closePanel() {
@@ -43,5 +47,12 @@ export const useAskUiStore = defineStore("ask-ui", () => {
     return q;
   }
 
-  return { open, everOpened, hasUnread, pendingQuery, focusRequest, openPanel, closePanel, togglePanel, markUnread, takePendingQuery };
+  /** Takes the waiting request once, for the composer to write into its box. */
+  function takePrefill(): string | null {
+    const q = prefill.value;
+    prefill.value = null;
+    return q;
+  }
+
+  return { open, everOpened, hasUnread, pendingQuery, prefill, takePrefill, focusRequest, openPanel, closePanel, togglePanel, markUnread, takePendingQuery };
 });

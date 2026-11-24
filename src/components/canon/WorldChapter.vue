@@ -12,13 +12,17 @@
     <CanonBlock title="What it pays with">
       <WorldCoins />
     </CanonBlock>
+    <CanonBlock title="A timeline of the world">
+      <WorldAlmanac />
+    </CanonBlock>
   </div>
 </template>
 
 <script setup lang="ts">
-/** How the world works, as a sheet: time, today's date, weather and coins. Each saves as it is changed, the coins on their explicit Save. */
+/** How the world works, as a sheet: time, today's date, weather, coins and the timeline. Each saves as it is changed, the coins on their explicit Save. */
 import { chapterOf } from "@/lib/canon/canonParts";
 import CanonBlock from "./kit/CanonBlock.vue";
+import WorldAlmanac from "./WorldAlmanac.vue";
 import WorldCoins from "./WorldCoins.vue";
 import WorldTime from "./WorldTime.vue";
 

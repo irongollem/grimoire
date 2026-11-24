@@ -45,6 +45,7 @@
               @close="closeEntry"
               @delete="removeSelected"
             />
+            <ArcsChapter v-else-if="active === 'arcs'" />
             <ForcesChapter v-else-if="active === 'moving'" :forces="shownForces" :arc-label="arcLabel" :selected-id="selectedForce?.id ?? null" @select="select" @close="closeEntry" @delete="removeSelected" />
             <SecretsChapter v-else-if="active === 'secrets'" :secrets="shownSecrets" :questions="shownQuestions" :selected="selectedSecret" :arc-label="arcLabel" @select="select" @close="closeEntry" @delete="removeSelected" />
             <LoreChapter v-else-if="active === 'lore'" :lore="shownLore" :selected="selectedLore" :arc-label="arcLabel" @select="select" @close="closeEntry" @delete="removeSelected" />
@@ -84,6 +85,7 @@ import CanonOpenAsBook from "@/components/canon/CanonOpenAsBook.vue";
 import CanonReview from "@/components/canon/CanonReview.vue";
 import CanonWayIn from "@/components/canon/CanonWayIn.vue";
 import CanonContents from "@/components/canon/CanonContents.vue";
+import ArcsChapter from "@/components/canon/ArcsChapter.vue";
 import BackstoriesChapter from "@/components/canon/BackstoriesChapter.vue";
 import ForcesChapter from "@/components/canon/ForcesChapter.vue";
 import LoreChapter from "@/components/canon/LoreChapter.vue";
@@ -147,7 +149,8 @@ const shownLore = computed(() => narrowed.value.filter((e) => e.part === "lore")
 
 // The contents count what the narrowed chapters show, so its numbers match the lists under the arc.
 const counts = computed(() => ({
-  ...sectionCounts(narrowed.value),
+  // The arcs chapter counts the arcs themselves, which are not entries.
+  ...sectionCounts(narrowed.value, arcs.value?.length ?? 0),
   // One backstory per character, opened or not: the contents count the characters.
   backstories: party.value.length,
 }));

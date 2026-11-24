@@ -17,13 +17,16 @@
     <div class="relative z-10 mt-auto flex flex-wrap items-center gap-2 pt-1">
       <SessionLogActions
         :session="session"
-        :has-note="hasNote"
+        :has-note="note !== null"
         @write="emit('write')"
+        @draft="emit('draft')"
         @end="emit('end')"
         @number="(value) => emit('number', value)"
         @delete="emit('delete')"
       />
     </div>
+
+    <SessionChronicleLine :session="session" :note="note" />
   </div>
 </template>
 
@@ -37,18 +40,21 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import SessionLogActions from "@/components/sessions/SessionLogActions.vue";
+import SessionChronicleLine from "@/components/sessions/SessionChronicleLine.vue";
 import SessionLogRubric from "@/components/sessions/SessionLogRubric.vue";
 import { sessionMeta, sessionTitle, type SessionFacts } from "@/lib/sessions/sessionLog";
+import type { Note } from "@/types/notes.types";
 import type { CampaignSession } from "@/types/session.types";
 
-const { session, facts } = defineProps<{
+const { session, facts, note } = defineProps<{
   session: CampaignSession;
   facts: SessionFacts;
-  hasNote: boolean;
+  note: Note | null;
 }>();
 
 const emit = defineEmits<{
   write: [];
+  draft: [];
   end: [];
   delete: [];
   number: [value: number];

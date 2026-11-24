@@ -1,36 +1,53 @@
 <template>
-  <section class="flex max-w-3xl min-w-0 flex-col gap-3" aria-labelledby="canon-peoples-heading" data-chapter="peoples" data-testid="world-peoples">
-    <header class="flex flex-col gap-0.5">
-      <h2 id="canon-peoples-heading" class="m-0 text-heading-sm font-bold">{{ chapter.label }}</h2>
-      <p class="m-0 text-caption italic text-muted-foreground">{{ chapter.why }}</p>
-    </header>
-    <CanonEmpty v-if="peoples.length === 0 && !isLoading" title="No peoples yet" :text="EMPTY_TEXT" ask="Suggest the peoples of my world." />
-    <template v-else>
-      <p class="m-0 text-caption text-muted-foreground">
-        When Grimoire makes up a person, it rolls who they are from these shares. Leave it empty and it is left to the generator.
-      </p>
-      <ShareList :items="items" whole="the whole population" remainder="anyone else" @set="setPercent" @remove="removePeople" />
+  <CanonChapter chapter="peoples" :title="chapter.label" :why="chapter.why" :open="selected !== null" back-label="peoples" @close="selectedId = null">
+    <ul v-if="peoples.length > 0" class="flex flex-col rounded-lg border border-border bg-card" data-testid="people-list">
+      <CanonRow
+        v-for="people in peoples"
+        :id="`canon-people-${people.id}`"
+        :key="people.id"
+        :title="people.name"
+        strong
+        :selected="people.id === selectedId"
+        @select="selectedId = people.id"
+      >
+        <span class="block text-caption text-muted-foreground">{{ people.kind }}</span>
+        <template #mark>
+          <span class="whitespace-nowrap text-label font-bold text-foreground" data-testid="people-mark">{{ people.percent }}%</span>
+        </template>
+      </CanonRow>
+    </ul>
+    <CanonEmpty v-else-if="!isLoading" title="No peoples yet" :text="EMPTY_TEXT" ask="Suggest the peoples of my world." />
+    <p v-if="peoples.length > 0" class="m-0 text-caption text-muted-foreground" data-testid="share-total">
+      Adds up to {{ total }}%.<template v-if="total < 100"> The other {{ sharesRest(total) }}% is anyone else.</template>
+      When Grimoire makes up a person, it rolls who they are from these shares. Leave it empty and it is left to the generator.
+    </p>
+
+    <template #add>
+      <div class="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
+        <div class="flex flex-col gap-2 sm:flex-row">
+          <EntityCombobox v-model="speciesPick" :options="speciesOptions" placeholder="Add a species…" />
+          <EntityCombobox v-model="creaturePick" :options="creatureOptions" placeholder="Add a creature…" @open="creaturesWanted = true" />
+        </div>
+        <div class="flex items-center gap-2">
+          <AppButton variant="link" size="inline" label="New species" to="/species/new" />
+          <AppButton variant="link" size="inline" label="New creature" to="/monsters/new" />
+        </div>
+        <p class="m-0 text-caption text-muted-foreground">A people is a species or a creature the campaign already has. Make a new one, then add it here.</p>
+      </div>
     </template>
-    <div class="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
-      <div class="flex flex-col gap-2 sm:flex-row">
-        <EntityCombobox v-model="speciesPick" :options="speciesOptions" placeholder="Add a species…" />
-        <EntityCombobox v-model="creaturePick" :options="creatureOptions" placeholder="Add a creature…" @open="creaturesWanted = true" />
-      </div>
-      <div class="flex items-center gap-2">
-        <AppButton variant="link" size="inline" label="New species" to="/species/new" />
-        <AppButton variant="link" size="inline" label="New creature" to="/monsters/new" />
-      </div>
-      <p class="m-0 text-caption text-muted-foreground">A people is a species or a creature the campaign already has. Make a new one, then add it here.</p>
-    </div>
-  </section>
+
+    <template #entry>
+      <PeopleEditor v-if="selected" :key="selected.id" :people="selected" :all="peoples" @close="selectedId = null" @remove="remove(selected.id)" />
+    </template>
+  </CanonChapter>
 </template>
 
 <script setup lang="ts">
 /**
- * The Peoples chapter, a sheet: who lives in the world (#1255 item 30), as shares of the population: `campaign_peoples`. A people is never typed; it is
+ * The Peoples chapter: who lives in the world (#1255 item 30), as shares of the population: `campaign_peoples`. A people is never typed; it is
  * a species or a creature the campaign already has, chosen from two pickers, so it carries the record's own name. The
- * NPC generator rolls from the list and every other generator is told it (the world block). The shares are `ShareList`'s:
- * a share saves when its field is left, and not while the list has a problem the database would refuse (a total past 100).
+ * NPC generator rolls from the list and every other generator is told it (the world block). The open people reads beside the
+ * list (`PeopleEditor`); which one is open is local to the chapter, since a people is not a canon entry.
  */
 import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -38,19 +55,29 @@ import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { usePeoplesEditing } from "@/composables/canon/useCampaignPeoples";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
+import CanonChapter from "../kit/CanonChapter.vue";
 import CanonEmpty from "../kit/CanonEmpty.vue";
-import ShareList from "../ShareList.vue";
+import CanonRow from "../kit/CanonRow.vue";
+import PeopleEditor from "./PeopleEditor.vue";
 import type { People } from "@/lib/canon/peoples";
 import { chapterOf } from "@/lib/canon/canonParts";
+import { sharesRest, sharesTotal } from "@/lib/canon/shares";
 import { isUuid } from "@/lib/library/contentIdentity";
 
 const EMPTY_TEXT = "The world's peoples and cultures: who lives where, how they live, and what they want of each other.";
 const chapter = chapterOf("peoples");
 
-const { peoples, isLoading, addPeople, setPercent, removePeople } = usePeoplesEditing();
+const { peoples, isLoading, addPeople, removePeople } = usePeoplesEditing();
 const { data: species } = useCampaignSpecies();
 
-const items = computed(() => peoples.value.map((p) => ({ id: p.id, name: p.name, percent: p.percent, tag: p.kind })));
+const selectedId = ref<string | null>(null);
+const selected = computed(() => peoples.value.find((p) => p.id === selectedId.value) ?? null);
+const total = computed(() => sharesTotal(peoples.value));
+
+function remove(id: string) {
+  removePeople(id);
+  selectedId.value = null;
+}
 
 // Add-pickers: each adds a people at 0% and empties itself, so they are local state, not a list filter.
 const speciesPick = ref("");

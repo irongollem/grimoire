@@ -22,6 +22,8 @@ export const CANON_SECTIONS = [
   // truth and counted under Truths.
   { id: "peoples", label: "Peoples", short: "Peoples", group: "world", parts: [], counted: false, why: "The world's peoples and cultures: where they live and how." },
   { id: "life", label: "Life", short: "Life", group: "world", parts: [], counted: false, why: "Creatures and habitats: what lives where, and what the land gives." },
+  // Arcs are their own table, not entries: the contents' count comes from `sectionCounts`'s `arcCount`.
+  { id: "arcs", label: "Arcs", short: "Arcs", group: "story", parts: [], counted: true, why: "The campaign's acts: what each asks, what is at stake, and how it ends." },
   { id: "moving", label: "What is moving", short: "Moving", group: "story", parts: ["force"], counted: true, why: "Forces that act whether or not the party does. Never shown to players." },
   // Questions are counted with the secrets: the contents column shows one number for the whole chapter.
   { id: "secrets", label: "Secrets and questions", short: "Secrets", group: "story", parts: ["secret", "question"], counted: true, why: "What the world keeps back, and what you leave open on purpose." },
@@ -31,7 +33,7 @@ export const CANON_SECTIONS = [
 
 export type CanonSectionId = (typeof CANON_SECTIONS)[number]["id"];
 
-/** The route's `:part` pattern: only a part's id, so `/canon/tonight`, `/canon/arcs/:id` and `/canon/import` are never read as one. */
+/** The route's `:part` pattern: only a part's id, so `/canon/tonight` and `/canon/import` are never read as one (`/canon/arcs/:id` redirects to `/canon/arcs?arc=<id>`). */
 export const CANON_PART_PATTERN = CANON_SECTIONS.map((s) => s.id).join("|");
 
 /** The parts an arc narrows (the premise, the backstories and the rest of the page belong to no arc): the arc bar shows above them. */
@@ -67,10 +69,12 @@ export function sectionOfPart(part: CanonPart): CanonSectionId {
 /**
  * How many entries each part holds, for the contents column. An entry that has ended (an answered
  * question, a force no longer moving) is not counted: the number says what is still open or moving. One rule, here.
+ * The arcs are not entries, so their chapter's number is the `arcCount` the caller reads from `useCanonArcs`.
  */
-export function sectionCounts(entries: readonly CanonEntry[]): Record<CanonSectionId, number> {
+export function sectionCounts(entries: readonly CanonEntry[], arcCount = 0): Record<CanonSectionId, number> {
   const counts = {} as Record<CanonSectionId, number>;
   for (const section of CANON_SECTIONS) counts[section.id] = entries.filter((e) => e.closed_as === null && (section.parts as readonly string[]).includes(e.part)).length;
+  counts.arcs = arcCount;
   return counts;
 }
 

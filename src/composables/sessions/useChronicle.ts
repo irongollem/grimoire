@@ -1,5 +1,5 @@
 import { computed } from "vue";
-import { chronicleItems, writtenCount } from "@/lib/canon/canonChronicle";
+import { chronicleItems } from "@/lib/canon/canonChronicle";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
 import { useNotes } from "@/composables/notes/useNotes";
 
@@ -13,7 +13,6 @@ export function useChronicle() {
   const items = computed(() => chronicleItems(sessions.data.value ?? [], notes.data.value ?? []));
   return {
     items,
-    written: computed(() => writtenCount(items.value)),
     isLoading: computed(() => sessions.isLoading.value || notes.isLoading.value),
     isError: computed(() => sessions.isError.value || notes.isError.value),
   };

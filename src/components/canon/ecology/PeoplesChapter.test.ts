@@ -4,7 +4,7 @@ import { ref } from "vue";
 import { createPinia } from "pinia";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 
-const mocks = vi.hoisted(() => ({ add: vi.fn(), setPercent: vi.fn(), remove: vi.fn() }));
+const mocks = vi.hoisted(() => ({ add: vi.fn(), setPercent: vi.fn(), remove: vi.fn(), saveBody: vi.fn() }));
 const state = vi.hoisted(() => ({ loading: false, peoples: [] as unknown[], monsterEnabled: (() => false) as () => boolean }));
 
 vi.mock("@/composables/canon/useCampaignPeoples", async () => {
@@ -16,9 +16,11 @@ vi.mock("@/composables/canon/useCampaignPeoples", async () => {
       addPeople: mocks.add,
       setPercent: mocks.setPercent,
       removePeople: mocks.remove,
+      saveBody: mocks.saveBody,
     }),
   };
 });
+vi.mock("@/composables/notes/useEntityMentionItems", () => ({ useEntityMentionItems: () => ({ mentionItems: ref([]) }) }));
 vi.mock("@/composables/ask/useCanAsk", async () => {
   const { ref: r } = await import("vue");
   return { useCanAsk: () => r(true) };
@@ -39,11 +41,17 @@ import PeoplesChapter from "./PeoplesChapter.vue";
 const optionsOf = (picker: { props: () => unknown }) => (picker.props() as { options: { name: string }[] }).options;
 
 const people = (id: string, name: string, percent: number, over: Record<string, unknown> = {}) => ({
-  id, name, percent, kind: "species", recordId: `r-${id}`, fromLibrary: true, ...over,
+  id, name, percent, kind: "species", recordId: `r-${id}`, fromLibrary: true, readable: true, body: null, ...over,
 });
 
 const links = { RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" } };
-const mountIt = () => mount(PeoplesChapter, { global: { plugins: [createPinia()], stubs: links, directives: { "no-pwm": {} } } });
+const stubs = { ...links, RichTextEditor: { props: ["modelValue"], template: "<div data-testid='rich-body' />" } };
+const mountIt = () => mount(PeoplesChapter, { global: { plugins: [createPinia()], stubs, directives: { "no-pwm": {} } } });
+
+const open = async (w: ReturnType<typeof mount>, id: string) => {
+  await w.find(`#canon-people-${id} button`).trigger("click");
+  await flushPromises();
+};
 
 async function setField(w: ReturnType<typeof mount>, label: string, value: string) {
   const input = w.find(`input[aria-label="${label}"]`);
@@ -113,8 +121,23 @@ describe("PeoplesChapter", () => {
     expect(optionsOf(w.findAllComponents(EntityCombobox)[1]).length).toBe(2);
   });
 
+  it("lists each people with its kind and share, and opens none until one is chosen", () => {
+    const w = mountIt();
+    expect(w.findAll("[data-testid=people-mark]").map((m) => m.text())).toEqual(["80%", "10%"]);
+    expect(w.find("[data-testid=people-editor]").exists()).toBe(false);
+  });
+
+  // Bug: the pane showed the first people's share for whichever row was chosen.
+  it("opens the people that was chosen, with its share in the field", async () => {
+    const w = mountIt();
+    await open(w, "p2");
+    expect(w.get("[data-testid=people-editor]").text()).toContain("Human");
+    expect((w.get("input[aria-label='Share of Human, percent']").element as HTMLInputElement).value).toBe("10");
+  });
+
   it("saves a share when the field is left", async () => {
     const w = mountIt();
+    await open(w, "p2");
     await setField(w, "Share of Human, percent", "15");
     expect(mocks.setPercent).toHaveBeenCalledWith("p2", 15);
   });
@@ -122,6 +145,7 @@ describe("PeoplesChapter", () => {
   // Bug: a total past 100 was sent and the database refused it at commit, instead of the screen saying so first.
   it("says a total past 100 and does not save it", async () => {
     const w = mountIt();
+    await open(w, "p2");
     await setField(w, "Share of Human, percent", "30");
     expect(w.find("[role=alert]").text()).toContain("110%");
     expect(mocks.setPercent).not.toHaveBeenCalled();
@@ -129,14 +153,28 @@ describe("PeoplesChapter", () => {
 
   it("shows the running total and what is left for anyone else", () => {
     const w = mountIt();
-    expect(w.get("[data-testid=share-total]").text()).toBe("Adds up to 90%. The other 10% is anyone else.");
+    expect(w.get("[data-testid=share-total]").text()).toContain("Adds up to 90%. The other 10% is anyone else.");
   });
 
-  // Bug: remove only hid the row, and the people stayed in the table.
-  it("removes the people whose button was pressed", async () => {
+  // Bug: remove only hid the row, and the people stayed in the table; the pane stayed open on a people that was gone.
+  it("removes the open people from the footer and closes the pane", async () => {
     const w = mountIt();
-    await w.find("button[aria-label='Remove Human']").trigger("click");
+    await open(w, "p2");
+    await w.get("[data-testid=canon-entry-delete]").trigger("click");
     expect(mocks.remove).toHaveBeenCalledExactlyOnceWith("p2");
+    expect(w.find("[data-testid=people-editor]").exists()).toBe(false);
+  });
+
+  // Bug: a people another DM listed linked to a record this reader cannot open.
+  it("links to the species or creature record, and not for one it may not read", async () => {
+    state.peoples = [people("p1", "Elf", 80, { recordId: "srd_elf" }), people("p3", "Owlbear", 5, { kind: "creature", recordId: "srd_owlbear" }), people("p4", "Other", 5, { readable: false })];
+    const w = mountIt();
+    await open(w, "p1");
+    expect(w.find("a[href='/species/srd_elf']").exists()).toBe(true);
+    await open(w, "p3");
+    expect(w.find("a[href='/monsters/srd_owlbear']").exists()).toBe(true);
+    await open(w, "p4");
+    expect(w.get("[data-testid=people-editor]").find("a").exists()).toBe(false);
   });
 
   // Bug: a world with no peoples showed an empty share list with a stray "Adds up" line instead of saying what a people is.
