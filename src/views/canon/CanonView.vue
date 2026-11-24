@@ -138,6 +138,7 @@ import { useAbove } from "@/composables/useBreakpoint";
 import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
 import { prefersReducedMotion } from "@/lib/motion";
+import { scrollWithin } from "@/lib/scrollParent";
 
 const route = useRoute();
 const router = useRouter();
@@ -291,7 +292,7 @@ watch(active, async () => {
   if (entryParam.value !== null) return;
   await nextTick();
   const top = document.getElementById("canon-page-top");
-  if (typeof top?.scrollIntoView === "function") top.scrollIntoView({ block: "start", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  if (top) scrollWithin(top, { block: "start", smooth: !prefersReducedMotion() });
 });
 
 // The premise and the questions have no detail pane: a landed-on row is marked for a moment instead.
@@ -313,7 +314,7 @@ watch([entryParam, entries, isLoading, active], async ([id]) => {
   scrolledTo = target.id;
   await nextTick();
   const row = document.getElementById(`canon-entry-${target.id}`);
-  row?.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  if (row) scrollWithin(row, { block: "center", smooth: !prefersReducedMotion() });
   if (row && (target.part === "premise" || target.part === "question")) {
     clearLanded();
     landedEl = row;
@@ -329,7 +330,7 @@ watch(() => selected.value?.id, async (id) => {
   // The wrapper exists for a split's entry at every width (it is under its ledger below 56rem of page body) and for a truth or secret
   // below lg; a truth or secret in the side column has none, so nothing scrolls there.
   const detail = document.getElementById("canon-inline-detail");
-  if (typeof detail?.scrollIntoView === "function") detail.scrollIntoView({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  if (detail) scrollWithin(detail, { block: "nearest", smooth: !prefersReducedMotion() });
 });
 
 watch(
@@ -338,7 +339,7 @@ watch(
     if (!memberId) return;
     await nextTick();
     const detail = document.getElementById("canon-inline-detail");
-    if (typeof detail?.scrollIntoView === "function") detail.scrollIntoView({ block: "nearest" });
+    if (detail) scrollWithin(detail, { block: "nearest" });
   },
   { immediate: true },
 );
