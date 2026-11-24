@@ -18,9 +18,10 @@ const obj = (v: unknown): Record<string, unknown> | null => (v !== null && typeo
 const str = (v: unknown): string | null => (typeof v === "string" && v !== "" ? v : null);
 
 /**
- * What a Voice Library voice costs on top of ordinary speech, or null when it costs nothing extra. ElevenLabs' `rate`
- * is a multiplier, 1 for an ordinary voice; the surcharge an owner sets is `fiat_rate` (USD per 1,000 credits, null
- * when default). Reading any `rate` above 0 as paid flagged nearly every voice in the library (seen live, 24 Nov 2026).
+ * What a Voice Library voice costs on top of ordinary speech, or null when it costs nothing extra. Two ways cost more:
+ * an owner's surcharge, `fiat_rate` (USD per 1,000 credits, null when default), and a credit multiplier `rate` above 1
+ * (each character billed as that many: the premium voice that cost more than twice as much, #1021). An ordinary voice
+ * has `rate` 1; reading any `rate` above 0 as paid flagged nearly every voice in the library (seen live, 24 Nov 2026).
  */
 export function surchargeOf(rate: unknown, fiatRate: unknown): number | null {
   if (typeof fiatRate === "number" && fiatRate > 0) return fiatRate;

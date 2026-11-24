@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { VoicePlayer } from "./useClipQueue";
 
-const auth = vi.hoisted(() => ({ user: { id: "u1" } as { id: string } | null }));
-vi.mock("@/stores/auth", () => ({ useAuthStore: () => auth }));
+// Reactive, so a test can sign another account in and the composable sees it, as it would the real store.
+vi.mock("@/stores/auth", async () => {
+  const { reactive } = await import("vue");
+  const state = reactive({ user: { id: "u1" } as { id: string } | null });
+  return { useAuthStore: () => state };
+});
+const auth = (await import("@/stores/auth")).useAuthStore() as unknown as { user: { id: string } | null };
 vi.mock("@/lib/supabase", () => ({ supabase: {} }));
 
 const { stopVoiceLines, useVoiceLineSpeech } = await import("./useVoiceLineSpeech");
@@ -114,6 +119,37 @@ describe("useVoiceLineSpeech", () => {
     expect(speech.canSpeak(1)).toBe(false);
     await speech.toggle(1);
     expect(transport).toHaveBeenCalledTimes(1);
+    expect(speech.phaseOf(0)).toBe("idle");
+  });
+
+  // Bug caught: running out of credits on one line taking away Play again on a line already fetched, which costs nothing.
+  it("keeps Play again on a fetched line after another line is refused", async () => {
+    let answer: () => Response = clip;
+    const { speech, transport } = setup(() => answer());
+    await speech.toggle(0);
+    await tick();
+    await speech.toggle(0);
+    answer = () => new Response(JSON.stringify({ error: "insufficient_credits" }), { status: 402 });
+    await speech.toggle(1);
+    expect(speech.refusal.value).not.toBeNull();
+    expect(speech.canSpeak(1)).toBe(false);
+    expect(speech.canSpeak(0)).toBe(true);
+    void speech.toggle(0);
+    await tick();
+    expect(speech.phaseOf(0)).toBe("playing");
+    expect(transport).toHaveBeenCalledTimes(2);
+  });
+
+  // Bug caught: a clip asked for under one account playing after another account signed in on the same tab.
+  it("never plays a clip asked for before another account signed in", async () => {
+    let arrive!: (r: Response) => void;
+    const { speech, transport } = setup();
+    transport.mockImplementationOnce(() => new Promise<Response>((r) => (arrive = r)));
+    void speech.toggle(0);
+    auth.user = { id: "u2" };
+    await tick();
+    arrive(clip());
+    await tick();
     expect(speech.phaseOf(0)).toBe("idle");
   });
 

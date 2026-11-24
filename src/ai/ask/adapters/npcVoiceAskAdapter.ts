@@ -126,6 +126,9 @@ export function useNpcVoiceAskAdapter(): AskPreviewAdapter {
     if (read.npc === null) return { ok: false, result: failedRun("Lines", "That NPC could not be read.") };
     const npc = read.npc;
 
+    // A new card of lines (Again) silences the last one's before it is asked for: not once the new lines are in, which
+    // left the old card reading through the wait, and for good when the new ones failed.
+    stopVoiceLines();
     await coach.suggest(npc, read.situation);
     if (coach.lines.value.length === 0) {
       return { ok: false, result: failedRun("Lines", coach.error.value ?? "No lines came back. Nothing was charged.") };
@@ -194,8 +197,6 @@ export function useNpcVoiceAskAdapter(): AskPreviewAdapter {
       };
     }
 
-    // A new card of lines (Again) silences the last one's, which may still be reading.
-    stopVoiceLines();
     // Speak aloud is for a campaign whose voices are switched on, and each card has its own state and its own clips.
     const speaking = rates.data.value?.on === true && npc.campaign_id
       ? useVoiceLineSpeech({

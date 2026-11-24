@@ -60,8 +60,11 @@ export function useVoiceLineSpeech(options: {
     if (active.value !== index) return "idle";
     return loading.value ? "loading" : "playing";
   };
-  /** Whether the line has a key to be spoken with and no refusal stands. */
-  const canSpeak = (index: number): boolean => options.lines[index]?.key != null && !queue.refused();
+  /**
+   * Whether the line can be played: a clip already fetched always can (playing it again asks nothing and costs
+   * nothing), and any other needs its key and no refusal standing.
+   */
+  const canSpeak = (index: number): boolean => made.has(index) || (options.lines[index]?.key != null && !queue.refused());
   /** Whether pressing it again costs nothing: the clip is already here. */
   const isFetched = (index: number): boolean => made.has(index);
 
@@ -73,9 +76,13 @@ export function useVoiceLineSpeech(options: {
     if (playingNow === silence) playingNow = null;
   }
 
+  // Another account signing in ends the line in progress, and a clip still being fetched for the last one never plays
+  // (the queue stops its own audio on the change, but this card's turn must move on too).
+  watch(owner, () => silence());
+
   async function toggle(index: number): Promise<void> {
     const line = options.lines[index];
-    if (!line || line.key === null || queue.refused()) return;
+    if (!line || !canSpeak(index)) return;
     if (active.value === index) {
       silence();
       return;

@@ -3,7 +3,7 @@ import { ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { Npc } from "@/types/npc.types";
 
-const mocks = vi.hoisted(() => ({ suggest: vi.fn(), createMemory: vi.fn(), say: vi.fn() }));
+const mocks = vi.hoisted(() => ({ suggest: vi.fn(), createMemory: vi.fn(), say: vi.fn(), stopVoiceLines: vi.fn() }));
 const state = vi.hoisted(() => ({
   aiEnabled: true, affordable: true, npc: undefined as unknown, npcError: null as Error | null,
   voicesOn: true,
@@ -38,6 +38,10 @@ vi.mock("@/ai/useNpcVoiceCoach", () => ({
 }));
 
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "u1" } }) }));
+vi.mock("@/composables/voices/useVoiceLineSpeech", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  stopVoiceLines: mocks.stopVoiceLines,
+}));
 vi.mock("@/composables/table/useTableVoice", () => ({
   useTableVoiceRates: () => ({ data: { get value() { return { on: state.voicesOn, perMinute: { elevenlabs: 1, inworld: 1 } }; } } }),
   sendToTableVoice: vi.fn(),
@@ -111,6 +115,17 @@ describe("useNpcVoiceAskAdapter", () => {
     expect(mocks.suggest).toHaveBeenCalledWith(expect.objectContaining({ id: ID }), "The guard stops him at the gate");
     expect(preview.parts).toEqual([{ label: "Lines", ok: true, credits: 3 }]);
     expect(preview.shown.sections[0].rows.map((r) => r.detail)).toEqual(["The gate shuts at dusk.", "  Move along.  ", "I never saw you."]);
+  });
+
+  // Bug caught: Again leaving the old card reading through the wait for new lines, and for good when they failed.
+  it("silences the last card's voice lines before asking for new ones, even when that fails", async () => {
+    mocks.stopVoiceLines.mockClear();
+    state.coach.lines = [];
+    const adapter = useNpcVoiceAskAdapter();
+    const outcome = await adapter.preview(proposal());
+    expect(outcome.ok).toBe(false);
+    expect(mocks.stopVoiceLines).toHaveBeenCalledTimes(1);
+    expect(mocks.stopVoiceLines.mock.invocationCallOrder[0]).toBeLessThan(mocks.suggest.mock.invocationCallOrder[0]);
   });
 
   const said = (preview: Awaited<ReturnType<typeof previewed>>, i: number) => {
