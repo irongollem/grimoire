@@ -182,19 +182,11 @@ serve(serveUser(async ({ user, req, report }) => {
       if (error) throw error;
     },
 
-    // The rest of the party by name, and the quests this character's player's character is on (`player_visible_to`).
+    // The rest of the party by name (`KnownThings` says why not quests).
     async loadKnown(campaignId, partyMemberId) {
-      const [others, quests] = await Promise.all([
-        admin.from("party_members").select("name").eq("campaign_id", campaignId).neq("id", partyMemberId),
-        admin.from("quests").select("title, player_visible_to").eq("campaign_id", campaignId),
-      ]);
-      if (others.error) throw others.error;
-      if (quests.error) throw quests.error;
-      return {
-        partyNames: (others.data ?? []).flatMap((row) => (typeof row.name === "string" ? [row.name] : [])),
-        questTitles: (quests.data ?? []).flatMap((row) =>
-          typeof row.title === "string" && Array.isArray(row.player_visible_to) && row.player_visible_to.includes(partyMemberId) ? [row.title] : []),
-      };
+      const { data, error } = await admin.from("party_members").select("name").eq("campaign_id", campaignId).neq("id", partyMemberId);
+      if (error) throw error;
+      return { partyNames: (data ?? []).flatMap((row) => (typeof row.name === "string" ? [row.name] : [])) };
     },
 
     async countUnprompted(campaignId, partyMemberId, sinceIso) {

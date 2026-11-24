@@ -4,6 +4,7 @@ import type { StandIn } from "../_shared/agent/standIn";
 import { jsonError } from "../_shared/pipeline/respond";
 import type { JudgeResult } from "../_shared/typesafe";
 import { answerChatLine, type ChatLine, type ReplyDeps, type ReplyHold } from "./handler";
+import { UNPROMPTED_MIN } from "./unprompted";
 
 const LINE = "00000000-0000-4000-8000-0000000000a1";
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
@@ -33,7 +34,7 @@ function harness(over: Partial<ChatLine> = {}) {
     modelText: '{"says": "Aye, I am here.", "remembers": "Sam asked if I was with them."}',
     prompts: [] as { system: string; user: string }[],
     posted: [] as { character: string; text: string; recipientUserId: string | null; unprompted: boolean }[],
-    known: { partyNames: ["Sam", "Folio"], questTitles: ["The Drowned Ledger"] } as { partyNames: string[]; questTitles: string[] },
+    known: { partyNames: ["Sam", "Folio"] } as { partyNames: string[] },
     spokenThisHour: 0,
     cause: 0.95 as number | null,
     key: true,
@@ -194,7 +195,7 @@ describe("answerChatLine, speaking unprompted", () => {
   const open = (message: string, over: Partial<ChatLine> = {}) => harness({ message, mentions: [], ...over });
 
   it("a line naming something the character knows, judged a real reason, is answered unasked, marked, and billed to the DM", async () => {
-    const h = open("did anyone ever find out what happened with The Drowned Ledger?");
+    const h = open("did anyone hear from Sam or Folio since the ledger went missing?");
     expect(await ask(h)).toEqual({ status: 200, replies: 2 });
     expect(h.posted.map((p) => [p.character, p.unprompted, p.recipientUserId])).toEqual([["wren", true, null], ["folio", true, null]]);
     expect(h.reservedOn).toEqual([DM, DM]);
@@ -211,14 +212,14 @@ describe("answerChatLine, speaking unprompted", () => {
 
   it("a name only as part of a longer word does not count", async () => {
     const h = open("the ledgerdemain of it all, and wrenches too");
-    h.known = { partyNames: ["Wren", "Ledger"], questTitles: [] };
+    h.known = { partyNames: ["Wren", "Ledger"] };
     expect(await ask(h)).toEqual({ status: 200, replies: 0 });
     expect(h.judged).toEqual([]);
   });
 
   it("a verdict below the threshold says nothing and costs the DM nothing", async () => {
     const h = open("Sam looked tired today");
-    h.cause = 0.79;
+    h.cause = UNPROMPTED_MIN - 0.01;
     expect(await ask(h)).toEqual({ status: 200, replies: 0 });
     expect(h.judged.length).toBeGreaterThan(0);
     expect(h.prompts).toEqual([]);
@@ -237,7 +238,7 @@ describe("answerChatLine, speaking unprompted", () => {
 
   it("never the sender's own character", async () => {
     const h = open("Folio, the Drowned Ledger", { user_id: "user-wren" });
-    h.known = { partyNames: ["Sam"], questTitles: ["Drowned Ledger"] };
+    h.known = { partyNames: ["Sam", "Folio"] };
     h.party = [member("wren")];
     expect(await ask(h, "user-wren")).toEqual({ status: 200, replies: 0 });
     expect(h.judged).toEqual([]);

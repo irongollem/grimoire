@@ -1,6 +1,6 @@
 // A character speaking up unasked in campaign chat (#1021 row 26, the maintainer's decision of 24 Nov 2026: "when it
-// has cause"). Pure: no I/O. It speaks only when a line names something it knows (its party, the quests its player's
-// character is on, the people and places in its own memories and sheet) and a judge agrees it has real reason, at most
+// has cause"). Pure: no I/O. It speaks only when a line names something it knows (its party, the people and places in its
+// own memories and sheet) and a judge agrees it has real reason, at most
 // a few times an hour, and only for a character both its player and the DM have said may be played.
 //
 // Kept beside `handler.ts` rather than inside it: the answered path (`standInsAnswering`) and this one share the call,
@@ -12,11 +12,15 @@ import { addresses, type StoredMention } from "../../../src/lib/chat/chatMention
 import { playedInChat, STAND_IN_RECENT_LINES, standInPrompt, type StandIn } from "../_shared/agent/standIn.ts";
 
 /**
- * At or above this probability of "has real reason to speak up", the character speaks. High on purpose: a character
- * butting in is worse than one holding its tongue, and the cap below bounds the damage of a miss. UNMEASURED: nobody has
- * run the judge over real table lines yet; measure the highest "no" and the lowest "yes" before moving it.
+ * At or above this probability of "has real reason to speak up", the character speaks. Measured on three lines only
+ * (24 Nov 2026, jev, Toddy hearing about his companion Rosie, after `namesAsKnown`): "Rosie went down to the cellar alone
+ * again. Should someone go after her?" 0.65; "Rosie said she would bring bread." 0.53; "I think Rosie is lying to us"
+ * 0.45. The first guess, 0.8, let nothing through. 0.6 takes the plain call to act and leaves small talk, and the third
+ * line (which a companion should answer) shows the judge does not yet separate these well: a labelled set from real
+ * play should move it. Each score is logged (`character-reply: cause ... judged`), never the line. Every line it lets
+ * through is charged to the DM, and the hourly cap bounds a miss.
  */
-export const UNPROMPTED_MIN = 0.8;
+export const UNPROMPTED_MIN = 0.6;
 /** As many unprompted lines per character in any rolling hour. */
 export const UNPROMPTED_PER_HOUR = 3;
 export const UNPROMPTED_WINDOW_MS = 60 * 60 * 1000;
@@ -25,10 +29,13 @@ export const UNPROMPTED_JUDGE_TIMEOUT_MS = 5_000;
 /** The newest public lines shown to the judge beside the line: enough to tell a thread from a stray word. */
 const JUDGE_RECENT_LINES = 4;
 
-/** What a character knows by name, beyond its own: the party, the quests it is on, and what its own words mention. */
+/**
+ * What a character knows by name, beyond its own words: the party. Not quest titles: which quests a character knows is
+ * read only for the signed-in player (`get_player_visible_quests`), and the one asking here is whoever sent the line,
+ * so a DM's hidden quest could otherwise give a character "cause" (and a hint) for a title its player never saw.
+ */
 export interface KnownThings {
   partyNames: readonly string[];
-  questTitles: readonly string[];
 }
 
 // Words a sentence can carry capitalised that name nothing.
@@ -63,6 +70,21 @@ export function properNamesIn(text: string): string[] {
   return [...found];
 }
 
+/**
+ * The ways a party member's name is said at a table: the whole name, the nickname between quotes, and each capitalised
+ * word of three letters or more. Seen live (24 Nov 2026): "Rosetta \"Rosie\" Vermeil" was never found in "has anyone
+ * checked on Rosie?", because chat says the name people use, not the one on the sheet.
+ */
+export function namesOfPartyMember(name: string): string[] {
+  const parts = new Set<string>([name.trim()]);
+  for (const m of name.matchAll(/["“”']([^"“”']{3,})["“”']/gu)) parts.add(m[1].trim());
+  for (const raw of name.split(/\s+/)) {
+    const word = raw.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "");
+    if (/^\p{Lu}[\p{L}'’-]{2,}$/u.test(word) && !NOT_NAMES.has(word.toLocaleLowerCase())) parts.add(word);
+  }
+  return [...parts].filter((p) => p !== "");
+}
+
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Whether the text holds `name` as whole words, in any case: "Wren" is not in "wrench". */
@@ -76,8 +98,7 @@ export function mentionsName(text: string, name: string): boolean {
 export function namesInLine(input: { line: string; character: StandIn; memories: readonly string[]; known: KnownThings }): string[] {
   const own = input.character.name.trim().toLocaleLowerCase();
   const candidates = [
-    ...input.known.partyNames,
-    ...input.known.questTitles,
+    ...input.known.partyNames.flatMap(namesOfPartyMember),
     ...input.memories.flatMap(properNamesIn),
     ...properNamesIn(input.character.about ?? ""),
   ];
@@ -118,13 +139,23 @@ export const CAUSE_QUESTION: NoulQuestion = {
   },
 };
 
-export function causeRequest(input: { character: StandIn; line: { from: string; text: string }; names: readonly string[]; recent: readonly { from: string; text: string }[] }): JudgeRequest {
+/**
+ * How the character knows each name, said to the judge. Seen live (24 Nov 2026): given only "Rosie", lines about a
+ * companion ("Rosie is lying to us", "Rosie went down alone again") scored 0.29 to 0.40: a bare name does not say she is
+ * someone the character travels with.
+ */
+export function namesAsKnown(names: readonly string[], known: KnownThings): string[] {
+  const party = new Set(known.partyNames.flatMap(namesOfPartyMember).map((n) => n.toLocaleLowerCase()));
+  return names.map((n) => (party.has(n.toLocaleLowerCase()) ? `${n} (a companion who travels with them in their party)` : `${n} (named in their own memories or story)`));
+}
+
+export function causeRequest(input: { character: StandIn; line: { from: string; text: string }; names: readonly string[]; known: KnownThings; recent: readonly { from: string; text: string }[] }): JudgeRequest {
   return {
     state: {
       character: input.character.name,
       who_they_are: (input.character.about ?? "").slice(0, 600),
       the_line: `${input.line.from}: ${input.line.text}`,
-      what_it_names_that_they_know: input.names,
+      what_it_names_that_they_know: namesAsKnown(input.names, input.known),
       the_chat_before: input.recent.slice(-JUDGE_RECENT_LINES).map((l) => `${l.from}: ${l.text}`),
     },
     questions: { cause: CAUSE_QUESTION },

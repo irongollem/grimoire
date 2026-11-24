@@ -8,7 +8,7 @@
 import type { AgentProvider } from "../_shared/agent/providerIo.ts";
 import { creditsForUsd, usableCalibration, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { STAND_IN_MAX_OUTPUT_TOKENS, STAND_IN_REPLIES_MAX, standInPrompt, standInReply, standInsAnswering, type StandIn } from "../_shared/agent/standIn.ts";
-import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
+import { noulOf, type JudgeRequest, type JudgeResult } from "../_shared/typesafe.ts";
 import { causeRequest, hasCause, namesInLine, unpromptedCandidates, unpromptedLeft, unpromptedPrompt, UNPROMPTED_WINDOW_MS, type KnownThings } from "./unprompted.ts";
 import type { AgentBlock } from "../_shared/agent/types.ts";
 import type { StoredMention } from "../../../src/lib/chat/chatMentions.ts";
@@ -63,7 +63,7 @@ export interface ReplyDeps {
   withHold(ownerId: string, credits: number, work: (hold: ReplyHold) => Promise<Response>): Promise<Response>;
   /** `unprompted` marks a line nobody asked for (`metadata.unprompted`), which is what the hourly cap counts. */
   postReply(reply: { line: ChatLine; character: StandIn; ownerId: string; text: string; recipientUserId: string | null; provider: string; model: string; unprompted: boolean }): Promise<void>;
-  /** What the character knows by name beyond its own words: the rest of the party and the quests its player's character is on. */
+  /** What the character knows by name beyond its own words: the rest of the party (`KnownThings` says why not quests). */
   loadKnown(campaignId: string, partyMemberId: string): Promise<KnownThings>;
   /** How many unprompted lines the character has posted in this campaign since `sinceIso`. */
   countUnprompted(campaignId: string, partyMemberId: string, sinceIso: string): Promise<number>;
@@ -189,19 +189,22 @@ export async function answerChatLine(input: { userId: string; body: unknown; dep
   for (const character of bystanders) {
     if (room <= 0) break;
     const memories = await deps.loadMemories(campaign.id, character.id);
-    const names = namesInLine({ line: line.message, character, memories, known: await deps.loadKnown(campaign.id, character.id) });
+    const known = await deps.loadKnown(campaign.id, character.id);
+    const names = namesInLine({ line: line.message, character, memories, known });
     if (names.length === 0) continue;
     const spoken = await deps.countUnprompted(campaign.id, character.id, new Date(deps.now() - UNPROMPTED_WINDOW_MS).toISOString());
     if (unpromptedLeft(spoken) === 0) continue;
     let verdict: JudgeResult | null;
     try {
-      verdict = await deps.judge(causeRequest({ character, line: { from, text: line.message }, names, recent }));
+      verdict = await deps.judge(causeRequest({ character, line: { from, text: line.message }, names, known, recent }));
     } catch (e) {
       console.error("character-reply: the cause check failed:", e);
       continue;
     }
     // No platform key, or a judge that did not answer: nothing is said unasked.
     if (verdict === null) break;
+    // The score alone, never the line: it is what `UNPROMPTED_MIN` will be measured from.
+    console.info(`character-reply: cause for an unasked line judged ${noulOf(verdict, "cause")?.toFixed(2) ?? "no answer"}.`);
     if (!hasCause(verdict)) continue;
     if ((await speak(character, { unprompted: true, names, memories })) !== null) break;
     room -= 1;
