@@ -39,7 +39,7 @@ create table public.speech_voices (
   -- The service's own id. The same alphabet on both services, which keeps it safe inside a request's address.
   voice_id text check (voice_id is null or voice_id ~ '^[A-Za-z0-9_-]{8,64}$'),
   -- A short recording of the voice in the clips' private store, for the listen buttons; made on first listen.
-  sample_key text check (sample_key is null or sample_key ~ '^voice-samples/[0-9a-f-]{36}\.mp3$'),
+  sample_key text check (sample_key is null or sample_key ~ '^voice-samples/[0-9a-f-]{36}\.(mp3|wav)$'),
   active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
