@@ -47,13 +47,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from "vue";
+import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import { designProblem, nextSlotName, type useVoiceStudio } from "@/composables/admin/useVoiceStudio";
-import { audioUrlOf } from "@/composables/voices/useSpeechVoices";
+import { useAudioToggle } from "@/composables/voices/useSpeechVoices";
 import { useToast } from "@/composables/useToast";
 import { IconGenerate, IconPause, IconPlay } from "@/lib/icons";
 import type { DesignedPreview, SpeechService, SpeechVoice, SpeechVoiceFields } from "@/types/speechVoice.types";
@@ -95,37 +95,15 @@ async function design(): Promise<void> {
 }
 
 // ── listening ──────────────────────────────────────────────────────────────────────────────────────────────────
-const playingId = ref<string | null>(null);
-const urls = new Map<string, string>();
-let audio: HTMLAudioElement | null = null;
-
-function toggle(preview: DesignedPreview): void {
-  const wasPlaying = playingId.value === preview.id;
-  audio?.pause();
-  playingId.value = null;
-  if (wasPlaying) return;
-  let url = urls.get(preview.id);
-  if (url === undefined) {
-    url = audioUrlOf(preview.audio, preview.mediaType);
-    urls.set(preview.id, url);
-  }
-  audio = new Audio(url);
-  audio.addEventListener("ended", () => {
-    if (playingId.value === preview.id) playingId.value = null;
-  });
-  playingId.value = preview.id;
-  void audio.play().catch(() => {
-    playingId.value = null;
-  });
-}
-
-function releaseAudio(): void {
-  audio?.pause();
-  playingId.value = null;
-  for (const url of urls.values()) URL.revokeObjectURL(url);
-  urls.clear();
-}
-onBeforeUnmount(releaseAudio);
+// The previews are already in memory: the player only needs them by id.
+const player = useAudioToggle(async (id) => {
+  const preview = previews.value.find((p) => p.id === id);
+  if (preview === undefined) throw new Error("That preview is gone. Design again.");
+  return preview;
+});
+const playingId = player.playing;
+const toggle = (preview: DesignedPreview): Promise<void> => player.toggle(preview.id);
+const releaseAudio = (): void => player.reset();
 
 // ── keeping ────────────────────────────────────────────────────────────────────────────────────────────────────
 function keepInSlot(preview: DesignedPreview): void {

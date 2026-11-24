@@ -3,7 +3,10 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { defineComponent, ref } from "vue";
 import type { DesignedPreview, SpeechVoice, SpeechVoiceFields } from "@/types/speechVoice.types";
 
-vi.mock("@/composables/voices/useSpeechVoices", () => ({ audioUrlOf: () => "blob:x" }));
+vi.mock("@/composables/voices/useSpeechVoices", async () => {
+  const { ref } = await import("vue");
+  return { useAudioToggle: () => ({ playing: ref(null), loading: ref(null), problem: ref(null), toggle: async () => undefined, reset: () => undefined }) };
+});
 
 import VoiceDesignPanel from "./VoiceDesignPanel.vue";
 

@@ -28,12 +28,14 @@ export type VoiceStudioTransport = (request: VoiceStudioRequest) => Promise<Resp
 export const sendToVoiceStudio: VoiceStudioTransport = async (request) => {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
+  // Signed out mid-page: say so here rather than send an empty bearer the server can only refuse.
+  if (data.session === null) throw new Error("You are signed out. Sign in again to use voices.");
   return fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-studio`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${data.session?.access_token ?? ""}`,
+      Authorization: `Bearer ${data.session.access_token}`,
     },
     body: JSON.stringify(request),
   });
@@ -65,11 +67,19 @@ export function audioUrlOf(base64: string, mediaType: string): string {
   return URL.createObjectURL(new Blob([bytes], { type: mediaType }));
 }
 
+/** Audio to play: base64 and its media type, as the studio answers it. */
+export interface PlayableAudio {
+  audio: string;
+  mediaType: string;
+}
+
 /**
- * The listen button of a slot: fetches the slot's sample once per slot and plays it; a second press while it plays
- * stops it. One sample plays at a time.
+ * One play/stop button per key, of which one plays at a time: a second press on the playing key stops it, a press on
+ * another switches. `resolve` hands the audio for a key the first time it is pressed; it is then kept (as an object
+ * URL) until `forget`, `reset` or unmount. The design panel's previews and a slot's listen button differ only in
+ * where the audio comes from, so both are this.
  */
-export function useVoiceSample(transport: VoiceStudioTransport = sendToVoiceStudio) {
+export function useAudioToggle(resolve: (key: string) => Promise<PlayableAudio>) {
   const playing = ref<string | null>(null);
   const loading = ref<string | null>(null);
   const problem = ref<string | null>(null);
@@ -82,17 +92,17 @@ export function useVoiceSample(transport: VoiceStudioTransport = sendToVoiceStud
     playing.value = null;
   }
 
-  async function toggle(slotId: string): Promise<void> {
-    if (playing.value === slotId) return stop();
+  async function toggle(key: string): Promise<void> {
+    if (playing.value === key) return stop();
     stop();
     problem.value = null;
-    let url = urls.get(slotId);
+    let url = urls.get(key);
     if (url === undefined) {
-      loading.value = slotId;
+      loading.value = key;
       try {
-        const sample = await voiceStudioCall<SampleResponse>({ action: "sample", slotId }, transport);
-        url = audioUrlOf(sample.audio, sample.mediaType);
-        urls.set(slotId, url);
+        const found = await resolve(key);
+        url = audioUrlOf(found.audio, found.mediaType);
+        urls.set(key, url);
       } catch (error) {
         problem.value = error instanceof Error ? error.message : "The voice could not be played.";
         return;
@@ -100,26 +110,37 @@ export function useVoiceSample(transport: VoiceStudioTransport = sendToVoiceStud
         loading.value = null;
       }
     }
-    audio = new Audio(url);
-    audio.addEventListener("ended", () => {
-      if (playing.value === slotId) playing.value = null;
+    const playingNow = new Audio(url);
+    audio = playingNow;
+    playingNow.addEventListener("ended", () => {
+      if (playing.value === key) playing.value = null;
     });
-    playing.value = slotId;
-    await audio.play().catch(() => stop());
+    playing.value = key;
+    await playingNow.play().catch(() => {
+      if (audio === playingNow) stop();
+    });
   }
 
-  /** Forget a slot's sample, after its voice was replaced. */
-  function forget(slotId: string): void {
-    const url = urls.get(slotId);
+  /** Forget a key's audio, after it changed (a slot's voice replaced). */
+  function forget(key: string): void {
+    const url = urls.get(key);
     if (url !== undefined) URL.revokeObjectURL(url);
-    urls.delete(slotId);
+    urls.delete(key);
   }
 
-  onBeforeUnmount(() => {
+  /** Stop and forget everything (a new round of previews replaces the last). */
+  function reset(): void {
     stop();
     for (const url of urls.values()) URL.revokeObjectURL(url);
     urls.clear();
-  });
+  }
 
-  return { playing, loading, problem, toggle, stop, forget };
+  onBeforeUnmount(reset);
+
+  return { playing, loading, problem, toggle, stop, forget, reset };
+}
+
+/** The listen button of a slot: its sample, fetched from the studio on the first press. */
+export function useVoiceSample(transport: VoiceStudioTransport = sendToVoiceStudio) {
+  return useAudioToggle((slotId) => voiceStudioCall<SampleResponse>({ action: "sample", slotId }, transport));
 }

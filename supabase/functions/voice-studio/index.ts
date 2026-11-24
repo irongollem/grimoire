@@ -72,6 +72,10 @@ serve(serveUser(async ({ user, req, report, userClient }) => {
         if (error) throw error;
         return data as SpeechVoiceRow;
       },
+      async setSampleKey(id, voiceId, key) {
+        const { error } = await admin.from("speech_voices").update({ sample_key: key }).eq("id", id).eq("voice_id", voiceId);
+        if (error) throw error;
+      },
       async remove(id) {
         const { error } = await admin.from("speech_voices").delete().eq("id", id);
         if (error) throw error;

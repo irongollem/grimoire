@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(10);
 
 -- The voice registry (#1272): every account reads the filled cast slots, only the admin reads the rest or writes,
 -- and a DM can give a character only a voice they can read, so nobody puts another table's signature voice on
@@ -48,6 +48,12 @@ select is(
   (select name from public.speech_voices where id = '94400000-0000-4000-8000-000000000030'),
   'Shady guy',
   'a DM cannot rename a voice (the update touches nothing)');
+
+delete from public.speech_voices where id = '94400000-0000-4000-8000-000000000030';
+select is(
+  (select count(*)::integer from public.speech_voices where id = '94400000-0000-4000-8000-000000000030'),
+  1,
+  'a DM cannot delete a voice (the delete touches nothing)');
 
 select lives_ok(
   $$update public.npcs set speech_voice_id = '94400000-0000-4000-8000-000000000030' where id = '94400000-0000-4000-8000-000000000020'$$,

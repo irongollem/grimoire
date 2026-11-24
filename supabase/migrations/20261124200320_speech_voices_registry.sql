@@ -19,7 +19,9 @@
 -- A slot may be empty (service and voice_id null): a planned voice the maintainer has written a prompt for but not
 -- yet designed. Only filled, active cast slots are visible to ordinary accounts, because only those can speak.
 --
--- Platform-owned, like the `library_*` tables: every account reads, the admin writes. Not campaign data, so it does
+-- Platform-owned, like the `library_*` tables: every account reads, the admin writes. A DM reads whole rows of the
+-- filled cast slots, design prompts included; that is deliberate (a prompt describes a voice, it is not a secret, and
+-- a column-level grant would cost the admin's page a second read path; #1272 security review, 24 Nov 2026). Not campaign data, so it does
 -- not ring the campaign doorbell; the admin's page refetches after its own writes, and a DM's picker reads it fresh
 -- when opened.
 

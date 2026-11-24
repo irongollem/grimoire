@@ -113,6 +113,8 @@ export interface StudioDb {
   loadAsCaller(id: string): Promise<SpeechVoiceRow | null>;
   insert(row: Partial<SpeechVoiceRow> & { id: string }): Promise<SpeechVoiceRow>;
   update(id: string, patch: Partial<SpeechVoiceRow>): Promise<SpeechVoiceRow>;
+  /** Records a slot's sample, only while the slot still has the voice it is a recording of. */
+  setSampleKey(id: string, voiceId: string, key: string): Promise<void>;
   remove(id: string): Promise<void>;
 }
 
@@ -377,8 +379,13 @@ async function sample(userId: string, body: Record<string, unknown>, deps: Studi
   if (deps.store !== null) {
     const key = sampleKeyFor(row.id, mediaType);
     try {
-      await deps.store.put(key, bytes, mediaType);
-      await deps.db.update(row.id, { sample_key: key });
+      // The admin may have replaced the slot's voice while this was being made: then this recording is of the old
+      // voice, and keeping it would overwrite the new voice's sample at the same key. The save is conditional too.
+      const current = await deps.db.loadAsAdmin(row.id);
+      if (current !== null && current.voice_id === row.voice_id) {
+        await deps.store.put(key, bytes, mediaType);
+        await deps.db.setSampleKey(row.id, row.voice_id, key);
+      }
     } catch (error) {
       // The listener still hears it; the next press makes it again.
       deps.report(error);

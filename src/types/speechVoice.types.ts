@@ -1,5 +1,5 @@
 // The voice registry (#1272): the slots the AI table speaks characters in, and the voice studio's contract.
-// The table is `speech_voices` (migration 20261124175409); the studio is the `voice-studio` edge function.
+// The table is `speech_voices` (migration 20261124200320); the studio is the `voice-studio` edge function.
 
 export type SpeechService = "elevenlabs" | "inworld";
 export type VoiceSex = "woman" | "man";

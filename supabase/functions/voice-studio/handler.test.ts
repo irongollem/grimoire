@@ -60,6 +60,10 @@ function harness(rows: SpeechVoiceRow[] = [row()]) {
         h.rows[i] = { ...h.rows[i], ...patch };
         return h.rows[i];
       },
+      setSampleKey: async (id, voiceId, key) => {
+        const i = h.rows.findIndex((r) => r.id === id && r.voice_id === voiceId);
+        if (i >= 0) h.rows[i] = { ...h.rows[i], sample_key: key };
+      },
       remove: async (id) => void (h.rows = h.rows.filter((r) => r.id !== id)),
     },
     services: {
@@ -328,6 +332,19 @@ describe("sample", () => {
     expect(h.calls).toEqual(["preview:oldvoice1234"]);
     expect(body.audio).toBe(base64FromBytes(WAV));
     expect(h.store.get(`voice-samples/${SLOT}.wav`)).toEqual(WAV);
+  });
+
+  // Bug caught: a sample of the old voice, finished after the admin replaced it, overwriting the new voice's sample.
+  it("does not keep a sample when the slot's voice changed while it was being made", async () => {
+    const { h, run } = harness();
+    h.deps.services.synthesize = async () => {
+      h.rows[0] = { ...h.rows[0], voice_id: "newvoice12345" };
+      return MP3;
+    };
+    const res = await run({ action: "sample", slotId: SLOT }, false);
+    expect(res.status).toBe(200);
+    expect(h.store.size).toBe(0);
+    expect(h.rows[0].sample_key).toBeNull();
   });
 
   // Bug caught: a preview host that is down leaving the listener with nothing, when a spoken line would do.
