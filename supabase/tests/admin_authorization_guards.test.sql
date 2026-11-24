@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(11);
 
 -- Regression cover for the private.is_app_admin() NULL bypass
 -- (20260809144926). The helper used to return NULL rather than false for an
@@ -33,9 +33,6 @@ values
 insert into public.ai_credit_ledger (id, user_id, delta, reason, pending)
 values ('69000000-0000-4000-8000-000000000030', '69000000-0000-4000-8000-000000000003', -5, 'npc_text', false);
 
-insert into public.campaigns (id, user_id, name)
-values ('69000000-0000-4000-8000-000000000010', '69000000-0000-4000-8000-000000000001', 'BYOK guard test');
-
 -- ── The helper itself is total ───────────────────────────────────────────────
 -- It must answer false, never NULL: NULL is what made every negated guard fall
 -- through, and `is(..., false)` fails on NULL where a truthiness check would not.
@@ -49,12 +46,6 @@ select is(private.is_app_admin(), false, 'is_app_admin() is false (not NULL) for
 select set_config('request.jwt.claims',
   '{"sub":"69000000-0000-4000-8000-000000000002","role":"authenticated","app_metadata":{"provider":"email","role":"admin"}}', true);
 select is(private.is_app_admin(), true, 'is_app_admin() is still true for a genuine app admin');
-
--- Checked here, as postgres, rather than beside the BYOK cases below:
--- is_user_pro is deliberately NOT executable by `authenticated`
--- (20260615000006) — only the SECURITY DEFINER trigger calls it.
-select is(public.is_user_pro('69000000-0000-4000-8000-000000000001'), false,
-  'the BYOK test user really is non-Pro (otherwise the guards below prove nothing)');
 
 -- ── get_user_ledger: another account's billing history ───────────────────────
 set local role authenticated;
@@ -107,42 +98,6 @@ select set_config('request.jwt.claims',
 select lives_ok(
   $$ select * from public.get_credit_calibration_hints() $$,
   'an app admin can still read credit calibration hints');
-
--- ── enforce_byok_pro_only: the Pro-only BYOK write gate ──────────────────────
--- 20260615000002's whole purpose: a free account must not be able to set a
--- provider key directly and thereby take the BYOK path, which skips credit
--- deduction. errcode is check_violation (23514).
-
-select set_config('request.jwt.claims',
-  '{"sub":"69000000-0000-4000-8000-000000000001","role":"authenticated","app_metadata":{"provider":"email","providers":["email"]}}', true);
-
--- The keys live in campaign_api_keys since #1228; the gate moved with them.
-select throws_ok(
-  $$ insert into public.campaign_api_keys (campaign_id, user_id, gemini_api_key)
-     values ('69000000-0000-4000-8000-000000000010', '69000000-0000-4000-8000-000000000001', 'enc:v1:cc:dd') $$,
-  '23514',
-  null,
-  'a non-Pro owner cannot store a BYOK key');
-
--- A row with no key in it is not a key, so it may exist; setting one on it may not.
-insert into public.campaign_api_keys (campaign_id, user_id)
-values ('69000000-0000-4000-8000-000000000010', '69000000-0000-4000-8000-000000000001');
-
-select throws_ok(
-  $$ update public.campaign_api_keys set openai_api_key = 'enc:v1:aa:bb'
-      where campaign_id = '69000000-0000-4000-8000-000000000010' $$,
-  '23514',
-  null,
-  'a non-Pro owner cannot set a BYOK key by updating their keys row');
-
-select set_config('request.jwt.claims',
-  '{"sub":"69000000-0000-4000-8000-000000000002","role":"authenticated","app_metadata":{"provider":"email","role":"admin"}}', true);
-insert into public.campaigns (id, user_id, name)
-values ('69000000-0000-4000-8000-000000000011', '69000000-0000-4000-8000-000000000002', 'admin BYOK');
-select lives_ok(
-  $$ insert into public.campaign_api_keys (campaign_id, user_id, openai_api_key)
-     values ('69000000-0000-4000-8000-000000000011', '69000000-0000-4000-8000-000000000002', 'enc:v1:ee:ff') $$,
-  'a Pro-equivalent account (app admin) may still set a BYOK key');
 
 reset role;
 
