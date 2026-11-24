@@ -49,8 +49,10 @@ export async function voiceStudioCall<T>(request: VoiceStudioRequest, transport:
     // Not JSON (a gateway's page): the status alone decides.
   }
   if (!response.ok) {
-    const message = typeof body === "object" && body !== null && "message" in body && typeof body.message === "string" ? body.message : null;
-    throw new Error(message ?? `The voice studio answered ${response.status}.`);
+    // Only the studio's own refusals carry a sentence for a person, and they always carry an `error` code with it. A
+    // gateway or platform error has a `message` too ("name resolution failed"), which is not for anyone's eyes.
+    const ours = typeof body === "object" && body !== null && "error" in body && typeof body.error === "string" && "message" in body && typeof body.message === "string";
+    throw new Error(ours ? (body as { message: string }).message : "The voice studio could not be reached. Try again in a moment.");
   }
   return body as T;
 }

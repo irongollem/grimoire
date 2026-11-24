@@ -7,7 +7,7 @@
           <template v-if="slots">Custom voice slots: {{ slots.used }} of {{ slots.limit }} used</template>
           <template v-else>Voices</template>
         </h2>
-        <p class="mt-0.5 text-caption text-muted-foreground italic">Voices added from the Voice Library use no custom slot, so the registry can grow past this limit.</p>
+        <p class="mt-0.5 text-caption text-muted-foreground italic">Designed voices each use one of your custom slots on ElevenLabs. Voices added from the Voice Library use none, so there is no limit to how many you add.</p>
       </div>
       <AppButton variant="primary" size="sm" :icon="IconAdd" label="New slot" @click="openNew" />
     </header>

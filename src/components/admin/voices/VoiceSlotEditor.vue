@@ -1,6 +1,7 @@
 <template>
-  <AppModal :open="open" size="lg" panel-class="max-h-[92vh] overflow-y-auto" :label="voice ? `Edit ${voice.name}` : 'New slot'" @close="emit('close')">
-    <div class="flex flex-col gap-4 p-5">
+  <AppModal :open="open" size="lg" panel-class="max-h-[92vh]" :label="voice ? `Edit ${voice.name}` : 'New slot'" @close="emit('close')">
+    <!-- The body scrolls, never the panel: a scrolled panel slides its rows under its own see-through torn edge. -->
+    <div class="flex min-h-0 flex-col gap-4 overflow-y-auto p-5">
       <h2 class="text-heading-sm font-semibold text-foreground">{{ voice ? voice.name : "New slot" }}</h2>
       <VoiceFieldsForm v-model="draft" prompts />
       <div class="flex items-center gap-2">
