@@ -53,7 +53,7 @@ describe("AskThread", () => {
       props: {
         items: [
           { kind: "proposal", id: 1, proposal: { ...proposal, generator: "encounter" }, state: "previewing", choices: {}, credits: 3 },
-          { kind: "preview", id: 2, proposalItemId: 1, phase: "ready", shown: { title: "Road Ambush", sections: [] } },
+          { kind: "preview", id: 2, proposalItemId: 1, phase: "ready", shown: { title: "Road Ambush", sections: [] }, rows: {} },
         ] satisfies AskItem[],
         adapters: { adapterFor: () => held, screenFor: () => undefined },
       },
@@ -67,6 +67,22 @@ describe("AskThread", () => {
     expect(w.emitted("create")).toEqual([[2]]);
     expect(w.emitted("again")).toEqual([[2]]);
     expect(w.emitted("discard")).toEqual([[2]]);
+  });
+
+  // Bug caught: the main button of a hooks or lines preview reading "Suggest quest hooks", an action that is already done.
+  it("words the held generation's main button with the generator's own createAction when it has one", () => {
+    const held = { id: "quest_hooks", quote: () => ({ lines: [], total: 3, block: null }), preview: async () => { throw new Error("not called"); } };
+    const w = mount(AskThread, {
+      props: {
+        items: [
+          { kind: "proposal", id: 1, proposal: { ...proposal, generator: "quest_hooks" }, state: "previewing", choices: {}, credits: 3 },
+          { kind: "preview", id: 2, proposalItemId: 1, phase: "ready", shown: { title: "Hooks", sections: [] }, rows: {} },
+        ] satisfies AskItem[],
+        adapters: { adapterFor: () => held, screenFor: () => undefined },
+      },
+      global: { stubs },
+    });
+    expect(w.get('[data-testid="ask-preview-create"]').text()).toBe("Done");
   });
 
   // Bug caught: a card a button opened leaving focus on the button, so a keyboard user had to hunt for the dock.

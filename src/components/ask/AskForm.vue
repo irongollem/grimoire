@@ -59,6 +59,7 @@ import { computed, ref, watch } from "vue";
 import type { AskGenerator, AskInputSchema, AskRecordType } from "@edge-shared/agent/askContract";
 import { formRows, groupSummary, optionLabel, pruneHidden } from "@/ai/ask/askForm";
 import { ASK_ASIDES } from "@/ai/ask/askAsides";
+import { ASK_AVAILABLE } from "@/ai/ask/askAvailable";
 import { ASK_LISTS, isRecordPicker, useAskRecordOptions, type AskRecordOption } from "@/ai/ask/askOptions";
 import { readAskLinks, resolveAskLinks, toAskLinks } from "@/ai/ask/adapters/askAdapterKit";
 import { useAskLinkRecords } from "@/ai/ask/adapters/askLinkRecords";
@@ -78,7 +79,14 @@ const { generator, inputs, boxed = false } = defineProps<{
 }>();
 const emit = defineEmits<{ update: [inputs: Record<string, unknown>] }>();
 
-const rows = computed(() => formRows(generator, inputs));
+// An input the campaign cannot use (a party picture with no group portrait) is not shown, and its value is dropped.
+const checks = new Map(Object.entries(generator.inputs).flatMap(([key, s]) => (s.available !== undefined && ASK_AVAILABLE[s.available] ? [[key, ASK_AVAILABLE[s.available]()] as const] : [])));
+const unavailable = computed(() => new Set([...checks].flatMap(([key, usable]) => (usable.value ? [] : [key]))));
+watch(unavailable, (gone) => {
+  if ([...gone].some((key) => key in inputs)) emit("update", pruneHidden(generator, inputs, gone));
+}, { immediate: true });
+
+const rows = computed(() => formRows(generator, inputs, unavailable.value));
 const open = ref(new Set<string>());
 function toggle(name: string) {
   const next = new Set(open.value);
@@ -122,7 +130,7 @@ function set(key: string, value: unknown) {
   const next = { ...inputs };
   if (value === undefined || value === false) delete next[key];
   else next[key] = value;
-  emit("update", pruneHidden(generator, next));
+  emit("update", pruneHidden(generator, next, unavailable.value));
 }
 
 // ── Ties ────────────────────────────────────────────────────────────────────────────────────────────────────────────

@@ -16,6 +16,8 @@ import { CLERIC_DOMAINS, DEITY_ALIGNMENTS } from "@/types/deity.types";
 import { SKILLS } from "@/types/party.types";
 import { RULE_CATEGORIES } from "@/types/rule.types";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
+import { CR_LIST } from "@/types/trap.types";
+import { DUNGEON_FEATURE_TRIGGERS, DUNGEON_FEATURE_TYPES } from "@/types/dungeonFeature.types";
 import { useAllPantheons } from "@/composables/deities/useDeities";
 import { NPC_TEMPLATES } from "@/data/npcTemplates";
 import { useCampaignPeoples } from "@/composables/canon/useCampaignPeoples";
@@ -25,6 +27,9 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useParty } from "@/composables/party/useParty";
 import { useChronicleSessionOptions } from "@/ai/ask/askSessionNotes";
 import { useLocationTree } from "@/composables/locations/useLocations";
+import { useSubclassParents } from "@/composables/rules/useGenerateCustomSubclass";
+import { useItemIndex } from "@/composables/items/useItemIndex";
+import { CRAFTING_DISCIPLINES } from "@/lib/crafting/disciplines";
 
 export interface AskOption {
   value: string;
@@ -83,6 +88,16 @@ export const ASK_LISTS: Readonly<Record<string, () => ComputedRef<AskOption[]>>>
     return computed(() => (pantheons.value ?? []).map((p) => ({ value: p.id, label: p.name })));
   },
   faction_role: () => computed(() => fixed(NPC_FACTION_ROLES)),
+  /** The trap page's challenge ratings, "1/8" to "30", as it lists them. */
+  trap_cr: () => computed(() => fixed(CR_LIST)),
+  dungeon_feature_type: () => computed(() => fixed(DUNGEON_FEATURE_TYPES)),
+  dungeon_feature_trigger: () => computed(() => fixed(DUNGEON_FEATURE_TRIGGERS)),
+  /** The classes a subclass can belong to, by name (the archetype page's picker: a class is known by its name, and a homebrew one of the same name wins). */
+  parent_class: () => {
+    const { options } = useSubclassParents(() => true);
+    return computed(() => options.value.map((o) => ({ value: o.name, label: o.name })));
+  },
+  crafting_discipline: () => computed(() => CRAFTING_DISCIPLINES.map((d) => ({ value: d.id, label: d.label }))),
   /** The NPC page's starter stat blocks, with its "automatic on Generate" and "none". */
   npc_stat_template: () => computed(() => [
     { value: STAT_TEMPLATE_AUTO, label: "Automatic on Generate" },
@@ -92,7 +107,7 @@ export const ASK_LISTS: Readonly<Record<string, () => ComputedRef<AskOption[]>>>
 };
 
 /** The record kinds a form can pick from so far; a kind a generator adds is added here with it. */
-export const ASK_RECORD_PICKERS = ["npc", "party_member", "location", "faction", "note"] as const satisfies readonly AskRecordType[];
+export const ASK_RECORD_PICKERS = ["npc", "party_member", "location", "faction", "note", "item"] as const satisfies readonly AskRecordType[];
 export type AskRecordPickerType = (typeof ASK_RECORD_PICKERS)[number];
 
 export function isRecordPicker(type: AskRecordType): type is AskRecordPickerType {
@@ -108,6 +123,8 @@ export function useAskRecordOptions(wanted: () => ReadonlySet<AskRecordType>): R
   const { data: party } = useParty(() => wanted().has("party_member"));
   const { data: factions } = useAllFactions(() => wanted().has("faction"));
   const { locationOptions } = useLocationTree(() => wanted().has("location"));
+  // The campaign's item index: its own items and the enabled library books', as the recipe page's Output item picker lists them.
+  const { data: items } = useItemIndex(() => ({ enabled: wanted().has("item") }));
   // A note here is a session's chronicle (the Scriptorium recap's subject), named by its session.
   const { options: sessionNotes } = useChronicleSessionOptions(() => wanted().has("note"));
   const named = (rows: readonly AskRecordOption[] | undefined) => (rows ?? []).map((r) => ({ id: r.id, name: r.name }));
@@ -117,5 +134,6 @@ export function useAskRecordOptions(wanted: () => ReadonlySet<AskRecordType>): R
     faction: computed(() => named(factions.value)),
     location: computed(() => named(locationOptions.value)),
     note: computed(() => named(sessionNotes.value)),
+    item: computed(() => named(items.value)),
   };
 }

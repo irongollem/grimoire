@@ -84,7 +84,7 @@ Saving an existing monster returns to the bare `/monsters` list at every width. 
 
 **Template presets** — `src/data/monsterTemplates.ts` ships 12 SRD stat block presets (e.g. Goblin, Dragon, Lich) that pre-populate the form.
 
-**AI monster generator** — the Bestiary toolbar's "Generate" button opens the monster's card in the Familiar (#1270: concept, challenge rating, type and size, portrait on) and creates a stat block from a text prompt.
+**AI monster generator** — the Bestiary toolbar's "Generate" button opens the monster's card in the Familiar (#1270: concept, challenge rating, type and size, portrait on) and creates a stat block from a text prompt. The monster editor's own "Generate" (`MonsterDetail`, a new or an open monster) opens the **Fill the sheet** card (`monster_sheet`) with the same inputs and price, and writes the stat block into the unsaved form instead of creating a record (`useAskFormFill`; `MonsterGenerateDialog` is gone).
 
 **Read-only sheet view** (`MonsterSheet.vue`) is shown by default when navigating to an existing monster; the Edit button switches to the editable form (`MonsterDetail.vue`). The URL query `?edit=true` also activates the editor directly.
 

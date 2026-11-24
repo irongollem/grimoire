@@ -104,8 +104,22 @@ export const CATALOGUE_GENERATORS: readonly AskGenerator[] = [
     inputs: { skill_focus: { type: "string", description: "Skills it leans on.", label: "Skill focus", list: "skill" } },
     concept: { label: "What to make", placeholder: "A former lamplighter of the river district who learned which windows stay dark, and why…", required: true, max: 1000 },
   },
-  { id: "class", action: "Create class", noun: "class", ending: "record", fiveE: true, describe: "A custom character class.", inputs: { hit_die: { type: "integer", description: "Hit die faces.", minimum: 6, maximum: 12 } } },
-  { id: "subclass", action: "Create subclass", noun: "subclass", ending: "record", fiveE: true, describe: "A subclass (archetype) of an existing class.", inputs: { parent_class: { type: "string", description: "The class it belongs to. Required." } }, ask: ["parent_class"] },
+  {
+    id: "class", action: "Create class", noun: "class", ending: "record", fiveE: true,
+    describe: "A custom character class.",
+    inputs: {
+      hit_die: { type: "string", description: "Hit die faces as a string: \"6\", \"8\", \"10\" or \"12\".", enum: ["6", "8", "10", "12"], label: "Hit die", optionLabels: { "6": "d6", "8": "d8", "10": "d10", "12": "d12" } },
+      caster_progression: { type: "string", description: "How the class casts spells: none, full, half, third or pact.", enum: ["none", "full", "half", "third", "pact"], label: "Add spellcasting", hint: "Left alone, the AI chooses", optionLabels: { none: "None", full: "Full", half: "Half", third: "Third", pact: "Pact magic" } },
+    },
+    concept: { label: "What to make", placeholder: "A warrior-priest of the Ashen Reach who tends the last forge-fires, shields allies with cinders, and burns bright at a cost to herself…", required: true, max: 1000 },
+  },
+  {
+    id: "subclass", action: "Create subclass", noun: "subclass", ending: "record", fiveE: true,
+    describe: "A subclass (archetype) of an existing class.",
+    inputs: { parent_class: { type: "string", description: "The class it belongs to. Required.", label: "Parent class (required)", placeholder: "Pick the class this belongs to", list: "parent_class" } },
+    concept: { label: "What to make", placeholder: "Smiths who forge their own armour from the embers of fallen comrades, growing stronger with every name they carry…", required: true, max: 1000 },
+    ask: ["parent_class"],
+  },
   {
     id: "class_feature", action: "Create ability", noun: "ability", ending: "record", fiveE: true,
     describe: "A class feature or special ability.",
@@ -125,5 +139,13 @@ export const CATALOGUE_GENERATORS: readonly AskGenerator[] = [
     opened: { allow_tracker: true },
     concept: { label: "What to make", placeholder: "Sanity: characters who witness horrors lose Lucidity, and at low Lucidity they struggle to act. Rest and calming rituals restore it…", required: true, max: 1000 },
   },
-  { id: "recipe", action: "Create recipe", noun: "recipe", ending: "record", fiveE: true, describe: "A crafting recipe and what it makes. It can make an existing item (`output_item_id`).", inputs: { discipline: { type: "string", description: "Crafting discipline." }, output_item_id: { type: "string", description: "Id of an existing item in this campaign the recipe produces." } } },
+  {
+    id: "recipe", action: "Create recipe", noun: "recipe", ending: "record", fiveE: true,
+    describe: "A crafting recipe and what it makes. It can make an existing item (`output_item_id`).",
+    inputs: {
+      discipline: { type: "string", description: "Crafting discipline.", label: "Discipline", list: "crafting_discipline" },
+      output_item_id: { type: "string", description: "Id of an existing item in this campaign the recipe produces.", label: "Output item", placeholder: "Let the AI invent one", record: "item" },
+    },
+    concept: { label: "What to make", placeholder: "A smoky draught brewed from ember-moss and wyrm scale that lets the drinker breathe fire once, found only in the fire-scarred Ashen Reach…", required: true, max: 1000 },
+  },
 ];

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { mount } from "@vue/test-utils";
 import { ASK_GENERATORS } from "@edge-shared/agent/askContract";
 import AskForm from "./AskForm.vue";
@@ -23,6 +23,9 @@ vi.mock("@/ai/ask/askOptions", async (importOriginal) => ({
 vi.mock("@/ai/ask/adapters/askLinkRecords", () => ({ useAskLinkRecords: () => ({ names: computed(() => undefined), loading: computed(() => false), failed: computed(() => false) }) }));
 
 vi.mock("@/ai/ask/askAsides", () => ({ ASK_ASIDES: { encounter_where: () => computed(() => "Uses Coast road encounters here") } }));
+
+const usable = ref(false);
+vi.mock("@/ai/ask/askAvailable", () => ({ ASK_AVAILABLE: { group_portrait: () => computed(() => usable.value) } }));
 
 const encounter = ASK_GENERATORS.find((g) => g.id === "encounter")!;
 const npc = ASK_GENERATORS.find((g) => g.id === "npc")!;
@@ -95,5 +98,32 @@ describe("AskForm with a concept box above it", () => {
     const props = { generator: bare, inputs: {} };
     expect(mount(AskForm, { props: { ...props, boxed: true }, global: { stubs: { GeneratorLinksField: true } } }).text()).toBe("");
     expect(mount(AskForm, { props, global: { stubs: { GeneratorLinksField: true } } }).text()).toContain("Nothing here to set.");
+  });
+});
+
+describe("AskForm availability", () => {
+  const trap = ASK_GENERATORS.find((g) => g.id === "trap")!;
+  const party = (inputs: Record<string, unknown>) => mount(AskForm, { props: { generator: trap, inputs }, global: { stubs: { GeneratorLinksField: true } } });
+
+  // Bug caught: the party switch shown for a campaign with no group portrait, where the quote then had to refuse it in a sentence.
+  it("hides an input the campaign cannot use, and shows it once it can", async () => {
+    usable.value = false;
+    const w = party({ image: true });
+    expect(w.find('[data-testid="ask-field-party_in_picture"]').exists()).toBe(false);
+    usable.value = true;
+    await w.vm.$nextTick();
+    expect(w.find('[data-testid="ask-field-party_in_picture"]').exists()).toBe(true);
+  });
+
+  // Bug caught: a value for a hidden input riding along into the quote (a model-typed request for the party with no portrait to send).
+  it("drops the value of an input the campaign cannot use, on the form's first read of it", () => {
+    usable.value = false;
+    const w = party({ image: true, party_in_picture: true });
+    expect(w.emitted("update")?.at(-1)).toEqual([{ image: true }]);
+  });
+
+  it("emits nothing when no unusable input holds a value", () => {
+    usable.value = false;
+    expect(party({ image: true }).emitted("update")).toBeUndefined();
   });
 });

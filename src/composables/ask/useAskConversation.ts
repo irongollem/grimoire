@@ -22,12 +22,24 @@ import {
 } from "@edge-shared/agent/askContract";
 import { readEventStream } from "@/lib/agentStream/readEventStream";
 import { parseAskEvent } from "@/lib/agentStream/parseAskEvent";
-import { isPreviewAdapter, type AskPreview, type AskPreviewShown, type AskRunPart, type AskRunResult } from "@/lib/ask/askAdapter";
+import { isPreviewAdapter, type AskPreview, type AskPreviewShown, type AskResultLink, type AskRunPart, type AskRunResult } from "@/lib/ask/askAdapter";
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
 import type { PendingGenerator } from "@/stores/ui/ask";
 import { sendToAskTurn, type AskTransport } from "./askTransport";
 
 export type ResultPart = AskRunPart & { left?: boolean; retrying?: boolean };
+
+/** Where one row's own press stands: under way, done (with the links it left), or failed (the row may be pressed again). */
+export interface PreviewRowState {
+  phase: "running" | "done" | "failed";
+  doneLabel?: string;
+  links?: AskResultLink[];
+  /** On a failed row, why; on a done row, a quiet note the press came back with. */
+  error?: string;
+}
+
+/** A row of a preview is named by its place: the section and the row in it. */
+export const previewRowKey = (section: number, row: number) => `${section}:${row}`;
 
 export type AskItem =
   | { kind: "user"; id: number; text: string }
@@ -62,6 +74,8 @@ export type AskItem =
       proposalItemId: number;
       phase: "ready" | "saving" | "again" | "saved" | "discarded" | "failed";
       shown: AskPreviewShown;
+      /** The rows whose own press has run or is running, by `previewRowKey`; cleared when "Again" replaces what is shown. */
+      rows: Record<string, PreviewRowState>;
       /** A save or a second generation that did not work, said for the DM; the preview stays as it was. */
       error?: string;
     }
@@ -76,6 +90,8 @@ export type AskItem =
       review: boolean;
       record: AskRunResult["record"];
       route: string | null;
+      /** More ways in, beside the main Open. */
+      links?: AskResultLink[];
       /** A result that lives in the page's own panel: opened there after navigating to `route`. */
       open?: () => void;
       /** The picture the run made, shown on the card. */
@@ -485,7 +501,7 @@ export function useAskConversation(deps: AskConversationDeps) {
           item.state = "previewing";
           // A new conversation while it generated leaves no thread to show it in: nothing is kept for it.
           if (mine === epoch) {
-            const card = push({ kind: "preview", proposalItemId: item.id, phase: "ready", shown: outcome.preview.shown });
+            const card = push({ kind: "preview", proposalItemId: item.id, phase: "ready", shown: outcome.preview.shown, rows: {} });
             held.set(card.id, { preview: outcome.preview, proposalItemId: item.id, startedAt, campaignName });
           }
           return;
@@ -520,7 +536,7 @@ export function useAskConversation(deps: AskConversationDeps) {
     const name = result.record?.name ?? generator.action;
     const review = generator.ending === "review";
     if (from.mine === epoch) {
-      item.landedAt = push({ kind: "result", name, noun: generator.noun, review, record: result.record, route: result.route, ...(result.open ? { open: result.open } : {}), ...(result.picture ? { picture: result.picture } : {}), parts: result.parts.map((p) => ({ ...p })) }).id;
+      item.landedAt = push({ kind: "result", name, noun: generator.noun, review, record: result.record, route: result.route, ...(result.links ? { links: result.links } : {}), ...(result.open ? { open: result.open } : {}), ...(result.picture ? { picture: result.picture } : {}), parts: result.parts.map((p) => ({ ...p })) }).id;
     }
     deps.onFinished?.({ name, noun: generator.noun, review, route: result.route, ...(result.open ? { open: result.open } : {}), credits: from.credits, campaign: from.campaignName, startedAt: from.startedAt });
   }
@@ -539,6 +555,8 @@ export function useAskConversation(deps: AskConversationDeps) {
     const card = find(previewId, "preview");
     const keep = held.get(previewId);
     if (!card || !keep || card.phase !== "ready") return;
+    // A row's own press is still under way: its record would be missing from what Create summarises.
+    if (Object.values(card.rows).some((r) => r.phase === "running")) return;
     const item = find(keep.proposalItemId, "proposal");
     if (!item) return;
     card.phase = "saving";
@@ -600,7 +618,43 @@ export function useAskConversation(deps: AskConversationDeps) {
     item.credits = (item.credits ?? 0) + partsCredits(outcome.preview.parts);
     held.set(previewId, { ...keep, preview: outcome.preview });
     card.shown = outcome.preview.shown;
+    card.rows = {};
     card.phase = "ready";
+  }
+
+  /**
+   * A press on one row of the held generation ("Create quest" on a hook, "Said it" on a line). The row's own state is
+   * the guard: a second press while it runs, or after it is done, finds it taken and does nothing, so one row makes
+   * one record. The preview stays `ready`, so the other rows can be pressed; a failed row says why and may be pressed
+   * again. Credits a row spends are added to the folded line, as an "Again" adds its own.
+   */
+  async function actOnRow(previewId: number, section: number, row: number) {
+    const card = find(previewId, "preview");
+    const keep = held.get(previewId);
+    if (!card || !keep || card.phase !== "ready") return;
+    const key = previewRowKey(section, row);
+    const state = card.rows[key];
+    if (state?.phase === "running" || state?.phase === "done") return;
+    const action = card.shown.sections[section]?.rows[row]?.action;
+    if (!action) return;
+    card.rows[key] = { phase: "running" };
+    const mine = epoch;
+    let part: Awaited<ReturnType<typeof action.run>>;
+    try {
+      part = await action.run();
+    } catch {
+      if (mine !== epoch) return;
+      card.rows[key] = { phase: "failed", error: "That did not finish. Check the list before pressing again." };
+      return;
+    }
+    if (mine !== epoch) return;
+    if (!part.ok) {
+      card.rows[key] = { phase: "failed", error: part.error ?? "That did not work." };
+      return;
+    }
+    const item = find(keep.proposalItemId, "proposal");
+    if (item && part.credits > 0) item.credits = (item.credits ?? 0) + part.credits;
+    card.rows[key] = { phase: "done", doneLabel: action.doneLabel, ...(part.links ? { links: part.links } : {}), ...(part.error ? { error: part.error } : {}) };
   }
 
   /** A choice on a row of the held generation (a creature's version): the preview records it and `create` saves it. */
@@ -645,5 +699,5 @@ export function useAskConversation(deps: AskConversationDeps) {
     if (part) part.left = true;
   }
 
-  return { items, running, generating, holding, speaking, freeLeft, send, choose, newConversation, handOff, openGenerator, setConcept, adjust, decide, cancel, confirm, quick, createPreview, againPreview, discardPreview, choosePreview, retryPart, leavePart };
+  return { items, running, generating, holding, speaking, freeLeft, send, choose, newConversation, handOff, openGenerator, setConcept, adjust, decide, cancel, confirm, quick, createPreview, actOnRow, againPreview, discardPreview, choosePreview, retryPart, leavePart };
 }

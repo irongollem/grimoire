@@ -5,6 +5,10 @@ vi.mock("@/composables/deities/useDeities", () => ({
   useAllPantheons: () => ({ data: ref([{ id: "00000000-0000-4000-8000-0000000000d1", name: "The Seven" }]) }),
 }));
 
+vi.mock("@/composables/rules/useGenerateCustomSubclass", () => ({
+  useSubclassParents: () => ({ options: ref([{ id: "Fighter", name: "Fighter" }, { id: "Emberwarden", name: "Emberwarden" }]) }),
+}));
+
 import { ASK_LISTS, ASK_RECORD_PICKERS, isRecordPicker } from "./askOptions";
 
 const inputs = ASK_GENERATORS.flatMap((g) => Object.entries(g.inputs).map(([key, schema]) => ({ id: g.id, key, schema })));
@@ -63,5 +67,30 @@ describe("the catalogue generators' lists", () => {
     const level = ASK_GENERATORS.find((g) => g.id === "spell")?.inputs.level;
     if (level?.type !== "string" || !level.enum) throw new Error("the spell level is a list of digits");
     expect(level.enum.map((digit) => level.optionLabels?.[digit])).toEqual(["Cantrip", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"]);
+  });
+});
+
+describe("the class, archetype and recipe cards' lists", () => {
+  // Bug caught: the parent class offered by id when the archetype page (and the generator) know a class by its name.
+  it("offers the parent classes by name", () => {
+    expect(ASK_LISTS.parent_class().value).toEqual([{ value: "Fighter", label: "Fighter" }, { value: "Emberwarden", label: "Emberwarden" }]);
+  });
+
+  // Bug caught: a discipline offered by label, which the recipe generator (keyed on the id) would not read.
+  it("sends a discipline by its id and shows its label", () => {
+    expect(ASK_LISTS.crafting_discipline().value).toContainEqual({ value: "alchemy", label: "Alchemy" });
+  });
+
+  // Bug caught: the recipe's Output item naming a record kind no picker serves, so it could only be typed by hand.
+  it("serves the item picker the recipe's Output item names", () => {
+    expect(isRecordPicker("item")).toBe(true);
+  });
+
+  // Bug caught: the feature's trigger list offered the type words (or the reverse), so a pick sent the generator the wrong constraint.
+  it("offers a dungeon feature's types and its twelve triggers, as the page's two pickers do", () => {
+    expect(ASK_LISTS.dungeon_feature_type().value).toContainEqual({ value: "Secret Door", label: "Secret Door" });
+    expect(ASK_LISTS.dungeon_feature_trigger().value).toHaveLength(12);
+    expect(ASK_LISTS.dungeon_feature_trigger().value).toContainEqual({ value: "Pressure Plate", label: "Pressure Plate" });
+    expect(ASK_LISTS.dungeon_feature_trigger().value).not.toContainEqual({ value: "Secret Door", label: "Secret Door" });
   });
 });

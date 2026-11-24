@@ -38,8 +38,11 @@
         </div>
       </li>
     </ul>
-    <AppButton v-if="item.route && item.open" variant="primary" size="sm" class="self-start" :label="openLabel" @click="openInPage(item.route, item.open)" />
-    <AppButton v-else-if="item.route" variant="primary" size="sm" class="self-start" :label="openLabel" :to="item.route" />
+    <div v-if="item.route || (item.links?.length ?? 0) > 0" class="flex flex-wrap items-center gap-2">
+      <AppButton v-if="item.route && item.open" variant="primary" size="sm" :label="openLabel" @click="openInPage(item.route, item.open)" />
+      <AppButton v-else-if="item.route" variant="primary" size="sm" :label="openLabel" :to="item.route" />
+      <AppButton v-for="link in item.links ?? []" :key="link.route" variant="outline" size="sm" :label="link.label" :to="link.route" data-testid="ask-result-link" />
+    </div>
   </section>
 </template>
 

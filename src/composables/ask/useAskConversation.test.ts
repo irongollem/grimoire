@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import { ASK_OFF_TOPIC_MESSAGE, type AskEvent, type AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskPreview, AskPreviewAdapter, AskQuote, AskRunResult } from "@/lib/ask/askAdapter";
-import { refusalMessage, SPEAKING_MAX_MS, SPEAKING_MS_PER_CHAR, SPEAKING_TAIL_MS, speakingUntil, useAskConversation, type AskConversationDeps } from "./useAskConversation";
+import { refusalMessage, SPEAKING_MAX_MS, SPEAKING_MS_PER_CHAR, SPEAKING_TAIL_MS, speakingUntil, useAskConversation, type AskConversationDeps, type AskItem } from "./useAskConversation";
 
 function sse(events: unknown[]): Response {
   const body = events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join("");
@@ -649,6 +649,51 @@ describe("useAskConversation: a held generation", () => {
     convo.choosePreview(previewItem()?.id ?? -1, "0", "b");
     expect(first.choose).toHaveBeenCalledWith("0", "b");
     expect(previewItem()).toMatchObject({ shown: { title: "Picked" } });
+  });
+
+  // Bug caught: a row's press running twice (two records for one hook), or ending the preview so the other rows were lost.
+  it("a row's own press runs once, marks the row done with its links, and leaves the preview open for the others", async () => {
+    let release: (p: { label: string; ok: true; credits: number; links: { label: string; route: string }[] }) => void = () => undefined;
+    const run = vi.fn(() => new Promise<{ label: string; ok: true; credits: number; links: { label: string; route: string }[] }>((r) => (release = r)));
+    const first = made();
+    first.shown = { title: "Hooks", sections: [{ rows: [{ label: "Quest", detail: "A", action: { label: "Create quest", doneLabel: "Created", run } }, { label: "Quest", detail: "B", action: { label: "Create quest", doneLabel: "Created", run } }] }] };
+    const { convo, previewItem } = await held({ preview: async () => ({ ok: true, preview: first }) });
+    const id = previewItem()?.id ?? -1;
+    const press = Promise.all([convo.actOnRow(id, 0, 0), convo.actOnRow(id, 0, 0)]);
+    expect(previewItem()).toMatchObject({ rows: { "0:0": { phase: "running" } } });
+    release({ label: "Quest A", ok: true, credits: 0, links: [{ label: "View quest", route: "/quests/q1" }] });
+    await press;
+    await convo.actOnRow(id, 0, 0);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(previewItem()).toMatchObject({ phase: "ready", rows: { "0:0": { phase: "done", doneLabel: "Created", links: [{ label: "View quest", route: "/quests/q1" }] } } });
+  });
+
+  // Bug caught: a failed row press marking the row done, so the quest was never made and the button was gone.
+  it("a row press that fails says why and can be pressed again; Done waits while a row runs", async () => {
+    const run = vi.fn()
+      .mockResolvedValueOnce({ label: "Quest A", ok: false, credits: 0, error: "insert failed" })
+      .mockResolvedValueOnce({ label: "Quest A", ok: true, credits: 0 });
+    const first = made();
+    first.shown = { title: "Hooks", sections: [{ rows: [{ label: "Quest", detail: "A", action: { label: "Create quest", doneLabel: "Created", run } }] }] };
+    const { convo, previewItem } = await held({ preview: async () => ({ ok: true, preview: first }) });
+    const id = previewItem()?.id ?? -1;
+    await convo.actOnRow(id, 0, 0);
+    expect(previewItem()).toMatchObject({ rows: { "0:0": { phase: "failed", error: "insert failed" } } });
+    await convo.actOnRow(id, 0, 0);
+    expect(previewItem()).toMatchObject({ rows: { "0:0": { phase: "done" } } });
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  // Bug caught: Again keeping the old hooks' "Created" marks on rows that now hold different hooks.
+  it("Again clears the rows' marks along with what it replaces", async () => {
+    const withRow = (): AskPreview => ({ ...made(), shown: { title: "Hooks", sections: [{ rows: [{ label: "Quest", detail: "A", action: { label: "Create quest", doneLabel: "Created", run: async () => ({ label: "Q", ok: true, credits: 0 }) } }] }] } });
+    const second = withRow();
+    const outcomes = [withRow(), second];
+    const { convo, previewItem } = await held({ preview: async () => ({ ok: true, preview: outcomes.shift() ?? second }) });
+    const id = previewItem()?.id ?? -1;
+    await convo.actOnRow(id, 0, 0);
+    await convo.againPreview(id);
+    expect(Object.keys((previewItem() as Extract<AskItem, { kind: "preview" }>).rows)).toEqual([]);
   });
 
   // Bug caught: starting over losing a generation in flight or awaiting Create, with its credits.

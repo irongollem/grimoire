@@ -8,6 +8,9 @@
 import { isUuid } from "@/lib/library/contentIdentity";
 import { ASK_GENERATORS, type AskInputSchema } from "@edge-shared/agent/askContract";
 
+/** A shared-library id is opaque text with no spaces, never a sentence; the adapter finds the row in the index or ignores it. */
+const LIBRARY_ITEM_ID = /^\S{1,200}$/;
+
 export type AskInputValue = string | number | boolean;
 
 function readOne(schema: AskInputSchema, value: unknown): AskInputValue | undefined {
@@ -17,7 +20,8 @@ function readOne(schema: AskInputSchema, value: unknown): AskInputValue | undefi
       const text = value.trim();
       if (text === "") return undefined;
       // A record input is the uuid of a row, nothing else: a name or a made-up id never reaches a lookup.
-      if (schema.record !== undefined && !isUuid(text)) return undefined;
+      // An item may also be a shared-library one, whose id is a token of text (`srd_potion_of_healing`), as the recipe's Output item picker lists them.
+      if (schema.record !== undefined && !isUuid(text) && !(schema.record === "item" && LIBRARY_ITEM_ID.test(text))) return undefined;
       if (schema.enum && !schema.enum.includes(text.toLowerCase())) return undefined;
       return schema.enum ? text.toLowerCase() : text;
     }

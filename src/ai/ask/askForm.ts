@@ -16,6 +16,8 @@ export function isSet(value: unknown): boolean {
   return value !== undefined && value !== null;
 }
 
+const NONE: ReadonlySet<string> = new Set();
+
 /** Whether an input shows for the values held: its `when` holds, or it has none. */
 export function isShown(schema: AskInputSchema, inputs: AskFormInputs): boolean {
   const when = schema.when;
@@ -33,10 +35,10 @@ export function isShown(schema: AskInputSchema, inputs: AskFormInputs): boolean 
  * hidden (the other parent needs a relation, which needs a person), so this runs until nothing more drops: a value
  * the DM cannot see must never ride along into a quote.
  */
-export function pruneHidden(generator: AskGenerator, inputs: AskFormInputs): Record<string, unknown> {
+export function pruneHidden(generator: AskGenerator, inputs: AskFormInputs, unavailable: ReadonlySet<string> = NONE): Record<string, unknown> {
   let current: Record<string, unknown> = { ...inputs };
   for (;;) {
-    const hidden = Object.entries(generator.inputs).filter(([key, schema]) => key in current && !isShown(schema, current));
+    const hidden = Object.entries(generator.inputs).filter(([key, schema]) => key in current && (unavailable.has(key) || !isShown(schema, current)));
     if (hidden.length === 0) return current;
     current = Object.fromEntries(Object.entries(current).filter(([key]) => !hidden.some(([h]) => h === key)));
   }
@@ -63,11 +65,11 @@ export type AskFormRow =
  * The form's rows, in contract order: an ungrouped input is its own row, and the inputs of one group fold into one
  * row placed where the group's first member stands. A group whose members are all hidden has no row.
  */
-export function formRows(generator: AskGenerator, inputs: AskFormInputs): AskFormRow[] {
+export function formRows(generator: AskGenerator, inputs: AskFormInputs, unavailable: ReadonlySet<string> = NONE): AskFormRow[] {
   const rows: AskFormRow[] = [];
   const groups = new Map<string, Extract<AskFormRow, { kind: "group" }>>();
   for (const [key, schema] of Object.entries(generator.inputs)) {
-    if (!isShown(schema, inputs)) continue;
+    if (unavailable.has(key) || !isShown(schema, inputs)) continue;
     if (schema.group === undefined) {
       rows.push({ kind: "input", key, schema });
       continue;

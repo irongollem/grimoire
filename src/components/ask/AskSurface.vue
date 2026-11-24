@@ -31,6 +31,7 @@
       @quick="emit('quick', $event)"
       @create="emit('create', $event)"
       @again="emit('again', $event)"
+      @act="(id, section, row) => emit('act', id, section, row)"
       @discard="emit('discard', $event)"
       @pick="(id, key, value) => emit('pick', id, key, value)"
       @decide="(id, key, on) => emit('decide', id, key, on)"
@@ -84,6 +85,7 @@ const emit = defineEmits<{
   quick: [itemId: number];
   create: [previewId: number];
   again: [previewId: number];
+  act: [previewId: number, section: number, row: number];
   discard: [previewId: number];
   pick: [previewId: number, key: string, value: string];
   decide: [itemId: number, key: string, on: boolean];

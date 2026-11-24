@@ -59,11 +59,19 @@ export interface AskRunPart {
   picture?: string;
 }
 
+/** A named way into a page, drawn as a button on a result or beside a row that was acted on. */
+export interface AskResultLink {
+  label: string;
+  route: string;
+}
+
 export interface AskRunResult {
   /** The record made or filled; null when nothing was saved. */
   record: { type: AskRecordType | "other"; id: string; name: string } | null;
   /** Where "Open <noun>" or "Review suggestions" goes. */
   route: string | null;
+  /** More ways in, drawn beside the main Open ("View quest", "Build flow"). */
+  links?: AskResultLink[];
   /**
    * For a result that lives in a page's own panel rather than at a route (quest hooks to pick from, canon
    * suggestions to keep or drop): what "Review suggestions" does after navigating to `route`, e.g. open that panel.
@@ -83,6 +91,14 @@ export interface AskPreviewRow {
    * under the row and reports a pick as `choose(key, value)`, and the adapter's `create` saves what was picked.
    */
   choice?: { key: string; label: string; options: { id: string; name: string }[]; value: string };
+  /**
+   * A press that acts on this row alone ("Create quest" on one of five hooks, "Said it" on one line): the card draws
+   * it as a button on the row, runs it once, and marks the row done with `doneLabel` (and the links it returns). The
+   * preview stays open so the other rows can be acted on; the card's own button and Discard end it. A part that fails
+   * leaves the row as it was, with the error, and the button may be pressed again; a part that succeeds with an `error`
+   * set has it shown under the done row as a quiet note (a quest made with no beats).
+   */
+  action?: { label: string; doneLabel: string; run(): Promise<AskRunPart & { links?: AskResultLink[] }> };
 }
 
 /**
@@ -98,6 +114,8 @@ export interface AskPreviewShown {
   sections: { heading?: string; /** A quiet line under the heading. */ hint?: string; rows: AskPreviewRow[] }[];
   /** A warning under the rows (creatures the Bestiary lacks). */
   note?: string;
+  /** Prose the DM reads before the rows (a chronicle's draft), markdown or rich text, drawn with the sanitized viewer. */
+  body?: string;
 }
 
 /** A generation held for the DM's yes: what to show, what it cost, and the one call that saves it. */

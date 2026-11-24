@@ -15,6 +15,7 @@ import { CRAFT_GENERATORS } from "./askGenerators/craft.ts";
 import { WRITING_GENERATORS } from "./askGenerators/writing.ts";
 import { NOTES_GENERATORS } from "./askGenerators/notes.ts";
 import { FILLS_GENERATORS } from "./askGenerators/fills.ts";
+import { EDITORS_GENERATORS } from "./askGenerators/editors.ts";
 import { SCREENS_GENERATORS } from "./askGenerators/screens.ts";
 
 /** Plain questions and brainstorms free per account per UTC day (maintainer, 23 Nov 2026); `charge_ask_answer` holds it. */
@@ -50,6 +51,12 @@ export interface AskInputMeta {
    * current inputs (the encounter's "Uses <table> here"). The model never sees it.
    */
   aside?: string;
+  /**
+   * A key into the browser's availability registry (`askAvailable.ts`): the input shows only while the campaign can use
+   * it (a party picture needs a group portrait and an image provider). While it does not, the form hides the input and
+   * clears its value. The model never sees it.
+   */
+  available?: string;
   /** A fold row's name: inputs sharing a group fold into one row that says what it holds. */
   group?: string;
   /** Shown only while another input is set (or set to one of `is`); with several keys, while any is. Cleared when the condition stops holding. */
@@ -88,6 +95,11 @@ export interface AskGenerator {
   /** The thing it makes or fills, for "Open <noun>": "NPC", "item". */
   noun: string;
   ending: AskEnding;
+  /**
+   * What the primary button of a held result says when it is not "<action>": a chronicle is written by the gilt button
+   * and put into the note by "Insert into note". The card reads `createAction ?? action`.
+   */
+  createAction?: string;
   /** For the model: when to choose it. One or two sentences. */
   describe: string;
   /** Its options. `concept` (what the DM described) is always present and never listed here. */
@@ -121,6 +133,7 @@ export const ASK_GENERATORS: readonly AskGenerator[] = [
   ...WRITING_GENERATORS,
   ...NOTES_GENERATORS,
   ...FILLS_GENERATORS,
+  ...EDITORS_GENERATORS,
   ...SCREENS_GENERATORS,
 ];
 

@@ -7,6 +7,8 @@
  */
 import { computed, type ComputedRef } from "vue";
 import { useEncounterWhere } from "@/composables/encounters/useEncounterWhere";
+import { useActiveParty } from "@/composables/party/useActiveParty";
+import { averagePartyLevel } from "@/lib/quests/hooksPrompt";
 
 export type AskAside = (inputs: () => Readonly<Record<string, unknown>>) => ComputedRef<string | null>;
 
@@ -19,5 +21,15 @@ export const ASK_ASIDES: Readonly<Record<string, AskAside>> = {
     };
     const { line } = useEncounterWhere(place, () => place() !== null);
     return computed(() => line.value);
+  },
+  /** Under the quest giver: the party level the hooks are written for, which the card cannot change (the panel showed it as a read-only line). */
+  party_level: () => {
+    const { data: party } = useActiveParty();
+    return computed(() => {
+      const members = party.value;
+      if (members === undefined) return null;
+      if (members.length === 0) return "No party yet, so the hooks are written for level 1.";
+      return `Written for party level ${averagePartyLevel(members.map((m) => m.level))} (average of ${members.length} ${members.length === 1 ? "member" : "members"}).`;
+    });
   },
 };

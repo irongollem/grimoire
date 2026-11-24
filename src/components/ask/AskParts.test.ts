@@ -65,6 +65,15 @@ describe("AskResultCard", () => {
     ...over,
   });
 
+  // Bug caught: the extra ways in (View quest, Build flow) dropped, so a result with several places to go offered only one.
+  it("draws each extra link beside the main Open", () => {
+    const w = mount(AskResultCard, { props: { item: item({ links: [{ label: "View Hook 1", route: "/quests/a" }, { label: "View Hook 2", route: "/quests/b" }] }) }, global: { stubs } });
+    expect(w.findAll('[data-testid="ask-result-link"]').map((l) => l.text())).toEqual(["View Hook 1", "View Hook 2"]);
+    expect(w.text()).toContain("Open NPC");
+    const none = mount(AskResultCard, { props: { item: item({ route: null, links: undefined }) }, global: { stubs } });
+    expect(none.find('[data-testid="ask-result-link"]').exists()).toBe(false);
+  });
+
   // Bug caught: a failed part shown as success, or its retry offered without its price.
   it("marks a failed part with its error and a priced retry", () => {
     const w = mount(AskResultCard, { props: { item: item() }, global: { stubs } });

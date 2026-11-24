@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { ASK_GENERATORS } from "./askContract.ts";
+import { BUTTON_ONLY_GENERATORS } from "./askGenerators/editors.ts";
 import { askState, askSystem } from "./askPrompt.ts";
 import { systemWithSummary } from "./transcript.ts";
 
 describe("askSystem", () => {
   it("names every generator of the contract, so one added there is never missing from what the model may choose", () => {
     const system = askSystem({ campaignName: "Kind Country", fiveE: true });
-    for (const g of ASK_GENERATORS) expect(system).toContain(`- ${g.id}:`);
+    for (const g of ASK_GENERATORS.filter((x) => !BUTTON_ONLY_GENERATORS.has(x.id))) expect(system).toContain(`- ${g.id}:`);
+  });
+
+  // Bug caught: the model offered "Fill the sheet" for a request typed on a page with no editor open, a card with no form to fill.
+  it("never offers a generator that only a page's button opens", () => {
+    const system = askSystem({ campaignName: "Kind Country", fiveE: true });
+    for (const id of BUTTON_ONLY_GENERATORS) expect(system).not.toContain(`- ${id}:`);
   });
 
   it("leaves the 5e generators out where the campaign plays no 5e system", () => {

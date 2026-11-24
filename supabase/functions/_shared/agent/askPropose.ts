@@ -6,6 +6,7 @@
 
 import type { AskGenerator, AskInputSchema, AskProposal, AskRecordRef } from "./askContract.ts";
 import { ASK_GENERATORS, askGenerator } from "./askContract.ts";
+import { BUTTON_ONLY_GENERATORS } from "./askGenerators/editors.ts";
 import { isAskRecordType } from "./askBody.ts";
 import { UUID_RE } from "../uuid.ts";
 import { LINKS_MAX, choiceForRelation, isLinkKind, linkChoices, relationWord, type AskLink } from "./askLinks.ts";
@@ -13,9 +14,12 @@ import { LINKS_MAX, choiceForRelation, isLinkKind, linkChoices, relationWord, ty
 export const CONCEPT_MAX = 2000;
 const TEXT_INPUT_MAX = 500;
 
-/** A generator the campaign's game system offers: the 5e ones only where the system has 5e rules (`offers("stat-blocks")`). */
+/**
+ * A generator the model may propose: the campaign's game system offers it (the 5e ones only where the system has 5e
+ * rules, `offers("stat-blocks")`) and it is not one that only a page's button opens (`BUTTON_ONLY_GENERATORS`).
+ */
 export function generatorsFor(fiveE: boolean): readonly AskGenerator[] {
-  return ASK_GENERATORS.filter((g) => g.fiveE !== true || fiveE);
+  return ASK_GENERATORS.filter((g) => (g.fiveE !== true || fiveE) && !BUTTON_ONLY_GENERATORS.has(g.id));
 }
 
 export type LinksCheck = { ok: true; links: AskLink[]; dropped: string[] } | { ok: false; error: string };
@@ -109,7 +113,7 @@ export async function checkProposal(
   },
 ): Promise<ProposalCheck> {
   const generator = typeof raw.generator === "string" ? askGenerator(raw.generator) : undefined;
-  if (generator === undefined) {
+  if (generator === undefined || BUTTON_ONLY_GENERATORS.has(generator.id)) {
     return { ok: false, error: `Unknown generator. Choose one of: ${generatorsFor(ctx.fiveE).map((g) => g.id).join(", ")}.` };
   }
   if (generator.fiveE === true && !ctx.fiveE) {

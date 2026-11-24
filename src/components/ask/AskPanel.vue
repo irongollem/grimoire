@@ -133,6 +133,7 @@ const surfaceHandlers = {
   quick: (id: number) => void convo.quick(id),
   create: (id: number) => void convo.createPreview(id),
   again: (id: number) => void convo.againPreview(id),
+  act: (id: number, section: number, row: number) => void convo.actOnRow(id, section, row),
   discard: convo.discardPreview,
   pick: convo.choosePreview,
   decide: convo.decide,

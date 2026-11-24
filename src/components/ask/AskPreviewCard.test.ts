@@ -7,7 +7,7 @@ import AskPreviewCard from "./AskPreviewCard.vue";
 type Preview = Extract<AskItem, { kind: "preview" }>;
 
 const item = (over: Partial<Preview> = {}): Preview => ({
-  kind: "preview", id: 4, proposalItemId: 2, phase: "ready",
+  kind: "preview", id: 4, proposalItemId: 2, phase: "ready", rows: {},
   shown: {
     title: "Road Ambush",
     badge: "Hard for the party",
@@ -20,7 +20,7 @@ const item = (over: Partial<Preview> = {}): Preview => ({
   ...over,
 });
 const again = { price: 1, blocked: false };
-const card = (over: Partial<Preview> = {}, a = again) => mount(AskPreviewCard, { props: { item: item(over), action: "Create encounter", again: a } });
+const card = (over: Partial<Preview> = {}, a = again) => mount(AskPreviewCard, { props: { item: item(over), action: "Create encounter", again: a }, global: { stubs: { RouterLink: { template: "<a><slot /></a>" } } } });
 
 describe("AskPreviewCard", () => {
   // Bug caught: the preview drawn without what makes it worth a decision: the line-up with CRs, the difficulty, the note.
@@ -80,6 +80,47 @@ describe("AskPreviewCard", () => {
     expect(w.text()).toContain("More than one book.");
     await w.get('[data-testid="combo"]').trigger("click");
     expect(w.emitted("pick")).toEqual([["0", "b"]]);
+  });
+
+  // Bug caught: the per-row press not drawn, or reported without its place, so a hook's Create quest built the wrong one.
+  it("draws a row's own button and reports its section and row", async () => {
+    const run = async () => ({ label: "Q", ok: true as const, credits: 0 });
+    const w = mount(AskPreviewCard, { props: { item: item({ shown: { title: "T", sections: [{ rows: [{ label: "A", detail: "", action: { label: "Create quest", doneLabel: "Created", run } }] }, { rows: [{ label: "B", detail: "", action: { label: "Create quest", doneLabel: "Created", run } }] }] } }), action: "Done", again } });
+    await w.get('[data-testid="ask-preview-row-1-0"] button').trigger("click");
+    expect(w.emitted("act")).toEqual([[1, 0]]);
+  });
+
+  // Bug caught: a done row still offering its button (a second quest), or its link and note missing.
+  it("a done row says what it did, offers its links and its note, and has no button", () => {
+    const run = async () => ({ label: "Q", ok: true as const, credits: 0 });
+    const w = card({
+      shown: { title: "T", sections: [{ rows: [{ label: "A", detail: "", action: { label: "Create quest", doneLabel: "Created", run } }] }] },
+      rows: { "0:0": { phase: "done", doneLabel: "Created", links: [{ label: "View quest", route: "/quests/q1" }], error: "It has no story beats yet." } },
+    });
+    expect(w.get('[data-testid="ask-preview-row-done"]').text()).toBe("Created");
+    expect(w.get('[data-testid="ask-preview-row-link"]').text()).toBe("View quest");
+    expect(w.get('[data-testid="ask-preview-row-note"]').text()).toContain("no story beats");
+    expect(w.find('[data-testid="ask-preview-row-action"]').exists()).toBe(false);
+  });
+
+  // Bug caught: a failed row losing its error, or its button, so the DM could not try again.
+  it("a failed row shows why and keeps its button; a running row blocks every button", () => {
+    const run = async () => ({ label: "Q", ok: true as const, credits: 0 });
+    const shown = { title: "T", sections: [{ rows: [{ label: "A", detail: "", action: { label: "Said it", doneLabel: "Said", run } }] }] };
+    const failed = card({ shown, rows: { "0:0": { phase: "failed", error: "Could not be kept: db down" } } });
+    expect(failed.get('[data-testid="ask-preview-row-error"]').text()).toContain("db down");
+    expect(failed.get('[data-testid="ask-preview-row-action"]').attributes("disabled")).toBeUndefined();
+    const running = card({ shown, rows: { "0:0": { phase: "running" } } });
+    for (const id of ["create", "discard"]) expect(running.get(`[data-testid="ask-preview-${id}"]`).attributes("disabled")).toBeDefined();
+  });
+
+  // Bug caught: a draft's prose drawn as one hint line per paragraph (or raw), losing its headings and emphasis.
+  it("draws the body through the sanitized viewer, before the rows", () => {
+    const w = card({ shown: { title: "T", body: "The **Duke** fell.\n\n<img src=x onerror=alert(1)>", sections: [{ rows: [{ label: "Tags", detail: "Heist" }] }] } });
+    const body = w.get('[data-testid="ask-preview-body"]');
+    expect(body.find("strong").text()).toBe("Duke");
+    // Typed markup is text in the viewer, never an element that could run.
+    expect(body.find("img").exists()).toBe(false);
   });
 
   // Bug caught: a saved preview staying on screen beside the result card, two cards for one encounter.

@@ -69,6 +69,7 @@
         :again="againFor(item.proposalItemId)"
         @create="emit('create', item.id)"
         @again="emit('again', item.id)"
+        @act="(section, row) => emit('act', item.id, section, row)"
         @discard="emit('discard', item.id)"
         @pick="(key, value) => emit('pick', item.id, key, value)"
       />
@@ -123,6 +124,7 @@ const emit = defineEmits<{
   quick: [itemId: number];
   create: [previewId: number];
   again: [previewId: number];
+  act: [previewId: number, section: number, row: number];
   discard: [previewId: number];
   pick: [previewId: number, key: string, value: string];
   decide: [itemId: number, key: string, on: boolean];
@@ -151,10 +153,11 @@ function proposalOf(id: number): Extract<AskItem, { kind: "proposal" }> | undefi
   return items.find((i): i is Extract<AskItem, { kind: "proposal" }> => i.id === id && i.kind === "proposal");
 }
 
-/** What the held generation's primary button says: the generator's own action ("Create encounter"). */
+/** What the held generation's primary button says: the generator's own word for it, else its action ("Create encounter"). */
 function proposalAction(id: number): string {
   const proposal = proposalOf(id);
-  return (proposal && askGenerator(proposal.proposal.generator)?.action) ?? "Create";
+  const generator = proposal ? askGenerator(proposal.proposal.generator) : undefined;
+  return generator?.createAction ?? generator?.action ?? "Create";
 }
 
 /** What another generation would cost now, from the adapter's own quote of the inputs as they stand. */
