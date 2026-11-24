@@ -24,6 +24,7 @@
           @click="$emit('delete-all')"
         />
         <AppButton
+          v-if="!docked"
           variant="ghost"
           size="icon-xs"
           aria-label="Close chat"
@@ -391,6 +392,8 @@ function onTalkAsChange(id: string) {
 }
 
 const props = defineProps<{
+  /** In the right-hand dock, whose tab strip closes it: no close of its own. */
+  docked?: boolean;
   messages: CampaignMessage[];
   loading: boolean;
   loadingOlder: boolean;

@@ -53,6 +53,9 @@
          doesn't collide with the screen's own bottom action bar. -->
     <DmBottomNav v-if="!fullscreenMobile && !editorFocus" />
 
+    <!-- The right-hand dock the chat and the Familiar share; it comes first so its body exists before they teleport into it. -->
+    <SideDock />
+
     <CampaignChat />
 
     <!-- Ask Grimoire: mounted the first time it is opened, then kept, so a run started in it outlives the panel,
@@ -118,6 +121,7 @@ import AppTopBar from "@/components/layout/AppTopBar.vue";
 import DmBottomNav from "@/components/layout/DmBottomNav.vue";
 import StaleSessionPrompt from "@/components/layout/StaleSessionPrompt.vue";
 import DmCampaignGate from "@/components/campaign/DmCampaignGate.vue";
+import SideDock from "@/components/layout/SideDock.vue";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import { useAskUiStore } from "@/stores/ui/ask";
 import { useHotkeys } from "@/composables/useHotkeys";

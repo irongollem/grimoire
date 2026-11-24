@@ -271,7 +271,8 @@
           <RouterView />
         </div>
       </main>
-      <CampaignChat :contained="true" :hide-tab="true" />
+      <SideDock contained />
+      <CampaignChat :hide-tab="true" />
     </div>
 
     <PlayerBottomNav v-if="!fullscreenMobile" :show-more="showMore" :unread-paths="unreadPaths" @open-more="showMore = true" />
@@ -403,6 +404,7 @@ import { useParty } from "@/composables/party/useParty";
 import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
 import { usePlayerRemovalGuard } from "@/composables/player/usePlayerRemovalGuard";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
+import SideDock from "@/components/layout/SideDock.vue";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import PlayerBottomNav from "@/components/layout/PlayerBottomNav.vue";
 import PlayerNavGrid from "@/components/layout/PlayerNavGrid.vue";

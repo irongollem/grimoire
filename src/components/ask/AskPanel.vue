@@ -1,15 +1,13 @@
 <template>
-  <!-- Desktop and tablet: a column beside the page, as the campaign chat is. -->
-  <Transition v-if="!isMobile" v-bind="railTransition()">
-    <aside v-if="ui.open" class="hidden w-104 shrink-0 md:flex sticky top-0 h-dvh" aria-label="Familiar" data-testid="ask-panel">
-      <div class="flex w-104 shrink-0 flex-col border-l border-border bg-card">
-        <AskSurface ref="surface" v-bind="surfaceProps" v-on="surfaceHandlers" />
-      </div>
-    </aside>
-  </Transition>
+  <!-- Desktop and tablet: the body of the right-hand dock (SideDock). Kept alive while the chat has the dock, so a half-written question survives a tab switch. -->
+  <Teleport v-if="docked" to="#side-dock-body" defer>
+    <div v-show="ui.open" class="flex min-h-0 flex-1 flex-col" aria-label="Familiar" data-testid="ask-panel">
+      <AskSurface ref="surface" docked v-bind="surfaceProps" v-on="surfaceHandlers" />
+    </div>
+  </Teleport>
 
   <!-- Phones: a sheet above the bottom nav. -->
-  <template v-else>
+  <template v-if="isMobile">
     <div v-if="ui.open" class="fixed inset-0 z-40 bg-black/40" @click="ui.closePanel()" />
     <div
       v-if="ui.open"
@@ -39,7 +37,6 @@ import { computed, defineAsyncComponent, nextTick, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { useLazyMount } from "@/composables/useLazyMount";
-import { railTransition } from "@/lib/motion";
 import { FREE_ASKS_PER_DAY, type AskReportDraft } from "@edge-shared/agent/askContract";
 import { useAskAdapters } from "@/ai/ask/useAskAdapters";
 import { useAskConversation, type AskNotice } from "@/composables/ask/useAskConversation";
@@ -47,6 +44,7 @@ import { askContextFor } from "@/composables/ask/askContext";
 import { useAskUsage } from "@/composables/ask/askUsage";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useAskUiStore } from "@/stores/ui/ask";
 import AskSurface from "@/components/ask/AskSurface.vue";
 import AskResultNotice from "@/components/ask/AskResultNotice.vue";
@@ -56,6 +54,8 @@ const route = useRoute();
 const router = useRouter();
 const campaign = useCampaignStore();
 const isMobile = useIsMobile();
+const appUi = useAppUiStore();
+const docked = computed(() => !isMobile.value && (ui.open || appUi.chatOpen));
 const { openOutOfCredits } = useOutOfCredits();
 const usage = useAskUsage();
 const adapters = useAskAdapters();

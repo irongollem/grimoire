@@ -8,7 +8,7 @@
       </div>
       <div class="flex items-center gap-1">
         <AppButton variant="ghost" size="inline" label="New conversation" data-testid="ask-new" @click="emit('new')" />
-        <AppButton variant="ghost" size="icon-xs" :icon="IconClose" icon-size="md" aria-label="Close the Familiar" data-testid="ask-close" @click="emit('close')" />
+        <AppButton v-if="!docked" variant="ghost" size="icon-xs" :icon="IconClose" icon-size="md" aria-label="Close the Familiar" data-testid="ask-close" @click="emit('close')" />
       </div>
     </header>
 
@@ -52,6 +52,8 @@ import AskThread from "@/components/ask/AskThread.vue";
 import AskComposer from "@/components/ask/AskComposer.vue";
 
 defineProps<{
+  /** In the right-hand dock, whose tab strip closes it: no close of its own. */
+  docked?: boolean;
   items: AskItem[];
   adapters: AskAdapters;
   running: boolean;

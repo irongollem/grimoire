@@ -1,19 +1,9 @@
 <template>
-  <!-- ── Side panel (md+): part of document flow, squashes content ── -->
-  <Transition v-bind="railTransition()">
-    <aside
-      v-if="appUi.chatOpen"
-      class="hidden w-80 shrink-0 md:flex"
-      :class="contained ? 'h-full min-h-0' : 'sticky top-0 h-dvh'"
-    >
-      <!--
-        Fixed width, so the panel slides out from the page edge rather than
-        rewrapping every message while the rail opens. The border and background
-        sit here rather than on the rail for the same reason: chrome that stays
-        behind while its contents travel reads as two things moving, not one.
-      -->
-      <div class="flex w-80 shrink-0 flex-col border-l border-border bg-card">
+  <!-- ── Desktop and tablet: the body of the right-hand dock (SideDock), kept alive while the Familiar has the dock ── -->
+  <Teleport v-if="docked" to="#side-dock-body" defer>
+    <div v-show="appUi.chatOpen" class="flex min-h-0 flex-1 flex-col">
       <ChatPanelContent
+        docked
         :messages="messages"
         :loading="loading"
         :loading-older="loadingOlder"
@@ -41,9 +31,8 @@
         @load-older="loadOlder"
         @close="appUi.chatOpen = false"
       />
-      </div>
-    </aside>
-  </Transition>
+    </div>
+  </Teleport>
 
   <!-- ── Right-edge tab (always visible when panel is closed, unless hideTab) ── -->
   <Transition name="tab-fade">
@@ -51,7 +40,7 @@
       v-if="!appUi.chatOpen && !hideTab"
       type="button"
       class="chat-no-print fixed right-[env(safe-area-inset-right)] z-40 flex flex-col items-center gap-1.5 px-2 py-3 rounded-l-xl border border-r-0 border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shadow-lg select-none"
-      :class="askOpen ? 'md:right-104' : ''"
+      :class="askOpen ? 'md:hidden' : ''"
       :style="{ top: tabTop + 'px', touchAction: 'none' }"
       title="Open chat"
       @pointerdown="onTabPointerDown"
@@ -113,10 +102,10 @@
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import { IconMessage } from '@/lib/icons';
-import { railTransition } from "@/lib/motion";
 import { loadReadMarker, resolveChatUnread, saveReadMarker, type ReadMarker } from "@/components/chat/chatUnread";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
+import { useAbove } from "@/composables/useBreakpoint";
 import { useAskUiStore } from "@/stores/ui/ask";
 import { useCampaignMessages, loadChatHistory } from "@/composables/campaign/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
@@ -142,7 +131,7 @@ import { useCurrency } from "@/composables/currency/useCurrency";
 import { itemRefColumns } from "@/lib/itemRef";
 import type { Item } from "@/types/item.types";
 
-const { contained = false, hideTab = false } = defineProps<{ contained?: boolean; hideTab?: boolean }>();
+const { hideTab = false } = defineProps<{ hideTab?: boolean }>();
 
 // ── Chat tab vertical drag ──────────────────────────────────────────────────
 const CHAT_TAB_TOP_KEY = "grimoire:chat-tab-top";
@@ -210,9 +199,12 @@ onUnmounted(() => {
 });
 
 const appUi = useAppUiStore();
-// The tab sits on the right edge; with Ask Grimoire's column open there (md and up) it moves to that column's edge.
+const isDesktop = useAbove("md");
+// The tab sits on the right edge; with the Familiar open in the dock (md and up) it is not needed.
 const askUi = useAskUiStore();
 const askOpen = computed(() => askUi.open);
+// The dock is there from `md`; the chat sits in it while open, and stays mounted behind the Familiar so a draft survives a tab switch.
+const docked = computed(() => isDesktop.value && (appUi.chatOpen || askOpen.value));
 const auth = useAuthStore();
 const campaign = useCampaignStore();
 const { messages, unreadMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, askCharacterReply, sendRoll, claimItemDrop, grabItemDrop, chooseLootRoll, resolveLootRoll, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =

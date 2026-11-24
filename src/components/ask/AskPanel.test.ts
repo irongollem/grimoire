@@ -33,7 +33,7 @@ vi.mock("@/composables/ask/askTransport", () => ({ sendToAskTurn: (...a: unknown
 
 import AskPanel from "./AskPanel.vue";
 
-const stubs = { Transition: false, RouterLink: { template: "<a><slot /></a>" } };
+const stubs = { Teleport: true, Transition: false, RouterLink: { template: "<a><slot /></a>" } };
 
 describe("AskPanel", () => {
   beforeEach(() => {
