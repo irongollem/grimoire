@@ -1,4 +1,4 @@
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useStorage } from "@vueuse/core";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useAuthStore } from "@/stores/auth";
@@ -41,13 +41,34 @@ export function useFamiliarVoice(options: { transport?: VoiceTransport; player?:
     );
   }
 
+  /** The reply being read on its own speaker button, so that button can show Stop; null otherwise. */
+  const replaying = ref<string | null>(null);
+  watch(voice.busy, (busy) => {
+    if (!busy) replaying.value = null;
+  });
+
   /**
-   * Reads one reply again, now: whatever plays gives way. The server answers from the clip it kept, so a reply already
-   * read costs nothing; one never read is made and charged like any.
+   * Reads one reply on its own speaker button, now: whatever plays gives way. A press is asking, so it plays with the
+   * read-aloud switch off as well (refused only while a refusal stands). The server answers from the clip it kept, so
+   * a reply already read costs nothing; one never read is made and charged like any.
    */
   function replay(input: { campaignId: string; sessionId: string; text: string }): void {
     voice.stop();
-    say({ campaignId: input.campaignId, sessionId: input.sessionId, texts: [input.text] });
+    if (voice.refused()) return;
+    replaying.value = input.text;
+    voice.enqueue([
+      {
+        clip: voice.fetchClip(() =>
+          transport({ campaignId: input.campaignId, sessionId: input.sessionId, text: input.text, role: "familiar", speakerId: null, speakerName: FAMILIAR_NAME, how: null, key: null }),
+        ),
+        voice: FAMILIAR_NAME,
+      },
+    ]);
+  }
+
+  function stop(): void {
+    voice.stop();
+    replaying.value = null;
   }
 
   function setOn(value: boolean): void {
@@ -58,5 +79,5 @@ export function useFamiliarVoice(options: { transport?: VoiceTransport; player?:
     else voice.clearRefusals();
   }
 
-  return { on, setOn, speaking: voice.speaking, unavailable: voice.unavailable, spent: voice.spent, broke: voice.broke, say, replay, stop: voice.stop };
+  return { on, setOn, speaking: voice.speaking, replaying, unavailable: voice.unavailable, spent: voice.spent, broke: voice.broke, say, replay, stop };
 }

@@ -43,6 +43,8 @@ import { FREE_ASKS_PER_DAY, type AskReportDraft } from "@edge-shared/agent/askCo
 import { useAskAdapters } from "@/ai/ask/useAskAdapters";
 import { useAskConversation, type AskNotice } from "@/composables/ask/useAskConversation";
 import { stopVoiceLines } from "@/composables/voices/useVoiceLineSpeech";
+import { loadLastAskConversation } from "@/composables/ask/askHistory";
+import { useAuthStore } from "@/stores/auth";
 import { useFamiliarVoice } from "@/composables/ask/useFamiliarVoice";
 import { useTableVoiceRates } from "@/composables/table/useTableVoice";
 import { askContextFor } from "@/composables/ask/askContext";
@@ -77,6 +79,7 @@ const reportMounted = useLazyMount(reportOpen);
 const reportDraft = ref<AskReportDraft | null>(null);
 
 const voice = useFamiliarVoice();
+const auth = useAuthStore();
 const rates = useTableVoiceRates();
 
 const convo = useAskConversation({
@@ -85,6 +88,11 @@ const convo = useAskConversation({
   adapters,
   campaignName: () => campaign.activeCampaign?.name ?? "this campaign",
   routePath: () => route.fullPath,
+  // The last conversation comes back after a reload: the server keeps it, so the panel should too.
+  restore: async (campaignId) => {
+    const userId = auth.user?.id;
+    return userId === undefined ? null : loadLastAskConversation(userId, campaignId);
+  },
   // Ooru reads its own words only: the conversation hands over the replies, nothing else. Only while its switch is
   // on screen: a voice the DM cannot see cannot be turned off, so it must not speak (or charge).
   onReplied: ({ sessionId, texts }) => {
@@ -147,7 +155,7 @@ const surfaceProps = computed(() => ({
   campaignName: campaign.activeCampaign?.name ?? "No campaign",
   pageTitle: (route.meta.title as string | undefined) ?? null,
   allowanceLine: allowanceLine.value,
-  voice: { shown: voicePerMinute.value !== null, on: voice.on.value, perMinute: voicePerMinute.value, note: voiceNote.value },
+  voice: { shown: voicePerMinute.value !== null, on: voice.on.value, perMinute: voicePerMinute.value, note: voiceNote.value, playingText: voice.replaying.value },
 }));
 
 const surfaceHandlers = {
@@ -157,6 +165,7 @@ const surfaceHandlers = {
   replay: (text: string) => {
     const campaignId = campaign.activeCampaignId;
     const sessionId = convo.sessionId();
+    if (voice.replaying.value === text) return voice.stop();
     if (campaignId !== null && sessionId !== null && voicePerMinute.value !== null) voice.replay({ campaignId, sessionId, text });
   },
   close: () => ui.closePanel(),

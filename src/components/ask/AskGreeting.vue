@@ -1,6 +1,9 @@
 <template>
   <!-- The empty Familiar: Ooru speaks first, in its own reply style, and can be heard before its paid voice is on. -->
   <div class="flex flex-col gap-3 py-3" data-testid="ask-greeting">
+    <!-- Ooru introduces itself, so it is seen properly here: the header's small avatar is for while it talks. It moves
+         while its greeting plays. -->
+    <FamiliarAvatar v-if="text" class="size-24 self-center" :speaking="hear.playing.value === KEY" data-testid="ask-greeting-portrait" />
     <AskReply v-if="text" :text="text" who="Ooru" />
     <p v-else class="py-3 text-center text-body text-muted-foreground" data-testid="ask-greeting-fallback">{{ HINT }}</p>
     <div v-if="text" class="flex flex-col items-start gap-1.5">
@@ -30,6 +33,7 @@
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AskReply from "@/components/ask/AskReply.vue";
+import FamiliarAvatar from "@/components/ask/FamiliarAvatar.vue";
 import { useFamiliarGreeting, useFamiliarSample } from "@/composables/voices/useSpeechVoices";
 import { IconStop, IconVolume } from "@/lib/icons";
 

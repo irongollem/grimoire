@@ -11,6 +11,7 @@
         :text="item.text"
         :who="item.who"
         :replayable="replayable && !(running && item === items.at(-1))"
+        :playing="playingText !== null && playingText === item.text"
         @replay="emit('replay', item.text)"
       />
       <AskReply
@@ -121,12 +122,14 @@ import AskResultCard from "@/components/ask/AskResultCard.vue";
 import AskReportCard from "@/components/ask/AskReportCard.vue";
 import AskUpsell from "@/components/ask/AskUpsell.vue";
 
-const { items, adapters, running = false, replayable = false } = defineProps<{
+const { items, adapters, running = false, replayable = false, playingText = null } = defineProps<{
   items: AskItem[];
   adapters: AskAdapters;
   running?: boolean;
   /** Ooru's voice is on, so a finished reply may be read again. */
   replayable?: boolean;
+  /** The reply being read on its speaker button, to show Stop on it. */
+  playingText?: string | null;
 }>();
 const emit = defineEmits<{
   choose: [itemId: number, choice: AskChoice];

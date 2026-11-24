@@ -1,3 +1,4 @@
+import { flushPromises } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import { ASK_OFF_TOPIC_MESSAGE, type AskEvent, type AskProposal } from "@edge-shared/agent/askContract";
@@ -18,7 +19,7 @@ const okResult: AskRunResult = {
   parts: [{ label: "NPC", ok: true, credits: 4 }],
 };
 
-function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapter["run"]; quick?: AskAdapter["quick"]; campaignId?: () => string | null; onReplied?: AskConversationDeps["onReplied"]; lazy?: boolean } = {}) {
+function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapter["run"]; quick?: AskAdapter["quick"]; campaignId?: () => string | null; onReplied?: AskConversationDeps["onReplied"]; restore?: AskConversationDeps["restore"]; lazy?: boolean } = {}) {
   const responses = [...(over.responses ?? [])];
   const transport = vi.fn(async () => responses.shift() ?? sse([done]));
   const run = vi.fn(over.run ?? (async () => okResult));
@@ -34,6 +35,7 @@ function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapte
     transport,
     onFinished,
     ...(over.onReplied ? { onReplied: over.onReplied } : {}),
+    ...(over.restore ? { restore: over.restore } : {}),
   };
   return { convo: useAskConversation(deps), transport, run, quick, onFinished };
 }
@@ -969,3 +971,34 @@ describe("useAskConversation: a held generation", () => {
     expect(preview.mock.calls[1][0].inputs).toEqual({ difficulty: "deadly" });
   });
 });
+
+describe("the last conversation after a reload", () => {
+  const stored = {
+    sessionId: "s-old",
+    turns: [
+      { role: "user", blocks: [{ type: "text", text: "Who runs the inn?" }] },
+      { role: "assistant", blocks: [{ type: "text", text: "Harl runs it." }] },
+    ],
+  };
+
+  // Bug caught (seen live): a reload emptied the Familiar, though the server kept the whole conversation.
+  it("brings the last conversation back into an empty panel, and carries on in it", async () => {
+    const { convo, transport } = setup({ restore: async () => stored });
+    await flushPromises();
+    expect(convo.items.value.map((i) => (i.kind === "user" || i.kind === "reply" ? i.text : i.kind))).toEqual(["Who runs the inn?", "Harl runs it."]);
+    expect(convo.sessionId()).toBe("s-old");
+    await convo.send("And the smith?");
+    expect(transport).toHaveBeenCalledWith(expect.objectContaining({ sessionId: "s-old" }), expect.anything());
+  });
+
+  // Bug caught: a slow reload landing over what the DM had already typed and sent.
+  it("never lands over a conversation the DM already started", async () => {
+    let answer!: (v: typeof stored) => void;
+    const { convo } = setup({ restore: () => new Promise((r) => (answer = r)) });
+    await convo.send("Something new");
+    answer(stored);
+    await flushPromises();
+    expect(convo.items.value.some((i) => i.kind === "user" && i.text === "Who runs the inn?")).toBe(false);
+  });
+});
+

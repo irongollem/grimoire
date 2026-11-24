@@ -249,18 +249,29 @@ describe("AskPanel", () => {
     w.unmount();
   });
 
-  // Bug caught (seen live): no way to hear a reply again once Ooru had read it.
-  it("reads a finished reply again on Read again, and offers it only while the voice is on", async () => {
+  // Bug caught (seen live): no way to hear a reply again once Ooru had read it; and the speaker only there with
+  // read-aloud on, where a press is asking for that one reply whatever the switch says.
+  it("offers a speaker under a finished reply, with read-aloud off too, and a press reads that reply", async () => {
     useAskUiStore().openPanel();
     transport.mockResolvedValueOnce(sse([{ type: "session", sessionId: "s1" }, { type: "text", delta: "Harl runs it." }, done]));
     const w = mount(AskPanel, { global: { stubs } });
     await ask(w);
-    expect(w.find('[data-testid="ask-reply-replay"]').exists()).toBe(false);
-    await w.get('[data-testid="ask-voice"]').trigger("click");
+    expect(w.get('[data-testid="ask-voice"]').attributes("aria-pressed")).toBe("false");
     voiceTransport.mockClear();
     await w.get('[data-testid="ask-reply-replay"]').trigger("click");
     await flushPromises();
     expect(voiceTransport).toHaveBeenCalledWith(expect.objectContaining({ sessionId: "s1", role: "familiar", text: "Harl runs it." }));
+    w.unmount();
+  });
+
+  // Bug caught: a speaker offered where the server has no voices, which could only fail.
+  it("offers no speaker under replies where voices are off", async () => {
+    useAskUiStore().openPanel();
+    rates.value = { on: false, perMinute: { elevenlabs: 6, inworld: null } };
+    transport.mockResolvedValueOnce(sse([{ type: "session", sessionId: "s1" }, { type: "text", delta: "Harl runs it." }, done]));
+    const w = mount(AskPanel, { global: { stubs } });
+    await ask(w);
+    expect(w.find('[data-testid="ask-reply-replay"]').exists()).toBe(false);
     w.unmount();
   });
 

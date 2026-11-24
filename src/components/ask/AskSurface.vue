@@ -2,7 +2,7 @@
   <div class="flex h-full min-h-0 w-full flex-col">
     <header class="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-2.5">
       <div class="flex min-w-0 items-center gap-2">
-        <FamiliarAvatar class="size-9" :speaking="speaking" />
+        <FamiliarAvatar class="size-11" :speaking="speaking" />
         <h2 class="text-heading font-semibold text-foreground">Familiar</h2>
         <AppButton as="span" variant="tinted" size="xs" tone="info" emphasis="outline" label="Beta" data-testid="ask-beta" />
       </div>
@@ -38,7 +38,8 @@
       :items="items"
       :adapters="adapters"
       :running="running"
-      :replayable="voice.shown && voice.on && voice.note === null"
+      :replayable="voice.shown && voice.note === null"
+      :playing-text="voice.playingText"
       @replay="emit('replay', $event)"
       @choose="(id, c) => emit('choose', id, c)"
       @hand-off="(id, i) => emit('hand-off', id, i)"
@@ -91,7 +92,7 @@ const props = defineProps<{
   pageTitle: string | null;
   allowanceLine: string;
   /** Ooru reading replies aloud: the switch (hidden where voices are off), its price, and why it went quiet. */
-  voice: { shown: boolean; on: boolean; perMinute: number | null; note: string | null };
+  voice: { shown: boolean; on: boolean; perMinute: number | null; note: string | null; playingText: string | null };
 }>();
 const emit = defineEmits<{
   new: [];

@@ -7,6 +7,7 @@
  * so a running turn or generation carries on.
  */
 import { reactive, ref, watch } from "vue";
+import { restoredItems, type StoredTurn } from "@/lib/ask/askRestore";
 import { creditsText } from "@/lib/ask/askCredits";
 import {
   ASK_OFF_TOPIC_MESSAGE,
@@ -71,6 +72,11 @@ export interface AskConversationDeps {
    * the Familiar's voice, which speaks nothing but these.
    */
   onReplied?: (replied: { sessionId: string; texts: string[] }) => void;
+  /**
+   * The DM's latest conversation in a campaign, to bring back into an empty thread after a reload: its session and
+   * stored turns, or null when there is none. Read through the caller's own rows.
+   */
+  restore?: (campaignId: string) => Promise<{ sessionId: string; turns: StoredTurn[] } | null>;
 }
 
 const NOT_ANSWERED = "Your Familiar could not answer that. Try again.";
@@ -124,6 +130,25 @@ export function useAskConversation(deps: AskConversationDeps) {
   }
   let current = freshThread();
   const items = ref<AskItem[]>(current.items);
+
+  /**
+   * Fills a fresh thread with its campaign's last conversation, so a reload does not lose it. Only into a thread that
+   * is still its campaign's, still empty and has not begun a turn of its own: a DM who typed before it arrived keeps
+   * what they typed. New conversation does not call this: starting fresh is what it is for.
+   */
+  async function restoreInto(thread: AskThreadState): Promise<void> {
+    if (!deps.restore || thread.campaignId === "") return;
+    let found: { sessionId: string; turns: StoredTurn[] } | null = null;
+    try {
+      found = await deps.restore(thread.campaignId);
+    } catch {
+      return;
+    }
+    if (found === null || !alive(thread) || thread.items.length > 0 || thread.sessionId !== undefined) return;
+    thread.sessionId = found.sessionId;
+    for (const item of restoredItems(found.turns)) pushTo(item.kind === "reply" ? { ...item, who: null } : item, thread);
+  }
+  void restoreInto(current);
   /** A thread is live while it is still its campaign's: starting over replaces it, and a late result then writes nothing into it. */
   const alive = (thread: AskThreadState) => threads.get(thread.campaignId) === thread;
   const running = ref(false);
@@ -341,8 +366,10 @@ export function useAskConversation(deps: AskConversationDeps) {
   // "Again" already under way keeps going and lands in the thread it started in.
   watch(() => deps.campaignId(), () => {
     stopTurn();
-    current = threads.get(keyOf()) ?? freshThread();
+    const parked = threads.get(keyOf());
+    current = parked ?? freshThread();
     items.value = current.items;
+    if (parked === undefined) void restoreInto(current);
   });
 
   // ── what the DM does with a proposal ──────────────────────────────────────────────────────────────────────────
