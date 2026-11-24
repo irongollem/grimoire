@@ -34,6 +34,7 @@ function harness(rows: SpeechVoiceRow[] = [row()]) {
     previewBytes: null as Uint8Array | null,
     previewThrows: false,
     serviceDown: false,
+    serviceStatus: 500,
     insertThrows: false,
     reported: [] as unknown[],
     libraryResults: [] as Array<{ publicOwnerId: string; voiceId: string }>,
@@ -70,7 +71,7 @@ function harness(rows: SpeechVoiceRow[] = [row()]) {
       hasService: (s) => h.keys[s],
       design: async (s, prompt, text) => {
         h.designArgs.push([s, prompt, text]);
-        if (h.serviceDown) throw new ServiceError(s, 500);
+        if (h.serviceDown) throw new ServiceError(s, h.serviceStatus);
         return [{ id: "draft-1", audio: base64FromBytes(WAV), mediaType: "" }];
       },
       keep: async (s, d) => (h.calls.push(`keep:${s}:${d.previewId}`), "newvoice12345"),
@@ -153,6 +154,18 @@ describe("design", () => {
     const res = await run({ action: "design", service: "elevenlabs", prompt: "p", previewText: LONG_TEXT });
     expect(res.status).toBe(502);
     expect((await read(res)).message).toMatch(/ElevenLabs could not do that/);
+  });
+
+  // Bug caught (seen live): a key not allowed to design voices answered "try again in a moment", which can never help.
+  it("says the key is not allowed, not to try again, when the service refuses the key", async () => {
+    const { h, run } = harness();
+    h.serviceDown = true;
+    h.serviceStatus = 401;
+    const res = await run({ action: "design", service: "elevenlabs", prompt: "p", previewText: LONG_TEXT });
+    expect(res.status).toBe(502);
+    const body = await read(res);
+    expect(body.message).toMatch(/not allowed/);
+    expect(body.message).not.toMatch(/Try again/);
   });
 
   it("without the service's key says so instead of calling it", async () => {

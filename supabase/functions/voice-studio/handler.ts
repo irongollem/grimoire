@@ -136,6 +136,10 @@ export const STUDIO_MESSAGES = {
   noKey: (service: SpeechService) => `No ${service === "inworld" ? "Inworld" : "ElevenLabs"} key is set. Add it in Admin, Providers.`,
   previewTextLength: "ElevenLabs needs a preview text of 100 to 1000 characters.",
   serviceFailed: (service: SpeechService) => `${service === "inworld" ? "Inworld" : "ElevenLabs"} could not do that just now. Try again in a moment.`,
+  // A refused key is not a hiccup: trying again cannot help. ElevenLabs keys are limited per feature, and a key made
+  // for speech alone refuses the studio's calls (seen live, 24 Nov 2026).
+  keyRefused: (service: SpeechService) =>
+    `${service === "inworld" ? "Inworld" : "ElevenLabs"} refused this with the key on file: the key is not allowed to do it. Give the key the voice permissions (on ElevenLabs: Voices read and write, Voice Generation, User read) in Admin > Providers.`,
   notFound: "That voice is not there.",
   empty: "That voice has not been made yet, so there is nothing to hear.",
   inRegistry: "That voice already fills a slot.",
@@ -216,6 +220,7 @@ export async function handleStudio(input: { userId: string; isAdmin: boolean; bo
   } catch (error) {
     if (error instanceof ServiceError) {
       deps.report(error);
+      if (error.status === 401 || error.status === 403) return jsonError(502, "service_key_refused", STUDIO_MESSAGES.keyRefused(error.service));
       return jsonError(502, "service_failed", STUDIO_MESSAGES.serviceFailed(error.service));
     }
     throw error;
