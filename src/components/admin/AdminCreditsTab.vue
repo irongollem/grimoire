@@ -2,6 +2,7 @@
   <div class="space-y-6">
     <!-- ── Your AI usage — moved to top ─────────────────────────────────────── -->
     <AiUsageStatsPanel />
+    <FreeAskCostPanel />
 
     <!-- ── Anti-abuse velocity guard config ─────────────────────────────────── -->
     <AbuseGuardConfig />
@@ -153,6 +154,7 @@ import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AiUsageStatsPanel from "@/components/common/ai/AiUsageStatsPanel.vue";
+import FreeAskCostPanel from "@/components/admin/FreeAskCostPanel.vue";
 import CreditPackRefundList from "@/components/admin/CreditPackRefundList.vue";
 import AbuseGuardConfig from "@/components/admin/AbuseGuardConfig.vue";
 
