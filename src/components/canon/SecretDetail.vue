@@ -1,16 +1,24 @@
 <template>
-  <section class="flex min-w-0 flex-col gap-4 border border-border bg-card p-4" aria-label="A secret" data-testid="secret-detail">
-    <div class="flex flex-col gap-1">
-      <span class="flex items-center justify-between gap-2 text-eyebrow text-muted-foreground">
-        Secret
-        <span class="inline-flex items-center gap-1.5 text-label font-bold text-foreground" data-testid="secret-state">
-          <span aria-hidden="true">{{ SECRET_STATE_MARK[state] }}</span>
-          {{ SECRET_STATE_LABEL[state] }}
-        </span>
-      </span>
+  <CanonEntryPane kind="Secret" delete-label="Delete this secret" close-label="Close this secret" data-testid="secret-detail" @close="emit('close')" @delete="emit('delete')">
+    <template #title>
       <AppInput :key="revision" v-model.lazy="text" wrap size="body" tone="filled" aria-label="The secret" placeholder="What the world is keeping back…" />
+    </template>
+
+    <template #who>
+      <span class="inline-flex items-center gap-1.5 text-label font-bold text-foreground" data-testid="secret-state">
+        <span aria-hidden="true">{{ SECRET_STATE_MARK[state] }}</span>
+        {{ SECRET_STATE_LABEL[state] }}
+      </span>
+      <AppButton v-if="entry.revealed_at === null" variant="primary" size="sm" label="Reveal to the party" data-testid="reveal" @click="reveal" />
+      <AppButton v-if="entry.revealed_at === null && !choosingWho" variant="outline" size="sm" label="Reveal to…" data-testid="reveal-some" @click="choosingWho = true" />
+      <AppButton v-if="entry.revealed_at !== null" variant="outline" size="sm" label="Hide again" data-testid="hide" @click="hide" />
       <EntryArcPicker :entry="entry" />
-    </div>
+      <PassageTellSome v-if="entry.revealed_at === null && choosingWho" class="basis-full" :members="party ?? []" tell-label="Reveal" @tell="revealChosen" @cancel="choosingWho = false" />
+      <p class="m-0 basis-full text-caption text-muted-foreground">
+        <template v-if="entry.revealed_at === null">Finding every clue never reveals it by itself: revealing it to the players is your button.</template>
+        <template v-else>The party can read this secret. Hiding it again takes it off their screens.</template>
+      </p>
+    </template>
 
     <CanonEntryNotes
       :key="entry.id"
@@ -20,8 +28,9 @@
       placeholder="What is really going on, and how it comes out…"
     />
 
-    <div class="flex flex-col gap-2">
-      <span class="text-eyebrow text-muted-foreground">Clues · {{ clueTally(clues) }}</span>
+    <CanonBlock title="Clues" :suggest="clueRequest">
+      <CanonReview mode="clues" :secret-id="entry.id" />
+      <span class="text-label text-muted-foreground" data-testid="clue-tally">{{ clueTally(clues) }}</span>
       <ul v-if="clues.length > 0" class="flex flex-col gap-1.5">
         <ClueRow
           v-for="clue in clues"
@@ -34,72 +43,46 @@
           @remove="removeClue(clue)"
         />
       </ul>
-      <p v-if="clues.length < CLUES_WANTED" class="text-caption text-muted-foreground" data-testid="clues-wanted">
+      <p v-if="clues.length < CLUES_WANTED" class="m-0 text-caption text-muted-foreground" data-testid="clues-wanted">
         A secret wants {{ CLUES_WANTED }} clues, so the party can miss two and still find it.
       </p>
-      <CanonSuggestFold part="clues"><CanonSuggestions mode="clues" :entries="NO_ENTRIES" :secret-id="entry.id" /></CanonSuggestFold>
       <ClueForm v-if="adding" :saving="creating" @submit="addClue" @cancel="adding = false" />
       <AppButton v-else variant="outline" size="sm" :icon="IconAdd" icon-size="xs" label="Add a clue" class="self-start" @click="adding = true" />
-    </div>
+    </CanonBlock>
 
-    <div class="flex flex-col gap-1.5">
-      <AppButton
-        v-if="entry.revealed_at === null"
-        variant="primary"
-        size="sm"
-        label="Reveal to the party"
-        class="self-start"
-        data-testid="reveal"
-        @click="reveal"
-      />
-      <AppButton
-        v-if="entry.revealed_at === null && !choosingWho"
-        variant="outline"
-        size="sm"
-        label="Reveal to…"
-        class="self-start"
-        data-testid="reveal-some"
-        @click="choosingWho = true"
-      />
-      <PassageTellSome v-if="entry.revealed_at === null && choosingWho" :members="party ?? []" tell-label="Reveal" @tell="revealChosen" @cancel="choosingWho = false" />
-      <AppButton v-else-if="entry.revealed_at !== null" variant="outline" size="sm" label="Hide again" class="self-start" data-testid="hide" @click="hide" />
-      <p v-if="entry.revealed_at !== null && entry.became_entry_id !== null" class="text-body text-foreground" data-testid="secret-became">
-        <RouterLink :to="{ path: '/canon', query: { entry: entry.became_entry_id } }" class="underline">
-          {{ became ? `Now a truth: ${became.title}` : "Now a truth" }}
-        </RouterLink>
-      </p>
-      <AppButton v-else-if="entry.revealed_at !== null" variant="outline" size="sm" label="Make it a truth" class="self-start" :loading="making" data-testid="make-truth" @click="makeTruth" />
-      <p class="text-caption text-muted-foreground">
-        <template v-if="entry.revealed_at === null">Finding every clue never reveals it by itself: revealing it to the players is your button.</template>
-        <template v-else>The party can read this secret. Hiding it again takes it off their screens.</template>
-      </p>
-    </div>
+    <p v-if="entry.revealed_at !== null && entry.became_entry_id !== null" class="m-0 text-body text-foreground" data-testid="secret-became">
+      <RouterLink :to="{ path: '/canon', query: { entry: entry.became_entry_id } }" class="underline">
+        {{ became ? `Now a truth: ${became.title}` : "Now a truth" }}
+      </RouterLink>
+    </p>
+    <AppButton v-else-if="entry.revealed_at !== null" variant="outline" size="sm" label="Make it a truth" class="self-start" :loading="making" data-testid="make-truth" @click="makeTruth" />
 
     <SecretOutlets :entry="entry" :clues="clues" />
 
     <EntryStoryLinks :entry="entry" />
 
-    <ConnectionsSection :subject="subject" :subject-name="entry.title" />
-
-    <AppButton variant="destructive" size="sm" :icon="IconDelete" icon-size="xs" label="Delete this secret" class="self-start" @click="emit('delete')" />
-  </section>
+    <template #connections>
+      <ConnectionsSection :subject="subject" :subject-name="entry.title" />
+    </template>
+  </CanonEntryPane>
 </template>
 
 <script setup lang="ts">
 /**
- * The selected secret (frame 05): its statement, its clues with the Found tick, and the DM's Reveal button. The state
+ * The open secret, in the chapter's entry pane: its statement, who it is revealed to (the DM's Reveal buttons), its clues with the Found tick. The state
  * is read off the clues, never stored; revealing shares the secret with every party member (or only those chosen under "Reveal to…") and stamps the time and the open session.
  */
 import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
+import CanonReview from "./CanonReview.vue";
+import CanonBlock from "./kit/CanonBlock.vue";
+import CanonEntryPane from "./kit/CanonEntryPane.vue";
 import EntryArcPicker from "./EntryArcPicker.vue";
 import EntryStoryLinks from "./EntryStoryLinks.vue";
 import PassageTellSome from "./PassageTellSome.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
-import CanonSuggestFold from "./CanonSuggestFold.vue";
-import CanonSuggestions from "./CanonSuggestions.vue";
 import ClueForm from "./ClueForm.vue";
 import ClueRow from "./ClueRow.vue";
 import SecretOutlets from "./SecretOutlets.vue";
@@ -113,19 +96,18 @@ import { useClueWhere } from "@/composables/canon/useClueWhere";
 import { useRevealSecret } from "@/composables/canon/useRevealSecret";
 import { useParty } from "@/composables/party/useParty";
 import { useConfirm } from "@/composables/useConfirm";
-import { IconAdd, IconDelete } from "@/lib/icons";
+import { IconAdd } from "@/lib/icons";
 import { toast } from "@/lib/toast";
 import type { CanonClue, CanonEntry } from "@/types/canon.types";
 import type { WorldRef } from "@/types/connections.types";
 
 const { entry } = defineProps<{ entry: CanonEntry }>();
-const emit = defineEmits<{ delete: [] }>();
-
-// The clues mode counts the secret's own clues; it takes no entries.
-const NO_ENTRIES: readonly CanonEntry[] = [];
+const emit = defineEmits<{ delete: []; close: [] }>();
 
 const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
 const linkBecame = useLinkBecame();
+// The written request the Clues block's Suggest hands the Familiar.
+const clueRequest = computed(() => `Suggest clues for the secret "${entry.title}".`);
 
 const { data: allClues } = useCanonClues();
 const clues = computed(() => (allClues.value ?? []).filter((c) => c.secret_id === entry.id));

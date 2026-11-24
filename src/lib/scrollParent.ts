@@ -27,3 +27,30 @@ export function scrollParentOf(el: Element): HTMLElement | null {
   // Nothing bounded (or no layout at all, as in jsdom): the nearest, as before.
   return nearest;
 }
+
+export type ScrollBlock = "start" | "center" | "nearest";
+
+/**
+ * Brings `el` into view by scrolling only its own scroller (`scrollParentOf`), never the ones further out.
+ *
+ * `el.scrollIntoView()` scrolls every ancestor that can scroll, and that includes boxes that are `overflow: hidden`
+ * and the document itself. The app shell is one: it pins the sidebar, the page and the docked soundboard deck to the
+ * screen, and a jump made with `scrollIntoView` slid the whole shell up, so the deck rose into the middle of the page
+ * with empty paper under it (the Canon page's backstory link, 24 Nov 2026). This moves the one scroller that should move.
+ */
+export function scrollWithin(el: HTMLElement, { block = "start", smooth = false }: { block?: ScrollBlock; smooth?: boolean } = {}): void {
+  const scroller = scrollParentOf(el);
+  if (!scroller) return;
+  const box = scroller.getBoundingClientRect();
+  const rect = el.getBoundingClientRect();
+  const offset = rect.top - box.top;
+  let top: number;
+  if (block === "start") top = scroller.scrollTop + offset;
+  else if (block === "center") top = scroller.scrollTop + offset - (box.height - rect.height) / 2;
+  else if (offset < 0) top = scroller.scrollTop + offset;
+  // Down only as far as its bottom needs, and never past its top: an entry taller than the page (a backstory) would
+  // otherwise be lined up by its end, and its title and the ledger beside it would leave the top of the page.
+  else if (rect.bottom > box.bottom) top = scroller.scrollTop + Math.min(rect.bottom - box.bottom, offset);
+  else return;
+  scroller.scrollTo({ top: Math.max(0, top), behavior: smooth ? "smooth" : "auto" });
+}

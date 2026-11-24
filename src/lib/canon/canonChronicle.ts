@@ -31,17 +31,6 @@ export function chronicleItems(sessions: readonly CampaignSession[], notes: read
   return sortSessionLog(sessions).map((session) => ({ session, note: noteOf.get(session.id) ?? null }));
 }
 
-export type ChronicleOrder = "newest" | "start";
-
-export function orderChronicle<T>(newestFirst: readonly T[], order: ChronicleOrder): T[] {
-  return order === "newest" ? [...newestFirst] : [...newestFirst].reverse();
-}
-
-/** How many sessions have a chronicle entry written: the number the contents column shows. */
-export function writtenCount(items: readonly ChronicleItem[]): number {
-  return items.filter((item) => item.note !== null).length;
-}
-
 /** The date in the world the note carries for the session's start; all null when the note is undated or missing. */
 export function sessionWorldDate(note: Note | null): WorldDate {
   if (note === null || note.session_start_year === null) return { year: null, month: null, day: null };
@@ -55,29 +44,6 @@ export function chronicleExcerpt(content: string | null, max = 260): string {
   const cut = text.slice(0, max);
   const space = cut.lastIndexOf(" ");
   return `${(space > max / 2 ? cut.slice(0, space) : cut).trimEnd()}…`;
-}
-
-function findImage(node: unknown): string | null {
-  if (typeof node !== "object" || node === null) return null;
-  const n = node as { type?: unknown; attrs?: { src?: unknown }; content?: unknown };
-  if (n.type === "image" && typeof n.attrs?.src === "string" && n.attrs.src !== "") return n.attrs.src;
-  if (Array.isArray(n.content)) {
-    for (const child of n.content) {
-      const found = findImage(child);
-      if (found !== null) return found;
-    }
-  }
-  return null;
-}
-
-/** The first picture in a note (the Chronicler's illustrations land in the note as images), or null. */
-export function firstNoteImage(content: string | null): string | null {
-  if (!content) return null;
-  try {
-    return findImage(JSON.parse(content));
-  } catch {
-    return null; // legacy plain text has no pictures
-  }
 }
 
 export type AlmanacKind = "lore" | "moving" | "due" | "session" | "calendar";

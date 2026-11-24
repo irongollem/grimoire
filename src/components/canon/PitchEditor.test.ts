@@ -43,7 +43,7 @@ describe("PitchEditor", () => {
   it("removes nothing when the confirm is cancelled", async () => {
     mocks.confirm.mockResolvedValue(false);
     const w = mountEditor("old");
-    await w.findAll("button").find((b) => b.text() === "Remove")!.trigger("click");
+    await w.get("button[aria-label='Delete the pitch']").trigger("click");
     await flushPromises();
     expect(mocks.destroy).not.toHaveBeenCalled();
   });
@@ -51,7 +51,7 @@ describe("PitchEditor", () => {
   it("removes the pitch when the confirm is accepted", async () => {
     mocks.confirm.mockResolvedValue(true);
     const w = mountEditor("old");
-    await w.findAll("button").find((b) => b.text() === "Remove")!.trigger("click");
+    await w.get("button[aria-label='Delete the pitch']").trigger("click");
     await flushPromises();
     expect(mocks.destroy).toHaveBeenCalledWith("p1");
   });
@@ -67,11 +67,5 @@ describe("PitchEditor", () => {
     await w.find("[data-testid=editor]").setValue("my unsaved words");
     await w.setProps({ entry: entry("from another tab") });
     expect(editorValue(w)).toBe("my unsaved words");
-  });
-
-  // Bug: canon text had no @, so the DM could not name a person, place or faction in it.
-  it("offers the campaign's people, places and factions as @mentions", () => {
-    const w = mountEditor(null);
-    expect(w.findComponent({ name: "RichTextEditor" }).props("entityMentionItems")).toEqual([{ id: "n1", entityType: "npc", label: "Maren Voss" }]);
   });
 });

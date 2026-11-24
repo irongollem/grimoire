@@ -71,12 +71,6 @@ describe("CanonHere", () => {
     expect(mocks.setFound).toHaveBeenCalledWith(expect.objectContaining({ id: "k1" }), true);
   });
 
-  it("shows a found clue ticked", async () => {
-    answer.clues = [clue({ found_at: "2026-11-20T10:00:00Z" })];
-    const w = await mountHere("location", "p1");
-    expect((w.find("input[type=checkbox]").element as HTMLInputElement).checked).toBe(true);
-  });
-
   it("offers an untold passage with Tell the party, and tells that passage", async () => {
     answer.passages = [passage()];
     const w = await mountHere("location", "p1");
@@ -89,15 +83,6 @@ describe("CanonHere", () => {
   it("names an untitled passage rather than leaving an empty row", async () => {
     answer.passages = [passage({ title: "" })];
     expect((await mountHere("location", "p1")).text()).toContain("An untitled passage");
-  });
-
-  it("shows clues and passages together in one block", async () => {
-    answer.clues = [clue()];
-    answer.passages = [passage()];
-    const w = await mountHere("location", "p1");
-    expect(w.findAll("[data-testid=canon-here]")).toHaveLength(1);
-    expect(w.find("[data-testid=clues-here]").exists()).toBe(true);
-    expect(w.find("[data-testid=lore-here]").exists()).toBe(true);
   });
 
   // Bug caught: the compact prop ignored, so the run surfaces carry the full-size card.

@@ -33,7 +33,7 @@ vi.mock("@/composables/ask/askTransport", () => ({ sendToAskTurn: (...a: unknown
 
 import AskPanel from "./AskPanel.vue";
 
-const stubs = { Transition: false, RouterLink: { template: "<a><slot /></a>" } };
+const stubs = { Teleport: true, Transition: false, RouterLink: { template: "<a><slot /></a>" } };
 
 describe("AskPanel", () => {
   beforeEach(() => {
@@ -51,6 +51,17 @@ describe("AskPanel", () => {
     await flushPromises();
     expect(transport).toHaveBeenCalledTimes(1);
     expect(w.findAll('[data-testid="ask-user-message"]').map((m) => m.text())).toEqual(["who is Mara"]);
+    w.unmount();
+  });
+
+  // Bug caught: Suggest sending the request itself, or leaving the box empty, so the DM could not change it first.
+  it("writes an unsent request into the box and sends nothing", async () => {
+    const ui = useAskUiStore();
+    ui.openPanel("Suggest three truths.", { send: false });
+    const w = mount(AskPanel, { global: { stubs } });
+    await flushPromises();
+    expect(transport).not.toHaveBeenCalled();
+    expect((w.get('[data-testid="ask-input"]').element as HTMLTextAreaElement).value).toBe("Suggest three truths.");
     w.unmount();
   });
 

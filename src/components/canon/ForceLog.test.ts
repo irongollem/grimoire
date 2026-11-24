@@ -32,21 +32,16 @@ describe("ForceLog", () => {
     expect(w.emitted("undo")?.[0][0]).toMatchObject({ id: "new" });
   });
 
-  it("names each tick's force when given the names, so the log across every force says who moved", () => {
-    const w = mount(ForceLog, { props: { ticks: [tick({ force_id: "f1" }), tick({ id: "t2", force_id: "f2" })], forceName: (id: string) => (id === "f1" ? "The Stain" : "The Ferrymen") } });
-    expect(w.findAll("[data-testid=force-tick-force]").map((n) => n.text()).sort()).toEqual(["The Ferrymen", "The Stain"]);
-    expect(mount(ForceLog, { props: { ticks } }).find("[data-testid=force-tick-force]").exists()).toBe(false);
-  });
-
-  it("offers Undo on each force's own newest tick across the log, never on an older one of the same force", () => {
-    const all = [
-      tick({ id: "a-old", force_id: "a", created_at: "2026-11-18T10:00:00Z" }), tick({ id: "a-new", force_id: "a", created_at: "2026-11-20T10:00:00Z" }),
-      tick({ id: "b-old", force_id: "b", created_at: "2026-11-17T10:00:00Z" }), tick({ id: "b-new", force_id: "b", created_at: "2026-11-19T10:00:00Z" }),
-    ];
-    const w = mount(ForceLog, { props: { ticks: all, forceName: (id: string) => id } });
-    const withUndo = w.findAll("[data-testid=force-tick]").filter((r) => r.find("button").exists()).map((r) => r.find("[data-testid=force-tick-force]").text());
-    expect(withUndo).toHaveLength(2);
-    expect(w.findAll("button")).toHaveLength(2);
+  // Bug caught: Undo offered on an older tick, so the log could skip one and the dial and the log would disagree.
+  it("limits the log to the newest ticks, keeps Undo on the newest, and opens the rest with All N moves", async () => {
+    const all = Array.from({ length: 5 }, (_, i) => tick({ id: `t${i}`, created_at: `2026-11-1${i}T10:00:00Z` }));
+    const w = mount(ForceLog, { props: { ticks: all, limit: 3 } });
+    expect(w.findAll("[data-testid=force-tick]")).toHaveLength(3);
+    expect(w.get("[data-testid=force-log-all]").text()).toBe("All 5 moves");
+    await w.get("[data-testid=force-log-all]").trigger("click");
+    expect(w.findAll("[data-testid=force-tick]")).toHaveLength(5);
+    expect(w.find("[data-testid=force-log-all]").exists()).toBe(false);
+    expect(w.findAll("button")).toHaveLength(1);
   });
 
   it("says what a note-less tick was, by direction", () => {

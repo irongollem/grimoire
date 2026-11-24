@@ -46,12 +46,6 @@ describe("PlaceHabitat", () => {
     expect(w.get("a").attributes("href")).toBe("life");
   });
 
-  // Bug: a room of a covered town said it lay in the habitat as if covered itself, hiding where it came from.
-  it("says which place a room inherits the habitat through", () => {
-    state.places = [{ id: "p", habitatId: "h1", locationId: "town" }];
-    expect(mountFor("tavern").get("[data-testid=place-habitat]").text()).toContain("Salt marsh, through Saltmere");
-  });
-
   // Bug: a place in no habitat drew an empty block.
   it("renders nothing for a place in no habitat", () => {
     state.places = [{ id: "p", habitatId: "h1", locationId: "town" }];

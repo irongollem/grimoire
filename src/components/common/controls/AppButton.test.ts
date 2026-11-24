@@ -151,6 +151,18 @@ describe("AppButton", () => {
     expect(w.find("span.max-sm\\:hidden").exists()).toBe(false);
   });
 
+  // Bug caught (24 Nov 2026): a pane beside the page narrowed the Canon's header on a wide screen and its actions wrapped
+  // onto a second row; a viewport breakpoint never fired. A header action collapses by the header's own width.
+  it("collapses a header action by the page header's width, not the screen's", () => {
+    const w = mount(AppButton, {
+      props: { label: "Open as a book", collapseLabelOnMobile: true, collapseBelow: "header" },
+      global,
+    });
+    expect(w.find("span").classes()).toContain("@max-3xl/header:hidden");
+    expect(w.find("span.max-sm\\:hidden").exists()).toBe(false);
+    expect(w.attributes("aria-label")).toBe("Open as a book");
+  });
+
   it("prefers the default slot over the label prop", () => {
     const w = mount(AppButton, {
       props: { label: "ignored" },

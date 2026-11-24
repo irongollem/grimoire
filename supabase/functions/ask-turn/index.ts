@@ -13,7 +13,7 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { judge, JEV_MODEL, judgingKey } from "../_shared/typesafe.ts";
 import { ASK_SCOPE_TIMEOUT_MS } from "../_shared/agent/askScope.ts";
 import { EmbeddingProviderConfigError, resolveEmbeddingProvider, toVectorLiteral } from "../_shared/embeddings.ts";
-import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
+import { screenChatText } from "../_shared/moderation.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { callTool, listTools } from "../_shared/mcp/tools.ts";
 import type { ToolContext } from "../_shared/mcp/tools.ts";
@@ -134,13 +134,8 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     loadCalibration: () => loadAgentCalibration(admin),
 
     async isFlagged(message) {
-      try {
-        await screenImagePrompt(message, { apiKey: moderationKey, admin, userId: user.id, generationType: "ask_turn", imageProvider: "none" });
-        return false;
-      } catch (error) {
-        if (isPromptRejected(error)) return true;
-        throw error;
-      }
+      const verdict = await screenChatText(message, { apiKey: moderationKey, admin, userId: user.id, surface: "ask_turn" });
+      return verdict?.flagged === true;
     },
 
     async judgeScope(request) {

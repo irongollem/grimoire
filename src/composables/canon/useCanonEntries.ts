@@ -127,16 +127,6 @@ export function useCreateCanonEntry() {
   });
 }
 
-/** Create a canon entry in the campaign captured before an asynchronous workflow. */
-export function useCreateCanonEntryInCampaign() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ campaignId, input }: { campaignId: string; input: NewCanonEntry }) => createCanonEntry(campaignId, input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [CANON_KEY] }),
-    onError: (e) => toast.error(toast.fromError(e)),
-  });
-}
-
 export function useUpdateCanonEntry() {
   const qc = useQueryClient();
   return useMutation({

@@ -5,6 +5,7 @@ import { toast } from "@/lib/toast";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { useCampaignStore } from "@/stores/campaign";
 import { UNREADABLE_PEOPLE, type People } from "@/lib/canon/peoples";
+import { CHECK_VIOLATION, nextSortOrder } from "@/composables/canon/useCampaignHabitats";
 
 /**
  * The peoples of the world (#1255 item 30): `campaign_peoples`, each row a species or a creature the campaign already
@@ -12,9 +13,6 @@ import { UNREADABLE_PEOPLE, type People } from "@/lib/canon/peoples";
  * database holds the shares to 100 and checks that at commit, so a write that would pass it fails here with 23514
  * and the screen shows what the server has.
  */
-
-/** Postgres `check_violation`: what the commit-time total raises when the shares would pass 100. */
-const CHECK_VIOLATION = "23514";
 
 interface NamedRow {
   id: string;
@@ -24,6 +22,7 @@ interface NamedRow {
   from_library: boolean;
   /** Null when the record is not this reader's to read (a co-DM's own species): the row still counts. */
   name: string | null;
+  body: string | null;
 }
 
 export interface NewPeople {
@@ -38,7 +37,7 @@ export interface NewPeople {
 export async function fetchPeoples(campaignId: string): Promise<People[]> {
   const { data, error } = await supabase
     .from("campaign_peoples_named")
-    .select("id, percent, kind, record_id, from_library, name")
+    .select("id, percent, kind, record_id, from_library, name, body")
     .eq("campaign_id", campaignId)
     .order("sort_order", { ascending: true });
   if (error) throw error;
@@ -50,6 +49,7 @@ export async function fetchPeoples(campaignId: string): Promise<People[]> {
     name: r.name === null ? UNREADABLE_PEOPLE : r.name,
     readable: r.name !== null,
     percent: Number(r.percent),
+    body: r.body,
   }));
 }
 
@@ -61,14 +61,7 @@ export function peopleColumn(kind: People["kind"], fromLibrary: boolean): "speci
 
 /** Adds a people after the last one. */
 export async function insertPeople(campaignId: string, people: NewPeople): Promise<void> {
-  const last = await supabase
-    .from("campaign_peoples")
-    .select("sort_order")
-    .eq("campaign_id", campaignId)
-    .order("sort_order", { ascending: false })
-    .limit(1);
-  if (last.error) throw last.error;
-  const sortOrder = last.data.length > 0 ? (last.data[0] as { sort_order: number }).sort_order + 1 : 0;
+  const sortOrder = await nextSortOrder("campaign_peoples", campaignId);
   const { error } = await supabase.from("campaign_peoples").insert({
     campaign_id: campaignId,
     [peopleColumn(people.kind, people.fromLibrary)]: people.recordId,
@@ -81,6 +74,13 @@ export async function insertPeople(campaignId: string, people: NewPeople): Promi
 export async function updatePeoplePercent(id: string, percent: number): Promise<void> {
   // RLS answers a write it refuses with no error and no row; asking for the row back is how that is told from a save.
   const { data, error } = await supabase.from("campaign_peoples").update({ percent }).eq("id", id).select("id");
+  if (error) throw error;
+  if (data.length === 0) throw new Error("That people is gone, or you may not change it.");
+}
+
+/** What they are like, as the editor's document; null clears it. */
+export async function updatePeopleBody(id: string, body: string | null): Promise<void> {
+  const { data, error } = await supabase.from("campaign_peoples").update({ body }).eq("id", id).select("id");
   if (error) throw error;
   if (data.length === 0) throw new Error("That people is gone, or you may not change it.");
 }
@@ -105,7 +105,7 @@ export function useCampaignPeoples() {
   return { peoples: computed<People[]>(() => query.data.value ?? []), isLoading: query.isLoading };
 }
 
-/** The peoples and the three writes, for the screen that edits them. A write that fails refreshes too, so the screen shows what the server has. */
+/** The peoples and the writes, for the screen that edits them. A write that fails refreshes too, so the screen shows what the server has. */
 export function usePeoplesEditing() {
   const campaign = useCampaignStore();
   const qc = useQueryClient();
@@ -129,6 +129,14 @@ export function usePeoplesEditing() {
   });
   const setPercentOf = write(({ id, percent }: { id: string; percent: number }) => updatePeoplePercent(id, percent));
   const removeOne = write(deletePeople);
+  // The words save themselves and report through the autosave status, so this one neither toasts nor swallows a failure.
+  async function saveBody(id: string, body: string | null): Promise<void> {
+    try {
+      await updatePeopleBody(id, body);
+    } finally {
+      await qc.invalidateQueries({ queryKey: [CANON_KEY, "peoples"] });
+    }
+  }
 
   return {
     peoples,
@@ -137,5 +145,6 @@ export function usePeoplesEditing() {
     addPeople: (people: NewPeople) => add.mutate(people),
     setPercent: (id: string, percent: number) => setPercentOf.mutate({ id, percent }),
     removePeople: (id: string) => removeOne.mutate(id),
+    saveBody,
   };
 }

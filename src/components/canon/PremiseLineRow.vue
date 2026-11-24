@@ -1,29 +1,39 @@
 <template>
-  <li :id="`canon-entry-${entry.id}`" class="flex min-w-0 flex-col gap-1 border-b border-border px-3 py-1.5 last:border-b-0" :data-kind="entry.premise_kind">
-    <div class="flex min-w-0 items-center gap-2">
+  <li :id="`canon-entry-${entry.id}`" class="flex min-w-0 flex-col gap-1 border-b border-border px-3 py-2 last:border-b-0" :data-kind="entry.premise_kind">
+    <div class="flex min-w-0 items-start gap-2">
       <span
         v-if="note"
-        class="shrink-0 border px-1.5 py-px text-label font-bold uppercase"
+        class="mt-1.5 shrink-0 border px-1.5 py-px text-label font-bold"
         :class="entry.premise_kind === 'line' ? 'border-destructive/40 text-destructive' : 'border-border text-muted-foreground'"
       >
         {{ entry.premise_kind === "line" ? "Line" : "Veil" }}
       </span>
-      <AppInput
-        :key="revision"
-        v-model.lazy="text"
-        wrap
-        size="body"
-        :aria-label="label"
-        :class="textClass"
-      />
-      <span v-if="note" class="hidden shrink-0 text-caption text-muted-foreground sm:inline">{{ note }}</span>
-      <AudienceRevealControl
-        :visible-to="entry.player_visible_to"
-        :name="entry.title"
-        @change="(next) => update({ id: entry.id, patch: { player_visible_to: next } })"
-      />
-      <CanonMoveButtons v-if="move" :label="entry.title" :first="move.first" :last="move.last" @move="(d) => emit('move', d)" />
-      <AppButton variant="ghost" size="icon-sm" :icon="IconDelete" aria-label="Delete this entry" @click="remove" />
+      <!-- The words take the row: `block`, because a wrapping field sizes to its content and was squeezed to a sliver
+           beside the controls, cutting a theme off mid-word. -->
+      <div class="min-w-0 flex-1">
+        <AppInput
+          :key="revision"
+          v-model.lazy="text"
+          wrap
+          block
+          size="body"
+          :aria-label="label"
+          :class="textClass"
+          data-testid="premise-line-text"
+        />
+        <span v-if="note" class="text-caption text-muted-foreground">{{ note }}</span>
+      </div>
+      <!-- Icons only, so the controls keep to a narrow column: who sees the line is named in the reveal's tooltip. -->
+      <span class="flex shrink-0 items-center gap-0.5 pt-0.5">
+        <AudienceRevealControl
+          form="inline"
+          :visible-to="entry.player_visible_to"
+          :name="entry.title"
+          @change="(next) => update({ id: entry.id, patch: { player_visible_to: next } })"
+        />
+        <CanonMoveButtons v-if="move" :label="entry.title" :first="move.first" :last="move.last" @move="(d) => emit('move', d)" />
+        <AppButton variant="ghost" size="icon-sm" :icon="IconDelete" aria-label="Delete this entry" @click="remove" />
+      </span>
     </div>
     <ThemeCarriedBy v-if="entry.premise_kind === 'theme'" :entry="entry" />
   </li>

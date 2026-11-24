@@ -37,7 +37,7 @@ const TRUTHS = [canonEntry({ id: "t1" }), canonEntry({ id: "t2" })];
 const mountIt = (truths = TRUTHS) =>
   mount(TableAddedSection, {
     props: { truths },
-    global: { stubs: { SoloCorrectDialog: true, CanonRubric: true, OverflowMenu: { emits: ["select"], template: "<button data-testid='more' @click=\"$emit('select', 'truth')\" />" } } },
+    global: { stubs: { SoloCorrectDialog: true, OverflowMenu: { emits: ["select"], template: "<button data-testid='more' @click=\"$emit('select', 'truth')\" />" } } },
   });
 const button = (w: ReturnType<typeof mountIt>, label: string) => w.findAll("button, a").find((b) => b.text() === label);
 
@@ -118,15 +118,6 @@ describe("TableAddedSection", () => {
     await flushPromises();
     await button(w, "Clear")!.trigger("click");
     expect(useCanonUiStore().tableFactFilter).toBe("new");
-  });
-
-  // Bug caught: a campaign where the table never added anything saying "Everything has been reviewed", and offering a filter over nothing.
-  it("says the table has added nothing, with no filter, when there are no facts at all", () => {
-    facts.value = [];
-    const w = mountIt();
-    expect(w.text()).toContain("The table has added nothing");
-    expect(w.text()).not.toContain("Nothing new");
-    expect(w.find("[role=radiogroup], [aria-label=Show]").exists()).toBe(false);
   });
 
   // Bug caught: the no-facts words swallowing the reviewed-everything state, so a DM who kept every line is told the table added nothing.

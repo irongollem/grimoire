@@ -10,7 +10,7 @@ vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => 
 const queue = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/canon/queueCanonEmbedding", () => ({ queueCanonEmbedding: queue }));
 
-import { createCanonPassage, deleteCanonPassage, fetchCanonPassages, firstPassageIds, passagesOf, toldTally, untoldPassagesAt, wherePatch } from "./useCanonPassages";
+import { createCanonPassage, deleteCanonPassage, fetchCanonPassages, passagesOf, toldTally, wherePatch } from "./useCanonPassages";
 import { TAKE_BACK_PATCH, tellPatch, updateCanonPassage } from "./useCanonPassageEdits";
 import type { CanonLorePassage } from "@/types/canon.types";
 
@@ -98,31 +98,14 @@ describe("passage helpers", () => {
     expect(toldTally(rows)).toEqual({ told: 2, total: 3 });
   });
 
-  it("finds each entry's first passage, never a later one", () => {
-    const all = list(row({ id: "a" }), row({ id: "b", sort_order: 1 }), row({ id: "z", entry_id: "l2" }));
-    expect([...firstPassageIds(all)].sort()).toEqual(["a", "z"]);
-  });
-
-  it("lists untold passages at one place, not the told, the first, another place or a person with the same id", () => {
-    const all = list(
-      row({ id: "first", location_id: "p1" }),
-      row({ id: "wait", sort_order: 1, location_id: "p1" }),
-      row({ id: "told", sort_order: 2, location_id: "p1", told_at: "2026-11-20T10:00:00Z" }),
-      row({ id: "elsewhere", sort_order: 3, location_id: "p2" }),
-      row({ id: "person", sort_order: 4, npc_id: "p1" }),
-    );
-    expect(untoldPassagesAt(all, "location", "p1").map((p) => p.id)).toEqual(["wait"]);
-  });
-
   it("moves a passage to one place by clearing the other two, because the table refuses a passage at two", () => {
     expect(wherePatch({ kind: "npc", id: "n1" })).toEqual({ location_id: null, npc_id: "n1", quest_beat_id: null });
     expect(wherePatch(null)).toEqual({ location_id: null, npc_id: null, quest_beat_id: null });
   });
 
   // Bug: a passage "placed" in an item was written with no column (undefined key), silently losing the place.
-  it("refuses to put a passage in an item or a handout, and never lists one waiting there", () => {
+  it("refuses to put a passage in an item or a handout", () => {
     expect(() => wherePatch({ kind: "item", id: "i1" })).toThrow("cannot come out at item");
-    expect(untoldPassagesAt([], "document", "d1")).toEqual([]);
   });
 
   it("tells with the time, the running session and every party member, and takes back all three", () => {

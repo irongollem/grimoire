@@ -1,5 +1,6 @@
 <template>
-  <div class="h-dvh bg-background flex flex-col overflow-hidden" :style="chromeStyle">
+  <!-- `overflow-clip`, never `overflow-hidden`: see DefaultLayout. A hidden shell is still scrollable by a focus or a jump. -->
+  <div class="h-dvh bg-background flex flex-col overflow-clip" data-testid="app-shell" :style="chromeStyle">
     <!-- Top bar: branding + character + sign out. A full-screen phone route
          (meta.fullscreenMobile, e.g. a handout in the reader) brings its own
          header and back button, as it does under DefaultLayout. -->
@@ -270,7 +271,8 @@
           <RouterView />
         </div>
       </main>
-      <CampaignChat :contained="true" :hide-tab="true" />
+      <SideDock contained />
+      <CampaignChat :hide-tab="true" />
     </div>
 
     <PlayerBottomNav v-if="!fullscreenMobile" :show-more="showMore" :unread-paths="unreadPaths" @open-more="showMore = true" />
@@ -402,6 +404,7 @@ import { useParty } from "@/composables/party/useParty";
 import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
 import { usePlayerRemovalGuard } from "@/composables/player/usePlayerRemovalGuard";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
+import SideDock from "@/components/layout/SideDock.vue";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import PlayerBottomNav from "@/components/layout/PlayerBottomNav.vue";
 import PlayerNavGrid from "@/components/layout/PlayerNavGrid.vue";

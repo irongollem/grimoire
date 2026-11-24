@@ -1,12 +1,15 @@
 <template>
   <div class="flex flex-col gap-3" data-testid="open-questions">
-    <div>
-      <h3 class="text-heading-xs font-bold text-foreground">Open questions</h3>
-      <p class="text-caption text-muted-foreground">Questions you keep open on purpose. Nobody, the Narrator included, settles them by invention.</p>
+    <div class="flex items-start gap-2">
+      <div class="min-w-0 flex-1">
+        <h3 class="m-0 text-heading-xs font-bold text-foreground">Open questions</h3>
+        <p class="m-0 text-caption text-muted-foreground">Questions you keep open on purpose. Nobody, the Narrator included, settles them by invention.</p>
+      </div>
+      <CanonSuggest request="Suggest open questions for my canon." label="Suggest questions" />
     </div>
+    <CanonReview mode="questions" :entries="questions" />
     <WonderInbox :sort-order="questions.length" />
-    <CanonSuggestFold part="questions"><CanonSuggestions mode="questions" :entries="open" /></CanonSuggestFold>
-    <ul v-if="shown.length > 0" class="flex flex-col border border-border bg-card">
+    <ul v-if="shown.length > 0" class="flex flex-col rounded-lg border border-border bg-card">
       <QuestionRow
         v-for="q in shown"
         :key="q.id"
@@ -39,7 +42,7 @@
         @click="showAnswered = !showAnswered"
       />
       <Transition v-bind="drawerTransition()">
-        <ul v-show="showAnswered" class="flex flex-col border border-border bg-card" data-testid="answered-list">
+        <ul v-show="showAnswered" class="flex flex-col rounded-lg border border-border bg-card" data-testid="answered-list">
           <QuestionAnsweredRow v-for="q in answered" :key="q.id" :entry="q" @reopen="reopen(q)" />
         </ul>
       </Transition>
@@ -52,8 +55,8 @@
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import CanonAddRow from "./CanonAddRow.vue";
-import CanonSuggestFold from "./CanonSuggestFold.vue";
-import CanonSuggestions from "./CanonSuggestions.vue";
+import CanonReview from "./CanonReview.vue";
+import CanonSuggest from "./kit/CanonSuggest.vue";
 import QuestionAnsweredRow from "./QuestionAnsweredRow.vue";
 import QuestionRow from "./QuestionRow.vue";
 import WonderInbox from "./WonderInbox.vue";

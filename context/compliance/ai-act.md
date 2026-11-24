@@ -537,6 +537,14 @@ within 0.05 of a threshold, over one, or refused by the renderer after we
 allowed it. Ordinary passes store scores alone, so the table does not become a
 durable record of every image every DM has asked for.
 
+**Chat text is stricter** (`screenChatText`, since 24 Nov 2026): the same log
+keeps a line of chat (a player's message at the AI table, the narrator's words,
+Ask, a character's reply) only when it was refused, because a refused line is
+what a strike holds the person to and the admin who may reopen a closed table
+reads it. A line that passed is never stored, however close it came, so the log
+is not a record of what players said to each other. Its rows carry no image
+provider (null).
+
 **This does not touch the local-key promise in 6a.** Screening runs only in the
 edge functions, where the prompt is composed server-side and is already on our
 server by construction. The client-direct generators in `src/ai/` (BYOK-cloud

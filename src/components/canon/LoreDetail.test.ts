@@ -42,7 +42,7 @@ const p = (id: string, sort: number): CanonLorePassage => ({
 const mountIt = (over = {}) =>
   mount(LoreDetail, {
     props: { entry: canonEntry({ id: "l1", part: "lore", title: "The Fall", ...over }) },
-    global: { stubs: { EntryQuests: EntryQuestsStub, EntryStoryLinks: { props: ["entry"], template: "<div data-testid='story-links' :data-id='entry.id' />" }, EntityImageBlock: true, AudienceRevealControl: true, ConnectionsSection: true, CanonSuggestions: true, LorePassageRow: { props: ["passage"], emits: ["move", "remove"], template: "<li data-testid='row'>{{ passage.id }}<button data-testid='up' @click=\"$emit('move', -1)\" /><button data-testid='rm' @click=\"$emit('remove')\" /></li>" } } },
+    global: { stubs: { CanonReview: true, EntryQuests: EntryQuestsStub, EntryStoryLinks: { props: ["entry"], template: "<div data-testid='story-links' :data-id='entry.id' />" }, EntityImageBlock: true, AudienceRevealControl: true, ConnectionsSection: true, CanonSuggest: { name: 'CanonSuggest', props: ['request'], template: "<i data-testid='suggest' :data-request='request' />" }, LorePassageRow: { props: ["passage"], emits: ["move", "remove"], template: "<li data-testid='row'>{{ passage.id }}<button data-testid='up' @click=\"$emit('move', -1)\" /><button data-testid='rm' @click=\"$emit('remove')\" /></li>" } } },
   });
 
 describe("LoreDetail", () => {
@@ -101,9 +101,6 @@ describe("LoreDetail", () => {
     expect(mocks.updatePassage).not.toHaveBeenCalledWith({ id: "a", patch: { sort_order: 0 } });
   });
 
-  it("offers Split only when the entry has text to split", () => {
-    expect(mountIt().findComponent({ name: "CanonSuggestions" }).exists()).toBe(false);
-  });
   // Bug caught: the block showing another entry's quests (or another part's words), so a lore read as a force's "where the party meets it".
   it("shows this lore's own quest links, in the lore's words", () => {
     questData.quests = [

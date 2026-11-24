@@ -23,7 +23,7 @@ import { jsonError, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { settleHandedOff, withCreditHold, type JobLedger } from "../_shared/pipeline/creditHold.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { makeTextScreenIo } from "./campaignTextScreen.ts";
-import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
+import { screenChatText } from "../_shared/moderation.ts";
 import { callTool, listTools } from "../_shared/mcp/tools.ts";
 import type { ToolContext } from "../_shared/mcp/tools.ts";
 import { ENTITY_TYPES } from "../_shared/mcp/registry.ts";
@@ -63,6 +63,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { travelMapFrom } from "./travelRows.ts";
 import { afterUse, asCompanion, characterInsert, characterRewrite, companionMemoriesText, companionRows, foundCharacters, isUntouchedTableCharacter, memoryRowsFor, profileWithBelongings } from "./characterRows.ts";
 import { escapeLike } from "./likeEscape.ts";
+import { nameCore } from "../_shared/agent/nameCheck.ts";
 import { nextSessionNumber, openedSession, prologueFrom, sessionRow } from "./sessionRows.ts";
 import { appendAgentTurns, saveAgentSummary } from "../_shared/agent/conversation/turnStore.ts";
 import { insertAgentSession } from "../_shared/agent/conversation/session.ts";
@@ -298,19 +299,8 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     loadCalibration: () => loadAgentCalibration(admin),
 
     async isFlagged(message) {
-      try {
-        await screenImagePrompt(message, {
-          apiKey: moderationKey,
-          admin,
-          userId: user.id,
-          generationType: "agent_turn",
-          imageProvider: "none",
-        });
-        return false;
-      } catch (error) {
-        if (isPromptRejected(error)) return true;
-        throw error;
-      }
+      const verdict = await screenChatText(message, { apiKey: moderationKey, admin, userId: user.id, surface: "agent_turn" });
+      return verdict?.flagged === true;
     },
 
     // What the screen refused of this account's own messages, lately. Only what they sent counts: a turn of the
@@ -318,20 +308,14 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     strikes: (userId) => countStrikes(admin, userId, Date.now()),
 
     async isFlaggedOutput(text, childTookPart) {
-      try {
-        await screenImagePrompt(text, {
-          apiKey: moderationKey,
-          admin,
-          userId: user.id,
-          generationType: "agent_turn_output",
-          imageProvider: "none",
-          tighter: childTookPart ? CHILD_TURN_THRESHOLDS : undefined,
-        });
-        return false;
-      } catch (error) {
-        if (isPromptRejected(error)) return true;
-        throw error;
-      }
+      const verdict = await screenChatText(text, {
+        apiKey: moderationKey,
+        admin,
+        userId: user.id,
+        surface: "agent_turn_output",
+        tighter: childTookPart ? CHILD_TURN_THRESHOLDS : undefined,
+      });
+      return verdict?.flagged === true;
     },
 
     campaignText: makeTextScreenIo(admin, { apiKey: () => moderationKey, userId: user.id }),
@@ -584,6 +568,38 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
       if (byName.error) throw byName.error;
       if (byDisguise.error) throw byDisguise.error;
       return foundCharacters(byName.data ?? [], byDisguise.data ?? []);
+    },
+
+    // The name check's lookup (#1021): every source a name can already live in, as the caller, in one read each.
+    async knownNames(campaignId, candidates) {
+      // The extractor only yields letters, spaces, apostrophes and hyphens. Anything else cannot be put in a filter
+      // safely and is counted as known, which is the quiet side: no hint.
+      const plain = (c: string) => /^[\p{L}][\p{L}'’ -]*$/u.test(c);
+      const safe = candidates.filter(plain);
+      if (safe.length === 0) return candidates;
+      // A record holds the name without its title ("Ashfield" for "Lord Ashfield"), so the core is what is looked for.
+      const patterns = (column: string) => safe.map((c) => `${column}.ilike."%${escapeLike(nameCore(c))}%"`).join(",");
+      const sources: Array<{ table: string; columns: string[] }> = [
+        { table: "npcs", columns: ["name", "disguise_name"] },
+        { table: "locations", columns: ["name"] },
+        { table: "factions", columns: ["name"] },
+        { table: "party_members", columns: ["name"] },
+        { table: "deities", columns: ["name"] },
+        { table: "story_facts", columns: ["body"] },
+      ];
+      const reads = await Promise.all(sources.map(async ({ table, columns }) => {
+        const { data, error } = await supabase
+          .from(table)
+          .select(columns.join(", "))
+          .eq("campaign_id", campaignId)
+          .or(columns.map(patterns).join(","))
+          .limit(200);
+        if (error) throw error;
+        return (data ?? []) as unknown as Array<Record<string, unknown>>;
+      }));
+      const texts = reads.flat().flatMap((row) => Object.values(row)).filter((v): v is string => typeof v === "string").map((v) => v.toLowerCase());
+      const known = new Set(safe.filter((c) => texts.some((t) => t.includes(nameCore(c).toLowerCase()))).map((c) => c.toLowerCase()));
+      return candidates.filter((c) => !plain(c) || known.has(c.toLowerCase()));
     },
 
     // Through the caller's own client, so the campaign's rules for an NPC's place apply to this write as to any other.

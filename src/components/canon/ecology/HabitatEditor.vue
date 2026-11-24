@@ -1,31 +1,32 @@
 <template>
-  <section class="flex flex-col gap-4 border border-border bg-card p-4" :aria-label="`The habitat ${habitat.name}`" data-testid="habitat-editor">
-    <AppInput :key="revision" v-model.lazy="text" wrap size="body" tone="filled" maxlength="80" aria-label="The habitat's name" placeholder="A kind of country…" />
+  <CanonEntryPane kind="Habitat" delete-label="Delete this habitat" close-label="Close this habitat" data-testid="habitat-editor" @close="emit('close')" @delete="remove">
+    <template #title>
+      <AppInput :key="revision" v-model.lazy="text" wrap size="body" tone="filled" maxlength="80" aria-label="The habitat's name" placeholder="A kind of country…" />
+    </template>
 
     <div class="flex flex-col gap-1">
-      <span class="text-eyebrow text-muted-foreground">What it is like</span>
-      <RichTextEditor v-model="draft.body" size="sm" toolbar="focus" allow-secrets :entity-mention-items="mentionItems" placeholder="Its weather, its look, what a traveller meets there…" />
+      <RichTextEditor v-model="draft.body" size="sm" toolbar="focus" allow-secrets :entity-mention-items="mentionItems" aria-label="What it is like" placeholder="Its weather, its look, what a traveller meets there…" />
       <AutosaveStatus :status="status" :error="saveError" />
     </div>
 
-    <HabitatPlaces :habitat="habitat" />
-    <HabitatLife :habitat="habitat" />
-    <HabitatNotes :habitat="habitat" />
-
-    <AppButton variant="destructive" size="sm" :icon="IconDelete" icon-size="xs" label="Delete this habitat" class="self-start" @click="remove" />
-  </section>
+    <CanonBlock title="The places it covers"><HabitatPlaces :habitat="habitat" /></CanonBlock>
+    <CanonBlock title="What lives here" :suggest="suggestLife"><HabitatLife :habitat="habitat" /></CanonBlock>
+    <CanonBlock title="Notes on the living world"><HabitatNotes :habitat="habitat" /></CanonBlock>
+  </CanonEntryPane>
 </template>
 
 <script setup lang="ts">
 /**
- * The selected habitat: its name, a description that saves itself, the places it covers, what lives there as shares and
- * the notes on the living world that belong to it. Everything saves as it is changed; only the delete asks first.
+ * The open habitat, in the chapter's entry pane: its name, a description that saves itself, the places it covers, what
+ * lives there as shares and the notes on the living world that belong to it. Everything saves as it is changed; only the
+ * delete asks first.
  */
-import { reactive, watch } from "vue";
-import AppButton from "@/components/common/controls/AppButton.vue";
+import { computed, reactive, watch } from "vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
+import CanonBlock from "../kit/CanonBlock.vue";
+import CanonEntryPane from "../kit/CanonEntryPane.vue";
 import HabitatLife from "./HabitatLife.vue";
 import HabitatNotes from "./HabitatNotes.vue";
 import HabitatPlaces from "./HabitatPlaces.vue";
@@ -34,15 +35,16 @@ import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import { useAutosave } from "@/composables/useAutosave";
 import { useConfirm } from "@/composables/useConfirm";
-import { IconDelete } from "@/lib/icons";
 import type { Habitat } from "@/lib/canon/habitats";
 
 const { habitat } = defineProps<{ habitat: Habitat }>();
-const emit = defineEmits<{ delete: [] }>();
+const emit = defineEmits<{ delete: []; close: [] }>();
 
 const { renameHabitat, saveDescription, removeHabitat } = useHabitatEditing();
 const { confirm } = useConfirm();
 const { mentionItems } = useEntityMentionItems();
+
+const suggestLife = computed(() => `Suggest the creatures that live in the habitat "${habitat.name}".`);
 
 const { text, revision } = useCommittedText(() => habitat.name, (next) => renameHabitat(habitat.id, next));
 

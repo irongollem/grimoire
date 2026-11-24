@@ -8,7 +8,7 @@ import { serveUser } from "../_shared/pipeline/serveUser.ts";
 import { jsonError, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { loadAiCampaign } from "../_shared/pipeline/aiCampaign.ts";
 import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
-import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
+import { screenChatText } from "../_shared/moderation.ts";
 import { isNarratorVoice } from "../_shared/narratorVoice.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
@@ -78,14 +78,9 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
 
     // The same screen the table's own lines go through, logged under this surface.
     async isFlagged(text) {
-      try {
-        const keys = await fetchPlatformKeys(admin, ["openai"]);
-        await screenImagePrompt(text, { apiKey: keys.openai ?? null, admin, userId: user.id, generationType: "note_reading", imageProvider: "none" });
-        return false;
-      } catch (error) {
-        if (isPromptRejected(error)) return true;
-        throw error;
-      }
+      const keys = await fetchPlatformKeys(admin, ["openai"]);
+      const verdict = await screenChatText(text, { apiKey: keys.openai ?? null, admin, userId: user.id, surface: "note_reading" });
+      return verdict?.flagged === true;
     },
 
     // Named only once a reading was made, and making one asked `voiceOn` first, which loaded the keys.

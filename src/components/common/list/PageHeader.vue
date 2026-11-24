@@ -10,13 +10,16 @@
   -->
   <div
     :class="[
-      'max-w-full min-w-0 overflow-x-hidden',
+      // `overflow-x-clip`: `overflow-x-hidden` makes the y axis `auto` as well, so this whole column (header
+      // included) was a second scroller that a focus or a jump could slide, taking the title off the screen.
+      'max-w-full min-w-0 overflow-x-clip',
       $slots.default ? 'flex h-full min-h-0 flex-1 flex-col' : '',
     ]"
   >
     <!-- Header section -->
+    <!-- `@container/header`: what a header action's label collapses by (AppButton collapseBelow "header"). -->
     <div v-if="!headless" :class="[
-        'max-w-full min-w-0 bg-background',
+        'max-w-full min-w-0 bg-background @container/header',
         'px-4 pt-4 md:px-6 md:pt-6',
         ownsPhoneBar ? 'hidden md:block' : '',
       ]"
@@ -75,10 +78,11 @@
       <div v-else class="pb-4" />
     </div>
 
-    <!-- Body + optional sidebar (only rendered when default slot has content) -->
+    <!-- Body + optional sidebar (only rendered when default slot has content). From lg the body and the sidebar
+         scroll themselves, so this box is clipped rather than hidden: nothing may scroll it. -->
     <div
       v-if="$slots.default"
-      class="min-h-0 max-w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto lg:flex lg:overflow-hidden"
+      class="min-h-0 max-w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto lg:flex lg:overflow-clip"
     >
       <!-- Scrollable body -->
       <div

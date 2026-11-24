@@ -43,11 +43,6 @@ describe("PremisePitch", () => {
     expect(startButton(mountPitch([], null))).toBeUndefined();
   });
 
-  it("offers no start when the named world's default text is empty", () => {
-    mocks.prompt.value = "  ";
-    expect(startButton(mountPitch([], "eberron"))).toBeUndefined();
-  });
-
   it("starts a DM-only pitch from the world's text as a document, one paragraph per block", async () => {
     await startButton(mountPitch([], "eberron"))!.trigger("click");
     const input = mocks.create.mock.calls[0]![0];

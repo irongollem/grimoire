@@ -19,10 +19,6 @@ describe("parseCanonHere", () => {
     expect(() => parseCanonHere({ clues: [] })).toThrow();
     expect(() => parseCanonHere(null)).toThrow();
   });
-
-  it("throws on a clue row missing its secret's title", () => {
-    expect(() => parseCanonHere({ clues: [{ id: "k", title: "t", secret_id: "s", found_at: null, found_session_id: null }], passages: [] })).toThrow();
-  });
 });
 
 describe("fetchCanonHere", () => {

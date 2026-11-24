@@ -108,8 +108,4 @@ describe("SecretOutlets", () => {
     await nextTick();
     expect(mocks.create).toHaveBeenCalledWith([{ campaign_id: "c1", entry_id: "s1", quest_id: "q2" }]);
   });
-
-  it("says nothing brings it out when there is nothing", () => {
-    expect(mountIt().find("[data-testid=outlets-empty]").exists()).toBe(true);
-  });
 });

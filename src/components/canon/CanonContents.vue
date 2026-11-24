@@ -1,71 +1,61 @@
 <template>
-  <nav aria-label="Parts of the canon" data-testid="canon-contents">
-    <!-- A phone: one row of chips that scrolls sideways. -->
-    <div ref="chips" class="-mx-4 flex gap-1.5 overflow-x-auto border-b border-border bg-background/95 px-4 py-2.5 backdrop-blur-sm lg:hidden">
-      <AppButton
-        v-for="section in CANON_SECTIONS"
-        :key="section.id"
-        :data-part="section.id"
-        variant="chip"
-        size="sm"
-        class="shrink-0"
-        :active="section.id === active"
-        :aria-current="section.id === active ? 'true' : undefined"
-        @click="emit('select', section.id)"
-      >
-        {{ section.numeral }} {{ section.short }}<template v-if="section.counted && counts[section.id] > 0"> · {{ countText(section.id) }}</template>
-      </AppButton>
-    </div>
+  <nav aria-label="Chapters of the canon" data-testid="canon-contents">
+    <!-- Below 90rem: one picker, which the page puts above the chapter. -->
+    <label class="flex items-center gap-2 min-[90rem]:hidden">
+      <span class="text-eyebrow text-muted-foreground">Chapter</span>
+      <AppSelect v-model="chosen" tone="filled" size="body" class="min-w-0" aria-label="Chapter" data-testid="canon-chapter-picker">
+        <option v-for="chapter in CANON_SECTIONS" :key="chapter.id" :value="chapter.id">{{ pickerText(chapter.id) }}</option>
+      </AppSelect>
+    </label>
 
-    <!-- A desktop: the contents column, a numeral and a count per part. -->
-    <ul class="hidden w-56 flex-col gap-0.5 lg:flex">
-      <li v-for="section in CANON_SECTIONS" :key="section.id" :class="section.id === 'table' ? 'mt-1 border-t border-border pt-2' : ''">
+    <!-- From 90rem: the book's contents, grouped as the book is. -->
+    <div class="hidden w-56 flex-col gap-3 min-[90rem]:flex">
+      <section v-for="group in groups" :key="group.id" class="flex flex-col gap-0.5" :aria-label="group.label" :data-group="group.id">
+        <h2 class="m-0 px-2 text-caption italic text-muted-foreground">{{ group.label }}</h2>
         <AppButton
+          v-for="chapter in group.chapters"
+          :key="chapter.id"
           variant="ghost"
           size="sm"
           block
           class="justify-start gap-2"
-          :active="section.id === active"
-          :aria-current="section.id === active ? 'true' : undefined"
-          @click="emit('select', section.id)"
+          :active="chapter.id === active"
+          :aria-current="chapter.id === active ? 'true' : undefined"
+          :data-part="chapter.id"
+          @click="emit('select', chapter.id)"
         >
-          <span class="w-5 text-left text-label text-primary">{{ section.numeral }}</span>
-          <span class="flex-1 text-left">{{ section.label }}</span>
-          <span
-            v-if="section.counted && (section.id !== 'table' || counts.table > 0)"
-            class="text-label"
-            :class="section.id === 'table' ? 'font-bold text-primary' : 'text-muted-foreground'"
-            :data-testid="`count-${section.id}`"
-          >{{ countText(section.id) }}</span>
+          <span class="flex-1 text-left">{{ chapter.label }}</span>
+          <span v-if="chapter.counted && counts[chapter.id] > 0" class="text-label text-muted-foreground" :data-testid="`count-${chapter.id}`">{{ counts[chapter.id] }}</span>
         </AppButton>
-        <p v-if="section.id === 'table'" class="m-0 px-2 pt-1 text-caption text-muted-foreground">{{ TABLE_SECTION_HINT }}</p>
-      </li>
-    </ul>
+      </section>
+    </div>
   </nav>
 </template>
 
 <script setup lang="ts">
 /**
- * The parts of the canon: a column on a desktop, a row of chips on a phone. The page shows one part at a time
- * (#1258 item 19), so this is how the DM moves between them; the phone's row scrolls to keep the chosen chip in sight.
+ * The book's contents: the chapters in their groups, with a count where a chapter counts entries. The page shows one
+ * chapter at a time, and this is how the DM moves between them: a column from 90rem, a picker below it.
  */
-import { nextTick, useTemplateRef, watch } from "vue";
+import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { CANON_SECTIONS, TABLE_SECTION_HINT, type CanonSectionId } from "@/lib/canon/canonParts";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
+import { CANON_GROUPS, CANON_SECTIONS, chapterOf, type CanonSectionId } from "@/lib/canon/canonParts";
 
 const { active, counts } = defineProps<{ active: CanonSectionId; counts: Record<CanonSectionId, number> }>();
 const emit = defineEmits<{ select: [id: CanonSectionId] }>();
 
-/** A part's number; what the table added counts the lines still to review, so it reads "4 new". */
-// The row itself is moved, never `scrollIntoView`: that would also scroll the page the DM is reading.
-const chips = useTemplateRef<HTMLElement>("chips");
-watch(() => active, async (id) => {
-  await nextTick();
-  const row = chips.value;
-  const chip = row?.querySelector<HTMLElement>(`[data-part="${id}"]`);
-  if (!row || !chip || typeof row.scrollTo !== "function") return;
-  row.scrollTo({ left: chip.offsetLeft - (row.clientWidth - chip.offsetWidth) / 2, behavior: "smooth" });
+const groups = CANON_GROUPS.map((group) => ({ ...group, chapters: CANON_SECTIONS.filter((c) => c.group === group.id) }));
+
+const chosen = computed<CanonSectionId>({
+  get: () => active,
+  set: (id) => {
+    if (id !== active) emit("select", id);
+  },
 });
 
-const countText = (id: CanonSectionId) => (id === "table" ? `${counts.table} new` : String(counts[id]));
+const pickerText = (id: CanonSectionId) => {
+  const chapter = chapterOf(id);
+  return chapter.counted && counts[id] > 0 ? `${chapter.label} · ${counts[id]}` : chapter.label;
+};
 </script>

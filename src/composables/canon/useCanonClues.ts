@@ -11,14 +11,6 @@ import type { CanonClue } from "@/types/canon.types";
 /** Where a clue may lie: a place, a person, a beat, an item (a letter, a locket) or a handout. At most one, or nowhere yet. */
 export type ClueKind = "location" | "npc" | "quest_beat" | "item" | "document";
 export type ClueColumn = "location_id" | "npc_id" | "quest_beat_id" | "item_id" | "document_id";
-const CLUE_COLUMN: Record<ClueKind, ClueColumn> = {
-  location: "location_id",
-  npc: "npc_id",
-  quest_beat: "quest_beat_id",
-  item: "item_id",
-  document: "document_id",
-};
-
 /** At most one place column set: the others are `never`, so two cannot be given (the table refuses two, 23514). */
 export type CluePlace = { [C in ClueColumn]: { [K in ClueColumn]?: K extends C ? string : never } }[ClueColumn];
 
@@ -100,12 +92,6 @@ export function useCanonClues(enabled?: () => boolean) {
     },
     enabled: () => !!campaignId.value && (enabled?.() ?? true),
   });
-}
-
-/** The clues that lie at one place, person, beat, item or handout. Empty while loading, so a block built on it renders nothing. */
-export function cluesAt(clues: readonly CanonClue[], kind: ClueKind, id: string): CanonClue[] {
-  const column = CLUE_COLUMN[kind];
-  return clues.filter((c) => c[column] === id);
 }
 
 export function useCreateCanonClue() {

@@ -1,6 +1,5 @@
 <template>
-  <div class="flex flex-col gap-2" data-testid="premise-pitch">
-    <span class="text-eyebrow text-muted-foreground">The pitch</span>
+  <CanonBlock title="The pitch" data-testid="premise-pitch">
     <PitchEditor v-for="pitch in pitches" :key="pitch.id" :entry="pitch" />
     <div v-if="pitches.length === 0" class="flex flex-wrap items-center gap-2">
       <AppButton
@@ -24,7 +23,7 @@
         A few lines on what the campaign is like. It is what every AI suggestion starts from; players read it only if you share it.
       </p>
     </div>
-  </div>
+  </CanonBlock>
 </template>
 
 <script setup lang="ts">
@@ -34,6 +33,7 @@
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import CanonBlock from "./kit/CanonBlock.vue";
 import PitchEditor from "./PitchEditor.vue";
 import { plainTextToTiptap } from "@/lib/canon/canonParts";
 import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";

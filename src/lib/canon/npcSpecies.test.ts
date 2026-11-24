@@ -3,7 +3,7 @@ import { npcSpecies } from "./npcSpecies";
 import type { People } from "./peoples";
 
 const people = (name: string, percent: number, kind: People["kind"] = "species"): People =>
-  ({ id: name, kind, recordId: name, fromLibrary: true, name, readable: true, percent });
+  ({ id: name, kind, recordId: name, fromLibrary: true, name, readable: true, percent, body: null });
 
 describe("npcSpecies", () => {
   it("keeps the species the DM named and never rolls", () => {

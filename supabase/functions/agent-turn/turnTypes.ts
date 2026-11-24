@@ -330,6 +330,11 @@ export interface AgentTurnDeps {
   /** The recorded characters of this campaign whose name or disguise holds this text, by the name they are shown under. */
   findCharacters(campaignId: string, name: string): Promise<Array<{ id: string; shownName: string }>>;
   /**
+   * Which of these names the campaign already has a record of: a character (by name or disguise), place, faction,
+   * party member or deity whose name holds it, or a story fact that mentions it. Answers with the candidates, as given.
+   */
+  knownNames(campaignId: string, candidates: string[]): Promise<string[]>;
+  /**
    * Puts characters where the party is. A character who just spoke to the party is evidently there, whatever
    * their record said, and the next sitting must find them in the place it reads.
    */

@@ -79,7 +79,7 @@ npx tsx scripts/perf/compare.ts perf-results/<before>.json perf-results/<after>.
 Flags of `run.ts`: `--base <url>` (default `http://127.0.0.1:4173`), `--journey <name>`
 (repeatable, default all), `--runs <n>` (default 3), `--out <file>` (default
 `perf-results/<timestamp>.json`, gitignored), `--cpu <rate>` (default 4),
-`--delay <ms>` (default 150). The profile is written into the JSON; `compare.ts`
+`--delay <ms>` (default 400). The profile is written into the JSON; `compare.ts`
 warns when two files used different profiles.
 
 Skip `vue-tsc` for harness builds; only the bundle matters.
@@ -87,9 +87,16 @@ Skip `vue-tsc` for harness builds; only the bundle matters.
 ## Profile
 
 - **CPU**: `Emulation.setCPUThrottlingRate` 4x on every measured page.
-- **Network**: every request to `127.0.0.1:54321` is held 150 ms (Playwright
+- **Network**: every request to `127.0.0.1:54321` is held 400 ms (Playwright
   route, the #945 method). Localhost round trips are ~2 ms, which hides serial
   waits; with the delay a request that waits on another shows as a wave.
+  The hold must outlast the main thread's stalls during the first render, or
+  serial depth measures the runner's CPU instead of the page's waits. At 150 ms
+  (until 24 Nov 2026) it did not: the campaign row was answered at 900 ms but
+  handled at 1818 ms, so the locations count keyed on it, and the deck, started
+  after other replies had landed and were counted a link deeper. dm-cold read 4
+  to 6 on one commit (#1269), and locally at 14x CPU it read 6, 6, 5 at 150 ms
+  and 4, 4, 4 at 400 ms. At 4x, 400 ms measures dm-cold's real chain, 2.
   Static assets are not delayed, so their cost is bytes and CPU only.
 - Sign-in (setup) runs unthrottled. Viewport 1440x900.
 

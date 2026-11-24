@@ -14,9 +14,23 @@ const step = (over: Partial<CanonForceStep>): CanonForceStep => ({
   due_year: 500, due_month: null, due_day: null, ai_provenance: null, created_at: "x", updated_at: "x", ...over,
 });
 const mountIt = (entry = canonEntry({ id: "f1", part: "force", title: "The Ferrymen" }), steps = [step({})]) =>
-  mount(ForceRow, { props: { entry, steps, ticks: [] }, global: { stubs: { CanonLedgerRow: { template: "<div><slot /></div>" }, ForceClock: true, CanonMoveButtons: true } } });
+  mount(ForceRow, { props: { entry, steps, ticks: [] }, global: { stubs: { CanonRow: { template: "<div><slot /><slot name='mark' /></div>" }, ForceClock: true, CanonMoveButtons: true } } });
 
 describe("ForceRow", () => {
+  // Bug caught: the row naming the reached step or the first in the list instead of the next one the world has not reached.
+  it("names the earliest step not yet reached as Next, and says so when none is written", () => {
+    const steps = [step({ id: "a", title: "Done", sort_order: 0, reached_at: "x" }), step({ id: "c", title: "Later", sort_order: 2 }), step({ id: "b", title: "Sooner", sort_order: 1 })];
+    expect(mountIt(undefined, steps).get("[data-testid=force-next]").text()).toBe("Next: Sooner");
+    expect(mountIt(undefined, []).get("[data-testid=force-next]").text()).toBe("No next step written");
+  });
+
+  // Bug caught: the mark showing a bare dial, or a count for a force that keeps no clock.
+  it("marks the clock as N of M, or No clock", () => {
+    const withClock = canonEntry({ id: "f1", part: "force", clock_size: 6 });
+    expect(mountIt(withClock).get("[data-testid=force-clock-tally]").text()).toBe("0 of 6");
+    expect(mountIt().get("[data-testid=force-clock-tally]").text()).toBe("No clock");
+  });
+
   // Bug caught (#1258 item 9): a force with a step past its due date looking on schedule in the list.
   it("says a step is due and not reached when the campaign's date has passed it", () => {
     expect(mountIt().get("[data-testid=force-overdue]").text()).toBe("Due year 500, not reached.");

@@ -8,8 +8,7 @@ const session = vi.hoisted(() => ({ user: { id: "dm-1" } as { id: string } | nul
 
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => session.user }));
 
-import { cluePlacement, cluesAt, createCanonClue, fetchCanonClues, foundPatch, updateCanonClue } from "./useCanonClues";
-import type { CanonClue } from "@/types/canon.types";
+import { cluePlacement, createCanonClue, fetchCanonClues, foundPatch, updateCanonClue } from "./useCanonClues";
 
 const row = (over: Record<string, unknown>): Record<string, unknown> => ({
   id: "k1", user_id: "dm-1", campaign_id: "c1", secret_id: "s1", title: "A locket", sort_order: 0, location_id: null, npc_id: null,
@@ -51,27 +50,6 @@ describe("canon clues", () => {
 
   it("says so when a write changed no row, which is what a refusal by RLS looks like", async () => {
     await expect(updateCanonClue("missing", { title: "x" })).rejects.toThrow("gone");
-  });
-});
-
-describe("cluesAt", () => {
-  const all = [row({ id: "a", location_id: "p1" }), row({ id: "b", location_id: "p2" }), row({ id: "c", npc_id: "p1" }), row({ id: "d", quest_beat_id: "p1" })] as unknown as CanonClue[];
-
-  it("lists only the clues placed at that very place, not another place, person or beat that shares an id", () => {
-    expect(cluesAt(all, "location", "p1").map((c) => c.id)).toEqual(["a"]);
-    expect(cluesAt(all, "npc", "p1").map((c) => c.id)).toEqual(["c"]);
-    expect(cluesAt(all, "quest_beat", "p1").map((c) => c.id)).toEqual(["d"]);
-  });
-
-  // Bug: the item's block listed clues of a place that happens to share nothing with it, or none at all (no column for item).
-  it("lists the clues in an item or a handout by their own column", () => {
-    const clues = [{ id: "a", item_id: "i1" }, { id: "b", document_id: "i1" }, { id: "c", location_id: "i1" }] as unknown as CanonClue[];
-    expect(cluesAt(clues, "item", "i1").map((c) => c.id)).toEqual(["a"]);
-    expect(cluesAt(clues, "document", "i1").map((c) => c.id)).toEqual(["b"]);
-  });
-
-  it("lists nothing where no clue lies, so the block renders nothing", () => {
-    expect(cluesAt(all, "location", "p9")).toEqual([]);
   });
 });
 

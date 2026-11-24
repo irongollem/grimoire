@@ -174,4 +174,14 @@ describe("TruthDetail", () => {
     expect(hide(knower({ type: "about" }))).toBe(false);
     expect(hide(knower({ outward: false }))).toBe(false);
   });
+
+  // Bug caught: the delete and the close wired to the wrong event, so the chapter deleted when asked to close, or the page never heard either.
+  it("asks the chapter to close or delete through the pane's own buttons", async () => {
+    const w = mountDetail(entry());
+    await w.get("button[aria-label='Close this truth']").trigger("click");
+    expect(w.emitted("close")).toHaveLength(1);
+    expect(w.emitted("delete")).toBeUndefined();
+    await w.findAll("button").find((b) => b.text() === "Delete this truth")!.trigger("click");
+    expect(w.emitted("delete")).toHaveLength(1);
+  });
 });

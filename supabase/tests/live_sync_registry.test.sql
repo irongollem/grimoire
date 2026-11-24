@@ -140,7 +140,8 @@ insert into live_sync_exempt (name, reason) values
   ('quest_embeddings',          'derived search index, deny-all, read only by definer search'),
   ('scriptorium_chapters',      'rings through its book: every chapter write updates scriptorium_documents (private.touch_book_from_chapters), whose own trigger rings when the book is shared, so a private draft rings nothing'),
   ('scriptorium_notes',         'the author''s own review notes on a book; no other member reads them'),
-  ('campaign_text_screenings',  'deny-all verdict cache of the AI table''s screen (#1021 row 18), read only by the server');
+  ('campaign_text_screenings',  'deny-all verdict cache of the AI table''s screen (#1021 row 18), read only by the server'),
+  ('fight_sheet_spends',        'deny-all ledger of fight batches already spent from sheets (#1264), read only by spend_from_sheet; the spend itself rings through party_members and character_spells');
 
 -- Subscribed on a channel of its own with exact-row handlers, so it rings only
 -- for what that channel cannot carry: a delete (#1026).

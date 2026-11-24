@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
+import { createPinia, setActivePinia } from "pinia";
 import type { CanonClue, CanonEntry } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
 
@@ -30,6 +31,7 @@ vi.mock("@/composables/canon/useClueWhere", () => ({ useClueWhere: () => ref(() 
 vi.mock("@/composables/canon/useCanonPassages", () => ({ useCanonPassages: () => ({ data: passages }) }));
 vi.mock("@/composables/campaign/useCampaignSession", () => ({ useCampaignSession: () => ({ session }) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: party }) }));
+vi.mock("@/composables/ask/useCanAsk", () => ({ useCanAsk: () => ref(true) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 
 vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
@@ -38,6 +40,7 @@ import SecretDetail from "./SecretDetail.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
 import SecretOutlets from "./SecretOutlets.vue";
 import EntryStoryLinks from "./EntryStoryLinks.vue";
+import { useAskUiStore } from "@/stores/ui/ask";
 
 const secret = (over: Partial<CanonEntry> = {}): CanonEntry => canonEntry({ id: "s1", part: "secret", title: "Sift is the guild master's daughter.", ...over });
 const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
@@ -45,16 +48,24 @@ const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
   quest_beat_id: null, found_at: null, item_id: null, document_id: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
 });
 
-const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { EntryStoryLinks: true, CanonSuggestFold: { template: "<div><slot /></div>" }, ConnectionsSection: true, SecretOutlets: true, CanonEntryNotes: true, ClueForm: true, CanonSuggestions: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
+const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { CanonReview: true, EntryStoryLinks: true, ConnectionsSection: true, SecretOutlets: true, CanonEntryNotes: true, ClueForm: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
 
 describe("SecretDetail", () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
     clues.value = [clue(), clue({ id: "k2", title: "A carving" })];
     party.value = [{ id: "pm1", name: "Mira" }, { id: "pm2", name: "Bram" }];
     session.value = { id: "sess1" };
     passages.value = [];
     entries.value = [];
     Object.values(mocks).forEach((m) => m.mockReset());
+  });
+
+  // Bug caught: the Clues block's Suggest asked the Familiar for something that names no secret, or was left out of the block.
+  it("asks the Familiar for clues for this secret from the Clues block", async () => {
+    const open = vi.spyOn(useAskUiStore(), "openPanel").mockImplementation(() => undefined);
+    await mountDetail(secret()).get("section[aria-label=Clues] [data-testid=canon-suggest]").trigger("click");
+    expect(open).toHaveBeenCalledWith('Suggest clues for the secret "Sift is the guild master\'s daughter.".', { send: false });
   });
 
   // Bug caught (#1258 item 3): the outlets block was handed another secret, or none of this secret's clues, so it could not group them.
@@ -166,25 +177,6 @@ describe("SecretDetail", () => {
     expect(w.find("[data-testid=reveal]").exists()).toBe(false);
     await w.find("[data-testid=hide]").trigger("click");
     expect(mocks.update).toHaveBeenCalledWith({ id: "s1", patch: { revealed_at: null, revealed_session_id: null } });
-  });
-
-  it("shows partly known with the tally once a clue is found", () => {
-    clues.value = [clue({ found_at: "2026-11-18T20:00:00Z" }), clue({ id: "k2" })];
-    const w = mountDetail(secret());
-    expect(w.find("[data-testid=secret-state]").text()).toContain("Partly known");
-    expect(w.text()).toContain("1 of 2 clues found");
-  });
-
-  it("puts a clue placed in an item in the item's column", async () => {
-    // Bug: every kind but a place or a person fell into quest_beat_id, so a clue in a letter pointed at a beat that
-    // does not exist (#1258 item 30).
-    const w = mountDetail(secret());
-    (w.vm as unknown as { adding: boolean }).adding = true;
-    await w.vm.$nextTick();
-    w.findComponent({ name: "ClueForm" }).vm.$emit("submit", { title: "A receipt", where: { kind: "item", id: "item-1" } });
-    await flushPromises();
-    expect(mocks.createClue).toHaveBeenCalledWith(expect.objectContaining({ item_id: "item-1" }));
-    expect(mocks.createClue.mock.calls[0]![0]).not.toHaveProperty("quest_beat_id");
   });
 
   it("ticks a clue through the shared Found tick", async () => {

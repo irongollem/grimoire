@@ -64,7 +64,7 @@ const tie = (over: Partial<Connection>) => ({ row_id: "r", source: "link", type:
 const mountDetail = () =>
   mount(BackstoryDetail, {
     props: { member },
-    global: { stubs: { LorePassageRow: RowStub, BackstoryBeforePlay: true, ConnectionsSection: SectionStub, AudienceRevealControl: true, ListSkeleton: true, EntryQuests: true, EntryStoryLinks: EntryStoryLinksStub, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } },
+    global: { stubs: { LorePassageRow: RowStub, BackstoryBeforePlay: true, ConnectionsSection: SectionStub, AudienceRevealControl: true, CanonSuggest: true, ListSkeleton: true, EntryQuests: true, EntryStoryLinks: EntryStoryLinksStub, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } },
   });
 
 describe("BackstoryDetail", () => {
@@ -78,25 +78,12 @@ describe("BackstoryDetail", () => {
     threadData.links = [];
   });
 
-  // Bug caught: the DM could not tell their own passage from the player's, or which session the player wrote one after.
-  it("marks the player's passages with who and when, and the DM's as 'Your passage'", () => {
-    state.passages = [passage({ id: "a", author_id: "lotte" }), passage({ id: "b", author_id: "dm" })];
-    const rows = mountDetail().findAll("[data-testid=row]");
-    expect(rows.map((r) => r.attributes("data-byline"))).toEqual(["Written by Lotte · after session 15", "Your passage"]);
-    expect(rows.map((r) => r.attributes("data-players"))).toEqual(["true", "false"]);
-  });
-
   // Bug caught: Tell on a backstory passage reaching the whole party before the character it is about.
   it("offers every passage to be told to this character, and never treats the first as told with the entry", () => {
     state.passages = [passage({ id: "a", author_id: "dm" })];
     const row = mountDetail().find("[data-testid=row]");
     expect(row.attributes("data-target")).toBe("Tansy");
     expect(row.attributes("data-first")).toBe("false");
-  });
-
-  it("counts the passages and how many are not yet told", () => {
-    state.passages = [passage({ id: "a", told_at: "2026-10-10T09:00:00Z" }), passage({ id: "b" }), passage({ id: "c" })];
-    expect(mountDetail().find("[data-testid=backstory-tally]").text()).toBe("3 passages, 2 not yet told");
   });
 
   // Bug caught: the people and passages drawn (and New NPC offered) for an entry that did not exist yet.

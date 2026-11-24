@@ -4,7 +4,11 @@
        below Safari's URL bar. h-screen would overflow on mobile Safari. -->
   <!-- `pr-(--dock-right)`: the docked DM scratchpad's width while it is open,
        so the page lays out beside it (see base.css). -->
-  <div class="flex h-dvh overflow-hidden bg-background pr-(--dock-right)" :style="chromeStyle">
+  <!-- `overflow-clip`, never `overflow-hidden`: a hidden box is still a scroll container, and `focus()`, `scrollIntoView`
+       and the browser's own "keep the caret in view" all scroll it. The sidebar's links overflow this box, so a hidden
+       shell could be slid up by ~700px: the header left the screen and the docked sound deck rose into the middle of
+       the page with bare paper under it (the Canon page, 24 Nov 2026). A clipped box cannot be scrolled by anything. -->
+  <div class="flex h-dvh overflow-clip bg-background pr-(--dock-right)" data-testid="app-shell" :style="chromeStyle">
     <AppSidebar v-if="!editorFocus" />
 
     <div class="relative flex-1 flex flex-col min-w-0">
@@ -48,6 +52,9 @@
          src/assets/main.css. Hidden on full-screen takeover routes so it
          doesn't collide with the screen's own bottom action bar. -->
     <DmBottomNav v-if="!fullscreenMobile && !editorFocus" />
+
+    <!-- The right-hand dock the chat and the Familiar share; it comes first so its body exists before they teleport into it. -->
+    <SideDock />
 
     <CampaignChat />
 
@@ -114,6 +121,7 @@ import AppTopBar from "@/components/layout/AppTopBar.vue";
 import DmBottomNav from "@/components/layout/DmBottomNav.vue";
 import StaleSessionPrompt from "@/components/layout/StaleSessionPrompt.vue";
 import DmCampaignGate from "@/components/campaign/DmCampaignGate.vue";
+import SideDock from "@/components/layout/SideDock.vue";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import { useAskUiStore } from "@/stores/ui/ask";
 import { useHotkeys } from "@/composables/useHotkeys";

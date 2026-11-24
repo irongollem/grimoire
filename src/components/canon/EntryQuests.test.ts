@@ -24,10 +24,6 @@ const mountIt = (links: CanonEntryQuest[], words = { label: "The quests that unc
 describe("EntryQuests", () => {
   beforeEach(() => { for (const m of Object.values(mocks)) m.mockReset(); });
 
-  it("links each quest to its page", () => {
-    expect(mountIt([link({})]).get("a").attributes("href")).toBe("/quests/q1");
-  });
-
   // Bug caught: a quest offered again after it is linked, so it could be linked twice.
   it("offers only the quests not linked yet, so a quest is linked once", () => {
     const options = mountIt([link({})]).getComponent(EntityComboboxStub).props("options");

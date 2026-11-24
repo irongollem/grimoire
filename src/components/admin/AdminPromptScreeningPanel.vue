@@ -178,7 +178,7 @@
                     :label="formatCategoryLabel(category)"
                   />
                   <span class="text-caption-sm text-muted-foreground ml-auto shrink-0 whitespace-nowrap">
-                    {{ formatGenerationType(row.generation_type) }} · {{ row.image_provider }} · {{ formatWhen(row.created_at) }}
+                    {{ formatGenerationType(row.generation_type) }}<template v-if="row.image_provider !== null"> · {{ row.image_provider }}</template> · {{ formatWhen(row.created_at) }}
                   </span>
                 </div>
                 <p class="text-caption text-muted-foreground line-clamp-2" :title="row.prompt">{{ row.prompt }}</p>

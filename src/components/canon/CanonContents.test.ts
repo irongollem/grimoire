@@ -1,23 +1,45 @@
 import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import CanonContents from "./CanonContents.vue";
+import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { CANON_SECTIONS, type CanonSectionId } from "@/lib/canon/canonParts";
 
 const counts = (over: Partial<Record<CanonSectionId, number>> = {}) =>
   Object.fromEntries(CANON_SECTIONS.map((s) => [s.id, over[s.id] ?? 0])) as Record<CanonSectionId, number>;
+const mountContents = (over: Partial<Record<CanonSectionId, number>> = {}, active: CanonSectionId = "premise") => mount(CanonContents, { props: { active, counts: counts(over) } });
 
 describe("CanonContents", () => {
-  // Bug caught: the table's badge showing a bare number, which reads as a count of entries rather than lines to review.
-  it("reads the table's count as 'n new' and hides it at zero", () => {
-    expect(mount(CanonContents, { props: { active: "premise", counts: counts({ table: 4 }) } }).get("[data-testid=count-table]").text()).toBe("4 new");
-    expect(mount(CanonContents, { props: { active: "premise", counts: counts() } }).find("[data-testid=count-table]").exists()).toBe(false);
+
+  // Bug caught: a zero shown as a count, or a count on a chapter that holds no entries.
+  it("shows a count only where a chapter counts entries and holds some", () => {
+    const w = mountContents({ truths: 4, world: 9, lore: 0 });
+    expect(w.get("[data-testid=count-truths]").text()).toBe("4");
+    expect(w.find("[data-testid=count-lore]").exists()).toBe(false);
+    expect(w.find("[data-testid=count-world]").exists()).toBe(false);
   });
 
-  // Bug caught: the Narrator's part listed as one more chapter, with no rule and no word on who fills it.
-  it("sets What the table added apart with its hint, and lists the Chronicle with its count", () => {
-    const w = mount(CanonContents, { props: { active: "premise", counts: counts({ chronicle: 31 }) } });
-    expect(w.get("[data-testid=count-chronicle]").text()).toBe("31");
-    expect(w.text()).toContain("Filled by the Narrator as it invents.");
-    expect(w.get("li:last-child").classes()).toContain("border-t");
+  it("marks the active chapter and selects the one chosen", async () => {
+    const w = mountContents({}, "lore");
+    expect(w.get("button[data-part=lore]").attributes("aria-current")).toBe("true");
+    expect(w.get("button[data-part=truths]").attributes("aria-current")).toBeUndefined();
+    await w.get("button[data-part=moving]").trigger("click");
+    expect(w.emitted("select")).toEqual([["moving"]]);
+  });
+
+  // Bug caught: the narrow picker listing no counts, or selecting the chapter that is already open (a navigation to nowhere).
+  it("offers a Chapter picker with one option per chapter and its count, which selects a different chapter only", async () => {
+    const w = mountContents({ truths: 3 }, "premise");
+    const options = w.findAll("select option").map((o) => o.text());
+    expect(options).toHaveLength(CANON_SECTIONS.length);
+    expect(options).toContain("Truths · 3");
+    expect(options).toContain("Lore");
+    // The native select's own change handling is AppSelect's (and jsdom's selectedOptions does not follow a script); the picker's wiring is what is asserted.
+    const picker = w.getComponent(AppSelect);
+    picker.vm.$emit("update:modelValue", "premise");
+    await w.vm.$nextTick();
+    expect(w.emitted("select")).toBeUndefined();
+    picker.vm.$emit("update:modelValue", "lore");
+    await w.vm.$nextTick();
+    expect(w.emitted("select")).toEqual([["lore"]]);
   });
 });

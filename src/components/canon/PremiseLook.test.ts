@@ -23,7 +23,7 @@ vi.mock("@/composables/canon/useLookReferences", async (importOriginal) => {
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/ai/useGenerationGate", () => ({ useGenerationGate: () => ({ canSpend: mocks.canSpend }) }));
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
-vi.mock("@/composables/ai/useCampaignProviders", () => ({ useCampaignProviders: () => ({ textCredits: (n: number) => n, textIsByok: ref(false) }) }));
+vi.mock("@/composables/ai/useCampaignProviders", () => ({ useCampaignProviders: () => ({ textCredits: (n: number) => n }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ isAiEnabled: true }) }));
 vi.mock("@/ai/aiGeneratorRegistry", () => ({ isAnyAiGenerating: ref(false) }));
 
@@ -72,22 +72,15 @@ describe("PremiseLook", () => {
     expect(mocks.create).toHaveBeenCalledTimes(1);
   });
 
-  it("asks before replacing a look that already has words, and keeps them when declined", async () => {
+  // Bug caught: the credit was spent by the describe call before the DM was asked, so Cancel lost it.
+  it("asks before replacing a look that already has words, and keeps them and spends nothing when declined", async () => {
     mocks.confirm.mockResolvedValue(false);
     const w = mountLook(look({ title: "Candlelit oils", reference_images: ["a.webp"] }));
     await button(w)!.trigger("click");
     await flushPromises();
     expect(mocks.confirm).toHaveBeenCalledOnce();
-    expect((w.find("textarea").element as HTMLTextAreaElement).value).toBe("Candlelit oils");
-  });
-
-  // Bug caught: the credit was spent by the describe call before the DM was asked, so Cancel lost it.
-  it("makes no describe call when the replace question is declined", async () => {
-    mocks.confirm.mockResolvedValue(false);
-    const w = mountLook(look({ title: "Candlelit oils", reference_images: ["a.webp"] }));
-    await button(w)!.trigger("click");
-    await flushPromises();
     expect(mocks.describe).not.toHaveBeenCalled();
+    expect((w.find("textarea").element as HTMLTextAreaElement).value).toBe("Candlelit oils");
   });
 
   // Bug caught: words typed while the describe call ran were overwritten without asking.

@@ -1,6 +1,5 @@
 <template>
   <div class="flex flex-col gap-2" data-testid="backstory-threads">
-    <span class="text-eyebrow text-muted-foreground">Threads left open</span>
     <ul v-if="threads.length > 0" class="flex flex-col gap-1" data-testid="backstory-thread-list">
       <li v-for="thread in threads" :key="thread.id" class="flex min-w-0 items-baseline gap-2" data-testid="backstory-thread">
         <RouterLink :to="{ path: '/canon', query: { entry: thread.id } }" class="min-w-0 text-body text-foreground hover:underline">{{ thread.title }}</RouterLink>

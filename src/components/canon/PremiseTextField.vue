@@ -1,6 +1,6 @@
 <template>
   <div :id="entry ? `canon-entry-${entry.id}` : undefined" class="flex flex-col gap-1.5" :data-testid="`premise-${kind}`">
-    <label :for="id" class="text-eyebrow text-muted-foreground">{{ label }}</label>
+    <label :for="id" class="text-body font-bold">{{ label }}</label>
     <!-- A native textarea on purpose: this text is an AI prompt, and rich text would hand the model markup (CLAUDE.md, Sanctioned Exceptions). -->
     <textarea
       :id="id"

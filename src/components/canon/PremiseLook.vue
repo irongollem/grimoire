@@ -51,7 +51,7 @@
           :disabled="busy || isAnyAiGenerating"
           @click="describeFromPictures"
         />
-        <GenerationCostBadge :credits="cost" :byok="textIsByok" />
+        <GenerationCostBadge :credits="cost" />
       </div>
       <p v-if="error" class="text-caption text-destructive">{{ error }}</p>
     </div>
@@ -115,11 +115,11 @@ function onDrop(event: DragEvent) {
 const { describe, isDescribing, error } = useDescribeLook();
 const { canSpend } = useGenerationGate();
 const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
+const { textCredits } = useCampaignProviders();
 const cost = computed(() => textCredits(costOf("canon_look_description")));
 
 async function describeFromPictures() {
-  if (!canSpend(cost.value, textIsByok.value)) return;
+  if (!canSpend(cost.value)) return;
   // Ask before the call: a refusal afterwards would have spent the credit for nothing.
   const before = field.value?.text() ?? "";
   if (before.trim() !== "") {

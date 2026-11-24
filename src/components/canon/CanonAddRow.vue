@@ -1,6 +1,6 @@
 <template>
   <form class="flex flex-wrap gap-2" @submit.prevent="submit">
-    <AppInput v-model="draft" tone="filled" size="body" class="min-w-0 flex-1" :placeholder="placeholder" :aria-label="inputLabel" />
+    <AppInput v-model="draft" tone="filled" size="body" class="min-w-[min(100%,14rem)] flex-1" :placeholder="placeholder" :aria-label="inputLabel" />
     <slot />
     <AppButton type="submit" variant="outline" class="whitespace-nowrap" :icon="IconAdd" icon-size="xs" :label="label" :loading="busy" :disabled="draft.trim() === ''" />
   </form>

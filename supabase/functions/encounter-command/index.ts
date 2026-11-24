@@ -270,23 +270,17 @@ serve(withCors(async (req: Request) => {
           if (error) throw new Error(`party_inventory: ${error.message}`);
         }
       },
-      async writeSpellSlots(memberId, slots) {
-        // Scoped to this campaign: another campaign's member is never touched. The whole list, so a retry lands once.
-        const { error } = await admin.from("party_members").update({ spell_slots: slots }).eq("id", memberId).eq("campaign_id", campaignId);
-        if (error) throw new Error(`party_members: ${error.message}`);
-      },
-      async writeInnateUses(memberId, spellRowId, remaining) {
-        // Scoped to this campaign: the grant must belong to a member of it, so another campaign's row is never touched. The absolute count, so a retry lands once.
-        const { data: member, error: memberError } = await admin.from("party_members").select("id").eq("id", memberId).eq("campaign_id", campaignId).maybeSingle();
-        if (memberError) throw new Error(`party_members: ${memberError.message}`);
-        if (!member) throw new Error("party_members: no such member in this campaign");
-        const { error } = await admin.from("character_spells").update({ uses_remaining: remaining }).eq("id", spellRowId).eq("party_member_id", memberId);
-        if (error) throw new Error(`character_spells: ${error.message}`);
-      },
-      async writeClassResources(memberId, resources) {
-        // Scoped to this campaign: another campaign's member is never touched. The whole object, so a retry lands once.
-        const { error } = await admin.from("party_members").update({ class_resources: resources }).eq("id", memberId).eq("campaign_id", campaignId);
-        if (error) throw new Error(`party_members: ${error.message}`);
+      async spendFromSheet(spend, batchId) {
+        // Taken off the sheet as it is now and applied once per batch and member (#1264); the function refuses a member of another campaign.
+        const { error } = await admin.rpc("spend_from_sheet", {
+          p_campaign_id: campaignId,
+          p_member_id: spend.memberId,
+          p_batch_id: batchId,
+          p_slots: spend.slots,
+          p_resources: spend.resources,
+          p_innate: spend.innate,
+        });
+        if (error) throw new Error(`spend_from_sheet: ${error.message}`);
       },
       async judgeNote(noteQuestions, alreadyThisBatch) {
         // The same rule as campaign search's rerank: AI on for the campaign and a platform key, else the rules pick alone.

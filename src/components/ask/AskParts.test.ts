@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
 import { flushPromises, mount } from "@vue/test-utils";
 
 const order: string[] = [];
@@ -141,6 +142,8 @@ describe("AskUpsell", () => {
 });
 
 describe("AskComposer", () => {
+  beforeEach(() => setActivePinia(createPinia()));
+
   // Bug caught: Enter inserting a newline, or Shift+Enter sending half a thought.
   it("sends on Enter, keeps the line break on Shift+Enter, and ignores an empty box", async () => {
     const w = mount(AskComposer, { props: { line: "5 of 5 free questions left today" } });

@@ -29,4 +29,17 @@ describe("useAskUiStore", () => {
     expect(ask.open).toBe(false);
     expect(ask.everOpened).toBe(true);
   });
+
+  // Bug caught: the search row (sends) and Suggest (writes, unsent) sharing one slot, so one of them did the other's job.
+  it("sends by default and only writes into the box when asked not to", () => {
+    const ask = useAskUiStore();
+    ask.openPanel("who is Mara?");
+    expect(ask.pendingQuery).toBe("who is Mara?");
+    expect(ask.prefill).toBeNull();
+    ask.takePendingQuery();
+    ask.openPanel("Suggest a truth.", { send: false });
+    expect(ask.pendingQuery).toBeNull();
+    expect(ask.takePrefill()).toBe("Suggest a truth.");
+    expect(ask.takePrefill()).toBeNull();
+  });
 });

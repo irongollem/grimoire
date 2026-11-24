@@ -7,15 +7,17 @@
       :entity-mention-items="mentionItems"
       placeholder="What is this campaign like? Its country, its trouble, its mood…"
     />
-    <div class="flex flex-wrap items-center gap-2">
+    <!-- One thin line under the text, the same icons as a theme's: who reads it, and delete. -->
+    <div class="-mt-1 flex min-h-8 items-center gap-0.5">
       <AutosaveStatus :status="status" :error="saveError" />
       <span class="flex-1" />
       <AudienceRevealControl
+        form="inline"
         :visible-to="entry.player_visible_to"
         name="The pitch"
         @change="(next) => update({ id: entry.id, patch: { player_visible_to: next } })"
       />
-      <AppButton variant="ghost" size="sm" :icon="IconDelete" icon-size="xs" label="Remove" @click="remove" />
+      <AppButton variant="ghost" size="icon-sm" :icon="IconDelete" aria-label="Delete the pitch" @click="remove" />
     </div>
   </div>
 </template>

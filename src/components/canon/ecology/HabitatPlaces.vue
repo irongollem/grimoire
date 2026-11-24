@@ -1,6 +1,5 @@
 <template>
   <div class="flex flex-col gap-2" data-testid="habitat-places">
-    <span class="text-eyebrow text-muted-foreground">The places it covers</span>
     <ul v-if="mine.length > 0" class="m-0 flex list-none flex-wrap gap-2 p-0">
       <li v-for="place in mine" :key="place.id" class="flex items-center gap-1 rounded-lg border border-border bg-muted/40 py-0.5 pr-0.5 pl-2" data-testid="habitat-place-chip">
         <span class="text-body text-foreground">{{ nameOf(place.locationId) }}</span>

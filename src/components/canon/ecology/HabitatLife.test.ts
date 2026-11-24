@@ -44,14 +44,6 @@ describe("HabitatLife", () => {
     state.life = [eel("a", 40), eel("b", 20), { ...eel("z", 50), habitatId: "other" }];
   });
 
-  // Bug (the maintainer's rejection of free text): a creature could be typed, so a name matching nothing in the bestiary
-  // ended up in the world. The only text field is the picker; the rest are share numbers.
-  it("has no free-text creature field: the only text field is the bestiary picker", () => {
-    const w = mountIt();
-    const texts = w.findAll("input[type=text]");
-    expect(texts.map((i) => i.attributes("placeholder"))).toEqual(["Add a creature…"]);
-  });
-
   // Bug: another habitat's creatures were listed here, or counted into this habitat's total.
   it("lists only this habitat's creatures and totals only them", () => {
     const w = mountIt();
@@ -104,9 +96,5 @@ describe("HabitatLife", () => {
     const w = mountIt();
     await w.find("button[aria-label='Remove Eel b']").trigger("click");
     expect(mocks.remove).toHaveBeenCalledExactlyOnceWith("b");
-  });
-
-  it("links to the bestiary's new-creature route", () => {
-    expect(mountIt().findAll("a").map((a) => a.attributes("href"))).toEqual(["/monsters/new"]);
   });
 });

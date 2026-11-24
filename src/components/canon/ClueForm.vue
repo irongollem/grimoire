@@ -1,5 +1,5 @@
 <template>
-  <form class="flex flex-col gap-2 border border-border bg-muted/40 p-3" data-testid="clue-form" @submit.prevent="submit">
+  <form class="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3" data-testid="clue-form" @submit.prevent="submit">
     <AppInput v-model="line" tone="filled" size="body" placeholder="The clue, in a line…" aria-label="The clue" />
     <div class="flex flex-col gap-1">
       <span class="text-eyebrow text-muted-foreground">Where it can be found</span>

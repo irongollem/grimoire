@@ -21,7 +21,6 @@ vi.mock("@tanstack/vue-query", () => ({
 }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => h.auth }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => h.campaign }));
-vi.mock("@/lib/canon/canonEntries", () => ({ fetchCanonEntries: vi.fn() }));
 vi.mock("@/composables/canon/useCanonForces", () => ({ fetchCanonForceData: vi.fn() }));
 
 import { useCanonOnCalendar } from "./useCanonOnCalendar";

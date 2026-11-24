@@ -1,7 +1,6 @@
 <template>
-  <section id="canon-table" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-table-heading">
+  <section id="canon-table" class="flex flex-col gap-3" aria-label="What the table added">
     <div class="flex flex-wrap items-center gap-3">
-      <CanonRubric id="canon-table-heading" class="min-w-0 flex-1" numeral="✦" title="What the table added" />
       <SegmentedControl v-if="hasFacts" v-model="ui.tableFactFilter" :options="FACT_FILTER_OPTIONS" size="sm" aria-label="Show" />
       <AppButton v-if="hasFacts && ui.tableFactsHasActiveFilters" variant="ghost" size="sm" label="Clear" @click="ui.resetTableFactFilters()" />
     </div>
@@ -59,7 +58,6 @@ import { useToast } from "@/composables/useToast";
 import type { SittingInfo, StoryFact } from "@/lib/table/solo/storyRecord";
 import { useCanonUiStore } from "@/stores/ui/canon";
 import type { CanonEntry } from "@/types/canon.types";
-import CanonRubric from "./CanonRubric.vue";
 import TableFactRow from "./TableFactRow.vue";
 import { FACT_FILTER_OPTIONS, factReview, isAlreadyATruth, tableGroups, truthByFact, type FactFilter } from "@/lib/canon/canonTableFacts";
 

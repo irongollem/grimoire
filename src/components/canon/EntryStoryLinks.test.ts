@@ -79,12 +79,6 @@ describe("EntryStoryLinks", () => {
     expect(w.find("[data-testid=story-carries]").exists()).toBe(true);
   });
 
-  // Bug caught: each item linking nowhere, or to the wrong entry's page.
-  it("links each item to its entry on the canon page", () => {
-    links.value = [link("led_to", "cause", "me")];
-    expect(mountFor(me).get("[data-testid=story-because-item]").attributes("data-to")).toBe(JSON.stringify({ path: "/canon", query: { entry: "cause" } }));
-  });
-
   // Bug caught: a trashed entry's id rendered as a blank link.
   it("leaves out an entry that is no longer in the canon", () => {
     links.value = [link("led_to", "gone", "me"), link("led_to", "cause", "me")];

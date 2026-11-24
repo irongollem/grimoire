@@ -1,10 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
+import type { Note } from "@/types/notes.types";
 import SessionLogRow from "@/components/sessions/SessionLogRow.vue";
 import type { CampaignSession } from "@/types/session.types";
 
 // AppButton and the title link render real RouterLinks, which need an injected
 // router; a stub keeps the test about the row.
+// The chronicle line reads the party, the canon and the learned list; its own test covers it.
+vi.mock("@/components/sessions/SessionChronicleLine.vue", () => ({ default: { template: "<div />" } }));
+const NOTE = { id: "n1" } as Note;
 const routerStub = { global: { stubs: { RouterLink: { template: "<a><slot /></a>" } } } };
 
 function session(over: Partial<CampaignSession> = {}): CampaignSession {
@@ -24,7 +28,7 @@ function session(over: Partial<CampaignSession> = {}): CampaignSession {
 }
 
 function mountRow(row: CampaignSession, hasNote: boolean, facts = { people: 2, encounters: 1 }) {
-  return mount(SessionLogRow, { props: { session: row, facts, hasNote }, ...routerStub });
+  return mount(SessionLogRow, { props: { session: row, facts, note: hasNote ? NOTE : null }, ...routerStub });
 }
 
 describe("SessionLogRow", () => {

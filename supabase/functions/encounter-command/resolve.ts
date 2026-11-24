@@ -16,15 +16,13 @@ import { NORMAL_ROLL, rollWithRules, type RolledFaces } from "../../../src/lib/d
 import { dnd5eDiceRules } from "../../../src/systems/dnd5e/dice/rules.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { MonsterStatBlock } from "../../../src/types/monster.types.ts";
-import type { SpellSlotEntry } from "../../../src/types/party.types.ts";
-import type { StoredClassResources } from "../../../src/rules/features/characterFeatures.ts";
 import type { SaveAbility } from "../../../src/types/statBlock.types.ts";
 import type { StatBlockEntry } from "../../../src/types/statBlock.types.ts";
 import { statBlockOf, type StatBlockSources } from "../_shared/fightStatBlocks.ts";
 import type { StatBlockListKey } from "../../../src/rules/statBlock/parseAction.ts";
 import { holdsConcentration } from "../../../src/rules/conditionDurations.ts";
 import { attackRollMode } from "../../../src/rules/combat/attackRoll.ts";
-import { allyInnateSpend, allySlotSpend, settleInnateSpend, settleSlotSpend, slotPoolFor, type InnateSpend } from "../../../src/rules/fight/allies/spells.ts";
+import { allyInnateSpend, allySlotSpend, settleInnateSpend, settleSlotSpend, slotPoolFor } from "../../../src/rules/fight/allies/spells.ts";
 import { enemyBesideTarget, sneakUseKey } from "../../../src/rules/fight/allies/sneak.ts";
 import { allyAttackShape, allySneakAttack } from "../../../src/rules/fight/allies/statBlock.ts";
 import { RAGE_RESISTANCES, RAGING, divineSmiteFor, featureSpend, improvedSmiteFor, rageDamageFor, settleFeatureSpend } from "../../../src/rules/fight/allies/features.ts";
@@ -434,12 +432,6 @@ export interface ResolveEnv {
   posted: PostedRoll[];
   /** What the allies' attacks used up (ammunition, a thrown weapon), in order, for the caller to write once the fight is saved (#1021). */
   spent: Array<{ spend: AllySpend; speaker: string }>;
-  /** The slots an ally's casts used up, as the sheet's whole slot list after each cast, in order, for the caller to write once the fight is saved (#1021). */
-  slotsSpent: Array<{ memberId: string; slots: SpellSlotEntry[] }>;
-  /** The sheet's `class_resources` as they stand after an ally used a limited class feature (Rage, Second Wind, Action Surge, Ki), the whole list, in order, for the caller to write once the fight is saved (#1021). */
-  resourcesSpent: Array<{ memberId: string; resources: StoredClassResources }>;
-  /** The uses an ally's casts of daily-limited innate spells left on their `character_spells` rows, as absolute counts, in order, for the caller to write once the fight is saved (#1021). */
-  innateSpent: InnateSpend[];
   /**
    * Asks whether each turn goes against a creature's note (#1203), once per distinct `key`; null when asking is not
    * allowed or did not work. Left out where no note is ever consulted.
@@ -645,13 +637,11 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     if (plan.how === "slots") {
       const slots = allySlotSpend(env.players, memberId, plan.castLevel, slotPoolFor(env.players, memberId, spell));
       if (slots !== null) {
-        env.slotsSpent.push({ memberId, slots });
         settleSlotSpend(env.players, memberId, slots);
       }
     } else if (plan.how === "per_day") {
       const spend = allyInnateSpend(env.players, memberId, spell);
       if (spend !== null) {
-        env.innateSpent.push(spend);
         settleInnateSpend(env.players, spend);
       }
     }
@@ -1144,13 +1134,11 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
             // 2024 Paladin's Smite: the free cast is a use of the sheet's own pool, not a slot.
             const resources = featureSpend(env.players, memberId, "paladins_smite");
             if (resources !== null) {
-              env.resourcesSpent.push({ memberId, resources });
               settleFeatureSpend(env.players, memberId, resources);
             }
           } else {
             const slots = allySlotSpend(env.players, memberId, smite.slotLevel);
             if (slots !== null) {
-              env.slotsSpent.push({ memberId, slots });
               settleSlotSpend(env.players, memberId, slots);
             }
           }

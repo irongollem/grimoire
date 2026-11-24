@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
+import { createPinia } from "pinia";
 
 const mocks = vi.hoisted(() => ({ confirm: vi.fn(), remove: vi.fn(), rename: vi.fn(), saveDescription: vi.fn() }));
 
 vi.mock("@/composables/canon/useCampaignHabitats", () => ({
   useHabitatEditing: () => ({ removeHabitat: mocks.remove, renameHabitat: mocks.rename, saveDescription: mocks.saveDescription }),
 }));
+vi.mock("@/composables/ask/useCanAsk", async () => {
+  const { ref } = await import("vue");
+  return { useCanAsk: () => ref(true) };
+});
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/notes/useEntityMentionItems", async () => {
   const { computed } = await import("vue");
@@ -19,7 +24,7 @@ vi.mock("./HabitatNotes.vue", () => ({ default: { template: "<div />" } }));
 import HabitatEditor from "./HabitatEditor.vue";
 
 const habitat = { id: "h1", name: "Salt marsh", description: null, sortOrder: 0 };
-const mountIt = () => mount(HabitatEditor, { props: { habitat } });
+const mountIt = () => mount(HabitatEditor, { props: { habitat }, global: { plugins: [createPinia()] } });
 const deleteButton = (w: ReturnType<typeof mountIt>) => w.findAll("button").find((b) => b.text() === "Delete this habitat")!;
 
 describe("HabitatEditor", () => {

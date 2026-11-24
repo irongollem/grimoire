@@ -79,7 +79,6 @@
  * Canon page already reads (all under the canon query root, so the campaign doorbell keeps it fresh), stores nothing, and
  * every line links to where it is edited. A route under the DM shell: the lens fence keeps players out of it.
  */
-import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
@@ -89,93 +88,15 @@ import PageHeader from "@/components/common/list/PageHeader.vue";
 import TonightBlock from "@/components/canon/tonight/TonightBlock.vue";
 import TonightGroups from "@/components/canon/tonight/TonightGroups.vue";
 import TonightLooseEnds from "@/components/canon/tonight/TonightLooseEnds.vue";
-import { useCanonArcs } from "@/composables/canon/useCanonArcs";
-import { useCampaignBeatQuests } from "@/composables/canon/useCampaignBeatQuests";
-import { useCanonClues, useSetClueFound } from "@/composables/canon/useCanonClues";
-import { useCanonEntries } from "@/composables/canon/useCanonEntries";
-import { useCanonForceData, useTickForce } from "@/composables/canon/useCanonForces";
+import { useSetClueFound } from "@/composables/canon/useCanonClues";
+import { useTickForce } from "@/composables/canon/useCanonForces";
 import { useTellPassage } from "@/composables/canon/useCanonPassageEdits";
-import { useCanonPassages } from "@/composables/canon/useCanonPassages";
-import { useTableFacts } from "@/composables/canon/useTableFacts";
-import { useCampaignLinks } from "@/composables/connections/useConnections";
-import { useAllLocations } from "@/composables/locations/useLocations";
-import { useParty } from "@/composables/party/useParty";
-import { useQuests } from "@/composables/quests/useQuests";
-import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
-import { activeQuestBeatIds, looseEnds, nothingTonight, scopeHidAll, scopeTonight, tonight, TONIGHT_SCOPES, type TonightLore, type TonightScope } from "@/lib/canon/canonTonight";
+import { useTonight } from "@/composables/canon/useTonight";
+import { TONIGHT_SCOPES, type TonightLore } from "@/lib/canon/canonTonight";
 import { IconChevronLeft } from "@/lib/icons";
-import { useCampaignStore } from "@/stores/campaign";
-import { useCanonUiStore } from "@/stores/ui/canon";
 
-const campaign = computed(() => useCampaignStore().activeCampaign);
-const entries = useCanonEntries();
-const clues = useCanonClues();
-const passages = useCanonPassages();
-const forces = useCanonForceData();
-const party = useParty();
-const links = useCampaignLinks();
-const record = useTableFacts();
-const arcs = useCanonArcs();
-const quests = useQuests();
-const beatQuests = useCampaignBeatQuests();
-const locations = useAllLocations();
-const sessions = useCampaignSessions();
-const reads = [entries, clues, passages, forces, party, links, record.facts, arcs, quests, beatQuests, locations, sessions];
-
-const isLoading = computed(() => reads.some((r) => r.isLoading.value));
-const isError = computed(() => reads.some((r) => r.isError.value));
-
-const ui = useCanonUiStore();
-const scope = computed<TonightScope>({ get: () => ui.tonightScope, set: (v) => (ui.tonightScope = v) });
+const { campaign, isLoading, isError, scope, plan, ends, nothing, scopeEmpty, scopeEmptyText } = useTonight();
 const SCOPE_OPTIONS = TONIGHT_SCOPES.map((s) => ({ value: s.id, label: s.label }));
-
-// Only built once every read has answered: a read still missing would show as "nothing waiting".
-const full = computed(() => {
-  if (isLoading.value || isError.value || campaign.value === null) return null;
-  return tonight({
-    entries: entries.data.value ?? [],
-    passages: passages.data.value ?? [],
-    clues: clues.data.value ?? [],
-    steps: forces.data.value?.steps ?? [],
-    ticks: forces.data.value?.ticks ?? [],
-    party: party.data.value ?? [],
-    links: links.data.value ?? [],
-    facts: record.facts.data.value ?? [],
-  });
-});
-const plan = computed(() =>
-  full.value === null
-    ? null
-    : scopeTonight(full.value, scope.value, {
-        currentLocationId: campaign.value?.current_location_id ?? null,
-        locations: locations.data.value ?? [],
-        activeBeatIds: activeQuestBeatIds(beatQuests.data.value ?? [], quests.data.value ?? []),
-      }),
-);
-const ends = computed(() =>
-  full.value === null
-    ? []
-    : looseEnds({
-        entries: entries.data.value ?? [],
-        clues: clues.data.value ?? [],
-        steps: forces.data.value?.steps ?? [],
-        entryQuests: forces.data.value?.quests ?? [],
-        links: links.data.value ?? [],
-        arcs: arcs.data.value ?? [],
-        quests: quests.data.value ?? [],
-        sessions: sessions.data.value ?? [],
-      }),
-);
-// The page is empty only when the whole canon has nothing; a scope that hides what exists says so under its control instead.
-const nothing = computed(() => full.value !== null && nothingTonight(full.value) && ends.value.length === 0);
-const scopeEmpty = computed(() => full.value !== null && plan.value !== null && scopeHidAll(full.value, plan.value));
-const scopeEmptyText = computed(() =>
-  scope.value === "party"
-    ? campaign.value?.current_location_id
-      ? "No lore or clue is placed where the party is. Choose Everything to see the rest."
-      : "The party has no place set, so nothing is placed where they are. Choose Everything to see the rest."
-    : "No lore or clue is placed at a beat of an active quest. Choose Everything to see the rest.",
-);
 
 // The same writers the entry pages use, so each stamps the open session as they do.
 const setFound = useSetClueFound();

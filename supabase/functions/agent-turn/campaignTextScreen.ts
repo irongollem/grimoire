@@ -8,7 +8,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CHILD_TURN_THRESHOLDS } from "../_shared/agent/conduct.ts";
-import { isPromptRejected, screenImagePrompt, thresholdsFor } from "../_shared/moderation.ts";
+import { CHAT_TEXT_THRESHOLDS, screenChatText, thresholdsFor } from "../_shared/moderation.ts";
 
 /** Bumped when the screen's rules change in a way an old verdict should not outlive. It is part of every key. */
 export const SCREEN_VERSION = "ct1";
@@ -56,7 +56,7 @@ export async function screenCampaignTexts(input: { campaignId: string; child: bo
   const withheld = new Set<string>();
   const distinct = [...new Set(input.texts)];
   if (distinct.length === 0) return { withheld };
-  const thresholds = thresholdsFor(child ? CHILD_TURN_THRESHOLDS : undefined);
+  const thresholds = thresholdsFor(child ? CHILD_TURN_THRESHOLDS : undefined, CHAT_TEXT_THRESHOLDS);
   const keyed = await Promise.all(distinct.map(async (text) => ({ text, hash: await textKey(text, thresholds) })));
 
   let known = new Map<string, boolean>();
@@ -133,21 +133,14 @@ export function makeTextScreenIo(admin: SupabaseClient, ctx: { apiKey: () => str
     async moderate(text, child) {
       const apiKey = ctx.apiKey();
       if (apiKey === null) return null;
-      try {
-        const record = await screenImagePrompt(text, {
-          apiKey,
-          admin,
-          userId: ctx.userId,
-          generationType: "campaign_text",
-          imageProvider: "none",
-          tighter: child ? CHILD_TURN_THRESHOLDS : undefined,
-        });
-        // No id means the call could not be made or judged (fail open): nothing to remember, nothing to withhold.
-        return record.id === null ? null : { flagged: false, categories: [] };
-      } catch (error) {
-        if (isPromptRejected(error)) return { flagged: true, categories: error.categories };
-        throw error;
-      }
+      // Null means the call could not be made or judged (fail open): nothing to remember, nothing to withhold.
+      return await screenChatText(text, {
+        apiKey,
+        admin,
+        userId: ctx.userId,
+        surface: "campaign_text",
+        tighter: child ? CHILD_TURN_THRESHOLDS : undefined,
+      });
     },
     async remember(campaignId, rows) {
       const { error } = await admin.from("campaign_text_screenings").upsert(

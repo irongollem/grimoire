@@ -35,8 +35,10 @@ const force = (over = {}) => canonEntry({ id: "f1", campaign_id: "c1", part: "fo
 
 const EntryQuestsStub = { name: "EntryQuests", props: ["entry", "links", "label", "empty"], template: "<div />" };
 
+const CanonSuggestStub = { name: "CanonSuggest", props: ["request"], template: "<i data-testid='suggest' />" };
+
 const mountIt = (entry = force()) =>
-  mount(ForceDetail, { props: { entry }, global: { stubs: { RouterLink: { props: ["to"], template: "<a :href=\"to\"><slot /></a>" }, ForceSteps: true, EntryQuests: EntryQuestsStub, ConnectionsSection: true, CanonEntryNotes: true, ForceQuestClocks: true, EntryStoryLinks: true } } });
+  mount(ForceDetail, { props: { entry }, global: { stubs: { CanonSuggest: CanonSuggestStub, RouterLink: { props: ["to"], template: "<a :href=\"to\"><slot /></a>" }, ForceSteps: true, EntryQuests: EntryQuestsStub, ConnectionsSection: true, CanonEntryNotes: true, ForceQuestClocks: true, EntryStoryLinks: true } } });
 
 describe("ForceDetail", () => {
   beforeEach(() => {
@@ -89,6 +91,12 @@ describe("ForceDetail", () => {
     expect(w.find("[data-testid=tick-forward]").exists()).toBe(false);
   });
 
+  // Bug caught: a Suggest on the clock and steps block. The server has no helper for a force's steps, so the request ran
+  // the forces helper and proposed new forces where the DM asked for steps.
+  it("offers no Suggest for a force's steps", () => {
+    expect(mountIt().findComponent(CanonSuggestStub).exists()).toBe(false);
+  });
+
   it("undoes the newest tick by id", async () => {
     forceData.value.ticks = [tick({ id: "old", created_at: "2026-11-18T10:00:00Z" }), tick({ id: "new", created_at: "2026-11-20T10:00:00Z" })];
     await mountIt().get("[data-testid=force-log] button").trigger("click");
@@ -105,10 +113,13 @@ describe("ForceDetail", () => {
     expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { clock_size: 8 } });
   });
 
-  it("emits delete", async () => {
+  // Bug caught: the log showing every move at once (burying the clock), or "All N moves" opening nothing.
+  it("shows the newest three moves and opens the rest in place", async () => {
+    forceData.value.ticks = Array.from({ length: 5 }, (_, i) => tick({ id: `t${i}`, created_at: `2026-11-1${i}T10:00:00Z` }));
     const w = mountIt();
-    await w.findAll("button").find((b) => b.text() === "Delete this force")!.trigger("click");
-    expect(w.emitted("delete")).toHaveLength(1);
+    expect(w.findAll("[data-testid=force-tick]")).toHaveLength(3);
+    await w.get("[data-testid=force-log-all]").trigger("click");
+    expect(w.findAll("[data-testid=force-tick]")).toHaveLength(5);
   });
 
   const ended = (over = {}) => force({ closed_as: "stopped", closed_at: "2026-11-23T10:00:00Z", closed_note: "Sift burned the ledger.", ...over });
