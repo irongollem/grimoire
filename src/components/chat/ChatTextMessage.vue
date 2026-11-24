@@ -26,6 +26,17 @@
     </div>
   </div>
 
+  <!-- An NPC's line (#1270): the NPC's speech bubble, led by the face the message carried. -->
+  <div v-else-if="npcSpeech" class="max-w-[85%]" :data-addressed="addressed ? '' : undefined" data-testid="chat-npc-speech">
+    <NpcSpeechBubble :name="senderName ?? '???'" :portrait="npcSpeech.portrait" :focal="npcSpeech.focal" :ai="npcSpeech.ai">
+      <template #line>
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <p class="whitespace-pre-line" v-html="renderedMessage" />
+      </template>
+      <p class="text-caption-sm text-muted-foreground/50 text-right">{{ timeLabel }}</p>
+    </NpcSpeechBubble>
+  </div>
+
   <!-- Plain chat message -->
   <div
     v-else
@@ -68,6 +79,8 @@ import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import type { EntityLinkMetadata } from "@/types/chat.types";
+import type { NpcSpeech } from "@/lib/chat/npcSpeech";
+import NpcSpeechBubble from "@/components/npcs/NpcSpeechBubble.vue";
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -84,6 +97,7 @@ const {
   entityLink = null,
   addressed = false,
   ai = false,
+  npcSpeech = null,
 } = defineProps<{
   isSystem?: boolean;
   isOwn?: boolean;
@@ -101,6 +115,8 @@ const {
   addressed?: boolean;
   /** The line was written by AI playing a character for its absent player (#1021 row 26). */
   ai?: boolean;
+  /** The line is an NPC's (its metadata named the NPC): drawn as that NPC's speech bubble. */
+  npcSpeech?: NpcSpeech | null;
 }>();
 
 const targetRoute = computed((): string | null => {

@@ -21,34 +21,19 @@
       <p v-if="section.hint" class="text-caption italic text-muted-foreground">{{ section.hint }}</p>
       <dl class="flex flex-col gap-1 text-body">
         <div v-for="(row, r) in section.rows" :key="`${row.label}:${r}`" class="flex flex-col gap-1">
+          <!-- A spoken row is the speaker's speech bubble; its press sits inside it. -->
+          <template v-if="row.spoken && item.shown.speaker">
+            <NpcSpeechBubble :name="item.shown.speaker.name" :portrait="item.shown.speaker.portrait" :focal="item.shown.speaker.focal" :line="row.detail" ai :data-testid="`ask-preview-speech-${i}-${r}`">
+              <AskPreviewRowAction v-if="row.action" :action="row.action" :state="stateOf(i, r)" :busy="busy" :mobile="isMobile" :test-id="`ask-preview-row-${i}-${r}`" @act="emit('act', i, r)" />
+            </NpcSpeechBubble>
+          </template>
+          <template v-else>
           <div class="flex items-baseline gap-2">
             <dt class="min-w-0 flex-1 text-muted-foreground">{{ row.label }}</dt>
             <dd class="min-w-0 max-w-[70%] text-right">{{ row.detail }}</dd>
           </div>
-          <!-- A press on this row alone: runs once, then says what it did and where to go. The preview stays open. -->
-          <div v-if="row.action" class="flex flex-wrap items-center justify-end gap-2" :data-testid="`ask-preview-row-${i}-${r}`">
-            <template v-if="stateOf(i, r)?.phase === 'done'">
-              <span class="inline-flex items-center gap-1 text-label-lg font-semibold text-ink-success" data-testid="ask-preview-row-done">
-                <IconCheck class="size-3.5" />
-                {{ stateOf(i, r)?.doneLabel }}
-              </span>
-              <AppButton v-for="link in stateOf(i, r)?.links ?? []" :key="link.route" variant="link" size="inline-caption" :label="link.label" :to="link.route" data-testid="ask-preview-row-link" />
-              <span v-if="stateOf(i, r)?.error" class="w-full text-right text-caption text-ink-caution" data-testid="ask-preview-row-note">{{ stateOf(i, r)?.error }}</span>
-            </template>
-            <template v-else>
-              <span v-if="stateOf(i, r)?.error" class="min-w-0 flex-1 text-caption text-destructive" role="alert" data-testid="ask-preview-row-error">{{ stateOf(i, r)?.error }}</span>
-              <AppButton
-                variant="outline"
-                size="xs"
-                :class="{ 'min-h-11': isMobile }"
-                :loading="stateOf(i, r)?.phase === 'running'"
-                :disabled="busy"
-                :label="row.action.label"
-                data-testid="ask-preview-row-action"
-                @click="emit('act', i, r)"
-              />
-            </template>
-          </div>
+          <AskPreviewRowAction v-if="row.action" :action="row.action" :state="stateOf(i, r)" :busy="busy" :mobile="isMobile" :test-id="`ask-preview-row-${i}-${r}`" @act="emit('act', i, r)" />
+          </template>
           <!-- A choice the DM may change before Create (which book's version of a creature); the adapter saves the pick. -->
           <div v-if="row.choice" class="flex items-center gap-1.5" :data-testid="`ask-preview-choice-${row.choice.key}`">
             <span class="shrink-0 text-label text-muted-foreground">{{ row.choice.label }}</span>
@@ -104,13 +89,15 @@
  * is an emit. Saved, it is gone: the result card follows it.
  */
 import { computed } from "vue";
-import { IconCheck, IconWarning } from "@/lib/icons";
+import { IconWarning } from "@/lib/icons";
 import { creditsText } from "@/lib/ask/askCredits";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { previewRowKey, type AskItem } from "@/composables/ask/useAskConversation";
 import { keptLine } from "@/composables/ask/askItems";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
+import NpcSpeechBubble from "@/components/npcs/NpcSpeechBubble.vue";
+import AskPreviewRowAction from "@/components/ask/AskPreviewRowAction.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 
 const { item, action, again, noun = "record" } = defineProps<{

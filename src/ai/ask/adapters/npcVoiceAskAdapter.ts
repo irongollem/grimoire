@@ -9,7 +9,12 @@
  * there, exactly as the coach's "Said it" did: the running session, else the last one played. "Done" ends the card;
  * lines not marked are not kept, and "Again" asks for new ones at the quote's price.
  *
- * A line is filed once: a second press on it finds it filed, and a failed save leaves its button to press again.
+ * Each line is drawn as the NPC's speech bubble, with their portrait. "Said it" also says the line in the campaign chat
+ * as the NPC, in the same bubble (an open message from the DM, marked as written by AI), so the table reads it too; a
+ * "Speak aloud" button in the NPC's voice joins it later (#1273).
+ *
+ * A line is filed once and posted once: a second press on it finds each done, and a failed save or a failed post leaves
+ * its button to press again, finishing only what is missing.
  */
 import { ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
@@ -24,8 +29,10 @@ import { useNpc } from "@/composables/npcs/useNpcs";
 import { useCreateNpcMemory } from "@/composables/npcs/useNpcMemories";
 import { useCampaignSession } from "@/composables/campaign/useCampaignSession";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
-import { getNpcDisplayName } from "@/lib/npcDisplay";
+import { useSendNpcSpeech } from "@/composables/campaign/useSendNpcSpeech";
+import { getNpcDisplayFocalPoint, getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
 import { defaultMemorySessionId } from "@/lib/npcs/npcMemories";
+import type { NpcSpeechFace } from "@/lib/chat/npcSpeech";
 import type { AiProvenance } from "@/ai/provenance";
 import type { Npc } from "@/types/npc.types";
 
@@ -37,6 +44,8 @@ interface HeldLines {
   lines: string[];
   reveals: boolean[];
   provenance: AiProvenance | null;
+  /** The face the bubbles lead with, and the chat line carries: the portrait the table would see (a disguise's, while worn). */
+  face: NpcSpeechFace;
 }
 
 export function useNpcVoiceAskAdapter(): AskPreviewAdapter {
@@ -45,6 +54,7 @@ export function useNpcVoiceAskAdapter(): AskPreviewAdapter {
   const { blockFor } = useAskGate(null, "voice line");
   const coach = useNpcVoiceCoach();
   const createMemory = useCreateNpcMemory();
+  const sendNpcSpeech = useSendNpcSpeech();
   const { session: openSession, isRunning } = useCampaignSession();
 
   // The NPC and the session log are read only once a proposal names an NPC: this adapter lives as long as the panel.
@@ -91,10 +101,11 @@ export function useNpcVoiceAskAdapter(): AskPreviewAdapter {
     const risky = held.reveals.flatMap((r, i) => (r ? [i + 1] : []));
     return {
       title: `${getNpcDisplayName(held.npc) ?? held.npc.name}, in their own words`,
+      speaker: { name: getNpcDisplayName(held.npc) ?? held.npc.name, portrait: held.face.portrait, focal: held.face.focal },
       sections: [{
         heading: "Lines",
         hint: "Press Said it on what they said at the table: only those are kept, in their Memory tab.",
-        rows: held.lines.map((text, i) => ({ label: `Line ${i + 1}`, detail: text, action: said(i) })),
+        rows: held.lines.map((text, i) => ({ label: `Line ${i + 1}`, detail: text, spoken: true as const, action: said(i) })),
       }],
       ...(risky.length > 0 ? { note: `${risky.length === 1 ? `Line ${risky[0]} may` : `Lines ${risky.join(", ")} may`} give the disguise away.` } : {}),
     };
@@ -112,36 +123,51 @@ export function useNpcVoiceAskAdapter(): AskPreviewAdapter {
     if (coach.lines.value.length === 0) {
       return { ok: false, result: failedRun("Lines", coach.error.value ?? "No lines came back. Nothing was charged.") };
     }
-    const held: HeldLines = { npc, lines: [...coach.lines.value], reveals: [...coach.reveals.value], provenance: coach.provenance.value };
+    const held: HeldLines = { npc, lines: [...coach.lines.value], reveals: [...coach.reveals.value], provenance: coach.provenance.value, face: { portrait: getNpcDisplayPortrait(npc), focal: getNpcDisplayFocalPoint(npc) ?? null } };
     const parts: AskRunPart[] = [{ label: "Lines", ok: true, credits: spent(current.lines.find((l) => l.label === "Lines")) }];
 
-    /** The lines already in the Memory tab, so a second press on a line never files it twice. */
+    /** The lines already in the Memory tab and already said in the chat, so a second press never does either twice. */
     const filed = new Set<number>();
+    const posted = new Set<number>();
     const filing = new Set<number>();
 
-    /** "Said it" on one line: files that line once, DM-only, in the running session or the last played, with provenance. */
+    /**
+     * "Said it" on one line: files it once, DM-only, in the running session or the last played, with provenance, and
+     * says it once in the chat as the NPC. When one half fails the other stays done and the press finishes the missing
+     * half; the row says which failed.
+     */
     async function fileLine(i: number): Promise<AskRunPart> {
       const label = `Line ${i + 1}`;
-      if (filed.has(i)) return { label, ok: true, credits: 0 };
+      if (filed.has(i) && posted.has(i)) return { label, ok: true, credits: 0 };
       if (filing.has(i)) return { label, ok: false, credits: 0, error: "Still being kept." };
       filing.add(i);
       try {
-        await createMemory.mutateAsync({
-          memory: {
-            npc_id: npc.id,
-            kind: "revealed",
-            body: held.lines[i].trim().slice(0, MEMORY_BODY_LIMIT),
-            session_id: filingSessionId(),
-            party_member_ids: [],
-            player_visible_to: [],
-            ai_provenance: held.provenance,
-          },
-          npcLabel: getNpcDisplayName(npc) ?? npc.name,
-        });
-        filed.add(i);
+        if (!filed.has(i)) {
+          try {
+            await createMemory.mutateAsync({
+              memory: {
+                npc_id: npc.id,
+                kind: "revealed",
+                body: held.lines[i].trim().slice(0, MEMORY_BODY_LIMIT),
+                session_id: filingSessionId(),
+                party_member_ids: [],
+                player_visible_to: [],
+                ai_provenance: held.provenance,
+              },
+              npcLabel: getNpcDisplayName(npc) ?? npc.name,
+            });
+            filed.add(i);
+          } catch (e) {
+            return { label, ok: false, credits: 0, error: `Could not be kept${e instanceof Error ? `: ${e.message}` : "."}` };
+          }
+        }
+        try {
+          await sendNpcSpeech({ id: npc.id, name: getNpcDisplayName(npc) ?? npc.name, face: held.face }, held.lines[i], held.provenance);
+          posted.add(i);
+        } catch (e) {
+          return { label, ok: false, credits: 0, error: `Kept in their Memory tab, but the chat post failed${e instanceof Error ? `: ${e.message}` : "."} Press again to retry.` };
+        }
         return { label, ok: true, credits: 0 };
-      } catch (e) {
-        return { label, ok: false, credits: 0, error: `Could not be kept${e instanceof Error ? `: ${e.message}` : "."}` };
       } finally {
         filing.delete(i);
       }

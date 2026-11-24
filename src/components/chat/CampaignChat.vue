@@ -118,7 +118,7 @@ import { resolveItemById, useItemsByIds } from "@/composables/items/useItemsById
 import { useSpeaker } from "@/composables/party/useSpeaker";
 import { useParty } from "@/composables/party/useParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { getNpcDisplayName } from "@/lib/npcDisplay";
+import { getNpcDisplayFocalPoint, getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import { useLootRollClock } from "@/composables/campaign/useLootRollClock";
 import type { RollResult } from "@/lib/dice/dice";
@@ -246,7 +246,12 @@ const queryClient = useQueryClient();
 // "???" would fight an explicit instruction. `is_revealed` is different — it is
 // the DM's own flag saying this identity is still a secret.
 const npcs = computed(() =>
-  (npcsData.value ?? []).map((n) => ({ id: n.id, name: getNpcDisplayName(n) ?? "???" }))
+  (npcsData.value ?? []).map((n) => ({
+    id: n.id,
+    name: getNpcDisplayName(n) ?? "???",
+    // The face a line said as this NPC carries (#1270): what the table would see, so a worn disguise shows its portrait.
+    face: { portrait: getNpcDisplayPortrait(n), focal: getNpcDisplayFocalPoint(n) ?? null },
+  }))
 );
 
 // The persona name is stored as a snapshot when the DM picks it, so revealing
@@ -259,7 +264,7 @@ watch(npcs, (list) => {
   // Only when the NPC is actually in the list. A miss means the query is
   // between fetches (or the NPC was deleted), and blanking the name there would
   // silently drop the DM's chosen persona back to their own name mid-sentence.
-  if (npc) appUi.setDmTalkAsNpc(npc.id, npc.name);
+  if (npc) appUi.setDmTalkAsNpc(npc.id, npc.name, npc.face);
 });
 
 // The dot is a read position, not a transition (chatUnread.ts). `messages` is

@@ -413,6 +413,10 @@ Ten of the triggered tables have a *nullable* `campaign_id` (general-scope rows 
 **`useCampaignPresence`** (`src/composables/campaign/useCampaignPresence.ts`)
 Uses Supabase Realtime Presence to track who is currently online. Each connected client broadcasts `{ user_id, display_name, online_at }`. The `MembersTab` uses `isOnline(userId)` to show a green/grey dot next to each member. This is the same channel referenced by the campaign chat system.
 
+## NPC speech bubbles (#1270)
+
+A chat line whose `metadata.for_npc_id` names an NPC is drawn as that NPC's speech bubble (`NpcSpeechBubble`: round portrait, name, the line, an "AI" mark when `metadata.ai`). Two things write one: the DM's "As:" persona (the NPC's id and the portrait the table would see, a worn disguise's included, ride with every line) and the Familiar's voice lines ("Said it", `useSendNpcSpeech`). The portrait URL is stored in the message (`speaker_portrait_url`, `speaker_portrait_focal`) so players see the face the DM chose without reading an NPC record RLS may hide. Metadata is untrusted: `readNpcSpeech` draws a picture only for an http(s) URL, and the initial shows otherwise (it sits under the picture). No voice: chat lines get none by decision (#1021).
+
 ## Rolls the server makes (#1204)
 
 Every dice button in the app rolls on the device (`src/lib/dice/roller.ts`) and posts the result as a `campaign_messages` row its author writes, so a member can post any total. That stays: a campaign-level choice of who rolls is a later story of epic #1021. What this adds is a roll the **server** makes, for an AI Dungeon Master (which must never supply a number) and for a fight the server advances (#1201).

@@ -3,7 +3,7 @@ import { ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { Npc } from "@/types/npc.types";
 
-const mocks = vi.hoisted(() => ({ suggest: vi.fn(), createMemory: vi.fn() }));
+const mocks = vi.hoisted(() => ({ suggest: vi.fn(), createMemory: vi.fn(), say: vi.fn() }));
 const state = vi.hoisted(() => ({
   aiEnabled: true, affordable: true, npc: undefined as unknown, npcError: null as Error | null,
   coach: { lines: [] as string[], reveals: [] as boolean[], error: null as string | null },
@@ -19,6 +19,7 @@ vi.mock("@/composables/rules/useGameSystem", () => ({ useGameSystem: () => ({ of
 vi.mock("@/composables/npcs/useNpcs", () => ({
   useNpc: () => ({ data: { get value() { return state.npc; } }, error: { get value() { return state.npcError; } } }),
 }));
+vi.mock("@/composables/campaign/useSendNpcSpeech", () => ({ useSendNpcSpeech: () => mocks.say }));
 vi.mock("@/composables/npcs/useNpcMemories", () => ({ useCreateNpcMemory: () => ({ mutateAsync: mocks.createMemory }) }));
 vi.mock("@/composables/campaign/useCampaignSession", () => ({
   useCampaignSession: () => ({ session: ref({ id: "run-1" }), isRunning: { get value() { return state.running; } } }),
@@ -53,6 +54,7 @@ describe("useNpcVoiceAskAdapter", () => {
   beforeEach(() => {
     mocks.suggest.mockReset().mockResolvedValue(undefined);
     mocks.createMemory.mockReset().mockResolvedValue({});
+    mocks.say.mockReset().mockResolvedValue(undefined);
     Object.assign(state, { aiEnabled: true, affordable: true, npc: npc(), npcError: null, running: true, log: [] });
     state.coach = { lines: ["The gate shuts at dusk.", "  Move along.  ", "I never saw you."], reveals: [false, true, false], error: null };
   });
@@ -159,6 +161,47 @@ describe("useNpcVoiceAskAdapter", () => {
     expect(await said(preview, 0).run()).toMatchObject({ ok: true });
     expect(await said(preview, 0).run()).toMatchObject({ ok: true });
     expect(mocks.createMemory).toHaveBeenCalledTimes(2);
+  });
+
+  // Bug caught: lines drawn as a label and a value, with no face, so the DM cannot tell who is speaking.
+  it("draws every line as the NPC's spoken row, led by the portrait the table would see", async () => {
+    state.npc = npc({ portrait_url: "https://cdn.example/johnny.webp", portrait_focal_point: { x: 30, y: 20 } });
+    const shown = (await previewed()).shown;
+    expect(shown.speaker).toEqual({ name: "Johnny Reed", portrait: "https://cdn.example/johnny.webp", focal: { x: 30, y: 20 } });
+    expect(shown.sections[0].rows.every((r) => r.spoken === true)).toBe(true);
+    state.npc = npc({ name: "Johnny Reed", disguise_name: "Old Tam", disguise_portrait_url: "https://cdn.example/tam.webp", is_revealed: false, portrait_url: "https://cdn.example/johnny.webp" });
+    expect((await previewed()).shown.speaker).toMatchObject({ name: "Old Tam", portrait: "https://cdn.example/tam.webp" });
+  });
+
+  // Bug caught: Said it filing the memory but never putting the line in the chat, or posting under the wrong NPC and face.
+  it("says the pressed line, and only it, in the chat as the NPC, with the face and the provenance", async () => {
+    state.npc = npc({ portrait_url: "https://cdn.example/johnny.webp" });
+    const preview = await previewed();
+    await said(preview, 1).run();
+    expect(mocks.say).toHaveBeenCalledTimes(1);
+    expect(mocks.say).toHaveBeenCalledWith(
+      { id: ID, name: "Johnny Reed", face: { portrait: "https://cdn.example/johnny.webp", focal: null } },
+      "  Move along.  ",
+      expect.objectContaining({ generatorType: "npc_voice" }),
+    );
+  });
+
+  // Bug caught: pressing a line twice posting it to the table twice; and a failed post losing the filed memory or filing it again.
+  it("posts a line once, and a failed post is retried without filing the memory again", async () => {
+    const preview = await previewed();
+    mocks.say.mockRejectedValueOnce(new Error("offline"));
+    expect(await said(preview, 0).run()).toMatchObject({ ok: false, error: expect.stringContaining("chat post failed: offline") });
+    expect(await said(preview, 0).run()).toMatchObject({ ok: true });
+    expect(await said(preview, 0).run()).toMatchObject({ ok: true });
+    expect(mocks.createMemory).toHaveBeenCalledTimes(1);
+    expect(mocks.say).toHaveBeenCalledTimes(2);
+  });
+
+  // Bug caught: a line that could not be kept still posted to the table, where it would be said but not remembered.
+  it("does not post a line whose memory could not be kept", async () => {
+    mocks.createMemory.mockRejectedValueOnce(new Error("db down"));
+    await said(await previewed(), 0).run();
+    expect(mocks.say).not.toHaveBeenCalled();
   });
 
   it("ends with the coach's reason and no preview when no line comes back", async () => {

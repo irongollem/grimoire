@@ -1,4 +1,5 @@
 import type { Coins } from "../lib/currency/currency.ts";
+import type { AiProvenance } from "../ai/provenance.ts";
 import type { ItemQuality } from "./inventory.types.ts";
 
 export type MessageType = "chat" | "roll" | "system" | "item_drop" | "currency_drop" | "vendor_offer" | "player_offer" | "loot_chest" | "dm_roll";
@@ -24,6 +25,19 @@ export interface RollMetadata {
  */
 export interface SpeakerMetadata {
   for_party_member_id: string;
+}
+
+/**
+ * A line an NPC says (#1270): drawn as that NPC's speech bubble. The portrait's URL is stored so a player sees the face
+ * the DM put in the chat without reading an NPC record RLS may hide (`lib/chat/npcSpeech.ts`). `ai` and its
+ * provenance are set when the Familiar wrote the line.
+ */
+export interface NpcSpeechMetadata {
+  for_npc_id: string;
+  speaker_portrait_url?: string;
+  speaker_portrait_focal?: { x: number; y: number };
+  ai?: true;
+  ai_provenance?: AiProvenance;
 }
 
 /** Whom a chat line addresses with an "@" (#1021 row 26; `lib/chat/chatMentions.ts`). Rides beside any other metadata of the line. */
@@ -222,7 +236,7 @@ export interface CampaignMessage {
   sender_name: string | null;
   message: string;
   type: MessageType;
-  metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | VendorOfferMetadata | PlayerOfferMetadata | FlavorMetadata | SpeakerMetadata | MentionsMetadata | LootChestMetadata | EntityLinkMetadata | null;
+  metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | VendorOfferMetadata | PlayerOfferMetadata | FlavorMetadata | SpeakerMetadata | NpcSpeechMetadata | MentionsMetadata | LootChestMetadata | EntityLinkMetadata | null;
   created_at: string;
   /**
    * True for a roll the server made (#1204): only a service-role insert can set it,

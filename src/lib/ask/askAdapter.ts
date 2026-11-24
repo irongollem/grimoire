@@ -92,6 +92,11 @@ export interface AskPreviewRow {
   label: string;
   detail: string;
   /**
+   * The detail is a line someone said, in the preview's `speaker`'s voice: the card draws the row as that speaker's
+   * speech bubble (portrait, name, the line) with the row's action inside it, instead of a label and a value.
+   */
+  spoken?: true;
+  /**
    * A choice the DM may change before Create (which sourcebook's version of a creature): the card draws a picker
    * under the row and reports a pick as `choose(key, value)`, and the adapter's `create` saves what was picked.
    */
@@ -117,6 +122,8 @@ export interface AskPreviewShown {
   badge?: string;
   /** Blocks of rows, each with an optional heading ("Combatants"), in the order they are shown. */
   sections: { heading?: string; /** A quiet line under the heading. */ hint?: string; rows: AskPreviewRow[] }[];
+  /** Who says the `spoken` rows (an NPC): their name and the face the bubbles lead with (#1270). */
+  speaker?: { name: string; portrait: string | null; focal: { x: number; y: number } | null };
   /** A warning under the rows (creatures the Bestiary lacks). */
   note?: string;
   /** Prose the DM reads before the rows (a chronicle's draft), markdown or rich text, drawn with the sanitized viewer. */

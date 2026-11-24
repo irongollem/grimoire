@@ -363,6 +363,10 @@ inventory drop falls back to the DM's own sender name. Never the true name.
 
 ---
 
+### Speech bubbles (#1270)
+
+`NpcSpeechBubble` is the one way an NPC's word is drawn: portrait (display-aware, so a disguise shows its picture), name, the line, an optional AI mark and a slot for actions. The Familiar's voice lines use it, and "Said it" copies the line into the campaign chat in the same bubble (see collaboration.md, "NPC speech bubbles").
+
 ## World Web
 
 Routes: `/web` (DM) and `/play/web` (player). It replaced the Relationship Web at `/npcs/web` (#1084), which drew only the ties between people; the old address redirects to `/web` and is a reserved segment of the NPC detail prefetch. A faction's emblem and a deity's image are clipped to the node's shield and inner disc; an NPC is a plain circle at rest and shows its portrait in the focus view and the node card. The NPC list's **Web** button and overflow entry go to `/web`. The full feature is a manual page, `src/manual/worldbuilding-web.md`; this section keeps the decisions the code does not say.

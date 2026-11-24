@@ -145,4 +145,21 @@ describe("AskPreviewCard", () => {
     const w = mount(AskPreviewCard, { props: { item: item({ phase: "discarded", kept: 2 }), action: "Done", noun: "quest", again } });
     expect(w.get('[data-testid="ask-preview-discarded"]').text()).toBe("Discarded. 2 quests were made and kept.");
   });
+
+  // Bug caught: spoken lines drawn as a label and a value, so the DM cannot see who is speaking; or the row's own press lost.
+  it("draws a spoken row as the speaker's speech bubble with the row's press inside it", async () => {
+    const w = card({
+      shown: {
+        title: "Tam, in their own words",
+        speaker: { name: "Old Tam", portrait: "https://cdn.example/tam.webp", focal: null },
+        sections: [{ rows: [{ label: "Line 1", detail: "Move along.", spoken: true, action: { label: "Said it", doneLabel: "Said", run: async () => ({ label: "Line 1", ok: true, credits: 0 }) } }] }],
+      },
+    });
+    const bubble = w.get('[data-testid="ask-preview-speech-0-0"]');
+    expect(bubble.get('[data-testid="npc-speech-name"]').text()).toBe("Old Tam");
+    expect(bubble.get('[data-testid="npc-speech-line"]').text()).toBe("Move along.");
+    expect(bubble.find('[data-testid="npc-speech-ai"]').exists()).toBe(true);
+    await bubble.get('[data-testid="ask-preview-row-action"]').trigger("click");
+    expect(w.emitted("act")).toEqual([[0, 0]]);
+  });
 });
