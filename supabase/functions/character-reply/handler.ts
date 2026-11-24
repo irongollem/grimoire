@@ -15,7 +15,7 @@ import type { StoredMention } from "../../../src/lib/chat/chatMentions.ts";
 import { UUID_RE } from "../_shared/agent/parse.ts";
 import type { BaseCampaign, CampaignLoad } from "../_shared/pipeline/aiCampaign.ts";
 import type { CreditHold } from "../_shared/pipeline/creditHold.ts";
-import { json, jsonError } from "../_shared/pipeline/respond.ts";
+import { json, jsonError, rateLimited } from "../_shared/pipeline/respond.ts";
 
 export interface ChatLine {
   id: string;
@@ -63,8 +63,17 @@ export interface ReplyDeps {
   withHold(ownerId: string, credits: number, work: (hold: ReplyHold) => Promise<Response>): Promise<Response>;
   /** `unprompted` marks a line nobody asked for (`metadata.unprompted`), which is what the hourly cap counts. */
   postReply(reply: { line: ChatLine; character: StandIn; ownerId: string; text: string; recipientUserId: string | null; provider: string; model: string; unprompted: boolean }): Promise<void>;
-  /** What the character knows by name beyond its own words: the rest of the party (`KnownThings` says why not quests). */
-  loadKnown(campaignId: string, partyMemberId: string): Promise<KnownThings>;
+  /**
+   * Every party member's name, read once per line: each bystander knows the rest of the party by name (`KnownThings`
+   * says why not quests). Every member, not only the ones played tonight, so it is not `loadParty`.
+   */
+  loadPartyNames(campaignId: string): Promise<{ id: string; name: string }[]>;
+  /**
+   * The caller's AI rate limit, checked once per line before anything that costs (moderation, the judge, a reply):
+   * false when it is spent. Once per line, not per character, so "@party" costs one unit, and a limit met halfway
+   * never turns replies already posted into an error.
+   */
+  rateLimit(userId: string): Promise<boolean>;
   /** How many unprompted lines the character has posted in this campaign since `sinceIso`. */
   countUnprompted(campaignId: string, partyMemberId: string, sinceIso: string): Promise<number>;
   /**
@@ -114,6 +123,8 @@ export async function answerChatLine(input: { userId: string; body: unknown; dep
   // Not addressed, not the sender's own, not already answered or spoken for this line: the ones who may speak up unasked.
   const bystanders = unpromptedCandidates(sender, party).filter((c) => !answered.has(c.id));
   if (answering.length === 0 && bystanders.length === 0) return nobody();
+  // A line asked of a character is told it was refused; one nobody asked stays quiet, like every other unasked "no".
+  if (!(await deps.rateLimit(userId))) return answering.length > 0 ? rateLimited() : nobody();
   if (await deps.ownerRefused(campaign.user_id)) return nobody();
   if (await deps.isFlagged(line.message, line.user_id)) return nobody();
 
@@ -186,10 +197,12 @@ export async function answerChatLine(input: { userId: string; body: unknown; dep
 
   // Speaking up unasked is never an error to the one who typed: every "no" from here is quiet.
   let room = STAND_IN_REPLIES_MAX - answering.length;
+  let partyNames: { id: string; name: string }[] | null = null;
   for (const character of bystanders) {
     if (room <= 0) break;
     const memories = await deps.loadMemories(campaign.id, character.id);
-    const known = await deps.loadKnown(campaign.id, character.id);
+    partyNames ??= await deps.loadPartyNames(campaign.id);
+    const known: KnownThings = { partyNames: partyNames.filter((m) => m.id !== character.id).map((m) => m.name) };
     const names = namesInLine({ line: line.message, character, memories, known });
     if (names.length === 0) continue;
     const spoken = await deps.countUnprompted(campaign.id, character.id, new Date(deps.now() - UNPROMPTED_WINDOW_MS).toISOString());
@@ -204,7 +217,7 @@ export async function answerChatLine(input: { userId: string; body: unknown; dep
     // No platform key, or a judge that did not answer: nothing is said unasked.
     if (verdict === null) break;
     // The score alone, never the line: it is what `UNPROMPTED_MIN` will be measured from.
-    console.info(`character-reply: cause for an unasked line judged ${noulOf(verdict, "cause")?.toFixed(2) ?? "no answer"}.`);
+    console.warn(`character-reply: cause for an unasked line judged ${noulOf(verdict, "cause")?.toFixed(2) ?? "no answer"}.`);
     if (!hasCause(verdict)) continue;
     if ((await speak(character, { unprompted: true, names, memories })) !== null) break;
     room -= 1;

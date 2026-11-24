@@ -14,7 +14,7 @@
 --   1. It never replaces a map. A place that already has a picture, a drawing or a source map is refused: the DM's
 --      own map always wins, and the Narrator is only offered the tool where the place has none.
 --   2. A room the place already has under the same name is used, not duplicated: the DM may have named the rooms
---      before anything drew them. Rooms are made only where the place may hold rooms
+--      before anything drew them. A region it kept from a map the place no longer has is replaced. Rooms are made only where the place may hold rooms
 --      (`private.location_can_hold_rooms`); elsewhere the map is open ground with exact walls and no rooms.
 --   3. Rooms are records that count against the account's plan. When they do not fit (`quota_exceeded`, a free plan at
 --      its limit; seen live on the fixture, 24 Nov 2026) the map is still made, as open ground: the walls and doors are
@@ -117,8 +117,13 @@ begin
         values (v_uid, v_place.campaign_id, p_location_id, v_room ->> 'name', 'room', nullif(v_room ->> 'about', ''))
         returning id into v_room_id;
       end if;
+      -- A room the DM named may hold a region from a map the place no longer has: the new map's region replaces it
+      -- (a room holds one region; #1271 review).
       insert into public.location_map_regions (user_id, site_location_id, space_location_id, cells, region_role, derived_from, cell_signature)
-      values (v_uid, p_location_id, v_room_id, v_room -> 'cells', 'space', 'floodfill', v_room ->> 'signature');
+      values (v_uid, p_location_id, v_room_id, v_room -> 'cells', 'space', 'floodfill', v_room ->> 'signature')
+      on conflict (space_location_id) where space_location_id is not null do update
+        set site_location_id = excluded.site_location_id, cells = excluded.cells, region_role = excluded.region_role,
+            derived_from = excluded.derived_from, cell_signature = excluded.cell_signature;
       v_rooms := v_rooms || jsonb_build_object(v_room ->> 'key', v_room_id);
     end loop;
 

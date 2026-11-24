@@ -5,7 +5,6 @@
 import { cellSignature, canonicalCells } from "../../../../src/cartographer/cellSignature.ts";
 import { latticeKey, latticeSegment } from "../../../../src/lib/battlemap/walls.ts";
 import { cellKey, emptyLayers, type CellKey, type DarknessLevel, type DungeonMapLayers, type PackRef, type WallEdge } from "../../../../src/types/dungeonMap.types.ts";
-import type { GridCalibration } from "../../../../src/types/location.types.ts";
 import { MAP_LIVE_VERSION, type MapLive } from "../../../../src/types/mapLive.types.ts";
 import type { AgentTool } from "./types.ts";
 
@@ -159,6 +158,9 @@ export function parseMapPlan(input: unknown): Parsed {
     if (key === OUTSIDE) return fail(`"${OUTSIDE}" is not a room: it is how a door leads out of the map. Pick another key.`);
     if (rooms.some((o) => o.key === key)) return fail(`Two rooms share the key "${key}". Keys must be unique.`);
     if (typeof roomName !== "string" || roomName.trim() === "" || roomName.length > 60) return fail(`Room "${key}" needs a name of 1 to 60 characters.`);
+    // The rooms become places under the map's place, matched by name without case (`make_place_map`): two of one name
+    // would be one room holding two regions, which the database refuses (#1271 review).
+    if (rooms.some((o) => o.name.trim().toLowerCase() === roomName.trim().toLowerCase())) return fail(`Two rooms are named "${roomName}". Give each room its own name.`);
     if (!isInt(x) || !isInt(y) || !isInt(w) || !isInt(h)) return fail(`Room "${key}": x, y, w and h must be whole numbers.`);
     if (w < 1 || h < 1) return fail(`Room "${key}" must be at least 1 cell wide and 1 high.`);
     if (about !== undefined && (typeof about !== "string" || about.length > 300)) return fail(`Room "${key}": about must be text of at most 300 characters.`);
@@ -240,7 +242,6 @@ export interface BuiltMap {
   layers: DungeonMapLayers;
   darkness: DarknessLevel;
   mapLive: MapLive;
-  calibration: GridCalibration;
   rooms: BuiltRoom[];
   doors: BuiltDoor[];
   segments: MapSegments;
@@ -302,7 +303,6 @@ export function buildMap(plan: MapPlan): BuiltMap {
     layers,
     darkness: plan.light,
     mapLive,
-    calibration: { cells_per_image_width: plan.cols, origin_x_pct: 0, origin_y_pct: 0, origin_cell_x: 0, origin_cell_y: 0, image_height_over_width: plan.rows / plan.cols },
     rooms,
     doors,
     segments,

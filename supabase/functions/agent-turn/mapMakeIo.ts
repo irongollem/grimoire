@@ -47,8 +47,8 @@ export async function placeHasMap(client: SupabaseClient, campaignId: string, pl
 
 /**
  * The calibration of the PICTURE, not of the plan: the canvas is padded (to a size and aspect the styler accepts)
- * with the grid at its top-left, so the grid spans only part of the width. `buildMap`'s own calibration describes the
- * unpadded plan and would put every cell in the wrong place on this picture.
+ * with the grid at its top-left, so the grid spans only part of the width. A calibration of the unpadded plan would put
+ * every cell in the wrong place on this picture.
  */
 export function pictureCalibration(picture: Pick<PlanPicture, "width" | "height" | "pxPerCell">): GridCalibration {
   return {

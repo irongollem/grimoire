@@ -102,13 +102,11 @@ describe("buildMap geometry", () => {
     expect(built.rooms[0].signature).toBe(cellSignature(["4,2", "3,1", "3,2", "4,1"]));
   });
 
-  it("carries light, calibration and the plain segments", () => {
+  it("carries light and the plain segments", () => {
     const built = buildMap(parsed(plan([room("a", 0, 0, 3, 3)], [{ from: "a", to: "outside", side: "north" }], { cols: 20, rows: 10, light: "dark" })));
     expect(built.darkness).toBe("dark");
     expect(built.mapLive.darkness).toBe("dark");
     expect(built.mapLive.version).toBe(3);
-    // 10 rows over 20 columns.
-    expect(built.calibration).toEqual({ cells_per_image_width: 20, origin_x_pct: 0, origin_y_pct: 0, origin_cell_x: 0, origin_cell_y: 0, image_height_over_width: 0.5 });
     expect(built.segments.rooms).toEqual([{ x: 0, y: 0, w: 3, h: 3 }]);
     // 12 perimeter edges, one of them the door.
     expect(built.segments.walls).toHaveLength(11);
@@ -146,6 +144,12 @@ describe("parseMapPlan refusals", () => {
     expect(err(plan([room("a", 0, 0, 2, 2), room("a", 4, 4, 2, 2)]))).toContain("share the key");
     expect(err(plan([room("outside", 0, 0, 2, 2)]))).toContain("outside");
     expect(err(plan([room("a", 0, 0, 0, 2)]))).toContain("at least 1");
+  });
+
+  // #1271 review: two rooms of one name became one room holding two regions, the database refused it, and the place
+  // was reported as already having a map. Names match without case, as `make_place_map` matches them.
+  it("refuses two rooms of one name, whatever their case", () => {
+    expect(err(plan([room("a", 0, 0, 2, 2), { ...room("b", 4, 4, 2, 2), name: "a " }]))).toContain('Two rooms are named "a "');
   });
 
   it("refuses a door between rooms that share no side, naming both", () => {

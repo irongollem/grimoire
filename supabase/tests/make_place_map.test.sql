@@ -8,7 +8,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(16);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('11241700-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -32,6 +32,10 @@ insert into public.locations (id, user_id, campaign_id, name, location_type, map
 insert into public.locations (id, user_id, campaign_id, parent_id, name, location_type) values
   ('11241700-0000-4000-8000-0000000000a1', '11241700-0000-4000-8000-000000000001', '11241700-0000-4000-8000-0000000000c1',
    '11241700-0000-4000-8000-0000000000d1', 'Ossuary', 'room');
+
+-- The Ossuary keeps a region from a map the crypt no longer has.
+insert into public.location_map_regions (user_id, site_location_id, space_location_id, cells, region_role, derived_from, cell_signature) values
+  ('11241700-0000-4000-8000-000000000001', '11241700-0000-4000-8000-0000000000d1', '11241700-0000-4000-8000-0000000000a1', '["9,9"]'::jsonb, 'space', 'floodfill', 's-old');
 
 create function pg_temp.as_user(p_n int) returns void language sql as $$
   select set_config('request.jwt.claims',
@@ -63,7 +67,7 @@ set local role authenticated;
 select pg_temp.as_user(2);
 select throws_ok($$ select pg_temp.make('11241700-0000-4000-8000-0000000000d1', '11241700-0000-4000-8000-0000000000f1') $$,
   'P0002', null, 'a player cannot make a map');
-select is(pg_temp.counts('11241700-0000-4000-8000-0000000000d1'), '0|1|0|0', 'the refused player left no drawing, room, region or door');
+select is(pg_temp.counts('11241700-0000-4000-8000-0000000000d1'), '0|1|1|0', 'the refused player left no drawing, room, region or door');
 
 select pg_temp.as_user(1);
 select lives_ok($$ select pg_temp.make('11241700-0000-4000-8000-0000000000d1', '11241700-0000-4000-8000-0000000000f1') $$,
@@ -77,6 +81,8 @@ select is((select description from public.locations where parent_id = '11241700-
   'A long table.', 'a made room carries what stands there');
 select is((select space_location_id from public.location_map_regions where cell_signature = 's-oss'),
   '11241700-0000-4000-8000-0000000000a1'::uuid, 'the room the DM had named gets the region, not a second Ossuary');
+select is((select cells::text from public.location_map_regions where space_location_id = '11241700-0000-4000-8000-0000000000a1'),
+  '["3,0", "4,0", "5,0"]', 'its old region is replaced by the new map''s, not refused (#1271 review)');
 select is((select count(*)::int from public.location_doors where edge_key = '1,0:N' and to_location_id is null), 1,
   'a door to the outside leads nowhere in the campaign');
 

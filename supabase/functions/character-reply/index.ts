@@ -14,7 +14,7 @@ import { STAND_IN_RECENT_LINES, type StandIn } from "../_shared/agent/standIn.ts
 import { loadPartyMember } from "../_shared/agent/characterIo.ts";
 import type { StoredMention } from "../../../src/lib/chat/chatMentions.ts";
 import { serveUser } from "../_shared/pipeline/serveUser.ts";
-import { jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { jsonError, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { tableAiEnabled } from "../_shared/featureAccess.ts";
 import { loadAiCampaign } from "../_shared/pipeline/aiCampaign.ts";
 import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
@@ -161,8 +161,9 @@ serve(serveUser(async ({ user, req, report }) => {
     // The one who types pays nothing, so the brake on them is the rate limit every generator shares. It is checked here,
     // where a character is about to speak, not on arrival: every public line is asked about while someone is played,
     // and a line no character answers (most of them) must not use up the sender's own allowance.
+    rateLimit: (userId) => checkRateLimit(admin, userId, "ai_generation"),
+
     async withHold(ownerId, credits, work) {
-      if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
       return withCreditHold(admin, { payerId: ownerId, reason: GENERATION, cost: credits, report }, work);
     },
 
@@ -183,10 +184,10 @@ serve(serveUser(async ({ user, req, report }) => {
     },
 
     // The rest of the party by name (`KnownThings` says why not quests).
-    async loadKnown(campaignId, partyMemberId) {
-      const { data, error } = await admin.from("party_members").select("name").eq("campaign_id", campaignId).neq("id", partyMemberId);
+    async loadPartyNames(campaignId) {
+      const { data, error } = await admin.from("party_members").select("id, name").eq("campaign_id", campaignId);
       if (error) throw error;
-      return { partyNames: (data ?? []).flatMap((row) => (typeof row.name === "string" ? [row.name] : [])) };
+      return (data ?? []).flatMap((row) => (typeof row.name === "string" ? [{ id: row.id as string, name: row.name }] : []));
     },
 
     async countUnprompted(campaignId, partyMemberId, sinceIso) {

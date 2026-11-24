@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseFake } from "@/test/supabaseFake";
-import { startFight } from "./fightIo";
+import { abandonFight, startFight } from "./fightIo";
 
 // A fight that followed the party is the encounter's fight row opened again (#1021). Its XP is given once per fight,
 // keyed on `encounter_state.xp_awarded_at` (#1021 row 27); a carried fight that kept the first fight's mark would give
@@ -53,5 +53,32 @@ describe("startFight: the companions who join", () => {
     await startFight(client, client, ctx, { kind: "prepared", encounterId: "e1", name: "The wolves" });
     const { data } = await client.from("encounters").select("party_member_ids").eq("id", "e1").single();
     expect(data?.party_member_ids).toEqual(["pm9", "pm2", "pm1", "pm3"]);
+  });
+});
+
+// A correction that says a fight never happened closes its board row (#1021 row 23). Bug caught (#1271 review): the
+// board saved a round between the read and the close, the version-guarded close matched nothing, and the party's
+// initiative was cleared anyway under a fight still running.
+describe("abandonFight", () => {
+  it("closes the row even when the board wrote in between, and only then clears the initiative", async () => {
+    const fake = createSupabaseFake();
+    fake.seed("encounter_state", [{
+      id: "row1", encounter_id: "e1", campaign_id: "c1", version: 4, ended_at: null, is_running: true,
+      combatants_live: [{ instance_id: "p1", type: "player", party_member_id: "pm1" }],
+    }]);
+    fake.seed("party_members", [{ id: "pm1", campaign_id: "c1", current_initiative: 14 }]);
+    let stateCalls = 0;
+    const client = {
+      ...fake.client,
+      from(table: string) {
+        // The second call on the row is the close: the board's own save lands just before it.
+        if (table === "encounter_state" && ++stateCalls === 2) void fake.client.from("encounter_state").update({ version: 5 }).eq("id", "row1").then(() => undefined);
+        return fake.client.from(table);
+      },
+    } as unknown as SupabaseClient;
+    await abandonFight(client, "c1", "e1");
+    expect(fake.rows("encounter_state")[0]).toMatchObject({ is_running: false, version: 6 });
+    expect(fake.rows("encounter_state")[0].ended_at).not.toBeNull();
+    expect(fake.rows("party_members")[0].current_initiative).toBeNull();
   });
 });

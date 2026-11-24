@@ -35,6 +35,9 @@ function harness(over: Partial<ChatLine> = {}) {
     prompts: [] as { system: string; user: string }[],
     posted: [] as { character: string; text: string; recipientUserId: string | null; unprompted: boolean }[],
     known: { partyNames: ["Sam", "Folio"] } as { partyNames: string[] },
+    namesRead: 0,
+    rateLeft: Infinity,
+    rateChecks: 0,
     spokenThisHour: 0,
     cause: 0.95 as number | null,
     key: true,
@@ -83,7 +86,15 @@ function harness(over: Partial<ChatLine> = {}) {
     postReply: async ({ character, text, recipientUserId, unprompted }) => {
       h.posted.push({ character: character.id, text, recipientUserId, unprompted });
     },
-    loadKnown: async () => h.known,
+    // Ids no played character has, so each test's names reach every bystander as it set them.
+    loadPartyNames: async () => {
+      h.namesRead += 1;
+      return h.known.partyNames.map((name) => ({ id: `pm-${name}`, name }));
+    },
+    rateLimit: async () => {
+      h.rateChecks += 1;
+      return h.rateLeft-- > 0;
+    },
     countUnprompted: async (_c, _m, since) => {
       h.sinceAsked.push(since);
       return h.spokenThisHour;
@@ -181,6 +192,23 @@ describe("answerChatLine", () => {
     expect(h.reservedOn).toEqual([DM]); // one try, then the rest stay silent too
   });
 
+  // #1271 review: the limit used to be checked inside each reply's hold, after moderation and the judge had already
+  // run, once per character, and a limit met at the third answer turned two posted replies into a 429.
+  it("a spent rate limit refuses an asked line before anything that costs", async () => {
+    const h = harness();
+    h.rateLeft = 0;
+    expect(await ask(h)).toMatchObject({ status: 429 });
+    expect(h.prompts).toEqual([]);
+    expect(h.reservedOn).toEqual([]);
+  });
+
+  it("@party answered by two characters spends one unit of the limit", async () => {
+    const h = harness({ mentions: [{ kind: "party", party_member_id: null, name: "party" }] });
+    h.rateLeft = 1;
+    expect(await ask(h)).toEqual({ status: 200, replies: 2 });
+    expect(h.rateChecks).toBe(1);
+  });
+
   it("a reply the model did not write is not posted or charged", async () => {
     const h = harness();
     h.modelText = "I would rather not.";
@@ -201,6 +229,28 @@ describe("answerChatLine, speaking unprompted", () => {
     expect(h.reservedOn).toEqual([DM, DM]);
     expect(h.charged).toEqual([{ ownerId: DM, credits: 2 }, { ownerId: DM, credits: 2 }]);
     expect(h.prompts[0].user).toContain("not to you");
+  });
+
+  it("a spent rate limit leaves an unasked line quiet, with no judge call", async () => {
+    const h = open("did anyone hear from Sam or Folio since the ledger went missing?");
+    h.rateLeft = 0;
+    expect(await ask(h)).toEqual({ status: 200, replies: 0 });
+    expect(h.judged).toEqual([]);
+  });
+
+  // #1271 review: the party's names were read again for each bystander.
+  it("reads the party's names once for the line, however many may speak", async () => {
+    const h = open("did anyone hear from Sam or Folio since the ledger went missing?");
+    expect(await ask(h)).toEqual({ status: 200, replies: 2 });
+    expect(h.namesRead).toBe(1);
+  });
+
+  // Its full name is skipped by `namesInLine`; the parts of it (a nickname) only by leaving itself out of the party.
+  it("a character's own nickname is not one it knows of someone else", async () => {
+    const h = open("has anyone seen Inky today?");
+    h.deps.loadPartyNames = async () => [{ id: "wren", name: "Wren" }, { id: "folio", name: 'Folio "Inky" Vane' }];
+    expect(await ask(h)).toEqual({ status: 200, replies: 1 });
+    expect(h.posted.map((p) => p.character)).toEqual(["wren"]);
   });
 
   it("no name it knows, no judge call and no model call", async () => {
