@@ -9,15 +9,6 @@
       <EntryArcPicker :entry="entry" />
     </template>
 
-    <EntityImageBlock
-      :model-value="entry.image_url"
-      bucket="chronicle"
-      ai-kind="lore"
-      :ai-context="pictureContext"
-      :ai-target-id="entry.id"
-      @update:model-value="(url) => update({ id: entry.id, patch: { image_url: url || null } })"
-    />
-
     <div class="flex flex-wrap items-end gap-3">
       <label class="flex flex-col gap-1">
         <span class="text-eyebrow text-muted-foreground">What kind</span>
@@ -55,6 +46,20 @@
       </ul>
       <p v-else class="m-0 text-caption text-muted-foreground" data-testid="no-passages">No passages yet. The first one is told with the entry.</p>
       <AppButton variant="ghost" size="sm" :icon="IconAdd" icon-size="xs" label="Add a passage" class="self-start" :loading="adding" @click="addPassage" />
+    </CanonBlock>
+
+    <!-- After the passages, and a modest width: an empty drop zone at the top filled the screen and hid the words. -->
+    <CanonBlock title="A picture">
+      <div class="w-full max-w-sm">
+        <EntityImageBlock
+          :model-value="entry.image_url"
+          bucket="chronicle"
+          ai-kind="lore"
+          :ai-context="pictureContext"
+          :ai-target-id="entry.id"
+          @update:model-value="(url) => update({ id: entry.id, patch: { image_url: url || null } })"
+        />
+      </div>
     </CanonBlock>
 
     <EntryStoryLinks :entry="entry" />
