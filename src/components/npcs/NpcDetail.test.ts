@@ -4,6 +4,10 @@ import { ref, defineComponent, h } from "vue";
 import NpcDetail from "./NpcDetail.vue";
 import type { Npc } from "@/types/npc.types";
 import { emptyDefenses } from "@/types/statBlock.types";
+import { createPinia, setActivePinia } from "pinia";
+import { useAskFormFillStore } from "@/stores/ui/askFormFill";
+import { useAskUiStore } from "@/stores/ui/ask";
+import type { NpcAiGenerated } from "@/ai/types";
 
 /**
  * Covers the Copy to campaign wiring (#885) only. NpcDetail's own save/
@@ -168,7 +172,6 @@ function mountDetail(npcProp: Npc | null, { mobile = false }: { mobile?: boolean
         PlayerNotesWidget: true,
         FamilyBlock: true,
         NpcEditMobile: true,
-        NpcGenerateDialog: true,
         NpcSidebar: true,
         NpcIdentitySection: true,
         ConnectionsSection: true,
@@ -182,6 +185,9 @@ function mountDetail(npcProp: Npc | null, { mobile = false }: { mobile?: boolean
     },
   });
 }
+
+// The Generate button and the form it fills meet in the Ask store (#1270).
+beforeEach(() => setActivePinia(createPinia()));
 
 describe("NpcDetail — copy to campaign (#885)", () => {
   beforeEach(() => {
@@ -253,7 +259,6 @@ describe("NpcDetail — copy to campaign (#885)", () => {
           NpcEditMobile: {
             template: '<button class="mobile-copy" @click="$emit(\'copy-to-campaign\')" />',
           },
-          NpcGenerateDialog: true,
           PaywallModal: true,
         },
       },
@@ -458,5 +463,42 @@ describe("NpcDetail — stat blocks follow the game system (#934)", () => {
     const ids = tabIds(mountDetail(npc()));
     expect(ids).not.toContain("combat");
     expect(ids).toEqual(["lore", "inventory"]);
+  });
+});
+
+describe("NpcDetail — the Familiar's Generate card fills this form (#1270)", () => {
+  const generated: NpcAiGenerated = {
+    name: "Mira Vale", race: "Dwarf", alignment: "lawful neutral", age: "", occupation: "Smith",
+    appearance: "", personality: "", voice: "", backstory: "", notes: "", status: "alive", relationship: "friendly",
+    tags: ["guild"], true_portrait_prompt: "", portrait_url: null,
+  };
+
+  // Bug caught: the card's result was dropped on the floor because nothing was listening for it on the open sheet.
+  it("takes the generated person into the open sheet, saving nothing", () => {
+    const wrapper = mountDetail(null);
+    const filler = useAskFormFillStore().fillerFor<NpcAiGenerated, undefined>("npc_sheet");
+    expect(filler).not.toBeNull();
+    filler?.apply(generated);
+    const vm = wrapper.vm as unknown as { form: { name: string; occupation: string | null } };
+    expect(vm.form).toMatchObject({ name: "Mira Vale", occupation: "Smith" });
+    expect(createNpc).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: a closed editor stayed offered to the card, which would then write into nothing.
+  it("stops offering the sheet once the editor is gone", () => {
+    const wrapper = mountDetail(null);
+    wrapper.unmount();
+    expect(useAskFormFillStore().fillerFor("npc_sheet")).toBeNull();
+  });
+
+  // Bug caught: the header's Generate opened nothing now that the dialog is gone.
+  it("opens the NPC card in the Familiar from the mobile Generate", async () => {
+    mobileMode = true;
+    const wrapper = mount(NpcDetail, {
+      props: { npc: null },
+      global: { stubs: { NpcEditMobile: { template: '<button class="gen" @click="$emit(\'generate\')" />' }, FamilyBlock: true, PaywallModal: true } },
+    });
+    await wrapper.find(".gen").trigger("click");
+    expect(useAskUiStore().pendingGenerator?.generatorId).toBe("npc_sheet");
   });
 });

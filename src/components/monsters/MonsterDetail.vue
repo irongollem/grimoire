@@ -20,7 +20,7 @@
     @copy-to-campaign="openCopy"
     @customize="customize"
     @scriptorium="sendToScriptorium"
-    @generate="showGenerateDialog = true"
+    @generate="openGenerator('monster_sheet')"
     @update:image-url="onPortraitUrlUpdate($event)"
     @update:focal-point="onPortraitFocalUpdate($event)"
     @update:cutout-url="onCutoutUrlUpdate($event)"
@@ -63,7 +63,7 @@
           size="md"
           :icon="IconGenerate"
           label="Generate"
-          @click="showGenerateDialog = true"
+          @click="openGenerator('monster_sheet')"
         />
         <!-- Send to Scriptorium + Copy to campaign… fold into one "Send to…"
              menu (#895) — the same shared control the NPC editor already
@@ -240,13 +240,6 @@
     <EntityBacklinks v-if="backlinksMonsterId" :entity-id="backlinksMonsterId" />
   </div>
 
-  <!-- AI generation dialog -->
-  <MonsterGenerateDialog
-    :visible="showGenerateDialog && isAiEnabled"
-    @close="showGenerateDialog = false"
-    @generated="onAiGenerated"
-  />
-
   <PaywallModal v-model="showPaywall" resource="monsters" />
   <PaywallModal v-model="showScriptoriumPaywall" resource="scriptorium_documents" />
 
@@ -280,7 +273,8 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
 import EntitySendMenu from "@/components/common/entity/EntitySendMenu.vue";
 import MonsterEditMobile from "@/components/monsters/MonsterEditMobile.vue";
-import MonsterGenerateDialog from "@/ai/MonsterGenerateDialog.vue";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
+import { useAskFormFill } from "@/ai/ask/useAskFormFill";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { markEdited } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
@@ -497,10 +491,11 @@ function onCutoutUrlUpdate(url: string | null) {
 }
 // AI generation
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
-const showGenerateDialog = ref(false);
+// Generate is a card in the Familiar that fills this form (#1270): nothing is saved, the DM reviews the sheet.
+const { open: openGenerator } = useOpenGenerator();
+useAskFormFill<MonsterAiGenerated>("monster_sheet", { context: () => undefined, apply: onAiGenerated });
 
 function onAiGenerated(result: MonsterAiGenerated) {
-  showGenerateDialog.value = false;
   form.name = result.name;
   form.monster_type = result.monster_type;
   form.size = result.size;

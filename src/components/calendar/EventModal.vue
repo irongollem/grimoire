@@ -117,18 +117,9 @@
               size="inline"
               :icon="IconGenerate"
               label="Draft with AI"
-              :aria-expanded="aiOpen"
-              @click="aiOpen = !aiOpen"
+              @click="openGenerator('event_description')"
             />
           </div>
-          <EventModalAiDraft
-            v-if="aiOpen && campaign.isAiEnabled"
-            class="mb-2"
-            :date-label="dateLabel"
-            :event-type="form.event_type"
-            @draft="applyDraft"
-            @close="aiOpen = false"
-          />
           <RichTextEditor
             v-model="form.description"
             placeholder="What happened…"
@@ -205,7 +196,7 @@
 
 <script setup lang="ts">
 import TagChip from "@/components/common/TagChip.vue";
-import { watch, computed, ref, useId } from "vue";
+import { watch, computed, useId } from "vue";
 import { IconClose, IconGenerate, IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
@@ -238,7 +229,9 @@ import EventModalTypePicker from "./EventModalTypePicker.vue";
 import { daysInMonth } from "@/lib/calendar/dayMath";
 import EventModalDatePicker from "./EventModalDatePicker.vue";
 import EventModalTravelFields from "./EventModalTravelFields.vue";
-import EventModalAiDraft from "./EventModalAiDraft.vue";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
+import { useAskFormFill } from "@/ai/ask/useAskFormFill";
+import type { EventFormContext } from "@/ai/ask/adapters/eventDescriptionAskAdapter";
 import { deepEqual } from "@/lib/utils";
 import { markEdited } from "@/ai/provenance";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
@@ -421,14 +414,12 @@ const availableFestivals = computed(() =>
 // (dropping edits abandoned last time); creating starts from a blank form.
 watch(open, (isOpen) => {
   if (!isOpen) return;
-  aiOpen.value = false;
   generated = null;
   if (props.editEvent) reset();
   else Object.assign(form, toDraft(null), props.prefill);
 });
 
 // ── Draft with AI ─────────────────────────────────────────────────────────────
-const aiOpen = ref(false);
 /** What the model last wrote, so a save can tell whether the DM changed it. */
 let generated: { title: string; description: string | null } | null = null;
 
@@ -445,6 +436,14 @@ const dateLabel = computed(() =>
   }),
 );
 
+// Draft with AI is a card in the Familiar that writes into this form while it is open (#1270).
+const { open: openGenerator } = useOpenGenerator();
+useAskFormFill<CalendarEventDraft, EventFormContext>(
+  "event_description",
+  { context: () => ({ dateLabel: dateLabel.value, eventType: form.event_type }), apply: applyDraft },
+  () => open.value,
+);
+
 function applyDraft(result: CalendarEventDraft) {
   // Only an empty title is filled, and the type only moves off the untouched
   // default: a DM's own choices are never overwritten by a draft.
@@ -455,7 +454,6 @@ function applyDraft(result: CalendarEventDraft) {
   form.description = toTiptapJson(result.description);
   form.ai_provenance = result.ai_provenance;
   generated = { title: form.title, description: form.description };
-  aiOpen.value = false;
 }
 
 /** Content the DM can edit; moving the date or visibility is not a material edit. */

@@ -291,11 +291,11 @@ general, not about that campaign specifically.
 
 **Obvious-from-context — Art 50(1).** The duty to inform a natural person
 they're interacting with an AI system is discharged by interface context
-rather than a separate runtime disclosure: every generator panel
-(`MonsterGenerateDialog.vue`, `NpcGenerateDialog.vue`,
-`SpellGenerateDialog.vue`, and the rest reachable through the shared
-`aiGeneratorRegistry`) is opened by clicking a button labelled to generate
-with AI, inside a panel titled as a generator. NPC Voice Coach and the
+rather than a separate runtime disclosure: every generator card
+in the Familiar (the editors' own Generate opens "Fill the sheet", and the
+rest are reachable through the shared `aiGeneratorRegistry`) is opened by
+clicking a button labelled to generate with AI, inside a card titled as a
+generator. NPC Voice Coach and the
 inline AI-enhance button are the same shape. Nobody reaches any of these
 without already having asked an AI system to do something — no extra banner
 is layered on top of an already-obvious interaction.
