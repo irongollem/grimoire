@@ -174,7 +174,7 @@ describe("AdminPromptScreeningPanel", () => {
   });
 });
 
-// #1268 review: a refused chat line has no picture service (20261124004634), and the row read "agent_turn ·  · <date>".
+// #1268 review: a refused chat line has no picture service (20261124113757), and the row read "agent_turn ·  · <date>".
 describe("AdminPromptScreeningPanel — a chat line's screening", () => {
   it("names no provider for a row that never went to a picture service", () => {
     data.value = hints({ total: 1, rows: [row({ generation_type: "agent_turn", image_provider: null, blocked: true, categories_over: ["sexual"] })] });

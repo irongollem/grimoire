@@ -12,7 +12,7 @@ export interface PromptScreeningRow {
   id: string;
   created_at: string;
   generation_type: string;
-  /** Null for a chat line: it was never going to a picture service (20261124004634). */
+  /** Null for a chat line: it was never going to a picture service (20261124113757). */
   image_provider: string | null;
   blocked: boolean;
   categories_over: string[];

@@ -321,7 +321,7 @@ export async function screenImagePrompt(
 //      line is kept because it is what the person is held to: five of them close the AI table, and the admin who may
 //      reopen it reads them (`conduct.ts`, 20261120231418). The scores and limits of every line are enough to move a
 //      threshold.
-//   2. It has no renderer behind it, so its rows name none (`image_provider` null, 20261124004634), and it answers
+//   2. It has no renderer behind it, so its rows name none (`image_provider` null, 20261124113757), and it answers
 //      with a verdict rather than an exception: every caller turns a refusal into its own message.
 //
 // The limits are the image table's for now (same categories, same numbers, `thresholdsFor` lowering them for a child's
