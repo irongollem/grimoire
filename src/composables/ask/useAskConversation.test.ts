@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import { ASK_OFF_TOPIC_MESSAGE, type AskEvent, type AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskRunResult } from "@/lib/ask/askAdapter";
-import { refusalMessage, SPEAKING_TAIL_MS, useAskConversation, type AskConversationDeps } from "./useAskConversation";
+import { refusalMessage, SPEAKING_MAX_MS, SPEAKING_MS_PER_CHAR, SPEAKING_TAIL_MS, speakingUntil, useAskConversation, type AskConversationDeps } from "./useAskConversation";
 
 function sse(events: unknown[]): Response {
   const body = events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join("");
@@ -415,8 +415,9 @@ describe("speaking", () => {
   }
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-  // Bug caught: the avatar moving while the Familiar only reads or waits, or never stopping once the words stop.
-  it("is true while words arrive, and false a moment after they stop and when the turn ends", async () => {
+  // Bug caught: the avatar moving while the Familiar only reads or waits, never stopping once the words stop, or
+  // stopping the moment the stream ends although the last words have only just landed.
+  it("is true while words arrive, false a moment after they stop, and says the last words out after the turn ends", async () => {
     const live = liveStream();
     const { convo } = setup({ responses: [live.response] });
     const turn = convo.send("who runs the mill?");
@@ -436,6 +437,42 @@ describe("speaking", () => {
     live.send(done);
     live.end();
     await turn;
+    expect(convo.speaking.value).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, SPEAKING_TAIL_MS + 50));
     expect(convo.speaking.value).toBe(false);
   });
+
+  // Bug caught: a new conversation leaving the old answer's mouth moving.
+  it("stops at once when the conversation starts over", async () => {
+    const live = liveStream();
+    const { convo } = setup({ responses: [live.response] });
+    void convo.send("who runs the mill?");
+    await settle();
+    live.send({ type: "text", delta: "Harl runs it, and has for forty years." });
+    await settle();
+    expect(convo.speaking.value).toBe(true);
+    convo.newConversation();
+    expect(convo.speaking.value).toBe(false);
+  });
+});
+
+describe("speakingUntil", () => {
+  // Bug caught: a reply that lands in one burst moving the mouth for the bare tail instead of as long as it is.
+  it("talks for as long as the words take to say", () => {
+    expect(speakingUntil(0, 1000, 100)).toBe(1000 + 100 * SPEAKING_MS_PER_CHAR);
+  });
+  // Bug caught: a second burst cutting the first one short instead of queueing behind it.
+  it("adds a burst that arrives mid-speech to what is still to say", () => {
+    const first = speakingUntil(0, 1000, 50);
+    expect(speakingUntil(first, 1500, 50)).toBe(first + 50 * SPEAKING_MS_PER_CHAR);
+  });
+  // Bug caught: a single character flickering the mouth for 40 ms.
+  it("never talks for less than the tail", () => {
+    expect(speakingUntil(0, 1000, 1)).toBe(1000 + SPEAKING_TAIL_MS);
+  });
+  // Bug caught: a long answer leaving the Familiar moving for a minute.
+  it("never talks for longer than the cap", () => {
+    expect(speakingUntil(0, 1000, 100_000)).toBe(1000 + SPEAKING_MAX_MS);
+  });
+
 });

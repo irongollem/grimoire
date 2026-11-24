@@ -131,28 +131,47 @@ export function partsCredits(parts: readonly AskRunPart[]): number {
   return parts.reduce((sum, p) => sum + p.credits, 0);
 }
 
-/** How long after the last words the Familiar keeps moving: text arrives in bursts, and a still-move-still flicker reads as a glitch. */
+/** How long after the last words the Familiar keeps moving at least: text arrives in bursts, and a still-move-still flicker reads as a glitch. */
 export const SPEAKING_TAIL_MS = 700;
+/**
+ * How long the Familiar talks per character it writes: about the pace of reading aloud briskly. A reply often lands in
+ * one burst rather than a stream, and a mouth that moves for a second over three paragraphs reads as a glitch too
+ * (maintainer, 24 Nov 2026), so the time follows the size of what was said, not how fast it arrived.
+ */
+export const SPEAKING_MS_PER_CHAR = 40;
+/** The longest the Familiar keeps talking past now, so a very long answer does not leave it moving for a minute. */
+export const SPEAKING_MAX_MS = 15_000;
+
+/** When a Familiar that talks until `until` (ms) and has just heard `chars` more characters at `now` stops talking. */
+export function speakingUntil(until: number, now: number, chars: number): number {
+  const end = Math.max(until, now) + chars * SPEAKING_MS_PER_CHAR;
+  return Math.min(Math.max(end, now + SPEAKING_TAIL_MS), now + SPEAKING_MAX_MS);
+}
 
 export function useAskConversation(deps: AskConversationDeps) {
   const transport = deps.transport ?? sendToAskTurn;
   const items = ref<AskItem[]>([]);
   const running = ref(false);
   /**
-   * The Familiar is writing words right now: true while text arrives, false once it has paused a moment or the turn
-   * ends. Its avatar moves only then (maintainer, 24 Nov 2026), not while it reads or waits on a tool.
+   * The Familiar is saying words right now: true from the first text it writes for as long as that text takes to say
+   * (`speakingUntil`), even past the end of the stream. Its avatar moves only then (maintainer, 24 Nov 2026), not while
+   * it reads or waits on a tool. Cancelling or starting over stops it at once.
    */
   const speaking = ref(false);
   let quietTimer: ReturnType<typeof setTimeout> | null = null;
+  let talkUntil = 0;
   function hush() {
     if (quietTimer !== null) clearTimeout(quietTimer);
     quietTimer = null;
+    talkUntil = 0;
     speaking.value = false;
   }
-  function heard() {
+  function heard(chars: number) {
+    const now = Date.now();
+    talkUntil = speakingUntil(talkUntil, now, chars);
     speaking.value = true;
     if (quietTimer !== null) clearTimeout(quietTimer);
-    quietTimer = setTimeout(hush, SPEAKING_TAIL_MS);
+    quietTimer = setTimeout(hush, talkUntil - now);
   }
   /** What the server last said is left of today's free questions; null until a turn has said. */
   const freeLeft = ref<number | null>(null);
@@ -215,7 +234,7 @@ export function useAskConversation(deps: AskConversationDeps) {
             written.add(reply.id);
           }
           reply.text += event.delta;
-          heard();
+          heard(event.delta.length);
           continue;
         }
         // Anything that is not words ends the paragraph being written.
@@ -261,7 +280,10 @@ export function useAskConversation(deps: AskConversationDeps) {
             break;
           case "error":
             // A withheld answer was already streamed: what it showed is taken back, so the sentence stands alone.
-            if (event.withheld === true) items.value = items.value.filter((i) => !written.has(i.id));
+            if (event.withheld === true) {
+              items.value = items.value.filter((i) => !written.has(i.id));
+              hush();
+            }
             reply = null;
             push({ kind: "error", message: event.message });
             break;
@@ -275,8 +297,9 @@ export function useAskConversation(deps: AskConversationDeps) {
     } finally {
       if (controller === mine) {
         running.value = false;
+        // A finished answer is left to be said out; an aborted one (cancel, a new conversation) stops at once.
+        if (mine.signal.aborted) hush();
         controller = null;
-        hush();
       }
     }
   }
