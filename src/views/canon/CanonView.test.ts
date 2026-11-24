@@ -26,6 +26,8 @@ const forceData = ref<{ steps: unknown[] }>({ steps: [] });
 const passages = ref<unknown[]>([]);
 const party = ref([{ id: "m1", name: "Tansy" }, { id: "m2", name: "Pim" }]);
 
+// Every jump on the page moves only its own scroller (scrollWithin), never the app shell around it.
+vi.mock("@/lib/scrollParent", async (orig) => ({ ...(await orig<typeof import("@/lib/scrollParent")>()), scrollWithin: (el: Element) => mocks.scroll(el) }));
 vi.mock("vue-router", () => ({
   useRoute: () => route,
   useRouter: () => ({
@@ -116,7 +118,6 @@ describe("CanonView", () => {
     mocks.scroll.mockReset();
     wide.value = true;
     loading.value = false;
-    Element.prototype.scrollIntoView = mocks.scroll;
   });
 
   it("opens the truth named by ?entry=<id> and scrolls it into view, the link search and the world web follow", async () => {
@@ -254,7 +255,7 @@ describe("CanonView", () => {
       await settle();
       expect(route.params.part).toBe("lore");
       expect(w.findComponent({ name: "TruthsSection" }).exists()).toBe(false);
-      expect(mocks.scroll.mock.contexts[0]).toBe(document.getElementById("canon-entry-l1"));
+      expect(mocks.scroll.mock.calls[0]?.[0]).toBe(document.getElementById("canon-entry-l1"));
     });
 
     // Bug caught: the split's detail lost the id the tap-scroll looks for, so on a phone a tapped lore row opened off screen.
@@ -270,7 +271,7 @@ describe("CanonView", () => {
       await w.find("#tap-lore").trigger("click");
       route.query = { entry: "l1" };
       await settle();
-      expect(mocks.scroll.mock.contexts.at(-1)).toBe(document.getElementById("canon-inline-detail"));
+      expect(mocks.scroll.mock.calls.at(-1)?.[0]).toBe(document.getElementById("canon-inline-detail"));
     });
   });
 
@@ -527,7 +528,7 @@ describe("CanonView", () => {
       await settle();
       expect(w.findComponent({ name: "CanonContents" }).props("active")).toBe("secrets");
       expect(mocks.scroll).toHaveBeenCalledTimes(1);
-      expect(mocks.scroll.mock.contexts[0]).toBe(document.getElementById("canon-entry-q1"));
+      expect(mocks.scroll.mock.calls[0]?.[0]).toBe(document.getElementById("canon-entry-q1"));
     });
 
     it("sets Premise active, scrolls to a theme entry and marks it for a moment", async () => {
@@ -540,7 +541,7 @@ describe("CanonView", () => {
         await settle();
         const row = document.getElementById("canon-entry-p1")!;
         expect(w.findComponent({ name: "CanonContents" }).props("active")).toBe("premise");
-        expect(mocks.scroll.mock.contexts[0]).toBe(row);
+        expect(mocks.scroll.mock.calls[0]?.[0]).toBe(row);
         expect(row.classList.contains("ring-primary")).toBe(true);
         vi.advanceTimersByTime(2500);
         expect(row.classList.contains("ring-primary")).toBe(false);
@@ -559,7 +560,7 @@ describe("CanonView", () => {
       route.query = { entry: "t1" };
       await settle();
       expect(mocks.scroll).toHaveBeenCalledTimes(1);
-      expect(mocks.scroll.mock.contexts[0]).toBe(document.getElementById("canon-inline-detail"));
+      expect(mocks.scroll.mock.calls[0]?.[0]).toBe(document.getElementById("canon-inline-detail"));
     });
 
     it("does not scroll at desktop width, where the side column already shows it", async () => {
@@ -681,7 +682,7 @@ describe("CanonView", () => {
       expect(useCanonUiStore().lastPart).toBe("lore");
       expect(names(w)).toEqual(["LoreSection"]);
       // A part opens at its top (the search row), since no entry is asked for.
-      expect(mocks.scroll.mock.contexts.at(-1)).toBe(document.getElementById("canon-page-top"));
+      expect(mocks.scroll.mock.calls.at(-1)?.[0]).toBe(document.getElementById("canon-page-top"));
     });
 
     // Bug caught: following a link to an entry in another part scrolling to the top of the page instead of to the entry's row.
