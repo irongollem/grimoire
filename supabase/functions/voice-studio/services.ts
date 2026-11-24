@@ -173,7 +173,7 @@ export function makeServices(env: SpeechEnv, doFetch: Fetch = fetch): StudioServ
           const out = await call("inworld", `${INWORLD}/voices/v1/voices?${params.toString()}`, { method: "GET" });
           for (const raw of Array.isArray(out.voices) ? out.voices : []) {
             const v = obj(raw) ?? {};
-            found.push({ service, voiceId: required(service, v.voiceId), name: str(v.displayName) ?? required(service, v.voiceId), description: str(v.description) ?? "", category: str(v.source) ?? "unknown" });
+            found.push({ service, voiceId: required(service, v.voiceId), name: str(v.displayName) ?? required(service, v.voiceId), description: str(v.description) ?? "", category: str(v.source) ?? "unknown", previewUrl: null });
           }
           token = str(out.nextPageToken);
           if (token === null) break;
@@ -190,7 +190,7 @@ export function makeServices(env: SpeechEnv, doFetch: Fetch = fetch): StudioServ
           const category = str(v.category) ?? "unknown";
           // The ready-made voices are everyone's and need no registering.
           if (category === "premade") continue;
-          found.push({ service, voiceId: required(service, v.voice_id), name: str(v.name) ?? required(service, v.voice_id), description: str(v.description) ?? "", category });
+          found.push({ service, voiceId: required(service, v.voice_id), name: str(v.name) ?? required(service, v.voice_id), description: str(v.description) ?? "", category, previewUrl: str(v.preview_url) });
         }
         next = out.has_more === true ? str(out.next_page_token) : null;
         if (next === null) break;

@@ -82,8 +82,11 @@ function harness(rows: SpeechVoiceRow[] = [row()]) {
       libraryAdd: async (_o, v) => (h.calls.push(`add:${v}`), "addedvoice123"),
       accountSlots: async () => ({ used: 3, limit: 10 }),
       accountVoices: async (s) => (s === "elevenlabs"
-        ? [{ service: s, voiceId: "oldvoice1234", name: "Held", description: "", category: "generated" }, { service: s, voiceId: "loosevoice123", name: "Loose", description: "", category: "generated" }]
-        : [{ service: s, voiceId: "oldvoice1234", name: "Same id, other service", description: "", category: "TVD" }]),
+        ? [
+            { service: s, voiceId: "oldvoice1234", name: "Held", description: "", category: "generated", previewUrl: null },
+            { service: s, voiceId: "loosevoice123", name: "Loose", description: "", category: "generated", previewUrl: "https://x.test/loose.mp3" },
+          ]
+        : [{ service: s, voiceId: "oldvoice1234", name: "Same id, other service", description: "", category: "TVD", previewUrl: null }]),
       previewRecording: async (_s, id) => {
         h.calls.push(`preview:${id}`);
         if (h.previewThrows) throw new Error("preview host down");
@@ -188,6 +191,13 @@ describe("design", () => {
     expect((await run({ action: "lookup", voiceId: "nosuchvoice1" })).status).toBe(404);
     expect((await run({ action: "lookup", voiceId: "../../v1/user" })).status).toBe(400);
     expect(h.calls).toEqual(["lookup:nosuchvoice1"]);
+  });
+
+  // Bug caught: an account voice's free preview lost on the way to the page, so it cannot be heard before importing.
+  it("carries each account voice's preview file to the page", async () => {
+    const { run } = harness([]);
+    const body = (await read(await run({ action: "account" }))) as unknown as { unregistered: Array<{ voiceId: string; previewUrl: string | null }> };
+    expect(body.unregistered.find((v) => v.voiceId === "loosevoice123")?.previewUrl).toBe("https://x.test/loose.mp3");
   });
 
   // Bug caught (seen live): a key without User read failing the whole summary (retried on every visit), which also hid

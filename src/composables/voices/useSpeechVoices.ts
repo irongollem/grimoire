@@ -150,3 +150,37 @@ export function useAudioToggle(resolve: (key: string) => Promise<PlayableAudio>)
 export function useVoiceSample(transport: VoiceStudioTransport = sendToVoiceStudio) {
   return useAudioToggle((slotId) => voiceStudioCall<SampleResponse>({ action: "sample", slotId }, transport));
 }
+
+/**
+ * Plays a voice's public preview file (ElevenLabs keeps one per voice, free to fetch): one at a time, a second press on
+ * the same one stops it. For voices that are not slots yet (a Voice Library result, an account voice to import), which
+ * have no sample of ours to fetch.
+ */
+export function useUrlPreview() {
+  const playing = ref<string | null>(null);
+  let audio: HTMLAudioElement | null = null;
+
+  function stop(): void {
+    audio?.pause();
+    audio = null;
+    playing.value = null;
+  }
+
+  function toggle(url: string): void {
+    const wasPlaying = playing.value === url;
+    stop();
+    if (wasPlaying) return;
+    const now = new Audio(url);
+    audio = now;
+    now.addEventListener("ended", () => {
+      if (playing.value === url) playing.value = null;
+    });
+    playing.value = url;
+    void now.play().catch(() => {
+      if (audio === now) stop();
+    });
+  }
+
+  onBeforeUnmount(stop);
+  return { playing, toggle, stop };
+}

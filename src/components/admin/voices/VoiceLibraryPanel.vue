@@ -44,6 +44,7 @@
       :note="adding?.rate !== null && adding ? 'This is a paid voice: each character spoken costs more than the speech rate you charge for.' : undefined"
       confirm-label="Add to the registry"
       :initial="initial"
+      :preview-url="adding?.previewUrl ?? null"
       :saving="studio.addFromLibrary.isPending.value"
       :error="addError"
       @close="adding = null"
@@ -53,11 +54,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from "vue";
+import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import type { useVoiceStudio } from "@/composables/admin/useVoiceStudio";
+import { useUrlPreview } from "@/composables/voices/useSpeechVoices";
 import { useToast } from "@/composables/useToast";
 import { IconAdd, IconPause, IconPlay, IconSearch } from "@/lib/icons";
 import { VOICE_AGE_OPTIONS, VOICE_SEX_OPTIONS, type LibraryVoice, type SpeechVoiceFields, type VoiceAge, type VoiceSex } from "@/types/speechVoice.types";
@@ -131,22 +133,8 @@ async function add(slot: SpeechVoiceFields): Promise<void> {
   }
 }
 
-// ── previews: a plain audio element on the library's own preview file ──────────────────────────────────────────
-const playingUrl = ref<string | null>(null);
-let audio: HTMLAudioElement | null = null;
-function toggle(url: string): void {
-  const wasPlaying = playingUrl.value === url;
-  audio?.pause();
-  playingUrl.value = null;
-  if (wasPlaying) return;
-  audio = new Audio(url);
-  audio.addEventListener("ended", () => {
-    if (playingUrl.value === url) playingUrl.value = null;
-  });
-  playingUrl.value = url;
-  void audio.play().catch(() => {
-    playingUrl.value = null;
-  });
-}
-onBeforeUnmount(() => audio?.pause());
+// ── previews: the library's own preview file ─────────────────────────────────────────────────────────────────────
+const preview = useUrlPreview();
+const playingUrl = preview.playing;
+const toggle = preview.toggle;
 </script>

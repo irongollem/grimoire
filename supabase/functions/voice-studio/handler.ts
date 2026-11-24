@@ -88,6 +88,8 @@ export interface AccountVoice {
   name: string;
   description: string;
   category: string;
+  /** The service's own free preview of the voice, for a listen button before importing; null where it has none (Inworld). */
+  previewUrl: string | null;
 }
 
 /** A speech service refused or failed. Only its status is ever shown, never its message. */

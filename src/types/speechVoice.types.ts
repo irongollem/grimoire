@@ -137,6 +137,8 @@ export interface AccountVoice {
   description: string;
   /** The service's own category ("generated", "cloned", "professional", ...). */
   category: string;
+  /** The service's own free preview of the voice, for a listen button before importing; null where it has none (Inworld). */
+  previewUrl: string | null;
 }
 
 export interface AccountRequest {

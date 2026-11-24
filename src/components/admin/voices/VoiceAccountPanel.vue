@@ -22,6 +22,14 @@
           <span class="truncate text-body font-semibold text-foreground">{{ v.name }}</span>
           <span class="truncate text-caption text-muted-foreground">{{ v.service === "inworld" ? "Inworld" : "ElevenLabs" }} · {{ v.category }}</span>
         </div>
+        <AppButton
+          v-if="v.previewUrl"
+          variant="ghost"
+          size="sm"
+          :icon="preview.playing.value === v.previewUrl ? IconPause : IconPlay"
+          :label="preview.playing.value === v.previewUrl ? 'Stop' : 'Listen'"
+          @click="preview.toggle(v.previewUrl)"
+        />
         <AppButton variant="outline" size="sm" label="Import" @click="importing = v" />
       </li>
     </ul>
@@ -31,6 +39,7 @@
       title="Import this voice"
       confirm-label="Import"
       :initial="importInitial"
+      :preview-url="importing?.previewUrl ?? null"
       :saving="studio.importVoice.isPending.value"
       :error="importError"
       @close="importing = null"
@@ -42,6 +51,7 @@
       :confirm-label="found?.inAccount ? 'Add to the registry' : 'Add from the Library'"
       :note="foundNote"
       :initial="foundInitial"
+      :preview-url="found?.previewUrl ?? null"
       :saving="studio.importVoice.isPending.value || studio.addFromLibrary.isPending.value"
       :error="importError"
       @close="found = null"
@@ -56,12 +66,14 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import { ageOfLabel, sexOfLabel, type useVoiceStudio } from "@/composables/admin/useVoiceStudio";
 import { useToast } from "@/composables/useToast";
-import { IconSearch } from "@/lib/icons";
+import { useUrlPreview } from "@/composables/voices/useSpeechVoices";
+import { IconPause, IconPlay, IconSearch } from "@/lib/icons";
 import type { AccountVoice, LookedUpVoice, SpeechVoiceFields, VoiceAge, VoiceSex } from "@/types/speechVoice.types";
 import VoiceSlotFieldsDialog from "./VoiceSlotFieldsDialog.vue";
 
 const { voices, studio } = defineProps<{ voices: AccountVoice[]; studio: ReturnType<typeof useVoiceStudio> }>();
 const toast = useToast();
+const preview = useUrlPreview();
 const importing = ref<AccountVoice | null>(null);
 const importError = ref<string | null>(null);
 
