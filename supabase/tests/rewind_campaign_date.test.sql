@@ -1,4 +1,4 @@
--- #1021 row 23: a correction puts the campaign's date back (`rewind_campaign_date`, security invoker; 20261124011341).
+-- #1021 row 23: a correction puts the campaign's date back (`rewind_campaign_date`, security invoker; 20261124113254).
 --   1 Dana  owner and DM   2 Pia  player at the table   3 Sam  a stranger
 -- The campaigns update policy decides who may move the date: the DM may, a player and a stranger may not. Days outside
 -- 1 to 60 are refused. Counting back is checked on a small custom calendar whose festival day sits between months:

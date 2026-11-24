@@ -123,7 +123,8 @@ export async function beginTurn(input: {
             ? { handouts, picture: (what, id) => deps.loadPicture(campaign.id, what, id), place: (id) => deps.loadPlace(campaign.id, id), onPlace: (place) => { fx.sharedPlaces.push(place); }, onHandout: (handout) => { fx.handedOut.push(handout); } }
             : null,
           // Only where the party's place has no map, and not in a fight: a map is for exploring, and the board is fought on.
-          makeMap: scene !== null && !scene.hasMap && !fightRunning ? { placeId: scene.id, onPlan: (plan) => { fx.mapPlan = { placeId: scene.id, plan }; } } : null,
+          // Fights that could not be read might hold a running one, so no map then either (#1271 review).
+          makeMap: scene !== null && !scene.hasMap && fights !== null && !fightRunning ? { placeId: scene.id, onPlan: (plan) => { fx.mapPlan = { placeId: scene.id, plan }; } } : null,
           // Days that pass in the story move the campaign's date, on the server, once the turn is kept. Not in a fight.
           onDaysPassed: fightRunning ? null : (days) => { fx.daysPassed = days; },
           // A correction can take days back; not in a fight, like days passing.

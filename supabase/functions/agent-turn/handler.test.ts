@@ -692,7 +692,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       h.mapsMade.push({ campaignId, placeId, plan });
       if (h.state.mapResult === "fails") throw new Error("rpc failed");
       if (h.state.mapResult === "exists") return null;
-      return { placeId, drawingId: "drawing-1", name: plan.name, about: "", picture: { png: new Uint8Array(), width: 64, height: 64 }, calibration: { cells_per_image_width: 1, origin_x_pct: 0, origin_y_pct: 0 } };
+      return { placeId, drawingId: "drawing-1", plainUrl: "https://cdn.example/plain.webp", name: plan.name, about: "", picture: { png: new Uint8Array(), width: 64, height: 64 }, calibration: { cells_per_image_width: 1, origin_x_pct: 0, origin_y_pct: 0 } };
     },
     paintMap: (_campaignId, made) => {
       h.mapsPainted.push(made);

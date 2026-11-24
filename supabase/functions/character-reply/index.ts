@@ -161,7 +161,7 @@ serve(serveUser(async ({ user, req, report }) => {
     // The one who types pays nothing, so the brake on them is the rate limit every generator shares. It is checked here,
     // where a character is about to speak, not on arrival: every public line is asked about while someone is played,
     // and a line no character answers (most of them) must not use up the sender's own allowance.
-    rateLimit: (userId) => checkRateLimit(admin, userId, "ai_generation"),
+    rateLimit: (userId) => checkRateLimit(admin, userId, "chat_line"),
 
     async withHold(ownerId, credits, work) {
       return withCreditHold(admin, { payerId: ownerId, reason: GENERATION, cost: credits, report }, work);

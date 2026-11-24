@@ -1,4 +1,4 @@
--- #1021 row 17: the AI table makes a map for a place that has none (`make_place_map`, security invoker; 20261124012058).
+-- #1021 row 17: the AI table makes a map for a place that has none (`make_place_map`, security invoker; 20261124113255).
 --   1 Dana  owner and DM   2 Pia  player at the table
 -- The DM's call writes the drawing, the place's picture and snapshot, a room per part of the plan (reusing a room the
 -- place already has by name), each room's region and the doors, in one transaction. A retry with the same request key
@@ -8,7 +8,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(18);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('11241700-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -29,6 +29,13 @@ insert into public.locations (id, user_id, campaign_id, name, location_type, map
   ('11241700-0000-4000-8000-0000000000d2', '11241700-0000-4000-8000-000000000001', '11241700-0000-4000-8000-0000000000c1', 'The mapped keep', 'dungeon', 'https://example.invalid/keep.webp'),
   ('11241700-0000-4000-8000-0000000000e1', '11241700-0000-4000-8000-000000000001', '11241700-0000-4000-8000-0000000000c1', 'Sugarport', 'city', null),
   ('11241700-0000-4000-8000-0000000000d3', '11241700-0000-4000-8000-000000000001', '11241700-0000-4000-8000-0000000000c1', 'The full vault', 'dungeon', null);
+-- d4 a cellar under the mapped keep, which reads the keep's map; d5 a place with a blank grid of its own.
+insert into public.locations (id, user_id, campaign_id, parent_id, name, location_type) values
+  ('11241700-0000-4000-8000-0000000000d4', '11241700-0000-4000-8000-000000000001', '11241700-0000-4000-8000-0000000000c1',
+   '11241700-0000-4000-8000-0000000000d2', 'The keep''s cellar', 'dungeon');
+insert into public.locations (id, user_id, campaign_id, name, location_type, plan_size) values
+  ('11241700-0000-4000-8000-0000000000d5', '11241700-0000-4000-8000-000000000001', '11241700-0000-4000-8000-0000000000c1',
+   'The gridded yard', 'dungeon', '{"cols":4,"rows":4}'::jsonb);
 insert into public.locations (id, user_id, campaign_id, parent_id, name, location_type) values
   ('11241700-0000-4000-8000-0000000000a1', '11241700-0000-4000-8000-000000000001', '11241700-0000-4000-8000-0000000000c1',
    '11241700-0000-4000-8000-0000000000d1', 'Ossuary', 'room');
@@ -94,6 +101,12 @@ select is(pg_temp.counts('11241700-0000-4000-8000-0000000000d1'), '1|2|2|2', 'an
 -- A place with a map of its own keeps it.
 select throws_ok($$ select pg_temp.make('11241700-0000-4000-8000-0000000000d2', '11241700-0000-4000-8000-0000000000f2') $$,
   '23505', 'This place already has a map', 'a place that has a map is refused');
+
+-- #1271 review: the guard read only the place's own picture and drawing.
+select throws_ok($$ select pg_temp.make('11241700-0000-4000-8000-0000000000d4', '11241700-0000-4000-8000-0000000000f5') $$,
+  '23505', 'This place already has a map', 'a place under a mapped place is refused');
+select throws_ok($$ select pg_temp.make('11241700-0000-4000-8000-0000000000d5', '11241700-0000-4000-8000-0000000000f6') $$,
+  '23505', 'This place already has a map', 'a place with a blank grid is refused');
 
 -- A city holds no rooms: the map is made, open ground with exact walls.
 select lives_ok($$ select pg_temp.make('11241700-0000-4000-8000-0000000000e1', '11241700-0000-4000-8000-0000000000f3') $$,

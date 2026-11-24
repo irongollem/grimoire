@@ -152,6 +152,12 @@ describe("parseMapPlan refusals", () => {
     expect(err(plan([room("a", 0, 0, 2, 2), { ...room("b", 4, 4, 2, 2), name: "a " }]))).toContain('Two rooms are named "a "');
   });
 
+  // #1271 review: "a" east to outside sat on the wall it shares with "b", and was built as a door leading nowhere.
+  it("refuses a door outside on a wall another room shares, and allows one that faces out", () => {
+    expect(err(plan([room("a", 0, 0, 3, 3), room("b", 3, 0, 3, 3)], [{ from: "a", to: "outside", side: "east" }]))).toContain('opens into "b"');
+    expect(parseMapPlan(plan([room("a", 0, 0, 3, 3), room("b", 3, 0, 3, 3)], [{ from: "a", to: "outside", side: "west" }])).ok).toBe(true);
+  });
+
   it("refuses a door between rooms that share no side, naming both", () => {
     // Diagonal neighbours meet at a corner only; a gap leaves them apart.
     expect(err(plan([room("a", 0, 0, 2, 2), room("b", 2, 2, 2, 2)], [{ from: "a", to: "b" }]))).toMatch(/"a" and "b".*share no side/);

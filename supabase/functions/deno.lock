@@ -3,6 +3,7 @@
   "specifiers": {
     "npm:@gltf-transform/core@4.4.1": "4.4.1",
     "npm:@gltf-transform/extensions@4.4.1": "4.4.1",
+    "npm:@jsquash/png@3.1.1": "3.1.1",
     "npm:@jsquash/webp@1.5.0": "1.5.0",
     "npm:@supabase/supabase-js@2.110.2": "2.110.2",
     "npm:pdf-lib@1.17.1": "1.17.1",
@@ -21,6 +22,9 @@
         "@gltf-transform/core",
         "ktx-parse"
       ]
+    },
+    "@jsquash/png@3.1.1": {
+      "integrity": "sha512-C10pc+0H6j0h8fENOfnGOvkXCmvpSQTDGlfGd0sHphZhPSGTyLjIrHba0FaZZdsKqA/wlmhYicUHb92vfZphaw=="
     },
     "@jsquash/webp@1.5.0": {
       "integrity": "sha512-KggLoj2MnRSfIqTeKe1EmbljTX2vuV7mh79k89PCL1pyqiDULcPM1L47twxXt0hkb68F70bXiL31MxsuoZtKFw==",
@@ -128,6 +132,7 @@
     "dependencies": [
       "npm:@gltf-transform/core@4.4.1",
       "npm:@gltf-transform/extensions@4.4.1",
+      "npm:@jsquash/png@3.1.1",
       "npm:@jsquash/webp@1.5.0",
       "npm:@supabase/supabase-js@2.110.2",
       "npm:pdf-lib@1.17.1",

@@ -788,7 +788,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
         { placeId, plan },
       ),
     paintMap(campaignId, made) {
-      const run = paintTableMap(makePaintDeps({ admin, userId: user.id, campaignId, placeId: made.placeId, drawingId: made.drawingId, decrypt: decryptValue, report }), made)
+      const run = paintTableMap(makePaintDeps({ admin, userId: user.id, campaignId, placeId: made.placeId, drawingId: made.drawingId, plainUrl: made.plainUrl, decrypt: decryptValue, report }), made)
         .then((outcome) => {
           if (outcome !== "painted") console.warn(`agent-turn: the map of ${made.name} stays the plain picture (${outcome}).`);
         })

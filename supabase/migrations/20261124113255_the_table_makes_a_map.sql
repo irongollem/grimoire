@@ -11,8 +11,9 @@
 -- The shape is `save_styled_site_picture`'s (20261109181107): security invoker, so RLS decides what the caller may
 -- write (the DM of the campaign), and idempotent on a request key kept in the drawing's metadata, so a retried call
 -- returns the place instead of making a second map. Two rules of its own:
---   1. It never replaces a map. A place that already has a picture, a drawing or a source map is refused: the DM's
---      own map always wins, and the Narrator is only offered the tool where the place has none.
+--   1. It never replaces a map. A place that already has a picture, a drawing, a blank grid or a source map, or sits
+--      under a place that has one, is refused: the DM's own map always wins, and the Narrator is only offered the
+--      tool where the place has none.
 --   2. A room the place already has under the same name is used, not duplicated: the DM may have named the rooms
 --      before anything drew them. A region it kept from a map the place no longer has is replaced. Rooms are made only where the place may hold rooms
 --      (`private.location_can_hold_rooms`); elsewhere the map is open ground with exact walls and no rooms.
@@ -57,7 +58,8 @@ begin
       using errcode = '22023';
   end if;
 
-  select * into v_place from public.locations where id = p_location_id;
+  -- Locked, so a second call for the same place waits here and then sees the map the first one made (#1271 review).
+  select * into v_place from public.locations where id = p_location_id for update;
   if v_place.id is null then
     raise exception 'Place not found' using errcode = 'P0002';
   end if;
@@ -71,7 +73,19 @@ begin
     return to_jsonb(v_place);
   end if;
 
-  if v_place.map_url is not null or v_place.map_layer_url is not null or v_place.source_map_id is not null then
+  -- Every map the app reads as one (`hasAnyMapLayer`: a picture, a published drawing, a blank grid), on the place or a
+  -- place above it within the six steps the table walks (`MAX_ANCESTOR_STEPS`), and a drawing bound to the place itself.
+  if v_place.source_map_id is not null or exists (
+    with recursive up (id, parent_id, mapped, depth) as (
+      select l.id, l.parent_id, (l.map_url is not null or l.map_layer_url is not null or l.plan_size is not null), 0
+        from public.locations l where l.id = p_location_id
+      union all
+      select l.id, l.parent_id, (l.map_url is not null or l.map_layer_url is not null or l.plan_size is not null), up.depth + 1
+        from public.locations l join up on l.id = up.parent_id
+       where up.depth < 6
+    )
+    select 1 from up where up.mapped
+  ) then
     raise exception 'This place already has a map' using errcode = '23505';
   end if;
 
@@ -110,6 +124,8 @@ begin
         from public.locations l
        where l.parent_id = p_location_id and l.location_type = 'room'
          and lower(l.name) = lower(v_room ->> 'name')
+         -- A room already given to another part of this plan is not given twice.
+         and not exists (select 1 from jsonb_each_text(v_rooms) taken where taken.value = l.id::text)
        order by l.created_at
        limit 1;
       if v_room_id is null then

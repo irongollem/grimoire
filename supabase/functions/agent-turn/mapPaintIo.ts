@@ -21,6 +21,7 @@ import { publicUrlFor, uploadWithRetry } from "../_shared/storage-upload.ts";
 import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 import encodeWebp from "@jsquash/webp/encode";
 import type { PlanPicture } from "../_shared/planPicture.ts";
+import { storable } from "../_shared/storableImage.ts";
 import { adoptPicture, type PaintDeps, type Painted, type Painter } from "./mapMakeIo.ts";
 
 export const MAP_BUCKET = "location-images";
@@ -53,6 +54,7 @@ export interface PaintBinding {
   campaignId: string;
   placeId: string;
   drawingId: string;
+  plainUrl: string;
   decrypt: (ciphertext: string) => Promise<string>;
   report: (error: unknown) => void;
 }
@@ -98,10 +100,11 @@ export function makePaintDeps(b: PaintBinding): PaintDeps {
             prompt, size, quality, sourceImages: [source],
           });
           const provenance: AiProvenance = { generatorType: "map_style", provider: result.usage.provider, model: img.model, generatedAt: new Date().toISOString(), edited: false };
-          const bin = Uint8Array.from(atob(result.b64), (c) => c.charCodeAt(0));
+          const stored = await storable(Uint8Array.from(atob(result.b64), (c) => c.charCodeAt(0)), result.contentType);
           return {
-            bytes: markGeneratedImage(bin, result.contentType, provenance),
-            contentType: result.contentType,
+            // Marked in the format it is stored in, so the mark is in the file a reader opens.
+            bytes: markGeneratedImage(stored.bytes, stored.contentType, provenance),
+            contentType: stored.contentType,
             provenance,
             log: {
               model: img.model, quality, size, provider: result.usage.provider, image_count: 1,
@@ -133,6 +136,6 @@ export function makePaintDeps(b: PaintBinding): PaintDeps {
       return url;
     },
 
-    adopt: (url) => adoptPicture(admin, b.placeId, b.drawingId, url),
+    adopt: (url) => adoptPicture(admin, { placeId: b.placeId, drawingId: b.drawingId, plainUrl: b.plainUrl }, url),
   };
 }

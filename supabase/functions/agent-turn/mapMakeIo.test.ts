@@ -1,3 +1,4 @@
+import { createSupabaseFake } from "@/test/supabaseFake";
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseMapPlan } from "../_shared/agent/mapPlan.ts";
@@ -152,7 +153,7 @@ describe("placeHasMap", () => {
 
 describe("paintTableMap", () => {
   const made: MadeMap = {
-    placeId: PLACE, drawingId: "d1", name: "The Honey Cellar", about: "Barrels.",
+    placeId: PLACE, drawingId: "d1", plainUrl: "https://cdn.example/plain.webp", name: "The Honey Cellar", about: "Barrels.",
     picture: { png: new Uint8Array([1, 2, 3]), width: 64, height: 64 },
     calibration: { cells_per_image_width: 1, origin_x_pct: 0, origin_y_pct: 0 },
   };
@@ -220,26 +221,27 @@ describe("paintTableMap", () => {
 });
 
 describe("adoptPicture", () => {
-  function client(rows: Array<{ id: string }> | null, error: Error | null = null) {
-    const calls: Array<[string, unknown]> = [];
-    const chain = {
-      update: (patch: unknown) => { calls.push(["update", patch]); return chain; },
-      eq: (column: string, value: unknown) => { calls.push([column, value]); return chain; },
-      select: async () => ({ data: rows, error }),
-    };
-    return { calls, admin: { from: () => chain } as unknown as SupabaseClient };
+  const at = { placeId: PLACE, drawingId: "d1", plainUrl: "https://cdn.example/plain.webp" };
+  function placeHolding(over: Record<string, unknown> = {}) {
+    const fake = createSupabaseFake();
+    fake.seed("locations", [{ id: PLACE, source_map_id: "d1", map_url: at.plainUrl, ...over }]);
+    return fake;
   }
 
-  // Bug caught: the update keyed on the place alone, so a map the DM replaced meanwhile is overwritten by the painting.
-  it("writes only the picture, and only where the place still holds the drawing", async () => {
-    const { admin, calls } = client([{ id: PLACE }]);
-    expect(await adoptPicture(admin, PLACE, "d1", "https://cdn.example/painted.webp")).toBe(true);
-    expect(calls).toEqual([["update", { map_url: "https://cdn.example/painted.webp" }], ["id", PLACE], ["source_map_id", "d1"]]);
+  it("puts the painting where the place still holds the drawing and the plain picture", async () => {
+    const fake = placeHolding();
+    expect(await adoptPicture(fake.client as unknown as SupabaseClient, at, "https://cdn.example/painted.webp")).toBe(true);
+    expect(fake.rows("locations")[0].map_url).toBe("https://cdn.example/painted.webp");
   });
 
-  // Bug caught: no row matched (the drawing was replaced) read as adopted.
-  it("is false when no row matched, and throws a database error", async () => {
-    expect(await adoptPicture(client([]).admin, PLACE, "d1", "u")).toBe(false);
-    await expect(adoptPicture(client(null, new Error("down")).admin, PLACE, "d1", "u")).rejects.toThrow("down");
+  // Bug caught: the update keyed on the place alone, so a map the DM replaced meanwhile was overwritten by the painting.
+  // #1271 review: an upload keeps `source_map_id`, so the drawing alone did not tell the DM's picture apart.
+  it.each([
+    ["a picture the DM uploaded meanwhile", { map_url: "https://cdn.example/dm-upload.webp" }, "https://cdn.example/dm-upload.webp"],
+    ["a drawing that replaced it", { source_map_id: "d2" }, at.plainUrl],
+  ])("leaves %s alone", async (_what, over, kept) => {
+    const fake = placeHolding(over);
+    expect(await adoptPicture(fake.client as unknown as SupabaseClient, at, "https://cdn.example/painted.webp")).toBe(false);
+    expect(fake.rows("locations")[0].map_url).toBe(kept);
   });
 });

@@ -14,7 +14,6 @@ import { resolveInheritedTheme, type AmbienceLocationLike } from "@/lib/location
  * so the listener is mounted here; the same bus and the same scenes answer, there is no second audio path.
  */
 export function useTableAmbience(placeId: () => string | null) {
-  useAudioThemeTriggers();
   // Off until the player asks for it, every time the table opens. Not remembered across loads on purpose: a browser
   // blocks sound that starts without a tap, so a remembered "on" left a Stop button over silence (24 Nov 2026), and
   // nobody's speakers should come alive because a page opened.
@@ -71,6 +70,9 @@ export function useTableAmbience(placeId: () => string | null) {
   onScopeDispose(() => {
     if (started) ambience.stop();
   });
+  // After the stop above: a scope's cleanups run in the order they were registered, so the listener is still there to
+  // hear the stop when the table is left (#1271 review). Registered first, it went away first and the sound played on.
+  useAudioThemeTriggers();
 
   function toggle(): void {
     on.value = !on.value;

@@ -89,32 +89,35 @@ set search_path = ''
 as $function$
 declare
   v_back integer[];
+  v_campaign public.campaigns;
 begin
   -- The correction's tool takes 1 to 60 days (`TAKE_DAYS_BACK_TOOL`); anything else is a caller bug, never a quiet clamp.
   if p_days is null or p_days < 1 or p_days > 60 then
     raise exception 'rewind_campaign_date: days must be between 1 and 60, got %', p_days using errcode = '22023';
   end if;
 
-  select private.calendar_sub_days(
-           private.calendar_shape(c.calendar_id, c.custom_calendar),
-           c.current_year, c.current_month, c.current_day, p_days)
-    into v_back
-    from public.campaigns c
-   where c.id = p_campaign_id;
-
   -- No row: the campaign does not exist or the caller cannot see it.
-  if v_back is null then
+  if not exists (select 1 from public.campaigns c where c.id = p_campaign_id) then
     raise exception 'rewind_campaign_date: no campaign % for this caller', p_campaign_id using errcode = 'P0002';
+  end if;
+
+  -- Locked, so two rewinds at once each count back from the other's result instead of one being lost (#1271 review).
+  -- A row lock passes the update policy as well as the select one: a player may read the date, never move it.
+  select * into v_campaign from public.campaigns c where c.id = p_campaign_id for update;
+  if not found then
+    raise exception 'rewind_campaign_date: not allowed to move the date of campaign %', p_campaign_id using errcode = '42501';
+  end if;
+
+  v_back := private.calendar_sub_days(
+    private.calendar_shape(v_campaign.calendar_id, v_campaign.custom_calendar),
+    v_campaign.current_year, v_campaign.current_month, v_campaign.current_day, p_days);
+  if v_back is null then
+    raise exception 'rewind_campaign_date: the date of campaign % cannot be counted back on its calendar', p_campaign_id using errcode = '22023';
   end if;
 
   update public.campaigns c
      set current_year = v_back[1], current_month = v_back[2], current_day = v_back[3]
    where c.id = p_campaign_id;
-
-  -- The read passes the select policy; the write must pass the update policy too (a player may read, not move time).
-  if not found then
-    raise exception 'rewind_campaign_date: not allowed to move the date of campaign %', p_campaign_id using errcode = '42501';
-  end if;
 
   return query select v_back[1], v_back[2], v_back[3];
 end;

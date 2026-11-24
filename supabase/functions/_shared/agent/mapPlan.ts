@@ -195,6 +195,10 @@ export function parseMapPlan(input: unknown): Parsed {
       if (typeof side !== "string" || !(SIDES as readonly string[]).includes(side)) return fail(`Door ${i + 1} (from "${from}" to outside) needs a side: north, south, east or west.`);
       planSide = side as MapSide;
       edge = middle(sideEdges(fromRoom, planSide));
+      // A door out of the map on a wall another room shares would open into that room and be drawn as leading
+      // nowhere (#1271 review): such a door joins the two rooms instead.
+      const next = rooms.find((r) => r !== fromRoom && sharedEdges(fromRoom, r).includes(edge));
+      if (next) return fail(`Door ${i + 1} leads outside through the ${planSide} wall of "${from}", but that wall opens into "${next.key}" there. Door it to "${next.key}", or pick a side that faces out.`);
     } else {
       if (side !== undefined) return fail(`Door ${i + 1} joins two rooms, so it takes no side. Only a door to "${OUTSIDE}" names one.`);
       const toRoom = byKey.get(to);

@@ -86,6 +86,8 @@ export interface MadeMap {
   placeId: string;
   /** The drawing `make_place_map` made: the painting replaces the picture only while the place still holds it. */
   drawingId: string;
+  /** The plain picture `make_place_map` put on the place: the painting replaces only that one. */
+  plainUrl: string;
   name: string;
   /** What stands where, in the narrator's words, for the styler's prompt. */
   about: string;
@@ -112,7 +114,7 @@ export async function makeTableMap(io: MakeMapIo, input: { placeId: string; plan
   });
   if (written === "exists") return null;
   const about = built.rooms.flatMap((r) => (r.about === null ? [] : [r.about])).join(" ").slice(0, PAINT_ABOUT_MAX);
-  return { placeId, drawingId: written.drawingId, name: plan.name, about, picture, calibration };
+  return { placeId, drawingId: written.drawingId, plainUrl: url, name: plan.name, about, picture, calibration };
 }
 
 /** `make_place_map` through the CALLER's client: `auth.uid()` is what lets it write, so never the service role. */
@@ -192,12 +194,14 @@ export async function paintTableMap(deps: PaintDeps, made: MadeMap): Promise<Pai
 }
 
 /**
- * The painting becomes the place's picture only where the place still holds the drawing it was painted from: a map
- * the DM replaced meanwhile (a new drawing, another upload that cleared `source_map_id`) is not clobbered. The
+ * The painting becomes the place's picture only where the place still holds the drawing it was painted from and the
+ * plain picture painting started from: a map the DM replaced meanwhile (a new drawing, another upload, with or without
+ * the drawing kept) is not clobbered (#1271 review: an upload kept `source_map_id` and was overwritten). The
  * calibration is not written: the painted picture has the plain one's size, so the grid stays where it was.
  */
-export async function adoptPicture(admin: SupabaseClient, placeId: string, drawingId: string, url: string): Promise<boolean> {
-  const { data, error } = await admin.from("locations").update({ map_url: url }).eq("id", placeId).eq("source_map_id", drawingId).select("id");
+export async function adoptPicture(admin: SupabaseClient, at: { placeId: string; drawingId: string; plainUrl: string }, url: string): Promise<boolean> {
+  const { data, error } = await admin.from("locations").update({ map_url: url })
+    .eq("id", at.placeId).eq("source_map_id", at.drawingId).eq("map_url", at.plainUrl).select("id");
   if (error) throw error;
   return data !== null && data.length > 0;
 }
