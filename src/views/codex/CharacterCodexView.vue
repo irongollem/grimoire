@@ -78,7 +78,7 @@
           v-if="activeTab === 'species' && isAiEnabled"
           :icon="IconGenerate"
           label="Generate"
-          @click="generatorsUi.speciesGeneratorOpen = true"
+          @click="openGenerator('species')"
         />
         <ListCreateButton
           v-if="activeTab === 'species'"
@@ -93,7 +93,7 @@
             v-if="isAiEnabled"
             :icon="IconGenerate"
             label="Generate"
-            @click="generatorsUi.backgroundGeneratorOpen = true"
+            @click="openGenerator('background')"
           />
           <ListCreateButton
             label="New Background"
@@ -138,7 +138,7 @@
             v-if="isAiEnabled"
             :icon="IconGenerate"
             label="Generate"
-            @click="generatorsUi.classFeatureGeneratorOpen = true"
+            @click="openGenerator('class_feature')"
           />
           <ListCreateButton
             label="New Ability"
@@ -277,6 +277,7 @@ import AbilityList from "@/components/features/AbilityList.vue";
 import FeatList from "@/components/feats/FeatList.vue";
 import { useCodexUiStore } from "@/stores/ui/codex";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { useSpeciesUiStore } from "@/stores/ui/species";
 import { useAvailableLibrarySpeciesSources, useAvailableLibraryBackgroundSources } from "@/composables/library/useEnabledSources";
 import { useCampaignStore } from "@/stores/campaign";
@@ -306,6 +307,7 @@ const SIZE_OPTIONS = [
 const codexUi = useCodexUiStore();
 const backgroundSourceOptions = useBackgroundSourceOptions();
 const generatorsUi = useGeneratorUiStore();
+const { open: openGenerator } = useOpenGenerator();
 const speciesUi = useSpeciesUiStore();
 const isAiEnabled = computed(() => useCampaignStore().isAiEnabled);
 const auth = useAuthStore();

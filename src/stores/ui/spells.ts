@@ -26,7 +26,6 @@ export const useSpellsUiStore = defineStore("ui:spells", () => {
     spellsFilterSource.value = "all";
   }
 
-  const spellGeneratorOpen = ref(false);
 
   return {
     spellsSearch,
@@ -36,6 +35,5 @@ export const useSpellsUiStore = defineStore("ui:spells", () => {
     spellsFilterSource,
     spellsHasActiveFilters,
     resetSpellsFilters,
-    spellGeneratorOpen,
   };
 });

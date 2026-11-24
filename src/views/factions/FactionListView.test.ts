@@ -53,7 +53,8 @@ const ui = {
   resetFactionsFilters: vi.fn(),
 };
 vi.mock("@/stores/ui/factions", () => ({ useFactionsUiStore: () => ui }));
-vi.mock("@/stores/ui/generators", () => ({ useGeneratorUiStore: () => ({ factionGeneratorOpen: false }) }));
+const openGenerator = vi.hoisted(() => vi.fn());
+vi.mock("@/composables/ask/useOpenGenerator", () => ({ useOpenGenerator: () => ({ open: openGenerator }) }));
 
 const aiFlag = vi.hoisted(() => ({ on: false }));
 vi.mock("@/stores/campaign", () => ({
@@ -343,6 +344,14 @@ describe("FactionListView — AI off", () => {
     expect(generateButton(mountView())).toBeUndefined();
     aiFlag.on = true;
     expect(generateButton(mountView())).toBeDefined();
+    aiFlag.on = false;
+  });
+
+  // Bug caught: Generate still raised the deleted panel's flag, so the click did nothing and no card opened in the Familiar.
+  it("opens the faction's card in the Familiar", async () => {
+    aiFlag.on = true;
+    await generateButton(mountView())?.trigger("click");
+    expect(openGenerator).toHaveBeenCalledWith("faction");
     aiFlag.on = false;
   });
 });

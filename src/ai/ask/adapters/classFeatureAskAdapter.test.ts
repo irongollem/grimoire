@@ -68,11 +68,19 @@ describe("useClassFeatureAskAdapter", () => {
   });
 
   it("passes only understood constraints and drops what the page's own picker does not offer", async () => {
-    await useClassFeatureAskAdapter().run(proposal({ activation: "bonus action", system_prompt: "x" }));
-    expect(mocks.gen).toHaveBeenCalledWith("A test concept", { activation: "bonus_action" });
+    await useClassFeatureAskAdapter().run(proposal({ activation: "bonus_action", system_prompt: "x" }));
+    expect(mocks.gen).toHaveBeenCalledWith("A test concept", { activation: "bonus_action", forWhom: undefined });
     mocks.gen.mockClear();
     await useClassFeatureAskAdapter().run(proposal({ activation: "whenever" }));
-    expect(mocks.gen).toHaveBeenCalledWith("A test concept", { activation: undefined });
+    expect(mocks.gen).toHaveBeenCalledWith("A test concept", { activation: undefined, forWhom: undefined });
+  });
+
+  // Bug caught: the card's "For which class or species" box was dropped before the workflow, so the ability came back for nobody in particular.
+  it("passes who it is for to the workflow and names it on the quote", async () => {
+    const adapter = useClassFeatureAskAdapter();
+    expect(adapter.quote(proposal({ for_whom: "Ranger" })).lines).toContainEqual(expect.objectContaining({ label: "For", value: "Ranger" }));
+    await adapter.run(proposal({ for_whom: "Ranger" }));
+    expect(mocks.gen).toHaveBeenCalledWith("A test concept", { activation: undefined, forWhom: "Ranger" });
   });
 
   it("a successful run names the record and opens it where the page does", async () => {

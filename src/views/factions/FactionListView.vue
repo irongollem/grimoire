@@ -17,7 +17,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="generatorsUi.factionGeneratorOpen = true"
+        @click="openGenerator('faction')"
       />
       <ListActionButton
         :active="selecting"
@@ -196,7 +196,7 @@ import { IconCheck, IconGenerate, IconNavFactions, IconPopulate, IconShield } fr
 import { useAllFactions, usePopulateFactions, useUpdateFaction } from "@/composables/factions/useFactions";
 import { FACTION_TYPES } from "@/types/faction.types";
 import { useFactionsUiStore } from "@/stores/ui/factions";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
@@ -233,7 +233,7 @@ import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignF
 import { bulkScopeAllowsGeneral } from "@/composables/campaign/useBulkCampaignScope";
 
 const factionsUi = useFactionsUiStore();
-const generatorsUi = useGeneratorUiStore();
+const { open: openGenerator } = useOpenGenerator();
 const campaign = useCampaignStore();
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 

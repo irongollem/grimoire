@@ -1,5 +1,5 @@
 /**
- * What one Location Generator run costs (#1253), shared by `LocationGeneratorPanel` and the Ask Grimoire place adapter.
+ * What one Location Generator run costs (#1253), shared by the generator's card in the Familiar and the Ask Grimoire place adapter.
  *
  * Verified against the server: `generate-location` charges `location_generation` for the text only, and the scene and
  * the map sketch are painted through the durable image job (`generate-chronicle-image`), each its own `entity_image`
@@ -9,7 +9,7 @@ import { useQuoteKit, type GeneratorQuote } from "@/composables/ai/quotes/quoteK
 
 export interface LocationQuoteOptions {
   image: boolean;
-  /** The map sketch: the page has a switch for it, Ask never asks for one. */
+  /** The map sketch: the card and the page both have a switch for it, off unless the DM turns it on. */
   map?: boolean;
 }
 

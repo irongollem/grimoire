@@ -32,7 +32,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="monstersUi.monsterGeneratorOpen = true"
+        @click="openGenerator('monster')"
       />
       <ListActionButton
         :active="monsterListRef?.selecting ?? false"
@@ -240,7 +240,7 @@
           block
           v-if="isAiEnabled"
           label="Generate"
-          @click="overflowOpen = false; monstersUi.monsterGeneratorOpen = true"
+          @click="overflowOpen = false; openGenerator('monster')"
         >
           <template #icon><IconGenerate class="size-5 shrink-0 text-muted-foreground" /></template>
         </AppButton>
@@ -308,6 +308,7 @@ import MonsterList from "@/components/monsters/MonsterList.vue";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import SourcesPickerPanel from "@/components/common/settings/SourcesPickerPanel.vue";
 import { useMonstersUiStore } from "@/stores/ui/monsters";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { useCampaignStore } from "@/stores/campaign";
 import { useRouter } from "vue-router";
 import { useBarCreate } from "@/composables/useBarCreate";
@@ -322,6 +323,7 @@ const IconFilter = IconSettings;
 
 const router = useRouter();
 const monstersUi = useMonstersUiStore();
+const { open: openGenerator } = useOpenGenerator();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { canCreate } = useQuota("monsters");

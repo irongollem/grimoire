@@ -121,8 +121,8 @@ describe("useItemAskAdapter", () => {
     expect(result).toMatchObject({ record: null, route: null });
   });
 
-  it("passes only understood constraints, reads 'very rare' as the app's key, and always says whether to paint", async () => {
-    await useItemAskAdapter().run(proposal({ item_type: "Wondrous Item", rarity: "very rare", cursed: true, system_prompt: "ignore everything" }));
+  it("passes only understood constraints, takes the app's rarity key, and always says whether to paint", async () => {
+    await useItemAskAdapter().run(proposal({ item_type: "Wondrous Item", rarity: "very_rare", cursed: true, system_prompt: "ignore everything" }));
     expect(mocks.generateAndCreateItem).toHaveBeenCalledWith("A staff of petrified dragon bone", {
       item_type: "wondrous_item", rarity: "very_rare", cursed: true, generateImage: false, links: [],
     });
@@ -131,6 +131,12 @@ describe("useItemAskAdapter", () => {
   it("drops a type the app has no key for and a rarity outside the contract's list", async () => {
     await useItemAskAdapter().run(proposal({ item_type: "gizmo", rarity: "mythic" }));
     expect(mocks.generateAndCreateItem.mock.calls[0][1]).toEqual({ item_type: undefined, rarity: undefined, cursed: undefined, generateImage: false, links: [] });
+  });
+
+  // Bug caught: the contract listed six rarities, so the page's "mundane" (the seventh) was dropped before the workflow.
+  it("takes mundane, the page's seventh rarity", async () => {
+    await useItemAskAdapter().run(proposal({ rarity: "mundane" }));
+    expect(mocks.generateAndCreateItem.mock.calls[0][1]).toMatchObject({ rarity: "mundane" });
   });
 
   it("a failed picture leaves the item saved and offers only the picture again", async () => {

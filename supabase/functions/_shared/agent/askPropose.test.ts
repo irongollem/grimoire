@@ -131,7 +131,7 @@ describe("checkProposal", () => {
   });
 
   it("drops an integer out of the generator's range", async () => {
-    const out = await checkProposal({ generator: "spell", concept: "x", inputs: { level: 12 } }, five);
+    const out = await checkProposal({ generator: "class", concept: "x", inputs: { hit_die: 20 } }, five);
     expect((out as { proposal: { inputs: object } }).proposal.inputs).toEqual({});
   });
 

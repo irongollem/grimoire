@@ -1,5 +1,5 @@
 /**
- * What one Faction Generator run costs (#1253), shared by `FactionGeneratorPanel` and the Ask Grimoire faction adapter.
+ * What one Faction Generator run costs (#1253), shared by the generator's card in the Familiar and the Ask Grimoire faction adapter.
  *
  * Verified against the server: `generate-entity-text` charges `faction_generation` for the text; the emblem goes
  * through the durable image job (purpose `faction`), which bills `entity_image` at the purpose's square 1024x1024.

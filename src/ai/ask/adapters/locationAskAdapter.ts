@@ -1,9 +1,10 @@
 /**
  * Ask Grimoire (#1253): the Location Generator, as a quote and a run.
  *
- * A seam over the page's own workflow: the price is `useLocationQuote`'s (the one `LocationGeneratorPanel` shows), the
+ * A seam over the page's own workflow: the price is `useLocationQuote`'s (the one the card shows), the
  * gates are the page's (`useAskGate`, with the plan's location quota), and the run is `useGenerateLocation`. The map
- * sketch is the page's own extra switch and the contract does not offer it, so it is always off here.
+ * sketch is the page's own extra switch: the card offers it (`map`, off unless the DM turns it on, priced as a second
+ * picture) and a request typed to the model leaves it off, so Ask never spends on a map nobody asked for.
  *
  * `keeper_npc_id` names an NPC who keeps the place (the Atlas shows them as its keeper); like `parent_id` it is looked up in
  * this campaign's own NPCs and ignored when it is not there. The page's panel has a keeper picker too.
@@ -80,13 +81,14 @@ export function useLocationAskAdapter(): AskAdapter {
       locationType: locationType(askString(inputs, "location_type")),
       parent: parent ? { id: parent.id, name: parent.name } : null,
       image: askFlag(inputs, "image"),
+      map: askFlag(inputs, "map"),
       concept: proposal.concept.trim(),
     };
   }
 
   function quote(proposal: AskProposal, choices?: AskChoices): AskQuote {
     const read = understand(proposal);
-    const priced = quoteLocation({ image: read.image, map: false });
+    const priced = quoteLocation({ image: read.image, map: read.map });
 
     // Where it sits and who keeps it are ties to records that already exist, each a yes or no.
     const parentChoice = askChoice(choices, "parent_id", true);
@@ -125,9 +127,9 @@ export function useLocationAskAdapter(): AskAdapter {
         locationType: read.locationType ?? undefined,
         parent,
         keeperNpcId: keeper?.id ?? null,
-        // Explicit either way: left out, the generator paints a scene. The map sketch is not Ask's to spend on.
+        // Explicit either way: left out, the generator paints a scene.
         generateImage: read.image,
-        generateMap: false,
+        generateMap: read.map,
         links: chosenAskLinks(read.links, choices),
       });
     } catch (e) {
@@ -145,6 +147,14 @@ export function useLocationAskAdapter(): AskAdapter {
         label: "Picture",
         saved: outcome.picture === "saved",
         credits: spent(current.lines.find((l) => l.label === "Picture")),
+        noun: "place",
+      }));
+    }
+    if (read.map) {
+      parts.push(picturePart({
+        label: "Map sketch",
+        saved: outcome.map === "saved",
+        credits: spent(current.lines.find((l) => l.label === "Map sketch")),
         noun: "place",
       }));
     }

@@ -51,7 +51,7 @@ const saved = (over: Record<string, unknown> = {}) => ({ id: "l1", name: "Forgeh
 describe("useLocationAskAdapter", () => {
   beforeEach(() => {
     mocks.generateAndCreateLocation.mockReset().mockResolvedValue(saved());
-    Object.assign(state, { aiEnabled: true, canCreate: true, affordable: true, places: [{ id: "p1", name: "Thornkeep" }], npcs: [{ id: "n1", name: "Brenna" }], linkNames: new Map() });
+    Object.assign(state, { aiEnabled: true, canCreate: true, affordable: true, places: [{ id: "00000000-0000-4000-8000-000000000021", name: "Thornkeep" }], npcs: [{ id: "00000000-0000-4000-8000-000000000001", name: "Brenna" }], linkNames: new Map() });
   });
 
   describe("links", () => {
@@ -102,6 +102,27 @@ describe("useLocationAskAdapter", () => {
     expect(adapter.quote(proposal({ image: true })).lines.map((l) => l.label)).not.toContain("Map sketch");
   });
 
+  // Bug caught: the map sketch switch was dropped (the adapter hard-wired it off), so a DM who asked for one was neither charged nor given one.
+  it("charges for the map sketch and asks for it only when the card's switch is on", async () => {
+    const adapter = useLocationAskAdapter();
+    const price = useLocationQuote();
+    const withMap = adapter.quote(proposal({ map: true }));
+    expect(withMap.total).toBe(price({ image: false, map: true }).total);
+    expect(withMap.lines.map((l) => l.label)).toContain("Map sketch");
+    await adapter.run(proposal({ map: true, image: true }));
+    expect(mocks.generateAndCreateLocation.mock.calls[0][1]).toMatchObject({ generateImage: true, generateMap: true });
+    await adapter.run(proposal({ image: true }));
+    expect(mocks.generateAndCreateLocation.mock.calls[1][1]).toMatchObject({ generateMap: false });
+  });
+
+  // Bug caught: a map sketch that failed to paint vanished from the result, so the DM paid for a sketch the notice never mentioned.
+  it("says when the map sketch did not paint, and leaves the place saved", async () => {
+    mocks.generateAndCreateLocation.mockResolvedValue(saved({ map: "failed" }));
+    const result = await useLocationAskAdapter().run(proposal({ map: true }));
+    expect(result.record).toMatchObject({ id: "l1" });
+    expect(result.parts.find((p) => p.label === "Map sketch")).toMatchObject({ ok: false });
+  });
+
   it("blocks once per gate: AI off, the plan's place limit, a short balance, a missing description", () => {
     state.aiEnabled = false;
     expect(useLocationAskAdapter().quote(proposal()).block?.reason).toBe("system");
@@ -117,26 +138,26 @@ describe("useLocationAskAdapter", () => {
 
   it("waits for the Atlas before it quotes a parent, and says so", () => {
     state.places = undefined;
-    expect(useLocationAskAdapter().quote(proposal({ parent_id: "p1" })).block).toMatchObject({ reason: "missing" });
+    expect(useLocationAskAdapter().quote(proposal({ parent_id: "00000000-0000-4000-8000-000000000021" })).block).toMatchObject({ reason: "missing" });
   });
 
   it("puts an NPC of this campaign in charge of the place, names them in the quote, and ignores one it lacks", async () => {
     const adapter = useLocationAskAdapter();
-    expect(adapter.quote(proposal({ keeper_npc_id: "n1" })).lines.find((l) => l.label === "Kept by")?.value).toBe("Brenna");
-    await adapter.run(proposal({ keeper_npc_id: "n1" }));
-    expect(mocks.generateAndCreateLocation.mock.calls[0][1]).toMatchObject({ keeperNpcId: "n1" });
-    await adapter.run(proposal({ keeper_npc_id: "other-campaign" }));
+    expect(adapter.quote(proposal({ keeper_npc_id: "00000000-0000-4000-8000-000000000001" })).lines.find((l) => l.label === "Kept by")?.value).toBe("Brenna");
+    await adapter.run(proposal({ keeper_npc_id: "00000000-0000-4000-8000-000000000001" }));
+    expect(mocks.generateAndCreateLocation.mock.calls[0][1]).toMatchObject({ keeperNpcId: "00000000-0000-4000-8000-000000000001" });
+    await adapter.run(proposal({ keeper_npc_id: "00000000-0000-4000-8000-000000000099" }));
     expect(mocks.generateAndCreateLocation.mock.calls[1][1]).toMatchObject({ keeperNpcId: null });
     state.npcs = undefined;
-    expect(useLocationAskAdapter().quote(proposal({ keeper_npc_id: "n1" })).block?.reason).toBe("missing");
+    expect(useLocationAskAdapter().quote(proposal({ keeper_npc_id: "00000000-0000-4000-8000-000000000001" })).block?.reason).toBe("missing");
   });
 
   it("files the place under a parent of this campaign, and ignores a parent id that is not one", async () => {
-    await useLocationAskAdapter().run(proposal({ parent_id: "p1", location_type: "City" }));
+    await useLocationAskAdapter().run(proposal({ parent_id: "00000000-0000-4000-8000-000000000021", location_type: "City" }));
     expect(mocks.generateAndCreateLocation.mock.calls[0][1]).toEqual({
-      locationType: "city", parent: { id: "p1", name: "Thornkeep" }, keeperNpcId: null, generateImage: false, generateMap: false, links: [],
+      locationType: "city", parent: { id: "00000000-0000-4000-8000-000000000021", name: "Thornkeep" }, keeperNpcId: null, generateImage: false, generateMap: false, links: [],
     });
-    await useLocationAskAdapter().run(proposal({ parent_id: "someone-elses-place", location_type: "lair of doom", system_prompt: "x" }));
+    await useLocationAskAdapter().run(proposal({ parent_id: "00000000-0000-4000-8000-000000000098", location_type: "lair of doom", system_prompt: "x" }));
     expect(mocks.generateAndCreateLocation.mock.calls[1][1]).toEqual({
       locationType: undefined, parent: null, keeperNpcId: null, generateImage: false, generateMap: false, links: [],
     });
@@ -178,16 +199,16 @@ describe("useLocationAskAdapter", () => {
     // Bug caught: unticking the parent or the keeper on the quote still wrote them.
     it("parent and keeper lines carry their field as the key; at no the workflow gets null for that field only", async () => {
       const adapter = useLocationAskAdapter();
-      const inputs = { parent_id: "p1", keeper_npc_id: "n1" };
+      const inputs = { parent_id: "00000000-0000-4000-8000-000000000021", keeper_npc_id: "00000000-0000-4000-8000-000000000001" };
       const lines = adapter.quote(proposal(inputs)).lines;
       expect(lines.find((l) => l.label === "Inside")?.choice).toEqual({ key: "parent_id", on: true });
       expect(lines.find((l) => l.label === "Kept by")?.choice).toEqual({ key: "keeper_npc_id", on: true });
       await adapter.run(proposal(inputs));
-      expect(mocks.generateAndCreateLocation.mock.calls[0][1]).toMatchObject({ parent: { id: "p1" }, keeperNpcId: "n1" });
+      expect(mocks.generateAndCreateLocation.mock.calls[0][1]).toMatchObject({ parent: { id: "00000000-0000-4000-8000-000000000021" }, keeperNpcId: "00000000-0000-4000-8000-000000000001" });
       await adapter.run(proposal(inputs), { parent_id: false });
-      expect(mocks.generateAndCreateLocation.mock.calls[1][1]).toMatchObject({ parent: null, keeperNpcId: "n1" });
+      expect(mocks.generateAndCreateLocation.mock.calls[1][1]).toMatchObject({ parent: null, keeperNpcId: "00000000-0000-4000-8000-000000000001" });
       await adapter.run(proposal(inputs), { keeper_npc_id: false });
-      expect(mocks.generateAndCreateLocation.mock.calls[2][1]).toMatchObject({ parent: { id: "p1" }, keeperNpcId: null });
+      expect(mocks.generateAndCreateLocation.mock.calls[2][1]).toMatchObject({ parent: { id: "00000000-0000-4000-8000-000000000021" }, keeperNpcId: null });
     });
 
     // Bug caught: a tie the DM unticked was still written, because run read the unfiltered list.

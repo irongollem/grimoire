@@ -51,7 +51,7 @@ vi.mock("@/stores/ui/deities", () => ({
     resetDeitiesFilters: vi.fn(),
   }),
 }));
-vi.mock("@/stores/ui/generators", () => ({ useGeneratorUiStore: () => ({ deityGeneratorOpen: false }) }));
+vi.mock("@/composables/ask/useOpenGenerator", () => ({ useOpenGenerator: () => ({ open: vi.fn() }) }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => reactive({ activeCampaign: ref({ id: "camp-1" }), isAiEnabled: computed(() => false) }),
 }));

@@ -1,7 +1,7 @@
 /**
  * Ask Grimoire (#1253): the Species Generator, as a quote and a run.
  *
- * The price is `useSpeciesQuote`'s (the one `SpeciesGeneratorPanel` shows), the gates are the page's (`useAskGate`,
+ * The price is `useSpeciesQuote`'s (the one the card shows), the gates are the page's (`useAskGate`,
  * which also refuses a campaign whose game system has no 5e rules), and the run is `useGenerateSpecies`. The size is
  * matched against the page's own picker; a word it does not offer is not understood. A failed picture leaves the
  * species saved; the species kind is not one `useMissingPortrait` can paint, so there is no retry from Ask.

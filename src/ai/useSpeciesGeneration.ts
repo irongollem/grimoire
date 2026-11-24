@@ -6,7 +6,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useAskUiStore } from "@/stores/ui/ask";
 import { captureFailureMessage, captureImageGenerationContext, generateImage } from "./useImageGeneration";
 import { speciesInsertFromAi, type SpeciesAiResult } from "@/lib/codex/speciesAi";
 import type { SpeciesInsert, SpeciesSize } from "@/types/species.types";
@@ -18,8 +18,9 @@ registerAiGenerator({
   ..._state,
   label: "Species",
   entityRoute: (id) => `/species/${id}`,
+  // The generator is a card in the Familiar now: the badge brings the DM back to it.
   openPanel: () => {
-    useGeneratorUiStore().speciesGeneratorOpen = true;
+    useAskUiStore().openPanel();
   },
 });
 

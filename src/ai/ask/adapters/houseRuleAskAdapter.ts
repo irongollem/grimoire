@@ -1,14 +1,15 @@
 /**
  * Ask Grimoire (#1253): the House Rule Generator, as a quote and a run.
  *
- * The price is `useHouseRuleQuote`'s (the one `CustomRuleGeneratorPanel` shows), the gates are the page's
+ * The price is `useHouseRuleQuote`'s (the one the card shows), the gates are the page's
  * (`useAskGate`; a house rule is not 5e-only), and the run is `useGenerateCustomRule`, which saves it hidden from
  * players like the page does. The category is matched against the page's own list; a word it does not offer is not
- * understood. The page's "Allow a tracker" switch is on by default, so it is on here. A rule has no picture.
+ * understood. The page's "Allow a tracker" switch is on by default, so a button-opened card starts with it on; a request typed to
+ * the model leaves it off unless the model sets it. A rule has no picture.
  */
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskQuoteLine, AskRunResult } from "@/lib/ask/askAdapter";
-import { askString, readAskInputs } from "@/ai/ask/askInputs";
+import { askFlag, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
 import { conceptBlock, failedRun, matchOption, saveFailure, spent } from "@/ai/ask/adapters/askAdapterKit";
 import { useCampaignStore } from "@/stores/campaign";
@@ -28,6 +29,7 @@ export function useHouseRuleAskAdapter(): AskAdapter {
     const inputs = readAskInputs("house_rule", proposal.inputs);
     return {
       category: matchOption(askString(inputs, "category"), CATEGORIES),
+      allowTracker: askFlag(inputs, "allow_tracker"),
       concept: proposal.concept.trim(),
     };
   }
@@ -38,6 +40,7 @@ export function useHouseRuleAskAdapter(): AskAdapter {
 
     const lines: AskQuoteLine[] = [];
     if (read.category) lines.push({ label: "Category", value: read.category, credits: null });
+    lines.push({ label: "Tracker", value: read.allowTracker ? "Allowed" : "None", credits: null });
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
 
@@ -53,7 +56,7 @@ export function useHouseRuleAskAdapter(): AskAdapter {
 
     let outcome;
     try {
-      outcome = await generateAndCreateRule(read.concept, { category: read.category ?? undefined, allowTracker: true });
+      outcome = await generateAndCreateRule(read.concept, { category: read.category ?? undefined, allowTracker: read.allowTracker });
     } catch (e) {
       return failedRun("Rule text", saveFailure(e, "rules", "The rule could not be saved."));
     }

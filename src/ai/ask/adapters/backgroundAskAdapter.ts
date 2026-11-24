@@ -1,7 +1,7 @@
 /**
  * Ask Grimoire (#1253): the Background Generator, as a quote and a run.
  *
- * The price is `useBackgroundQuote`'s (the one `BackgroundGeneratorPanel` shows), the gates are the page's
+ * The price is `useBackgroundQuote`'s (the one the card shows), the gates are the page's
  * (`useAskGate`, which also refuses a campaign whose game system has no 5e rules), and the run is
  * `useGenerateBackground`. The skill focus is matched against the page's own skill list; a word it does not offer is
  * not understood. A background has no picture.
