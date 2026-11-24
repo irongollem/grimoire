@@ -4,7 +4,7 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { generationRefusal } from "../_shared/accountGate.ts";
-import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
+import { screenChatText } from "../_shared/moderation.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { loadAgentCalibration, loadModelPrice, resolveAgentProvider } from "../_shared/agent/providerIo.ts";
 import { STAND_IN_RECENT_LINES, type StandIn } from "../_shared/agent/standIn.ts";
@@ -117,13 +117,8 @@ serve(serveUser(async ({ user, req, report }) => {
     ownerRefused: async (owner) => (await generationRefusal(admin, owner, { failClosed: true })) !== null,
 
     async isFlagged(text, senderId) {
-      try {
-        await screenImagePrompt(text, { apiKey: (await provider())?.moderationKey ?? null, admin, userId: senderId, generationType: GENERATION, imageProvider: "none" });
-        return false;
-      } catch (error) {
-        if (isPromptRejected(error)) return true;
-        throw error;
-      }
+      const verdict = await screenChatText(text, { apiKey: (await provider())?.moderationKey ?? null, admin, userId: senderId, surface: GENERATION });
+      return verdict?.flagged === true;
     },
 
     resolveProvider: async () => (await provider())?.provider ?? null,

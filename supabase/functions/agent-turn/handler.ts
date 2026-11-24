@@ -22,8 +22,10 @@ import { declinedText, rollText } from "../_shared/agent/playerRoll.ts";
 import type { HazardRules } from "../_shared/agent/hazard.ts";
 import type { CanonCheckMaterial } from "../_shared/agent/canonCheck.ts";
 import { runTurn } from "../_shared/agent/turn.ts";
+import { unknownNames, unknownNamesHint } from "../_shared/agent/nameCheck.ts";
+import { flaggedForRoll, isJudgedForRoll, lastNarratorText, ROLL_HINT, rollCheckRequest } from "../_shared/agent/rollCheck.ts";
 import { makeTurnTools } from "./turnTools.ts";
-import { narrationGate, type NarrationGate } from "./narration.ts";
+import { narrationGate, NARRATION_JUDGE_LIMIT_MS, type NarrationGate } from "./narration.ts";
 import { AFTERMATH_TEXT, foeLineText, helperTurnText, OPENING_TEXT, playerText } from "./turnBody.ts";
 import { safely } from "./turnSupport.ts";
 import { AgentProviderError } from "../_shared/agent/types.ts";
@@ -158,6 +160,31 @@ export async function beginTurn(input: {
           const text = body.message.trim();
           emit({ type: "voice", role: "player", text, voice: deps.voiceKey(sessionId, { role: "player", speaker: { id: character.id, name: character.name }, text }) });
         }
+        // Whether this attempt needs a roll is asked while the secrets load below, and awaited just before the turn:
+        // the narrator reads the answer, so it cannot run later, but it need not add its own wait.
+        const judgedForRoll = isJudgedForRoll({
+          mode: body.mode,
+          message: body.message,
+          answersRoll: scored !== null || pendingRoll !== null,
+          fightRunning,
+        });
+        const rollNeed: Promise<number | null> = judgedForRoll
+          ? flaggedForRoll({
+            judge: deps.judgeNarration,
+            request: rollCheckRequest({ mode: body.mode, message: body.message, scene: lastNarratorText(history) }),
+            limitMs: NARRATION_JUDGE_LIMIT_MS,
+          })
+          : Promise.resolve(null);
+        // A name last turn's narration used that the campaign has no record of (#1021): found while the secrets load, in
+        // code and then by the judge, under the same limit, and never in a fight, whose names the fight holds.
+        const unknown: Promise<string[]> = fightRunning
+          ? Promise.resolve([])
+          : unknownNames({
+            narration: lastNarratorText(history),
+            known: (candidates) => deps.knownNames(campaign.id, candidates),
+            judge: deps.judgeNarration,
+            limitMs: NARRATION_JUDGE_LIMIT_MS,
+          });
         // The narration check needs the secrets before the first word streams; with no judge it asks for none.
         let secrets: readonly string[] = [];
         if (deps.judgeNarration !== null) {
@@ -194,9 +221,15 @@ export async function beginTurn(input: {
         const foe = foeAsked === undefined || !fightRunning
           ? undefined
           : fights.fight!.fighters.find((f) => f.side === "enemy" && f.hp > 0 && f.name === foeAsked.name);
+        const rollFlagged = await rollNeed;
+        const unnamed = await unknown;
+        // A count, never the names: they are the story's own text.
+        if (unnamed.length > 0) console.warn(`agent-turn: the narration named ${unnamed.length} character(s) or place(s) the campaign has no record of.`);
+        const hints = [rollFlagged === null ? null : ROLL_HINT, unnamed.length === 0 ? null : unknownNamesHint(unnamed)].filter((h): h is string => h !== null);
         const result = await runTurn({
           system,
-          state,
+          // A hint, not a ruling: the narrator may still decide no roll is needed.
+          state: hints.length === 0 ? state : `${state}\n\n${hints.join("\n\n")}`,
           history,
           // The roll (or that it was not made) comes first, then the player's own words when there are any.
           user: [
@@ -224,6 +257,11 @@ export async function beginTurn(input: {
         await narration.finish();
         narration.applyShown(result.added);
 
+        // Narration has already streamed, so a flagged attempt that went untold-by-roll is logged, not re-run. No
+        // player text: only that it happened and how sure the judge was.
+        if (rollFlagged !== null && fx.asked === null && fx.fightPlan === null) {
+          console.warn(`agent-turn: an uncertain action was settled without a roll (judged ${rollFlagged.toFixed(2)} likely to need one).`);
+        }
         await keepTurn(scope, fx, session, ctx, { result, turnTools });
         return;
       } catch (error) {

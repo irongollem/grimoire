@@ -26,6 +26,8 @@ export type GatedMetric = (typeof GATED_METRICS)[number];
  * shallowest included. Even the minimum of three runs read 4 to 6 on dm-cold
  * across main, which is the headroom: a depth budget is the deepest main has
  * measured, and only a run more than `headroom` below it is a real improvement.
+ * Most of that spread came from a round trip shorter than the render's stalls;
+ * the profile's hold is now long enough that it should not (#1269, README "Profile").
  */
 export const GATES: Record<GatedMetric, { combine: "median" | "min"; headroom: number }> = {
   apiRequests: { combine: "median", headroom: 0 },

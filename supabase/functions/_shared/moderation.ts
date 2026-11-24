@@ -109,12 +109,15 @@ export interface ScreeningContext {
 }
 
 /** The thresholds a screening is held to: the standing ones, each lowered to the caller's tighter limit if it gave one. */
-export function thresholdsFor(tighter: Readonly<Record<string, number>> | undefined): Readonly<Record<string, number>> {
-  if (tighter === undefined) return IMAGE_PROMPT_THRESHOLDS;
-  const out: Record<string, number> = { ...IMAGE_PROMPT_THRESHOLDS };
+export function thresholdsFor(
+  tighter: Readonly<Record<string, number>> | undefined,
+  standing: Readonly<Record<string, number>> = IMAGE_PROMPT_THRESHOLDS,
+): Readonly<Record<string, number>> {
+  if (tighter === undefined) return standing;
+  const out: Record<string, number> = { ...standing };
   for (const [category, limit] of Object.entries(tighter)) {
-    const standing = out[category];
-    if (standing !== undefined && limit < standing) out[category] = limit;
+    const current = out[category];
+    if (current !== undefined && limit < current) out[category] = limit;
   }
   return out;
 }
@@ -247,6 +250,35 @@ export async function recordScreeningOutcome(
 }
 
 /**
+ * The moderation model's score per category for `text`, or null when it could not be had (the endpoint refused, the
+ * network dropped, the answer had no scores). Both screens fail open on null; see `screenImagePrompt`.
+ */
+async function moderationScores(apiKey: string, text: string): Promise<Record<string, number> | null> {
+  try {
+    const res = await fetch(MODERATION_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: MODERATION_MODEL, input: text }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      console.error("Prompt screening unavailable:", res.status, body?.error?.message ?? "");
+      return null;
+    }
+    const data = await res.json();
+    const result = data?.results?.[0];
+    if (!result?.category_scores) {
+      console.error("Prompt screening returned no scores; proceeding unscreened.");
+      return null;
+    }
+    return result.category_scores as Record<string, number>;
+  } catch (e) {
+    console.error("Prompt screening failed:", e);
+    return null;
+  }
+}
+
+/**
  * Screen an image prompt. Returns the log row's id when the prompt is
  * acceptable — or unscreenable — and throws `PromptRejectedError` when it is
  * not.
@@ -265,31 +297,8 @@ export async function screenImagePrompt(
   ctx: ScreeningContext,
 ): Promise<ScreeningRecord> {
   if (!ctx.apiKey) return { id: null };
-
-  let scores: Record<string, number>;
-
-  try {
-    const res = await fetch(MODERATION_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ctx.apiKey}` },
-      body: JSON.stringify({ model: MODERATION_MODEL, input: prompt }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      console.error("Prompt screening unavailable:", res.status, body?.error?.message ?? "");
-      return { id: null };
-    }
-    const data = await res.json();
-    const result = data?.results?.[0];
-    if (!result?.category_scores) {
-      console.error("Prompt screening returned no scores; proceeding unscreened.");
-      return { id: null };
-    }
-    scores = result.category_scores as Record<string, number>;
-  } catch (e) {
-    console.error("Prompt screening failed:", e);
-    return { id: null };
-  }
+  const scores = await moderationScores(ctx.apiKey, prompt);
+  if (scores === null) return { id: null };
 
   const over = categoriesOverThreshold(scores, thresholdsFor(ctx.tighter));
   const id = await logScreening(ctx, scores, over, prompt);
@@ -299,4 +308,74 @@ export async function screenImagePrompt(
     throw new PromptRejectedError(over);
   }
   return { id };
+}
+
+// ── Chat text ──────────────────────────────────────────────────────────────────
+//
+// Text people type and read at a table (a player's line at the AI table, a question to Ask, a character's reply, a note
+// read aloud, the narrator's own words, the campaign text the narrator is given) is screened here, not by the image
+// screen it used to borrow (#1021 row 6a). Two things differ for chat:
+//
+//   1. Its log keeps a line only when it was refused. The image screen also keeps a prompt that passed near the line, so
+//      a human can judge the call; for chat that would be what players said to each other, kept for good. A refused
+//      line is kept because it is what the person is held to: five of them close the AI table, and the admin who may
+//      reopen it reads them (`conduct.ts`, 20261120231418). The scores and limits of every line are enough to move a
+//      threshold.
+//   2. It has no renderer behind it, so its rows name none (`image_provider` null, 20261124113757), and it answers
+//      with a verdict rather than an exception: every caller turns a refusal into its own message.
+//
+// The limits are the image table's for now (same categories, same numbers, `thresholdsFor` lowering them for a child's
+// turn). They were measured on fantasy image prompts, which share chat's subject matter (violence is the game); no set
+// of chat lines has been measured yet. They are a table of their own so the two can move apart when one is.
+
+/** The limits chat text is held to. See the section comment above for where the numbers come from. */
+export const CHAT_TEXT_THRESHOLDS: Readonly<Record<string, number>> = { ...IMAGE_PROMPT_THRESHOLDS };
+
+/** Where chat text is screened, and who the log row belongs to. */
+export interface ChatScreeningContext {
+  /** OpenAI key for the classifier. Null: nothing is screened. */
+  apiKey: string | null;
+  admin: SupabaseClient;
+  userId: string;
+  /** The surface the text came from: agent_turn, agent_turn_output, ask_turn, character_reply, note_reading, table_voice, campaign_text. */
+  surface: string;
+  /** Lower limits for some categories (a child's turn). A limit can only be lowered (`thresholdsFor`). */
+  tighter?: Readonly<Record<string, number>>;
+}
+
+export interface ChatVerdict {
+  flagged: boolean;
+  /** The categories that reached their limit: for the caller's log, never for the person who wrote the text. */
+  categories: string[];
+}
+
+/**
+ * Screen chat text. Fails open like the image screen: no key, an endpoint that will not answer or no scores give null
+ * ("not screened", the outage logged), which every caller lets through; a caller that remembers verdicts (the campaign
+ * text cache) must not remember a pass that never happened. Only `flagged` from real scores refuses.
+ */
+export async function screenChatText(text: string, ctx: ChatScreeningContext): Promise<ChatVerdict | null> {
+  if (!ctx.apiKey) return null;
+  const scores = await moderationScores(ctx.apiKey, text);
+  if (scores === null) return null;
+  const thresholds = thresholdsFor(ctx.tighter, CHAT_TEXT_THRESHOLDS);
+  const over = categoriesOverThreshold(scores, thresholds);
+  try {
+    const { error } = await ctx.admin.from("prompt_screenings").insert({
+      user_id: ctx.userId,
+      generation_type: ctx.surface,
+      image_provider: null,
+      blocked: over.length > 0,
+      categories_over: over,
+      scores,
+      thresholds,
+      // Only a refused line: see the section comment above.
+      prompt: over.length > 0 ? text : null,
+    });
+    if (error) console.error("Failed to log chat screening:", error);
+  } catch (e) {
+    // The log must never be the reason a line is refused or held up.
+    console.error("Failed to log chat screening:", e);
+  }
+  return { flagged: over.length > 0, categories: over };
 }

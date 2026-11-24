@@ -174,6 +174,16 @@ describe("AdminPromptScreeningPanel", () => {
   });
 });
 
+// #1268 review: a refused chat line has no picture service (20261124113757), and the row read "agent_turn ·  · <date>".
+describe("AdminPromptScreeningPanel — a chat line's screening", () => {
+  it("names no provider for a row that never went to a picture service", () => {
+    data.value = hints({ total: 1, rows: [row({ generation_type: "agent_turn", image_provider: null, blocked: true, categories_over: ["sexual"] })] });
+    const meta = mount(AdminPromptScreeningPanel).find(".ml-auto.shrink-0").text();
+    expect(meta).not.toMatch(/·\s*·/);
+    expect(meta.split("·")).toHaveLength(2);
+  });
+});
+
 describe("AdminPromptScreeningPanel — composition and the surface filter", () => {
   it("renders the whole window's composition from by_type, tagging a bulk surface", () => {
     data.value = hints({
