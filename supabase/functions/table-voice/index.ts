@@ -65,7 +65,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
       return { id: data.id as string, user_id: data.user_id as string, campaign_id: data.campaign_id as string, narrator_voice: data.narrator_voice, kind: data.kind as string };
     },
 
-    // The DM only. The table's voices follow the table switch; Oolu, in Ask, follows the campaign's AI switch alone.
+    // The DM only. The table's voices follow the table switch; Ooru, in Ask, follows the campaign's AI switch alone.
     loadCampaign: (campaignId, userId, aiSwitch) => loadAiCampaign(admin, campaignId, userId, { aiSwitch, forbiddenMessage: VOICE_MESSAGES.forbidden }),
     rateLimit: (userId) => checkRateLimit(admin, userId, "table_voice"),
 

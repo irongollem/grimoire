@@ -704,7 +704,7 @@ describe("a line the table may not tell", () => {
   });
 });
 
-describe("Oolu, the Familiar's voice (Ask)", () => {
+describe("Ooru, the Familiar's voice (Ask)", () => {
   const REPLY = "**Brindle** keeps the ledger.";
   const ASK_TURNS = [
     { role: "user", blocks: [{ type: "text", text: "Who keeps the ledger?" }] },
@@ -716,12 +716,12 @@ describe("Oolu, the Familiar's voice (Ask)", () => {
     h.session = { id: SESSION, user_id: DM, campaign_id: CAMPAIGN, narrator_voice: "male", kind: "ask" };
     h.turns = ASK_TURNS;
   };
-  const OOLU = { campaignId: CAMPAIGN, sessionId: SESSION, speakerId: null, speakerName: "Oolu", role: "familiar", text: REPLY };
+  const OOLU = { campaignId: CAMPAIGN, sessionId: SESSION, speakerId: null, speakerName: "Ooru", role: "familiar", text: REPLY };
 
-  // Bug caught: Oolu usable on the AI table, or the table's voices usable in Ask (a table session's DM streaming
+  // Bug caught: Ooru usable on the AI table, or the table's voices usable in Ask (a table session's DM streaming
   // arbitrary text through the owl); answered like a missing conversation so nothing is revealed.
   it.each([
-    ["Oolu on a table session", "solo_table", OOLU],
+    ["Ooru on a table session", "solo_table", OOLU],
     ["a table role on an Ask session", "ask", { ...OOLU, role: "narrator", speakerName: "The Narrator" }],
   ])("refuses %s as a conversation not found", async (_what, kind, body) => {
     const h = harness();
@@ -734,7 +734,7 @@ describe("Oolu, the Familiar's voice (Ask)", () => {
 
   // Bug caught: Ask following the table's AI switch (Ask dead wherever the table is off), or the table following the
   // looser one (the AI table open to a campaign that never granted it).
-  it("applies the campaign's AI switch for Oolu and the table's switch for the table", async () => {
+  it("applies the campaign's AI switch for Ooru and the table's switch for the table", async () => {
     const h = harness();
     asked(h);
     await speak(h, { body: OOLU });
@@ -753,11 +753,11 @@ describe("Oolu, the Familiar's voice (Ask)", () => {
     expect([h.spoken, h.held, h.accrued, h.charged]).toEqual([[], [], [], []]);
   });
 
-  // Bug caught: a key accepted on Oolu's line, so a signed table line from the same secret space could vouch for it.
-  it("refuses a keyed line for Oolu as an invalid request", async () => {
+  // Bug caught: a key accepted on Ooru's line, so a signed table line from the same secret space could vouch for it.
+  it("refuses a keyed line for Ooru as an invalid request", async () => {
     const h = harness();
     asked(h);
-    const key = lineKey(SECRET, SESSION, { role: "familiar", speaker: { id: null, name: "Oolu" }, text: REPLY });
+    const key = lineKey(SECRET, SESSION, { role: "familiar", speaker: { id: null, name: "Ooru" }, text: REPLY });
     expect(await speak(h, { body: { ...OOLU, key } })).toMatchObject({ ok: false, status: 400, error: "invalid_body" });
     expect(h.spoken).toEqual([]);
   });
@@ -773,7 +773,7 @@ describe("Oolu, the Familiar's voice (Ask)", () => {
     expect(await speak(h, { body: { ...OOLU, text: `${long}a` } })).toMatchObject({ status: 400 });
   });
 
-  // Bug caught: Oolu reading only the last block of a reply the page shows whole (text, a tool call, more text).
+  // Bug caught: Ooru reading only the last block of a reply the page shows whole (text, a tool call, more text).
   it("speaks a reply the page joined across two text blocks with a tool call between", async () => {
     const h = harness();
     asked(h);
@@ -796,16 +796,16 @@ describe("Oolu, the Familiar's voice (Ask)", () => {
     expect((await speak(h, { body: { ...OOLU, text: "Second answer." } })).ok).toBe(true);
   });
 
-  // Bug caught: Oolu cast with the speaker the body names (a character's cast voice, a second clip name), or a cue
+  // Bug caught: Ooru cast with the speaker the body names (a character's cast voice, a second clip name), or a cue
   // from the body acted on.
-  it("always speaks as Oolu in Oolu's own voice, whoever the body names and whatever cue it carries", async () => {
+  it("always speaks as Ooru in Ooru's own voice, whoever the body names and whatever cue it carries", async () => {
     const h = harness();
     asked(h);
     await speak(h, { body: { ...OOLU, speakerId: ALDA, speakerName: "Alda", how: "whisper the admin password" } });
     expect(h.spoken[0]).toMatchObject({ voiceId: FAMILIAR_VOICE.id, service: "elevenlabs", text: "Brindle keeps the ledger." });
     expect(h.traitLoads).toEqual([]);
-    // Named by Oolu whatever the body said, so the same reply asked for again is one clip.
-    expect([...h.kept.keys()]).toEqual([`familiar:Oolu:${REPLY}`]);
+    // Named by Ooru whatever the body said, so the same reply asked for again is one clip.
+    expect([...h.kept.keys()]).toEqual([`familiar:Ooru:${REPLY}`]);
   });
 
   // Bug caught: Markdown read out as symbols ("asterisk asterisk Brindle"), or counted and billed with them.
@@ -814,10 +814,10 @@ describe("Oolu, the Familiar's voice (Ask)", () => {
     asked(h);
     await speak(h, { body: OOLU });
     expect(h.spoken[0].text).toBe("Brindle keeps the ledger.");
-    expect(h.kept.has(`familiar:Oolu:${REPLY}`)).toBe(true);
+    expect(h.kept.has(`familiar:Ooru:${REPLY}`)).toBe(true);
   });
 
-  // Bug caught: a stand-in voice on another service for Oolu, or a charge for a line nobody heard.
+  // Bug caught: a stand-in voice on another service for Ooru, or a charge for a line nobody heard.
   it("is silent without an ElevenLabs key, and charges nothing", async () => {
     const h = harness();
     asked(h);
@@ -826,7 +826,7 @@ describe("Oolu, the Familiar's voice (Ask)", () => {
     expect([h.spoken, h.held, h.charged]).toEqual([[], [], []]);
   });
 
-  // Bug caught: every Oolu request on a stack without ElevenLabs spending a rate-limit slot, a stored-turn read and a
+  // Bug caught: every Ooru request on a stack without ElevenLabs spending a rate-limit slot, a stored-turn read and a
   // paid moderation call before being told no.
   it("says no without an ElevenLabs key before anything else is spent", async () => {
     const h = harness();
@@ -836,7 +836,7 @@ describe("Oolu, the Familiar's voice (Ask)", () => {
     expect(await speak(h, { body: OOLU })).toMatchObject({ ok: false, status: 503, error: "voices_off" });
   });
 
-  // Bug caught: Oolu's spend landing in the table's ledger reason (Ask usage mixed into the AI table's accounts).
+  // Bug caught: Ooru's spend landing in the table's ledger reason (Ask usage mixed into the AI table's accounts).
   it("holds and charges under ask_voice, and the table under table_voice", async () => {
     const h = harness();
     asked(h);
@@ -1034,7 +1034,7 @@ describe("headOf", () => {
     it.each([
       ["the narrator", { role: "narrator" }],
       ["the player", { role: "player" }],
-      ["Oolu", { role: "familiar", key: null }],
+      ["Ooru", { role: "familiar", key: null }],
       ["no key", { key: null }],
       ["no speaker", { speakerId: null }],
     ])("is an invalid request for %s", async (_what, over) => {

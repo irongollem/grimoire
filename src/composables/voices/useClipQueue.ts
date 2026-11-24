@@ -1,6 +1,6 @@
 import { ref, watch, type Ref } from "vue";
 
-// The one player behind every voice that reads aloud: the AI table's lines and Oolu's replies in Ask. They used to
+// The one player behind every voice that reads aloud: the AI table's lines and Ooru's replies in Ask. They used to
 // each carry a copy of this queue, and the copies had already drifted (one loop guard each, a different re-drain
 // rule), so a fix to one never reached the other. What differs between them is a parameter here.
 

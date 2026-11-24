@@ -17,10 +17,10 @@
 // line is spoken (`withHold`) and the cost is accrued on the sitting, billed in whole credits as they are crossed
 // (`accrue`; `accrue_agent_voice`). It answers only where the stack has voices on (`voicesOn`, `_shared/speech.ts`).
 //
-// A second speaker, Oolu (role `familiar`: Ask Grimoire reading its own replies aloud): the owl of
-// the Familiar box, on one ElevenLabs voice (`FAMILIAR_VOICE`, no stand-in). Oolu belongs to a conversation of kind
+// A second speaker, Ooru (role `familiar`: Ask Grimoire reading its own replies aloud): the owl of
+// the Familiar box, on one ElevenLabs voice (`FAMILIAR_VOICE`, no stand-in). Ooru belongs to a conversation of kind
 // `ask`, the table's roles to `solo_table`; each kind refuses the other's roles as "not found". Ask signs nothing, so
-// an Oolu line never carries a key (one that does is an invalid request) and is proven from the stored turns alone:
+// an Ooru line never carries a key (one that does is an invalid request) and is proven from the stored turns alone:
 // its words must be exactly what the assistant wrote (`familiarShown`). The reply is Markdown, so what is spoken is
 // a plain version of it (`spokenFromMarkdown`); the clip is still kept and named by the words as shown. Billed under
 // `ask_voice`, accrued on the conversation like the table's.
@@ -51,7 +51,7 @@ export interface VoiceSession {
   kind: string;
 }
 
-/** Which conversation kind may voice each role: Oolu belongs to Ask, every other voice to the AI table. */
+/** Which conversation kind may voice each role: Ooru belongs to Ask, every other voice to the AI table. */
 const kindFor = (role: VoiceRole): string => (role === "familiar" ? "ask" : "solo_table");
 
 /** The credit ledger reasons a spoken line is held and charged under. */
@@ -195,20 +195,20 @@ export interface VoiceBody {
   text: string;
   /** The character's cue for how it is said, as the line carried it; null when it had none. */
   how: string | null;
-  /** The key the line came with; null for a line read back from a stored conversation, which only a kept clip answers. Always null for Oolu. */
+  /** The key the line came with; null for a line read back from a stored conversation, which only a kept clip answers. Always null for Ooru. */
   key: string | null;
-  /** Whose words: a character's (the default), the narrator's, the player's own character's, or Oolu's (Ask). */
+  /** Whose words: a character's (the default), the narrator's, the player's own character's, or Ooru's (Ask). */
   role: VoiceRole;
 }
 
 /**
- * The longest reply Oolu is handed, in characters. The page joins a reply's text across the model's steps (text, a
+ * The longest reply Ooru is handed, in characters. The page joins a reply's text across the model's steps (text, a
  * tool call, more text), so one reply can run past a single answer's 1,500 tokens; it is accepted whole, so the
  * words still prove against the stored turns, and read only up to `FAMILIAR_SPOKEN_MAX`.
  */
 export const FAMILIAR_TEXT_MAX = 32000;
 
-/** The most of a reply Oolu reads aloud, cut at the end of a sentence: what one answer's worth of speech costs. */
+/** The most of a reply Ooru reads aloud, cut at the end of a sentence: what one answer's worth of speech costs. */
 export const FAMILIAR_SPOKEN_MAX = 8000;
 
 export function parseVoiceBody(raw: unknown): VoiceBody | null {
@@ -228,7 +228,7 @@ export function parseVoiceBody(raw: unknown): VoiceBody | null {
   if (how !== null && (typeof how !== "string" || how.length > 400)) return null;
   const key = r.key === undefined || r.key === null ? null : r.key;
   if (key !== null && (typeof key !== "string" || key === "" || key.length > 200)) return null;
-  // Ask signs nothing, so a key on Oolu's line is a caller trying something else: refused as an invalid request.
+  // Ask signs nothing, so a key on Ooru's line is a caller trying something else: refused as an invalid request.
   if (role === "familiar" && key !== null) return null;
   // No conversation: only a signed line of a character of the campaign, in its own voice (a Voice Coach line, #1273).
   if (sessionId === null && (role !== "character" || typeof r.speakerId !== "string" || key === null)) return null;
@@ -324,7 +324,7 @@ export async function speakLine(input: {
   const body = parseVoiceBody(input.body);
   if (!body) return jsonError(400, "invalid_body", VOICE_MESSAGES.badBody);
   if (!deps.voiceOn()) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
-  // Oolu speaks on ElevenLabs alone: no stand-in on another service, so without its key Oolu is silent. Answered
+  // Ooru speaks on ElevenLabs alone: no stand-in on another service, so without its key Ooru is silent. Answered
   // here, before the rate limit, the kept-clip read, the stored-turn proof and the paid screen are spent on nothing.
   if (body.role === "familiar" && !deps.hasService(FAMILIAR_VOICE.service)) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
 
@@ -345,7 +345,7 @@ export async function speakLine(input: {
 
   if (!(await deps.rateLimit(userId))) return rateLimited();
 
-  // Oolu is always Oolu and has no cue, whatever the body says: both are under the clip's name.
+  // Ooru is always Ooru and has no cue, whatever the body says: both are under the clip's name.
   const line: VoicedLine = familiar
     ? { role: body.role, speaker: { ...FAMILIAR_SPEAKER }, text: body.text, how: null }
     : { role: body.role, speaker: { id: body.speakerId, name: body.speakerName }, text: body.text, how: body.how };
@@ -369,7 +369,7 @@ export async function speakLine(input: {
     line.how = shown.how;
   }
 
-  // What is said aloud: Oolu's Markdown as plain words. Screened, counted and spoken in this form.
+  // What is said aloud: Ooru's Markdown as plain words. Screened, counted and spoken in this form.
   const said = familiar ? headOf(spokenFromMarkdown(line.text), FAMILIAR_SPOKEN_MAX) : line.text;
   if (said === "") return jsonError(422, "line_unspeakable", VOICE_MESSAGES.unspeakable);
 

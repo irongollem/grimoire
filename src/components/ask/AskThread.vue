@@ -126,7 +126,7 @@ const { items, adapters, running = false, replayable = false } = defineProps<{
   items: AskItem[];
   adapters: AskAdapters;
   running?: boolean;
-  /** Oolu's voice is on, so a finished reply may be read again. */
+  /** Ooru's voice is on, so a finished reply may be read again. */
   replayable?: boolean;
 }>();
 const emit = defineEmits<{

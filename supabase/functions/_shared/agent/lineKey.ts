@@ -12,15 +12,15 @@ import { Buffer } from "node:buffer";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { AgentLine } from "./types.ts";
 
-/** Who the words belong to: a character of the story, the narrator, the player's own character, or Oolu, Ask Grimoire's owl. */
+/** Who the words belong to: a character of the story, the narrator, the player's own character, or Ooru, Ask Grimoire's owl. */
 export type VoiceRole = "character" | "narrator" | "player" | "familiar";
 export const VOICE_ROLES: readonly VoiceRole[] = ["character", "narrator", "player", "familiar"];
 
 /** The name the narrator's words are signed and stored under: the narrator is nobody in the story. */
 export const NARRATOR_SPEAKER = { id: null, name: "The Narrator" } as const;
 
-/** The name the Familiar's words are kept under: Oolu, the owl of Ask Grimoire, is nobody in a story either. */
-export const FAMILIAR_SPEAKER = { id: null, name: "Oolu" } as const;
+/** The name the Familiar's words are kept under: Ooru, the owl of Ask Grimoire, is nobody in a story either. */
+export const FAMILIAR_SPEAKER = { id: null, name: "Ooru" } as const;
 
 export type KeyedLine = Pick<AgentLine, "speaker" | "text"> & { how?: string | null; role?: VoiceRole };
 

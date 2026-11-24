@@ -46,7 +46,7 @@ const { text, who = null, choices = [], answered = false, replayable = false } =
   choices?: AskChoice[];
   /** The DM has answered; the chips stay as a record of what was offered but no longer press. */
   answered?: boolean;
-  /** Oolu may read this reply again (its voice is on, and the reply has finished arriving). */
+  /** Ooru may read this reply again (its voice is on, and the reply has finished arriving). */
   replayable?: boolean;
 }>();
 const blocks = computed(() => parseAskMarkdown(text));

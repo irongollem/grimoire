@@ -35,7 +35,7 @@ export function narratorSpeaker(voice: NarratorVoice, hasService: (service: "ele
 }
 
 /**
- * Oolu, the owl in the Familiar box (Ask Grimoire): a voice the maintainer designed on ElevenLabs (24 Nov 2026).
- * ElevenLabs only: there is no Inworld stand-in, so a stack without that key leaves Oolu silent.
+ * Ooru, the owl in the Familiar box (Ask Grimoire): a voice the maintainer designed on ElevenLabs (24 Nov 2026).
+ * ElevenLabs only: there is no Inworld stand-in, so a stack without that key leaves Ooru silent.
  */
 export const FAMILIAR_VOICE = { service: "elevenlabs", id: "kGl89T0PY344jeMOzVyf" } as const;

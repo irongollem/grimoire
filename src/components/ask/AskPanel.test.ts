@@ -221,14 +221,14 @@ describe("AskPanel", () => {
     await flushPromises();
   };
 
-  // Bug caught: Oolu reading aloud (a paid call) before anyone asked for it, or the toggle shown pressed.
-  it("shows Oolu's switch off by default, with the price, and asks the voice for nothing", async () => {
+  // Bug caught: Ooru reading aloud (a paid call) before anyone asked for it, or the toggle shown pressed.
+  it("shows Ooru's switch off by default, with the price, and asks the voice for nothing", async () => {
     useAskUiStore().openPanel();
     transport.mockResolvedValueOnce(sse([{ type: "session", sessionId: "s1" }, { type: "text", delta: "Harl runs it." }, done]));
     const w = mount(AskPanel, { global: { stubs } });
     const toggle = w.get('[data-testid="ask-voice"]');
     expect(toggle.attributes("aria-pressed")).toBe("false");
-    expect(toggle.attributes("aria-label")).toBe("Oolu reads replies aloud · about 6 credits per minute of speech, charged only while it reads");
+    expect(toggle.attributes("aria-label")).toBe("Ooru reads replies aloud · about 6 credits per minute of speech, charged only while it reads");
     await ask(w);
     expect(voiceTransport).not.toHaveBeenCalled();
     w.unmount();
@@ -243,11 +243,11 @@ describe("AskPanel", () => {
     expect(w.get('[data-testid="ask-voice"]').attributes("aria-pressed")).toBe("true");
     await ask(w);
     expect(voiceTransport).toHaveBeenCalledTimes(1);
-    expect(voiceTransport).toHaveBeenCalledWith({ campaignId: "c1", sessionId: "s1", role: "familiar", speakerId: null, speakerName: "Oolu", text: "Harl runs it.", how: null, key: null });
+    expect(voiceTransport).toHaveBeenCalledWith({ campaignId: "c1", sessionId: "s1", role: "familiar", speakerId: null, speakerName: "Ooru", text: "Harl runs it.", how: null, key: null });
     w.unmount();
   });
 
-  // Bug caught (seen live): no way to hear a reply again once Oolu had read it.
+  // Bug caught (seen live): no way to hear a reply again once Ooru had read it.
   it("reads a finished reply again on Read again, and offers it only while the voice is on", async () => {
     useAskUiStore().openPanel();
     transport.mockResolvedValueOnce(sse([{ type: "session", sessionId: "s1" }, { type: "text", delta: "Harl runs it." }, done]));
@@ -275,7 +275,7 @@ describe("AskPanel", () => {
     norate.unmount();
   });
 
-  // Bug caught: the price lookup failing after the DM turned Oolu on, which hid the switch while Oolu kept speaking
+  // Bug caught: the price lookup failing after the DM turned Ooru on, which hid the switch while Ooru kept speaking
   // (and charging) with no control left to mute it.
   it("reads nothing aloud once its switch has gone from the screen", async () => {
     useAskUiStore().openPanel();
@@ -307,8 +307,8 @@ describe("AskPanel", () => {
     w.unmount();
   });
 
-  // Bug caught: Oolu silently going quiet when credits run out, leaving the DM to think the switch broke.
-  it("says why Oolu went quiet when credits run out", async () => {
+  // Bug caught: Ooru silently going quiet when credits run out, leaving the DM to think the switch broke.
+  it("says why Ooru went quiet when credits run out", async () => {
     useAskUiStore().openPanel();
     voiceTransport.mockResolvedValueOnce(new Response(JSON.stringify({ error: "insufficient_credits" }), { status: 402 }));
     transport.mockResolvedValueOnce(sse([{ type: "session", sessionId: "s1" }, { type: "text", delta: "Harl runs it." }, done]));
@@ -316,7 +316,7 @@ describe("AskPanel", () => {
     await w.get('[data-testid="ask-voice"]').trigger("click");
     await ask(w);
     expect(w.get('[data-testid="ask-voice-note"]').text()).toContain("out of credits");
-    // Bug caught: the owl frozen for good once Oolu went quiet; it goes back to moving with the words arriving.
+    // Bug caught: the owl frozen for good once Ooru went quiet; it goes back to moving with the words arriving.
     transport.mockResolvedValueOnce(sse([{ type: "text", delta: "And Mirel keeps the books." }, done]));
     await ask(w);
     expect(w.getComponent(FamiliarAvatar).props("speaking")).toBe(true);

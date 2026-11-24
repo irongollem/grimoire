@@ -85,7 +85,7 @@ const convo = useAskConversation({
   adapters,
   campaignName: () => campaign.activeCampaign?.name ?? "this campaign",
   routePath: () => route.fullPath,
-  // Oolu reads its own words only: the conversation hands over the replies, nothing else. Only while its switch is
+  // Ooru reads its own words only: the conversation hands over the replies, nothing else. Only while its switch is
   // on screen: a voice the DM cannot see cannot be turned off, so it must not speak (or charge).
   onReplied: ({ sessionId, texts }) => {
     const campaignId = campaign.activeCampaignId;
@@ -126,13 +126,13 @@ async function startOver(): Promise<boolean> {
   return true;
 }
 
-/** What Oolu's voice costs a minute, when the server speaks with ElevenLabs at all; null hides the switch. */
+/** What Ooru's voice costs a minute, when the server speaks with ElevenLabs at all; null hides the switch. */
 const voicePerMinute = computed(() => (rates.data.value?.on === true ? rates.data.value.perMinute.elevenlabs : null));
 const voiceNote = computed(() => {
   if (!voice.on.value) return null;
-  if (voice.broke.value) return "Oolu went quiet: you are out of credits.";
-  if (voice.spent.value) return "Oolu went quiet: the voices allowance is used up for now.";
-  if (voice.unavailable.value) return "Oolu cannot speak: voices are not switched on.";
+  if (voice.broke.value) return "Ooru went quiet: you are out of credits.";
+  if (voice.spent.value) return "Ooru went quiet: the voices allowance is used up for now.";
+  if (voice.unavailable.value) return "Ooru cannot speak: voices are not switched on.";
   return null;
 });
 
@@ -141,7 +141,7 @@ const surfaceProps = computed(() => ({
   adapters,
   running: convo.running.value,
   startingOverBlocked: convo.generating.value,
-  // The owl moves while the words arrive and while Oolu reads them aloud: either is Oolu talking. Following the audio
+  // The owl moves while the words arrive and while Ooru reads them aloud: either is Ooru talking. Following the audio
   // alone left it still through the streaming, and for good on a reply the server declined to voice.
   speaking: convo.speaking.value || voice.speaking.value,
   campaignName: campaign.activeCampaign?.name ?? "No campaign",

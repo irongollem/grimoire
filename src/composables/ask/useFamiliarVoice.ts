@@ -5,15 +5,15 @@ import { useAuthStore } from "@/stores/auth";
 import { sendToTableVoice, type VoiceTransport } from "@/composables/table/useTableVoice";
 import { useClipQueue, type VoicePlayer } from "@/composables/voices/useClipQueue";
 
-/** The name Oolu's words are kept under on the server (`FAMILIAR_SPEAKER`); the server sets it whatever is sent. */
-export const FAMILIAR_NAME = "Oolu";
+/** The name Ooru's words are kept under on the server (`FAMILIAR_SPEAKER`); the server sets it whatever is sent. */
+export const FAMILIAR_NAME = "Ooru";
 
-// Whether each account wants Oolu's replies read aloud, on this device. Off until asked for: sound a page starts by
+// Whether each account wants Ooru's replies read aloud, on this device. Off until asked for: sound a page starts by
 // itself is not something to surprise anyone with, and every voiced reply is a paid call.
 const wanted = useStorage<Record<string, boolean>>("grimoire:familiar-voice", {}, safeLocalStorage());
 
 /**
- * Oolu reading its own replies aloud (Ask Grimoire, `ask-grimoire.md` "Oolu reads aloud"). Only the words the Familiar wrote are ever handed to `say`; this never
+ * Ooru reading its own replies aloud (Ask Grimoire, `ask-grimoire.md` "Ooru reads aloud"). Only the words the Familiar wrote are ever handed to `say`; this never
  * decides what is said, it only refuses to speak while the switch is off. It never throws and never blocks the
  * conversation: a reply that cannot be voiced is skipped, and a 503 or 402 is remembered (`unavailable`, `broke`,
  * `spent`) so nothing more is asked until the switch is turned on again or another account signs in.

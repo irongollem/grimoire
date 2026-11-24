@@ -37,7 +37,7 @@ beforeEach(() => {
 const input = (...texts: string[]) => ({ campaignId: "c1", sessionId: "s1", texts });
 
 describe("useFamiliarVoice", () => {
-  // Bug caught: Oolu talking (and spending credits) before anyone switched it on.
+  // Bug caught: Ooru talking (and spending credits) before anyone switched it on.
   it("is off by default and asks for nothing while off", async () => {
     const sent: VoiceRequest[] = [];
     const p = manualPlayer();
@@ -57,7 +57,7 @@ describe("useFamiliarVoice", () => {
     voice.say(input("Hello.  "));
     await tick();
     // A null key is left off the wire by the shared transport (`sendToTableVoice`).
-    expect(sent).toEqual([{ campaignId: "c1", sessionId: "s1", role: "familiar", speakerId: null, speakerName: "Oolu", text: "Hello.  ", how: null, key: null }]);
+    expect(sent).toEqual([{ campaignId: "c1", sessionId: "s1", role: "familiar", speakerId: null, speakerName: "Ooru", text: "Hello.  ", how: null, key: null }]);
   });
 
   // Bug caught: the second paragraph playing first because its clip came back sooner.

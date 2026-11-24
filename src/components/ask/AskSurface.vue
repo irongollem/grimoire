@@ -31,7 +31,7 @@
       <template v-if="pageTitle"> from {{ pageTitle }}</template>
     </p>
 
-    <!-- Why Oolu went quiet, in the context line's own voice. -->
+    <!-- Why Ooru went quiet, in the context line's own voice. -->
     <p v-if="voice.note" class="shrink-0 border-b border-border/60 px-4 py-1.5 text-caption text-muted-foreground" role="status" data-testid="ask-voice-note">{{ voice.note }}</p>
 
     <AskThread
@@ -90,7 +90,7 @@ const props = defineProps<{
   campaignName: string;
   pageTitle: string | null;
   allowanceLine: string;
-  /** Oolu reading replies aloud: the switch (hidden where voices are off), its price, and why it went quiet. */
+  /** Ooru reading replies aloud: the switch (hidden where voices are off), its price, and why it went quiet. */
   voice: { shown: boolean; on: boolean; perMinute: number | null; note: string | null };
 }>();
 const emit = defineEmits<{
@@ -116,12 +116,12 @@ const emit = defineEmits<{
   upgrade: [];
   review: [report: AskReportDraft];
   voice: [on: boolean];
-  /** Read this reply of Oolu's again. */
+  /** Read this reply of Ooru's again. */
   replay: [text: string];
 }>();
 
 const voiceLabel = computed(() => {
-  const base = "Oolu reads replies aloud";
+  const base = "Ooru reads replies aloud";
   // Priced by the minute of speech, said as such: "a minute" alone read like a line that charges while it is silent.
   return props.voice.perMinute === null ? base : `${base} · about ${creditsText(props.voice.perMinute)} per minute of speech, charged only while it reads`;
 });
