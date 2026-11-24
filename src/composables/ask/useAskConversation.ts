@@ -24,6 +24,7 @@ import { readEventStream } from "@/lib/agentStream/readEventStream";
 import { parseAskEvent } from "@/lib/agentStream/parseAskEvent";
 import type { AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
+import type { PendingGenerator } from "@/stores/ui/ask";
 import { sendToAskTurn, type AskTransport } from "./askTransport";
 
 export type ResultPart = AskRunPart & { left?: boolean; retrying?: boolean };
@@ -41,6 +42,8 @@ export type AskItem =
       state: "quote" | "cancelled" | "running" | "done" | "failed";
       /** The DM's yes or no to each line that would change an existing record; read by the quote and the run. */
       choices: Record<string, boolean>;
+      /** Set when a page's button opened the card, so the DM fills it in; a card the model proposed has no such mark. */
+      origin?: "button";
       /**
        * Where the finished run landed: a run never holds up the conversation, so its result (or its failure) is added
        * at the bottom when it ends, and the proposal's own place links to it.
@@ -352,6 +355,35 @@ export function useAskConversation(deps: AskConversationDeps) {
     });
   }
 
+  /**
+   * A page's Generate button: the generator's card, opened with its starting inputs and no model call. Unlike a
+   * proposal from the model, the DM writes the concept into the card themselves.
+   */
+  function openGenerator({ generatorId, inputs, target, concept }: PendingGenerator) {
+    const generator = askGenerator(generatorId);
+    if (!generator) return;
+    push({
+      kind: "proposal",
+      state: "quote",
+      choices: {},
+      origin: "button",
+      proposal: {
+        proposalId: crypto.randomUUID(),
+        generator: generatorId,
+        concept: concept ?? "",
+        inputs: { ...generator.opened, ...inputs },
+        ...(target ? { target } : {}),
+      },
+    });
+  }
+
+  /** The DM's words in the card's concept box. */
+  function setConcept(itemId: number, concept: string) {
+    const item = find(itemId, "proposal");
+    if (item?.state !== "quote") return;
+    item.proposal = { ...item.proposal, concept };
+  }
+
   function adjust(itemId: number, inputs: Record<string, unknown>) {
     const item = find(itemId, "proposal");
     if (item?.state !== "quote") return;
@@ -371,6 +403,15 @@ export function useAskConversation(deps: AskConversationDeps) {
   }
 
   async function confirm(itemId: number) {
+    await launch(itemId, "run");
+  }
+
+  /** The card's "Quick create": the generator's no-AI route, which asks no model and spends nothing. */
+  async function quick(itemId: number) {
+    await launch(itemId, "quick");
+  }
+
+  async function launch(itemId: number, how: "run" | "quick") {
     const item = find(itemId, "proposal");
     if (item?.state !== "quote") return;
     const { proposal } = item;
@@ -379,21 +420,29 @@ export function useAskConversation(deps: AskConversationDeps) {
     const generator = askGenerator(proposal.generator);
     const adapter = deps.adapters.adapterFor(proposal.generator);
     if (!generator || !adapter) return;
-    const quote = adapter.quote(proposal, choices);
-    // The button is disabled in these states; the guard is for a press that races a re-quote.
-    if (quote.block !== null) return;
-    const price = quote.total === null ? null : creditsText(quote.total);
-    if (price === null) return;
+    let confirmed: string;
+    if (how === "quick") {
+      // No quote to wait for: nothing is priced, so a credit or quota block on the AI route does not apply.
+      if (!adapter.quick) return;
+      confirmed = `You chose: Quick create, no AI`;
+    } else {
+      const quote = adapter.quote(proposal, choices);
+      // The button is disabled in these states; the guard is for a press that races a re-quote.
+      if (quote.block !== null) return;
+      const price = quote.total === null ? null : creditsText(quote.total);
+      if (price === null) return;
+      confirmed = `You confirmed: ${generator.action} · ${price}`;
+    }
     if (ran.has(proposal.proposalId)) return;
     ran.add(proposal.proposalId);
     item.state = "running";
-    push({ kind: "confirmed", text: `You confirmed: ${generator.action} · ${price}` });
+    push({ kind: "confirmed", text: confirmed });
     const startedAt = deps.routePath();
     const campaignName = deps.campaignName();
     const mine = epoch;
     let result: AskRunResult;
     try {
-      result = await adapter.run(proposal, choices);
+      result = how === "quick" && adapter.quick ? await adapter.quick(proposal, choices) : await adapter.run(proposal, choices);
     } catch {
       item.state = "failed";
       // Whether it ran is unknown, so the id stays in `ran`: it is never run a second time on a guess.
@@ -432,5 +481,5 @@ export function useAskConversation(deps: AskConversationDeps) {
     if (part) part.left = true;
   }
 
-  return { items, running, speaking, freeLeft, send, choose, newConversation, handOff, adjust, decide, cancel, confirm, retryPart, leavePart };
+  return { items, running, speaking, freeLeft, send, choose, newConversation, handOff, openGenerator, setConcept, adjust, decide, cancel, confirm, quick, retryPart, leavePart };
 }

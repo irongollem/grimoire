@@ -10,7 +10,7 @@
     />
     <div v-else-if="schema.type === 'boolean'" class="flex items-center gap-2">
       <ToggleSwitch :model-value="modelValue === true" :aria-label="inputLabel(inputKey, schema)" @update:model-value="emit('update:modelValue', $event)" />
-      <span class="text-caption text-muted-foreground">{{ schema.description }}</span>
+      <span v-if="schema.hint" class="text-caption text-muted-foreground">{{ schema.hint }}</span>
     </div>
     <EntityCombobox
       v-else-if="options !== null"
@@ -36,14 +36,14 @@
       type="number"
       size="sm"
       :model-value="typeof modelValue === 'number' ? modelValue : ''"
-      :placeholder="schema.description"
+      :placeholder="schema.placeholder"
       @update:model-value="emit('update:modelValue', whole($event))"
     />
     <AppInput
       v-else
       size="sm"
       :model-value="typeof modelValue === 'string' ? modelValue : ''"
-      :placeholder="schema.description"
+      :placeholder="schema.placeholder"
       @update:model-value="emit('update:modelValue', typeof $event === 'string' && $event.trim() !== '' ? $event : undefined)"
     />
   </div>

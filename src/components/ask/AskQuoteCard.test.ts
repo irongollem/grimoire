@@ -21,9 +21,17 @@ function adapters(quote: AskQuote | null, screen = false): AskAdapters {
   };
 }
 
-function card(quote: AskQuote | null, over: { state?: "quote" | "running" | "cancelled"; screen?: boolean } = {}) {
+function card(quote: AskQuote | null, over: { state?: "quote" | "running" | "cancelled"; screen?: boolean; button?: boolean; concept?: string; quick?: boolean } = {}) {
+  const wrapped = adapters(quote, over.screen);
+  if (over.quick) {
+    const base = wrapped.adapterFor("npc");
+    if (base) wrapped.adapterFor = () => ({ ...base, quick: vi.fn() });
+  }
   return mount(AskQuoteCard, {
-    props: { item: { kind: "proposal", id: 1, proposal, state: over.state ?? "quote", choices: {} }, adapters: adapters(quote, over.screen) },
+    props: {
+      item: { kind: "proposal", id: 1, proposal: { ...proposal, concept: over.concept ?? proposal.concept }, state: over.state ?? "quote", choices: {}, ...(over.button ? { origin: "button" as const } : {}) },
+      adapters: wrapped,
+    },
     global: { stubs: { RouterLink: true } },
   });
 }
@@ -34,6 +42,7 @@ vi.mock("@/ai/ask/askOptions", async (importOriginal) => ({
   ASK_LISTS: {},
   useAskRecordOptions: () => ({ npc: computed(() => []), party_member: computed(() => []), faction: computed(() => []), location: computed(() => []) }),
 }));
+vi.mock("@/composables/items/useItemIndex", () => ({ useItemIndex: () => ({ data: { value: [] } }) }));
 vi.mock("@/ai/ask/adapters/askLinkRecords", () => ({ useAskLinkRecords: () => ({ names: computed(() => undefined), loading: computed(() => false), failed: computed(() => false) }) }));
 
 describe("AskQuoteCard", () => {
@@ -121,5 +130,85 @@ describe("AskQuoteCard", () => {
     expect(w.get('[data-testid="ask-form"]').text().toLowerCase()).toContain("portrait");
     await w.get('[data-testid="ask-form"] [role="switch"]').trigger("click");
     expect(w.emitted("adjust")?.[0]?.[0]).toMatchObject({ portrait: true });
+  });
+
+  describe("opened by a button", () => {
+    const missing: AskQuote = { ...ready, total: 4, block: { reason: "missing", message: "Say what this NPC is like first." } };
+
+    // Bug caught: the concept shown as a caption, so a DM who pressed Generate had nowhere to say what to make.
+    it("makes the concept the first field and emits what is typed", async () => {
+      const w = card(ready, { button: true, concept: "" });
+      const box = w.get('[data-testid="ask-concept"] textarea');
+      expect(box.attributes("placeholder")).toContain("tiefling bard");
+      await box.setValue("A baker");
+      expect(w.emitted("concept")).toEqual([["A baker"]]);
+    });
+
+    // Bug caught: the ledger pushing the form down, so the DM filled in a card whose inputs were below a list of prices.
+    it("reads concept, form, ledger, total, buttons; a model proposal keeps ledger, total, buttons", () => {
+      const at = (w: ReturnType<typeof card>, id: string) => w.html().indexOf(`data-testid="${id}"`);
+      const w = card(ready, { button: true, concept: "x" });
+      expect(at(w, "ask-concept")).toBeLessThan(at(w, "ask-form"));
+      expect(at(w, "ask-form")).toBeLessThan(w.html().indexOf("<dl"));
+      expect(w.html().indexOf("<dl")).toBeLessThan(at(w, "ask-total"));
+      expect(at(w, "ask-total")).toBeLessThan(at(w, "ask-confirm"));
+      const model = card(ready);
+      expect(model.html().indexOf("<dl")).toBeLessThan(at(model, "ask-total"));
+      expect(at(model, "ask-total")).toBeLessThan(at(model, "ask-confirm"));
+    });
+
+    // Bug caught: the line that only repeats the concept staying under a box that already shows it.
+    it("drops the line that repeats the concept on a button card only", () => {
+      const lines = [{ label: "Who", value: "As the description says", credits: null, repeatsConcept: true as const }, { label: "Campaign", value: "K", credits: null }];
+      expect(card({ ...ready, lines }, { button: true }).text()).not.toContain("As the description says");
+      expect(card({ ...ready, lines }).text()).toContain("As the description says");
+    });
+
+    // Bug caught: the model's own description of an input shown to the DM as its placeholder.
+    it("shows the DM's placeholder in a field, and none when the contract gives none", () => {
+      const w = card(ready, { button: true });
+      const fields = w.findAll<HTMLInputElement>('[data-testid="ask-form"] input[type="text"], [data-testid="ask-form"] input:not([type])');
+      const placeholders = fields.map((f) => f.element.placeholder).filter((p) => p !== "");
+      expect(placeholders).toContain("Leave blank and one is chosen");
+      expect(placeholders.join()).not.toContain("A name the DM gave");
+    });
+
+    // Bug caught: the model's own proposal getting an editable box, so the DM rewrites what Ask already understood.
+    it("leaves a proposal from the model as a caption", () => {
+      const w = card(ready);
+      expect(w.find('[data-testid="ask-concept"]').exists()).toBe(false);
+      expect(w.text()).toContain("a baker");
+    });
+
+    // Bug caught: pressing Adjust being required to see the form on a card the DM opened to fill in.
+    it("shows the form without pressing Adjust, and has no Adjust", () => {
+      const w = card(ready, { button: true });
+      expect(w.find('[data-testid="ask-form"]').exists()).toBe(true);
+      expect(w.findAll("button").some((b) => b.text() === "Adjust")).toBe(false);
+    });
+
+    // Bug caught: an empty required concept leaving a live gilt button (a charge for no description) or a wall of alert text.
+    it("disables the gilt button while the required concept is empty, with no alert", async () => {
+      const w = card(missing, { button: true, concept: "" });
+      const button = w.get('[data-testid="ask-confirm"]');
+      expect(button.attributes("disabled")).toBeDefined();
+      await button.trigger("click");
+      expect(w.emitted("confirm")).toBeUndefined();
+      expect(w.find('[data-testid="ask-block"]').exists()).toBe(false);
+    });
+
+    // Bug caught: the concept rule hiding a real block (out of credits) behind a disabled button.
+    it("still shows a credit block while the concept is empty", () => {
+      const w = card({ ...ready, block: { reason: "credits", message: "You are 2 credits short." } }, { button: true, concept: "" });
+      expect(w.get('[data-testid="ask-block"]').text()).toContain("2 credits short");
+    });
+
+    // Bug caught: Quick create pressed emitting nothing, or shown on a card whose generator has no such route.
+    it("offers Quick create only where the generator has one, and emits it", async () => {
+      expect(card(ready, { button: true }).find('[data-testid="ask-quick"]').exists()).toBe(false);
+      const w = card(ready, { button: true, quick: true });
+      await w.get('[data-testid="ask-quick"]').trigger("click");
+      expect(w.emitted("quick")).toHaveLength(1);
+    });
   });
 });

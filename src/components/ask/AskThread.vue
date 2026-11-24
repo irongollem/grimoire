@@ -33,6 +33,8 @@
         @confirm="emit('confirm', item.id)"
         @cancel="emit('cancel', item.id)"
         @adjust="emit('adjust', item.id, $event)"
+        @concept="emit('concept', item.id, $event)"
+        @quick="emit('quick', item.id)"
         @decide="(key, on) => emit('decide', item.id, key, on)"
         @credits="emit('credits', $event)"
         @upgrade="emit('upgrade')"
@@ -80,6 +82,8 @@ const emit = defineEmits<{
   confirm: [itemId: number];
   cancel: [itemId: number];
   adjust: [itemId: number, inputs: Record<string, unknown>];
+  concept: [itemId: number, text: string];
+  quick: [itemId: number];
   decide: [itemId: number, key: string, on: boolean];
   retry: [itemId: number, index: number];
   leave: [itemId: number, index: number];
@@ -113,7 +117,10 @@ watch(
   () => [items.length, items.at(-1)?.kind === "reply" ? (items.at(-1) as Extract<AskItem, { kind: "reply" }>).text.length : 0],
   async () => {
     await nextTick();
-    scroller.value?.scrollTo({ top: scroller.value.scrollHeight });
+    // A card a button opened is to be filled in from its first field, so it is shown from its top, not its foot.
+    const last = items.at(-1);
+    if (last?.kind === "proposal" && last.origin === "button") jumpTo(last.id);
+    else scroller.value?.scrollTo({ top: scroller.value.scrollHeight });
   },
 );
 </script>

@@ -1,6 +1,6 @@
 import { completedYears } from "@edge-shared/npcAge";
 import type { KinLink, KinRelation, PersonKey } from "@/types/kinship.types";
-import { linkEnds } from "@/lib/kinship/keys";
+import { linkEnds, parsePersonKey } from "@/lib/kinship/keys";
 
 /** The kin choices the generator offers, as what the NEW NPC is to the associate. */
 export const GENERATOR_KIN_RELATIONS = ["child", "parent", "spouse", "sibling"] as const satisfies readonly KinRelation[];
@@ -22,6 +22,25 @@ export function parseKinQueryKey(v: unknown): PersonKey | null {
   if (typeof v !== "string") return null;
   const m = /^(npc|pc):[0-9a-fA-F-]{8,}$/.exec(v);
   return m ? (v as PersonKey) : null;
+}
+
+/**
+ * The "Add relative" link, `/npcs?kin=<child|parent|spouse|sibling>&of=<npc:id|pc:id>&also=<npc:id|pc:id>` (`kin` is what
+ * the new NPC is to `of`; `also` is the second parent of a child), as the NPC card's inputs. Null when the link does not
+ * name a relative, so a stray `kin` opens nothing.
+ */
+export function kinCardInputs(query: { kin?: unknown; of?: unknown; also?: unknown }): Record<string, string> | null {
+  const { kin } = query;
+  if (!isGeneratorKin(kin)) return null;
+  const of = parseKinQueryKey(query.of);
+  if (!of) return null;
+  const { type, id } = parsePersonKey(of);
+  const also = kin === "child" ? parseKinQueryKey(query.also) : null;
+  return {
+    [type === "npc" ? "related_npc_id" : "related_pc_id"]: id,
+    relation: kin,
+    ...(also ? { second_parent_id: parsePersonKey(also).id } : {}),
+  };
 }
 
 /** The one current spouse of `key`, or null when there are none or several. */

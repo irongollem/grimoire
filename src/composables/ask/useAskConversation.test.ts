@@ -18,11 +18,12 @@ const okResult: AskRunResult = {
   parts: [{ label: "NPC", ok: true, credits: 4 }],
 };
 
-function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapter["run"]; campaignId?: () => string | null } = {}) {
+function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapter["run"]; quick?: AskAdapter["quick"]; campaignId?: () => string | null } = {}) {
   const responses = [...(over.responses ?? [])];
   const transport = vi.fn(async () => responses.shift() ?? sse([done]));
   const run = vi.fn(over.run ?? (async () => okResult));
-  const adapter: AskAdapter = { id: "npc", quote: () => over.quote ?? readyQuote, run };
+  const quick = over.quick ? vi.fn(over.quick) : undefined;
+  const adapter: AskAdapter = { id: "npc", quote: () => over.quote ?? readyQuote, run, ...(quick ? { quick } : {}) };
   const onFinished = vi.fn();
   const deps: AskConversationDeps = {
     campaignId: over.campaignId ?? (() => "c1"),
@@ -33,7 +34,7 @@ function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapte
     transport,
     onFinished,
   };
-  return { convo: useAskConversation(deps), transport, run, onFinished };
+  return { convo: useAskConversation(deps), transport, run, quick, onFinished };
 }
 
 async function withProposal(over: Parameters<typeof setup>[0] = {}) {
@@ -475,4 +476,66 @@ describe("speakingUntil", () => {
     expect(speakingUntil(0, 1000, 100_000)).toBe(1000 + SPEAKING_MAX_MS);
   });
 
+});
+
+describe("useAskConversation: a card a button opened", () => {
+  const buttonCard = (s: ReturnType<typeof setup>, given?: Record<string, unknown>) => {
+    s.convo.openGenerator({ generatorId: "npc", ...(given ? { inputs: given } : {}) });
+    const card = s.convo.items.value.find((i) => i.kind === "proposal");
+    if (!card || card.kind !== "proposal") throw new Error("no card");
+    return card;
+  };
+
+  // Bug caught: the button asking the model (and so spending the day's free questions) to show a form.
+  it("adds the generator's card with its starting inputs and calls no model", () => {
+    const s = setup();
+    const card = buttonCard(s, { relation: "sibling" });
+    expect(s.transport).not.toHaveBeenCalled();
+    expect(card).toMatchObject({ state: "quote", origin: "button", proposal: { generator: "npc", concept: "", inputs: { portrait: true, relation: "sibling" } } });
+  });
+
+  // Bug caught: a generator this build does not know leaving an empty card in the thread.
+  it("adds nothing for a generator that does not exist", () => {
+    const s = setup();
+    s.convo.openGenerator({ generatorId: "nope" });
+    expect(s.convo.items.value).toEqual([]);
+  });
+
+  // Bug caught: the concept box's words not reaching the run, so the NPC was made from an empty description.
+  it("runs with the words the DM wrote in the concept box", async () => {
+    const s = setup();
+    const card = buttonCard(s);
+    s.convo.setConcept(card.id, "A baker with a secret");
+    await s.convo.confirm(card.id);
+    expect(s.run).toHaveBeenCalledWith(expect.objectContaining({ concept: "A baker with a secret" }), {});
+  });
+
+  describe("quick create", () => {
+    // Bug caught: Quick create going through the priced run, or through nothing when the AI route is blocked on credits.
+    it("runs the adapter's quick route and never its priced run, even when the AI route is blocked", async () => {
+      const s = setup({ quick: async () => okResult, quote: { lines: [], total: 4, block: { reason: "credits", message: "Short." } } });
+      const card = buttonCard(s);
+      await s.convo.quick(card.id);
+      expect(s.quick).toHaveBeenCalledTimes(1);
+      expect(s.run).not.toHaveBeenCalled();
+      expect(card.state).toBe("done");
+      expect(s.convo.items.value.at(-1)).toMatchObject({ kind: "result", route: "/npcs/n1" });
+    });
+
+    // Bug caught: a double press (or Quick create after Create) making two NPCs from one card.
+    it("makes one record per card, whichever button is pressed first", async () => {
+      const s = setup({ quick: async () => okResult });
+      const card = buttonCard(s);
+      await Promise.all([s.convo.quick(card.id), s.convo.confirm(card.id), s.convo.quick(card.id)]);
+      expect((s.quick?.mock.calls.length ?? 0) + s.run.mock.calls.length).toBe(1);
+    });
+
+    // Bug caught: Quick create on a generator with no such route making a confirmed line and an empty run.
+    it("does nothing for a generator without a quick route", async () => {
+      const s = setup();
+      const card = buttonCard(s);
+      await s.convo.quick(card.id);
+      expect(card.state).toBe("quote");
+    });
+  });
 });

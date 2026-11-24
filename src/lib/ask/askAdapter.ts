@@ -28,6 +28,8 @@ export interface AskQuoteLine {
    * Ask offers on its own, such as the other children of a new parent).
    */
   choice?: { key: string; on: boolean };
+  /** A line that only restates the concept: the card drops it when its own concept box already shows it. */
+  repeatsConcept?: true;
 }
 
 /** Why the gilt button cannot run, said the way the generator's page says it. */
@@ -83,6 +85,11 @@ export interface AskAdapter {
    * generation (that is a part with `ok: false`).
    */
   run(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult>;
+  /**
+   * The generator's route that asks no model (the NPC's "Quick create"): makes the record from the same inputs, spends
+   * no credits, and ends in the same result card. Offered on the card only when present.
+   */
+  quick?(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult>;
 }
 
 /** A `screen` generator has no quote and no run: Ask opens its screen with the request filled in. */

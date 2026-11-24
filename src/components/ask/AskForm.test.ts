@@ -61,6 +61,13 @@ describe("AskForm", () => {
     expect(w.emitted("update")?.[0]?.[0]).toEqual({ race: "Elf", attitude: "friendly" });
   });
 
+  // Bug caught: the model's own instructions ("ask unless the DM said") printed under a switch for the DM to read.
+  it("never shows a switch's model description, only its DM hint", () => {
+    const w = form();
+    expect(w.text()).not.toContain("ask unless the DM said");
+    expect(w.text()).toContain("A disguised name and portrait");
+  });
+
   // Bug caught: a species typed into a free text box, so nothing guarantees it is one of the world's.
   it("draws a list input as a searchable pick, never a text box", () => {
     const w = form();

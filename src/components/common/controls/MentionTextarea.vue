@@ -6,6 +6,8 @@
       :rows="rows"
       :placeholder="placeholder"
       :disabled="disabled"
+      :aria-label="ariaLabel"
+      :data-hand="hand ? 'text' : undefined"
       :class="['w-full', inputClass]"
       @input="onInput"
       @keydown="onKeydown"
@@ -75,12 +77,17 @@ const {
   rows = 4,
   placeholder = "",
   disabled = false,
+  hand = false,
+  ariaLabel = undefined,
   inputClass = "field-input resize-none text-sm",
 } = defineProps<{
   items?: readonly MentionOption[];
   rows?: number;
   placeholder?: string;
   disabled?: boolean;
+  /** Set the typed text in the DM's hand (Vellum's `data-hand="text"`). */
+  hand?: boolean;
+  ariaLabel?: string;
   inputClass?: string;
 }>();
 

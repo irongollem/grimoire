@@ -34,6 +34,10 @@ export type AskRecordType =
 export interface AskInputMeta {
   /** The DM's word for it, as the generator's panel labels it. */
   label?: string;
+  /** Text shown in the empty field, in the DM's own words. With none, the field shows none: the model's `description` is never shown. */
+  /** A line under a switch for the DM, when the label alone does not say enough. The model's `description` is never shown. */
+  hint?: string;
+  placeholder?: string;
   /** A fold row's name: inputs sharing a group fold into one row that says what it holds. */
   group?: string;
   /** Shown only while another input is set (or set to one of `is`); with several keys, while any is. Cleared when the condition stops holding. */
@@ -78,6 +82,11 @@ export interface AskGenerator {
    * A request typed to the model keeps "unsaid = off" (`askFlag`); this is only for the button.
    */
   opened?: Readonly<Record<string, unknown>>;
+  /**
+   * The card's first field when the generator's button opened it: the box the DM describes what to make in, labelled
+   * and worded as the generator's own panel was. A generator without it has no such box.
+   */
+  concept?: { label: string; placeholder: string; required?: boolean; max?: number; mentions?: "items" };
   /** A `fill` generator's target kinds. */
   target?: readonly AskRecordType[];
   /** Only offered where the campaign's game system offers stat blocks and 5e rules (`offers("stat-blocks")`). */
@@ -123,11 +132,11 @@ export const ASK_GENERATORS: readonly AskGenerator[] = [
     id: "npc", action: "Create NPC", noun: "NPC", ending: "record",
     describe: "A new non-player character: name, look, voice, personality, secret. It can be tied to people, places and factions the campaign already has: say who it is to them (a sister, a former partner, a rival) with `related_npc_id` or `related_pc_id` and `relation`.",
     inputs: {
-      name: { type: "string", description: "A name the DM gave.", label: "Name" },
+      name: { type: "string", description: "A name the DM gave.", label: "Name", placeholder: "Leave blank and one is chosen" },
       race: { type: "string", description: "Species or race, as the DM said it.", label: "Species", list: "species" },
-      age: { type: "integer", description: "Age in years, when the DM gave one.", minimum: 0, maximum: 10000, label: "Age" },
+      age: { type: "integer", description: "Age in years, when the DM gave one.", minimum: 0, maximum: 10000, label: "Age", placeholder: "Any" },
       alignment: { type: "string", description: "Alignment.", label: "Alignment", list: "alignment" },
-      role: { type: "string", description: "Occupation or role in the world.", label: "Role" },
+      role: { type: "string", description: "Occupation or role in the world.", label: "Role", placeholder: "Any" },
       location_id: { type: "string", description: "Id of a place in this campaign where they live or work.", label: "Lives in", record: "location", group: "Where they stand" },
       faction_id: { type: "string", description: "Id of a faction in this campaign they belong to.", label: "Faction", record: "faction", group: "Where they stand" },
       faction_role: { type: "string", description: "Their role in that faction, e.g. Leader, Spy, Member. Only with faction_id.", label: "Role in faction", list: "faction_role", group: "Where they stand", when: { key: "faction_id" } },
@@ -139,9 +148,10 @@ export const ASK_GENERATORS: readonly AskGenerator[] = [
       attitude: { type: "string", description: "How they feel about the party.", enum: ["unknown", "hostile", "unfriendly", "indifferent", "friendly", "helpful"], label: "Attitude to the party", group: "At the table" },
       stat_block_template: { type: "string", description: "Starter stat block: a template id, \"auto\" (matched to their occupation) or \"none\". Leave out for auto.", label: "Stat block template", list: "npc_stat_template", group: "At the table" },
       portrait: { ...image, label: "Portrait" },
-      alter_ego: { type: "boolean", description: "Give them a disguise or second identity.", label: "Alter ego" },
+      alter_ego: { type: "boolean", description: "Give them a disguise or second identity.", label: "Alter ego", hint: "A disguised name and portrait, priced as a second portrait" },
     },
     opened: { portrait: true },
+    concept: { label: "What to make", placeholder: "A mysterious tiefling bard who works as a city informant and hides a dark past…", required: true, max: 1000, mentions: "items" },
     ask: ["portrait"],
   },
   {

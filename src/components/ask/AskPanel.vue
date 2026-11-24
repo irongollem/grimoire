@@ -11,7 +11,7 @@
     <div v-if="ui.open" class="fixed inset-0 z-40 bg-black/40" @click="ui.closePanel()" />
     <div
       v-if="ui.open"
-      class="fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))] inset-x-0 z-50 flex h-[65vh] flex-col rounded-t-2xl border-t border-border bg-card"
+      :class="['fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))] inset-x-0 z-50 flex flex-col rounded-t-2xl border-t border-border bg-card', fullSheet ? 'top-[calc(env(safe-area-inset-top)+0.5rem)]' : 'h-[65vh]']"
       role="dialog"
       aria-label="Familiar"
       data-testid="ask-panel"
@@ -81,6 +81,9 @@ const convo = useAskConversation({
   },
 });
 
+/** On a phone a card a button opened, still to be filled in, takes the whole sheet: its form is long and its price stays in view. */
+const fullSheet = computed(() => convo.items.value.some((i) => i.kind === "proposal" && i.origin === "button" && i.state === "quote"));
+
 const freeLeft = computed(() => convo.freeLeft.value ?? usage.freeLeft.value);
 // The count stays until it runs out: switching to the cost sentence after the first question read as if the free
 // ones were already gone (maintainer, 23 Nov 2026).
@@ -109,6 +112,8 @@ const surfaceHandlers = {
   confirm: (id: number) => void convo.confirm(id),
   cancel: convo.cancel,
   adjust: convo.adjust,
+  concept: convo.setConcept,
+  quick: (id: number) => void convo.quick(id),
   decide: convo.decide,
   retry: (id: number, i: number) => void convo.retryPart(id, i),
   leave: convo.leavePart,
@@ -137,6 +142,18 @@ watch(
     if (text === null) return;
     convo.newConversation();
     void convo.send(text);
+  },
+  { immediate: true },
+);
+
+// A page's Generate button leaves a generator's card to open. It joins the thread (the DM may be mid-conversation)
+// and sends nothing: no model is asked and nothing is charged until the card's gilt button is pressed.
+watch(
+  () => ui.pendingGenerator,
+  (pending) => {
+    if (pending === null) return;
+    const taken = ui.takePendingGenerator();
+    if (taken !== null) convo.openGenerator(taken);
   },
   { immediate: true },
 );

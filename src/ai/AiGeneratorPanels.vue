@@ -7,7 +7,6 @@
     To add a new generator: mount its panel here, register it in its
     useXxxGeneration.ts via registerAiGenerator(), and that's it.
   -->
-  <NpcGeneratorPanel v-if="mountedNpcGeneratorPanel" />
   <MonsterGeneratorPanel v-if="mountedMonsterGeneratorPanel" />
   <ItemGeneratorPanel v-if="mountedItemGeneratorPanel" />
   <PuzzleGeneratorPanel v-if="mountedPuzzleGeneratorPanel" />
@@ -44,7 +43,6 @@ import GeneratorPanelLoading from "@/components/common/ai/GeneratorPanelLoading.
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useItemsUiStore } from "@/stores/ui/items";
 import { useMonstersUiStore } from "@/stores/ui/monsters";
-import { useNpcsUiStore } from "@/stores/ui/npcs";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
 import { useQuestsUiStore } from "@/stores/ui/quests";
 import { useSoundboardUiStore } from "@/stores/ui/soundboard";
@@ -60,7 +58,6 @@ function lazyPanel<T extends Component>(loader: () => Promise<T>) {
   return defineAsyncComponent({ loader, loadingComponent: GeneratorPanelLoading, delay: 200 });
 }
 
-const NpcGeneratorPanel = lazyPanel(() => import("@/components/npcs/NpcGeneratorPanel.vue"));
 const MonsterGeneratorPanel = lazyPanel(() => import("@/components/monsters/MonsterGeneratorPanel.vue"));
 const ItemGeneratorPanel = lazyPanel(() => import("@/components/items/ItemGeneratorPanel.vue"));
 const PuzzleGeneratorPanel = lazyPanel(() => import("@/components/puzzles/PuzzleGeneratorPanel.vue"));
@@ -87,7 +84,6 @@ const AddSoundDialog = lazyPanel(() => import("@/components/soundboard/AddSoundD
 const generatorsUi = useGeneratorUiStore();
 const itemsUi = useItemsUiStore();
 const monstersUi = useMonstersUiStore();
-const npcsUi = useNpcsUiStore();
 const puzzlesUi = usePuzzlesUiStore();
 const questsUi = useQuestsUiStore();
 const soundboardUi = useSoundboardUiStore();
@@ -96,7 +92,6 @@ const spellsUi = useSpellsUiStore();
 // pulls credits, provider config, party and library reads that a closed panel
 // has no use for (22 of them ran at boot), while a dismissed generation lives
 // in the panel's own generateAndCreate and must outlive the panel closing.
-const { npcGeneratorOpen } = storeToRefs(npcsUi);
 const { monsterGeneratorOpen } = storeToRefs(monstersUi);
 const { itemGeneratorOpen } = storeToRefs(itemsUi);
 const { puzzleGeneratorOpen } = storeToRefs(puzzlesUi);
@@ -104,7 +99,6 @@ const { spellGeneratorOpen } = storeToRefs(spellsUi);
 const { questGeneratorOpen } = storeToRefs(questsUi);
 const { trapGeneratorOpen, factionGeneratorOpen, locationGeneratorOpen, rollTableGeneratorOpen, lootTableGeneratorOpen, encounterGeneratorOpen, dungeonFeatureGeneratorOpen, customRuleGeneratorOpen, deityGeneratorOpen, speciesGeneratorOpen, backgroundGeneratorOpen, recipeGeneratorOpen, customClassGeneratorOpen, customSubclassGeneratorOpen, classFeatureGeneratorOpen, scriptoriumDraftOpen } = storeToRefs(generatorsUi);
 const { addSoundDialogOpen } = storeToRefs(soundboardUi);
-const mountedNpcGeneratorPanel = useLazyMount(npcGeneratorOpen);
 const mountedMonsterGeneratorPanel = useLazyMount(monsterGeneratorOpen);
 const mountedItemGeneratorPanel = useLazyMount(itemGeneratorOpen);
 const mountedPuzzleGeneratorPanel = useLazyMount(puzzleGeneratorOpen);

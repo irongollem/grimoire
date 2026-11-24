@@ -9,7 +9,7 @@ The feature comprises four main surfaces:
 - **NPC List** (`/npcs`) — filterable card grid
 - **NPC Detail Sheet** (`/npcs/:id`) — the sheet as a modal over the grid on tablet and up, a full-screen takeover on phones; `?edit=true` is the full editor at every width
 - **World web** (`/web`) — every tie in the campaign as a graph, focus on one node, group by faction, place or deity; the Relationship Web it replaced drew only people
-- **NPC Generator** — slide-in panel (accessible from the list header) for quick-create and AI generation
+- **NPC Generator** — the NPC card in the Familiar (Ask Grimoire), opened by the list header's Generate; it holds both the AI generation and quick create
 
 Players access shared NPCs through the **Player Portal** at `/play/party` under the "People" section.
 
@@ -62,7 +62,7 @@ When an NPC becomes visible to a player for the first time while a **session is 
 
 - **Web** — navigates to the World web (`/web`)
 - **Populate Setting** — shown only when the active campaign has a recognised setting (e.g. Faerûn). Bulk-inserts seed NPCs from the setting's Hall of Heroes list, deduplicating by name. Reports how many were added or whether already up to date. Also back-fills portrait URLs for existing NPCs that previously had none.
-- **Generate** — opens the NPC Generator panel
+- **Generate** — opens the NPC card in the Familiar (`useOpenGenerator().open("npc")`), the same card a Familiar proposal draws, with the picture on
 - **Select** (#885) — toggles bulk-selection mode (`NpcList.vue` owns `useBulkSelection`, mirroring `MonsterList.vue`; `NpcsView.vue` only holds a template ref and toggles it, same split as monsters). Selecting shows `BulkScopeBar` with "Move to campaign" and "Copy to campaign…" — every NPC row is selectable (no library/shared-content concept for NPCs, unlike monsters). `npcs` carries the `enforce_quota` trigger, so a copy past quota reopens the same `showPaywall` the list already mounts for its own create-gate. **"Make available in all campaigns" is not offered here** (`bulkScopeAllowsGeneral("npcs")` is false, `useBulkCampaignScope.ts`): `npc_inventory.campaign_id` is NOT NULL, so a general move could never carry an NPC's inventory. A move to a specific campaign carries an NPC's `npc_relationships` and `npc_inventory` rows along with it (matched on the owning `npc_id` only — a relationship's `related_npc_id` end is left wherever it already was, same as the Atlas already tolerates for a cross-campaign parent).
 - **New NPC** — navigates to `/npcs/new`; blocked by paywall if the campaign's NPC quota is exceeded.
 
@@ -385,40 +385,32 @@ Routes: `/web` (DM) and `/play/web` (player). It replaced the Relationship Web a
 
 ## NPC Generator
 
-The Generator is a right-side slide-in panel (`max-w-md`), opened from the list page header. It supports two create paths: AI generation and quick create.
+The generator is a card in the Familiar (Ask Grimoire, #1270): the list header's **Generate** (and its phone overflow entry) calls `useOpenGenerator().open("npc")`, which opens the Familiar on the NPC card with the generator's starting inputs (`opened`: the picture on). The slide-in panel and its form (`NpcGeneratorPanel`, `NpcGeneratorForm`) are gone; the card is drawn from the contract (`ASK_GENERATORS` in `supabase/functions/_shared/agent/askContract.ts`) by `AskForm`, see [ask-grimoire.md](ask-grimoire.md). It has two create paths, AI generation and quick create, both reading the same inputs.
 
-### Quick Create
+The card's first field is **What to make** (the concept, required, 1,000 characters): a native textarea in the DM's hand, with the panel's old placeholder. While it is empty the gilt button is disabled. Under it are the inputs the panel had: name, species, age, alignment, role, and folds for "Where they stand" (place, faction and role, the person they are tied to and the relation, the other parent, other ties) and "At the table" (attitude, stat block template), then the portrait and alter ego switches. A tie to an existing record is a yes or no line on the quote.
 
-Fills a minimal NPC with:
+### Quick create
 
-- Name (optional — auto-generates from `FIRST_NAMES` + `LAST_NAMES` tables if left blank)
-- Species (from a preset list of 15 common races)
-- Alignment
-- Relationship (party stance)
-- Faction (any campaign faction) + Role in faction
-- Location (location tree combobox)
-- Stat block template (grouped by category from `NPC_TEMPLATE_CATEGORIES`)
-- Known associate (any existing NPC) + relationship to them: a bond, or a family tie (Child of, Parent of, Spouse of, Sibling of; a child may name a second parent, defaulting to the associate's only current spouse). A family tie is told to the model as one directional sentence with birth years and ages, and written as `kin_links` after creation. `/npcs?kin=<child|parent|spouse|sibling>&of=<npc:id|pc:id>&also=<npc:id|pc:id>` opens the panel with the tie filled in (`kin` is what the new NPC is to `of`; `also` is the second parent); the panel clears the query once read.
-- Ties: any other tie of the World Web catalogue, from the new NPC's side, through the "Tie it to…" field (`GeneratorLinksField`, `src/components/generators/`). It lists the ties chosen so far as removable chips ("Worships · Auril") and opens the Connections block's own search and type chips for a record of any kind the catalogue lets an NPC hold (family is left out: kin has its own field). Nothing is written until the NPC is saved: `generateAndCreateNpc` (and Quick Create) then call `applyGeneratorLinks` (`src/composables/worldLinks/useApplyGeneratorLinks.ts`), which writes each through the mutation the Add dialog uses (`useCreateConnectionInCampaign`), in the direction the choice stores, and returns a failed tie as a `linkErrors` entry without losing the NPC. The model is told the ties on one line ("Ties: worships Auril; works at The Docks"). A tie to a party member is made here too. The same field and function are the way to give any other generator its ties.
+The quiet **Quick create · no AI** button on the card makes an NPC from the same inputs with no model and no credits (`quick` on the NPC adapter, `npcAskAdapter.ts`): a name drawn from `FIRST_NAMES` + `LAST_NAMES` when none is given, the species, alignment, attitude, age and role as typed, the chosen starter stat block (a template, or none; Quick create does not auto-assign stats), the place, and the concept saved as the DM's note. Faction membership, the family or bond tie and the "Tie it to…" ties are written through `applyNpcLinks` and `applyGeneratorLinks` (`src/composables/worldLinks/useApplyGeneratorLinks.ts`, which writes each through the mutation the Add dialog uses, in the direction the choice stores; a failed tie is a `linkErrors` part without losing the NPC). It ends in the same result card as the AI route ("Open NPC") rather than navigating, as the old panel did.
+
+- Known associate and family: a family tie (Child of, Parent of, Spouse of, Sibling of; a child may name a second parent) or a bond. A family tie is told to the model as one directional sentence with birth years and ages, and written as `kin_links` after creation. `/npcs?kin=<child|parent|spouse|sibling>&of=<npc:id|pc:id>&also=<npc:id|pc:id>` ("Add relative") opens the card with the tie filled in (`kinCardInputs`, `src/lib/npcGenerator/kinPrompt.ts`; `kin` is what the new NPC is to `of`; `also` is the second parent); `NpcsView` clears the query once read.
 
 After creation, faction membership and the associate relationship are added automatically.
 
 ### AI Generation (requires the campaign's AI Assistant switched on)
 
-An additional **Concept** textarea (required) prompts the AI with a free-text description. The visible 1,000-character limit applies to the concept. Quick options, mentions, and location details travel in a separate context field capped at 2,000 characters, with location prose last so it cannot crowd out the selected constraints.
+The concept prompts the AI with a free-text description; the visible 1,000-character limit applies to it. Quick options and location details travel in a separate context field capped at 2,000 characters, with location prose last so it cannot crowd out the selected constraints.
 
 Additional AI options:
 
-- **Generate portrait art** toggle (on by default) — generates an image via OpenAI
-- **Generate Alter Ego** toggle (requires portrait toggle on) — generates both a true-form portrait and a disguise portrait (uses 2× image generation credits)
+- **Portrait** switch (on when the button opens the card) - generates an image
+- **Alter ego** switch (requires the portrait; uses 2x image generation credits) - generates both a true-form portrait and a disguise portrait
 
-**How the portrait is painted.** `generate-npc` writes text only; the browser then paints the portrait (and the alter ego, edited from it) through the one image job (`generateImage`, `generate-chronicle-image`). The image model is given the text model's `true_portrait_prompt`, which nothing obliges to name the species, and image models paint a human by default (a halfling ferryman came back a tall man, 23 Nov 2026). So the subject is built in code (`npcPortraitSubject`, `src/lib/npcGenerator/portraitSubject.ts`): the NPC's species leads it, with the build of the small and stocky folk an image model draws as humans (halfling, gnome, dwarf, goblin, kobold). When the species has a picture (the campaign's own species first, then the library's; `speciesPictureFor`), it goes along as a reference, and the subject says the reference is for the species' build and features only, never this person's face, pose or clothing. Not for a human: an image model needs none, and a reference costs input tokens on every portrait.
+Generation can carry on with the Familiar closed: a badge in the nav or list indicates when it finishes, and its result card is waiting in the thread.
 
-Generation can be **dismissed to background**: the panel closes while the AI call continues. A badge in the nav or list indicates when generation finishes.
+On completion the NPC is saved and the result card offers **Open NPC**. A numeric age becomes a full randomized birth date using the active calendar's month/day shape while preserving the age shown today; descriptive ages such as "ancient" stay free text. The generated voice cue is plain text.
 
-On completion, all AI-returned fields are applied to the NPC form (name, species, alignment, age, occupation, status, relationship, tags, appearance, personality, voice, backstory, notes, portrait URL, disguise name, disguise portrait URL) and the user is taken to the new NPC's detail page. A numeric age becomes a full randomized birth date using the active calendar's month/day shape while preserving the age shown today; descriptive ages such as "ancient" stay free text. The generated voice cue is plain text.
-
-`generatedBirthFromAge` (`src/lib/npcGenerator/generatedBirth.ts`) assigns a full randomized birthday within the active calendar's real month lengths and preserves the age computed for today. Newly generated NPCs receive a free-text starter inventory pack chosen by occupation/tags from `app_settings.npc_starter_inventory_packs`, with defaults in `src/lib/npcGenerator/inventorySets.ts`; admins manage the packs, cues, items, and match priority in Admin → Content. Typing `@` in `NpcGeneratorForm.vue` offers items from the active item index; a selected item is added as a catalogue reference to the new NPC's inventory and is named as a generation constraint. This is generation-panel behavior, not a change to Quick Create.
+`generatedBirthFromAge` (`src/lib/npcGenerator/generatedBirth.ts`) assigns a full randomized birthday within the active calendar's real month lengths and preserves the age computed for today. Newly generated NPCs receive a free-text starter inventory pack chosen by occupation/tags from `app_settings.npc_starter_inventory_packs`, with defaults in `src/lib/npcGenerator/inventorySets.ts`; admins manage the packs, cues, items, and match priority in Admin → Content. The panel's `@` mention of catalogue items in the concept went with the panel: the card's concept box is plain text and the card passes no named items.
 
 The generator also assigns a campaign location explicitly named in the concept, preferring a manually selected location. `locationNamedInStory` resolves exact location-name mentions (longest match wins); the resolved place is included in the prompt and stored on the new NPC.
 
