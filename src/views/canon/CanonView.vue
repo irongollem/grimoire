@@ -1,11 +1,11 @@
 <template>
   <PageHeader owns-phone-bar title="Canon" description="The campaign's background book.">
     <template #actions>
-      <CanonSearchField class="w-72" />
-      <AppButton to="/canon/import" variant="outline" size="md" :icon="IconUpload" label="Bring in a book" />
+      <CanonSearchField class="w-72 min-w-0 shrink @max-3xl/header:w-40" />
+      <AppButton to="/canon/import" variant="outline" size="md" :icon="IconUpload" label="Bring in a book" collapse-label-on-mobile collapse-below="header" />
       <CanonOpenAsBook />
       <!-- Short, so the header keeps to one row on a laptop; the tooltip says what it opens. -->
-      <AppButton to="/canon/tonight" variant="outline" size="md" :icon="IconMoon" label="Next session" tooltip="Prepare the next session: what the canon has waiting for it" class="min-[90rem]:hidden" />
+      <AppButton to="/canon/tonight" variant="outline" size="md" :icon="IconMoon" label="Next session" tooltip="Prepare the next session: what the canon has waiting for it" collapse-label-on-mobile collapse-below="header" class="min-[90rem]:hidden" />
     </template>
     <!-- The header holds these from a tablet up; a phone's header is the page's own bar, so they sit under the title where a thumb finds them. -->
     <div class="mb-4 flex flex-col gap-2 md:hidden" data-testid="canon-phone-actions">

@@ -1,5 +1,5 @@
 <template>
-  <AppButton variant="outline" size="md" :icon="IconOpenBook" :loading="isStarting" @click="open">Open as a book</AppButton>
+  <AppButton variant="outline" size="md" :icon="IconOpenBook" :loading="isStarting" label="Open as a book" collapse-label-on-mobile collapse-below="header" @click="open" />
 </template>
 
 <script setup lang="ts">

@@ -31,12 +31,12 @@
     <slot>
       <template v-if="label">
         <template v-if="mobileLabel">
-          <span :class="collapseBelow === 'lg' ? 'max-lg:hidden' : 'max-sm:hidden'">{{ label }}</span>
-          <span :class="collapseBelow === 'lg' ? 'lg:hidden' : 'sm:hidden'">{{ mobileLabel }}</span>
+          <span :class="COLLAPSE[collapseBelow].full">{{ label }}</span>
+          <span :class="COLLAPSE[collapseBelow].short">{{ mobileLabel }}</span>
         </template>
         <span
           v-else-if="collapseLabelOnMobile"
-          :class="collapseBelow === 'lg' ? 'max-lg:hidden' : 'max-sm:hidden'"
+          :class="COLLAPSE[collapseBelow].full"
         >{{ label }}</span>
         <span v-else>{{ label }}</span>
       </template>
@@ -82,6 +82,13 @@ import {
 // laptop docked to a touchscreen) is not stuck with whichever answer was true when
 // the module first loaded.
 const isTouch = useIsTouch();
+
+/** Where a collapsing label hides (`full`) and its short form shows (`short`). `header` is PageHeader's own width. */
+const COLLAPSE = {
+  sm: { full: "max-sm:hidden", short: "sm:hidden" },
+  lg: { full: "max-lg:hidden", short: "lg:hidden" },
+  header: { full: "@max-3xl/header:hidden", short: "@3xl/header:hidden" },
+} as const;
 
 const {
   variant,
@@ -178,8 +185,11 @@ const {
    * Where `mobileLabel` / `collapseLabelOnMobile` take effect. List-page action
    * rows collapse at `sm`; detail-page header actions sit in a tighter row and
    * need `lg`, which is what PageHeaderAction used before it was folded in.
+   * `header` answers to the page header's own width, not the screen's (PageHeader is
+   * the `header` container): a dock or pane beside the page narrows the header on a
+   * wide screen, and its actions wrapped onto a second row (the Canon, 24 Nov 2026).
    */
-  collapseBelow?: "sm" | "lg";
+  collapseBelow?: "sm" | "lg" | "header";
   /**
    * Supplementary hover text. It must NOT become the accessible name: a button
    * reading "With Party" with the tooltip "With the party — joins new encounters"

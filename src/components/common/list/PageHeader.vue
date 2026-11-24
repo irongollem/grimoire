@@ -17,8 +17,9 @@
     ]"
   >
     <!-- Header section -->
+    <!-- `@container/header`: what a header action's label collapses by (AppButton collapseBelow "header"). -->
     <div v-if="!headless" :class="[
-        'max-w-full min-w-0 bg-background',
+        'max-w-full min-w-0 bg-background @container/header',
         'px-4 pt-4 md:px-6 md:pt-6',
         ownsPhoneBar ? 'hidden md:block' : '',
       ]"
