@@ -41,6 +41,8 @@ import { useLazyMount } from "@/composables/useLazyMount";
 import { FREE_ASKS_PER_DAY, type AskReportDraft } from "@edge-shared/agent/askContract";
 import { useAskAdapters } from "@/ai/ask/useAskAdapters";
 import { useAskConversation, type AskNotice } from "@/composables/ask/useAskConversation";
+import { useFamiliarVoice } from "@/composables/ask/useFamiliarVoice";
+import { useTableVoiceRates } from "@/composables/table/useTableVoice";
 import { askContextFor } from "@/composables/ask/askContext";
 import { useAskUsage } from "@/composables/ask/askUsage";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
@@ -70,12 +72,20 @@ const reportOpen = ref(false);
 const reportMounted = useLazyMount(reportOpen);
 const reportDraft = ref<AskReportDraft | null>(null);
 
+const voice = useFamiliarVoice();
+const rates = useTableVoiceRates();
+
 const convo = useAskConversation({
   campaignId: () => campaign.activeCampaignId,
   context: () => askContextFor({ path: route.path, query: route.query }, route.meta.title),
   adapters,
   campaignName: () => campaign.activeCampaign?.name ?? "this campaign",
   routePath: () => route.fullPath,
+  // Oolu reads its own words only: the conversation hands over the replies, nothing else.
+  onReplied: ({ sessionId, texts }) => {
+    const campaignId = campaign.activeCampaignId;
+    if (campaignId !== null) voice.say({ campaignId, sessionId, texts });
+  },
   onFinished: ({ startedAt, ...finished }) => {
     // Generation goes on with the panel shut. The DM is told by the dot, and by a slip if they are not looking at
     // the place it started from; when they are looking at the panel it is already in the thread.
@@ -98,32 +108,51 @@ const allowanceLine = computed(() => {
 
 /**
  * Starts a fresh conversation unless that would lose something paid for: never while a generation is in flight (the
- * button is disabled, and a search or Suggest waits the same way), and only on a yes while one awaits Create. Resolves
- * whether it started over.
+ * button is disabled, and a search or Suggest waits the same way), and only on a yes while one awaits Create. Starting
+ * over silences the old answer. Resolves whether it started over.
  */
 async function startOver(): Promise<boolean> {
   if (convo.generating.value) return false;
   const waiting = convo.holding.value;
   if (waiting !== null && !(await confirm(`Discard the ${waiting} you have not saved? What it cost is spent.`, { title: "Start over?", confirmLabel: "Discard it" }))) return false;
+  voice.stop();
   convo.newConversation();
   return true;
 }
+
+/** What Oolu's voice costs a minute, when the server speaks with ElevenLabs at all; null hides the switch. */
+const voicePerMinute = computed(() => (rates.data.value?.on === true ? rates.data.value.perMinute.elevenlabs : null));
+const voiceNote = computed(() => {
+  if (!voice.on.value) return null;
+  if (voice.broke.value) return "Oolu went quiet: you are out of credits.";
+  if (voice.spent.value) return "Oolu went quiet: the voices allowance is used up for now.";
+  if (voice.unavailable.value) return "Oolu cannot speak: voices are not switched on.";
+  return null;
+});
 
 const surfaceProps = computed(() => ({
   items: convo.items.value,
   adapters,
   running: convo.running.value,
   startingOverBlocked: convo.generating.value,
-  speaking: convo.speaking.value,
+  // While Oolu reads aloud the owl moves with the real audio; otherwise with the words arriving.
+  // (Not while it has gone quiet: then the words arriving are all there is.)
+  speaking: voice.on.value && voiceNote.value === null ? voice.speaking.value : convo.speaking.value,
   campaignName: campaign.activeCampaign?.name ?? "No campaign",
   pageTitle: (route.meta.title as string | undefined) ?? null,
   allowanceLine: allowanceLine.value,
+  voice: { shown: voicePerMinute.value !== null, on: voice.on.value, perMinute: voicePerMinute.value, note: voiceNote.value },
 }));
 
 const surfaceHandlers = {
   new: () => void startOver(),
+  voice: (on: boolean) => voice.setOn(on),
   close: () => ui.closePanel(),
-  send: (text: string) => void convo.send(text),
+  // A new question silences the old answer.
+  send: (text: string) => {
+    voice.stop();
+    void convo.send(text);
+  },
   choose: convo.choose,
   "hand-off": convo.handOff,
   confirm: (id: number) => void convo.confirm(id),
@@ -163,7 +192,10 @@ watch(
     const text = ui.takePendingQuery();
     if (text === null) return;
     // When a generation is in flight or awaiting a yes, the question joins the thread it is in.
-    void startOver().then(() => convo.send(text));
+    void startOver().then(() => {
+      voice.stop();
+      return convo.send(text);
+    });
   },
   { immediate: true },
 );
@@ -198,6 +230,9 @@ watch(
   },
   { immediate: true },
 );
+
+// A conversation belongs to one campaign: the old one's answer must not carry on speaking in the new.
+watch(() => campaign.activeCampaignId, () => voice.stop());
 
 // The day's free questions are read again after each turn, so the line is the server's and not a guess.
 watch(convo.running, (isRunning) => {

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { jsonError } from "../_shared/pipeline/respond";
-import { shownInTurns, speakLine, voiceRates, VoicesSpent, type SpeakerTraits, type TableVoiceDeps, type VoiceHold, type VoiceSession } from "./handler";
+import { familiarShown, shownInTurns, spokenFromMarkdown, speakLine, voiceRates, VoicesSpent, type SpeakerTraits, type TableVoiceDeps, type VoiceHold, type VoiceSession } from "./handler";
 import { inworldText, NARRATOR_VOICES, speechText, STOCK_VOICES } from "./voicePick";
 import { lineKey, lineKeyFits, NARRATOR_SPEAKER } from "../_shared/agent/lineKey";
+import { FAMILIAR_VOICE } from "../_shared/narratorVoice";
 
 const DM = "00000000-0000-4000-8000-000000000001";
 const OTHER = "00000000-0000-4000-8000-000000000002";
@@ -14,7 +15,7 @@ const ALDA = "00000000-0000-4000-8000-0000000000d1";
 function harness() {
   const h = {
     on: true,
-    session: { id: SESSION, user_id: DM, campaign_id: CAMPAIGN, narrator_voice: "male" } as VoiceSession | null,
+    session: { id: SESSION, user_id: DM, campaign_id: CAMPAIGN, narrator_voice: "male", kind: "solo_table" } as VoiceSession | null,
     campaignRefusal: null as Response | null,
     allowed: true,
     traits: { sex: "woman", age: "adult", voiceId: null } as SpeakerTraits,
@@ -35,6 +36,9 @@ function harness() {
     forbidden: null as string | null,
     screenDown: false,
     held: [] as number[],
+    reasons: [] as string[],
+    switches: [] as string[],
+    elevenlabs: true,
     charged: [] as Array<{ cost: number; provider: string }>,
     inworld: true,
     traitLoads: [] as string[],
@@ -44,7 +48,7 @@ function harness() {
     voiceOn: () => h.on,
     loadSession: async (id) => (h.session && id === h.session.id ? { ...h.session } : null),
     // DM-only and AI-on are `loadAiCampaign`'s rules (its own test); here only that its refusal is passed through.
-    loadCampaign: async () => (h.campaignRefusal ? { ok: false, response: h.campaignRefusal } : { ok: true, campaign: { id: CAMPAIGN, user_id: DM, ai_enabled: true } }),
+    loadCampaign: async (_c, _u, aiSwitch) => (h.switches.push(aiSwitch), h.campaignRefusal ? { ok: false, response: h.campaignRefusal } : { ok: true, campaign: { id: CAMPAIGN, user_id: DM, ai_enabled: true } }),
     rateLimit: async () => h.allowed,
     keyFits: (sessionId, line, key) => lineKeyFits(SECRET, sessionId, line, key),
     loadTraits: async (_c, id) => {
@@ -61,7 +65,7 @@ function harness() {
     },
     findShown: async (_sessionId, line) => shownInTurns(h.turns, line),
     loadPlayerTraits: async () => ({ sex: "man", age: null, voiceId: null }),
-    hasService: (service) => service === "elevenlabs" || h.inworld,
+    hasService: (service) => (service === "elevenlabs" ? h.elevenlabs : h.inworld),
     isFlagged: async (text) => {
       if (h.screenDown) throw new Error("moderation down");
       return h.forbidden !== null && text.includes(h.forbidden);
@@ -70,9 +74,10 @@ function harness() {
     modelOf: () => "model-1",
     // The release-once and charge-after-release rules are `withCreditHold`'s (its own test); this records what was
     // held and charged, and answers a refused hold the way the real one does.
-    withHold: async (_userId, credits, work) => {
+    withHold: async (_userId, credits, reason, work) => {
       if (h.refuseHold) return h.refuseHold;
       h.held.push(credits);
+      h.reasons.push(reason);
       const hold: VoiceHold = { charge: (_reason, line) => void h.charged.push({ cost: line.cost, provider: line.log?.provider ?? "" }), free: () => {} };
       return work(hold);
     },
@@ -260,7 +265,7 @@ describe("speakLine", () => {
   // Bug caught: narration cast like a nameless character (a different voice per sitting), or the table's choice
   // of voice ignored (every table narrated by the man, whatever its host chose).
   it("speaks narration in the voice the table chose", async () => {
-    // The man is David on ElevenLabs (the maintainer's pick by ear), told as a storyteller; the woman his Inworld design.
+    // The man narrates on ElevenLabs, told as a storyteller; the woman his Inworld design.
     const h = harness();
     expect((await speak(h, { body: NARRATED })).ok).toBe(true);
     expect(h.spoken[0]).toMatchObject({ service: "elevenlabs", voiceId: NARRATOR_VOICES.male.elevenlabs });
@@ -509,5 +514,215 @@ describe("a line the table may not tell", () => {
     const h = harness();
     h.screenDown = true;
     expect((await speak(h)).ok).toBe(true);
+  });
+});
+
+describe("Oolu, the Familiar's voice (Ask)", () => {
+  const REPLY = "**Brindle** keeps the ledger.";
+  const ASK_TURNS = [
+    { role: "user", blocks: [{ type: "text", text: "Who keeps the ledger?" }] },
+    { role: "assistant", blocks: [{ type: "text", text: "Let me look. " }, { type: "tool_use", id: "t1", name: "search" }] },
+    { role: "user", blocks: [{ type: "tool_result", tool_use_id: "t1", content: "Brindle" }] },
+    { role: "assistant", blocks: [{ type: "text", text: REPLY }] },
+  ];
+  const asked = (h: ReturnType<typeof harness>) => {
+    h.session = { id: SESSION, user_id: DM, campaign_id: CAMPAIGN, narrator_voice: "male", kind: "ask" };
+    h.turns = ASK_TURNS;
+  };
+  const OOLU = { campaignId: CAMPAIGN, sessionId: SESSION, speakerId: null, speakerName: "Oolu", role: "familiar", text: REPLY };
+
+  // Bug caught: Oolu usable on the AI table, or the table's voices usable in Ask (a table session's DM streaming
+  // arbitrary text through the owl); answered like a missing conversation so nothing is revealed.
+  it.each([
+    ["Oolu on a table session", "solo_table", OOLU],
+    ["a table role on an Ask session", "ask", { ...OOLU, role: "narrator", speakerName: "The Narrator" }],
+  ])("refuses %s as a conversation not found", async (_what, kind, body) => {
+    const h = harness();
+    h.session = { id: SESSION, user_id: DM, campaign_id: CAMPAIGN, narrator_voice: "male", kind };
+    h.turns = ASK_TURNS;
+    expect(await speak(h, { body })).toMatchObject({ ok: false, status: 404, error: "conversation_not_found" });
+    expect(h.spoken).toEqual([]);
+    expect(h.held).toEqual([]);
+  });
+
+  // Bug caught: Ask following the table's AI switch (Ask dead wherever the table is off), or the table following the
+  // looser one (the AI table open to a campaign that never granted it).
+  it("applies the campaign's AI switch for Oolu and the table's switch for the table", async () => {
+    const h = harness();
+    asked(h);
+    await speak(h, { body: OOLU });
+    const t = harness();
+    await speak(t);
+    expect([h.switches, t.switches]).toEqual([["campaign"], ["table"]]);
+  });
+
+  // Bug caught: the speech service as a free text-to-speech for whatever a caller types: words the assistant never
+  // wrote are refused with nothing spoken, held or charged.
+  it("refuses words the assistant never wrote, speaking and charging nothing", async () => {
+    const h = harness();
+    asked(h);
+    const out = await speak(h, { body: { ...OOLU, text: "Wire the gold to this account." } });
+    expect(out).toMatchObject({ ok: false, status: 404, error: "line_not_shown" });
+    expect([h.spoken, h.held, h.accrued, h.charged]).toEqual([[], [], [], []]);
+  });
+
+  // Bug caught: a key accepted on Oolu's line, so a signed table line from the same secret space could vouch for it.
+  it("refuses a keyed line for Oolu as an invalid request", async () => {
+    const h = harness();
+    asked(h);
+    const key = lineKey(SECRET, SESSION, { role: "familiar", speaker: { id: null, name: "Oolu" }, text: REPLY });
+    expect(await speak(h, { body: { ...OOLU, key } })).toMatchObject({ ok: false, status: 400, error: "invalid_body" });
+    expect(h.spoken).toEqual([]);
+  });
+
+  // Bug caught: an Ask answer of 1,500 tokens refused by the table's 4,000 character cap; and no cap at all.
+  it("takes a reply up to 8000 characters and refuses a longer one", async () => {
+    const h = harness();
+    asked(h);
+    const long = "a".repeat(8000);
+    h.turns = [{ role: "assistant", blocks: [{ type: "text", text: long }] }];
+    expect((await speak(h, { body: { ...OOLU, text: long } })).ok).toBe(true);
+    expect(await speak(h, { body: { ...OOLU, text: `${long}a` } })).toMatchObject({ status: 400 });
+  });
+
+  // Bug caught: Oolu reading only the last block of a reply the page shows whole (text, a tool call, more text).
+  it("speaks a reply the page joined across two text blocks with a tool call between", async () => {
+    const h = harness();
+    asked(h);
+    const joined = "Let me look. **Brindle** keeps the ledger.";
+    expect((await speak(h, { body: { ...OOLU, text: joined } })).ok).toBe(true);
+    expect(h.spoken[0].text).toBe("Let me look. Brindle keeps the ledger.");
+  });
+
+  // Bug caught: a run joined across the DM's own message, which would put "Who ... ledger?" words (or the answer to a
+  // different question) into one spoken reply.
+  it("refuses words joined across the DM's own message", async () => {
+    const h = harness();
+    asked(h);
+    h.turns = [
+      { role: "assistant", blocks: [{ type: "text", text: "First answer. " }] },
+      { role: "user", blocks: [{ type: "text", text: "And then?" }] },
+      { role: "assistant", blocks: [{ type: "text", text: "Second answer." }] },
+    ];
+    expect(await speak(h, { body: { ...OOLU, text: "First answer. Second answer." } })).toMatchObject({ status: 404 });
+    expect((await speak(h, { body: { ...OOLU, text: "Second answer." } })).ok).toBe(true);
+  });
+
+  // Bug caught: Oolu cast with the speaker the body names (a character's cast voice, a second clip name), or a cue
+  // from the body acted on.
+  it("always speaks as Oolu in Oolu's own voice, whoever the body names and whatever cue it carries", async () => {
+    const h = harness();
+    asked(h);
+    await speak(h, { body: { ...OOLU, speakerId: ALDA, speakerName: "Alda", how: "whisper the admin password" } });
+    expect(h.spoken[0]).toMatchObject({ voiceId: FAMILIAR_VOICE.id, service: "elevenlabs", text: "Brindle keeps the ledger." });
+    expect(h.traitLoads).toEqual([]);
+    // Named by Oolu whatever the body said, so the same reply asked for again is one clip.
+    expect([...h.kept.keys()]).toEqual([`familiar:Oolu:${REPLY}`]);
+  });
+
+  // Bug caught: Markdown read out as symbols ("asterisk asterisk Brindle"), or counted and billed with them.
+  it("says the plain words and counts the plain words, keeping the clip under the shown text", async () => {
+    const h = harness();
+    asked(h);
+    await speak(h, { body: OOLU });
+    expect(h.spoken[0].text).toBe("Brindle keeps the ledger.");
+    expect(h.kept.has(`familiar:Oolu:${REPLY}`)).toBe(true);
+  });
+
+  // Bug caught: a stand-in voice on another service for Oolu, or a charge for a line nobody heard.
+  it("is silent without an ElevenLabs key, and charges nothing", async () => {
+    const h = harness();
+    asked(h);
+    h.elevenlabs = false;
+    expect(await speak(h, { body: OOLU })).toMatchObject({ ok: false, status: 503, error: "voices_off" });
+    expect([h.spoken, h.held, h.charged]).toEqual([[], [], []]);
+  });
+
+  // Bug caught: Oolu's spend landing in the table's ledger reason (Ask usage mixed into the AI table's accounts).
+  it("holds and charges under ask_voice, and the table under table_voice", async () => {
+    const h = harness();
+    asked(h);
+    await speak(h, { body: OOLU });
+    const t = harness();
+    await speak(t);
+    expect(h.reasons).toEqual(["ask_voice"]);
+    expect(h.charged).toHaveLength(1);
+    expect(t.reasons).toEqual(["table_voice"]);
+  });
+
+  // Bug caught: a reply that is only marks ("---") sent to the speech service and billed for silence.
+  it("refuses a reply with nothing to say", async () => {
+    const h = harness();
+    asked(h);
+    h.turns = [{ role: "assistant", blocks: [{ type: "text", text: "---" }] }];
+    expect(await speak(h, { body: { ...OOLU, text: "```" } })).toMatchObject({ status: 404 });
+    h.turns = [{ role: "assistant", blocks: [{ type: "text", text: "```" }] }];
+    expect(await speak(h, { body: { ...OOLU, text: "```" } })).toMatchObject({ status: 422, error: "line_unspeakable" });
+  });
+});
+
+describe("familiarShown", () => {
+  const a = (...texts: string[]) => ({ role: "assistant", blocks: texts.map((text) => ({ type: "text", text })) });
+  const u = (text: string) => ({ role: "user", blocks: [{ type: "text", text }] });
+  const results = { role: "user", blocks: [{ type: "tool_result", content: "x" }] };
+
+  // Bug caught: a substring or prefix of a reply accepted (the owl reading a clipped sentence, or a caller's
+  // words appended to a real reply).
+  it.each([
+    ["a prefix", "Hello"],
+    ["the reply plus words of the caller's", "Hello there. And more."],
+    ["nothing", "   "],
+  ])("refuses %s", (_what, text) => {
+    expect(familiarShown([a("Hello there.")], text)).toBe(false);
+  });
+
+  it("accepts a reply ignoring the whitespace around it", () => {
+    expect(familiarShown([a("  Hello there.\n")], "Hello there.")).toBe(true);
+  });
+
+  // Bug caught: block order ignored (blocks joined in the wrong order), or a gap allowed (skipping a block).
+  it("joins only neighbours, in order", () => {
+    const turns = [a("One. "), a("Two. "), a("Three.")];
+    expect(familiarShown(turns, "One. Two. Three.")).toBe(true);
+    expect(familiarShown(turns, "Two. Three.")).toBe(true);
+    expect(familiarShown(turns, "One. Three.")).toBe(false);
+    expect(familiarShown(turns, "Two. One.")).toBe(false);
+  });
+
+  // Bug caught: tool results treated as the DM's message (reply cut in two), or as words (spoken).
+  it("joins across a user row of tool results, never across the DM's text, and never speaks a result", () => {
+    expect(familiarShown([a("One. "), results, a("Two.")], "One. Two.")).toBe(true);
+    expect(familiarShown([a("One. "), u("hm?"), a("Two.")], "One. Two.")).toBe(false);
+    expect(familiarShown([a("One."), results], "x")).toBe(false);
+    expect(familiarShown([u("Only me.")], "Only me.")).toBe(false);
+  });
+
+  // Bug caught: a block the reader was never shown joined into the spoken reply.
+  it("does not join across a block marked unshown", () => {
+    const turns = [{ role: "assistant", blocks: [{ type: "text", text: "A. " }, { type: "text", text: "secret ", unshown: true }, { type: "text", text: "B." }] }];
+    expect(familiarShown(turns, "A. secret B.")).toBe(false);
+    expect(familiarShown(turns, "A. B.")).toBe(false);
+    expect(familiarShown(turns, "B.")).toBe(true);
+  });
+});
+
+describe("spokenFromMarkdown", () => {
+  // Bug caught: each mark read aloud or its words lost with it.
+  it.each([
+    ["a heading", "## The Ledger\nBrindle.", "The Ledger\nBrindle."],
+    ["bold and italics", "**Bold** and *soft* and __strong__ and _calm_", "Bold and soft and strong and calm"],
+    ["inline code", "Use `roll d20` now", "Use roll d20 now"],
+    ["a link and an image", "See [the map](https://x.test/m) ![a map](https://x.test/i.png)", "See the map a map"],
+    ["bullets", "- one\n* two\n+ three", "one\ntwo\nthree"],
+    ["a quote", "> wise words", "wise words"],
+    ["a code fence", "```ts\nroll()\n```", "roll()"],
+    ["blank lines", "a\n\n\n\nb", "a\n\nb"],
+  ])("drops the marks of %s", (_what, md, spoken) => {
+    expect(spokenFromMarkdown(md)).toBe(spoken);
+  });
+
+  // Bug caught: underscores inside words eaten (snake_case names read as "snakecase").
+  it("leaves underscores inside a word", () => {
+    expect(spokenFromMarkdown("the quest_beats table")).toBe("the quest_beats table");
   });
 });

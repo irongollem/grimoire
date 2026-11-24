@@ -4,13 +4,15 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { ref } from "vue";
 import type { AnyAskAdapter, AskAdapter, AskRunResult } from "@/lib/ask/askAdapter";
+import type { User } from "@supabase/supabase-js";
+import { useAuthStore } from "@/stores/auth";
 import { useAskUiStore } from "@/stores/ui/ask";
 
 const route = { fullPath: "/dashboard", path: "/dashboard", query: {}, meta: { title: "Dashboard" } };
 const push = vi.fn();
 vi.mock("vue-router", () => ({ useRoute: () => route, useRouter: () => ({ push }), RouterLink: { template: "<a><slot /></a>" } }));
 vi.mock("@/composables/useBreakpoint", async (importOriginal) => ({ ...(await importOriginal<object>()), useIsMobile: () => ref(false) }));
-vi.mock("@/lib/motion", () => ({ railTransition: () => ({}), drawerTransition: () => ({}) }));
+vi.mock("@/lib/motion", () => ({ railTransition: () => ({}), drawerTransition: () => ({}), prefersReducedMotion: () => true }));
 vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ openOutOfCredits: vi.fn() }) }));
 vi.mock("@/composables/ask/askUsage", () => ({ useAskUsage: () => ({ freeLeft: ref(5), refetch: vi.fn() }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1", activeCampaign: { name: "Kind Country" } }) }));
@@ -34,8 +36,18 @@ const done = { type: "done", end: "done", routed: true, free: false, credits: 0,
 const transport = vi.fn(async () => sse([{ type: "propose", proposal }, done]));
 vi.mock("@/composables/ask/askTransport", () => ({ sendToAskTurn: (...a: unknown[]) => (transport as (...x: unknown[]) => unknown)(...a) }));
 
+const rates = ref<{ on: boolean; perMinute: { elevenlabs: number | null; inworld: number | null } } | undefined>({ on: true, perMinute: { elevenlabs: 6, inworld: null } });
+vi.mock("@/composables/table/useTableVoice", async (importOriginal) => ({ ...(await importOriginal<object>()), useTableVoiceRates: () => ({ data: rates }) }));
+const voiceTransport = vi.fn(async () => new Response(JSON.stringify({ audio: "AAAA", mime: "audio/mpeg" })));
+vi.mock("@/composables/ask/useFamiliarVoice", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/composables/ask/useFamiliarVoice")>();
+  return { ...real, useFamiliarVoice: () => real.useFamiliarVoice({ transport: voiceTransport as never, player: () => ({ done: Promise.resolve(), stop: () => undefined }) }) };
+});
+
+import FamiliarAvatar from "@/components/ask/FamiliarAvatar.vue";
 import AskPanel from "./AskPanel.vue";
 
+let accounts = 0;
 const stubs = { Teleport: true, Transition: false, RouterLink: { template: "<a><slot /></a>" } };
 
 describe("AskPanel", () => {
@@ -46,6 +58,10 @@ describe("AskPanel", () => {
     transport.mockClear();
     push.mockClear();
     route.fullPath = "/dashboard";
+    voiceTransport.mockClear();
+    rates.value = { on: true, perMinute: { elevenlabs: 6, inworld: null } };
+    // The switch is remembered per account for the life of the module: a fresh account starts every test off.
+    useAuthStore().user = { id: `u${++accounts}` } as User;
   });
 
   // Bug caught: a search query carried into the panel never sent, or sent twice (mount plus watcher).
@@ -146,7 +162,7 @@ describe("AskPanel", () => {
     w.unmount();
   });
 
-  async function ask(w: ReturnType<typeof mount>) {
+  async function askAndConfirm(w: ReturnType<typeof mount>) {
     await w.get('[data-testid="ask-input"]').setValue("make a baker");
     await w.get('[data-testid="ask-input"]').trigger("keydown", { key: "Enter" });
     await flushPromises();
@@ -158,7 +174,7 @@ describe("AskPanel", () => {
   it("disables New conversation while a run is in flight, and frees it when it ends", async () => {
     useAskUiStore().openPanel();
     const w = mount(AskPanel, { global: { stubs } });
-    await ask(w);
+    await askAndConfirm(w);
     expect(w.get('[data-testid="ask-new"]').attributes("disabled")).toBeDefined();
     await w.get('[data-testid="ask-new"]').trigger("click");
     expect(w.find('[data-testid="ask-pending"]').exists()).toBe(true);
@@ -181,7 +197,7 @@ describe("AskPanel", () => {
     };
     useAskUiStore().openPanel();
     const w = mount(AskPanel, { global: { stubs } });
-    await ask(w);
+    await askAndConfirm(w);
     expect(w.find('[data-testid="ask-preview"]').exists()).toBe(true);
     confirmStartOver.mockResolvedValueOnce(false);
     await w.get('[data-testid="ask-new"]').trigger("click");
@@ -191,6 +207,67 @@ describe("AskPanel", () => {
     await w.get('[data-testid="ask-new"]').trigger("click");
     await flushPromises();
     expect(w.find('[data-testid="ask-preview"]').exists()).toBe(false);
+    w.unmount();
+  });
+
+  const ask = async (w: ReturnType<typeof mount>) => {
+    await w.get('[data-testid="ask-input"]').setValue("who runs the mill?");
+    await w.get('[data-testid="ask-input"]').trigger("keydown", { key: "Enter" });
+    await flushPromises();
+  };
+
+  // Bug caught: Oolu reading aloud (a paid call) before anyone asked for it, or the toggle shown pressed.
+  it("shows Oolu's switch off by default, with the price, and asks the voice for nothing", async () => {
+    useAskUiStore().openPanel();
+    transport.mockResolvedValueOnce(sse([{ type: "session", sessionId: "s1" }, { type: "text", delta: "Harl runs it." }, done]));
+    const w = mount(AskPanel, { global: { stubs } });
+    const toggle = w.get('[data-testid="ask-voice"]');
+    expect(toggle.attributes("aria-pressed")).toBe("false");
+    expect(toggle.attributes("aria-label")).toBe("Oolu reads replies aloud · about 6 credits a minute");
+    await ask(w);
+    expect(voiceTransport).not.toHaveBeenCalled();
+    w.unmount();
+  });
+
+  // Bug caught: the switch doing nothing, or reading aloud something other than the reply (chips, quote cards).
+  it("reads only the reply aloud once the switch is pressed", async () => {
+    useAskUiStore().openPanel();
+    transport.mockResolvedValueOnce(sse([{ type: "session", sessionId: "s1" }, { type: "text", delta: "Harl runs it." }, { type: "propose", proposal }, done]));
+    const w = mount(AskPanel, { global: { stubs } });
+    await w.get('[data-testid="ask-voice"]').trigger("click");
+    expect(w.get('[data-testid="ask-voice"]').attributes("aria-pressed")).toBe("true");
+    await ask(w);
+    expect(voiceTransport).toHaveBeenCalledTimes(1);
+    expect(voiceTransport).toHaveBeenCalledWith({ campaignId: "c1", sessionId: "s1", role: "familiar", speakerId: null, speakerName: "Oolu", text: "Harl runs it.", how: null, key: null });
+    w.unmount();
+  });
+
+  // Bug caught: a switch offered where the server has no voices, which would only ever fail.
+  it("hides the switch when voices are off or ElevenLabs has no rate", async () => {
+    useAskUiStore().openPanel();
+    rates.value = { on: false, perMinute: { elevenlabs: 6, inworld: null } };
+    const off = mount(AskPanel, { global: { stubs } });
+    expect(off.find('[data-testid="ask-voice"]').exists()).toBe(false);
+    off.unmount();
+    rates.value = { on: true, perMinute: { elevenlabs: null, inworld: 3 } };
+    const norate = mount(AskPanel, { global: { stubs } });
+    expect(norate.find('[data-testid="ask-voice"]').exists()).toBe(false);
+    norate.unmount();
+  });
+
+  // Bug caught: Oolu silently going quiet when credits run out, leaving the DM to think the switch broke.
+  it("says why Oolu went quiet when credits run out", async () => {
+    useAskUiStore().openPanel();
+    voiceTransport.mockResolvedValueOnce(new Response(JSON.stringify({ error: "insufficient_credits" }), { status: 402 }));
+    transport.mockResolvedValueOnce(sse([{ type: "session", sessionId: "s1" }, { type: "text", delta: "Harl runs it." }, done]));
+    const w = mount(AskPanel, { global: { stubs } });
+    await w.get('[data-testid="ask-voice"]').trigger("click");
+    await ask(w);
+    expect(w.get('[data-testid="ask-voice-note"]').text()).toContain("out of credits");
+    // Bug caught: the owl frozen for good once Oolu went quiet; it goes back to moving with the words arriving.
+    transport.mockResolvedValueOnce(sse([{ type: "text", delta: "And Mirel keeps the books." }, done]));
+    await ask(w);
+    expect(w.getComponent(FamiliarAvatar).props("speaking")).toBe(true);
     w.unmount();
   });
 });

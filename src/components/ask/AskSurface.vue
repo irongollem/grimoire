@@ -7,6 +7,19 @@
         <AppButton as="span" variant="tinted" size="xs" tone="info" emphasis="outline" label="Beta" data-testid="ask-beta" />
       </div>
       <div class="flex items-center gap-1">
+        <AppButton
+          v-if="voice.shown"
+          variant="ghost"
+          size="icon-xs"
+          :icon="voice.on ? IconVolume : IconMute"
+          icon-size="md"
+          :active="voice.on"
+          :aria-pressed="voice.on"
+          :aria-label="voiceLabel"
+          :tooltip="voiceLabel"
+          data-testid="ask-voice"
+          @click="emit('voice', !voice.on)"
+        />
         <AppButton variant="ghost" size="inline" label="New conversation" :disabled="startingOverBlocked" data-testid="ask-new" @click="emit('new')" />
         <AppButton v-if="!docked" variant="ghost" size="icon-xs" :icon="IconClose" icon-size="md" aria-label="Close the Familiar" data-testid="ask-close" @click="emit('close')" />
       </div>
@@ -17,6 +30,9 @@
       <span class="font-semibold text-foreground">{{ campaignName }}</span>
       <template v-if="pageTitle"> from {{ pageTitle }}</template>
     </p>
+
+    <!-- Why Oolu went quiet, in the context line's own voice. -->
+    <p v-if="voice.note" class="shrink-0 border-b border-border/60 px-4 py-1.5 text-caption text-muted-foreground" role="status" data-testid="ask-voice-note">{{ voice.note }}</p>
 
     <AskThread
       :items="items"
@@ -48,9 +64,10 @@
 
 <script setup lang="ts">
 /** The panel's face: header, where-from chip, the thread and the composer. State and wiring belong to AskPanel. */
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import type { AskChoice, AskReportDraft } from "@edge-shared/agent/askContract";
-import { IconClose } from "@/lib/icons";
+import { IconClose, IconMute, IconVolume } from "@/lib/icons";
+import { creditsText } from "@/lib/ask/askCredits";
 import FamiliarAvatar from "@/components/ask/FamiliarAvatar.vue";
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
 import type { AskItem } from "@/composables/ask/useAskConversation";
@@ -58,7 +75,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AskThread from "@/components/ask/AskThread.vue";
 import AskComposer from "@/components/ask/AskComposer.vue";
 
-defineProps<{
+const props = defineProps<{
   /** In the right-hand dock, whose tab strip closes it: no close of its own. */
   docked?: boolean;
   items: AskItem[];
@@ -71,6 +88,8 @@ defineProps<{
   campaignName: string;
   pageTitle: string | null;
   allowanceLine: string;
+  /** Oolu reading replies aloud: the switch (hidden where voices are off), its price, and why it went quiet. */
+  voice: { shown: boolean; on: boolean; perMinute: number | null; note: string | null };
 }>();
 const emit = defineEmits<{
   new: [];
@@ -94,7 +113,13 @@ const emit = defineEmits<{
   credits: [needed: number];
   upgrade: [];
   review: [report: AskReportDraft];
+  voice: [on: boolean];
 }>();
+
+const voiceLabel = computed(() => {
+  const base = "Oolu reads replies aloud";
+  return props.voice.perMinute === null ? base : `${base} · about ${creditsText(props.voice.perMinute)} a minute`;
+});
 
 const composer = ref<InstanceType<typeof AskComposer> | null>(null);
 defineExpose({ focus: () => composer.value?.focus() });

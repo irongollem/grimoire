@@ -16,12 +16,21 @@
 // METERED: every call is a paid request to a speech service on the platform's key. Credits are reserved before the
 // line is spoken (`withHold`) and the cost is accrued on the sitting, billed in whole credits as they are crossed
 // (`accrue`; `accrue_agent_voice`). It answers only where the stack has voices on (`voicesOn`, `_shared/speech.ts`).
+//
+// A second speaker, Oolu (role `familiar`: Ask Grimoire reading its own replies aloud): the owl of
+// the Familiar box, on one ElevenLabs voice (`FAMILIAR_VOICE`, no stand-in). Oolu belongs to a conversation of kind
+// `ask`, the table's roles to `solo_table`; each kind refuses the other's roles as "not found". Ask signs nothing, so
+// an Oolu line never carries a key (one that does is an invalid request) and is proven from the stored turns alone:
+// its words must be exactly what the assistant wrote (`familiarShown`). The reply is Markdown, so what is spoken is
+// a plain version of it (`spokenFromMarkdown`); the clip is still kept and named by the words as shown. Billed under
+// `ask_voice`, accrued on the conversation like the table's.
 
 import { VoicesSpent, type SpeechService } from "../_shared/speech.ts";
 import { creditsForSpeech, creditsPerMinute, speechChars } from "../_shared/agent/voiceCost.ts";
 import type { CreditCalibration } from "../_shared/agent/metering.ts";
 import { NARRATOR_CUE, narratorSpeaker, pickVoice, type AgeBand, type NarratorVoice, type Sex } from "./voicePick.ts";
-import { VOICE_ROLES, type VoiceRole } from "../_shared/agent/lineKey.ts";
+import { FAMILIAR_SPEAKER, VOICE_ROLES, type VoiceRole } from "../_shared/agent/lineKey.ts";
+import { FAMILIAR_VOICE } from "../_shared/narratorVoice.ts";
 import { UUID_RE } from "../_shared/agent/parse.ts";
 import type { BaseCampaign, CampaignLoad } from "../_shared/pipeline/aiCampaign.ts";
 import type { CreditHold } from "../_shared/pipeline/creditHold.ts";
@@ -36,7 +45,15 @@ export interface VoiceSession {
   campaign_id: string;
   /** The voice the table's host chose for the Narrator. The table's, never a player's: a line's clip is made once. */
   narrator_voice: NarratorVoice;
+  /** What the conversation is: `solo_table` (the AI table) or `ask` (Ask Grimoire). Decides which roles it may voice. */
+  kind: string;
 }
+
+/** Which conversation kind may voice each role: Oolu belongs to Ask, every other voice to the AI table. */
+const kindFor = (role: VoiceRole): string => (role === "familiar" ? "ask" : "solo_table");
+
+/** The credit ledger reasons a spoken line is held and charged under. */
+export type VoiceReason = "table_voice" | "ask_voice";
 
 export interface TableVoiceDeps {
   /** Whether voices are switched on for this stack: the speech key and the trial switch are both set. */
@@ -44,7 +61,7 @@ export interface TableVoiceDeps {
   /** By id alone: the handler decides whether it belongs to the caller. */
   loadSession(sessionId: string): Promise<VoiceSession | null>;
   /** The campaign, or the refusal to answer with: the caller must be its DM, and AI must be on. */
-  loadCampaign(campaignId: string, userId: string): Promise<CampaignLoad<BaseCampaign>>;
+  loadCampaign(campaignId: string, userId: string, aiSwitch: "campaign" | "table"): Promise<CampaignLoad<BaseCampaign>>;
   rateLimit(userId: string): Promise<boolean>;
   /** Whether the key is the one `agent-turn` gave for exactly this line of this conversation. */
   keyFits(sessionId: string, line: VoicedLine, key: string): boolean;
@@ -82,7 +99,7 @@ export interface TableVoiceDeps {
   /** The model the service speaks with, for the ledger line. */
   modelOf(service: VoiceService): string;
   /** Holds `credits` for a line about to be made, runs it and releases the hold whatever happens; a refused hold answers its refusal. */
-  withHold(userId: string, credits: number, work: (hold: VoiceHold) => Promise<Response>): Promise<Response>;
+  withHold(userId: string, credits: number, reason: VoiceReason, work: (hold: VoiceHold) => Promise<Response>): Promise<Response>;
   /**
    * Adds the line's exact cost to the conversation and answers the whole credits it newly crossed (0 when none).
    * Billing those is the hold's: `table_voice` lines are charged by accrual, not per line.
@@ -152,11 +169,14 @@ export interface VoiceBody {
   text: string;
   /** The character's cue for how it is said, as the line carried it; null when it had none. */
   how: string | null;
-  /** The key the line came with; null for a line read back from a stored conversation, which only a kept clip answers. */
+  /** The key the line came with; null for a line read back from a stored conversation, which only a kept clip answers. Always null for Oolu. */
   key: string | null;
-  /** Whose words: a character's (the default), the narrator's, or the player's own character's. */
+  /** Whose words: a character's (the default), the narrator's, the player's own character's, or Oolu's (Ask). */
   role: VoiceRole;
 }
+
+/** The longest reply Oolu will read, in characters. */
+export const FAMILIAR_TEXT_MAX = 8000;
 
 export function parseVoiceBody(raw: unknown): VoiceBody | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
@@ -165,13 +185,17 @@ export function parseVoiceBody(raw: unknown): VoiceBody | null {
   if (typeof r.sessionId !== "string" || !UUID_RE.test(r.sessionId)) return null;
   if (r.speakerId !== null && (typeof r.speakerId !== "string" || !UUID_RE.test(r.speakerId))) return null;
   if (typeof r.speakerName !== "string" || r.speakerName.trim() === "" || r.speakerName.length > 200) return null;
-  if (typeof r.text !== "string" || r.text.trim() === "" || r.text.length > 4000) return null;
+  const role = r.role === undefined ? "character" : r.role;
+  if (typeof role !== "string" || !(VOICE_ROLES as readonly string[]).includes(role)) return null;
+  // An Ask answer runs to 1,500 output tokens; a spoken line of the table is a few sentences.
+  const maxText = role === "familiar" ? FAMILIAR_TEXT_MAX : 4000;
+  if (typeof r.text !== "string" || r.text.trim() === "" || r.text.length > maxText) return null;
   const how = r.how === undefined || r.how === null ? null : r.how;
   if (how !== null && (typeof how !== "string" || how.length > 400)) return null;
   const key = r.key === undefined || r.key === null ? null : r.key;
   if (key !== null && (typeof key !== "string" || key === "" || key.length > 200)) return null;
-  const role = r.role === undefined ? "character" : r.role;
-  if (typeof role !== "string" || !(VOICE_ROLES as readonly string[]).includes(role)) return null;
+  // Ask signs nothing, so a key on Oolu's line is a caller trying something else: refused as an invalid request.
+  if (role === "familiar" && key !== null) return null;
   return { campaignId: r.campaignId, sessionId: r.sessionId, speakerId: r.speakerId, speakerName: r.speakerName, text: r.text, how, key, role: role as VoiceRole };
 }
 
@@ -212,12 +236,18 @@ export async function speakLine(input: {
   // Someone else's conversation, or one in another campaign, is "not found": a 403 would say it exists.
   const session = await deps.loadSession(body.sessionId);
   if (!session || session.user_id !== userId || session.campaign_id !== body.campaignId) return jsonError(404, "conversation_not_found", VOICE_MESSAGES.notFound);
-  const load = await deps.loadCampaign(session.campaign_id, userId);
+  // A role on the wrong kind of conversation answers the same, so it reveals nothing about the conversation.
+  if (session.kind !== kindFor(body.role)) return jsonError(404, "conversation_not_found", VOICE_MESSAGES.notFound);
+  const familiar = body.role === "familiar";
+  const load = await deps.loadCampaign(session.campaign_id, userId, familiar ? "campaign" : "table");
   if (!load.ok) return load.response;
 
   if (!(await deps.rateLimit(userId))) return rateLimited();
 
-  const line: VoicedLine = { role: body.role, speaker: { id: body.speakerId, name: body.speakerName }, text: body.text, how: body.how };
+  // Oolu is always Oolu and has no cue, whatever the body says: both are under the clip's name.
+  const line: VoicedLine = familiar
+    ? { role: body.role, speaker: { ...FAMILIAR_SPEAKER }, text: body.text, how: null }
+    : { role: body.role, speaker: { id: body.speakerId, name: body.speakerName }, text: body.text, how: body.how };
   const at = { campaignId: session.campaign_id, sessionId: session.id };
 
   // A clip made before is answered as it was made. A store that cannot be read costs a new clip, never the line.
@@ -238,15 +268,21 @@ export async function speakLine(input: {
     line.how = shown.how;
   }
 
+  // What is said aloud: Oolu's Markdown as plain words. Screened, counted and spoken in this form.
+  const said = familiar ? spokenFromMarkdown(line.text) : line.text;
+  if (said === "") return jsonError(422, "line_unspeakable", VOICE_MESSAGES.unspeakable);
+
   // A line is voiced the moment it arrives, before its turn has been screened and kept, so it is screened here
   // too: a line the table may not tell is never spoken. An outage of the screen does not silence the table.
   try {
-    if (await deps.isFlagged(line.text)) return jsonError(422, "line_unspeakable", VOICE_MESSAGES.unspeakable);
+    if (await deps.isFlagged(said)) return jsonError(422, "line_unspeakable", VOICE_MESSAGES.unspeakable);
   } catch (error) {
     console.error("table-voice: screening the line failed:", error);
   }
 
-  const voice = await voiceFor(deps, session, line);
+  // Oolu speaks on ElevenLabs alone: no stand-in on another service, so without its key Oolu is silent.
+  if (familiar && !deps.hasService(FAMILIAR_VOICE.service)) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
+  const voice: VoiceRef = familiar ? { ...FAMILIAR_VOICE } : await voiceFor(deps, session, line);
   // A line that is made is paid for: what it costs is worked out before it is made, from the admin's numbers.
   // Without them nothing is made, because nothing could be charged.
   const rate = await deps.loadRate(voice.service);
@@ -254,13 +290,14 @@ export async function speakLine(input: {
   // Narration carries no cue of its own; on ElevenLabs, which acts on one, the Narrator tells as a storyteller
   // (the maintainer's ear: "significantly better"). The cue is sent, so it is counted like the words.
   const how = line.role === "narrator" && voice.service === "elevenlabs" ? NARRATOR_CUE : line.how;
-  const chars = speechChars(line.text, how);
+  const chars = speechChars(said, how);
   const credits = creditsForSpeech(chars, rate.usdPerMillionChars, rate.calibration);
-  return deps.withHold(userId, Math.max(1, Math.ceil(credits)), async (hold) => {
+  const reason: VoiceReason = familiar ? "ask_voice" : "table_voice";
+  return deps.withHold(userId, Math.max(1, Math.ceil(credits)), reason, async (hold) => {
     let audio: string;
     try {
       // The words and the cue are the ones under the key: the page could not have changed either.
-      audio = await deps.synthesize(voice, { text: line.text, how, narration: line.role === "narrator" });
+      audio = await deps.synthesize(voice, { text: said, how, narration: line.role === "narrator" });
     } catch (error) {
       // Out of allowance is told apart, so the page can say so once and stop asking for every line.
       if (error instanceof VoicesSpent) return jsonError(402, "voices_spent", VOICE_MESSAGES.spent);
@@ -274,7 +311,7 @@ export async function speakLine(input: {
     // asking again, since the clip is kept.
     try {
       const due = await deps.accrue(session.id, credits);
-      if (due > 0) hold.charge("table_voice", { cost: due, log: { provider: voice.service, model: deps.modelOf(voice.service) } });
+      if (due > 0) hold.charge(reason, { cost: due, log: { provider: voice.service, model: deps.modelOf(voice.service) } });
     } catch (error) {
       console.error("table-voice: charging the line failed:", error);
     }
@@ -290,6 +327,7 @@ const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "obj
  * Answers the cue the line was stored with. Pure: the turns come in as they are read from `agent_turns`.
  */
 export function shownInTurns(turns: ReadonlyArray<{ role: string; blocks: unknown }>, line: VoicedLine): { how: string | null } | null {
+  if (line.role === "familiar") return familiarShown(turns, line.text) ? { how: null } : null;
   const wanted = line.text.trim();
   for (const turn of turns) {
     if (!Array.isArray(turn.blocks)) continue;
@@ -313,6 +351,63 @@ export function shownInTurns(turns: ReadonlyArray<{ role: string; blocks: unknow
     }
   }
   return null;
+}
+
+/**
+ * Whether Ask's reply is something the assistant wrote. The browser shows one reply as the raw concatenation of the
+ * assistant's text blocks across model steps (text, a tool call, more text), so the words are accepted when they equal
+ * that join of one or more CONSECUTIVE text blocks. Turns come in order of `seq`. What breaks a run: a `user` row
+ * with a text block (the DM's own next message; a user row of tool results alone belongs to the same reply), a block
+ * marked `unshown`, or a text block with no string. Nothing the assistant did not write can be joined in, so this is
+ * no speech service for what a caller types. Pure.
+ */
+export function familiarShown(turns: ReadonlyArray<{ role: string; blocks: unknown }>, text: string): boolean {
+  const wanted = text.trim();
+  if (wanted === "") return false;
+  let run: string[] = [];
+  const inRun = (): boolean => {
+    for (let from = 0; from < run.length; from++) {
+      let joined = "";
+      for (let to = from; to < run.length; to++) {
+        joined += run[to];
+        if (joined.trim() === wanted) return true;
+      }
+    }
+    return false;
+  };
+  for (const turn of turns) {
+    if (!Array.isArray(turn.blocks)) continue;
+    for (const block of turn.blocks) {
+      if (!isRecord(block) || block.type !== "text") continue;
+      if (turn.role === "assistant" && typeof block.text === "string" && block.unshown !== true) {
+        run.push(block.text);
+      } else {
+        // The DM's own message, or words the reader was not shown: the reply before it is complete.
+        if (inRun()) return true;
+        run = [];
+      }
+    }
+  }
+  return inRun();
+}
+
+/**
+ * Ask's reply as it is said aloud: the Markdown's marks dropped, its words kept. Headings, list bullets, quote marks,
+ * fences, emphasis and code ticks go; a link or an image says its text. Blank lines collapse to one.
+ */
+export function spokenFromMarkdown(md: string): string {
+  return md
+    .replace(/^\s*(```|~~~).*$/gm, "")
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/`+([^`\n]*)`+/g, "$1")
+    .replace(/\*+/g, "")
+    .replace(/(^|[^\w])_{1,2}([^_\n]+)_{1,2}(?![\w])/g, "$1$2")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /**

@@ -10,15 +10,16 @@ export function isNarratorVoice(raw: unknown): raw is NarratorVoice {
 /**
  * The Narrator's voices. Each choice has a voice on both services.
  *
- * The man's is David on ElevenLabs: the maintainer listened to one recap in several voices (19 Nov 2026) and called
- * him "by far the best....even want him as my narrator in sessions". So the man narrates on ElevenLabs, at the
+ * The man's is "Narrator", the maintainer's own design on ElevenLabs (24 Nov 2026). It replaced David
+ * (`BNgbHR0DNeZixGQVzloa`), chosen by ear on 19 Nov 2026 but a premium voice at more than twice the price per
+ * character; do not put David back without weighing that price. So the man narrates on ElevenLabs, at the
  * table and for a note told with feeling; his Inworld voice (the maintainer's own design, 18 Nov 2026) is the
  * cheaper plain telling of a note, and the stand-in where a stack has no ElevenLabs key. The woman's is the
  * maintainer's Inworld design, with Alice, an ElevenLabs ready-made voice, for a telling with feeling and as the
  * stand-in. `table` says which service narrates a sitting. A voice id names a voice; it is not a secret.
  */
 export const NARRATOR_VOICES: Record<NarratorVoice, { elevenlabs: string; inworld: string; table: "elevenlabs" | "inworld" }> = {
-  male: { elevenlabs: "BNgbHR0DNeZixGQVzloa", inworld: "snappy-magpie-0676__design-voice-970db65e", table: "elevenlabs" },
+  male: { elevenlabs: "uT0AExtVkYtYQMNBHqmV", inworld: "snappy-magpie-0676__design-voice-970db65e", table: "elevenlabs" },
   female: { elevenlabs: "Xb7hH8MSUJpSbSDYk0k2", inworld: "snappy-magpie-0676__design-voice-1e599405", table: "inworld" },
 };
 
@@ -32,3 +33,9 @@ export function narratorSpeaker(voice: NarratorVoice, hasService: (service: "ele
   const service = hasService(v.table) ? v.table : other;
   return { service, id: v[service] };
 }
+
+/**
+ * Oolu, the owl in the Familiar box (Ask Grimoire): a voice the maintainer designed on ElevenLabs (24 Nov 2026).
+ * ElevenLabs only: there is no Inworld stand-in, so a stack without that key leaves Oolu silent.
+ */
+export const FAMILIAR_VOICE = { service: "elevenlabs", id: "kGl89T0PY344jeMOzVyf" } as const;

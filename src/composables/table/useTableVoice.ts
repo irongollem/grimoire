@@ -32,6 +32,26 @@ export const sendToTableVoice: VoiceTransport = async (request) => {
   });
 };
 
+/**
+ * What a `table-voice` answer means for the one who asked: a clip to play, a line to skip (not provable, a failure),
+ * or a reason to stop asking: voices are not switched on (503), the caller's credits do not cover a line (402
+ * `insufficient_credits`), or the speech service's allowance is used up (any other 402). Shared by the table and
+ * Oolu, so both read the server the same way.
+ */
+export type VoiceAnswer = { kind: "clip"; src: string } | { kind: "skip" } | { kind: "unavailable" | "broke" | "spent" };
+
+export async function readVoiceResponse(response: Response): Promise<VoiceAnswer> {
+  if (response.status === 503) return { kind: "unavailable" };
+  if (response.status === 402) {
+    const refusal = (await response.json().catch(() => null)) as { error?: unknown } | null;
+    return { kind: refusal !== null && refusal.error === "insufficient_credits" ? "broke" : "spent" };
+  }
+  if (!response.ok) return { kind: "skip" };
+  const body = (await response.json().catch(() => null)) as { audio?: unknown; mime?: unknown } | null;
+  if (!body || typeof body.audio !== "string" || body.audio === "") return { kind: "skip" };
+  return { kind: "clip", src: `data:${typeof body.mime === "string" ? body.mime : "audio/mpeg"};base64,${body.audio}` };
+}
+
 /** Plays one clip and settles when it is over (or cannot be played). `stop` cuts it short. */
 export type VoicePlayer = (src: string) => { done: Promise<void>; stop(): void };
 
@@ -132,29 +152,16 @@ export function useTableVoice(options: {
     } catch {
       return null;
     }
-    if (response.status === 503) {
-      // Voices are not switched on for this server: stop asking, and say so once through `unavailable`.
-      if (mine === generation) {
-        unavailable.value = true;
-        queue = [];
-      }
-      return null;
+    const read = await readVoiceResponse(response);
+    if (read.kind === "clip") return read.src;
+    if (read.kind !== "skip" && mine === generation) {
+      // Asking for the next line cannot help: say why once, and stop asking.
+      if (read.kind === "unavailable") unavailable.value = true;
+      else if (read.kind === "broke") broke.value = true;
+      else spent.value = true;
+      queue = [];
     }
-    if (response.status === 402) {
-      // Asking for the next line cannot help, so stop, and say why once: the player's own credits have run out
-      // (a made line is paid for), or the speech service's allowance is used up.
-      const refusal = (await response.json().catch(() => null)) as { error?: unknown } | null;
-      if (mine === generation) {
-        if (refusal !== null && refusal.error === "insufficient_credits") broke.value = true;
-        else spent.value = true;
-        queue = [];
-      }
-      return null;
-    }
-    if (!response.ok) return null;
-    const body = (await response.json().catch(() => null)) as { audio?: unknown; mime?: unknown } | null;
-    if (!body || typeof body.audio !== "string" || body.audio === "") return null;
-    return `data:${typeof body.mime === "string" ? body.mime : "audio/mpeg"};base64,${body.audio}`;
+    return null;
   }
 
   async function drain(): Promise<void> {

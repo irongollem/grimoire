@@ -18,7 +18,7 @@ const okResult: AskRunResult = {
   parts: [{ label: "NPC", ok: true, credits: 4 }],
 };
 
-function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapter["run"]; quick?: AskAdapter["quick"]; campaignId?: () => string | null } = {}) {
+function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapter["run"]; quick?: AskAdapter["quick"]; campaignId?: () => string | null; onReplied?: AskConversationDeps["onReplied"] } = {}) {
   const responses = [...(over.responses ?? [])];
   const transport = vi.fn(async () => responses.shift() ?? sse([done]));
   const run = vi.fn(over.run ?? (async () => okResult));
@@ -33,6 +33,7 @@ function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapte
     routePath: () => "/dashboard",
     transport,
     onFinished,
+    ...(over.onReplied ? { onReplied: over.onReplied } : {}),
   };
   return { convo: useAskConversation(deps), transport, run, quick, onFinished };
 }
@@ -112,6 +113,66 @@ describe("useAskConversation: the turn", () => {
     const { convo } = setup({ responses: [sse([{ type: "text", delta: "Harl runs it." }, { type: "error", message: "The answer could not be saved. Ask again." }])] });
     await convo.send("who runs the mill?");
     expect(convo.items.value.map((i) => i.kind)).toEqual(["user", "reply", "error"]);
+  });
+
+  // Bug caught: the Familiar reading its chips, ideas or quote cards aloud, or the replies out of order.
+  it("hands only the turn's reply texts to onReplied, in order, with the session", async () => {
+    const onReplied = vi.fn();
+    const { convo } = setup({
+      onReplied,
+      responses: [sse([
+        { type: "session", sessionId: "s1" },
+        { type: "text", delta: "Harl " },
+        { type: "text", delta: "runs it." },
+        { type: "ask", question: "Which mill?", choices: [{ label: "Old", reply: "old" }] },
+        { type: "text", delta: "  " },
+        { type: "propose", proposal },
+        { type: "text", delta: "Then Mara." },
+        done,
+      ])],
+    });
+    await convo.send("who runs the mill?");
+    expect(onReplied).toHaveBeenCalledTimes(1);
+    expect(onReplied).toHaveBeenCalledWith({ sessionId: "s1", texts: ["Harl runs it.", "Then Mara."] });
+  });
+
+  // Bug caught: a withheld answer (code the DM must not see) being read aloud anyway.
+  it("does not call onReplied when the answer is withheld", async () => {
+    const onReplied = vi.fn();
+    const { convo } = setup({ onReplied, responses: [sse([{ type: "session", sessionId: "s1" }, { type: "text", delta: "code" }, done, { type: "error", message: ASK_OFF_TOPIC_MESSAGE, withheld: true }])] });
+    await convo.send("write code");
+    expect(onReplied).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: a turn that failed before its end (no done) being read aloud half-written.
+  it("does not call onReplied when the stream never reached done", async () => {
+    const onReplied = vi.fn();
+    const { convo } = setup({ onReplied, responses: [sse([{ type: "session", sessionId: "s1" }, { type: "text", delta: "Harl" }])] });
+    await convo.send("who?");
+    expect(onReplied).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: a conversation started over mid-answer still reading the old answer into the new one.
+  it("does not call onReplied for a turn aborted by a new conversation", async () => {
+    const onReplied = vi.fn();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const enc = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      async start(c) {
+        c.enqueue(enc.encode(`data: ${JSON.stringify({ type: "session", sessionId: "s1" })}\n\ndata: ${JSON.stringify({ type: "text", delta: "Harl" })}\n\n`));
+        await gate;
+        c.enqueue(enc.encode(`data: ${JSON.stringify(done)}\n\n`));
+        c.close();
+      },
+    });
+    const { convo } = setup({ onReplied, responses: [new Response(stream)] });
+    const turn = convo.send("who?");
+    await new Promise((r) => setTimeout(r, 0));
+    convo.newConversation();
+    release();
+    await turn;
+    expect(onReplied).not.toHaveBeenCalled();
   });
 
   // Bug caught: a withheld answer taking back an EARLIER turn's replies, not only its own.
