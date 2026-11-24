@@ -114,6 +114,3 @@ async function campaignDms(client: SupabaseClient, campaignId: string): Promise<
   if (owner.data?.user_id) ids.add(owner.data.user_id as string);
   return ids;
 }
-
-/** A `nameOf` that knows nothing, for a caller whose text holds no mentions. */
-export const NO_MENTION_NAMES: MentionNameOf = () => null;
