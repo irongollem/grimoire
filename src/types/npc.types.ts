@@ -62,6 +62,8 @@ export interface Npc {
   personality: string | null;
   /** How this character talks (#1021): register, pace, turns of phrase, a sample line. Plain text, DM-only. */
   voice: string | null;
+  /** The voice slot that reads this character aloud at the AI table (#1272, `speech_voices`); null until picked or cast. DM-only. */
+  speech_voice_id: string | null;
   backstory: string | null;
   notes: string | null;
   status: NpcStatus;
@@ -108,7 +110,7 @@ export const NPC_LIST_COLUMNS = [
   "id", "user_id", "campaign_id", "name", "race", "alignment", "age", "born_year", "born_month", "born_day", "died_year", "died_month", "died_day", "occupation", "location_id",
   "status", "relationship", "portrait_url", "portrait_focal_point", "cutout_url", "size", "stat_block", "disguise_name",
   "disguise_portrait_url", "disguise_portrait_focal_point", "is_revealed", "tags", "linked_monster_id",
-  "scriptorium_doc_id", "player_visible_to", "player_visible_fields", "ai_provenance", "unmasked_at",
+  "scriptorium_doc_id", "player_visible_to", "player_visible_fields", "ai_provenance", "unmasked_at", "speech_voice_id",
   "created_at", "updated_at",
 ] as const satisfies readonly (keyof NpcListRow)[];
 
@@ -130,9 +132,11 @@ export type PlayerNpc = Omit<Npc, "name" | "size"> & {
 export type NpcInsert = Omit<
   Npc,
   "id" | "user_id" | "created_at" | "updated_at" | "unmasked_at" | "location_id" | "linked_monster_id" | "size"
-  | "born_year" | "born_month" | "born_day" | "died_year" | "died_month" | "died_day"
+  | "born_year" | "born_month" | "born_day" | "died_year" | "died_month" | "died_day" | "speech_voice_id"
 > & {
   location_id?: string | null;
+  /** A new character has no voice until the DM picks one or the table casts one (#1272). */
+  speech_voice_id?: string | null;
   linked_monster_id?: string | null;
   /** Omit to take the column default: Medium. */
   size?: MonsterSize;

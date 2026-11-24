@@ -47,7 +47,8 @@ insert into public.npcs (id, user_id, campaign_id, name, disguise_name, is_revea
    'Unmet stranger', null, true, '{}'::uuid[], array['name'], null, null);
 
 -- How the disguised one talks, and which voice reads them aloud (#1021): both the DM's.
-update public.npcs set voice = 'Dry, clipped, never laughs.', spoken_voice_id = 'VoiceOfTheLich01'
+update public.npcs set voice = 'Dry, clipped, never laughs.',
+  speech_voice_id = (select id from public.speech_voices where voice_id = 'pqHfZKP75CvOlQylNhV4')
  where id = '93300000-0000-4000-8000-000000000020';
 
 -- ── As the player ──────────────────────────────────────────────────────────
@@ -81,7 +82,7 @@ select is(
 
 select is(
   (select count(*)::integer from public.get_player_visible_npcs('93300000-0000-4000-8000-000000000010')
-    where voice is not null or spoken_voice_id is not null),
+    where voice is not null or speech_voice_id is not null),
   0, 'how a character talks and the voice that reads them aloud never come back: a true voice would unmask a disguise');
 
 select is(
