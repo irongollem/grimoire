@@ -5,7 +5,7 @@ import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { toPlainText } from "../_shared/ai-prompt.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { clipName, lineKeyFits } from "../_shared/agent/lineKey.ts";
+import { clipName, lineKeyFits, voiceLineKeyFits } from "../_shared/agent/lineKey.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { clipKey, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
 import { NO_TRAITS, shownInTurns, speakLine, VOICE_MESSAGES, voiceRates, type TableVoiceDeps } from "./handler.ts";
@@ -70,6 +70,8 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     rateLimit: (userId) => checkRateLimit(admin, userId, "table_voice"),
 
     keyFits: (sessionId, line, key) => lineKeyFits(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", sessionId, line, key),
+
+    voiceLineFits: (at, text, key) => voiceLineKeyFits(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", at, text, key),
 
     // Read as the caller, in the campaign: the record is only used to cast a voice and nothing of it is returned.
     // Sex is read from everything the record says about the person (a backstory is full of pronouns); the text a

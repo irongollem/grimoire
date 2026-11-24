@@ -34,6 +34,9 @@ function harness(rows: SpeechVoiceRow[] = [row()]) {
     previewBytes: null as Uint8Array | null,
     previewThrows: false,
     serviceDown: false,
+    serviceStatus: 500,
+    // What ElevenLabs answers for a looked-up ID; null: it does not know it.
+    lookedUp: null as null | { voiceId: string; category: string; publicOwnerId: string | null },
     insertThrows: false,
     reported: [] as unknown[],
     libraryResults: [] as Array<{ publicOwnerId: string; voiceId: string }>,
@@ -70,7 +73,7 @@ function harness(rows: SpeechVoiceRow[] = [row()]) {
       hasService: (s) => h.keys[s],
       design: async (s, prompt, text) => {
         h.designArgs.push([s, prompt, text]);
-        if (h.serviceDown) throw new ServiceError(s, 500);
+        if (h.serviceDown) throw new ServiceError(s, h.serviceStatus);
         return [{ id: "draft-1", audio: base64FromBytes(WAV), mediaType: "" }];
       },
       keep: async (s, d) => (h.calls.push(`keep:${s}:${d.previewId}`), "newvoice12345"),
@@ -85,6 +88,11 @@ function harness(rows: SpeechVoiceRow[] = [row()]) {
         h.calls.push(`preview:${id}`);
         if (h.previewThrows) throw new Error("preview host down");
         return h.previewBytes;
+      },
+      lookupVoice: async (id) => {
+        h.calls.push(`lookup:${id}`);
+        if (h.lookedUp === null) return null;
+        return { name: "Found", description: "A found voice.", gender: "male", age: "old", previewUrl: null, rate: null, ...h.lookedUp };
       },
       synthesize: async (_s, id, text) => (h.calls.push(`speak:${id}:${text}`), h.synthBytes),
     },
@@ -112,7 +120,7 @@ interface StudioAnswer {
 const read = async (res: Response) => (await res.json()) as StudioAnswer;
 
 describe("the admin gate", () => {
-  it.each(["design", "keep", "library-search", "library-add", "account", "remove"])("a signed-in non-admin is refused %s before anything is called", async (action) => {
+  it.each(["design", "keep", "library-search", "library-add", "account", "lookup", "remove"])("a signed-in non-admin is refused %s before anything is called", async (action) => {
     const { h, run } = harness();
     const res = await run({ action, service: "elevenlabs", prompt: "p", previewText: LONG_TEXT, slotId: SLOT, fromService: true }, false);
     expect(res.status).toBe(403);
@@ -153,6 +161,45 @@ describe("design", () => {
     const res = await run({ action: "design", service: "elevenlabs", prompt: "p", previewText: LONG_TEXT });
     expect(res.status).toBe(502);
     expect((await read(res)).message).toMatch(/ElevenLabs could not do that/);
+  });
+
+  // Bug caught: a pasted ID treated as importable when it is a Library voice not in the account (the import would
+  // store a voice that cannot speak), or the reverse (adding a voice the account already has).
+  it("looks up a pasted ID: in the account it imports, from the Library it is added", async () => {
+    const { h, run } = harness();
+    h.lookedUp = { voiceId: "loosevoice123", category: "generated", publicOwnerId: null };
+    expect((await read(await run({ action: "lookup", voiceId: " loosevoice123 " }))).voice).toMatchObject({ voiceId: "loosevoice123", inAccount: true, inRegistry: false });
+    h.lookedUp = { voiceId: "sharedvoice99", category: "professional", publicOwnerId: "owner1" };
+    expect((await read(await run({ action: "lookup", voiceId: "sharedvoice99" }))).voice).toMatchObject({ inAccount: false, publicOwnerId: "owner1" });
+    h.lookedUp = { voiceId: "premadevoice1", category: "premade", publicOwnerId: null };
+    expect((await read(await run({ action: "lookup", voiceId: "premadevoice1" }))).voice).toMatchObject({ inAccount: true });
+  });
+
+  // Bug caught: the same voice pasted twice filling two slots.
+  it("says a pasted ID already fills a slot", async () => {
+    const { h, run } = harness();
+    h.lookedUp = { voiceId: "oldvoice1234", category: "generated", publicOwnerId: null };
+    expect((await read(await run({ action: "lookup", voiceId: "oldvoice1234" }))).voice).toMatchObject({ inRegistry: true });
+  });
+
+  // Bug caught: an unknown or malformed ID answered as a broken service, or sent into ElevenLabs' address unchecked.
+  it("says so for an ID ElevenLabs does not know, and refuses one that is not an ID", async () => {
+    const { h, run } = harness();
+    expect((await run({ action: "lookup", voiceId: "nosuchvoice1" })).status).toBe(404);
+    expect((await run({ action: "lookup", voiceId: "../../v1/user" })).status).toBe(400);
+    expect(h.calls).toEqual(["lookup:nosuchvoice1"]);
+  });
+
+  // Bug caught (seen live): a key not allowed to design voices answered "try again in a moment", which can never help.
+  it("says the key is not allowed, not to try again, when the service refuses the key", async () => {
+    const { h, run } = harness();
+    h.serviceDown = true;
+    h.serviceStatus = 401;
+    const res = await run({ action: "design", service: "elevenlabs", prompt: "p", previewText: LONG_TEXT });
+    expect(res.status).toBe(502);
+    const body = await read(res);
+    expect(body.message).toMatch(/not allowed/);
+    expect(body.message).not.toMatch(/Try again/);
   });
 
   it("without the service's key says so instead of calling it", async () => {

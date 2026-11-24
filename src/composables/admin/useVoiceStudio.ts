@@ -11,9 +11,13 @@ import type {
   LibrarySearchRequest,
   LibrarySearchResponse,
   LibraryVoice,
+  LookedUpVoice,
+  LookupResponse,
   SpeechService,
   SpeechVoice,
   SpeechVoiceFields,
+  VoiceAge,
+  VoiceSex,
 } from "@/types/speechVoice.types";
 
 // The admin's voice studio (#1272): design voices on a service, keep any number of them, add library voices, import
@@ -92,6 +96,21 @@ export interface KeepInput {
   retireOld?: boolean;
 }
 
+/** ElevenLabs' own gender label, as a slot's sex; anything else is left for the admin to set. */
+export function sexOfLabel(gender: string | null): VoiceSex | null {
+  if (gender === "female") return "woman";
+  if (gender === "male") return "man";
+  return null;
+}
+
+/** ElevenLabs' own age label ("young", "middle_aged", "old"), as a slot's age band; anything else is left unset. */
+export function ageOfLabel(age: string | null): VoiceAge | null {
+  if (age === "young") return "young";
+  if (age === "middle_aged" || age === "middle aged" || age === "middle-aged") return "adult";
+  if (age === "old") return "old";
+  return null;
+}
+
 export function useVoiceStudio(sample?: { forget: (slotId: string) => void }) {
   const queryClient = useQueryClient();
   const refresh = () => queryClient.invalidateQueries({ queryKey: SPEECH_VOICES_KEY });
@@ -135,12 +154,17 @@ export function useVoiceStudio(sample?: { forget: (slotId: string) => void }) {
     },
   });
 
+  /** An ElevenLabs voice by the ID pasted from their website. */
+  async function lookupVoice(voiceId: string): Promise<LookedUpVoice> {
+    return (await voiceStudioCall<LookupResponse>({ action: "lookup", voiceId })).voice;
+  }
+
   async function searchLibrary(request: Omit<LibrarySearchRequest, "action">): Promise<LibrarySearchResponse> {
     return voiceStudioCall<LibrarySearchResponse>({ action: "library-search", ...request });
   }
 
   const addFromLibrary = useMutation({
-    mutationFn: async (input: { voice: LibraryVoice; slot: SpeechVoiceFields }): Promise<SpeechVoice> => {
+    mutationFn: async (input: { voice: Pick<LibraryVoice, "publicOwnerId" | "voiceId">; slot: SpeechVoiceFields }): Promise<SpeechVoice> => {
       const response = await voiceStudioCall<LibraryAddResponse>({
         action: "library-add",
         publicOwnerId: input.voice.publicOwnerId,
@@ -153,10 +177,11 @@ export function useVoiceStudio(sample?: { forget: (slotId: string) => void }) {
   });
 
   const importVoice = useMutation({
-    mutationFn: async (input: { voice: AccountVoice; slot: SpeechVoiceFields }): Promise<void> => {
+    mutationFn: async (input: { voice: Pick<AccountVoice, "service" | "voiceId">; slot: SpeechVoiceFields; origin?: "imported" | "stock" }): Promise<void> => {
       const { error } = await supabase.from("speech_voices").insert({
         ...cleanFields(input.slot),
-        origin: "imported",
+        // A ready-made voice found by its ID is everyone's, not one the account made.
+        origin: input.origin ?? "imported",
         service: input.voice.service,
         voice_id: input.voice.voiceId,
       });
@@ -205,5 +230,5 @@ export function useVoiceStudio(sample?: { forget: (slotId: string) => void }) {
     },
   });
 
-  return { account, design, keep, searchLibrary, addFromLibrary, importVoice, saveSlot, remove };
+  return { account, design, keep, searchLibrary, lookupVoice, addFromLibrary, importVoice, saveSlot, remove };
 }

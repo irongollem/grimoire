@@ -24,7 +24,10 @@
           <!-- A spoken row is the speaker's speech bubble; its press sits inside it. -->
           <template v-if="row.spoken && item.shown.speaker">
             <NpcSpeechBubble :name="item.shown.speaker.name" :portrait="item.shown.speaker.portrait" :focal="item.shown.speaker.focal" :line="row.detail" ai :data-testid="`ask-preview-speech-${i}-${r}`">
-              <AskPreviewRowAction v-if="row.action" :action="row.action" :state="stateOf(i, r)" :busy="busy" :mobile="isMobile" :test-id="`ask-preview-row-${i}-${r}`" @act="emit('act', i, r)" />
+              <div v-if="row.action || speakable(row)" class="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                <AskPreviewSpeak v-if="speakable(row)" :speech="item.shown.speech!" :line="row.speak!" :disabled="busy" :mobile="isMobile" />
+                <AskPreviewRowAction v-if="row.action" :action="row.action" :state="stateOf(i, r)" :busy="busy" :mobile="isMobile" :test-id="`ask-preview-row-${i}-${r}`" @act="emit('act', i, r)" />
+              </div>
             </NpcSpeechBubble>
           </template>
           <template v-else>
@@ -51,6 +54,10 @@
     <p v-if="item.shown.note" class="flex items-start gap-1.5 text-caption text-ink-caution" data-testid="ask-preview-note">
       <IconWarning class="mt-0.5 size-3 shrink-0" />
       <span>{{ item.shown.note }}</span>
+    </p>
+    <p v-if="item.shown.speech?.refusal()" class="flex items-start gap-1.5 text-caption text-ink-caution" data-testid="ask-preview-speak-note">
+      <IconWarning class="mt-0.5 size-3 shrink-0" />
+      <span>{{ item.shown.speech.refusal() }}</span>
     </p>
     <p v-if="item.error" class="text-caption text-destructive" role="alert" data-testid="ask-preview-error">{{ item.error }}</p>
 
@@ -95,6 +102,7 @@
  */
 import { computed } from "vue";
 import { IconWarning } from "@/lib/icons";
+import type { AskPreviewRow } from "@/lib/ask/askAdapter";
 import { creditsText } from "@/lib/ask/askCredits";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { previewRowKey, type AskItem } from "@/composables/ask/useAskConversation";
@@ -102,6 +110,7 @@ import { keptLine } from "@/composables/ask/askItems";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import NpcSpeechBubble from "@/components/npcs/NpcSpeechBubble.vue";
+import AskPreviewSpeak from "@/components/ask/AskPreviewSpeak.vue";
 import AskPreviewRowAction from "@/components/ask/AskPreviewRowAction.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 
@@ -122,6 +131,9 @@ const busy = computed(() => item.phase === 'saving' || item.phase === 'again' ||
 
 /** A row press made a record from this generation: another generation would orphan it, so Again is not offered. */
 const acted = computed(() => Object.values(item.rows).some((r) => r.phase === "done"));
+
+/** A spoken row may be read aloud: it names its line, the preview can speak, and nothing has been refused. */
+const speakable = (row: AskPreviewRow) => row.speak !== undefined && item.shown.speech !== undefined && item.shown.speech.canSpeak(row.speak);
 
 const stateOf = (section: number, row: number) => item.rows[previewRowKey(section, row)];
 </script>

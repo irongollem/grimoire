@@ -67,6 +67,8 @@ export interface TableVoiceDeps {
   rateLimit(userId: string): Promise<boolean>;
   /** Whether the key is the one `agent-turn` gave for exactly this line of this conversation. */
   keyFits(sessionId: string, line: VoicedLine, key: string): boolean;
+  /** Whether the key is the one `generate-npc-voice` gave this DM for exactly these words of this NPC (#1273). */
+  voiceLineFits(at: { campaignId: string; npcId: string; userId: string }, text: string, key: string): boolean;
   /** The clip kept for this line of this conversation (mp3, base64), or null when none is. Throws are the caller's to survive. */
   loadClip(at: { campaignId: string; sessionId: string }, line: VoicedLine): Promise<string | null>;
   /** Keeps the clip for the line, so it is never made twice. */
@@ -185,7 +187,8 @@ export const VOICE_MESSAGES = {
 
 export interface VoiceBody {
   campaignId: string;
-  sessionId: string;
+  /** The conversation, or null for a Voice Coach line (#1273): then the role is `character`, the speaker an NPC and the key set. */
+  sessionId: string | null;
   /** The speaker's record, or null for someone with no record. */
   speakerId: string | null;
   speakerName: string;
@@ -212,7 +215,8 @@ export function parseVoiceBody(raw: unknown): VoiceBody | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
   const r = raw as Record<string, unknown>;
   if (typeof r.campaignId !== "string" || !UUID_RE.test(r.campaignId)) return null;
-  if (typeof r.sessionId !== "string" || !UUID_RE.test(r.sessionId)) return null;
+  const sessionId = r.sessionId;
+  if (sessionId !== null && (typeof sessionId !== "string" || !UUID_RE.test(sessionId))) return null;
   if (r.speakerId !== null && (typeof r.speakerId !== "string" || !UUID_RE.test(r.speakerId))) return null;
   if (typeof r.speakerName !== "string" || r.speakerName.trim() === "" || r.speakerName.length > 200) return null;
   const role = r.role === undefined ? "character" : r.role;
@@ -226,14 +230,16 @@ export function parseVoiceBody(raw: unknown): VoiceBody | null {
   if (key !== null && (typeof key !== "string" || key === "" || key.length > 200)) return null;
   // Ask signs nothing, so a key on Oolu's line is a caller trying something else: refused as an invalid request.
   if (role === "familiar" && key !== null) return null;
-  return { campaignId: r.campaignId, sessionId: r.sessionId, speakerId: r.speakerId, speakerName: r.speakerName, text: r.text, how, key, role: role as VoiceRole };
+  // No conversation: only a signed line of a character of the campaign, in its own voice (a Voice Coach line, #1273).
+  if (sessionId === null && (role !== "character" || typeof r.speakerId !== "string" || key === null)) return null;
+  return { campaignId: r.campaignId, sessionId, speakerId: r.speakerId, speakerName: r.speakerName, text: r.text, how, key, role: role as VoiceRole };
 }
 
 /**
  * Whose voice says the line: the narrator's one voice, or a slot of the registry cast from the speaker's record.
  * `inputTokens` is what the judgment model spent on the way (0 when it did not run), for the ledger.
  */
-async function voiceFor(deps: TableVoiceDeps, session: VoiceSession, line: VoicedLine): Promise<{ voice: VoiceRef; inputTokens: number }> {
+async function voiceFor(deps: TableVoiceDeps, session: Pick<VoiceSession, "campaign_id" | "narrator_voice">, line: VoicedLine): Promise<{ voice: VoiceRef; inputTokens: number }> {
   const campaignId = session.campaign_id;
   const narrator = () => narratorSpeaker(session.narrator_voice, deps.hasService);
   if (line.role === "narrator") {
@@ -322,6 +328,12 @@ export async function speakLine(input: {
   // here, before the rate limit, the kept-clip read, the stored-turn proof and the paid screen are spent on nothing.
   if (body.role === "familiar" && !deps.hasService(FAMILIAR_VOICE.service)) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
 
+  if (body.sessionId === null) {
+    // `parseVoiceBody` only lets a keyed character of a record through without a conversation.
+    if (body.speakerId === null || body.key === null) return jsonError(400, "invalid_body", VOICE_MESSAGES.badBody);
+    return speakVoiceLine({ userId, deps, body: { campaignId: body.campaignId, speakerId: body.speakerId, speakerName: body.speakerName, text: body.text, key: body.key } });
+  }
+
   // Someone else's conversation, or one in another campaign, is "not found": a 403 would say it exists.
   const session = await deps.loadSession(body.sessionId);
   if (!session || session.user_id !== userId || session.campaign_id !== body.campaignId) return jsonError(404, "conversation_not_found", VOICE_MESSAGES.notFound);
@@ -405,6 +417,55 @@ export async function speakLine(input: {
     } catch (error) {
       console.error("table-voice: charging the line failed:", error);
     }
+    return json({ audio, mime: "audio/mpeg" });
+  });
+}
+
+/**
+ * A Voice Coach line (#1273): `generate-npc-voice` wrote it for this DM and this NPC and signed it, and the DM has it
+ * read aloud in the NPC's registry voice with no conversation. Billed to the DM under `ask_voice` in whole credits
+ * (there is no conversation to accrue on). No clip is kept here: the browser keeps it while the card lives.
+ * The voice is cast from the true record, as at the table; a disguised NPC's cover is not applied (agent-runtime.md).
+ */
+async function speakVoiceLine(input: { userId: string; body: { campaignId: string; speakerId: string; speakerName: string; text: string; key: string }; deps: TableVoiceDeps }): Promise<Response> {
+  const { userId, body, deps } = input;
+  const load = await deps.loadCampaign(body.campaignId, userId, "campaign");
+  if (!load.ok) return load.response;
+  if (!(await deps.rateLimit(userId))) return rateLimited();
+
+  // The words are the ones signed for this DM and this NPC, so the page cannot have them changed or borrowed.
+  if (!deps.voiceLineFits({ campaignId: body.campaignId, npcId: body.speakerId, userId }, body.text, body.key)) return jsonError(404, "line_not_shown", VOICE_MESSAGES.noLine);
+  // Only a character that exists in this campaign: Ask can never be made to voice an arbitrary name.
+  let known = false;
+  try {
+    known = (await deps.loadTraits(body.campaignId, body.speakerId)).hasRecord;
+  } catch (error) {
+    console.error("table-voice: reading the speaker's record failed:", error);
+  }
+  if (!known) return jsonError(404, "conversation_not_found", VOICE_MESSAGES.notFound);
+
+  try {
+    if (await deps.isFlagged(body.text)) return jsonError(422, "line_unspeakable", VOICE_MESSAGES.unspeakable);
+  } catch (error) {
+    console.error("table-voice: screening the line failed:", error);
+  }
+
+  const line: VoicedLine = { role: "character", speaker: { id: body.speakerId, name: body.speakerName }, text: body.text, how: null };
+  const cast = await voiceFor(deps, { campaign_id: body.campaignId, narrator_voice: "male" }, line);
+  const rate = await deps.loadRate(cast.voice.service);
+  if (rate === null) return jsonError(503, "metering_unavailable", VOICE_MESSAGES.unpriced);
+  const credits = Math.max(1, Math.ceil(creditsForSpeech(speechChars(body.text, null), rate.usdPerMillionChars, rate.calibration)));
+  return deps.withHold(userId, credits, "ask_voice", async (hold) => {
+    if (cast.inputTokens > 0) hold.free("entity_judgment", { model: JEV_MODEL, provider: "typesafe", input_tokens: cast.inputTokens });
+    let audio: string;
+    try {
+      audio = await deps.synthesize(cast.voice, { text: body.text, how: null, narration: false });
+    } catch (error) {
+      if (error instanceof VoicesSpent) return jsonError(402, "voices_spent", VOICE_MESSAGES.spent);
+      console.error("table-voice: the speech service failed:", error);
+      return jsonError(502, "generation_failed", VOICE_MESSAGES.failed);
+    }
+    hold.charge("ask_voice", { cost: credits, log: { provider: cast.voice.service, model: deps.modelOf(cast.voice.service) } });
     return json({ audio, mime: "audio/mpeg" });
   });
 }

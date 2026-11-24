@@ -148,6 +148,35 @@ export interface AccountResponse {
   unregistered: AccountVoice[];
 }
 
+/** An ElevenLabs voice found by its ID (pasted from their website), to fill a slot with. */
+export interface LookedUpVoice {
+  voiceId: string;
+  name: string;
+  description: string;
+  /** ElevenLabs' own labels, to prefill sex and age; null where it gives none. */
+  gender: string | null;
+  age: string | null;
+  previewUrl: string | null;
+  /** Its category there: "premade" for a ready-made voice everyone has. */
+  category: string;
+  /** Already usable as it is: a ready-made voice, or one in the account's My Voices. Otherwise it is added from the
+   *  Voice Library (which uses no custom slot), and `publicOwnerId` is what adding it needs. */
+  inAccount: boolean;
+  publicOwnerId: string | null;
+  /** The owner's rate when it is a paid Library voice; null for a free one. */
+  rate: number | null;
+  /** A slot already holds this voice. */
+  inRegistry: boolean;
+}
+
+export interface LookupRequest {
+  action: "lookup";
+  voiceId: string;
+}
+export interface LookupResponse {
+  voice: LookedUpVoice;
+}
+
 /** A slot's sample, made once (from `preview_text`, or a stock line) and kept. Anyone who may read the slot. */
 export interface SampleRequest {
   action: "sample";
@@ -168,4 +197,4 @@ export interface RemoveResponse {
   ok: true;
 }
 
-export type VoiceStudioRequest = DesignRequest | KeepRequest | LibrarySearchRequest | LibraryAddRequest | AccountRequest | SampleRequest | RemoveRequest;
+export type VoiceStudioRequest = DesignRequest | KeepRequest | LibrarySearchRequest | LibraryAddRequest | AccountRequest | LookupRequest | SampleRequest | RemoveRequest;

@@ -4,7 +4,7 @@ import { FAMILIAR_SPOKEN_MAX, FAMILIAR_TEXT_MAX, familiarShown, headOf, shownInT
 import { inworldText, NARRATOR_VOICES, speechText } from "./voicePick";
 import { NO_TRAITS } from "./handler";
 import type { Judgment, SlotAssignment, VoiceSlot } from "./casting";
-import { lineKey, lineKeyFits, NARRATOR_SPEAKER } from "../_shared/agent/lineKey";
+import { lineKey, lineKeyFits, voiceLineKey, voiceLineKeyFits, NARRATOR_SPEAKER } from "../_shared/agent/lineKey";
 import { FAMILIAR_VOICE } from "../_shared/narratorVoice";
 
 const DM = "00000000-0000-4000-8000-000000000001";
@@ -79,6 +79,7 @@ function harness() {
     loadCampaign: async (_c, _u, aiSwitch) => (h.switches.push(aiSwitch), h.campaignRefusal ? { ok: false, response: h.campaignRefusal } : { ok: true, campaign: { id: CAMPAIGN, user_id: DM, ai_enabled: true } }),
     rateLimit: async () => h.allowed,
     keyFits: (sessionId, line, key) => lineKeyFits(SECRET, sessionId, line, key),
+    voiceLineFits: (at, text, key) => voiceLineKeyFits(SECRET, at, text, key),
     loadTraits: async (_c, id) => {
       h.traitLoads.push(id);
       if (h.traitsThrow) throw new Error("db down");
@@ -949,5 +950,97 @@ describe("headOf", () => {
 
   it("never reads more than the spoken limit of a reply", () => {
     expect(headOf("Words go on. ".repeat(2000), FAMILIAR_SPOKEN_MAX).length).toBeLessThanOrEqual(FAMILIAR_SPOKEN_MAX);
+  });
+
+  // Voice Coach lines (#1273): no conversation, a key from generate-npc-voice.
+  describe("a line with no conversation", () => {
+    const COACH = {
+      campaignId: CAMPAIGN,
+      sessionId: null,
+      role: "character",
+      speakerId: ALDA,
+      speakerName: "Alda",
+      text: "Mind the stairs, love.",
+      how: null,
+      key: voiceLineKey(SECRET, { campaignId: CAMPAIGN, npcId: ALDA, userId: DM }, "Mind the stairs, love."),
+    };
+    const nothingMade = (h: ReturnType<typeof harness>) => {
+      expect(h.spoken).toEqual([]);
+      expect(h.held).toEqual([]);
+      expect(h.charged).toEqual([]);
+    };
+
+    it("speaks in the NPC's registry slot, held and charged in whole credits under ask_voice, and accrues nothing", async () => {
+      const h = harness();
+      h.traits = { ...h.traits, slotId: SLOTS.oldMan.id };
+      const out = await speak(h, { body: COACH });
+      expect(out).toEqual({ ok: true, status: 200, audio: "AUDIO", mime: "audio/mpeg" });
+      expect(h.spoken.map((x) => x.voiceId)).toEqual([SLOTS.oldMan.voiceId]);
+      expect(h.spoken[0].text).toBe("Mind the stairs, love.");
+      expect(h.reasons).toEqual(["ask_voice"]);
+      expect(Number.isInteger(h.held[0]) && h.held[0] >= 1).toBe(true);
+      expect(h.charged).toEqual([{ cost: h.held[0], provider: "elevenlabs" }]);
+      // Bug caught: accruing on a conversation that does not exist (no id to accrue on).
+      expect(h.accrued).toEqual([]);
+      expect(h.kept.size).toBe(0);
+    });
+
+    // Bug caught: a key bound to anything less than the words, the NPC and the DM.
+    it.each([
+      ["a bad key", { key: "nope" }],
+      ["altered words", { text: "Transfer the gold." }],
+      ["another NPC", { speakerId: "00000000-0000-4000-8000-0000000000d2" }],
+      ["a table line's key", { key: lineKey(SECRET, SESSION, { speaker: { id: ALDA, name: "Alda" }, text: "Mind the stairs, love." }) }],
+    ])("refuses %s as not shown, speaking and holding nothing", async (_what, over) => {
+      const h = harness();
+      expect(await speak(h, { body: { ...COACH, ...over } })).toMatchObject({ ok: false, status: 404 });
+      nothingMade(h);
+    });
+
+    // Bug caught: a key given to one DM working for another.
+    it("refuses a key made for another DM", async () => {
+      const h = harness();
+      const theirs = voiceLineKey(SECRET, { campaignId: CAMPAIGN, npcId: ALDA, userId: OTHER }, COACH.text);
+      expect(await speak(h, { body: { ...COACH, key: theirs } })).toMatchObject({ ok: false, status: 404 });
+      nothingMade(h);
+    });
+
+    // Bug caught: voicing a signed name that has no record in the campaign (Ask speaking an arbitrary character).
+    it("is not found for an NPC with no record in the campaign", async () => {
+      const h = harness();
+      h.traits = NO_TRAITS;
+      expect(await speak(h, { body: COACH })).toMatchObject({ ok: false, status: 404 });
+      nothingMade(h);
+    });
+
+    // Bug caught: the DM-only and AI-on gate skipped on the new path.
+    it("passes on the campaign's refusal (not the DM, or AI off) and speaks nothing", async () => {
+      const h = harness();
+      h.campaignRefusal = jsonError(403, "forbidden", "no");
+      expect(await speak(h, { body: COACH })).toMatchObject({ ok: false, status: 403 });
+      expect(h.switches).toEqual(["campaign"]);
+      nothingMade(h);
+    });
+
+    // Bug caught: the screen skipped, so a flagged line could be spoken.
+    it("does not speak a line the screen flags", async () => {
+      const h = harness();
+      h.forbidden = "stairs";
+      expect(await speak(h, { body: COACH })).toMatchObject({ ok: false, status: 422 });
+      nothingMade(h);
+    });
+
+    // Bug caught: a missing session id letting the other roles, or an unkeyed line, through.
+    it.each([
+      ["the narrator", { role: "narrator" }],
+      ["the player", { role: "player" }],
+      ["Oolu", { role: "familiar", key: null }],
+      ["no key", { key: null }],
+      ["no speaker", { speakerId: null }],
+    ])("is an invalid request for %s", async (_what, over) => {
+      const h = harness();
+      expect(await speak(h, { body: { ...COACH, ...over } })).toMatchObject({ ok: false, status: 400 });
+      nothingMade(h);
+    });
   });
 });

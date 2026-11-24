@@ -45,8 +45,9 @@ describe("ElevenLabs", () => {
     expect(seen[0].body?.labels).toEqual({ grimoire: "slot" });
   });
 
-  it("a free library voice has a null rate and a paid one keeps it", async () => {
-    const { services } = fakeFetch([{ body: { has_more: true, voices: [{ public_owner_id: "o", voice_id: "a1234567" }, { public_owner_id: "o", voice_id: "b1234567", rate: 0.3, notice_period: 30 }] } }]);
+  // Bug caught (seen live): every library voice marked paid, because an ordinary voice's multiplier `rate` is 1.
+  it("a library voice at the ordinary rate is free, and one with a surcharge keeps it", async () => {
+    const { services } = fakeFetch([{ body: { has_more: true, voices: [{ public_owner_id: "o", voice_id: "a1234567", rate: 1, fiat_rate: null }, { public_owner_id: "o", voice_id: "b1234567", rate: 1, fiat_rate: 0.3, notice_period: 30 }] } }]);
     const out = await services.librarySearch({ search: "", page: 0 });
     expect(out.hasMore).toBe(true);
     expect(out.voices.map((v) => [v.rate, v.noticePeriodDays])).toEqual([[null, null], [0.3, 30]]);
@@ -67,5 +68,17 @@ describe("ElevenLabs", () => {
   it("an ok answer without the voice id is a failure, not an empty voice", async () => {
     const { services } = fakeFetch([{ body: {} }]);
     await expect(services.keep("elevenlabs", { previewId: "g", name: "N", description: "D" })).rejects.toBeInstanceOf(ServiceError);
+  });
+});
+
+describe("ElevenLabs lookup by ID", () => {
+  // Bug caught: a Library voice's owner lost (it could not be added), or an unknown ID thrown as a service failure.
+  it("reads a Library voice with its owner and rate, and answers nothing for an ID it does not know", async () => {
+    const { services } = fakeFetch([
+      { body: { voice_id: "sharedvoice99", name: "Grizzled", category: "professional", labels: { gender: "male", age: "old" }, sharing: { public_owner_id: "owner1", rate: 1, fiat_rate: 2 } } },
+      { status: 404, body: {} },
+    ]);
+    expect(await services.lookupVoice("sharedvoice99")).toMatchObject({ voiceId: "sharedvoice99", name: "Grizzled", gender: "male", age: "old", publicOwnerId: "owner1", rate: 2, category: "professional" });
+    expect(await services.lookupVoice("nosuchvoice1")).toBeNull();
   });
 });

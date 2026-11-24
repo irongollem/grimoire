@@ -52,3 +52,34 @@ export function clipName(line: KeyedLine): string {
   const named = JSON.stringify([line.role ?? "character", line.speaker.id, line.speaker.name, line.text.trim()]);
   return createHmac("sha256", "table-voice-clip").update(named).digest("hex");
 }
+
+/** Where a Voice Coach line belongs: the campaign, the character it was written for, and the DM who asked for it. */
+export interface VoiceLineAt {
+  campaignId: string;
+  npcId: string;
+  userId: string;
+}
+
+function voiceLineDigest(secret: string, at: VoiceLineAt, text: string): Buffer {
+  // A different domain prefix from `digest` above, so a table line's key can never pass as a voice line's or the reverse.
+  const signed = JSON.stringify([at.campaignId, at.npcId, at.userId, text]);
+  return createHmac("sha256", `voice-line:${secret}`).update(signed).digest();
+}
+
+/**
+ * The key `generate-npc-voice` gives each line it writes (#1273), so the DM can have that line read aloud in the NPC's
+ * voice with no conversation to prove it from. The campaign, the NPC, the DM and the exact words are under the signature.
+ */
+export function voiceLineKey(secret: string, at: VoiceLineAt, text: string): string {
+  // A key minted without the secret could never be checked: say so where it is made, not as lines nobody can speak.
+  if (secret === "") throw new Error("voiceLineKey: no signing secret");
+  return voiceLineDigest(secret, at, text).toString("base64url");
+}
+
+/** Whether the key is the one this server gave this DM for exactly these words of this NPC. */
+export function voiceLineKeyFits(secret: string, at: VoiceLineAt, text: string, key: string): boolean {
+  if (secret === "") return false;
+  const given = Buffer.from(key, "base64url");
+  const wanted = voiceLineDigest(secret, at, text);
+  return given.length === wanted.length && timingSafeEqual(given, wanted);
+}

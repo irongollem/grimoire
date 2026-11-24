@@ -96,6 +96,8 @@ export interface AskPreviewRow {
    * speech bubble (portrait, name, the line) with the row's action inside it, instead of a label and a value.
    */
   spoken?: true;
+  /** A spoken row that may be read aloud: its place in the preview's `speech`. */
+  speak?: number;
   /**
    * A choice the DM may change before Create (which sourcebook's version of a creature): the card draws a picker
    * under the row and reports a pick as `choose(key, value)`, and the adapter's `create` saves what was picked.
@@ -112,6 +114,23 @@ export interface AskPreviewRow {
 }
 
 /**
+ * Speaking a card's lines aloud in the speaker's voice (#1273), repeatable and not once-guarded like a row's `action`:
+ * the card asks it, per `spoken` row, whether to offer Speak aloud and where it stands. The state is the adapter's
+ * (it is reactive); the card only draws it.
+ */
+export interface AskLineSpeech {
+  /** A voice may speak this line: it has its key, voices are on and no refusal stands. */
+  canSpeak(line: number): boolean;
+  phase(line: number): "idle" | "loading" | "playing";
+  /** Pressing costs nothing: the clip was already fetched on this card. */
+  isFetched(line: number): boolean;
+  /** Plays the line, or stops it while it plays. */
+  toggle(line: number): void;
+  /** Why the card stopped offering Speak aloud (out of credits, allowance used up, voices off), or null. */
+  refusal(): string | null;
+}
+
+/**
  * What the result card shows of a generation that is not saved yet, as plain data so the card draws every generator's
  * preview the same way and no generator brings a Vue component of its own.
  */
@@ -124,6 +143,8 @@ export interface AskPreviewShown {
   sections: { heading?: string; /** A quiet line under the heading. */ hint?: string; rows: AskPreviewRow[] }[];
   /** Who says the `spoken` rows (an NPC): their name and the face the bubbles lead with (#1270). */
   speaker?: { name: string; portrait: string | null; focal: { x: number; y: number } | null };
+  /** Speak aloud for the `spoken` rows that carry a `speak` index (#1273). */
+  speech?: AskLineSpeech;
   /** A warning under the rows (creatures the Bestiary lacks). */
   note?: string;
   /** Prose the DM reads before the rows (a chronicle's draft), markdown or rich text, drawn with the sanitized viewer. */

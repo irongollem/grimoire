@@ -4,7 +4,7 @@ export interface VoiceLine {
   reveals: boolean;
 }
 
-const MAX_LINES = 3;
+export const MAX_LINES = 3;
 
 /**
  * The coach's lines from a reply. The edge function sends `{ text, reveals }`;

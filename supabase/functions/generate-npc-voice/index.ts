@@ -29,6 +29,7 @@ import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts
 import { judge, JEV_MODEL, noulOf, scoreOf } from "../_shared/typesafe.ts";
 import { MEMORY_CANDIDATE_LIMIT, pickPromptMemories, RELEVANCE_QUESTION } from "./memoryRelevance.ts";
 import { buildHiddenIdentity, checkLinesForReveal, REVEAL_QUESTION } from "./disguiseCheck.ts";
+import { voiceLineKey } from "../_shared/agent/lineKey.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText } from "../_shared/worldBlock.ts";
 
@@ -240,8 +241,13 @@ serve(serveUser(async ({ user, req, report }) => {
         generatedAt: new Date().toISOString(),
         edited: false,
       };
+      // Each line is signed for this DM and this NPC, so `table-voice` can read it aloud with no conversation to
+      // prove it from (#1273). `keys[i]` belongs to `lines[i]`.
+      const voiceSecret = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const keys = lines.map((text) => voiceLineKey(voiceSecret, { campaignId: campaign_id, npcId: npc.id, userId: user.id }, text));
       return json({
         lines: lines.map((text, i) => ({ text, reveals: reveals[i] })),
+        keys,
         provider: textResult.usage.provider,
         model: textResult.usage.model,
         ai_provenance,

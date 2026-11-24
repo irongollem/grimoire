@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import type { AskItem } from "@/composables/ask/useAskConversation";
 import AskPreviewCard from "./AskPreviewCard.vue";
@@ -166,5 +166,46 @@ describe("AskPreviewCard", () => {
     expect(bubble.find('[data-testid="npc-speech-ai"]').exists()).toBe(true);
     await bubble.get('[data-testid="ask-preview-row-action"]').trigger("click");
     expect(w.emitted("act")).toEqual([[0, 0]]);
+  });
+
+  const speaking = (over: Partial<import("@/lib/ask/askAdapter").AskLineSpeech> = {}) => ({
+    canSpeak: () => true, phase: () => "idle" as const, isFetched: () => false, toggle: vi.fn(), refusal: () => null, ...over,
+  });
+  const spokenShown = (speech: ReturnType<typeof speaking> | undefined) => ({
+    title: "Tam", speaker: { name: "Old Tam", portrait: null, focal: null }, ...(speech ? { speech } : {}),
+    sections: [{ rows: [{ label: "Line 1", detail: "Move along.", spoken: true as const, speak: 0, action: { label: "Said it", doneLabel: "Said", run: async () => ({ label: "Line 1", ok: true as const, credits: 0 }) } }] }],
+  });
+
+  // Bug caught: Speak aloud missing from the bubble, pressed for the wrong line, or hiding Said it; the price unnamed.
+  it("draws Speak aloud beside Said it, names its price, and presses its own line", async () => {
+    const speech = speaking();
+    const w = card({ shown: spokenShown(speech) });
+    const bubble = w.get('[data-testid="ask-preview-speech-0-0"]');
+    expect(bubble.find('[data-testid="ask-preview-row-action"]').exists()).toBe(true);
+    expect(bubble.get('[data-testid="ask-preview-speak-price"]').text()).toBe("about 1 credit");
+    await bubble.get('[data-testid="ask-preview-speak-button"]').trigger("click");
+    expect(speech.toggle).toHaveBeenCalledWith(0);
+    expect(w.emitted("act")).toBeUndefined();
+  });
+
+  // Bug caught: a refusal that leaves the button on offer, or the DM told nothing about why the voice went quiet.
+  it("shows the refusal note and no Speak aloud once the voice is refused", () => {
+    const w = card({ shown: spokenShown(speaking({ canSpeak: () => false, refusal: () => "The voice went quiet: you are out of credits." })) });
+    expect(w.find('[data-testid="ask-preview-speak-button"]').exists()).toBe(false);
+    expect(w.get('[data-testid="ask-preview-speak-note"]').text()).toContain("out of credits");
+  });
+
+  // Bug caught: a replay labelled and priced like a fresh paid line, or Stop missing while it plays.
+  it("says Stop while playing and Play again, free, for a clip already fetched", () => {
+    const playing = card({ shown: spokenShown(speaking({ phase: () => "playing", isFetched: () => true })) });
+    expect(playing.get('[data-testid="ask-preview-speak-button"]').text()).toContain("Stop");
+    const again = card({ shown: spokenShown(speaking({ isFetched: () => true })) });
+    expect(again.get('[data-testid="ask-preview-speak-button"]').text()).toContain("Play again");
+    expect(again.get('[data-testid="ask-preview-speak-price"]').text()).toBe("free");
+  });
+
+  // Bug caught: Speak aloud drawn on a card whose generator cannot speak.
+  it("draws no Speak aloud when the preview has no speech", () => {
+    expect(card({ shown: spokenShown(undefined) }).find('[data-testid="ask-preview-speak"]').exists()).toBe(false);
   });
 });

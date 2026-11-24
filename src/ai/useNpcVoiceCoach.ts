@@ -3,11 +3,13 @@ import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { buildAiProvenance, type AiProvenance } from "./provenance";
 import type { Npc } from "@/types/npc.types";
-import { parseVoiceLines } from "./npcVoiceLines";
+import { MAX_LINES, parseVoiceLines } from "./npcVoiceLines";
 
 /** The coach's reply; `lines` is parsed by parseVoiceLines. The provider and model ride along when the caller knows them. */
 interface VoiceReply {
   lines?: unknown;
+  /** The server's signature for each line, same length as `lines`; what lets a line be spoken aloud (#1273). */
+  keys?: unknown;
   provider?: string;
   model?: string;
 }
@@ -38,6 +40,8 @@ export function useNpcVoiceCoach() {
   const lines = ref<string[]>([]);
   /** Parallel to `lines`: true where the disguise check says the line may give the disguise away. */
   const reveals = ref<boolean[]>([]);
+  /** Parallel to `lines`: the key to speak each line with, null where the reply carried none (a line then cannot be spoken). */
+  const keys = ref<(string | null)[]>([]);
   /** Which model wrote the current lines; null when the path did not report it. */
   const provenance = ref<AiProvenance | null>(null);
 
@@ -46,6 +50,7 @@ export function useNpcVoiceCoach() {
     error.value = null;
     lines.value = [];
     reveals.value = [];
+    keys.value = [];
     provenance.value = null;
 
     if (!npc.campaign_id) {
@@ -57,13 +62,25 @@ export function useNpcVoiceCoach() {
     try {
       const result = await suggestServerSide(npc, npc.campaign_id, situation);
 
-      const sanitized = parseVoiceLines(result.lines);
+      // Each reply entry is parsed on its own so it keeps the key at its own index (the parse drops empty entries,
+      // which would shift every key after them), then capped as the parse caps a whole reply.
+      const raw = Array.isArray(result.lines) ? result.lines : [];
+      const sent = Array.isArray(result.keys) && result.keys.length === raw.length ? result.keys : null;
+      const paired = raw
+        .flatMap((entry, i) => {
+          const [line] = parseVoiceLines([entry]);
+          const key = sent !== null && typeof sent[i] === "string" && sent[i] !== "" ? (sent[i] as string) : null;
+          return line ? [{ line, key }] : [];
+        })
+        .slice(0, MAX_LINES);
+      const sanitized = paired.map((p) => p.line);
       if (sanitized.length === 0) {
         error.value = "AI returned no usable dialogue. Please try again.";
         return;
       }
       lines.value = sanitized.map((l) => l.text);
       reveals.value = sanitized.map((l) => l.reveals);
+      keys.value = paired.map((p) => p.key);
       if (result.provider && result.model) {
         provenance.value = buildAiProvenance("npc_voice", result.provider, result.model);
       }
@@ -96,8 +113,9 @@ export function useNpcVoiceCoach() {
     error.value = null;
     lines.value = [];
     reveals.value = [];
+    keys.value = [];
     provenance.value = null;
   }
 
-  return { isGenerating, error, lines, reveals, provenance, suggest, clear };
+  return { isGenerating, error, lines, reveals, keys, provenance, suggest, clear };
 }

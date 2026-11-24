@@ -3,10 +3,11 @@ import { ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { Npc } from "@/types/npc.types";
 
-const mocks = vi.hoisted(() => ({ suggest: vi.fn(), createMemory: vi.fn(), say: vi.fn() }));
+const mocks = vi.hoisted(() => ({ suggest: vi.fn(), createMemory: vi.fn(), say: vi.fn(), stopVoiceLines: vi.fn() }));
 const state = vi.hoisted(() => ({
   aiEnabled: true, affordable: true, npc: undefined as unknown, npcError: null as Error | null,
-  coach: { lines: [] as string[], reveals: [] as boolean[], error: null as string | null },
+  voicesOn: true,
+  coach: { lines: [] as string[], reveals: [] as boolean[], keys: [] as (string | null)[], error: null as string | null },
   running: true, log: [] as { id: string; started_at: string | null; played_on: string | null }[],
 }));
 
@@ -30,9 +31,20 @@ vi.mock("@/ai/useNpcVoiceCoach", () => ({
     suggest: mocks.suggest,
     lines: { get value() { return state.coach.lines; } },
     reveals: { get value() { return state.coach.reveals; } },
+    keys: { get value() { return state.coach.keys; } },
     error: { get value() { return state.coach.error; } },
     provenance: { value: { generatorType: "npc_voice", provider: "openai", model: "m", generatedAt: "t", edited: false } },
   }),
+}));
+
+vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "u1" } }) }));
+vi.mock("@/composables/voices/useVoiceLineSpeech", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  stopVoiceLines: mocks.stopVoiceLines,
+}));
+vi.mock("@/composables/table/useTableVoice", () => ({
+  useTableVoiceRates: () => ({ data: { get value() { return { on: state.voicesOn, perMinute: { elevenlabs: 1, inworld: 1 } }; } } }),
+  sendToTableVoice: vi.fn(),
 }));
 
 const { useNpcVoiceAskAdapter } = await import("./npcVoiceAskAdapter");
@@ -56,7 +68,8 @@ describe("useNpcVoiceAskAdapter", () => {
     mocks.createMemory.mockReset().mockResolvedValue({});
     mocks.say.mockReset().mockResolvedValue(undefined);
     Object.assign(state, { aiEnabled: true, affordable: true, npc: npc(), npcError: null, running: true, log: [] });
-    state.coach = { lines: ["The gate shuts at dusk.", "  Move along.  ", "I never saw you."], reveals: [false, true, false], error: null };
+    state.coach = { lines: ["The gate shuts at dusk.", "  Move along.  ", "I never saw you."], reveals: [false, true, false], keys: ['k1', null, 'k3'], error: null };
+    state.voicesOn = true;
   });
 
   it("quotes the coach's price, for the NPC the card was opened on", () => {
@@ -102,6 +115,17 @@ describe("useNpcVoiceAskAdapter", () => {
     expect(mocks.suggest).toHaveBeenCalledWith(expect.objectContaining({ id: ID }), "The guard stops him at the gate");
     expect(preview.parts).toEqual([{ label: "Lines", ok: true, credits: 3 }]);
     expect(preview.shown.sections[0].rows.map((r) => r.detail)).toEqual(["The gate shuts at dusk.", "  Move along.  ", "I never saw you."]);
+  });
+
+  // Bug caught: Again leaving the old card reading through the wait for new lines, and for good when they failed.
+  it("silences the last card's voice lines before asking for new ones, even when that fails", async () => {
+    mocks.stopVoiceLines.mockClear();
+    state.coach.lines = [];
+    const adapter = useNpcVoiceAskAdapter();
+    const outcome = await adapter.preview(proposal());
+    expect(outcome.ok).toBe(false);
+    expect(mocks.stopVoiceLines).toHaveBeenCalledTimes(1);
+    expect(mocks.stopVoiceLines.mock.invocationCallOrder[0]).toBeLessThan(mocks.suggest.mock.invocationCallOrder[0]);
   });
 
   const said = (preview: Awaited<ReturnType<typeof previewed>>, i: number) => {
@@ -223,8 +247,25 @@ describe("useNpcVoiceAskAdapter", () => {
   });
 
   it("ends with the coach's reason and no preview when no line comes back", async () => {
-    state.coach = { lines: [], reveals: [], error: "AI returned no usable dialogue. Please try again." };
+    state.coach = { lines: [], reveals: [], keys: [], error: "AI returned no usable dialogue. Please try again." };
     const outcome = await useNpcVoiceAskAdapter().preview(proposal());
     expect(outcome).toMatchObject({ ok: false, result: { record: null, parts: [{ ok: false, error: "AI returned no usable dialogue. Please try again." }] } });
+  });
+
+  // Bug caught: Speak aloud offered on a line with no key (it can only fail), or on the wrong line index.
+  it("offers Speak aloud on the lines that came with a key, each by its own place", async () => {
+    const preview = await previewed();
+    const speech = preview.shown.speech;
+    if (!speech) throw new Error("expected speech");
+    expect(preview.shown.sections[0].rows.map((r) => r.speak)).toEqual([0, 1, 2]);
+    expect([0, 1, 2].map((i) => speech.canSpeak(i))).toEqual([true, false, true]);
+  });
+
+  // Bug caught: a button that asks for a paid voice in a campaign where voices are not switched on.
+  it("offers no Speak aloud when voices are off", async () => {
+    state.voicesOn = false;
+    const preview = await previewed();
+    expect(preview.shown.speech).toBeUndefined();
+    expect(preview.shown.sections[0].rows.some((r) => r.speak !== undefined)).toBe(false);
   });
 });
