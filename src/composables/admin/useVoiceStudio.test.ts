@@ -31,6 +31,7 @@ function slot(overrides: Partial<SpeechVoice> = {}): SpeechVoice {
     origin: "designed",
     service: "elevenlabs",
     voice_id: "voice-abcdefgh",
+    library_voice_id: null,
     sample_key: null,
     active: true,
     created_at: "2026-11-24T00:00:00Z",

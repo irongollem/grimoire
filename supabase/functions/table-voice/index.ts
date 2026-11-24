@@ -138,9 +138,21 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
       return { choice: choiceOf(result, "voice")?.choice ?? null, inputTokens: result.inputTokens };
     },
 
+    // Only onto a character with no voice yet: the first line to cast a new character wins, and a line that lost
+    // reads the winner back so it speaks the same voice.
     async saveSlot(campaignId, npcId, slotId) {
-      const { error } = await supabase.from("npcs").update({ speech_voice_id: slotId }).eq("id", npcId).eq("campaign_id", campaignId);
+      const { data, error } = await supabase
+        .from("npcs")
+        .update({ speech_voice_id: slotId })
+        .eq("id", npcId)
+        .eq("campaign_id", campaignId)
+        .is("speech_voice_id", null)
+        .select("speech_voice_id");
       if (error) throw error;
+      if ((data ?? []).length > 0) return slotId;
+      const { data: held, error: readError } = await supabase.from("npcs").select("speech_voice_id").eq("id", npcId).eq("campaign_id", campaignId).maybeSingle();
+      if (readError) throw readError;
+      return held === null ? null : ((held.speech_voice_id as string | null) ?? null);
     },
 
     async loadClip(at, line) {

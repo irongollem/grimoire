@@ -49,4 +49,17 @@ describe("useClipQueue", () => {
     await tick();
     expect(played).toEqual(["one", "two"]);
   });
+
+  // Bug caught: the AI table reading "no voice is speaking" while a reply's first clip was still being made, and the
+  // characters going on over lines nobody had heard yet.
+  it("is busy while a clip is being made, not only while one plays", async () => {
+    const q = useClipQueue({ owner: ref("a"), player: () => ({ done: Promise.resolve(), stop: () => {} }) });
+    let make!: (src: string | null) => void;
+    q.enqueue([{ clip: new Promise<string | null>((resolve) => (make = resolve)), voice: "x" }]);
+    expect(q.speaking.value).toBe(false);
+    expect(q.busy.value).toBe(true);
+    make(null);
+    await tick();
+    expect(q.busy.value).toBe(false);
+  });
 });

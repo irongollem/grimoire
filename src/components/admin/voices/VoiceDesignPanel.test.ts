@@ -63,6 +63,16 @@ describe("VoiceDesignPanel keep into a slot", () => {
     expect(saveSlot).toHaveBeenCalledWith({ id: "s1", fields });
   });
 
+  // Bug caught: a keep that failed (no custom slots left, a service error) leaving the slot with the new description
+  // and its old voice, so casting matched characters to a voice that does not sound like that.
+  it("does not save the slot's fields when the keep fails", async () => {
+    const { wrapper, keep, saveSlot } = await mountPanel(slot({ voice_id: null, service: null }));
+    keep.mockRejectedValueOnce(new Error("no slots left"));
+    await button(wrapper, "Keep in this slot")!.trigger("click");
+    await flushPromises();
+    expect(saveSlot).not.toHaveBeenCalled();
+  });
+
   it("does not replace a slot's voice until confirmed: cancelling keeps the old voice", async () => {
     const { wrapper, keep } = await mountPanel(slot());
     await button(wrapper, "Keep in this slot")!.trigger("click");

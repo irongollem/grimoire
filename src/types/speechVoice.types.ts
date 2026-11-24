@@ -23,6 +23,8 @@ export interface SpeechVoice {
   /** Null together with `voice_id` while the slot is only planned. */
   service: SpeechService | null;
   voice_id: string | null;
+  /** For a Voice Library voice: its id in the library, which the account's copy need not share. */
+  library_voice_id: string | null;
   sample_key: string | null;
   active: boolean;
   created_at: string;

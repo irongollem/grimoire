@@ -69,4 +69,25 @@ describe("useAudioToggle", () => {
     await player.toggle("a");
     expect(resolve).toHaveBeenCalledTimes(2);
   });
+
+  // Bug caught: Listen on one voice, then on another before the first had loaded, and both playing over each other.
+  it("does not play a slow first fetch after another key was pressed", async () => {
+    FakeAudio.made = [];
+    vi.stubGlobal("Audio", FakeAudio);
+    vi.stubGlobal("URL", { ...URL, createObjectURL: () => `blob:${FakeAudio.made.length}`, revokeObjectURL: () => undefined });
+    let slow!: (a: { audio: string; mediaType: string }) => void;
+    const resolve = vi.fn((key: string) =>
+      key === "a" ? new Promise<{ audio: string; mediaType: string }>((r) => (slow = r)) : Promise.resolve({ audio: "QUJD", mediaType: "audio/mpeg" }),
+    );
+    const { useAudioToggle } = await import("./useSpeechVoices");
+    const { mount } = await import("@vue/test-utils");
+    let player!: ReturnType<typeof useAudioToggle>;
+    mount({ template: "<div />", setup: () => void (player = useAudioToggle(resolve)) });
+    const first = player.toggle("a");
+    await player.toggle("b");
+    slow({ audio: "QUJD", mediaType: "audio/mpeg" });
+    await first;
+    expect(player.playing.value).toBe("b");
+    expect(FakeAudio.made).toHaveLength(1);
+  });
 });

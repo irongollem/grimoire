@@ -72,8 +72,13 @@ export function useClipQueue(options: {
   const changePauseMs = options.changePauseMs ?? 0;
   const pause = options.pause ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
 
-  /** True while a clip is playing (not while one is still being made). */
+  /** True while a clip is playing (not while one is still being made): what an owl moving with the audio follows. */
   const speaking = ref(false);
+  /**
+   * True from the first clip asked for until the last one has played, the waits to make one and the breaths between
+   * voices included: what "a voice is still reading" means to a table that must not go on over it.
+   */
+  const busy = ref(false);
   const unavailable = ref(false);
   /** The speech allowance is used up. */
   const spent = ref(false);
@@ -114,6 +119,7 @@ export function useClipQueue(options: {
   async function drain(): Promise<void> {
     if (draining) return;
     draining = true;
+    busy.value = true;
     const mine = generation;
     try {
       let last: string | null = null;
@@ -136,6 +142,7 @@ export function useClipQueue(options: {
     } finally {
       draining = false;
       speaking.value = false;
+      busy.value = queue.length > 0;
       // Clips that arrived for a newer generation while this loop was winding down still get their turn.
       if (queue.length > 0) void drain();
     }
@@ -168,5 +175,5 @@ export function useClipQueue(options: {
     clearRefusals();
   });
 
-  return { speaking, unavailable, spent, broke, refused, fetchClip, enqueue, stop, clearRefusals };
+  return { speaking, busy, unavailable, spent, broke, refused, fetchClip, enqueue, stop, clearRefusals };
 }

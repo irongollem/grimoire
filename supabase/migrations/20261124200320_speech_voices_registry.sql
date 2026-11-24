@@ -40,8 +40,13 @@ create table public.speech_voices (
   service text check (service is null or service in ('elevenlabs', 'inworld')),
   -- The service's own id. The same alphabet on both services, which keeps it safe inside a request's address.
   voice_id text check (voice_id is null or voice_id ~ '^[A-Za-z0-9_-]{8,64}$'),
-  -- A short recording of the voice in the clips' private store, for the listen buttons; made on first listen.
-  sample_key text check (sample_key is null or sample_key ~ '^voice-samples/[0-9a-f-]{36}\.(mp3|wav)$'),
+  -- For a voice saved from the ElevenLabs Voice Library: its id there, which the account's copy need not share. What
+  -- "already added" is matched on, so the same library voice is never added twice.
+  library_voice_id text unique check (library_voice_id is null or library_voice_id ~ '^[A-Za-z0-9_-]{8,64}$'),
+  -- A short recording of the voice in the clips' private store, for the listen buttons; made on first listen. Named
+  -- by the slot AND the voice, so a late recording of a voice the slot has since replaced lands under its own name
+  -- and never over the new voice's sample.
+  sample_key text check (sample_key is null or sample_key ~ '^voice-samples/[0-9a-f-]{36}/[A-Za-z0-9_-]{8,64}\.(mp3|wav)$'),
   active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -101,7 +106,9 @@ comment on column public.npcs.speech_voice_id is
 
 -- A DM can name only a slot they can read: a filled, active cast slot, or anything for the admin. Without this an
 -- account could put the Gaffer's own voice on its NPC by its id. Invoker, so the read goes through the caller's RLS;
--- the service role reads everything and is never refused.
+-- the service role reads everything and is never refused. Choosing such a slot (an update) is refused; a new row
+-- carrying one (a copied NPC whose slot has since been retired or is someone's signature voice) is kept without it,
+-- so a copy never fails over a voice, and the table casts the copy afresh.
 create or replace function private.guard_npc_speech_voice()
 returns trigger
 language plpgsql
@@ -112,7 +119,11 @@ begin
   if new.speech_voice_id is not null
      and (tg_op = 'INSERT' or new.speech_voice_id is distinct from old.speech_voice_id)
      and not exists (select 1 from public.speech_voices v where v.id = new.speech_voice_id) then
-    raise exception 'That voice cannot be given to a character.' using errcode = '42501';
+    if tg_op = 'INSERT' then
+      new.speech_voice_id := null;
+    else
+      raise exception 'That voice cannot be given to a character.' using errcode = '42501';
+    end if;
   end if;
   return new;
 end;

@@ -27,6 +27,8 @@ export interface SpeechVoiceRow {
   origin: VoiceOrigin;
   service: SpeechService | null;
   voice_id: string | null;
+  /** For a Voice Library voice: its id in the library, which the account's copy need not share. */
+  library_voice_id: string | null;
   sample_key: string | null;
   active: boolean;
   created_at: string;
@@ -161,7 +163,9 @@ export function mediaTypeOf(bytes: Uint8Array): "audio/wav" | "audio/mpeg" {
 }
 
 const extensionOf = (mediaType: string): "wav" | "mp3" => (mediaType === "audio/wav" ? "wav" : "mp3");
-const sampleKeyFor = (slotId: string, mediaType: string): string => `voice-samples/${slotId}.${extensionOf(mediaType)}`;
+// Named by the slot and the voice, so a recording of a voice the slot has since replaced can never land on the new
+// voice's sample (the column's check holds this shape).
+const sampleKeyFor = (slotId: string, voiceId: string, mediaType: string): string => `voice-samples/${slotId}/${voiceId}.${extensionOf(mediaType)}`;
 const mediaTypeOfKey = (key: string): string => (key.endsWith(".wav") ? "audio/wav" : "audio/mpeg");
 
 /** A slot's fields from the request, or null when they are not a slot. Absent optional ones are stored as null. */
@@ -248,7 +252,7 @@ async function keep(body: Record<string, unknown>, deps: StudioDeps): Promise<Re
   const bytes = bytesFromBase64(audio);
   const mediaType = mediaTypeOf(bytes);
   const id = old?.id ?? deps.newId();
-  const key = sampleKeyFor(id, mediaType);
+  const key = sampleKeyFor(id, voiceId, mediaType);
   let kept = false;
   if (deps.store !== null) {
     try {
@@ -286,6 +290,19 @@ async function retireOldVoice(old: SpeechVoiceRow, retire: boolean, newKey: stri
   }
 }
 
+/**
+ * The Voice Library ids the registry already holds: the library id a voice was added under, and (for one added
+ * another way, or before that id was kept) its ElevenLabs id, which for a library voice is usually the same.
+ */
+function libraryHeld(rows: readonly SpeechVoiceRow[]): Set<string> {
+  const held = new Set<string>();
+  for (const r of rows) {
+    if (r.library_voice_id !== null) held.add(r.library_voice_id);
+    if (r.service === "elevenlabs" && r.voice_id !== null) held.add(r.voice_id);
+  }
+  return held;
+}
+
 async function librarySearch(body: Record<string, unknown>, deps: StudioDeps): Promise<Response> {
   const { query, sex, age, page } = body;
   if (typeof query !== "string" || query.length > 200) return jsonError(400, "invalid_body", STUDIO_MESSAGES.invalid);
@@ -300,7 +317,7 @@ async function librarySearch(body: Record<string, unknown>, deps: StudioDeps): P
     ...(age === undefined || age === "child" ? {} : { age: AGE_FILTER[age as Exclude<VoiceAge, "child">] }),
     page: page === undefined ? 0 : (page as number),
   });
-  const held = new Set((await deps.db.listAll()).filter((r) => r.service === "elevenlabs" && r.voice_id !== null).map((r) => r.voice_id));
+  const held = libraryHeld(await deps.db.listAll());
   return json({ voices: found.voices.map((v) => ({ ...v, inRegistry: held.has(v.voiceId) })), hasMore: found.hasMore });
 }
 
@@ -309,12 +326,12 @@ async function libraryAdd(body: Record<string, unknown>, deps: StudioDeps): Prom
   const fields = parseFields(body.slot);
   if (!isId(publicOwnerId) || !isId(voiceId) || fields === null) return jsonError(400, "invalid_body", STUDIO_MESSAGES.invalid);
   if (!deps.services.hasService("elevenlabs")) return jsonError(503, "no_key", STUDIO_MESSAGES.noKey("elevenlabs"));
-  if ((await deps.db.listAll()).some((r) => r.service === "elevenlabs" && r.voice_id === voiceId)) return jsonError(409, "in_registry", STUDIO_MESSAGES.inRegistry);
+  if (libraryHeld(await deps.db.listAll()).has(voiceId)) return jsonError(409, "in_registry", STUDIO_MESSAGES.inRegistry);
 
-  // The id the account gives it is the one that speaks; the library's own id is not stored.
+  // The id the account gives it is the one that speaks; the library's own id is kept beside it, to know it again.
   const added = await deps.services.libraryAdd(publicOwnerId, voiceId, fields.name);
   try {
-    const row = await deps.db.insert({ id: deps.newId(), ...fields, origin: "library", service: "elevenlabs", voice_id: added, sample_key: null });
+    const row = await deps.db.insert({ id: deps.newId(), ...fields, origin: "library", service: "elevenlabs", voice_id: added, library_voice_id: voiceId, sample_key: null });
     return json({ voice: row });
   } catch (error) {
     await deps.services.deleteVoice("elevenlabs", added).catch((e) => deps.report(e));
@@ -377,7 +394,7 @@ async function sample(userId: string, body: Record<string, unknown>, deps: Studi
   if (bytes === null) bytes = await deps.services.synthesize(row.service, row.voice_id, row.preview_text ?? NEUTRAL_SAMPLE_LINE);
   const mediaType = mediaTypeOf(bytes);
   if (deps.store !== null) {
-    const key = sampleKeyFor(row.id, mediaType);
+    const key = sampleKeyFor(row.id, row.voice_id, mediaType);
     try {
       // The admin may have replaced the slot's voice while this was being made: then this recording is of the old
       // voice, and keeping it would overwrite the new voice's sample at the same key. The save is conditional too.

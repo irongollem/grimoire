@@ -85,8 +85,11 @@ export function useAudioToggle(resolve: (key: string) => Promise<PlayableAudio>)
   const problem = ref<string | null>(null);
   const urls = new Map<string, string>();
   let audio: HTMLAudioElement | null = null;
+  // Raised by every press, so a slow first fetch that comes back after another key was pressed does not play over it.
+  let press = 0;
 
   function stop(): void {
+    press += 1;
     audio?.pause();
     audio = null;
     playing.value = null;
@@ -95,6 +98,7 @@ export function useAudioToggle(resolve: (key: string) => Promise<PlayableAudio>)
   async function toggle(key: string): Promise<void> {
     if (playing.value === key) return stop();
     stop();
+    const mine = press;
     problem.value = null;
     let url = urls.get(key);
     if (url === undefined) {
@@ -104,11 +108,13 @@ export function useAudioToggle(resolve: (key: string) => Promise<PlayableAudio>)
         url = audioUrlOf(found.audio, found.mediaType);
         urls.set(key, url);
       } catch (error) {
-        problem.value = error instanceof Error ? error.message : "The voice could not be played.";
+        if (mine === press) problem.value = error instanceof Error ? error.message : "The voice could not be played.";
         return;
       } finally {
-        loading.value = null;
+        if (loading.value === key) loading.value = null;
       }
+      // Kept for next time either way, but not played: something else was pressed meanwhile.
+      if (mine !== press) return;
     }
     const playingNow = new Audio(url);
     audio = playingNow;

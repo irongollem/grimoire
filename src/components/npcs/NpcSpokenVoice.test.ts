@@ -20,7 +20,7 @@ vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: h.toastErro
 function slot(over: Partial<SpeechVoice>): SpeechVoice {
   return {
     id: "s1", name: "Maren", description: "A warm older woman", design_prompt: null, preview_text: null, sex: "woman", age: "old",
-    kind: "cast", origin: "stock", service: "elevenlabs", voice_id: "v1", sample_key: null, active: true, created_at: "", updated_at: "", ...over,
+    kind: "cast", origin: "stock", service: "elevenlabs", voice_id: "v1", library_voice_id: null, sample_key: null, active: true, created_at: "", updated_at: "", ...over,
   };
 }
 

@@ -118,10 +118,11 @@ async function doKeepInSlot(preview: DesignedPreview, retireOld: boolean): Promi
   replacing.value = null;
   busyId.value = preview.id;
   try {
-    // The slot keeps the prompt and fields its voice was designed from, unsaved edits included: otherwise a later
-    // redesign starts from the old prompt and the slot's description no longer matches what it sounds like.
-    await studio.saveSlot.mutateAsync({ id: slot.id, fields });
     const voice = await studio.keep.mutateAsync({ service: service.value, preview, slot, retireOld });
+    // Then the slot keeps the prompt and fields its voice was designed from, unsaved edits included: otherwise a
+    // later redesign starts from the old prompt. Only once the voice is in: a keep that failed must not leave the
+    // slot describing a voice it does not hold (casting matches characters on that description).
+    await studio.saveSlot.mutateAsync({ id: slot.id, fields });
     kept.value = { ...kept.value, [preview.id]: voice.name };
     toast.success(`Kept in ${voice.name}.`);
     emit("kept", voice);

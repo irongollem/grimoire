@@ -97,8 +97,12 @@ export interface TableVoiceDeps {
    * not answer in time; the choice is an option's name. Throws are the caller's to survive.
    */
   judgeSlot(options: Array<{ name: string; description: string }>, fitting: string): Promise<Judgment | null>;
-  /** Remembers the slot on the character, with the caller's own client. Throws when it cannot. */
-  saveSlot(campaignId: string, npcId: string, slotId: string): Promise<void>;
+  /**
+   * Remembers the slot on a character that has none yet, with the caller's own client, and answers the slot the
+   * character holds afterwards: this one, or the one another line saved first (every line of a reply is asked for at
+   * once, so several may cast the same new character together; the first save wins). Throws when it cannot.
+   */
+  saveSlot(campaignId: string, npcId: string, slotId: string): Promise<string | null>;
   /** Whether this stack can speak through the service (its key is set). */
   hasService(service: VoiceService): boolean;
   /**
@@ -246,35 +250,33 @@ async function voiceFor(deps: TableVoiceDeps, session: VoiceSession, line: Voice
   }
   const npcId = line.role === "character" && traits.hasRecord ? line.speaker.id : null;
 
-  // A character with a slot already speaks in it. A slot that is gone is cast again and the new one remembered; one
-  // that merely cannot be reached from here (this stack lacks its service's key, or the read failed) is spoken
-  // around for this line and left on the character.
-  let remember = npcId !== null;
-  if (npcId !== null && traits.slotId !== null) {
-    try {
-      const slot = await deps.loadSlot(traits.slotId);
-      if (slot === null) {
-        // Gone, retired or hidden: cast again below, and remember the new one.
-      } else {
-        const ref = refOf(slot, deps);
-        if (ref !== null) return { voice: ref, inputTokens: 0 };
-        remember = false;
-      }
-    } catch (error) {
-      console.error("table-voice: reading the character's voice slot failed:", error);
-      remember = false;
-    }
-  }
-
   let pool: VoiceSlot[] = [];
   try {
     pool = (await deps.loadSlots()).filter((slot) => refOf(slot, deps) !== null);
   } catch (error) {
     console.error("table-voice: reading the voice registry failed:", error);
   }
+  const ref = (slot: VoiceSlot): VoiceRef => ({ service: slot.service, id: slot.voiceId });
+
+  // A character with a slot speaks in it. One that cannot be used from here (retired or emptied for a while, someone
+  // else's signature voice, a service this stack has no key for, a read that failed) is spoken around with a stand-in
+  // picked from the character alone: no judgment and no save, so the same stand-in every line and the slot itself
+  // left on the character for when it can be used again. A slot that is deleted is cleared by its foreign key, and
+  // the character is cast afresh.
+  if (npcId !== null && traits.slotId !== null) {
+    try {
+      const slot = await deps.loadSlot(traits.slotId);
+      const own = slot === null ? null : refOf(slot, deps);
+      if (own !== null) return { voice: own, inputTokens: 0 };
+    } catch (error) {
+      console.error("table-voice: reading the character's voice slot failed:", error);
+    }
+    if (pool.length === 0) return { voice: narrator(), inputTokens: 0 };
+    return { voice: ref(pickByKey(npcId, pool, traits)), inputTokens: 0 };
+  }
+
   // Nothing filled on any service this stack has: the narrator's voice rather than silence.
   if (pool.length === 0) return { voice: narrator(), inputTokens: 0 };
-  const ref = (slot: VoiceSlot): VoiceRef => ({ service: slot.service, id: slot.voiceId });
 
   // A player's character and someone with no record keep to the old, cheap way: the same voice every time from a key.
   if (npcId === null) {
@@ -291,11 +293,19 @@ async function voiceFor(deps: TableVoiceDeps, session: VoiceSession, line: Voice
   const cast = await castNpc({ npcId, traits, fitting: traits.fitting, locationId: traits.locationId, pool, assignments }, deps.judgeSlot);
   // The pool is not empty, so a cast is always made.
   if (cast === null) return { voice: narrator(), inputTokens: 0 };
-  if (remember) {
-    // A failed save costs the character a stable voice, never the line.
-    await deps.saveSlot(campaignId, npcId, cast.slot.id).catch((error) => console.error("table-voice: remembering the character's voice failed:", error));
+  let spoken = cast.slot;
+  try {
+    // Another line of the same reply may have cast this character first: then its slot is theirs, and every line
+    // speaks it. A failed save costs the character a stable voice, never the line.
+    const holder = await deps.saveSlot(campaignId, npcId, cast.slot.id);
+    if (holder !== null && holder !== cast.slot.id) {
+      const first = pool.find((slot) => slot.id === holder);
+      if (first !== undefined) spoken = first;
+    }
+  } catch (error) {
+    console.error("table-voice: remembering the character's voice failed:", error);
   }
-  return { voice: ref(cast.slot), inputTokens: cast.inputTokens };
+  return { voice: ref(spoken), inputTokens: cast.inputTokens };
 }
 
 export async function speakLine(input: {

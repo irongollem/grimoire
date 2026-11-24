@@ -12,7 +12,7 @@ const LONG_TEXT = "x".repeat(120);
 
 const row = (over: Partial<SpeechVoiceRow> = {}): SpeechVoiceRow => ({
   id: SLOT, name: "Shady guy", description: "A man who sells things.", design_prompt: "A low, rough voice, selling something shady.", preview_text: null,
-  sex: "man", age: "adult", kind: "cast", origin: "designed", service: "elevenlabs", voice_id: "oldvoice1234", sample_key: null, active: true,
+  sex: "man", age: "adult", kind: "cast", origin: "designed", service: "elevenlabs", voice_id: "oldvoice1234", library_voice_id: null, sample_key: null, active: true,
   created_at: "", updated_at: "", ...over,
 });
 
@@ -168,17 +168,17 @@ describe("keep", () => {
     const { h, run } = harness();
     const res = await run({ action: "keep", service: "inworld", previewId: "draft-1", audio: base64FromBytes(WAV), slot: fields });
     const { voice } = await read(res);
-    expect(voice).toMatchObject({ id: NEW_ID, origin: "designed", service: "inworld", voice_id: "newvoice12345", sample_key: `voice-samples/${NEW_ID}.wav` });
-    expect(h.store.get(`voice-samples/${NEW_ID}.wav`)).toEqual(WAV);
+    expect(voice).toMatchObject({ id: NEW_ID, origin: "designed", service: "inworld", voice_id: "newvoice12345", sample_key: `voice-samples/${NEW_ID}/newvoice12345.wav` });
+    expect(h.store.get(`voice-samples/${NEW_ID}/newvoice12345.wav`)).toEqual(WAV);
   });
 
   it("replacing a designed voice with retireOld frees its custom slot and drops its old sample", async () => {
-    const { h, run } = harness([row({ sample_key: `voice-samples/${SLOT}.wav` })]);
-    h.store.set(`voice-samples/${SLOT}.wav`, WAV);
+    const { h, run } = harness([row({ sample_key: `voice-samples/${SLOT}/oldvoice1234.wav` })]);
+    h.store.set(`voice-samples/${SLOT}/oldvoice1234.wav`, WAV);
     await run({ action: "keep", service: "elevenlabs", previewId: "draft-2", audio: base64FromBytes(MP3), slotId: SLOT, retireOld: true });
     expect(h.calls).toContain("delete:elevenlabs:oldvoice1234");
-    expect(h.store.has(`voice-samples/${SLOT}.wav`)).toBe(false);
-    expect(h.store.has(`voice-samples/${SLOT}.mp3`)).toBe(true);
+    expect(h.store.has(`voice-samples/${SLOT}/oldvoice1234.wav`)).toBe(false);
+    expect(h.store.has(`voice-samples/${SLOT}/newvoice12345.mp3`)).toBe(true);
   });
 
   it("without retireOld the old designed voice stays on the service", async () => {
@@ -230,7 +230,16 @@ describe("library", () => {
   it("add stores the id the account returned, as a library voice on ElevenLabs", async () => {
     const { run } = harness();
     const { voice } = await read(await run({ action: "library-add", publicOwnerId: "own1", voiceId: "libvoice1234", slot: fields }));
-    expect(voice).toMatchObject({ origin: "library", service: "elevenlabs", voice_id: "addedvoice123", sample_key: null });
+    expect(voice).toMatchObject({ origin: "library", service: "elevenlabs", voice_id: "addedvoice123", library_voice_id: "libvoice1234", sample_key: null });
+  });
+
+  // Bug caught: a library voice whose account copy has a different id shown as not added, and added a second time.
+  it("knows a library voice again by its library id when the account's copy has another", async () => {
+    const { h, run } = harness([row({ origin: "library", voice_id: "addedvoice123", library_voice_id: "libvoice1234" })]);
+    h.libraryResults = [{ publicOwnerId: "own1", voiceId: "libvoice1234" }];
+    const { voices } = await read(await run({ action: "library-search", query: "" }));
+    expect(voices.map((v) => v.inRegistry)).toEqual([true]);
+    expect((await run({ action: "library-add", publicOwnerId: "own1", voiceId: "libvoice1234", slot: fields })).status).toBe(409);
   });
 
   it("adding a voice that already fills a slot is refused, not added twice", async () => {
@@ -260,9 +269,9 @@ describe("account", () => {
 
 describe("remove", () => {
   it("fromService deletes a designed voice from its service, the row and the sample", async () => {
-    const { h, run } = harness([row({ sample_key: `voice-samples/${SLOT}.mp3` })]);
+    const { h, run } = harness([row({ sample_key: `voice-samples/${SLOT}/oldvoice1234.mp3` })]);
     expect((await run({ action: "remove", slotId: SLOT, fromService: true })).status).toBe(200);
-    expect(h.calls).toEqual(["delete:elevenlabs:oldvoice1234", `rm:voice-samples/${SLOT}.mp3`]);
+    expect(h.calls).toEqual(["delete:elevenlabs:oldvoice1234", `rm:voice-samples/${SLOT}/oldvoice1234.mp3`]);
     expect(h.rows).toEqual([]);
   });
 
@@ -303,8 +312,8 @@ describe("sample", () => {
   });
 
   it("a kept sample is returned without any speech being made", async () => {
-    const { h, run } = harness([row({ sample_key: `voice-samples/${SLOT}.wav` })]);
-    h.store.set(`voice-samples/${SLOT}.wav`, WAV);
+    const { h, run } = harness([row({ sample_key: `voice-samples/${SLOT}/oldvoice1234.wav` })]);
+    h.store.set(`voice-samples/${SLOT}/oldvoice1234.wav`, WAV);
     const body = await read(await run({ action: "sample", slotId: SLOT }, false));
     expect(body).toEqual({ audio: base64FromBytes(WAV), mediaType: "audio/wav" });
     expect(h.calls).toEqual([]);
@@ -314,8 +323,8 @@ describe("sample", () => {
     const { h, run } = harness([row({ preview_text: "Well met, traveller." })]);
     await run({ action: "sample", slotId: SLOT }, false);
     expect(h.calls).toEqual(["preview:oldvoice1234", "speak:oldvoice1234:Well met, traveller."]);
-    expect(h.rows[0].sample_key).toBe(`voice-samples/${SLOT}.mp3`);
-    expect(h.store.get(`voice-samples/${SLOT}.mp3`)).toEqual(MP3);
+    expect(h.rows[0].sample_key).toBe(`voice-samples/${SLOT}/oldvoice1234.mp3`);
+    expect(h.store.get(`voice-samples/${SLOT}/oldvoice1234.mp3`)).toEqual(MP3);
   });
 
   it("a slot with no preview text says the neutral line", async () => {
@@ -331,7 +340,7 @@ describe("sample", () => {
     const body = await read(await run({ action: "sample", slotId: SLOT }, false));
     expect(h.calls).toEqual(["preview:oldvoice1234"]);
     expect(body.audio).toBe(base64FromBytes(WAV));
-    expect(h.store.get(`voice-samples/${SLOT}.wav`)).toEqual(WAV);
+    expect(h.store.get(`voice-samples/${SLOT}/oldvoice1234.wav`)).toEqual(WAV);
   });
 
   // Bug caught: a sample of the old voice, finished after the admin replaced it, overwriting the new voice's sample.

@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(11);
 
 -- The voice registry (#1272): every account reads the filled cast slots, only the admin reads the rest or writes,
 -- and a DM can give a character only a voice they can read, so nobody puts another table's signature voice on
@@ -68,6 +68,15 @@ select throws_ok(
   $$update public.npcs set speech_voice_id = '94400000-0000-4000-8000-000000000033' where id = '94400000-0000-4000-8000-000000000020'$$,
   '42501', 'That voice cannot be given to a character.',
   'nor a retired one');
+
+-- A copied NPC carrying a voice the DM cannot read (retired since, or someone's signature voice) is saved without it:
+-- a copy must not fail over a voice, and the table casts the copy afresh.
+insert into public.npcs (id, user_id, campaign_id, name, speech_voice_id)
+values ('94400000-0000-4000-8000-000000000021', '94400000-0000-4000-8000-000000000001', '94400000-0000-4000-8000-000000000010', 'Pell (copy)', '94400000-0000-4000-8000-000000000031');
+select is(
+  (select speech_voice_id from public.npcs where id = '94400000-0000-4000-8000-000000000021'),
+  null::uuid,
+  'a copied NPC keeps no voice its DM cannot read, and the copy itself succeeds');
 
 -- ── As the admin ──────────────────────────────────────────────────────────
 select set_config('request.jwt.claims', '{"sub":"94400000-0000-4000-8000-000000000002","role":"authenticated","app_metadata":{"provider":"email","role":"admin"}}', true);

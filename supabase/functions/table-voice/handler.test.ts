@@ -43,6 +43,8 @@ function harness() {
     jevThrows: false,
     asked: [] as Array<{ names: string[]; fitting: string }>,
     saved: [] as Array<{ npcId: string; slotId: string }>,
+    // A slot another line of the same reply saved first, which this line's save then finds and adopts.
+    savedFirst: null as string | null,
     saveThrows: false,
     freed: [] as Array<{ reason: string; tokens: number | undefined }>,
     traitsThrow: false,
@@ -104,7 +106,9 @@ function harness() {
     },
     saveSlot: async (_c, npcId, slot) => {
       if (h.saveThrows) throw new Error("rls");
+      if (h.savedFirst !== null) return h.savedFirst;
       h.saved.push({ npcId, slotId: slot });
+      return slot;
     },
     hasService: (service) => (service === "elevenlabs" ? h.elevenlabs : h.inworld),
     isFlagged: async (text) => {
@@ -184,15 +188,28 @@ describe("speakLine", () => {
     expect(h.saved).toEqual([]);
   });
 
-  // Bug caught: a slot the admin retired or deleted still used, silencing or mis-voicing the character for good.
-  it("casts a character again, and remembers the new slot, when theirs is gone", async () => {
+  // Bug caught: a slot the admin retired for a moment (or someone's signature voice) overwritten for good on the
+  // character's next line, so reactivating it never brought them back; and a judgment paid for every such line.
+  // (The stand-in is `pickByKey` on the character's id, stable by construction: `casting.test.ts` pins that.)
+  it("speaks around a slot it cannot use with a stand-in, and leaves the slot on the character", async () => {
     const h = harness();
     h.traits = { ...h.traits, slotId: SLOTS.oldMan.id };
     h.gone.add(SLOTS.oldMan.id);
     await speak(h);
     expect(h.spoken).toHaveLength(1);
     expect(h.spoken[0].voiceId).not.toBe(SLOTS.oldMan.voiceId);
-    expect(h.saved).toEqual([{ npcId: ALDA, slotId: expect.any(String) }]);
+    expect(h.saved).toEqual([]);
+    expect(h.asked).toEqual([]);
+  });
+
+  // Bug caught: a new character's first lines, asked for together, each cast on their own and spoken in different
+  // voices, the last save winning.
+  it("speaks the voice another line of the reply already saved for a new character", async () => {
+    const h = harness();
+    h.jev = () => ({ choice: SLOTS.womanA.name, inputTokens: 5 });
+    h.savedFirst = SLOTS.womanB.id;
+    await speak(h);
+    expect(h.spoken[0].voiceId).toBe(SLOTS.womanB.voiceId);
   });
 
   // Bug caught: a stack without a service's key overwriting the character's slot, so their own voice is lost

@@ -4,7 +4,7 @@
       <h2 class="text-heading-sm font-semibold text-foreground">ElevenLabs Voice Library</h2>
       <p class="mt-0.5 text-caption text-muted-foreground italic">Thousands of voices made by other people. Adding one fills a slot and uses no custom voice slot.</p>
     </div>
-    <form class="flex flex-wrap items-center gap-2" @submit.prevent="search(1)">
+    <form class="flex flex-wrap items-center gap-2" @submit.prevent="search(0)">
       <AppInput v-model="query" type="search" size="sm" :block="false" class="min-w-48 flex-1" placeholder="Raspy old sailor, a calm narrator..." aria-label="Search the voice library" />
       <AppSelect v-model="sex" aria-label="Sex">
         <option value="">Any sex</option>
@@ -71,7 +71,8 @@ const query = ref("");
 const sex = ref("");
 const age = ref("");
 const results = ref<LibraryVoice[]>([]);
-const page = ref(1);
+// ElevenLabs numbers the library's pages from 0: the first page is the best matches.
+const page = ref(0);
 const hasMore = ref(false);
 const searching = ref(false);
 const searched = ref(false);
@@ -89,7 +90,7 @@ async function search(target: number): Promise<void> {
       ...(age.value !== "" ? { age: age.value as VoiceAge } : {}),
       page: target,
     });
-    results.value = target === 1 ? response.voices : [...results.value, ...response.voices];
+    results.value = target === 0 ? response.voices : [...results.value, ...response.voices];
     page.value = target;
     hasMore.value = response.hasMore;
     searched.value = true;

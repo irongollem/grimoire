@@ -128,7 +128,9 @@ export function useTableVoice(options: {
     queue.stop();
   }
 
-  return { parts, enabled, unavailable: queue.unavailable, spent: queue.spent, broke: queue.broke, speaking: queue.speaking, say, replay, stop: queue.stop, setPart, setAllOff };
+  // `speaking` is the queue's `busy`: the table must not go on while a voice is still reading, the wait for a clip
+  // being made included (`useTableGoingOn`).
+  return { parts, enabled, unavailable: queue.unavailable, spent: queue.spent, broke: queue.broke, speaking: queue.busy, say, replay, stop: queue.stop, setPart, setAllOff };
 }
 
 /**
