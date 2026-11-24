@@ -56,6 +56,7 @@ import type { TurnRow } from "../_shared/agent/transcript.ts";
 import { beginTurn } from "./handler.ts";
 import { candidateFactIds, factFailure, NEWEST_FACTS, openFacts, recordFrom, recordTies, sessionIdsOf, sessionNumbers } from "./recordRows.ts";
 import { sceneFrom } from "./sceneRows.ts";
+import { hitPointsWrite } from "../_shared/agent/hitPoints.ts";
 import { makeTableMap, paintTableMap, placeHasMap, writePlaceMap } from "./mapMakeIo.ts";
 import { makePaintDeps, uploadPlainMapPicture } from "./mapPaintIo.ts";
 import { decryptValue } from "../_shared/vault.ts";
@@ -650,7 +651,8 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
 
     // The campaign filter is in the query: a member of another campaign is not found, and nothing is written.
     async setHitPoints(campaignId, memberId, hitPoints) {
-      const { error } = await admin.from("party_members").update({ current_hp: hitPoints }).eq("id", memberId).eq("campaign_id", campaignId);
+      // Above 0 the death saves reset with it (`hitPointsWrite`).
+      const { error } = await admin.from("party_members").update(hitPointsWrite(hitPoints)).eq("id", memberId).eq("campaign_id", campaignId);
       if (error) throw error;
     },
 
