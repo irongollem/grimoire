@@ -977,7 +977,7 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "Combat" },
   },
 
-  // The AI-run table (#1021): the DM plays a character, an AI Dungeon Master tells the story.
+  // The AI-run table (#1021): the DM plays a character, the Narrator (the AI Dungeon Master) tells the story.
   {
     path: "/table",
     name: "ai-table",
