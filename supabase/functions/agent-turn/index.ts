@@ -143,6 +143,23 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     return recordFreeGeneration(admin, user.id, reason, log);
   };
 
+  // Time moves as the caller (the campaign's own update policy decides who may), forwards or, in a correction, back.
+  const moveDate = async (fn: "advance_campaign_date" | "rewind_campaign_date", campaignId: string, days: number) => {
+    const { data, error } = await supabase.rpc(fn, { p_campaign_id: campaignId, p_days: days });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : null;
+    const date = campaignToday({ current_year: row?.year, current_month: row?.month, current_day: row?.day });
+    if (date === null) throw new Error(`${fn} returned no date`);
+    // A calendar that will not word the day costs the chat line, never the date that has moved.
+    let text: string | null = null;
+    try {
+      text = dateTextFor(rawCampaign)(date.year, date.month, date.day);
+    } catch (wording) {
+      console.error("agent-turn: wording the new date failed:", wording);
+    }
+    return { date, text };
+  };
+
   const deps: AgentTurnDeps = {
     async accountRefusal(userId): Promise<Refusal | null> {
       // Fail closed: a conversation with a model is not something to allow on a lookup that could not be made.
@@ -751,21 +768,9 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     loadQuests: (campaignId, pressureClockId) => loadQuests(supabase, campaignId, pressureClockId, dateTextFor(rawCampaign)),
     applyQuestMove: (ctx, move) => applyQuestMove(supabase, admin, ctx, move),
     // Time moves as the caller (the campaign's own update policy decides who may); the chat line is the server's.
-    async advanceDate(campaignId, days) {
-      const { data, error } = await supabase.rpc("advance_campaign_date", { p_campaign_id: campaignId, p_days: days });
-      if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : null;
-      const date = campaignToday({ current_year: row?.year, current_month: row?.month, current_day: row?.day });
-      if (date === null) throw new Error("advance_campaign_date returned no date");
-      // A calendar that will not word the day costs the chat line, never the date that has moved.
-      let text: string | null = null;
-      try {
-        text = dateTextFor(rawCampaign)(date.year, date.month, date.day);
-      } catch (wording) {
-        console.error("agent-turn: wording the new date failed:", wording);
-      }
-      return { date, text };
-    },
+    advanceDate: (campaignId, days) => moveDate("advance_campaign_date", campaignId, days),
+    // A correction's days taken back: the same caller, the same reading of the new date.
+    rewindDate: (campaignId, days) => moveDate("rewind_campaign_date", campaignId, days),
     async announce(campaignId, text) {
       const { error } = await admin.from("campaign_messages").insert({
         campaign_id: campaignId, user_id: user.id, recipient_user_id: null, sender_name: null, message: text, type: "system", metadata: null,

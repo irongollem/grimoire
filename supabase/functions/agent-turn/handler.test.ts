@@ -211,6 +211,7 @@ interface Harness {
     failArrival: Set<"place" | "reveal" | "seat">;
     /** The date move (`advance_campaign_date`) and the chat line after it fail. */
     advanceFails: boolean;
+    rewindFails: boolean;
     announceFails: boolean;
     /** The canon (#1226): the world block, the last sitting, what lies here, the lookup, what an invention is held against. */
     canonWorld: string;
@@ -227,6 +228,7 @@ interface Harness {
   applied: Array<{ ctx: { campaignId: string; agentSessionId: string; today?: DatePoint | null }; move: QuestMove }>;
   /** Every date move asked of the database, and every chat line posted about one. */
   dateMoves: Array<{ campaignId: string; days: number }>;
+  dateRewinds: Array<{ campaignId: string; days: number }>;
   /** Every invention read (campaign and character) and every ruling asked of the database. */
   inventionReads: Array<{ campaignId: string; memberId: string }>;
   rulingsMade: InventionRuling[];
@@ -360,6 +362,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       failMoveAt: new Set<number>(),
       failArrival: new Set<"place" | "reveal" | "seat">(),
       advanceFails: false,
+      rewindFails: false,
       announceFails: false,
       canonWorld: "",
       canonPrevious: "",
@@ -372,6 +375,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     canonAsked: { previously: [], here: [], lookups: [], brought: [] },
     applied: [],
     dateMoves: [],
+    dateRewinds: [],
     inventionReads: [],
     rulingsMade: [],
     announced: [],
@@ -660,6 +664,12 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       h.dateMoves.push({ campaignId, days });
       if (h.state.advanceFails) throw new Error("rpc failed");
       const date = { ...START_DATE, day: START_DATE.day + days };
+      return { date, text: `day ${date.day} of month ${date.month}, ${date.year}` };
+    },
+    rewindDate: async (campaignId, days) => {
+      h.dateRewinds.push({ campaignId, days });
+      if (h.state.rewindFails) throw new Error("rpc failed");
+      const date = { ...START_DATE, day: START_DATE.day - days };
       return { date, text: `day ${date.day} of month ${date.month}, ${date.year}` };
     },
     announce: async (_campaignId, text) => {
@@ -3694,6 +3704,50 @@ describe("time and held payoffs, performed by the server once the turn is kept",
     expect(h.dateMoves).toEqual([{ campaignId: CAMPAIGN, days: 3 }]);
     expect(h.announced).toEqual(["📅 The date is now day 17 of month 3, 1492"]);
     expect(h.events.map((e) => e.type)).not.toContain("days");
+  });
+
+  const CORRECT = { campaignId: CAMPAIGN, sessionId: SESSION, message: "We never spent three days in the swamp.", mode: "correct" };
+
+  // Bug caught: a correction that could not reach the date, so "we never spent those days" kept them.
+  it("puts the date back by the days a correction takes back and says so in the chat", async () => {
+    const h = table([call("d1", "take_days_back", { days: 3 }), step(10)]);
+    existingSession(h);
+    await play(h, { body: CORRECT });
+    expect(h.dateRewinds).toEqual([{ campaignId: CAMPAIGN, days: 3 }]);
+    expect(h.dateMoves).toEqual([]);
+    expect(h.announced).toEqual(["📅 The date is now day 11 of month 3, 1492"]);
+  });
+
+  // Bug caught: a date put back in a turn that is not a correction, where the tool is not offered.
+  it("offers take_days_back in a correction only", async () => {
+    const plain = table([step(10)]);
+    await play(plain, { body: BODY });
+    expect(plain.requests[0].tools.map((t) => t.name)).not.toContain("take_days_back");
+    const fixing = table([step(10)]);
+    existingSession(fixing);
+    await play(fixing, { body: CORRECT });
+    expect(fixing.requests[0].tools.map((t) => t.name)).toContain("take_days_back");
+  });
+
+  // Bug caught: the date put back for a turn that was never kept, and again when the player sent it again.
+  it("puts no date back for a correction that was not kept", async () => {
+    const h = table([call("d1", "take_days_back", { days: 3 }), step(10)]);
+    existingSession(h);
+    h.state.conflict = true;
+    await play(h, { body: CORRECT });
+    expect(h.dateRewinds).toEqual([]);
+    expect(h.announced).toEqual([]);
+  });
+
+  // Bug caught: one failed database call (the caller may not move time) throwing away a paid correction.
+  it("keeps the correction when the date cannot be put back, and says nothing about it", async () => {
+    const h = table([call("d1", "take_days_back", { days: 3 }), step(10)]);
+    existingSession(h);
+    h.state.rewindFails = true;
+    await play(h, { body: CORRECT });
+    expect(h.appends).toHaveLength(1);
+    expect(h.announced).toEqual([]);
+    expect(last(h)).toMatchObject({ type: "done" });
   });
 
   // Bug caught: a date written for a turn that was never kept, and then written again when the player sent it again.

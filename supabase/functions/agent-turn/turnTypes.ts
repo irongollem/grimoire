@@ -360,6 +360,11 @@ export interface AgentTurnDeps {
    * word it). Called only after the turn was saved; throws on any failure.
    */
   advanceDate(campaignId: string, days: number): Promise<{ date: DatePoint; text: string | null }>;
+  /**
+   * Puts the campaign's date back by whole days (`rewind_campaign_date`, as the caller, like `advanceDate`). Same
+   * return. Called only after the turn was saved, in a correction; throws on any failure.
+   */
+  rewindDate(campaignId: string, days: number): Promise<{ date: DatePoint; text: string | null }>;
   /** Writes a system line into the campaign's chat, as the Calendar page does when the date moves. Throws on failure. */
   announce(campaignId: string, text: string): Promise<void>;
   /**

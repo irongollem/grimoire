@@ -17,7 +17,7 @@ import { cannotAttempt, changedText, FIGHT_CHANGE_TOOL, parseFightChange, type F
 import type { FightState } from "../_shared/agent/fight.ts";
 import { alreadyRecorded, existsText, INTRODUCE_TOOL, INTRODUCE_TOOL_NAME, INTRODUCTIONS_PER_TURN, introducedText, parseIntroduction, type Introduction } from "../_shared/agent/introduce.ts";
 import { GO_TO_TOOL, makeSceneTool } from "../_shared/agent/scene.ts";
-import { parsePassDays, PASS_DAYS_TOOL, PASS_DAYS_TOOL_NAME, passedText } from "../_shared/agent/days.ts";
+import { parsePassDays, parseTakeDaysBack, PASS_DAYS_TOOL, PASS_DAYS_TOOL_NAME, passedText, TAKE_DAYS_BACK_TOOL, TAKE_DAYS_BACK_TOOL_NAME, takenBackText } from "../_shared/agent/days.ts";
 import { planRuling, RULE_INVENTION_TOOL, RULE_INVENTION_TOOL_NAME, type InventionRuling, type PendingInvention } from "../_shared/agent/invention.ts";
 import { FIRE_CONSEQUENCE_TOOL, FIRE_CONSEQUENCE_TOOL_NAME, parseFireInput, planFire } from "../_shared/agent/consequence.ts";
 import { ROLL_TABLE_TOOL, ROLL_TABLE_TOOL_NAME, rollAnswer } from "../_shared/agent/roadTables.ts";
@@ -152,6 +152,8 @@ export interface TurnToolsInput {
   travel: { map(): Promise<TravelMap>; /** A whole number from 1 to `max`: the die behind the screen. */ roll(max: number): number } | null;
   /** Whole days passed in the story (`days.ts`): the page moves the campaign's date once the turn is kept. Null in a fight. */
   onDaysPassed: ((days: number) => void) | null;
+  /** Days a correction takes back (`take_days_back`); offered in a correction turn only, and null when none is. */
+  onDaysTakenBack?: ((days: number) => void) | null;
   /** Offered only with the quests read and no fight on the board: a held payoff is the story's to fire, not a round's. */
   fireHeld?: boolean;
   /**
@@ -586,9 +588,23 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     const parsed = parsePassDays(toolInput);
     if (!parsed.ok) return { content: parsed.error, isError: true };
     if (daysPassed) return { content: "Days already passed in this reply. Give the total in one call.", isError: true };
+    if (daysTakenBack) return { content: "Days were already taken back in this reply, so none can pass in it.", isError: true };
     daysPassed = true;
     input.onDaysPassed(parsed.days);
     return { content: passedText(parsed.days), isError: false };
+  };
+
+  // Once a reply, with the total, and never beside pass_days: the date cannot go both ways for what the story told once.
+  let daysTakenBack = false;
+  const takeDaysBack = (toolInput: Record<string, unknown>) => {
+    if (!input.onDaysTakenBack || input.correcting !== true) return { content: "Days are taken back only in a correction.", isError: true };
+    const parsed = parseTakeDaysBack(toolInput);
+    if (!parsed.ok) return { content: parsed.error, isError: true };
+    if (daysTakenBack) return { content: "Days already taken back in this reply. Give the total in one call.", isError: true };
+    if (daysPassed) return { content: "Days already passed in this reply, so none can be taken back in it.", isError: true };
+    daysTakenBack = true;
+    input.onDaysTakenBack(parsed.days);
+    return { content: takenBackText(parsed.days), isError: false };
   };
 
   // One request a turn: the story stops for a single roll, and a second would silently replace the first.
@@ -607,7 +623,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, BRING_OUT_TOOL, CANON_LOOKUP_TOOL, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.onHazard === undefined ? [] : [HAZARD_TOOL]), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), ...(input.quests !== null && input.fireHeld === true ? [FIRE_CONSEQUENCE_TOOL] : []), ...(input.rulings ? [RULE_INVENTION_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, BRING_OUT_TOOL, CANON_LOOKUP_TOOL, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.onHazard === undefined ? [] : [HAZARD_TOOL]), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), ...(input.onDaysTakenBack && input.correcting === true ? [TAKE_DAYS_BACK_TOOL] : []), ...(input.quests !== null && input.fireHeld === true ? [FIRE_CONSEQUENCE_TOOL] : []), ...(input.rulings ? [RULE_INVENTION_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
@@ -627,6 +643,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (name === FIRE_CONSEQUENCE_TOOL_NAME) return Promise.resolve(fireConsequence(toolInput));
       if (name === RULE_INVENTION_TOOL_NAME) return Promise.resolve(ruleInvention(toolInput));
       if (input.onDaysPassed && name === PASS_DAYS_TOOL_NAME) return Promise.resolve(passDays(toolInput));
+      if (name === TAKE_DAYS_BACK_TOOL_NAME) return Promise.resolve(takeDaysBack(toolInput));
       if (name === KEEP_TALKING_TOOL_NAME) {
         floorKept = true;
         input.onKeepTalking?.();

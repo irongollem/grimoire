@@ -124,6 +124,8 @@ export async function beginTurn(input: {
             : null,
           // Days that pass in the story move the campaign's date, on the server, once the turn is kept. Not in a fight.
           onDaysPassed: fightRunning ? null : (days) => { fx.daysPassed = days; },
+          // A correction can take days back; not in a fight, like days passing.
+          onDaysTakenBack: fightRunning ? null : (days) => { fx.daysTakenBack = days; },
           // How far somewhere is, by the campaign's roads. Not in a fight: nobody sets out on a journey mid-round.
           travel: fightRunning ? null : { map: () => deps.loadTravelMap(campaign.id, campaign.game_system), roll: deps.rollDie },
           // Not in a fight: a turn there is six seconds, and what it holds is the board's.

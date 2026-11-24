@@ -22,7 +22,7 @@ import type { makeTurnTools } from "./turnTools.ts";
 import { applyKeptQuestMoves, safely } from "./turnSupport.ts";
 import { discardFiled, type TurnEffects, type TurnScope } from "./turnScope.ts";
 import type { TurnContext } from "./turnContext.ts";
-import { MESSAGES, type SessionRow } from "./turnTypes.ts";
+import { MESSAGES, type AgentTurnDeps, type SessionRow } from "./turnTypes.ts";
 
 /** The finished loop and the tools it ran with, for the steps that decide what of it is kept. */
 export interface RanTurn {
@@ -164,9 +164,16 @@ async function carryOutKeptTurn(
   // never the turn, and the payoff is then fired as of the date the turn began with. The campaign row rings the
   // doorbell, so every open screen reads the new date by itself.
   let today = campaign.date ?? null;
-  if (fx.daysPassed > 0) {
+  // A correction's days taken back are carried out the same way, with the same failure handling. The two never
+  // meet in one reply (turnTools refuses the second), so only one of these runs.
+  const dateMoves: Array<{ days: number; move: (campaignId: string, days: number) => ReturnType<AgentTurnDeps["advanceDate"]> }> = [
+    { days: fx.daysPassed, move: (id, days) => deps.advanceDate(id, days) },
+    { days: fx.daysTakenBack, move: (id, days) => deps.rewindDate(id, days) },
+  ];
+  for (const { days, move } of dateMoves) {
+    if (days <= 0) continue;
     try {
-      const moved = await deps.advanceDate(campaign.id, fx.daysPassed);
+      const moved = await move(campaign.id, days);
       today = moved.date;
       if (moved.text !== null) await safely(() => deps.announce(campaign.id, `📅 The date is now ${moved.text}`));
     } catch (error) {

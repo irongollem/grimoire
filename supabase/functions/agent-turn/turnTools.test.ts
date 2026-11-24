@@ -40,7 +40,7 @@ const SHOWN_PLACE = "00000000-0000-4000-8000-0000000000f3";
 
 type HandsFixture = Omit<NonNullable<TurnToolsInput["hands"]>, "memberId" | "onChange">;
 
-function build(quests: TurnToolsInput["quests"] = null, played = false, hands: HandsFixture | null = null, canon: Partial<TurnToolsInput["canon"]> = {}, sessionOver: Partial<SessionRow> = {}) {
+function build(quests: TurnToolsInput["quests"] = null, played = false, hands: HandsFixture | null = null, canon: Partial<TurnToolsInput["canon"]> = {}, sessionOver: Partial<SessionRow> = {}, correcting = false) {
   const brought: BroughtOut[] = [];
   const handed: HandsChange[] = [];
   const handedOut: string[] = [];
@@ -55,6 +55,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
   };
   const mapReads = { count: 0 };
   const passed: number[] = [];
+  const takenBack: number[] = [];
   const turn = makeTurnTools({
     deps: {
       tools: [{ name: "search", description: "", inputSchema: {} }],
@@ -93,6 +94,8 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
     quests,
     askRoll: played ? (pending) => asked.push(pending) : null,
     onDaysPassed: (days) => { passed.push(days); },
+    onDaysTakenBack: (days) => { takenBack.push(days); },
+    correcting,
     travel: {
       roll: () => 3,
       map: async () => {
@@ -120,7 +123,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
       : null,
     fight: played ? { view: { prepared: [{ id: FIGHT, name: "The cellar rats", creatures: "" }], fight: null }, viewAt: async () => ({ prepared: [{ id: ATTIC_FIGHT, name: "The attic bats", creatures: "" }], fight: null }), onStart: (plan) => { fights.push(plan); }, statless: async () => [] } : null,
   });
-  return { turn, calls, filed, moves, asked, fights, handed, handedOut, placesShared, mapReads, passed, brought };
+  return { turn, calls, filed, moves, asked, fights, handed, handedOut, placesShared, mapReads, passed, takenBack, brought };
 }
 
 describe("makeTurnTools", () => {
@@ -163,6 +166,44 @@ describe("makeTurnTools", () => {
     expect((await turn.callTool("pass_days", { days: 3 })).isError).toBe(false);
     expect((await turn.callTool("pass_days", { days: 3 })).isError).toBe(true);
     expect(passed).toEqual([3]);
+  });
+
+  // Bug caught: a player's ordinary turn (or the Narrator on its own) putting the date back; only a correction may.
+  it("offers take_days_back in a correction turn only, and refuses it anywhere else", async () => {
+    const plain = build();
+    expect(plain.turn.tools.map((t) => t.name)).not.toContain("take_days_back");
+    expect((await plain.turn.callTool("take_days_back", { days: 2 })).isError).toBe(true);
+    expect(plain.takenBack).toEqual([]);
+    const fixing = build(null, false, null, {}, {}, true);
+    expect(fixing.turn.tools.map((t) => t.name)).toContain("take_days_back");
+  });
+
+  // Bug caught: the date put back twice for days the correction took back once.
+  it("takes days back once a reply and refuses a second call", async () => {
+    const { turn, takenBack } = build(null, false, null, {}, {}, true);
+    expect((await turn.callTool("take_days_back", { days: 3 })).isError).toBe(false);
+    expect((await turn.callTool("take_days_back", { days: 2 })).isError).toBe(true);
+    expect(takenBack).toEqual([3]);
+  });
+
+  // Bug caught: the date shoved both ways in one reply, so the net move is nobody's reading of the story.
+  it("refuses taking days back after pass_days in the same reply, and pass_days after taking them back", async () => {
+    const a = build(null, false, null, {}, {}, true);
+    expect((await a.turn.callTool("pass_days", { days: 3 })).isError).toBe(false);
+    expect((await a.turn.callTool("take_days_back", { days: 2 })).isError).toBe(true);
+    expect(a.takenBack).toEqual([]);
+    const b = build(null, false, null, {}, {}, true);
+    expect((await b.turn.callTool("take_days_back", { days: 2 })).isError).toBe(false);
+    expect((await b.turn.callTool("pass_days", { days: 3 })).isError).toBe(true);
+    expect(b.passed).toEqual([]);
+  });
+
+  // Bug caught: a count outside 1 to 60 reaching the database, which then refuses the whole move.
+  it("refuses a count out of range", async () => {
+    const { turn, takenBack } = build(null, false, null, {}, {}, true);
+    expect((await turn.callTool("take_days_back", { days: 61 })).isError).toBe(true);
+    expect((await turn.callTool("take_days_back", { days: 0 })).isError).toBe(true);
+    expect(takenBack).toEqual([]);
   });
 
   // Bug caught: a held payoff fired where the tool is not offered (a fight on the board), answered as a quest tool.

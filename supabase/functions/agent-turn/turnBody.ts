@@ -175,7 +175,8 @@ export function playerText(mode: "say" | "do" | "ask" | "correct", message: stri
       "it fits, with the tools you have: put a fact on record with what is true now, passing as closes the id of " +
       "the fact it overtakes when one is listed under \"On record\"; set the character's hit points right with " +
       "set_right when the correction changes how hurt they are; give back or take away what changed hands; put a " +
-      "quest, an objective or a clock back where the corrected story has it; in a fight on the board, rule the " +
+      "quest, an objective or a clock back where the corrected story has it; take_days_back when days the story told " +
+      "did not pass; in a fight on the board, rule the " +
       "change with fight_change, costing nothing. Change only what the correction touches. Then tell on from the " +
       "corrected moment in two to four sentences, as if it had always gone so, and decide nothing more for the " +
       "player's character than their sentence says."

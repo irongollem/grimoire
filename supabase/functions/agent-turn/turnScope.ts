@@ -54,6 +54,8 @@ export interface TurnEffects {
   // Hazards the narrator made this turn; written only once the turn is kept.
   madeHazards: HazardRules[];
   daysPassed: number;
+  // Days a correction takes the campaign's date back by; carried out only once the turn is kept.
+  daysTakenBack: number;
   // The fight the narrator starts this turn; started only once the turn is kept.
   fightPlan: FightPlan | null;
   // Clues found and passages told in play this turn (#1226); marked only once the turn is kept.
@@ -78,6 +80,7 @@ export function newEffects(): TurnEffects {
     introduced: [],
     madeHazards: [],
     daysPassed: 0,
+    daysTakenBack: 0,
     fightPlan: null,
     broughtOut: [],
     rulings: [],
