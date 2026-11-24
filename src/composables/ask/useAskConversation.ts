@@ -423,13 +423,20 @@ export function useAskConversation(deps: AskConversationDeps) {
   }
 
   async function launch(itemId: number, how: "run" | "quick") {
+    const first = find(itemId, "proposal");
+    if (first?.state !== "quote") return;
+    // The card is drawn only once its adapter is here, so this is a plain read; the wait is for a press that beats the load.
+    let adapter = deps.adapters.adapterFor(first.proposal.generator);
+    if (!adapter) {
+      adapter = await deps.adapters.loadAdapter(first.proposal.generator);
+      // Look again after the wait: a second press, a cancel or a new conversation may have got in first.
+    }
     const item = find(itemId, "proposal");
     if (item?.state !== "quote") return;
     const { proposal } = item;
     // The answers as they stand at the press: a change after it cannot reach a run already under way.
     const choices = { ...item.choices };
     const generator = askGenerator(proposal.generator);
-    const adapter = deps.adapters.adapterFor(proposal.generator);
     if (!generator || !adapter) return;
     let confirmed: string;
     if (how === "quick") {

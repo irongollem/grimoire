@@ -6,7 +6,7 @@
  * offers exactly what the panel did. A list is a function that returns a computed, so it is read only once a form
  * asks for it (a closed panel must cost no egress).
  */
-import { computed, type ComputedRef } from "vue";
+import { computed, shallowRef, type ComputedRef } from "vue";
 import type { AskRecordType } from "@edge-shared/agent/askContract";
 import { FACTION_ALIGNMENTS, FACTION_TYPES, NPC_FACTION_ROLES } from "@/types/faction.types";
 import { MONSTER_TYPES } from "@/types/monster.types";
@@ -19,7 +19,6 @@ import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import { CR_LIST } from "@/types/trap.types";
 import { DUNGEON_FEATURE_TRIGGERS, DUNGEON_FEATURE_TYPES } from "@/types/dungeonFeature.types";
 import { useAllPantheons } from "@/composables/deities/useDeities";
-import { NPC_TEMPLATES } from "@/data/npcTemplates";
 import { useCampaignPeoples } from "@/composables/canon/useCampaignPeoples";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import { useAllFactions } from "@/composables/factions/useFactions";
@@ -29,7 +28,6 @@ import { useChronicleSessionOptions } from "@/ai/ask/askSessionNotes";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useSubclassParents } from "@/composables/rules/useGenerateCustomSubclass";
 import { useItemIndex } from "@/composables/items/useItemIndex";
-import { CRAFTING_DISCIPLINES } from "@/lib/crafting/disciplines";
 
 export interface AskOption {
   value: string;
@@ -55,6 +53,19 @@ function capitalised(words: readonly string[]): AskOption[] {
 }
 
 /** Every list a contract input may name by `list`. */
+/**
+ * A list read from a module only some cards need (the crafting disciplines carry every discipline's icon, the NPC
+ * starters are a table of stat blocks), so the panel does not ship it: the module is imported when a form first asks
+ * for the list, and the list reads empty for the moment between.
+ */
+function imported<M>(load: () => Promise<M>, toOptions: (module: M) => AskOption[]): ComputedRef<AskOption[]> {
+  const options = shallowRef<AskOption[]>([]);
+  void load().then((module) => {
+    options.value = toOptions(module);
+  });
+  return computed(() => options.value);
+}
+
 export const ASK_LISTS: Readonly<Record<string, () => ComputedRef<AskOption[]>>> = {
   /** The world's peoples in the DM's order, then the campaign's species not already listed (as the NPC page lists them). */
   species: () => {
@@ -97,13 +108,15 @@ export const ASK_LISTS: Readonly<Record<string, () => ComputedRef<AskOption[]>>>
     const { options } = useSubclassParents(() => true);
     return computed(() => options.value.map((o) => ({ value: o.name, label: o.name })));
   },
-  crafting_discipline: () => computed(() => CRAFTING_DISCIPLINES.map((d) => ({ value: d.id, label: d.label }))),
+  crafting_discipline: () =>
+    imported(() => import("@/lib/crafting/disciplines"), ({ CRAFTING_DISCIPLINES }) => CRAFTING_DISCIPLINES.map((d) => ({ value: d.id, label: d.label }))),
   /** The NPC page's starter stat blocks, with its "automatic on Generate" and "none". */
-  npc_stat_template: () => computed(() => [
-    { value: STAT_TEMPLATE_AUTO, label: "Automatic on Generate" },
-    { value: STAT_TEMPLATE_NONE, label: "None" },
-    ...NPC_TEMPLATES.map((t) => ({ value: t.id, label: `${t.name} (CR ${t.stat_block.challenge_rating}), ${t.category}` })),
-  ]),
+  npc_stat_template: () =>
+    imported(() => import("@/data/npcTemplates"), ({ NPC_TEMPLATES }) => [
+      { value: STAT_TEMPLATE_AUTO, label: "Automatic on Generate" },
+      { value: STAT_TEMPLATE_NONE, label: "None" },
+      ...NPC_TEMPLATES.map((t) => ({ value: t.id, label: `${t.name} (CR ${t.stat_block.challenge_rating}), ${t.category}` })),
+    ]),
 };
 
 /** The record kinds a form can pick from so far; a kind a generator adds is added here with it. */

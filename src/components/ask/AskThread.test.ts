@@ -8,7 +8,7 @@ import AskThread from "./AskThread.vue";
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 const proposal: AskProposal = { proposalId: "p1", generator: "npc", concept: "a ferryman", inputs: {} };
-const adapters = { adapterFor: () => undefined, screenFor: () => undefined };
+const adapters = { adapterFor: () => undefined, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined };
 const stubs = { AskQuoteCard: { template: '<section data-testid="ask-quote" />' }, AskResultCard: { template: '<section data-testid="ask-result" />' } };
 
 function thread(items: AskItem[]) {
@@ -55,7 +55,7 @@ describe("AskThread", () => {
           { kind: "proposal", id: 1, proposal: { ...proposal, generator: "encounter" }, state: "previewing", choices: {}, credits: 3 },
           { kind: "preview", id: 2, proposalItemId: 1, phase: "ready", shown: { title: "Road Ambush", sections: [] }, rows: {} },
         ] satisfies AskItem[],
-        adapters: { adapterFor: () => held, screenFor: () => undefined },
+        adapters: { adapterFor: () => held, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined },
       },
       global: { stubs },
     });
@@ -78,7 +78,7 @@ describe("AskThread", () => {
           { kind: "proposal", id: 1, proposal: { ...proposal, generator: "quest_hooks" }, state: "previewing", choices: {}, credits: 3 },
           { kind: "preview", id: 2, proposalItemId: 1, phase: "ready", shown: { title: "Hooks", sections: [] }, rows: {} },
         ] satisfies AskItem[],
-        adapters: { adapterFor: () => held, screenFor: () => undefined },
+        adapters: { adapterFor: () => held, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined },
       },
       global: { stubs },
     });

@@ -18,7 +18,7 @@ function adapters(quote: AskQuote | null, screen = false): AskAdapters {
   const adapter: AskAdapter | undefined = quote ? { id: "npc", quote: () => quote, run: vi.fn() } : undefined;
   return {
     adapterFor: () => adapter,
-    screenFor: () => (screen ? { id: "npc", route: () => "/quests/design?from=ask" } : undefined),
+    hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => (screen ? { id: "npc", route: () => "/quests/design?from=ask" } : undefined),
   };
 }
 
@@ -54,6 +54,22 @@ describe("AskQuoteCard", () => {
     expect(w.get('[data-testid="ask-total"]').text()).toContain("4 credits");
     await w.get('[data-testid="ask-confirm"]').trigger("click");
     expect(w.emitted("confirm")).toHaveLength(1);
+  });
+
+  // Bug caught: adapters load on demand, so a card drawn before its file arrived said "I can't run that one" for a generator that can.
+  it("waits with a reading line while its adapter is still loading, and says no only when there is none", async () => {
+    const w = card(null);
+    expect(w.text()).toContain("I can't run that one from here yet.");
+    const waiting = mount(AskQuoteCard, {
+      props: {
+        item: { kind: "proposal", id: 1, proposal, state: "quote", choices: {} },
+        adapters: { adapterFor: () => undefined, hasAdapter: () => true, loadAdapter: async () => undefined, screenFor: () => undefined },
+      },
+      global: { stubs: { RouterLink: true } },
+    });
+    expect(waiting.find('[data-testid="ask-loading"]').exists()).toBe(true);
+    expect(waiting.text()).not.toContain("I can't run that one");
+    expect(waiting.find('[data-testid="ask-confirm"]').exists()).toBe(false);
   });
 
   // Bug caught: a button that can be pressed while the price is still unknown, spending on a guess.

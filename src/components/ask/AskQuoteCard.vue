@@ -26,6 +26,9 @@
       <AppButton variant="primary" size="sm" class="self-start" :label="`Open ${generator.noun}`" @click="router.push(screen.route(item.proposal))" />
     </template>
 
+    <!-- Its adapter file is still arriving (it loads when the card first needs it): the card waits, it does not say no. -->
+    <p v-else-if="!adapter && adapters.hasAdapter(item.proposal.generator)" class="text-caption text-muted-foreground" data-testid="ask-loading">Reading the form…</p>
+
     <template v-else-if="!adapter">
       <p class="text-body">I can't run that one from here yet.</p>
       <AppButton v-if="pageRoute" variant="link" size="inline-body" class="self-start" label="Open its page" :to="pageRoute" />

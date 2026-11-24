@@ -27,7 +27,7 @@ let current: AnyAskAdapter = adapter;
 const confirmStartOver = vi.fn(async (_message: string) => true);
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: confirmStartOver }) }));
 vi.mock("@/ai/ask/useAskAdapters", () => ({
-  useAskAdapters: () => ({ adapterFor: (id: string) => (id === "npc" ? current : undefined), screenFor: () => undefined }),
+  useAskAdapters: () => ({ adapterFor: (id: string) => (id === "npc" ? current : undefined), hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined }),
 }));
 
 const sse = (events: unknown[]) => new Response(events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""));

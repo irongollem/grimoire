@@ -107,7 +107,7 @@ export function useAskPreviews(deps: AskPreviewsDeps) {
     if (hasRow(card, "running") || hasRow(card, "done")) return;
     const item = findItem(thread.items, keep.proposalItemId, "proposal");
     if (item?.state === "failed") return;
-    const adapter = item ? deps.adapters.adapterFor(item.proposal.generator) : undefined;
+    const adapter = item ? (deps.adapters.adapterFor(item.proposal.generator) ?? (await deps.adapters.loadAdapter(item.proposal.generator))) : undefined;
     if (!item || !adapter || !isPreviewAdapter(adapter)) return;
     // The gates again: a balance spent since, or a plan limit reached, says no before a second charge.
     const quote = adapter.quote(item.proposal, item.choices);

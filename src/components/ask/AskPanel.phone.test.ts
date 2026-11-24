@@ -12,7 +12,7 @@ vi.mock("@/lib/motion", () => ({ railTransition: () => ({}), drawerTransition: (
 vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ openOutOfCredits: vi.fn() }) }));
 vi.mock("@/composables/ask/askUsage", () => ({ useAskUsage: () => ({ freeLeft: ref(5), refetch: vi.fn() }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1", activeCampaign: { name: "K" } }) }));
-vi.mock("@/ai/ask/useAskAdapters", () => ({ useAskAdapters: () => ({ adapterFor: () => undefined, screenFor: () => undefined }) }));
+vi.mock("@/ai/ask/useAskAdapters", () => ({ useAskAdapters: () => ({ adapterFor: () => undefined, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined }) }));
 
 vi.mock("@/composables/table/useTableVoice", async (importOriginal) => ({ ...(await importOriginal<object>()), useTableVoiceRates: () => ({ data: ref(undefined) }) }));
 

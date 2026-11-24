@@ -77,8 +77,17 @@ describe("the class, archetype and recipe cards' lists", () => {
   });
 
   // Bug caught: a discipline offered by label, which the recipe generator (keyed on the id) would not read.
-  it("sends a discipline by its id and shows its label", () => {
-    expect(ASK_LISTS.crafting_discipline().value).toContainEqual({ value: "alchemy", label: "Alchemy" });
+  it("sends a discipline by its id and shows its label", async () => {
+    const list = ASK_LISTS.crafting_discipline();
+    await vi.waitFor(() => expect(list.value).toContainEqual({ value: "alchemy", label: "Alchemy" }));
+  });
+
+  // Bug caught: the discipline and NPC-starter tables imported statically, putting every discipline's icon in the panel's chunk.
+  it("reads the discipline and NPC-starter lists from modules imported on first use, empty until then", async () => {
+    const list = ASK_LISTS.npc_stat_template();
+    expect(list.value).toEqual([]);
+    await vi.waitFor(() => expect(list.value.length).toBeGreaterThan(2));
+    expect(list.value[0]).toMatchObject({ label: "Automatic on Generate" });
   });
 
   // Bug caught: the recipe's Output item naming a record kind no picker serves, so it could only be typed by hand.

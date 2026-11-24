@@ -18,7 +18,7 @@ const okResult: AskRunResult = {
   parts: [{ label: "NPC", ok: true, credits: 4 }],
 };
 
-function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapter["run"]; quick?: AskAdapter["quick"]; campaignId?: () => string | null; onReplied?: AskConversationDeps["onReplied"] } = {}) {
+function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapter["run"]; quick?: AskAdapter["quick"]; campaignId?: () => string | null; onReplied?: AskConversationDeps["onReplied"]; lazy?: boolean } = {}) {
   const responses = [...(over.responses ?? [])];
   const transport = vi.fn(async () => responses.shift() ?? sse([done]));
   const run = vi.fn(over.run ?? (async () => okResult));
@@ -29,7 +29,7 @@ function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapte
     campaignId: over.campaignId ?? (() => "c1"),
     campaignName: () => "Kind Country",
     context: () => ({ route: "/dashboard" }),
-    adapters: { adapterFor: (id) => (id === "npc" ? adapter : undefined), screenFor: () => undefined },
+    adapters: { adapterFor: (id) => (id === "npc" && !over.lazy ? adapter : undefined), hasAdapter: () => false, loadAdapter: async (id) => (id === "npc" ? adapter : undefined), screenFor: () => undefined },
     routePath: () => "/dashboard",
     transport,
     onFinished,
@@ -224,6 +224,13 @@ describe("useAskConversation: the quote", () => {
     const { convo, card, run } = await withProposal();
     await Promise.all([convo.confirm(card.id), convo.confirm(card.id)]);
     await convo.confirm(card.id);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  // Bug caught: adapters load on demand, so a press that beat the load did nothing (or, once awaited, ran twice).
+  it("waits for a not yet loaded adapter, and still runs once for two presses", async () => {
+    const { convo, card, run } = await withProposal({ lazy: true });
+    await Promise.all([convo.confirm(card.id), convo.confirm(card.id)]);
     expect(run).toHaveBeenCalledTimes(1);
   });
 
@@ -466,7 +473,7 @@ describe("useAskConversation: campaign, allowance and withheld proposals", () =>
     const adapter: AskPreviewAdapter = { id: "npc", quote: () => readyQuote, preview: () => (outcomes.shift() ?? outcomes[0])() };
     const convo = useAskConversation({
       campaignId: () => campaign.value, campaignName: () => "K", context: () => ({ route: "/" }),
-      adapters: { adapterFor: () => adapter, screenFor: () => undefined }, routePath: () => "/",
+      adapters: { adapterFor: () => adapter, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined }, routePath: () => "/",
       transport: vi.fn(async () => sse([{ type: "propose", proposal }, done])),
     });
     await convo.send("a baker");
@@ -653,7 +660,7 @@ describe("useAskConversation: a card a button opened", () => {
       const adapter: AskAdapter = { id: "npc", quote, run, quick };
       const convo = useAskConversation({
         campaignId: () => "c1", campaignName: () => "K", context: () => ({ route: "/" }),
-        adapters: { adapterFor: () => adapter, screenFor: () => undefined }, routePath: () => "/", transport: vi.fn(async () => sse([done])),
+        adapters: { adapterFor: () => adapter, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined }, routePath: () => "/", transport: vi.fn(async () => sse([done])),
       });
       convo.openGenerator({ generatorId: "npc", inputs: { related_npc_id: "n9", relation: "child" } });
       const card = convo.items.value.find((i) => i.kind === "proposal");
@@ -706,7 +713,7 @@ describe("useAskConversation: a held generation", () => {
       campaignId: () => "c1",
       campaignName: () => "Kind Country",
       context: () => ({ route: "/dashboard" }),
-      adapters: { adapterFor: () => adapter, screenFor: () => undefined },
+      adapters: { adapterFor: () => adapter, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined },
       routePath: () => "/dashboard",
       transport,
       onFinished,
@@ -917,7 +924,7 @@ describe("useAskConversation: a held generation", () => {
     const adapter: AskPreviewAdapter = { id: "npc", quote: () => readyQuote, preview: () => pending };
     const convo = useAskConversation({
       campaignId: () => "c1", campaignName: () => "K", context: () => ({ route: "/" }),
-      adapters: { adapterFor: () => adapter, screenFor: () => undefined }, routePath: () => "/",
+      adapters: { adapterFor: () => adapter, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined }, routePath: () => "/",
       transport: vi.fn(async () => sse([{ type: "propose", proposal }, done])),
     });
     await convo.send("x");
