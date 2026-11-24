@@ -12,7 +12,8 @@ export type VoiceLine = SpokenLine;
 
 export interface VoiceRequest extends VoiceLine {
   campaignId: string;
-  sessionId: string;
+  /** Null for a line spoken outside a sitting (the Familiar's voice lines, #1273): the key alone proves it was shown. */
+  sessionId: string | null;
 }
 
 /** Calls `table-voice` and hands back the raw response. The seam a test replaces. */

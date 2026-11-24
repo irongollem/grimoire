@@ -42,6 +42,7 @@ import { useLazyMount } from "@/composables/useLazyMount";
 import { FREE_ASKS_PER_DAY, type AskReportDraft } from "@edge-shared/agent/askContract";
 import { useAskAdapters } from "@/ai/ask/useAskAdapters";
 import { useAskConversation, type AskNotice } from "@/composables/ask/useAskConversation";
+import { stopVoiceLines } from "@/composables/voices/useVoiceLineSpeech";
 import { useFamiliarVoice } from "@/composables/ask/useFamiliarVoice";
 import { useTableVoiceRates } from "@/composables/table/useTableVoice";
 import { askContextFor } from "@/composables/ask/askContext";
@@ -120,6 +121,7 @@ async function startOver(): Promise<boolean> {
   const waiting = convo.holding.value;
   if (waiting !== null && !(await confirm(`Discard the ${waiting} you have not saved? What it cost is spent.`, { title: "Start over?", confirmLabel: "Discard it" }))) return false;
   voice.stop();
+  stopVoiceLines();
   convo.newConversation();
   return true;
 }
@@ -229,13 +231,19 @@ watch(
 );
 
 // A conversation belongs to one campaign: the old one's answer must not carry on speaking in the new.
-watch(() => campaign.activeCampaignId, () => voice.stop());
+watch(() => campaign.activeCampaignId, () => {
+  voice.stop();
+  stopVoiceLines();
+});
 
 // A new turn silences the old answer, however it was started (typed, a chip chosen, a question carried over from
 // search): in one place, so no path into a turn can forget it. The day's free questions are read again after each
 // turn, so the line is the server's and not a guess.
 watch(convo.running, (isRunning) => {
-  if (isRunning) voice.stop();
+  if (isRunning) {
+    voice.stop();
+    stopVoiceLines();
+  }
   else usage.refetch();
 });
 

@@ -19,7 +19,7 @@
           <!-- The line: plain text by default; the chat passes its sanitized markdown through this slot. -->
           <slot name="line"><p class="whitespace-pre-line" data-testid="npc-speech-line">{{ line }}</p></slot>
         </blockquote>
-        <!-- Actions on the line ("Said it"). A future "Speak aloud" (#1273) goes here too, beside them. -->
+        <!-- Actions on the line ("Said it", "Speak aloud" in the NPC's voice, #1273). -->
         <div v-if="$slots.default" class="mt-1.5"><slot /></div>
       </div>
     </div>

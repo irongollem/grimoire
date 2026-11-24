@@ -18,10 +18,12 @@
  */
 import { ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
-import type { AskPreviewAdapter, AskPreviewOutcome, AskPreviewRow, AskPreviewShown, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
+import type { AskLineSpeech, AskPreviewAdapter, AskPreviewOutcome, AskPreviewRow, AskPreviewShown, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
 import { conceptBlock, failedRun, spent } from "@/ai/ask/adapters/askAdapterKit";
 import { useAskGate } from "@/ai/ask/useAskGate";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
+import { stopVoiceLines, useVoiceLineSpeech } from "@/composables/voices/useVoiceLineSpeech";
+import { useTableVoiceRates } from "@/composables/table/useTableVoice";
 import { useNpcVoiceCoach } from "@/ai/useNpcVoiceCoach";
 import { useCampaignStore } from "@/stores/campaign";
 import { useNpcVoiceQuote } from "@/composables/ai/quotes/npcVoiceQuote";
@@ -44,6 +46,8 @@ interface HeldLines {
   npc: Npc;
   lines: string[];
   reveals: boolean[];
+  /** The server's key for each line; null where the reply carried none. */
+  keys: (string | null)[];
   provenance: AiProvenance | null;
   /** The face the bubbles lead with, and the chat line carries: the portrait the table would see (a disguise's, while worn). */
   face: NpcSpeechFace;
@@ -54,6 +58,7 @@ export function useNpcVoiceAskAdapter(): AskPreviewAdapter {
   const priceOf = useNpcVoiceQuote();
   const { blockFor } = useAskGate(null, "voice line");
   const coach = useNpcVoiceCoach();
+  const rates = useTableVoiceRates();
   const createMemory = useCreateNpcMemory();
   const sendNpcSpeech = useSendNpcSpeech();
   const { session: openSession, isRunning } = useCampaignSession();
@@ -98,7 +103,7 @@ export function useNpcVoiceAskAdapter(): AskPreviewAdapter {
     return sessionLog.value ? defaultMemorySessionId(running, sessionLog.value) : (running?.id ?? null);
   }
 
-  function shown(held: HeldLines, said: (index: number) => AskPreviewRow["action"]): AskPreviewShown {
+  function shown(held: HeldLines, said: (index: number) => AskPreviewRow["action"], speech: AskLineSpeech | null): AskPreviewShown {
     const risky = held.reveals.flatMap((r, i) => (r ? [i + 1] : []));
     return {
       title: `${getNpcDisplayName(held.npc) ?? held.npc.name}, in their own words`,
@@ -106,8 +111,9 @@ export function useNpcVoiceAskAdapter(): AskPreviewAdapter {
       sections: [{
         heading: "Lines",
         hint: "Press Said it on what they said at the table: only those are kept, in their Memory tab.",
-        rows: held.lines.map((text, i) => ({ label: `Line ${i + 1}`, detail: text, spoken: true as const, action: said(i) })),
+        rows: held.lines.map((text, i) => ({ label: `Line ${i + 1}`, detail: text, spoken: true as const, ...(speech ? { speak: i } : {}), action: said(i) })),
       }],
+      ...(speech ? { speech } : {}),
       ...(risky.length > 0 ? { note: `${risky.length === 1 ? `Line ${risky[0]} may` : `Lines ${risky.join(", ")} may`} give the disguise away.` } : {}),
     };
   }
@@ -124,7 +130,7 @@ export function useNpcVoiceAskAdapter(): AskPreviewAdapter {
     if (coach.lines.value.length === 0) {
       return { ok: false, result: failedRun("Lines", coach.error.value ?? "No lines came back. Nothing was charged.") };
     }
-    const held: HeldLines = { npc, lines: [...coach.lines.value], reveals: [...coach.reveals.value], provenance: coach.provenance.value, face: { portrait: getNpcDisplayPortrait(npc), focal: getNpcDisplayFocalPoint(npc) ?? null } };
+    const held: HeldLines = { npc, lines: [...coach.lines.value], reveals: [...coach.reveals.value], keys: [...coach.keys.value], provenance: coach.provenance.value, face: { portrait: getNpcDisplayPortrait(npc), focal: getNpcDisplayFocalPoint(npc) ?? null } };
     const parts: AskRunPart[] = [{ label: "Lines", ok: true, credits: spent(current.lines.find((l) => l.label === "Lines")) }];
 
     /** The lines already in the Memory tab and already said in the chat, so a second press never does either twice. */
@@ -188,7 +194,25 @@ export function useNpcVoiceAskAdapter(): AskPreviewAdapter {
       };
     }
 
-    return { ok: true, preview: { shown: shown(held, rowAction), parts, create } };
+    // A new card of lines (Again) silences the last one's, which may still be reading.
+    stopVoiceLines();
+    // Speak aloud is for a campaign whose voices are switched on, and each card has its own state and its own clips.
+    const speaking = rates.data.value?.on === true && npc.campaign_id
+      ? useVoiceLineSpeech({
+          campaignId: npc.campaign_id,
+          speaker: { id: npc.id, name: getNpcDisplayName(npc) ?? npc.name },
+          lines: held.lines.map((text, i) => ({ text, key: held.keys[i] ?? null })),
+        })
+      : null;
+    const speech: AskLineSpeech | null = speaking && {
+      canSpeak: speaking.canSpeak,
+      phase: speaking.phaseOf,
+      isFetched: speaking.isFetched,
+      toggle: (line) => void speaking.toggle(line),
+      refusal: () => speaking.refusal.value,
+    };
+
+    return { ok: true, preview: { shown: shown(held, rowAction, speech), parts, create } };
   }
 
   return { id: "npc_voice", quote, preview };
