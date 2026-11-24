@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { jsonError } from "../_shared/pipeline/respond";
-import { familiarShown, shownInTurns, spokenFromMarkdown, speakLine, voiceRates, VoicesSpent, type SpeakerTraits, type TableVoiceDeps, type VoiceHold, type VoiceSession } from "./handler";
+import { FAMILIAR_SPOKEN_MAX, FAMILIAR_TEXT_MAX, familiarShown, headOf, shownInTurns, spokenFromMarkdown, speakLine, voiceRates, VoicesSpent, type SpeakerTraits, type TableVoiceDeps, type VoiceHold, type VoiceSession } from "./handler";
 import { inworldText, NARRATOR_VOICES, speechText } from "./voicePick";
 import { NO_TRAITS } from "./handler";
 import type { Judgment, SlotAssignment, VoiceSlot } from "./casting";
@@ -744,11 +744,12 @@ describe("Oolu, the Familiar's voice (Ask)", () => {
     expect(h.spoken).toEqual([]);
   });
 
-  // Bug caught: an Ask answer of 1,500 tokens refused by the table's 4,000 character cap; and no cap at all.
-  it("takes a reply up to 8000 characters and refuses a longer one", async () => {
+  // Bug caught: a reply the page joined across several model steps passing 8,000 characters and being dropped in
+  // silence; and no cap at all.
+  it("takes a reply joined across steps up to the limit, and refuses a longer one", async () => {
     const h = harness();
     asked(h);
-    const long = "a".repeat(8000);
+    const long = "A sentence of the reply. ".repeat(FAMILIAR_TEXT_MAX / 25);
     h.turns = [{ role: "assistant", blocks: [{ type: "text", text: long }] }];
     expect((await speak(h, { body: { ...OOLU, text: long } })).ok).toBe(true);
     expect(await speak(h, { body: { ...OOLU, text: `${long}a` } })).toMatchObject({ status: 400 });
@@ -805,6 +806,16 @@ describe("Oolu, the Familiar's voice (Ask)", () => {
     h.elevenlabs = false;
     expect(await speak(h, { body: OOLU })).toMatchObject({ ok: false, status: 503, error: "voices_off" });
     expect([h.spoken, h.held, h.charged]).toEqual([[], [], []]);
+  });
+
+  // Bug caught: every Oolu request on a stack without ElevenLabs spending a rate-limit slot, a stored-turn read and a
+  // paid moderation call before being told no.
+  it("says no without an ElevenLabs key before anything else is spent", async () => {
+    const h = harness();
+    asked(h);
+    h.elevenlabs = false;
+    h.allowed = false;
+    expect(await speak(h, { body: OOLU })).toMatchObject({ ok: false, status: 503, error: "voices_off" });
   });
 
   // Bug caught: Oolu's spend landing in the table's ledger reason (Ask usage mixed into the AI table's accounts).
@@ -893,5 +904,33 @@ describe("spokenFromMarkdown", () => {
   // Bug caught: underscores inside words eaten (snake_case names read as "snakecase").
   it("leaves underscores inside a word", () => {
     expect(spokenFromMarkdown("the quest_beats table")).toBe("the quest_beats table");
+  });
+
+  // Bug caught: a stat table read aloud as pipes and dashes, and billed for them.
+  it("reads a table a row at a time and drops its separator row", () => {
+    expect(spokenFromMarkdown("| Name | HP |\n|---|:--:|\n| Goblin | 7 |")).toBe("Name, HP.\nGoblin, 7.");
+  });
+
+  // Bug caught: a horizontal rule read aloud as dashes.
+  it("drops horizontal rules", () => {
+    expect(spokenFromMarkdown("Before.\n\n---\n\nAfter.")).toBe("Before.\n\nAfter.");
+  });
+
+  // Bug caught: every asterisk removed, so "2 * 3 goblins" was read as "2 3 goblins".
+  it("keeps an asterisk that is not emphasis", () => {
+    expect(spokenFromMarkdown("2 * 3 goblins")).toBe("2 * 3 goblins");
+  });
+});
+
+describe("headOf", () => {
+  // Bug caught: a long reply read whole (and charged for), or cut mid-word.
+  it("keeps what fits and ends on the last whole sentence", () => {
+    const text = "One. Two is longer. Three ends here.";
+    expect(headOf(text, 30)).toBe("One. Two is longer.");
+    expect(headOf(text, 100)).toBe(text);
+  });
+
+  it("never reads more than the spoken limit of a reply", () => {
+    expect(headOf("Words go on. ".repeat(2000), FAMILIAR_SPOKEN_MAX).length).toBeLessThanOrEqual(FAMILIAR_SPOKEN_MAX);
   });
 });

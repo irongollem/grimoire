@@ -194,8 +194,15 @@ export interface VoiceBody {
   role: VoiceRole;
 }
 
-/** The longest reply Oolu will read, in characters. */
-export const FAMILIAR_TEXT_MAX = 8000;
+/**
+ * The longest reply Oolu is handed, in characters. The page joins a reply's text across the model's steps (text, a
+ * tool call, more text), so one reply can run past a single answer's 1,500 tokens; it is accepted whole, so the
+ * words still prove against the stored turns, and read only up to `FAMILIAR_SPOKEN_MAX`.
+ */
+export const FAMILIAR_TEXT_MAX = 32000;
+
+/** The most of a reply Oolu reads aloud, cut at the end of a sentence: what one answer's worth of speech costs. */
+export const FAMILIAR_SPOKEN_MAX = 8000;
 
 export function parseVoiceBody(raw: unknown): VoiceBody | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
@@ -206,7 +213,7 @@ export function parseVoiceBody(raw: unknown): VoiceBody | null {
   if (typeof r.speakerName !== "string" || r.speakerName.trim() === "" || r.speakerName.length > 200) return null;
   const role = r.role === undefined ? "character" : r.role;
   if (typeof role !== "string" || !(VOICE_ROLES as readonly string[]).includes(role)) return null;
-  // An Ask answer runs to 1,500 output tokens; a spoken line of the table is a few sentences.
+  // An Ask reply can join several answers (see FAMILIAR_TEXT_MAX); a spoken line of the table is a few sentences.
   const maxText = role === "familiar" ? FAMILIAR_TEXT_MAX : 4000;
   if (typeof r.text !== "string" || r.text.trim() === "" || r.text.length > maxText) return null;
   const how = r.how === undefined || r.how === null ? null : r.how;
@@ -301,6 +308,9 @@ export async function speakLine(input: {
   const body = parseVoiceBody(input.body);
   if (!body) return jsonError(400, "invalid_body", VOICE_MESSAGES.badBody);
   if (!deps.voiceOn()) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
+  // Oolu speaks on ElevenLabs alone: no stand-in on another service, so without its key Oolu is silent. Answered
+  // here, before the rate limit, the kept-clip read, the stored-turn proof and the paid screen are spent on nothing.
+  if (body.role === "familiar" && !deps.hasService(FAMILIAR_VOICE.service)) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
 
   // Someone else's conversation, or one in another campaign, is "not found": a 403 would say it exists.
   const session = await deps.loadSession(body.sessionId);
@@ -338,7 +348,7 @@ export async function speakLine(input: {
   }
 
   // What is said aloud: Oolu's Markdown as plain words. Screened, counted and spoken in this form.
-  const said = familiar ? spokenFromMarkdown(line.text) : line.text;
+  const said = familiar ? headOf(spokenFromMarkdown(line.text), FAMILIAR_SPOKEN_MAX) : line.text;
   if (said === "") return jsonError(422, "line_unspeakable", VOICE_MESSAGES.unspeakable);
 
   // A line is voiced the moment it arrives, before its turn has been screened and kept, so it is screened here
@@ -349,8 +359,6 @@ export async function speakLine(input: {
     console.error("table-voice: screening the line failed:", error);
   }
 
-  // Oolu speaks on ElevenLabs alone: no stand-in on another service, so without its key Oolu is silent.
-  if (familiar && !deps.hasService(FAMILIAR_VOICE.service)) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
   const cast = familiar ? { voice: { ...FAMILIAR_VOICE }, inputTokens: 0 } : await voiceFor(deps, session, line);
   const voice: VoiceRef = cast.voice;
   // A line that is made is paid for: what it costs is worked out before it is made, from the admin's numbers.
@@ -463,23 +471,47 @@ export function familiarShown(turns: ReadonlyArray<{ role: string; blocks: unkno
   return inRun();
 }
 
+/** A table row's cells as a spoken line ("Goblin, 7, 15."); null for a separator row ("|---|:--:|"). */
+function tableRow(line: string): string | null {
+  const cells = line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+  if (cells.every((c) => /^:?-{1,}:?$/.test(c) || c === "")) return null;
+  return `${cells.filter((c) => c !== "").join(", ")}.`;
+}
+
 /**
- * Ask's reply as it is said aloud: the Markdown's marks dropped, its words kept. Headings, list bullets, quote marks,
- * fences, emphasis and code ticks go; a link or an image says its text. Blank lines collapse to one.
+ * Ask's reply as it is said aloud: the Markdown's marks dropped, its words kept, as the reader sees it rendered.
+ * Headings, list bullets, quote marks, fences, rules and code ticks go; a link or an image says its text; a table
+ * is read a row at a time with its cells in a list. Emphasis goes only where it wraps words, so a `*` between
+ * spaces ("2 * 3") is kept. Blank lines collapse to one.
  */
 export function spokenFromMarkdown(md: string): string {
   return md
+    .split("\n")
+    .map((row) => (/^\s*\|.*\|\s*$/.test(row) ? tableRow(row) : row))
+    .filter((row): row is string => row !== null)
+    .join("\n")
     .replace(/^\s*(```|~~~).*$/gm, "")
+    .replace(/^\s{0,3}([-*_])(\s*\1){2,}\s*$/gm, "")
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/^\s{0,3}#{1,6}\s+/gm, "")
     .replace(/^\s*>\s?/gm, "")
     .replace(/^\s*[-*+]\s+/gm, "")
     .replace(/`+([^`\n]*)`+/g, "$1")
-    .replace(/\*+/g, "")
+    .replace(/(\*{1,3})(?=\S)([^*\n]*?\S)\1/g, "$2")
     .replace(/(^|[^\w])_{1,2}([^_\n]+)_{1,2}(?![\w])/g, "$1$2")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+/** At most `max` characters of `text`, ending at the last full sentence that fits (or a word, when none ends). */
+export function headOf(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const sentence = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "), cut.lastIndexOf(".\n"));
+  if (sentence > max / 2) return cut.slice(0, sentence + 1).trim();
+  const word = cut.lastIndexOf(" ");
+  return (word > 0 ? cut.slice(0, word) : cut).trim();
 }
 
 /**
