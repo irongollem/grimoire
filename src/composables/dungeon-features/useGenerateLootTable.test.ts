@@ -47,45 +47,54 @@ describe("useGenerateLootTable", () => {
 
   it("generates nothing, and spends nothing, while another generator is running", async () => {
     busy.value = true;
-    expect(await useGenerateLootTable().generateAndCreateLootTable("Treasure", options)).toMatchObject({ id: null, error: "Another AI generation is already in progress." });
+    expect(await useGenerateLootTable().generateLootDraft("Treasure", options)).toMatchObject({ draft: null, error: "Another AI generation is already in progress." });
     expect(mocks.generate).not.toHaveBeenCalled();
   });
 
-  it("saves nothing and reports the generator's own reason when generation returns nothing", async () => {
+  it("holds nothing and reports the generator's own reason when generation returns nothing", async () => {
     mocks.generate.mockResolvedValue(null);
     genError.value = "Provider down";
-    expect(await useGenerateLootTable().generateAndCreateLootTable("Treasure", options)).toMatchObject({ id: null, error: "Provider down" });
+    expect(await useGenerateLootTable().generateLootDraft("Treasure", options)).toMatchObject({ draft: null, error: "Provider down" });
+  });
+
+  // Bug caught: the draft step wrote the table, so the DM's look at its entries came after it already existed.
+  it("resolves the names against the catalogue and counts the ones it lacks, without saving anything", async () => {
+    const outcome = await useGenerateLootTable().generateLootDraft("Treasure", options);
     expect(mocks.create).not.toHaveBeenCalled();
+    expect(outcome.draft?.unresolved).toBe(1);
+    expect(outcome.draft?.resolved.map((e) => e.kind)).toEqual(["item", "unresolved", "currency"]);
   });
 
-  it("writes the entries that resolve, leaves out the ones the catalogue lacks, and counts them", async () => {
-    const outcome = await useGenerateLootTable().generateAndCreateLootTable("Treasure", options);
-    const saved = mocks.create.mock.calls[0][0];
-    expect(saved).toMatchObject({ campaign_id: "c1", name: "Vault Hoard", cr_tier: "5-10", monster_ids: [] });
-    expect(saved.entries.map((e: { type: string }) => e.type)).toEqual(["item", "currency"]);
-    expect(saved.entries[0]).toMatchObject({ item_id: "item-rope" });
-    expect(outcome).toMatchObject({ id: "r1", name: "Vault Hoard", unresolved: 1 });
+  it("writes the entries that resolve and leaves out the ones the catalogue lacks", async () => {
+    const { draft } = await useGenerateLootTable().generateLootDraft("Treasure", options);
+    if (!draft) throw new Error("expected a draft");
+    const saved = await useGenerateLootTable().saveGeneratedLootTable(draft.result, draft.resolved, "5-10");
+    const written = mocks.create.mock.calls[0][0];
+    expect(written).toMatchObject({ campaign_id: "c1", name: "Vault Hoard", cr_tier: "5-10", monster_ids: [] });
+    expect(written.entries.map((e: { type: string }) => e.type)).toEqual(["item", "currency"]);
+    expect(written.entries[0]).toMatchObject({ item_id: "item-rope" });
+    expect(saved).toMatchObject({ table: { id: "r1" } });
   });
 
-  it("creates no empty table when none of the items it named is in the catalogue", async () => {
+  it("makes no draft, and so no empty table, when none of the items it named is in the catalogue", async () => {
     mocks.generate.mockResolvedValue({ ...generated, entries: [{ type: "item", item_name: "Sword of Nowhere", drop_chance: 10 }] });
-    const outcome = await useGenerateLootTable().generateAndCreateLootTable("Treasure", options);
-    expect(mocks.create).not.toHaveBeenCalled();
-    expect(outcome).toMatchObject({ id: null, name: null, unresolved: 1 });
+    const outcome = await useGenerateLootTable().generateLootDraft("Treasure", options);
+    expect(outcome.draft).toBeNull();
     expect(outcome.error).toContain("None of the items it named");
   });
 
   it("waits for the catalogue instead of resolving every name against nothing", async () => {
     rows.value = undefined;
-    const pending = useGenerateLootTable().generateAndCreateLootTable("Treasure", options);
+    const pending = useGenerateLootTable().generateLootDraft("Treasure", options);
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(mocks.create).not.toHaveBeenCalled();
     rows.value = [rope];
-    expect(await pending).toMatchObject({ id: "r1", unresolved: 1 });
+    expect((await pending).draft?.unresolved).toBe(1);
   });
 
   it("lets a failed save throw so the caller can say so", async () => {
     mocks.create.mockRejectedValue(new Error("insert failed"));
-    await expect(useGenerateLootTable().generateAndCreateLootTable("Treasure", options)).rejects.toThrow("insert failed");
+    const { draft } = await useGenerateLootTable().generateLootDraft("Treasure", options);
+    if (!draft) throw new Error("expected a draft");
+    await expect(useGenerateLootTable().saveGeneratedLootTable(draft.result, draft.resolved, "5-10")).rejects.toThrow("insert failed");
   });
 });

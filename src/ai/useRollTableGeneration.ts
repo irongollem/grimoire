@@ -1,4 +1,3 @@
-import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import type { RollTableAiResult } from "./types";
@@ -8,7 +7,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useAskUiStore } from "@/stores/ui/ask";
 import { useCampaignStore } from "@/stores/campaign";
 import { validateEntryRanges } from "@/types/rollTable.types";
 import type { RollTableDie, RollTableEntry } from "@/types/rollTable.types";
@@ -16,14 +15,14 @@ import type { RollTableDie, RollTableEntry } from "@/types/rollTable.types";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
-const _result = ref<RollTableAiResult | null>(null);
 
 registerAiGenerator({
   ..._state,
   label: "Roll Table",
   entityRoute: (id) => `/roll-tables/${id}`,
+  // The generator is a card in the Familiar now: the badge brings the DM back to it.
   openPanel: () => {
-    useGeneratorUiStore().rollTableGeneratorOpen = true;
+    useAskUiStore().openPanel();
   },
 });
 
@@ -41,7 +40,6 @@ export function useRollTableGeneration() {
     if (isAnyAiGenerating.value) return null;
     _state.isGenerating.value = true;
     _state.error.value = null;
-    _result.value = null;
     startAiQuotes();
 
     try {
@@ -66,7 +64,6 @@ export function useRollTableGeneration() {
       const rangeError = validateEntryRanges(normalized, options.die);
       if (rangeError) throw new Error(`AI produced an invalid table (${rangeError}). Please try again.`);
 
-      _result.value = result;
       return result;
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";
@@ -100,15 +97,8 @@ export function useRollTableGeneration() {
     return data as RollTableAiResult;
   }
 
-  function clearResult() {
-    _result.value = null;
-    _state.error.value = null;
-  }
-
   return {
     ..._state,
-    result: _result,
     generate,
-    clearResult,
   };
 }

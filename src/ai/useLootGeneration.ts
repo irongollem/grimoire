@@ -1,4 +1,3 @@
-import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import type { LootTableAiResult } from "./types";
@@ -8,21 +7,21 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useAskUiStore } from "@/stores/ui/ask";
 import { useCampaignStore } from "@/stores/campaign";
 import type { LootCrTier } from "@/types/lootTable.types";
 
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
-const _result = ref<LootTableAiResult | null>(null);
 
 registerAiGenerator({
   ..._state,
   label: "Loot Table",
   entityRoute: (id) => `/loot-tables/${id}`,
+  // The generator is a card in the Familiar now: the badge brings the DM back to it.
   openPanel: () => {
-    useGeneratorUiStore().lootTableGeneratorOpen = true;
+    useAskUiStore().openPanel();
   },
 });
 
@@ -48,7 +47,6 @@ export function useLootGeneration() {
     if (isAnyAiGenerating.value) return null;
     _state.isGenerating.value = true;
     _state.error.value = null;
-    _result.value = null;
     startAiQuotes();
 
     try {
@@ -73,7 +71,6 @@ export function useLootGeneration() {
         throw new Error("AI returned no loot entries. Please try again.");
       }
 
-      _result.value = result;
       return result;
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";
@@ -84,15 +81,8 @@ export function useLootGeneration() {
     }
   }
 
-  function clearResult() {
-    _result.value = null;
-    _state.error.value = null;
-  }
-
   return {
     ..._state,
-    result: _result,
     generate,
-    clearResult,
   };
 }

@@ -44,10 +44,10 @@ export interface CreateQuestFromHookResult {
 
 /**
  * The AI quest generator's write path (#822). Extracted from
- * QuestGeneratorPanel.vue, which was pushing past the 600-line soft cap
- * (CLAUDE.md) once the spine write logic below was added — the panel now
- * owns only the preview (see `planSpineBeats`/`describeSpineRoutes` calls
- * there) and calls this for the actual writes.
+ * the Quest Generator panel, which was pushing past the 600-line soft cap
+ * (CLAUDE.md) once the spine write logic below was added. Its preview is now
+ * the Familiar's (`questHooksAskAdapter`, which shows `planSpineBeats` /
+ * `describeSpineRoutes`) and Create there calls this for the actual writes.
  *
  * Creates, in order: the quest row; the story spine — the beats the model
  * proposed, the routes between them, the objectives split `pending`/`dormant`

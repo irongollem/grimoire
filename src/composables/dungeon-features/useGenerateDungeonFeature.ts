@@ -1,5 +1,5 @@
 /**
- * "Generate a dungeon feature with AI and save it", the step `DungeonFeatureGeneratorPanel` used to own inline,
+ * "Generate a dungeon feature with AI and save it", the step its generator panel used to own inline,
  * extracted so Ask Grimoire (#1253) runs the very same save: the same fields, the same campaign scope, the Gallery
  * log of the picture.
  *

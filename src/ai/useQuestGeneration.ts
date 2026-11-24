@@ -8,22 +8,22 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useQuestsUiStore } from "@/stores/ui/quests";
+import { useAskUiStore } from "@/stores/ui/ask";
 import { useCampaignStore } from "@/stores/campaign";
 import type { AiProvenance } from "@/ai/provenance";
 
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
-const _hooks = ref<QuestHookResult[]>([]);
 const _provenance = ref<AiProvenance | null>(null);
 
 registerAiGenerator({
   ..._state,
   label: "Quest",
   entityRoute: (id) => `/quests/${id}`,
+  // The generator is a card in the Familiar now: the badge brings the DM back to it.
   openPanel: () => {
-    useQuestsUiStore().questGeneratorOpen = true;
+    useAskUiStore().openPanel();
   },
 });
 
@@ -36,14 +36,12 @@ export function useQuestGeneration() {
     if (isAnyAiGenerating.value) return null;
     _state.isGenerating.value = true;
     _state.error.value = null;
-    _hooks.value = [];
     _provenance.value = null;
     startAiQuotes();
 
     try {
       const draft = await generateServerSide(userPrompt);
 
-      _hooks.value = draft.hooks;
       _provenance.value = draft.ai_provenance ?? null;
       return draft.hooks;
     } catch (e) {
@@ -78,17 +76,9 @@ export function useQuestGeneration() {
     return data as QuestHooksAiResult;
   }
 
-  function clearHooks() {
-    _hooks.value = [];
-    _provenance.value = null;
-    _state.error.value = null;
-  }
-
   return {
     ..._state,
-    hooks: _hooks,
     provenance: _provenance,
     generate,
-    clearHooks,
   };
 }

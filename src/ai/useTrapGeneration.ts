@@ -7,7 +7,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useAskUiStore } from "@/stores/ui/ask";
 import {
   captureFailureMessage,
   captureImageGenerationContext,
@@ -23,8 +23,9 @@ registerAiGenerator({
   ..._state,
   label: "Trap",
   entityRoute: (id) => `/traps/${id}`,
+  // The generator is a card in the Familiar now: the badge brings the DM back to it.
   openPanel: () => {
-    useGeneratorUiStore().trapGeneratorOpen = true;
+    useAskUiStore().openPanel();
   },
 });
 
@@ -46,7 +47,11 @@ export function useTrapGeneration() {
     options?: TrapGenerationOptions,
   ): Promise<TrapAiGenerated | null> {
     if (isAnyAiGenerating.value) return null;
-    if (options?.groupPortraitUrl && !(await ensureLikenessAck())) return null;
+    if (options?.groupPortraitUrl && !(await ensureLikenessAck())) {
+      // Said, not silent: the caller shows this where it would show any failure.
+      _state.error.value = "The likeness notice was not accepted, so nothing was made.";
+      return null;
+    }
     _state.isGenerating.value = true;
     _state.error.value = null;
     startAiQuotes();

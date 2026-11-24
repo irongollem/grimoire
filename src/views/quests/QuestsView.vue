@@ -12,7 +12,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="questsUi.questGeneratorOpen = true"
+        @click="openGenerator('quest_hooks')"
       />
       <ListCreateButton
         label="New Quest"
@@ -111,6 +111,7 @@ import QuestLevelPlan from "@/components/quests/levels/QuestLevelPlan.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useQuestsUiStore } from "@/stores/ui/quests";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useQuests, useCampaignQuestRefs, useQuestFilterEntities } from "@/composables/quests/useQuests";
@@ -118,6 +119,7 @@ import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
 import { countQuestBoardFilters, isQuestInSession } from "@/lib/quests/board";
 
 const questsUi = useQuestsUiStore();
+const { open: openGenerator } = useOpenGenerator();
 const auth = useAuthStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);

@@ -5,7 +5,7 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useAskUiStore } from "@/stores/ui/ask";
 import { captureFailureMessage, captureImageGenerationContext, generateImage } from "./useImageGeneration";
 import { normalizeDungeonFeature } from "@/lib/dungeon-features/featureAi";
 import type { DungeonFeatureAiResult } from "@/lib/dungeon-features/featureAi";
@@ -18,8 +18,9 @@ registerAiGenerator({
   ..._state,
   label: "Feature",
   entityRoute: (id) => `/dungeon-features/${id}`,
+  // The generator is a card in the Familiar now: the badge brings the DM back to it.
   openPanel: () => {
-    useGeneratorUiStore().dungeonFeatureGeneratorOpen = true;
+    useAskUiStore().openPanel();
   },
 });
 
