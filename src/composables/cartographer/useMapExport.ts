@@ -65,6 +65,7 @@ import { computed, ref, watch } from "vue";
 import { bakeAiStyleInput, styledPictureCalibration } from "@/cartographer/aiStyleInput";
 import { buildStyledPlay, type StyledPlay } from "@/cartographer/styledPlay";
 import type { DressingCatalog } from "@/cartographer/dressing";
+import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
 import { base64ToBlob } from "@/cartographer/imageCodec";
 import { blobToBase64 } from "@/lib/blobToBase64";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
@@ -178,9 +179,11 @@ export function useMapExport(opts: {
   const showStyleResult = ref(false);
   const selectedPresetId = ref("playable");
   const stylePromptSuffix = ref("");
-  // Ask Grimoire (#1253) opens the picker with the DM's wording in the direction box. It never renders: "Generate" is
+  // Ask Grimoire (#1253) opens the picker with the DM's wording in the direction box and the preset they named. It never renders: "Generate" is
   // the DM's own press, which prices it in the picker.
-  useAskPrefill("map_style", (text) => {
+  useAskPrefill("map_style", (text, inputs) => {
+    const named = CARTOGRAPHER_STYLE_PRESETS.find((preset) => preset.id === inputs.preset);
+    if (named) selectedPresetId.value = named.id;
     stylePromptSuffix.value = text.slice(0, STYLE_DIRECTION_LIMIT);
     showStylePicker.value = true;
   });

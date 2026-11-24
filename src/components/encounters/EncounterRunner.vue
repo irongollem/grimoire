@@ -407,9 +407,9 @@ function openGenerator(mode: ComplicationMode) {
 
 // Ask Grimoire (#1253) opens the complication dialog with the DM's wording as the steer; the DM presses Generate.
 const generatorSeed = ref<{ text: string } | null>(null);
-useAskPrefill("complication", (text) => {
+useAskPrefill("complication", (text, inputs) => {
   generatorSeed.value = { text };
-  openGenerator("complication");
+  openGenerator(inputs.mode === "reinforcements" ? "reinforcements" : "complication");
 });
 
 const { detailWidth, startMouse, startTouch } = useDetailResize(320);

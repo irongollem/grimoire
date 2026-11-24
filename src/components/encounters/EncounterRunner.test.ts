@@ -135,6 +135,17 @@ describe("EncounterRunner", () => {
     expect(mountRunner().get("[data-testid=complication]").attributes("data-open")).toBe("false");
   });
 
+  // Bug caught: Ask could only ever open the Complication mode, so "bring reinforcements" opened the wrong dialog.
+  it("opens the dialog in Reinforcements when the request named that mode", () => {
+    isMobile.value = false;
+    const campaign = useCampaignStore();
+    campaign.activeCampaign = { id: "camp-1", ai_enabled: true } as typeof campaign.activeCampaign;
+    useAskPrefillStore().offer("complication", "wolves from the north", { mode: "reinforcements" });
+    const dialog = mountRunner().get("[data-testid=complication]");
+    expect(dialog.attributes("data-mode")).toBe("reinforcements");
+    expect(dialog.text()).toBe("wolves from the north");
+  });
+
   // A DM who is not live (or has no campaign, so no Go Live) could never begin combat.
   it("desktop: Start combat is offered in the lobby when the DM is not live", () => {
     isMobile.value = false;

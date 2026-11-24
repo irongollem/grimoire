@@ -145,6 +145,14 @@ describe("useMapExport", () => {
       expect(useMapExport(host()).stylePromptSuffix.value).toHaveLength(300);
     });
 
+    // Bug caught: "make it look like a woodcut" filled the words but left the picker on Playable.
+    it("chooses the preset the request named, and ignores a name that is no preset", () => {
+      useAskPrefillStore().offer("map_style", "x", { preset: "woodcut" });
+      expect(useMapExport(host()).selectedPresetId.value).toBe("woodcut");
+      useAskPrefillStore().offer("map_style", "x", { preset: "watercolour" });
+      expect(useMapExport(host()).selectedPresetId.value).toBe("playable");
+    });
+
     it("leaves the picker shut when no request was made", () => {
       expect(useMapExport(host()).showStylePicker.value).toBe(false);
     });
