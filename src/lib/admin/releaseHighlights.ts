@@ -40,4 +40,6 @@ export const RELEASE_HIGHLIGHTS: readonly ReleaseHighlight[] = [
   { releasedAt: "2026-11-02", line: "Every character, NPC and place shows its connections in one place, with a map of your whole world's ties" },
   { releasedAt: "2026-11-14", line: "The battle map is the table: players move on their phones, and the fog remembers what the party has seen" },
   { releasedAt: "2026-11-14", line: "A soundboard deck under every page, and painting with real brushes in the Scriptorium" },
+  { releasedAt: "2026-11-25", line: "The Familiar, an assistant beside search that knows your campaign and makes NPCs, monsters and more on request" },
+  { releasedAt: "2026-11-25", line: "NPCs can speak their lines aloud in their own voice" },
 ];
