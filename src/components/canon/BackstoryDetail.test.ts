@@ -64,7 +64,7 @@ const tie = (over: Partial<Connection>) => ({ row_id: "r", source: "link", type:
 const mountDetail = () =>
   mount(BackstoryDetail, {
     props: { member },
-    global: { stubs: { LorePassageRow: RowStub, BackstoryBeforePlay: true, ConnectionsSection: SectionStub, AudienceRevealControl: true, ListSkeleton: true, EntryQuests: true, EntryStoryLinks: EntryStoryLinksStub, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } },
+    global: { stubs: { LorePassageRow: RowStub, BackstoryBeforePlay: true, ConnectionsSection: SectionStub, AudienceRevealControl: true, CanonSuggest: true, ListSkeleton: true, EntryQuests: true, EntryStoryLinks: EntryStoryLinksStub, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } },
   });
 
 describe("BackstoryDetail", () => {
@@ -94,9 +94,20 @@ describe("BackstoryDetail", () => {
     expect(row.attributes("data-first")).toBe("false");
   });
 
-  it("counts the passages and how many are not yet told", () => {
-    state.passages = [passage({ id: "a", told_at: "2026-10-10T09:00:00Z" }), passage({ id: "b" }), passage({ id: "c" })];
-    expect(mountDetail().find("[data-testid=backstory-tally]").text()).toBe("3 passages, 2 not yet told");
+  // Bug caught: the backstory pane growing a delete (a backstory belongs to its character and is never deleted), or its
+  // close button emitting nothing so the entry could not be left.
+  it("has a close and no delete, and closing says so", async () => {
+    const w = mountDetail();
+    expect(w.find("[data-testid=canon-entry-delete]").exists()).toBe(false);
+    await w.get("[data-testid=canon-entry-close]").trigger("click");
+    expect(w.emitted("close")).toHaveLength(1);
+  });
+
+  // Bug caught: the character's own name drawn as an editable field, or the player's name dropped from the head.
+  it("heads the entry with the character's name, not editable, and who plays them", () => {
+    const w = mountDetail();
+    expect(w.get("[data-testid=backstory-name]").text()).toBe("Tansy");
+    expect(w.text()).toContain("played by Lotte");
   });
 
   // Bug caught: the people and passages drawn (and New NPC offered) for an entry that did not exist yet.

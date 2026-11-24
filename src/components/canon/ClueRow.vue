@@ -1,6 +1,6 @@
 <template>
   <li
-    class="flex min-w-0 flex-col gap-1.5 border border-border bg-muted/40 px-3 py-2"
+    class="flex min-w-0 flex-col gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-2"
     :data-found="found"
     data-testid="clue-row"
   >

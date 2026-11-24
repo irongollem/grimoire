@@ -1,6 +1,6 @@
 <template>
-  <div class="flex flex-col gap-3" data-testid="habitats">
-    <ul v-if="habitats.length > 0" class="flex flex-col border border-border bg-card" data-testid="habitat-list">
+  <CanonChapter chapter="life" :title="chapter.label" :why="chapter.why" :open="selected !== null" back-label="habitats" @close="selectedId = null">
+    <ul v-if="habitats.length > 0" class="flex flex-col rounded-lg border border-border bg-card" data-testid="habitat-list">
       <HabitatRow
         v-for="(habitat, index) in habitats"
         :key="habitat.id"
@@ -14,30 +14,37 @@
         @move="(by) => move(index, by)"
       />
     </ul>
-    <EmptyState
-      v-else-if="!isLoading"
-      class="border border-dashed border-border bg-card"
-      title="No kinds of country yet"
-      description="A habitat is a kind of country, a marsh or a high moor, with the places it covers and the creatures that live there. Name one to begin."
-    />
-    <CanonAddRow placeholder="A new kind of country…" input-label="A new kind of country" label="Add habitat" :create="add" />
-    <HabitatEditor v-if="selected" :key="selected.id" :habitat="selected" @delete="onDelete" />
-  </div>
+    <CanonEmpty v-else-if="!isLoading" title="Nothing lives here yet" :text="EMPTY_TEXT" ask="Suggest the creatures and habitats of my world." />
+
+    <template #add>
+      <CanonAddRow placeholder="A new kind of country…" input-label="A new kind of country" label="Add habitat" :create="add" />
+    </template>
+
+    <template #entry>
+      <HabitatEditor v-if="selected" :key="selected.id" :habitat="selected" @close="selectedId = null" @delete="selectedId = null" />
+    </template>
+  </CanonChapter>
 </template>
 
 <script setup lang="ts">
 /**
- * The habitats of the world (#1255 item 31): a list, one line each with the places it covers and what lives there, and
- * the selected one's editor below it. Order is the DM's and is kept; the world block lists them in it.
+ * The Life chapter (#1255 item 31): the world's habitats, kinds of country, one line each with the places it covers and
+ * what lives there, and the open one beside the list. Only creatures live here: the world's peoples are their own
+ * chapter and are never listed or edited from a habitat. Order is the DM's and is kept; the world block lists them in it.
  */
 import { computed, ref } from "vue";
-import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import CanonAddRow from "../CanonAddRow.vue";
+import CanonChapter from "../kit/CanonChapter.vue";
+import CanonEmpty from "../kit/CanonEmpty.vue";
 import HabitatEditor from "./HabitatEditor.vue";
 import HabitatRow from "./HabitatRow.vue";
 import { useHabitatEditing } from "@/composables/canon/useCampaignHabitats";
 import { useLocationTree } from "@/composables/locations/useLocations";
+import { chapterOf } from "@/lib/canon/canonParts";
 import { sharesLine } from "@edge-shared/worldBlock.ts";
+
+const EMPTY_TEXT = "Creatures and habitats: what lives where, what eats what, and what the land gives.";
+const chapter = chapterOf("life");
 
 const { habitats, places, life, isLoading, addHabitat, reorderHabitats } = useHabitatEditing();
 const { locationOptions } = useLocationTree();
@@ -62,9 +69,5 @@ function move(index: number, by: -1 | 1) {
   const [moved] = ids.splice(index, 1);
   ids.splice(index + by, 0, moved);
   reorderHabitats(ids);
-}
-
-function onDelete() {
-  selectedId.value = null;
 }
 </script>

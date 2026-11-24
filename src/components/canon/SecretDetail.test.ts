@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
+import { createPinia, setActivePinia } from "pinia";
 import type { CanonClue, CanonEntry } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
 
@@ -30,6 +31,7 @@ vi.mock("@/composables/canon/useClueWhere", () => ({ useClueWhere: () => ref(() 
 vi.mock("@/composables/canon/useCanonPassages", () => ({ useCanonPassages: () => ({ data: passages }) }));
 vi.mock("@/composables/campaign/useCampaignSession", () => ({ useCampaignSession: () => ({ session }) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: party }) }));
+vi.mock("@/composables/ask/useCanAsk", () => ({ useCanAsk: () => ref(true) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 
 vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
@@ -38,6 +40,7 @@ import SecretDetail from "./SecretDetail.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
 import SecretOutlets from "./SecretOutlets.vue";
 import EntryStoryLinks from "./EntryStoryLinks.vue";
+import { useAskUiStore } from "@/stores/ui/ask";
 
 const secret = (over: Partial<CanonEntry> = {}): CanonEntry => canonEntry({ id: "s1", part: "secret", title: "Sift is the guild master's daughter.", ...over });
 const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
@@ -45,16 +48,24 @@ const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
   quest_beat_id: null, found_at: null, item_id: null, document_id: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
 });
 
-const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { EntryStoryLinks: true, CanonSuggestFold: { template: "<div><slot /></div>" }, ConnectionsSection: true, SecretOutlets: true, CanonEntryNotes: true, ClueForm: true, CanonSuggestions: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
+const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { EntryStoryLinks: true, ConnectionsSection: true, SecretOutlets: true, CanonEntryNotes: true, ClueForm: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
 
 describe("SecretDetail", () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
     clues.value = [clue(), clue({ id: "k2", title: "A carving" })];
     party.value = [{ id: "pm1", name: "Mira" }, { id: "pm2", name: "Bram" }];
     session.value = { id: "sess1" };
     passages.value = [];
     entries.value = [];
     Object.values(mocks).forEach((m) => m.mockReset());
+  });
+
+  // Bug caught: the Clues block's Suggest asked the Familiar for something that names no secret, or was left out of the block.
+  it("asks the Familiar for clues for this secret from the Clues block", async () => {
+    const open = vi.spyOn(useAskUiStore(), "openPanel").mockImplementation(() => undefined);
+    await mountDetail(secret()).get("section[aria-label=Clues] [data-testid=canon-suggest]").trigger("click");
+    expect(open).toHaveBeenCalledWith('Suggest clues for the secret "Sift is the guild master\'s daughter.".');
   });
 
   // Bug caught (#1258 item 3): the outlets block was handed another secret, or none of this secret's clues, so it could not group them.

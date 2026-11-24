@@ -1,13 +1,13 @@
 <template>
-  <section class="flex min-w-0 flex-col gap-4 border border-border bg-card p-4" aria-label="A lore entry" data-testid="lore-detail">
-    <div class="flex flex-col gap-1">
-      <span class="flex items-center justify-between gap-2 text-eyebrow text-muted-foreground">
-        Lore
-        <span class="text-label font-bold text-foreground" data-testid="lore-told">Told {{ tally.told }} of {{ tally.total }}</span>
-      </span>
-      <AppInput :key="revision" v-model.lazy="text" size="body" tone="filled" aria-label="The title" placeholder="What the world remembers…" />
+  <CanonEntryPane :kind="kindWord" delete-label="Delete this lore" close-label="Close this lore" data-testid="lore-detail" @close="emit('close')" @delete="emit('delete')">
+    <template #title>
+      <AppInput :key="revision" v-model.lazy="text" wrap size="body" tone="filled" aria-label="The title" placeholder="What the world remembers…" />
+    </template>
+
+    <template #who>
+      <AudienceRevealControl :visible-to="entry.player_visible_to" :name="entry.title" @change="(next) => update({ id: entry.id, patch: { player_visible_to: next } })" />
       <EntryArcPicker :entry="entry" />
-    </div>
+    </template>
 
     <EntityImageBlock
       :model-value="entry.image_url"
@@ -18,25 +18,24 @@
       @update:model-value="(url) => update({ id: entry.id, patch: { image_url: url || null } })"
     />
 
-    <div class="flex flex-col gap-2">
-      <span class="text-eyebrow text-muted-foreground">What kind</span>
-      <AppSelect :model-value="entry.lore_kind" tone="filled" weight="normal" size="body" block aria-label="What kind of lore" @change="onKind">
-        <option :value="null">Any kind</option>
-        <option v-for="k in LORE_KIND_OPTIONS" :key="k.value" :value="k.value">{{ k.label }}</option>
-      </AppSelect>
-      <span class="text-eyebrow text-muted-foreground">In the world<template v-if="dateText">: {{ dateText }}</template></span>
-      <WorldDateField :date="entryDate(entry)" @change="onDate" />
+    <div class="flex flex-wrap items-end gap-3">
+      <label class="flex flex-col gap-1">
+        <span class="text-eyebrow text-muted-foreground">What kind</span>
+        <AppSelect :model-value="entry.lore_kind" tone="filled" weight="normal" size="body" aria-label="What kind of lore" @change="onKind">
+          <option :value="null">Any kind</option>
+          <option v-for="k in LORE_KIND_OPTIONS" :key="k.value" :value="k.value">{{ k.label }}</option>
+        </AppSelect>
+      </label>
+      <div class="flex min-w-0 flex-1 flex-col gap-1">
+        <span class="text-eyebrow text-muted-foreground">In the world<template v-if="dateText">: {{ dateText }}</template></span>
+        <WorldDateField :date="entryDate(entry)" @change="onDate" />
+      </div>
     </div>
 
-    <div class="flex flex-col gap-1">
-      <AudienceRevealControl :visible-to="entry.player_visible_to" :name="entry.title" @change="(next) => update({ id: entry.id, patch: { player_visible_to: next } })" />
-      <p class="text-caption text-muted-foreground">Sharing the entry tells its first passage. Every other passage is told on its own.</p>
-    </div>
-
-    <div class="flex flex-col gap-1">
-      <span class="text-eyebrow text-muted-foreground">Told in passages</span>
+    <CanonBlock title="Passages" :suggest="suggestPassage">
+      <p class="m-0 text-caption text-muted-foreground">Sharing the entry tells its first passage. Every other passage is told on its own.</p>
       <!-- One rule, in the database: the first passage is told with the entry and is never offered at a place or to Tell. -->
-      <p v-if="passages.length > 0" class="flex flex-col gap-0.5" data-testid="lore-opening">
+      <p v-if="passages.length > 0" class="m-0 flex flex-col gap-0.5" data-testid="lore-opening">
         <span class="text-label font-bold text-foreground">The opening, read when the entry is shared</span>
         <span class="text-caption text-muted-foreground">The first passage below is told with the entry, so it never waits at a place. The rest are told one at a time.</span>
       </p>
@@ -53,26 +52,24 @@
           @remove="removePassage(p)"
         />
       </ul>
-      <p v-else class="text-caption text-muted-foreground" data-testid="no-passages">No passages yet. The first one is told with the entry.</p>
+      <p v-else class="m-0 text-caption text-muted-foreground" data-testid="no-passages">No passages yet. The first one is told with the entry.</p>
       <AppButton variant="ghost" size="sm" :icon="IconAdd" icon-size="xs" label="Add a passage" class="self-start" :loading="adding" @click="addPassage" />
-      <CanonSuggestions v-if="plainText !== ''" mode="lore" :entries="NO_ENTRIES" :lore="{ title: entry.title, kind: entry.lore_kind, entryId: entry.id, text: plainText }" />
-    </div>
+    </CanonBlock>
 
     <EntryStoryLinks :entry="entry" />
 
     <EntryQuests :entry="entry" :links="questLinks" label="The quests that tell it" empty="No quest tells this yet." />
 
-    <ConnectionsSection :subject="subject" :subject-name="entry.title" />
-
-    <AppButton variant="destructive" size="sm" :icon="IconDelete" icon-size="xs" label="Delete this lore" class="self-start" @click="emit('delete')" />
-  </section>
+    <template #connections>
+      <ConnectionsSection :subject="subject" :subject-name="entry.title" />
+    </template>
+  </CanonEntryPane>
 </template>
 
 <script setup lang="ts">
 /**
- * The selected lore entry (frames 04 and 04b): title, picture (upload, or Paint with AI), kind, its date in the world,
- * who it is shared with, then its passages in the order they are told. It opens beside the lore ledger in the page body (two thirds wide, `CanonSplit`),
- * so a passage's margin (told, where it comes out) sits beside its text.
+ * The open lore entry, in the chapter's entry pane: title, picture (upload, or Paint with AI), kind, its date in the
+ * world, who it is shared with, then its passages in the order they are told. Everything saves as it is changed.
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -81,36 +78,35 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
-import CanonSuggestions from "./CanonSuggestions.vue";
+import CanonBlock from "./kit/CanonBlock.vue";
+import CanonEntryPane from "./kit/CanonEntryPane.vue";
 import EntryArcPicker from "./EntryArcPicker.vue";
 import EntryQuests from "./EntryQuests.vue";
 import EntryStoryLinks from "./EntryStoryLinks.vue";
 import LorePassageRow from "./LorePassageRow.vue";
 import WorldDateField from "./WorldDateField.vue";
-import { LORE_KIND_OPTIONS, entryDate, normaliseDate, worldDateLabel, type WorldDate } from "@/lib/canon/canonLore";
+import { LORE_KIND_LABEL, LORE_KIND_OPTIONS, entryDate, normaliseDate, worldDateLabel, type WorldDate } from "@/lib/canon/canonLore";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useEntryQuestLinks } from "@/composables/canon/useEntryQuestLinks";
-import { toldTally } from "@/composables/canon/useCanonPassages";
 import { usePassageList } from "@/composables/canon/usePassageList";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
-import { IconAdd, IconDelete } from "@/lib/icons";
+import { IconAdd } from "@/lib/icons";
 import { useCalendarStore } from "@/stores/calendar";
 import { LORE_KINDS, type CanonEntry, type LoreKind } from "@/types/canon.types";
 import type { WorldRef } from "@/types/connections.types";
 
 const { entry } = defineProps<{ entry: CanonEntry }>();
-const emit = defineEmits<{ delete: [] }>();
-const NO_ENTRIES: readonly CanonEntry[] = [];
+const emit = defineEmits<{ delete: []; close: [] }>();
 
+const kindWord = computed(() => (entry.lore_kind ? `Lore · ${LORE_KIND_LABEL[entry.lore_kind]}` : "Lore"));
+const suggestPassage = computed(() => `Suggest a passage for the lore "${entry.title}".`);
 const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
 const questLinks = useEntryQuestLinks(() => entry.id);
 const { mutate: update } = useUpdateCanonEntry();
 const { text, revision } = useCommittedText(() => entry.title, (next) => update({ id: entry.id, patch: { title: next } }));
 
 const { passages, adding, addPassage, move, removePassage } = usePassageList(() => entry.id);
-const tally = computed(() => toldTally(passages.value));
-const plainText = computed(() => passages.value.map((p) => [p.title, tiptapToPlainText(p.body)].filter((t) => t !== "").join("\n")).filter((t) => t !== "").join("\n\n"));
 const pictureContext = computed(() => [entry.title, entry.lore_kind, passages.value[0] ? tiptapToPlainText(passages.value[0].body) : ""].filter((t) => t).join(". "));
 
 const calendar = useCalendarStore();

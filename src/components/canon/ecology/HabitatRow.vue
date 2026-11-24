@@ -8,18 +8,20 @@
       <span v-if="summary" class="mt-1 block text-caption text-muted-foreground" data-testid="habitat-summary">{{ summary }}</span>
       <span v-else class="mt-1 block text-caption italic text-muted-foreground">Nothing lives here yet.</span>
     </span>
-    <!-- Above the row's stretched select button, so they stay their own stops. -->
-    <span class="relative z-20 flex shrink-0 items-center">
-      <AppButton variant="ghost" size="icon-xs" :icon="IconChevronUp" :aria-label="`Move ${habitat.name} up`" :disabled="first" @click="emit('move', -1)" />
-      <AppButton variant="ghost" size="icon-xs" :icon="IconChevronDown" :aria-label="`Move ${habitat.name} down`" :disabled="last" @click="emit('move', 1)" />
-    </span>
+    <template #mark>
+      <span class="inline-flex items-center gap-1.5 whitespace-nowrap text-label font-bold text-foreground" data-testid="habitat-mark">
+        <IconLocation class="size-3.5 shrink-0" aria-hidden="true" />
+        {{ places.length === 0 ? "No places" : places.length === 1 ? "1 place" : `${places.length} places` }}
+      </span>
+      <CanonMoveButtons class="pointer-events-auto" :label="habitat.name" :first="first" :last="last" @move="(by) => emit('move', by)" />
+    </template>
   </CanonRow>
 </template>
 
 <script setup lang="ts">
-import AppButton from "@/components/common/controls/AppButton.vue";
+import CanonMoveButtons from "../CanonMoveButtons.vue";
 import CanonRow from "../kit/CanonRow.vue";
-import { IconChevronDown, IconChevronUp } from "@/lib/icons";
+import { IconLocation } from "@/lib/icons";
 import type { Habitat } from "@/lib/canon/habitats";
 
 defineProps<{

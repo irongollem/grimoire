@@ -52,21 +52,44 @@ import CanonView from "./CanonView.vue";
 
 const truth = (id: string, title: string): CanonEntry => canonEntry({ id, campaign_id: "c1", part: "truth", knowledge: "all", title });
 
-// The chapter draws its own list, entry wrapper and Back; this stub stands in for the rows and the open truth only.
+
+// Each chapter draws its own list, entry wrapper and Back; these stubs stand in for the rows and the open entry only, and
+// expose the props the page hands down.
+const detail = (testid: string, delTestid: string) =>
+  `<div v-if='selected' id='canon-inline-detail' data-testid='detail'><span data-testid='${testid}'>{{ selected.title }}</span><button data-testid='${delTestid}' @click="$emit('delete')" /><button data-testid='${delTestid}-close' @click="$emit('close')" /></div>`;
+const rows = (list: string) => `<div v-for='t in ${list}' :id="'canon-entry-' + t.id" :key='t.id' @click="$emit('select', t.id)">{{ t.title }}</div>`;
+
 const TruthsStub = {
   name: "TruthsChapter",
   props: ["truths", "allTruths", "selected", "arcLabel"],
   emits: ["select", "close", "delete"],
-  template: "<section id=\"canon-truths\"><div v-for='t in truths' :id=\"'canon-entry-' + t.id\" :key='t.id' @click=\"$emit('select', t.id)\">{{ t.title }}</div><div v-if='selected' id='canon-inline-detail' data-testid='detail'>{{ selected.title }}<button data-testid='del' @click=\"$emit('delete')\" /><button data-testid='truth-close' @click=\"$emit('close')\" /></div></section>",
+  template: `<section id="canon-truths">${rows("truths")}${detail("truth-detail", "del")}</section>`,
 };
-
-const SecretDetailStub = { name: "SecretDetail", props: ["entry"], emits: ["delete"], template: "<div data-testid='secret-detail'>{{ entry.title }}<button data-testid='del-secret' @click=\"$emit('delete')\" /></div>" };
-
-const ForceDetailStub = { name: "ForceDetail", props: ["entry"], emits: ["delete"], template: "<div data-testid='force-detail'>{{ entry.title }}<button data-testid='del-force' @click=\"$emit('delete')\" /></div>" };
-
-const LoreDetailStub = { name: "LoreDetail", props: ["entry"], emits: ["delete"], template: "<div data-testid='lore-detail'>{{ entry.title }}<button data-testid='del-lore' @click=\"$emit('delete')\" /></div>" };
-
-const BackstoryDetailStub = { name: "BackstoryDetail", props: ["member"], template: "<div data-testid='backstory-detail'>{{ member.name }}</div>" };
+const LoreStub = {
+  name: "LoreChapter",
+  props: ["lore", "selected", "arcLabel"],
+  emits: ["select", "close", "delete"],
+  template: `<section>${rows("lore")}${detail("lore-detail", "del-lore")}</section>`,
+};
+const SecretsStub = {
+  name: "SecretsChapter",
+  props: ["secrets", "questions", "selected", "arcLabel"],
+  emits: ["select", "close", "delete"],
+  template: `<section>${rows("secrets")}${rows("questions")}${detail("secret-detail", "del-secret")}</section>`,
+};
+const ForcesStub = {
+  name: "ForcesChapter",
+  props: ["forces", "selectedId", "arcLabel"],
+  emits: ["select", "close", "delete"],
+  template: `<section>${rows("forces")}<div v-if='selectedId' id='canon-inline-detail' data-testid='force-detail'>{{ selectedId }}<button data-testid='del-force' @click="$emit('delete')" /></div></section>`,
+};
+const BackstoriesStub = {
+  name: "BackstoriesChapter",
+  props: ["party", "entries", "passages", "selectedId"],
+  emits: ["select", "close"],
+  template: "<section><div v-if='selectedId' id='canon-inline-detail' data-testid='backstory-detail'>{{ party.find((m) => m.id === selectedId).name }}</div><button data-testid='pick-m1' @click=\"$emit('select', 'm1')\" /></section>",
+};
+const PremiseStub = { name: "PremiseChapter", props: ["campaign", "entries"], template: "<section><i v-for='e in entries' :id=\"'canon-entry-' + e.id\" :key='e.id' /></section>" };
 
 const RouterLink = { props: ["to"], template: "<a :data-testid=\"typeof to === 'string' ? 'link' : 'result-link'\" :href=\"typeof to === 'string' ? to : `${to.path}?entry=${to.query.entry}`\"><slot /></a>" };
 
@@ -79,11 +102,11 @@ async function settle() {
   await flushPromises();
 }
 
-// Every section and detail is another file's business; the page is what mounts them. Details are stubbed to a name and a delete.
+// Every chapter is another file's business; the page is what mounts them and hands them their slice of the canon.
 const STUBS = {
-  RouterLink, CanonArcs: true, PremiseSection: true, ForcesSection: true, ForceDetail: ForceDetailStub, SecretsSection: true, WorldWorksSection: true, WorldPeoples: true, HabitatsPanel: true,
+  RouterLink, CanonArcs: true, CanonDeleted: true, CanonContents: true, WorldChapter: true, PeoplesChapter: true, LifeChapter: true,
   AppButton: { props: ["to", "label"], template: "<component :is=\"to ? 'a' : 'button'\" :href=\"to\">{{ label }}<slot /></component>" },
-  LoreSection: true, CanonDeleted: true, LoreDetail: LoreDetailStub, SecretDetail: SecretDetailStub, TruthsChapter: TruthsStub, CanonContents: true, BackstoriesSection: true, BackstoryDetail: BackstoryDetailStub,
+  TruthsChapter: TruthsStub, LoreChapter: LoreStub, SecretsChapter: SecretsStub, ForcesChapter: ForcesStub, BackstoriesChapter: BackstoriesStub, PremiseChapter: PremiseStub,
 };
 
 function mountView(stubs: Record<string, unknown> = {}) {
@@ -118,170 +141,109 @@ describe("CanonView", () => {
     loading.value = false;
   });
 
-  it("opens the truth named by ?entry=<id> and scrolls it into view, the link search and the world web follow", async () => {
+  const loreRow = () => canonEntry({ id: "l1", campaign_id: "c1", part: "lore", title: "The Fall" });
+  const forceRow = () => ({ ...truth("f1", "The Stain spreads"), part: "force" as const, knowledge: null });
+  const secretRow = () => ({ ...truth("s1", "Sift is the guild master's daughter."), part: "secret" as const, knowledge: null });
+
+  // Bug caught: the link search and the world web make (?entry=<id>) opening nothing, or opening without bringing it into view.
+  it("hands the truth named by ?entry=<id> to the Truths chapter and scrolls it into view", async () => {
     route.query = { entry: "t2" };
     const w = mountView();
     await settle();
-    expect(w.find("[data-testid=detail]").text()).toBe("The Stain is a wound.");
+    expect(w.findComponent({ name: "TruthsChapter" }).props("selected")).toMatchObject({ id: "t2" });
     expect(mocks.scroll).toHaveBeenCalledTimes(1);
   });
 
-  it("opens nothing for an id that is not a truth of this campaign", async () => {
+  // Bug caught: an id from another campaign (or a stale link) opening as someone else's truth.
+  it("opens nothing for an id that is not an entry of this campaign, or without ?entry", async () => {
     route.query = { entry: "someone-elses" };
     const w = mountView();
     await settle();
+    expect(w.findComponent({ name: "TruthsChapter" }).props("selected")).toBeNull();
     expect(w.find("[data-testid=detail]").exists()).toBe(false);
   });
 
-  it("opens the secret named by ?entry=<id> with the secret's detail, not a truth's, so a clue's link lands on its secret", async () => {
-    data.value = [...data.value, { ...truth("s1", "Sift is the guild master's daughter."), part: "secret", knowledge: null }];
+  // Bug caught: a clue's link to its secret opened a truth's detail, or no detail at all.
+  it("hands a secret named by ?entry to the Secrets chapter, and a truth chapter is not drawn", async () => {
+    data.value = [...data.value, secretRow()];
     route.params = { part: "secrets" };
     route.query = { entry: "s1" };
     const w = mountView();
     await settle();
-    expect(w.find("[data-testid=secret-detail]").text()).toBe("Sift is the guild master's daughter.");
-    expect(w.find("[data-testid=detail]").exists()).toBe(false);
+    expect(w.findComponent({ name: "SecretsChapter" }).props("selected")).toMatchObject({ id: "s1" });
+    expect(w.findComponent({ name: "TruthsChapter" }).exists()).toBe(false);
   });
 
-  it("opens the force named by ?entry=<id> with the force's detail, so a link from a quest lands on what is moving", async () => {
-    data.value = [...data.value, { ...truth("f1", "The Stain spreads"), part: "force", knowledge: null }];
+  // Bug caught: a link from a quest to what is moving landing on nothing.
+  it("hands a force named by ?entry to the Forces chapter as its selected id", async () => {
+    data.value = [...data.value, forceRow()];
     route.params = { part: "moving" };
     route.query = { entry: "f1" };
     const w = mountView();
     await settle();
-    expect(w.find("[data-testid=force-detail]").text()).toBe("The Stain spreads");
-    expect(w.find("[data-testid=detail]").exists()).toBe(false);
+    expect(w.findComponent({ name: "ForcesChapter" }).props("selectedId")).toBe("f1");
   });
 
-  // Bug caught: an entry drawn under its list, in a side column, or nowhere: every chapter's entry opens in the chapter, beside its list.
-  describe("an entry opens in its chapter, beside the list", () => {
-    const forceRow = () => ({ ...truth("f1", "The Stain spreads"), part: "force" as const, knowledge: null });
-    const loreRow = () => canonEntry({ id: "l1", campaign_id: "c1", part: "lore", title: "The Fall" });
-    const entryPane = "[data-testid=canon-chapter-entry]";
-
-    it("renders a selected lore entry, force and secret in the chapter's entry, and no side column", async () => {
-      data.value = [loreRow(), forceRow(), { ...truth("s1", "Sift"), part: "secret", knowledge: null }];
-      for (const [part, id, detail] of [["lore", "l1", "lore-detail"], ["moving", "f1", "force-detail"], ["secrets", "s1", "secret-detail"]] as const) {
-        route.params = { part };
-        route.query = { entry: id };
-        const w = mountView();
-        await settle();
-        expect(w.find(`${entryPane} [data-testid=${detail}]`).exists()).toBe(true);
-        expect(w.find("aside").exists()).toBe(false);
-        expect(w.find("#canon-inline-detail").exists()).toBe(true);
-      }
-    });
-
-    it("keeps a selected truth's entry in the Truths chapter, and shows it once", async () => {
-      route.query = { entry: "t1" };
-      const w = mountView();
-      await settle();
-      expect(w.findAll("[data-testid=detail]")).toHaveLength(1);
-      expect(w.findComponent({ name: "TruthsChapter" }).props("selected")).toMatchObject({ id: "t1" });
-    });
-
-    // Bug caught: the chapter told it is open when only another chapter's entry is, so its list hid behind nothing.
-    it("opens the chapter only for an entry of its own part", async () => {
-      data.value = [loreRow()];
-      route.params = { part: "moving" };
-      route.query = {};
-      const w = mountView();
-      await settle();
-      expect(w.find("[data-chapter=moving]").attributes("data-open")).toBeUndefined();
-      route.params = { part: "lore" };
-      route.query = { entry: "l1" };
-      await settle();
-      expect(w.find("[data-chapter=lore]").attributes("data-open")).toBeDefined();
-    });
-
-    // Bug caught: the close button did nothing, or cleared only ?backstory so a backstory opened by ?entry stayed open.
-    it("closes an open lore entry by clearing ?entry", async () => {
-      data.value = [loreRow()];
-      route.params = { part: "lore" };
-      route.query = { entry: "l1" };
-      const w = mountView();
-      await settle();
-      await w.find("[data-testid=canon-chapter-back]").trigger("click");
-      expect(mocks.replace).toHaveBeenCalledWith({ query: { entry: undefined, backstory: undefined } });
-    });
-
-    it("closes an open backstory by clearing ?backstory", async () => {
-      route.params = { part: "backstories" };
-      route.query = { backstory: "m2" };
-      const w = mountView();
-      await settle();
-      await w.find("[data-testid=canon-chapter-back]").trigger("click");
-      expect(mocks.replace).toHaveBeenCalledWith({ query: { entry: undefined, backstory: undefined } });
-    });
-
-    // Bug caught: a deep link to a lore entry (the old `/canon?entry=<id>`, which every link in the app still makes) landed
-    // on the part the DM was last on, or on the contents' first part, with the entry nowhere on screen.
-    it("takes a bare /canon?entry=<lore id> to /canon/lore with the entry selected", async () => {
-      data.value = [loreRow()];
-      route.params = {};
-      route.query = { entry: "l1" };
-      const w = mountView();
-      await settle();
-      expect(w.findComponent({ name: "CanonContents" }).props("active")).toBe("lore");
-      expect(mocks.replace).toHaveBeenCalledWith({ path: "/canon/lore", query: { entry: "l1", section: undefined } });
-      expect(w.find("[data-testid=lore-detail]").text()).toBe("The Fall");
-    });
-
-    // Bug caught: /canon/truths?entry=<lore id> drew the lore's detail under the Truths part.
-    // Bug caught: the scroll to the entry's row spent while its part was not on screen yet, so the entry opened out of sight.
-    it("moves an entry link whose part is not the one in the address to the entry's own part, and scrolls to its row there", async () => {
-      data.value = [loreRow()];
-      // The row exists only once the Lore part is on screen, as in the app.
-      const loreRows = { name: "LoreSection", props: ["lore"], template: "<section><i id='canon-entry-l1' /></section>" };
-      route.params = { part: "truths" };
-      route.query = { entry: "l1" };
-      const w = mountView({ LoreSection: loreRows });
-      await settle();
-      expect(route.params.part).toBe("lore");
-      expect(w.findComponent({ name: "TruthsChapter" }).exists()).toBe(false);
-      expect(mocks.scroll.mock.calls[0]?.[0]).toBe(document.getElementById("canon-entry-l1"));
-    });
-
-    // Bug caught: the split's detail lost the id the tap-scroll looks for, so on a phone a tapped lore row opened off screen.
-    it("scrolls a tapped lore row's entry into view, at any width", async () => {
-      data.value = [loreRow()];
-      route.params = { part: "lore" };
-      const loreStub = { name: "LoreSection", props: ["lore"], emits: ["select"], template: "<section><i id='tap-lore' @click=\"$emit('select', 'l1')\" /></section>" };
-      const w = mount(CanonView, {
-        attachTo: document.body,
-        global: { stubs: { ...STUBS, LoreSection: loreStub } },
-      });
-      mounted.push(w);
-      await w.find("#tap-lore").trigger("click");
-      route.query = { entry: "l1" };
-      await settle();
-      expect(mocks.scroll.mock.calls.at(-1)?.[0]).toBe(document.getElementById("canon-inline-detail"));
-    });
-  });
-
-  it("opens the lore entry named by ?entry=<id> with the lore detail, so a link from a passage lands on its entry", async () => {
-    data.value = [canonEntry({ id: "l1", campaign_id: "c1", part: "lore", title: "The Fall of the Bakers' Guild" })];
+  // Bug caught: a link from a passage to its lore entry opening no entry.
+  it("hands a lore entry named by ?entry to the Lore chapter", async () => {
+    data.value = [loreRow()];
     route.params = { part: "lore" };
     route.query = { entry: "l1" };
     const w = mountView();
     await settle();
-    expect(w.find("[data-testid=lore-detail]").text()).toBe("The Fall of the Bakers' Guild");
+    expect(w.findComponent({ name: "LoreChapter" }).props("selected")).toMatchObject({ id: "l1", title: "The Fall" });
   });
 
-  it("asks with the lore's own wording, naming its passages, when the open entry is lore", async () => {
-    data.value = [canonEntry({ id: "l1", campaign_id: "c1", part: "lore", title: "The Fall" })];
+  // Bug caught: the close button doing nothing, or clearing only ?backstory so a backstory opened by ?entry stayed open.
+  it("closes an open entry by clearing ?entry and ?backstory", async () => {
+    data.value = [loreRow()];
     route.params = { part: "lore" };
     route.query = { entry: "l1" };
-    mocks.confirm.mockResolvedValue(false);
     const w = mountView();
     await settle();
-    await w.find("[data-testid=del-lore]").trigger("click");
-    expect(mocks.confirm.mock.calls[0]![0]).toContain("passages");
+    await w.find("[data-testid=del-lore-close]").trigger("click");
+    expect(mocks.replace).toHaveBeenCalledWith({ query: { entry: undefined, backstory: undefined } });
   });
 
-  // Bug caught: a character with no backstory entry yet could not be opened, since the page only knew entries, so the
-  // DM could not start one from the list of characters.
-  it("opens a character's backstory from ?backstory=<party member>, before any entry exists for it", async () => {
+  // Bug caught: a deep link to a lore entry (`/canon?entry=<id>`, which every link in the app makes) landed on the part
+  // the DM was last on, with the entry nowhere on screen.
+  it("takes a bare /canon?entry=<lore id> to /canon/lore with the entry selected", async () => {
+    data.value = [loreRow()];
+    route.params = {};
+    route.query = { entry: "l1" };
+    const w = mountView();
+    await settle();
+    expect(w.findComponent({ name: "CanonContents" }).props("active")).toBe("lore");
+    expect(mocks.replace).toHaveBeenCalledWith({ path: "/canon/lore", query: { entry: "l1", section: undefined } });
+    expect(w.findComponent({ name: "LoreChapter" }).props("selected")).toMatchObject({ id: "l1" });
+  });
+
+  // Bug caught: /canon/truths?entry=<lore id> drew the lore under the Truths part; and the scroll to the entry's row
+  // spent while its part was not on screen yet, so the entry opened out of sight.
+  it("moves an entry link whose part is not the one in the address to the entry's own part, and scrolls to its row there", async () => {
+    data.value = [loreRow()];
+    route.params = { part: "truths" };
+    route.query = { entry: "l1" };
+    const w = mountView();
+    await settle();
+    expect(route.params.part).toBe("lore");
+    expect(w.findComponent({ name: "TruthsChapter" }).exists()).toBe(false);
+    expect(mocks.scroll.mock.calls[0]?.[0]).toBe(document.getElementById("canon-entry-l1"));
+  });
+
+  // Bug caught: a tapped row opening its entry off screen on a phone, with nothing bringing it into view, or scrolling
+  // to the row the DM already touched.
+  it("scrolls the opened entry into view after a tap, and never to the row the DM already touched", async () => {
+    const w = mountView();
+    await w.find("#canon-entry-t1").trigger("click");
+    route.query = { entry: "t1" };
+    await settle();
+    expect(mocks.scroll).toHaveBeenCalledTimes(1);
+    expect(mocks.scroll.mock.calls[0]?.[0]).toBe(document.getElementById("canon-inline-detail"));
+  });
+
+  // Bug caught: a character with no backstory entry yet could not be opened, since the page only knew entries.
+  it("hands a character to the Backstories chapter from ?backstory=<party member>, before any entry exists for it", async () => {
     route.params = { part: "backstories" };
     route.query = { backstory: "m2" };
     const w = mountView();
@@ -289,8 +251,37 @@ describe("CanonView", () => {
     expect(w.find("[data-testid=backstory-detail]").text()).toBe("Pim");
   });
 
+  // Bug caught: a search result or web link to a backstory entry opened nothing.
+  it("opens the character a backstory entry belongs to from ?entry=<entry id>", async () => {
+    data.value = [canonEntry({ id: "b1", campaign_id: "c1", part: "backstory", party_member_id: "m1", title: "" })];
+    route.params = { part: "backstories" };
+    route.query = { entry: "b1" };
+    const w = mountView();
+    await settle();
+    expect(w.findComponent({ name: "BackstoriesChapter" }).props("selectedId")).toBe("m1");
+  });
+
+  // Bug caught: a backstory of a character no longer in the party opening a pane with no one in it.
+  it("opens nothing for a backstory of a character who is not in the party", async () => {
+    route.params = { part: "backstories" };
+    route.query = { backstory: "gone" };
+    const w = mountView();
+    await settle();
+    expect(w.findComponent({ name: "BackstoriesChapter" }).props("selectedId")).toBeNull();
+  });
+
+  // Bug caught: choosing a character leaving the old ?entry in the address, so two backstories fought over the pane.
+  it("puts a chosen backstory in the URL as ?backstory and drops ?entry", async () => {
+    route.params = { part: "backstories" };
+    route.query = { entry: "b1" };
+    const w = mountView();
+    await settle();
+    await w.find("[data-testid=pick-m1]").trigger("click");
+    expect(mocks.replace).toHaveBeenCalledWith({ query: { backstory: "m1", entry: undefined } });
+  });
+
   // Bug caught: Ask Grimoire's "Review suggestions" landed on the top of the Canon page, with the suggested truths
-  // somewhere far down it, so the DM saw nothing had happened. Its link is `/canon?section=<helper's word>`.
+  // somewhere far down it. Its link is `/canon?section=<helper's word>`.
   it("resolves ?section= to its part, by the part's id or the word a helper uses, and ignores a part that does not exist", async () => {
     route.params = {};
     route.query = { section: "lore" };
@@ -319,28 +310,7 @@ describe("CanonView", () => {
     expect(none.findComponent({ name: "CanonContents" }).props("active")).toBe("premise");
   });
 
-  // Bug caught: a search result or web link to a backstory entry opened nothing.
-  it("opens the character a backstory entry belongs to from ?entry=<entry id>", async () => {
-    data.value = [canonEntry({ id: "b1", campaign_id: "c1", part: "backstory", party_member_id: "m1", title: "" })];
-    route.params = { part: "backstories" };
-    route.query = { entry: "b1" };
-    const w = mountView();
-    await settle();
-    expect(w.find("[data-testid=backstory-detail]").text()).toBe("Tansy");
-  });
-
-  it("opens nothing for a backstory of a character who is not in the party", async () => {
-    route.params = { part: "backstories" };
-    route.query = { backstory: "gone" };
-    const w = mountView();
-    await settle();
-    expect(w.find("[data-testid=backstory-detail]").exists()).toBe(false);
-  });
-
-  it("opens nothing without ?entry", async () => {
-    expect(mountView().find("[data-testid=detail]").exists()).toBe(false);
-  });
-
+  // Bug caught: a click on a row not reaching the URL, or dropping the query the page carries.
   it("puts a clicked truth in the URL, keeping the other query it carries", async () => {
     route.query = { backstory: "m1" };
     const w = mountView();
@@ -348,7 +318,7 @@ describe("CanonView", () => {
     expect(mocks.replace).toHaveBeenCalledWith({ query: { entry: "t1", backstory: undefined } });
   });
 
-  describe("deleting the open truth", () => {
+  describe("deleting the open entry", () => {
     async function openAndDelete() {
       route.query = { entry: "t1" };
       const w = mountView();
@@ -357,44 +327,47 @@ describe("CanonView", () => {
       await settle();
     }
 
+    // Bug caught: a secret delete not naming the clues that go with it.
     it("asks with the secret's own wording, naming its clues, when the open entry is a secret", async () => {
-      data.value = [{ ...truth("s1", "Sift is the guild master's daughter."), part: "secret", knowledge: null }];
+      data.value = [secretRow()];
       route.params = { part: "secrets" };
       route.query = { entry: "s1" };
       mocks.confirm.mockResolvedValue(false);
       const w = mountView();
       await settle();
       await w.find("[data-testid=del-secret]").trigger("click");
-      expect(mocks.confirm.mock.calls[0][0]).toContain("Delete this secret?");
-      expect(mocks.confirm.mock.calls[0][0]).toContain("clues");
+      expect(mocks.confirm.mock.calls[0]![0]).toContain("Delete this secret?");
+      expect(mocks.confirm.mock.calls[0]![0]).toContain("clues");
     });
 
+    // Bug caught: a force delete not naming its steps, ticks and quest links.
     it("asks with the force's own wording, naming its steps, ticks and quest links, when the open entry is a force", async () => {
-      data.value = [{ ...truth("f1", "The Stain spreads"), part: "force", knowledge: null }];
+      data.value = [forceRow()];
       route.params = { part: "moving" };
       route.query = { entry: "f1" };
       mocks.confirm.mockResolvedValue(false);
       const w = mountView();
       await settle();
       await w.find("[data-testid=del-force]").trigger("click");
-      expect(mocks.confirm.mock.calls[0][0]).toContain("Delete this force?");
-      expect(mocks.confirm.mock.calls[0][0]).toContain("steps, ticks and quest links");
+      expect(mocks.confirm.mock.calls[0]![0]).toContain("Delete this force?");
+      expect(mocks.confirm.mock.calls[0]![0]).toContain("steps, ticks and quest links");
     });
 
     // Bug caught (#1258 item 32): the lore delete asked "Delete this lore?", a noun that is not what the DM sees (a lore entry).
     it("asks with the lore entry's own wording, naming its passages", async () => {
-      data.value = [{ ...truth("l1", "The founding"), part: "lore", knowledge: null }];
+      data.value = [loreRow()];
       route.params = { part: "lore" };
       route.query = { entry: "l1" };
       mocks.confirm.mockResolvedValue(false);
       const w = mountView();
       await settle();
       await w.find("[data-testid=del-lore]").trigger("click");
-      expect(mocks.confirm.mock.calls[0][0]).toContain("Delete this lore entry?");
-      expect(mocks.confirm.mock.calls[0][0]).toContain("and passages");
-      expect(mocks.confirm.mock.calls[0][1]).toMatchObject({ title: "Delete this lore entry" });
+      expect(mocks.confirm.mock.calls[0]![0]).toContain("Delete this lore entry?");
+      expect(mocks.confirm.mock.calls[0]![0]).toContain("and passages");
+      expect(mocks.confirm.mock.calls[0]![1]).toMatchObject({ title: "Delete this lore entry" });
     });
 
+    // Bug caught: a cancelled confirm that still deleted.
     it("deletes nothing when the confirm is cancelled", async () => {
       mocks.confirm.mockResolvedValue(false);
       await openAndDelete();
@@ -402,6 +375,7 @@ describe("CanonView", () => {
       expect(mocks.replace).not.toHaveBeenCalled();
     });
 
+    // Bug caught: a failed delete closing the entry the DM is still working on.
     it("keeps the truth open when the delete fails", async () => {
       mocks.confirm.mockResolvedValue(true);
       mocks.destroy.mockRejectedValue(new Error("no"));
@@ -415,13 +389,13 @@ describe("CanonView", () => {
       await openAndDelete();
       expect(mocks.destroy).toHaveBeenCalledWith("t1");
       // Bug caught: the confirm still said "removed" after the delete became a move to the Deleted list.
-      expect(mocks.confirm.mock.calls[0][0]).toContain("Deleted for thirty days");
+      expect(mocks.confirm.mock.calls[0]![0]).toContain("Deleted for thirty days");
       expect(mocks.replace).toHaveBeenCalledWith({ query: { entry: undefined } });
     });
   });
 
   // Bug caught (#1255 item 17): a delete was permanent because the Deleted list, where Restore lives, was never on the page.
-  it("mounts the Deleted list under what the table added", () => {
+  it("mounts the Deleted list under the chapter", () => {
     const w = mountView();
     expect(w.findComponent({ name: "CanonDeleted" }).exists()).toBe(true);
   });
@@ -443,13 +417,6 @@ describe("CanonView", () => {
     expect(html.indexOf("canon-phone-actions")).toBeLessThan(html.indexOf("canon-contents-stub"));
   });
 
-  // Bug caught: the Canon keeping an AI panel of its own, or the Tonight shortcut, after the Familiar took over.
-  it("holds no AI tools and no Tonight button of its own", () => {
-    const w = mountView();
-    expect(w.findComponent({ name: "CanonAiTools" }).exists()).toBe(false);
-    expect(w.find("a[href='/canon/tonight']").exists()).toBe(false);
-  });
-
   // Bug caught: the contents still counting the Chronicle or the table's lines, which are no longer chapters.
   it("hands the contents only its chapters' counts", () => {
     const counts = mountView().findComponent({ name: "CanonContents" }).props("counts") as Record<string, number>;
@@ -462,39 +429,29 @@ describe("CanonView", () => {
     expect(counts.backstories).toBe(2);
   });
 
-  // Bug caught: Peoples and Life drawn with no heading (they are not list chapters), so the page did not say where the DM was.
-  it("draws Peoples and Life under their own heading and reason", async () => {
-    route.params = { part: "peoples" };
-    const w = mountView();
-    await settle();
-    expect(w.find("[data-chapter=peoples] h2").text()).toBe("Peoples");
-    expect(w.findComponent({ name: "WorldPeoples" }).exists()).toBe(true);
-    route.params = { part: "life" };
-    await settle();
-    expect(w.find("[data-chapter=life] h2").text()).toBe("Life");
-    expect(w.findComponent({ name: "HabitatsPanel" }).exists()).toBe(true);
-    expect(w.findComponent({ name: "WorldPeoples" }).exists()).toBe(false);
+  // Bug caught: a part the page forgot to mount (Peoples, Life, World), leaving the contents pointing at a blank page.
+  it("mounts the World, Peoples and Life chapters for their parts", async () => {
+    const seen: string[] = [];
+    for (const part of ["world", "peoples", "life"]) {
+      route.params = { part };
+      const w = mountView();
+      await settle();
+      for (const name of ["WorldChapter", "PeoplesChapter", "LifeChapter"]) if (w.findComponent({ name }).exists()) seen.push(`${part}:${name}`);
+      w.unmount();
+      mounted.pop();
+    }
+    expect(seen).toEqual(["world:WorldChapter", "peoples:PeoplesChapter", "life:LifeChapter"]);
   });
 
   // Bug caught: a search hit on an open question or a premise entry opened the page with nothing scrolled to or marked,
   // because the page only resolved truth, force, secret and lore.
   describe("landing on an entry with no detail pane", () => {
-    const rowStub = { props: ["entries", "questions"], template: "<section><i v-for='e in (entries ?? questions)' :id=\"'canon-entry-' + e.id\" :key='e.id' /></section>" };
-    function mountLanding() {
-      const w = mount(CanonView, {
-        attachTo: document.body,
-        global: { stubs: { ...STUBS, PremiseSection: rowStub, SecretsSection: rowStub, TruthsChapter: true } },
-      });
-      mounted.push(w);
-      return w;
-    }
-
-    // Bug caught (#1255 item 14): a link to "What the table added" landed on the part the DM was last on, because nothing
-    // read which part a link meant; and, since the table's lines moved to Truths, an old link to a chapter that is gone.
+    // Bug caught (#1255 item 14): an old link to a chapter that is gone (the table's lines moved to Truths) landed on the
+    // part the DM was last on, because nothing read which part a link meant.
     it("opens at the chapter named by ?section (the old table link lands on Truths), and keeps the one it was on for one that does not exist", async () => {
       route.params = {};
       route.query = { section: "table" };
-      const w = mountLanding();
+      const w = mountView();
       await settle();
       expect(w.findComponent({ name: "CanonContents" }).props("active")).toBe("truths");
       expect(route.params.part).toBe("truths");
@@ -509,7 +466,7 @@ describe("CanonView", () => {
       data.value = [canonEntry({ id: "q1", campaign_id: "c1", part: "question", title: "Who burned the mill?" })];
       route.params = {};
       route.query = { entry: "q1" };
-      const w = mountLanding();
+      const w = mountView();
       await settle();
       expect(w.findComponent({ name: "CanonContents" }).props("active")).toBe("secrets");
       expect(mocks.scroll).toHaveBeenCalledTimes(1);
@@ -522,7 +479,7 @@ describe("CanonView", () => {
         data.value = [canonEntry({ id: "p1", campaign_id: "c1", part: "premise", premise_kind: "theme", title: "Dread" })];
         route.params = {};
         route.query = { entry: "p1" };
-        const w = mountLanding();
+        const w = mountView();
         await settle();
         const row = document.getElementById("canon-entry-p1")!;
         expect(w.findComponent({ name: "CanonContents" }).props("active")).toBe("premise");
@@ -534,16 +491,6 @@ describe("CanonView", () => {
         vi.useRealTimers();
       }
     });
-  });
-
-  // Bug caught: a tapped row opening its entry off screen (beside the list it is in sight; in place of it, it is the whole chapter), with nothing bringing it into view.
-  it("scrolls the opened entry into view after a tap, and never to the row the DM already touched", async () => {
-    const w = mountView();
-    await w.find("#canon-entry-t1").trigger("click");
-    route.query = { entry: "t1" };
-    await settle();
-    expect(mocks.scroll).toHaveBeenCalledTimes(1);
-    expect(mocks.scroll.mock.calls[0]?.[0]).toBe(document.getElementById("canon-inline-detail"));
   });
 
   // Bug caught (#1255 item 11): the arc filter narrowing only some parts, or narrowing the premise, which belongs to no arc.
@@ -566,7 +513,7 @@ describe("CanonView", () => {
       expect(w.findComponent({ name: "TruthsChapter" }).props("truths").map((t: CanonEntry) => t.id)).toEqual(["t1"]);
       route.params = { part: "premise" };
       await settle();
-      expect(w.findComponent({ name: "PremiseSection" }).props("entries").map((t: CanonEntry) => t.id)).toContain("p1");
+      expect(w.findComponent({ name: "PremiseChapter" }).props("entries").map((t: CanonEntry) => t.id)).toContain("p1");
     });
 
     // Bug caught (#1258 item 29): the arc hiding a character whose backstory is in another arc, or who has none yet. A
@@ -576,8 +523,15 @@ describe("CanonView", () => {
       route.params = { part: "backstories" };
       const w = mountView();
       await settle();
-      expect(w.findComponent({ name: "BackstoriesSection" }).props("party").map((m: { id: string }) => m.id)).toEqual(["m1", "m2", "m3"]);
+      expect(w.findComponent({ name: "BackstoriesChapter" }).props("party").map((m: { id: string }) => m.id)).toEqual(["m1", "m2", "m3"]);
       party.value = party.value.slice(0, 2);
+    });
+
+    // Bug caught: the chapter not told which arc narrows it, so an empty list could not say why it is empty.
+    it("tells the chapter the arc's name", async () => {
+      const w = mountView();
+      await settle();
+      expect(w.findComponent({ name: "TruthsChapter" }).props("arcLabel")).toBe("this arc");
     });
 
     it("counts the contents by what the arc shows", async () => {
@@ -587,17 +541,18 @@ describe("CanonView", () => {
       expect(w.findComponent({ name: "CanonContents" }).props("counts")).toMatchObject({ truths: 1, premise: 1, backstories: 2 });
     });
 
+    // Bug caught: an entry the DM moved to another arc closing under them.
     it("keeps a truth open when the DM moves it to another arc, instead of closing it under them", async () => {
       route.query = { entry: "t2" };
       const w = mountView();
       await settle();
-      expect(w.find("[data-testid=detail]").text()).toBe("The Stain is a wound.");
+      expect(w.findComponent({ name: "TruthsChapter" }).props("selected")).toMatchObject({ id: "t2" });
     });
   });
 
   // #1258 item 19: one part per view.
   describe("one part at a time", () => {
-    const names = (w: ReturnType<typeof mountView>) => ["PremiseSection", "TruthsChapter", "ForcesSection", "SecretsSection", "LoreSection", "BackstoriesSection"].filter((n) => w.findComponent({ name: n }).exists());
+    const names = (w: ReturnType<typeof mountView>) => ["PremiseChapter", "TruthsChapter", "ForcesChapter", "SecretsChapter", "LoreChapter", "BackstoriesChapter"].filter((n) => w.findComponent({ name: n }).exists());
 
     // Bug caught: the page still stacking every part (the old long scroll) behind a contents column that only highlights one.
     it("renders only the part in the address", async () => {
@@ -606,7 +561,7 @@ describe("CanonView", () => {
       expect(names(w)).toEqual(["TruthsChapter"]);
       route.params = { part: "lore" };
       await settle();
-      expect(names(w)).toEqual(["LoreSection"]);
+      expect(names(w)).toEqual(["LoreChapter"]);
     });
 
     // Bug caught: a bare /canon opening on Premise every time, or on nothing, instead of where the DM left off.
@@ -653,14 +608,14 @@ describe("CanonView", () => {
       expect(mocks.push).toHaveBeenCalledWith({ path: "/canon/lore" });
       expect(route.query.entry).toBeUndefined();
       expect(useCanonUiStore().lastPart).toBe("lore");
-      expect(names(w)).toEqual(["LoreSection"]);
-      // A part opens at its top (the search row), since no entry is asked for.
+      expect(names(w)).toEqual(["LoreChapter"]);
+      // A part opens at its top, since no entry is asked for.
       expect(mocks.scroll.mock.calls.at(-1)?.[0]).toBe(document.getElementById("canon-page-top"));
     });
 
     // Bug caught: following a link to an entry in another part scrolling to the top of the page instead of to the entry's row.
     it("scrolls to the entry's row, not the top of the page, when a link brings the DM to another part", async () => {
-      data.value = [...data.value, canonEntry({ id: "l1", campaign_id: "c1", part: "lore", title: "The Fall" })];
+      data.value = [...data.value, loreRow()];
       const w = mountView();
       await settle();
       mocks.scroll.mockClear();
@@ -668,7 +623,7 @@ describe("CanonView", () => {
       route.query = { entry: "l1" };
       await settle();
       expect(mocks.scroll.mock.contexts).not.toContain(document.getElementById("canon-page-top"));
-      expect(w.findComponent({ name: "LoreSection" }).exists()).toBe(true);
+      expect(w.findComponent({ name: "LoreChapter" }).exists()).toBe(true);
     });
 
     // Bug caught: the arc bar drawn over the skeleton, offering a filter for a canon that has not loaded.

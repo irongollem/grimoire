@@ -29,38 +29,45 @@ vi.mock("@/composables/campaign/useTableAccess", async () => {
   return { useTableAccess: () => ({ open: computed(() => tableOpen.on) }) };
 });
 
-import PremiseSection from "./PremiseSection.vue";
+import PremiseChapter from "./PremiseChapter.vue";
 
 const entry = (over: Partial<CanonEntry>): CanonEntry => canonEntry({ id: "e", campaign_id: "c1", part: "premise", premise_kind: "theme", ...over });
 
 const RevealStub = { name: "AudienceRevealControl", template: "<i data-testid='reveal' />" };
 
-function mountSection(entries: CanonEntry[], table_violence: Campaign["table_violence"] = "standard") {
-  return mount(PremiseSection, {
+function mountChapter(entries: CanonEntry[], table_violence: Campaign["table_violence"] = "standard") {
+  return mount(PremiseChapter, {
     props: { campaign: { id: "c1", setting: "Eberron", calendar_id: null, table_violence } as Campaign, entries },
-    global: { stubs: { RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" }, AudienceRevealControl: RevealStub, ThemeCarriedBy: true, PremiseWorld: true, PremisePitch: true, CanonSuggestions: true, CanonSuggestFold: { name: "CanonSuggestFold", props: ["part"], template: "<div data-testid='fold'><slot /></div>" } } },
+    global: { stubs: { RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" }, AudienceRevealControl: RevealStub, ThemeCarriedBy: true, PremiseWorld: true, PremisePitch: true, CanonSuggest: { name: "CanonSuggest", props: ["request"], template: "<i data-testid='suggest' />" } } },
   });
 }
 
-describe("PremiseSection", () => {
+describe("PremiseChapter", () => {
   beforeEach(() => setActivePinia(createPinia()));
 
-  // Bug caught (#1258 item 19): the premise helper left open on the page, above the pitch on every visit.
-  it("keeps the helper inside the Suggest fold", () => {
-    const w = mountSection([]);
-    expect(w.get("[data-testid=fold]").findComponent({ name: "CanonSuggestions" }).exists()).toBe(true);
-    expect(w.getComponent({ name: "CanonSuggestFold" }).props("part")).toBe("premise");
+  // Bug caught: the premise still carried its own AI panel instead of one request to the Familiar.
+  it("asks the Familiar for a premise from the head, with no panel of its own", () => {
+    const w = mountChapter([]);
+    expect(w.getComponent({ name: "CanonSuggest" }).props("request")).toBe("Suggest a premise for my campaign: a pitch, themes and how it plays.");
+    expect(w.text()).not.toContain("Suggest a premise for");
+  });
+
+  // Bug caught: the players' margin was drawn at every width and squeezed the sheet on a phone.
+  it("shows the players' book only from 80rem of the chapter, not below", () => {
+    const w = mountChapter([]);
+    const margin = w.get("[data-testid=premise-book-preview]");
+    expect(margin.classes()).toEqual(expect.arrayContaining(["hidden", "@7xl:flex"]));
   });
 
   it("gives voice and look no reveal control, because players never read them", () => {
-    const w = mountSection([entry({ id: "v", premise_kind: "voice", title: "Dry" }), entry({ id: "l", premise_kind: "look", title: "Gouache" })]);
+    const w = mountChapter([entry({ id: "v", premise_kind: "voice", title: "Dry" }), entry({ id: "l", premise_kind: "look", title: "Gouache" })]);
     expect(w.find("[data-testid=premise-voice] [data-testid=reveal]").exists()).toBe(false);
     expect(w.find("[data-testid=premise-look] [data-testid=reveal]").exists()).toBe(false);
     expect(w.text()).toContain("Players never read this.");
   });
 
   it("gives each theme, table note, line and veil a reveal control, as players may be shown those", () => {
-    const w = mountSection([
+    const w = mountChapter([
       entry({ id: "1", premise_kind: "theme" }), entry({ id: "2", premise_kind: "table" }),
       entry({ id: "3", premise_kind: "line" }), entry({ id: "4", premise_kind: "veil" }),
     ]);
@@ -68,7 +75,7 @@ describe("PremiseSection", () => {
   });
 
   it("files each entry under its own kind: a line is not listed among the themes", () => {
-    const w = mountSection([entry({ id: "1", premise_kind: "theme", title: "Sweet spoils" }), entry({ id: "3", premise_kind: "line", title: "No harm to children" })]);
+    const w = mountChapter([entry({ id: "1", premise_kind: "theme", title: "Sweet spoils" }), entry({ id: "3", premise_kind: "line", title: "No harm to children" })]);
     const values = (id: string) => w.findAll(`[data-testid=${id}] textarea`).map((i) => (i.element as HTMLTextAreaElement).value);
     expect(values("premise-theme")).toContain("Sweet spoils");
     expect(values("premise-theme")).not.toContain("No harm to children");
@@ -78,7 +85,7 @@ describe("PremiseSection", () => {
   // Bug caught (#1255 item 25): two screens setting what the Narrator may tell, neither saying the other exists.
   it("reads the violence dial back under lines and veils, with the way to change it", () => {
     tableOpen.on = true;
-    const w = mountSection([], "grim");
+    const w = mountChapter([], "grim");
     const line = w.find("[data-testid=premise-violence]");
     expect(line.text()).toContain("Violence and horror at the AI table: Grim.");
     expect(line.find("a").attributes("href")).toBe("/campaign/settings");
@@ -87,7 +94,7 @@ describe("PremiseSection", () => {
   // Bug caught: the dial named on a campaign whose AI table is closed, where it does nothing.
   it("leaves the dial line out where the AI table is not open", () => {
     tableOpen.on = false;
-    expect(mountSection([]).find("[data-testid=premise-violence]").exists()).toBe(false);
+    expect(mountChapter([]).find("[data-testid=premise-violence]").exists()).toBe(false);
     tableOpen.on = true;
   });
 });

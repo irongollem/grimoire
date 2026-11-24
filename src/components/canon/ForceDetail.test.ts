@@ -35,8 +35,10 @@ const force = (over = {}) => canonEntry({ id: "f1", campaign_id: "c1", part: "fo
 
 const EntryQuestsStub = { name: "EntryQuests", props: ["entry", "links", "label", "empty"], template: "<div />" };
 
+const CanonSuggestStub = { name: "CanonSuggest", props: ["request"], template: "<i data-testid='suggest' />" };
+
 const mountIt = (entry = force()) =>
-  mount(ForceDetail, { props: { entry }, global: { stubs: { RouterLink: { props: ["to"], template: "<a :href=\"to\"><slot /></a>" }, ForceSteps: true, EntryQuests: EntryQuestsStub, ConnectionsSection: true, CanonEntryNotes: true, ForceQuestClocks: true, EntryStoryLinks: true } } });
+  mount(ForceDetail, { props: { entry }, global: { stubs: { CanonSuggest: CanonSuggestStub, RouterLink: { props: ["to"], template: "<a :href=\"to\"><slot /></a>" }, ForceSteps: true, EntryQuests: EntryQuestsStub, ConnectionsSection: true, CanonEntryNotes: true, ForceQuestClocks: true, EntryStoryLinks: true } } });
 
 describe("ForceDetail", () => {
   beforeEach(() => {
@@ -105,10 +107,27 @@ describe("ForceDetail", () => {
     expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { clock_size: 8 } });
   });
 
-  it("emits delete", async () => {
+  // Bug caught: the footer's delete or the head's close not reaching the chapter, so the pane could not be left or the force removed.
+  it("emits delete from the footer and close from the head", async () => {
     const w = mountIt();
-    await w.findAll("button").find((b) => b.text() === "Delete this force")!.trigger("click");
+    await w.get("[data-testid=canon-entry-delete]").trigger("click");
+    await w.get("[data-testid=canon-entry-close]").trigger("click");
     expect(w.emitted("delete")).toHaveLength(1);
+    expect(w.emitted("close")).toHaveLength(1);
+  });
+
+  // Bug caught: the Suggest asking the Familiar for steps of no force in particular, or for another force's.
+  it("asks the Familiar for the next steps of this force by name, on the clock and steps block", () => {
+    expect(mountIt().getComponent(CanonSuggestStub).props("request")).toBe('Suggest the next steps for the force "The Stain spreads".');
+  });
+
+  // Bug caught: the log showing every move at once (burying the clock), or "All N moves" opening nothing.
+  it("shows the newest three moves and opens the rest in place", async () => {
+    forceData.value.ticks = Array.from({ length: 5 }, (_, i) => tick({ id: `t${i}`, created_at: `2026-11-1${i}T10:00:00Z` }));
+    const w = mountIt();
+    expect(w.findAll("[data-testid=force-tick]")).toHaveLength(3);
+    await w.get("[data-testid=force-log-all]").trigger("click");
+    expect(w.findAll("[data-testid=force-tick]")).toHaveLength(5);
   });
 
   const ended = (over = {}) => force({ closed_as: "stopped", closed_at: "2026-11-23T10:00:00Z", closed_note: "Sift burned the ledger.", ...over });

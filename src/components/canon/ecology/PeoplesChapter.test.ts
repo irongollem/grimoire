@@ -1,21 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
+import { createPinia } from "pinia";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 
 const mocks = vi.hoisted(() => ({ add: vi.fn(), setPercent: vi.fn(), remove: vi.fn() }));
-const state = vi.hoisted(() => ({ peoples: [] as unknown[], monsterEnabled: (() => false) as () => boolean }));
+const state = vi.hoisted(() => ({ loading: false, peoples: [] as unknown[], monsterEnabled: (() => false) as () => boolean }));
 
 vi.mock("@/composables/canon/useCampaignPeoples", async () => {
   const { computed } = await import("vue");
   return {
     usePeoplesEditing: () => ({
       peoples: computed(() => state.peoples),
+      isLoading: computed(() => state.loading),
       addPeople: mocks.add,
       setPercent: mocks.setPercent,
       removePeople: mocks.remove,
     }),
   };
+});
+vi.mock("@/composables/ask/useCanAsk", async () => {
+  const { ref: r } = await import("vue");
+  return { useCanAsk: () => r(true) };
 });
 vi.mock("@/composables/rules/useSpecies", () => ({
   useCampaignSpecies: () => ({ data: ref([{ id: "srd_elf", name: "Elf" }, { id: "0f8fad5b-d9cb-469f-a165-70867728950e", name: "Gnoll Kin" }]) }),
@@ -27,7 +33,7 @@ vi.mock("@/composables/monsters/useMonsterIndex", () => ({
   },
 }));
 
-import WorldPeoples from "./WorldPeoples.vue";
+import PeoplesChapter from "./PeoplesChapter.vue";
 
 // EntityCombobox is generic, so its props are not typed through the wrapper: read them as the shape the picker is given.
 const optionsOf = (picker: { props: () => unknown }) => (picker.props() as { options: { name: string }[] }).options;
@@ -37,7 +43,7 @@ const people = (id: string, name: string, percent: number, over: Record<string, 
 });
 
 const links = { RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" } };
-const mountIt = () => mount(WorldPeoples, { global: { stubs: links, directives: { "no-pwm": {} } } });
+const mountIt = () => mount(PeoplesChapter, { global: { plugins: [createPinia()], stubs: links, directives: { "no-pwm": {} } } });
 
 async function setField(w: ReturnType<typeof mount>, label: string, value: string) {
   const input = w.find(`input[aria-label="${label}"]`);
@@ -46,7 +52,7 @@ async function setField(w: ReturnType<typeof mount>, label: string, value: strin
   await flushPromises();
 }
 
-describe("WorldPeoples", () => {
+describe("PeoplesChapter", () => {
   beforeEach(() => {
     mocks.add.mockReset();
     mocks.setPercent.mockReset();
@@ -141,6 +147,18 @@ describe("WorldPeoples", () => {
     const w = mountIt();
     await w.find("button[aria-label='Remove Human']").trigger("click");
     expect(mocks.remove).toHaveBeenCalledExactlyOnceWith("p2");
+  });
+
+  // Bug: a world with no peoples showed an empty share list with a stray "Adds up" line instead of saying what a people is.
+  it("says what a people is, and offers the Familiar, while none is listed; and says nothing while loading", () => {
+    state.peoples = [];
+    const w = mountIt();
+    expect(w.text()).toContain("No peoples yet");
+    expect(w.find("[data-testid=canon-suggest]").exists()).toBe(true);
+    expect(w.find("[data-testid=share-row]").exists()).toBe(false);
+    state.loading = true;
+    expect(mountIt().text()).not.toContain("No peoples yet");
+    state.loading = false;
   });
 
   it("links to the existing editors to make a new species or creature", () => {

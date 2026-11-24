@@ -43,7 +43,7 @@ describe("PitchEditor", () => {
   it("removes nothing when the confirm is cancelled", async () => {
     mocks.confirm.mockResolvedValue(false);
     const w = mountEditor("old");
-    await w.findAll("button").find((b) => b.text() === "Remove")!.trigger("click");
+    await w.get("button[aria-label='Delete the pitch']").trigger("click");
     await flushPromises();
     expect(mocks.destroy).not.toHaveBeenCalled();
   });
@@ -51,7 +51,7 @@ describe("PitchEditor", () => {
   it("removes the pitch when the confirm is accepted", async () => {
     mocks.confirm.mockResolvedValue(true);
     const w = mountEditor("old");
-    await w.findAll("button").find((b) => b.text() === "Remove")!.trigger("click");
+    await w.get("button[aria-label='Delete the pitch']").trigger("click");
     await flushPromises();
     expect(mocks.destroy).toHaveBeenCalledWith("p1");
   });

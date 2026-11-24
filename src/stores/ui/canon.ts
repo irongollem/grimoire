@@ -42,6 +42,9 @@ export const useCanonUiStore = defineStore("ui:canon", () => {
   const truthFilter = ref<TruthFilter>(DEFAULT_TRUTH_FILTER);
   const truthsGrouped = ref(false);
 
+  /** Which list the Secrets and questions chapter shows. A view, not a filter: it is not part of `hasActiveFilters`. */
+  const secretsView = ref<"secrets" | "questions">("secrets");
+
   /** Whether a part's "Suggest…" fold is open, by the part's helper (`truths`, `premise`, `lore`, `secrets`, ...). Closed until opened. */
   const suggestOpen = ref<Record<string, boolean>>({});
 
@@ -66,6 +69,6 @@ export const useCanonUiStore = defineStore("ui:canon", () => {
   return {
     chronicleOrder, tableFactFilter, tableFactsHasActiveFilters, resetTableFactFilters,
     lastPart, arcFilter, query, tonightScope, hasActiveFilters, resetFilters,
-    truthFilter, truthsGrouped, truthsHaveActiveFilters, resetTruthFilters, suggestOpen,
+    truthFilter, truthsGrouped, truthsHaveActiveFilters, resetTruthFilters, suggestOpen, secretsView,
   };
 });

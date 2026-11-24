@@ -33,36 +33,14 @@
               @close="closeEntry"
               @delete="removeSelected"
             />
-            <CanonChapter
-              v-else-if="LIST_CHAPTERS.includes(active)"
-              :chapter="active"
-              :title="chapter.label"
-              :why="chapter.why"
-              :open="openEntryId !== null"
-              :back-label="chapter.label"
-              @close="closeEntry"
-            >
-              <ForcesSection v-if="active === 'moving'" :forces="shownForces" :arc-label="arcLabel" :selected-id="selectedForce?.id ?? null" @select="select" />
-              <SecretsSection v-else-if="active === 'secrets'" :secrets="shownSecrets" :questions="shownQuestions" :arc-label="arcLabel" :selected-id="selectedSecret?.id ?? null" @select="select" />
-              <LoreSection v-else-if="active === 'lore'" :lore="shownLore" :arc-label="arcLabel" :selected-id="selectedLore?.id ?? null" @select="select" />
-              <BackstoriesSection v-else :party="party" :entries="backstories" :passages="allPassages ?? []" :selected-id="selectedBackstoryMember?.id ?? null" @select="selectBackstory" />
-              <template #entry>
-                <ForceDetail v-if="active === 'moving' && selectedForce" :key="selectedForce.id" :entry="selectedForce" @delete="removeSelected" />
-                <SecretDetail v-else-if="active === 'secrets' && selectedSecret" :key="selectedSecret.id" :entry="selectedSecret" @delete="removeSelected" />
-                <LoreDetail v-else-if="active === 'lore' && selectedLore" :key="selectedLore.id" :entry="selectedLore" @delete="removeSelected" />
-                <BackstoryDetail v-else-if="active === 'backstories' && selectedBackstoryMember" :key="selectedBackstoryMember.id" :member="selectedBackstoryMember" />
-              </template>
-            </CanonChapter>
-            <PremiseSection v-else-if="active === 'premise'" class="max-w-3xl" :campaign="campaign" :entries="entries" />
-            <WorldWorksSection v-else-if="active === 'world'" class="max-w-3xl" />
-            <section v-else class="flex max-w-3xl flex-col gap-3" :aria-labelledby="`canon-${active}-heading`" :data-chapter="active">
-              <header class="flex flex-col gap-0.5">
-                <h2 :id="`canon-${active}-heading`" class="m-0 text-heading-sm font-bold">{{ chapter.label }}</h2>
-                <p class="m-0 text-caption italic text-muted-foreground">{{ chapter.why }}</p>
-              </header>
-              <WorldPeoples v-if="active === 'peoples'" />
-              <HabitatsPanel v-else />
-            </section>
+            <ForcesChapter v-else-if="active === 'moving'" :forces="shownForces" :arc-label="arcLabel" :selected-id="selectedForce?.id ?? null" @select="select" @close="closeEntry" @delete="removeSelected" />
+            <SecretsChapter v-else-if="active === 'secrets'" :secrets="shownSecrets" :questions="shownQuestions" :selected="selectedSecret" :arc-label="arcLabel" @select="select" @close="closeEntry" @delete="removeSelected" />
+            <LoreChapter v-else-if="active === 'lore'" :lore="shownLore" :selected="selectedLore" :arc-label="arcLabel" @select="select" @close="closeEntry" @delete="removeSelected" />
+            <BackstoriesChapter v-else-if="active === 'backstories'" :party="party" :entries="backstories" :passages="allPassages ?? []" :selected-id="selectedBackstoryMember?.id ?? null" @select="selectBackstory" @close="closeEntry" />
+            <PremiseChapter v-else-if="active === 'premise'" :campaign="campaign" :entries="entries" />
+            <WorldChapter v-else-if="active === 'world'" />
+            <PeoplesChapter v-else-if="active === 'peoples'" />
+            <LifeChapter v-else />
             <CanonDeleted />
           </template>
         </template>
@@ -85,30 +63,25 @@ import { useRoute, useRouter } from "vue-router";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import BackstoriesSection from "@/components/canon/BackstoriesSection.vue";
-import BackstoryDetail from "@/components/canon/BackstoryDetail.vue";
 import CanonArcs from "@/components/canon/CanonArcs.vue";
 import CanonSearchResults from "@/components/canon/CanonSearchResults.vue";
-import CanonChapter from "@/components/canon/kit/CanonChapter.vue";
 import CanonSearchField from "@/components/canon/CanonSearchField.vue";
 import CanonDeleted from "@/components/canon/CanonDeleted.vue";
 import CanonContents from "@/components/canon/CanonContents.vue";
-import ForceDetail from "@/components/canon/ForceDetail.vue";
-import ForcesSection from "@/components/canon/ForcesSection.vue";
-import LoreDetail from "@/components/canon/LoreDetail.vue";
-import LoreSection from "@/components/canon/LoreSection.vue";
-import PremiseSection from "@/components/canon/PremiseSection.vue";
-import SecretDetail from "@/components/canon/SecretDetail.vue";
-import SecretsSection from "@/components/canon/SecretsSection.vue";
+import BackstoriesChapter from "@/components/canon/BackstoriesChapter.vue";
+import ForcesChapter from "@/components/canon/ForcesChapter.vue";
+import LoreChapter from "@/components/canon/LoreChapter.vue";
+import PremiseChapter from "@/components/canon/PremiseChapter.vue";
+import SecretsChapter from "@/components/canon/SecretsChapter.vue";
 import TruthsChapter from "@/components/canon/TruthsChapter.vue";
-import WorldWorksSection from "@/components/canon/WorldWorksSection.vue";
-import HabitatsPanel from "@/components/canon/ecology/HabitatsPanel.vue";
-import WorldPeoples from "@/components/canon/WorldPeoples.vue";
+import WorldChapter from "@/components/canon/WorldChapter.vue";
+import LifeChapter from "@/components/canon/ecology/LifeChapter.vue";
+import PeoplesChapter from "@/components/canon/ecology/PeoplesChapter.vue";
 import { narrowToArc } from "@/lib/canon/canonNarrow";
 import { searchCanon } from "@/lib/canon/canonSearch";
 import { useCanonArcs } from "@/composables/canon/useCanonArcs";
 import { useCanonUiStore } from "@/stores/ui/canon";
-import { ARC_NARROWED_SECTIONS, chapterOf, isSectionId, sectionCounts, sectionFromWord, sectionOfPart, type CanonSectionId } from "@/lib/canon/canonParts";
+import { ARC_NARROWED_SECTIONS, isSectionId, sectionCounts, sectionFromWord, sectionOfPart, type CanonSectionId } from "@/lib/canon/canonParts";
 import { useCanonClues } from "@/composables/canon/useCanonClues";
 import { useCanonEntries, useTrashCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCanonForceData } from "@/composables/canon/useCanonForces";
@@ -205,19 +178,6 @@ const selectedBackstoryMember = computed(() => {
   const viaEntry = backstories.value.find((e) => e.id === entryParam.value)?.party_member_id ?? null;
   const id = backstoryParam.value ?? viaEntry;
   return id === null ? null : party.value.find((m) => m.id === id) ?? null;
-});
-
-// The chapters that are a list of entries, and which entry is open in the chapter on screen (the chapter lays itself out).
-const LIST_CHAPTERS: readonly CanonSectionId[] = ["moving", "secrets", "lore", "backstories"];
-const chapter = computed(() => chapterOf(active.value));
-const openEntryId = computed(() => {
-  switch (active.value) {
-    case "moving": return selectedForce.value?.id ?? null;
-    case "secrets": return selectedSecret.value?.id ?? null;
-    case "lore": return selectedLore.value?.id ?? null;
-    case "backstories": return selectedBackstoryMember.value?.id ?? null;
-    default: return null;
-  }
 });
 
 // Opening `?entry=<id>` brings that entry into view, once per id and only after the list has loaded.

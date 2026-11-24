@@ -1,8 +1,8 @@
 <template>
-  <div class="flex flex-col gap-1">
-    <label for="canon-world-name" class="text-eyebrow text-muted-foreground">The world</label>
+  <CanonBlock title="The world">
     <AppInput
       id="canon-world-name"
+      aria-label="The world"
       v-model.lazy="world"
       list="canon-world-names"
       tone="filled"
@@ -12,7 +12,7 @@
     <datalist id="canon-world-names">
       <option v-for="name in WORLD_NAMES" :key="name" :value="name" />
     </datalist>
-  </div>
+  </CanonBlock>
 </template>
 
 <script setup lang="ts">
@@ -22,6 +22,7 @@
  */
 import { ref, watch } from "vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import CanonBlock from "./kit/CanonBlock.vue";
 import { WORLD_NAMES } from "@/lib/canon/canonParts";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";

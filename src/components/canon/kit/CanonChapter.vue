@@ -2,7 +2,8 @@
   <div class="@container flex min-w-0 flex-col gap-4" :data-chapter="chapter" :data-open="open ? '' : undefined">
     <div class="flex items-start gap-6">
       <!-- The list: always from 56rem of the chapter's own width, and below that only while no entry is open. -->
-      <div class="flex min-w-0 flex-1 flex-col gap-3 @4xl:w-[24rem] @4xl:flex-none" :class="open ? 'hidden @4xl:flex' : ''" data-testid="canon-chapter-list">
+      <!-- Nothing open: the list takes a reading width. An entry open: the list narrows to a column beside it. -->
+      <div class="flex min-w-0 flex-1 flex-col gap-3" :class="open ? 'hidden @4xl:flex @4xl:w-[26rem] @4xl:flex-none' : 'max-w-3xl'" data-testid="canon-chapter-list">
         <header class="flex flex-col gap-0.5">
           <h2 class="m-0 text-heading-sm font-bold">{{ title }}</h2>
           <p class="m-0 text-caption italic text-muted-foreground">{{ why }}</p>

@@ -1,27 +1,21 @@
 <template>
-  <section class="flex min-w-0 flex-col gap-4 border border-border bg-card p-4" aria-label="A backstory" data-testid="backstory-detail">
-    <div class="flex flex-col gap-1">
-      <span class="flex items-center justify-between gap-2 text-eyebrow text-muted-foreground">
-        Backstory
-        <span class="text-label font-bold text-foreground" data-testid="backstory-tally">{{ passages.length }} {{ passages.length === 1 ? "passage" : "passages" }}<template v-if="untold > 0">, {{ untold }} not yet told</template></span>
-      </span>
-      <h3 class="m-0 text-heading-sm font-bold text-foreground">{{ member.name }}</h3>
+  <CanonEntryPane kind="Backstory" close-label="Close this backstory" data-testid="backstory-detail" @close="emit('close')">
+    <template #title>
+      <h3 class="m-0 text-heading-sm font-bold text-foreground" data-testid="backstory-name">{{ member.name }}</h3>
       <span v-if="member.player_name" class="text-label text-muted-foreground">played by {{ member.player_name }}</span>
-    </div>
+    </template>
+
+    <template v-if="entry !== null" #who>
+      <AudienceRevealControl :visible-to="entry.player_visible_to" :name="member.name" @change="setAudience" />
+      <EntryArcPicker :entry="entry" />
+    </template>
 
     <BackstoryBeforePlay :member="member" editable />
 
     <ListSkeleton v-if="entry === null" variant="rows" :count="2" />
     <template v-else>
-      <EntryArcPicker :entry="entry" />
-
-      <div class="flex flex-col gap-1">
-        <AudienceRevealControl :visible-to="entry.player_visible_to" :name="member.name" @change="setAudience" />
-        <p class="text-caption text-muted-foreground">{{ member.name }}'s player always reads their own backstory. Sharing it lets the characters you choose read the entry. Each passage reaches only whom it was told to, and a character told any passage reads the entry too, so a player's "Share with the party" reaches the others without your sharing it.</p>
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <span class="text-eyebrow text-muted-foreground">Told in passages</span>
+      <CanonBlock title="Told in passages" :suggest="`Suggest a passage for ${member.name}'s backstory.`">
+        <p class="m-0 text-caption text-muted-foreground">{{ member.name }}'s player always reads their own backstory. Sharing it lets the characters you choose read the entry. Each passage reaches only whom it was told to, and a character told any passage reads the entry too, so a player's "Share with the party" reaches the others without your sharing it.</p>
         <ul v-if="passages.length > 0" class="flex flex-col" data-testid="backstory-passages">
           <LorePassageRow
             v-for="(p, i) in passages"
@@ -38,18 +32,22 @@
             @remove="removePassage(p)"
           />
         </ul>
-        <p v-else class="text-caption text-muted-foreground" data-testid="no-passages">Nothing beyond what {{ member.name }} wrote before play. Add what they have not been told.</p>
+        <p v-else class="m-0 text-caption text-muted-foreground" data-testid="no-passages">Nothing beyond what {{ member.name }} wrote before play. Add what they have not been told.</p>
         <AppButton variant="ghost" size="sm" :icon="IconAdd" icon-size="xs" label="Add a passage of yours" class="self-start" :loading="adding" @click="addPassage" />
-      </div>
+      </CanonBlock>
 
-      <BackstoryThreads :entry="entry" />
+      <CanonBlock title="Threads left open">
+        <BackstoryThreads :entry="entry" />
+      </CanonBlock>
 
       <EntryQuests :entry="entry" :links="questLinks" label="The quests that pay it off" empty="No quest pays this off yet." />
 
       <EntryStoryLinks :entry="entry" />
 
       <BackstoryPeople :member="member" :entry="entry" />
+    </template>
 
+    <template v-if="entry !== null" #connections>
       <div data-testid="backstory-things">
         <ConnectionsSection
           :subject="{ kind: 'canon', id: entry.id }"
@@ -59,12 +57,12 @@
         />
       </div>
     </template>
-  </section>
+  </CanonEntryPane>
 </template>
 
 <script setup lang="ts">
 /**
- * One character's backstory on the Canon page (frame 14): their own Backstory field as "Before play", then every
+ * One character's backstory, in the Backstories chapter's entry pane: their own Backstory field as "Before play", then every
  * passage in order (the player's own marked as theirs, the DM's untold until told to that character), and the people
  * this past brings into the world. The DM edits every passage. The entry is made the first time a character is opened.
  */
@@ -73,6 +71,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
+import CanonBlock from "./kit/CanonBlock.vue";
+import CanonEntryPane from "./kit/CanonEntryPane.vue";
 import BackstoryBeforePlay from "./BackstoryBeforePlay.vue";
 import BackstoryPeople from "./BackstoryPeople.vue";
 import BackstoryThreads from "./BackstoryThreads.vue";
@@ -93,12 +93,12 @@ import type { Connection } from "@/types/connections.types";
 import type { PartyMember } from "@/types/party.types";
 
 const { member } = defineProps<{ member: PartyMember }>();
+const emit = defineEmits<{ close: [] }>();
 
 const { entry } = useBackstoryEntry(() => member.id);
 const { mutate: update } = useUpdateCanonEntry();
 const { passages, adding, addPassage, move, removePassage } = usePassageList(() => entry.value?.id ?? null);
 const questLinks = useEntryQuestLinks(() => entry.value?.id ?? null);
-const untold = computed(() => passages.value.filter((p) => p.told_at === null).length);
 const { data: sessions } = useCampaignSessions();
 
 // The entry's own block is for places and things. The people are listed above it (BackstoryPeople), so an `about` tie to

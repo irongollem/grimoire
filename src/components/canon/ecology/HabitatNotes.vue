@@ -1,6 +1,5 @@
 <template>
   <div class="flex flex-col gap-2" data-testid="habitat-notes">
-    <span class="text-eyebrow text-muted-foreground">Notes on the living world</span>
     <ul v-if="notes.length > 0" class="m-0 flex list-none flex-col gap-1 p-0">
       <li v-for="note in notes" :key="note.id" class="flex min-w-0 items-baseline gap-2" data-testid="habitat-note">
         <RouterLink :to="{ path: '/canon', query: { entry: note.id } }" class="min-w-0 text-body text-foreground hover:underline">{{ note.title }}</RouterLink>

@@ -1,6 +1,5 @@
 <template>
   <div class="flex flex-col gap-2" data-testid="habitat-life">
-    <span class="text-eyebrow text-muted-foreground">What lives here</span>
     <p class="m-0 text-caption text-muted-foreground">
       When Grimoire needs a creature in this country it rolls from these shares. Leave it empty and it is left to the generator.
     </p>

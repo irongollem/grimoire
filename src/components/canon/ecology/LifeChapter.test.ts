@@ -25,11 +25,17 @@ vi.mock("@/composables/canon/useCampaignHabitats", () => ({
 vi.mock("@/composables/locations/useLocations", () => ({
   useLocationTree: () => ({ locationOptions: computed(() => [{ id: "l1", name: "The Marsh", depth: 0 }]) }),
 }));
-vi.mock("./HabitatEditor.vue", () => ({ default: { props: ["habitat"], template: "<div data-testid='editor'>{{ habitat.name }}</div>" } }));
+vi.mock("./HabitatEditor.vue", () => ({
+  default: { props: ["habitat"], emits: ["close", "delete"], template: "<div data-testid='editor'>{{ habitat.name }}<button data-testid='editor-close' @click=\"$emit('close')\" /></div>" },
+}));
+vi.mock("@/composables/ask/useCanAsk", async () => {
+  const { ref: r } = await import("vue");
+  return { useCanAsk: () => r(true) };
+});
 
-import HabitatsPanel from "./HabitatsPanel.vue";
+import LifeChapter from "./LifeChapter.vue";
 
-describe("HabitatsPanel", () => {
+describe("LifeChapter", () => {
   beforeEach(() => {
     mocks.add.mockReset();
     mocks.reorder.mockReset();
@@ -37,7 +43,7 @@ describe("HabitatsPanel", () => {
 
   // Bug: a habitat's line showed another habitat's creatures, or left out its places.
   it("gives each habitat its places and its own creatures at their shares, the rest as anything else", () => {
-    const w = mount(HabitatsPanel);
+    const w = mount(LifeChapter);
     const rows = w.findAll("li");
     expect(rows[0].find("[data-testid=habitat-place]").text()).toBe("The Marsh");
     expect(rows[0].get("[data-testid=habitat-summary]").text()).toBe("Marsh eel 40%, Giant frog 20%, anything else 40%");
@@ -47,7 +53,7 @@ describe("HabitatsPanel", () => {
 
   // Bug: moving a habitat down moved it up, or the first row could still be moved up past the top.
   it("moves a habitat one place and offers no move past either end", async () => {
-    const w = mount(HabitatsPanel);
+    const w = mount(LifeChapter);
     await w.find("button[aria-label='Move Salt marsh down']").trigger("click");
     expect(mocks.reorder).toHaveBeenCalledExactlyOnceWith(["b", "a", "c"]);
     expect(w.find("button[aria-label='Move Salt marsh up']").attributes("disabled")).toBeDefined();
@@ -55,14 +61,14 @@ describe("HabitatsPanel", () => {
   });
 
   it("moves a habitat up as well as down", async () => {
-    const w = mount(HabitatsPanel);
+    const w = mount(LifeChapter);
     await w.find("button[aria-label='Move Barrens up']").trigger("click");
     expect(mocks.reorder).toHaveBeenCalledExactlyOnceWith(["a", "c", "b"]);
   });
 
   it("opens the editor on a new habitat once it is added, and on none until then", async () => {
     mocks.add.mockResolvedValue("c");
-    const w = mount(HabitatsPanel);
+    const w = mount(LifeChapter);
     expect(w.find("[data-testid=editor]").exists()).toBe(false);
     await w.find("input[aria-label='A new kind of country']").setValue("Barrens");
     await w.find("form").trigger("submit");
@@ -70,10 +76,25 @@ describe("HabitatsPanel", () => {
     expect(w.get("[data-testid=editor]").text()).toBe("Barrens");
   });
 
+  // Bug: closing the entry left the list hidden on a phone, so the DM could not get back to the habitats.
+  it("closes the open habitat from the entry, and opens one by tapping its row", async () => {
+    const w = mount(LifeChapter);
+    await w.find("button[aria-label='High moor']").trigger("click");
+    expect(w.get("[data-testid=editor]").text()).toBe("High moor");
+    await w.get("[data-testid=editor-close]").trigger("click");
+    expect(w.find("[data-testid=editor]").exists()).toBe(false);
+  });
+
+  // Bug: a habitat's row said nothing of how much country it covers, so an unplaced habitat looked like a placed one.
+  it("marks each row with the places it covers, in words", () => {
+    const w = mount(LifeChapter);
+    expect(w.findAll("[data-testid=habitat-mark]").map((m) => m.text())).toEqual(["1 place", "No places", "No places"]);
+  });
+
   // Bug: a failed add (already a toast) cleared the words and opened the editor on nothing.
   it("keeps the words in the box and opens nothing when the add failed", async () => {
     mocks.add.mockResolvedValue(null);
-    const w = mount(HabitatsPanel);
+    const w = mount(LifeChapter);
     await w.find("input[aria-label='A new kind of country']").setValue("Barrens");
     await w.find("form").trigger("submit");
     await flushPromises();

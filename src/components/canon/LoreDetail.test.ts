@@ -42,7 +42,7 @@ const p = (id: string, sort: number): CanonLorePassage => ({
 const mountIt = (over = {}) =>
   mount(LoreDetail, {
     props: { entry: canonEntry({ id: "l1", part: "lore", title: "The Fall", ...over }) },
-    global: { stubs: { EntryQuests: EntryQuestsStub, EntryStoryLinks: { props: ["entry"], template: "<div data-testid='story-links' :data-id='entry.id' />" }, EntityImageBlock: true, AudienceRevealControl: true, ConnectionsSection: true, CanonSuggestions: true, LorePassageRow: { props: ["passage"], emits: ["move", "remove"], template: "<li data-testid='row'>{{ passage.id }}<button data-testid='up' @click=\"$emit('move', -1)\" /><button data-testid='rm' @click=\"$emit('remove')\" /></li>" } } },
+    global: { stubs: { EntryQuests: EntryQuestsStub, EntryStoryLinks: { props: ["entry"], template: "<div data-testid='story-links' :data-id='entry.id' />" }, EntityImageBlock: true, AudienceRevealControl: true, ConnectionsSection: true, CanonSuggest: { name: 'CanonSuggest', props: ['request'], template: "<i data-testid='suggest' :data-request='request' />" }, LorePassageRow: { props: ["passage"], emits: ["move", "remove"], template: "<li data-testid='row'>{{ passage.id }}<button data-testid='up' @click=\"$emit('move', -1)\" /><button data-testid='rm' @click=\"$emit('remove')\" /></li>" } } },
   });
 
 describe("LoreDetail", () => {
@@ -101,9 +101,28 @@ describe("LoreDetail", () => {
     expect(mocks.updatePassage).not.toHaveBeenCalledWith({ id: "a", patch: { sort_order: 0 } });
   });
 
-  it("offers Split only when the entry has text to split", () => {
-    expect(mountIt().findComponent({ name: "CanonSuggestions" }).exists()).toBe(false);
+  // Bug caught: the passages block carrying a request that names no entry (or the old inline drafter), so the Familiar was asked about nothing.
+  it("asks the Familiar for a passage for this lore, by its title", () => {
+    const w = mountIt();
+    expect(w.get("[data-testid=suggest]").attributes("data-request")).toBe('Suggest a passage for the lore "The Fall".');
+    expect(w.findComponent({ name: "CanonSuggestions" }).exists()).toBe(false);
   });
+
+  // Bug caught: the kind word missing from the pane head, so two lore entries open the same.
+  it("names the kind in the pane head, and only 'Lore' when it has none", () => {
+    expect(mountIt({ lore_kind: "magic" }).text()).toContain("Lore · Magic");
+    expect(mountIt({ lore_kind: null }).get("section > header span").text()).toBe("Lore");
+  });
+
+  // Bug caught: delete and close not reaching the chapter, so the footer did nothing.
+  it("hands close and delete to the chapter", async () => {
+    const w = mountIt();
+    await w.get("[data-testid=canon-entry-close]").trigger("click");
+    await w.get("[data-testid=canon-entry-delete]").trigger("click");
+    expect(w.emitted("close")).toHaveLength(1);
+    expect(w.emitted("delete")).toHaveLength(1);
+  });
+
   // Bug caught: the block showing another entry's quests (or another part's words), so a lore read as a force's "where the party meets it".
   it("shows this lore's own quest links, in the lore's words", () => {
     questData.quests = [

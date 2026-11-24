@@ -1,7 +1,7 @@
 <template>
-  <QuestClockDial v-if="force.clock_size !== null" :label="`${force.title} clock`" :segments="force.clock_size" :filled="clockFilled(ticks, force.clock_size)" />
+  <QuestClockDial v-if="force.clock_size !== null" :label="`${force.title} clock`" :segments="force.clock_size" :filled="clockFilled(ticks, force.clock_size)" :small="small" />
   <!-- No clock: the dial's empty ring, as the frame draws it. -->
-  <svg v-else viewBox="0 0 40 40" role="img" aria-label="No clock" class="size-10 shrink-0 text-border">
+  <svg v-else viewBox="0 0 40 40" role="img" aria-label="No clock" class="shrink-0 text-border" :class="small ? 'size-7' : 'size-10'">
     <circle cx="20" cy="20" r="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 3" />
   </svg>
 </template>
@@ -12,5 +12,5 @@ import QuestClockDial from "@/components/quests/inspector/QuestClockDial.vue";
 import { clockFilled } from "@/lib/canon/canonForces";
 import type { CanonEntry, CanonForceTick } from "@/types/canon.types";
 
-defineProps<{ force: CanonEntry; ticks: readonly CanonForceTick[] }>();
+defineProps<{ force: CanonEntry; ticks: readonly CanonForceTick[]; small?: boolean }>();
 </script>

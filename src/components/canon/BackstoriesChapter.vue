@@ -1,9 +1,6 @@
 <template>
-  <section id="canon-backstories" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-backstories-heading">
-    <CanonRubric id="canon-backstories-heading" numeral="VIII" title="Backstories" />
-    <p class="m-0 text-caption text-muted-foreground">Each character's past is told in passages. The player writes theirs and keeps adding to it; you add what they have not been told, and tell it when the story gets there.</p>
-
-    <ul v-if="party.length > 0" class="flex flex-col border border-border bg-card" data-testid="backstory-ledger">
+  <CanonChapter chapter="backstories" :title="chapter.label" :why="chapter.why" :open="selectedMember !== null" :back-label="chapter.label" @close="emit('close')">
+    <ul v-if="party.length > 0" class="flex flex-col rounded-lg border border-border bg-card" data-testid="backstory-ledger">
       <BackstoryRow
         v-for="member in party"
         :key="member.id"
@@ -15,36 +12,45 @@
         @select="emit('select', member.id)"
       />
     </ul>
-    <EmptyState
-      v-else
-      class="border border-dashed border-border bg-card"
-      title="No characters yet"
-      description="A backstory belongs to a character. Add one to the party and their past can be written here."
-    />
-  </section>
+    <CanonEmpty v-else title="No characters yet" text="A backstory belongs to a character. Add one to the party and their past can be written here." />
+
+    <template #entry>
+      <BackstoryDetail v-if="selectedMember" :key="selectedMember.id" :member="selectedMember" @close="emit('close')" />
+    </template>
+  </CanonChapter>
 </template>
 
 <script setup lang="ts">
-/** Part VIII (frame 14): one row per party member, with how many passages their past holds, how many are still untold and how many threads it leaves open. */
+/**
+ * The Backstories chapter: one row per party member, with what is left to do in their past (threads open, passages not
+ * yet told). A backstory is not added or deleted here: it belongs to a character, and its entry is made the first time
+ * the character is opened.
+ */
 import { computed } from "vue";
-import EmptyState from "@/components/common/feedback/EmptyState.vue";
+import BackstoryDetail from "./BackstoryDetail.vue";
 import BackstoryRow from "./BackstoryRow.vue";
-import CanonRubric from "./CanonRubric.vue";
+import CanonChapter from "./kit/CanonChapter.vue";
+import CanonEmpty from "./kit/CanonEmpty.vue";
 import { useCanonEntries } from "@/composables/canon/useCanonEntries";
 import { useCampaignLinks } from "@/composables/connections/useConnections";
 import { openThreads } from "@/lib/canon/backstoryThreads";
+import { chapterOf } from "@/lib/canon/canonParts";
 import type { CanonEntry, CanonLorePassage } from "@/types/canon.types";
 import type { PartyMember } from "@/types/party.types";
 
 const { party, entries, passages, selectedId = null } = defineProps<{
-  /** The whole party: a character spans arcs, so no arc narrows this part. */
+  /** The whole party: a character spans arcs, so no arc narrows this chapter. */
   party: readonly PartyMember[];
   /** The campaign's backstory entries (a character has one once it is opened). */
   entries: readonly CanonEntry[];
   passages: readonly CanonLorePassage[];
+  /** The open character's member id. */
   selectedId?: string | null;
 }>();
-const emit = defineEmits<{ select: [memberId: string] }>();
+const emit = defineEmits<{ select: [memberId: string]; close: [] }>();
+
+const chapter = chapterOf("backstories");
+const selectedMember = computed(() => party.find((m) => m.id === selectedId) ?? null);
 
 const ofMember = computed(() => {
   const byEntry = new Map(entries.filter((e) => e.party_member_id !== null).map((e) => [e.id, e.party_member_id]));
@@ -56,7 +62,7 @@ const ofMember = computed(() => {
   }
   return grouped;
 });
-// The open threads of a past are read off the campaign's canon and its links, the same way the detail lists them.
+// The open threads of a past are read off the campaign's canon and its links, the same way the entry lists them.
 const { data: allEntries } = useCanonEntries();
 const { data: links } = useCampaignLinks();
 const threadCount = computed(() => {
