@@ -698,7 +698,7 @@ useHotkeys(
 );
 
 // ── Add sound ───────────────────────────────────────────────────────────
-// The dialog is mounted app-wide (AiGeneratorPanels); its Generate button opens the track's card in the Familiar.
+// The dialog is mounted app-wide (DefaultLayout); its Generate button opens the track's card in the Familiar.
 function openAddSound() {
   if (!canCreateSound.value) {
     showSoundPaywall.value = true;

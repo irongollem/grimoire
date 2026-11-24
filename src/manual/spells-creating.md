@@ -61,10 +61,10 @@ The **Spell Level Advisor** (shown automatically as a wizard for new spells, or 
 
 There are two entry points, both needing your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost: if AI is off, the same buttons point you at the toggle instead of generating:
 
-- From the Spellbook list, click **Generate** to open a side panel that builds a brand-new spell from a concept you describe, with optional Level/School constraints and a **Generate spell-effect art** toggle.
-- While editing a spell (new or existing), click **Generate** in the editor's own header to open a dialog that fills in the *current* form instead of creating a separate record.
+- From the Spellbook list, click **Generate** to open the Familiar on the right with a spell card. It builds a brand-new spell from what you describe, with optional Level and School and a spell-effect art switch.
+- While editing a spell (new or existing), click **Generate** in the editor's own header to open a **Fill the sheet** card in the Familiar. It fills in the *current* form instead of creating a separate record.
 
-Grimoire shows the credit cost before you confirm generation.
+The card shows the credit cost before you confirm generation.
 
 ## Choosing sources and scope
 

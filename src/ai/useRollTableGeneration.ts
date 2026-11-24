@@ -7,7 +7,6 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useAskUiStore } from "@/stores/ui/ask";
 import { useCampaignStore } from "@/stores/campaign";
 import { validateEntryRanges } from "@/types/rollTable.types";
 import type { RollTableDie, RollTableEntry } from "@/types/rollTable.types";
@@ -21,9 +20,6 @@ registerAiGenerator({
   label: "Roll Table",
   entityRoute: (id) => `/roll-tables/${id}`,
   // The generator is a card in the Familiar now: the badge brings the DM back to it.
-  openPanel: () => {
-    useAskUiStore().openPanel();
-  },
 });
 
 export interface RollTableGenerationOptions {

@@ -1,7 +1,6 @@
 import { generateEntityText } from "./entityTextGeneration";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useAskUiStore } from "@/stores/ui/ask";
 import { captureFailureMessage, captureImageGenerationContext } from "./useImageGeneration";
 import type { CraftingDiscipline } from "@/types/crafting.types";
 import { normalizeRecipeAi, type RecipeAiResult } from "@/lib/crafting/recipeAi";
@@ -14,9 +13,6 @@ registerAiGenerator({
   label: "Recipe",
   entityRoute: (id) => `/crafting/${id}`,
   // The generator is a card in the Familiar now: the badge brings the DM back to it.
-  openPanel: () => {
-    useAskUiStore().openPanel();
-  },
 });
 
 // ────────────────────────────────────────────────────────────────────────────

@@ -9,7 +9,6 @@
  * 3. Call `startAiQuotes()` when generation begins and `stopAiQuotes()` when it ends.
  * 4. Give the generator an Ask adapter (`src/ai/ask/adapters/`): its button opens a card in the Familiar, and
  *    the run happens in the adapter, which outlives the pane closing.
- * 5. Pass `openPanel` to the registration: `useAskUiStore().openPanel()` brings the DM back to the card.
  *
  * That's all — the `AiGenerationBadge` will discover it automatically via the registry.
  */

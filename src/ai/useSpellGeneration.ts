@@ -6,7 +6,6 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useAskUiStore } from "@/stores/ui/ask";
 import type { SpellSchool } from "@/types/spell.types";
 import { captureFailureMessage, captureImageGenerationContext, generateImage } from "./useImageGeneration";
 
@@ -27,9 +26,6 @@ registerAiGenerator({
   label: "Spell",
   entityRoute: (id) => `/spells/${id}`,
   // The generator is a card in the Familiar now: the badge brings the DM back to it.
-  openPanel: () => {
-    useAskUiStore().openPanel();
-  },
 });
 
 // ────────────────────────────────────────────────────────────────────────────

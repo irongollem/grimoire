@@ -7,7 +7,6 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useAskUiStore } from "@/stores/ui/ask";
 import { useCampaignStore } from "@/stores/campaign";
 import type { LootCrTier } from "@/types/lootTable.types";
 
@@ -20,9 +19,6 @@ registerAiGenerator({
   label: "Loot Table",
   entityRoute: (id) => `/loot-tables/${id}`,
   // The generator is a card in the Familiar now: the badge brings the DM back to it.
-  openPanel: () => {
-    useAskUiStore().openPanel();
-  },
 });
 
 export interface LootGenerationOptions {

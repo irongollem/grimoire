@@ -52,7 +52,7 @@ When you ask for a parent, sibling or spouse of someone, the Familiar also offer
 
 After you confirm, the quote is replaced by a waiting block and you can keep asking questions. When the result is ready it lands at the bottom of the conversation, and the waiting block turns into **See it below**. If you closed the Familiar or moved on, a small notice tells you: **Stay here** or **Open** the new record. A result card shows each part with a tick or a cross. A part that failed (a picture, for example) can be retried on its own with its price shown, and the record itself stays saved.
 
-Some generators work in their own screen. For those the Familiar fills in your request and opens the screen, and you press that screen's own button. Nothing is quoted in the chat.
+Every **Generate** button in Grimoire opens the Familiar with that generator's card. The card asks what to make, shows its options and the price, and has the gilt button that creates it (or fills the sheet you are on). Nothing is charged until you press it.
 
 ## Free questions and credits
 

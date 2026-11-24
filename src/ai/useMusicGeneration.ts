@@ -2,7 +2,6 @@ import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useQueryClient, type QueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { useAskUiStore } from "@/stores/ui/ask";
 import type { SoundCategory } from "@/types/sound.types";
 import type { FallbackPromptRequest } from "@/lib/audio/aiMusic";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
@@ -31,9 +30,6 @@ registerAiGenerator({
   // Sounds have no page of their own; the finished track is on the board.
   entityRoute: () => "/soundboard",
   // The Generate button opens the track's card in the Familiar (#1270): the badge brings the DM back to it.
-  openPanel: () => {
-    useAskUiStore().openPanel();
-  },
 });
 
 interface MusicGenerationResult {

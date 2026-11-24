@@ -133,7 +133,7 @@ describe("useConnectionSuggestions", () => {
     // The registry is module-level and has no unregister; this runs last so the busy entry touches nothing else.
     registerAiGenerator({
       isGenerating: ref(true), error: ref(null), concept: ref(""), completedEntityId: ref(null), clearCompleted: () => {},
-      label: "Busy", entityRoute: () => "/", openPanel: () => {},
+      label: "Busy", entityRoute: () => "/",
     } as unknown as Parameters<typeof registerAiGenerator>[0]);
     const { suggest } = useConnectionSuggestions();
     expect(await suggest(A, "")).toBe(false);

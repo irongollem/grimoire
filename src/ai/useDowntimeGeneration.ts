@@ -35,7 +35,6 @@ registerAiGenerator({
   // Deliberately a no-op: unlike every other generator, drafting is triggered
   // inline on the resolution board rather than from a global side panel, so the
   // DM is already looking at the only place there is to send them.
-  openPanel: () => {},
 });
 
 export interface DowntimeDraftArgs {

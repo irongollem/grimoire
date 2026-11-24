@@ -2,7 +2,6 @@
   "dm-cold/dm-cold": {
     "after": [],
     "roots": [
-      "AiGeneratorPanels.js",
       "DashboardView.js",
       "DefaultLayout.js",
       "app-boot.js",
@@ -18,7 +17,6 @@
       "/_vercel/speed-insights/script.js"
     ],
     "files": [
-      "AiGeneratorPanels.js",
       "AiNoticeDialog.js",
       "CalendarSkyLine.js",
       "DashboardView.css",
@@ -103,7 +101,6 @@
   "dm-warm/dm-warm": {
     "after": [],
     "roots": [
-      "AiGeneratorPanels.js",
       "DashboardView.js",
       "DefaultLayout.js",
       "app-boot.js",
@@ -119,7 +116,6 @@
       "/_vercel/speed-insights/script.js"
     ],
     "files": [
-      "AiGeneratorPanels.js",
       "AiNoticeDialog.js",
       "CalendarSkyLine.js",
       "DashboardView.css",

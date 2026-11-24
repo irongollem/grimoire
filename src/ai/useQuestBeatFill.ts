@@ -31,7 +31,6 @@ registerAiGenerator({
   ..._state,
   label: "Beat",
   entityRoute: (beatId) => questLinkHref(lastQuestId, { beat: beatId, open: true }),
-  openPanel: () => {},
 });
 
 const DEFAULT_STEER = "Fill in this beat so it continues the quest's flow.";

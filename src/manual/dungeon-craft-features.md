@@ -73,7 +73,7 @@ On the Features tab, click **Generate** to have the AI design a whole feature fr
 
 The AI fills in the name, type, description, how it is triggered, the Perception, Investigation and Arcana DCs, a map glyph, what is found inside, your DM notes on how to run it, and tags. It grounds the result in your campaign's setting and rules edition. Leave **Generate an illustration** on if you want a picture too.
 
-Generating costs credits, shown on the panel before you start, and needs AI to be switched on for the campaign. When it finishes you land on the new feature, ready to edit. The Generate button only appears when AI is on; **New Blank Feature** in the panel gives you an empty one instead.
+Generating costs credits, shown on the card before you start, and needs AI to be switched on for the campaign. When it finishes you land on the new feature, ready to edit. The Generate button only appears when AI is on; **New Blank Feature** gives you an empty one instead.
 
 ## Placing a feature in your world
 

@@ -63,7 +63,7 @@ This is meant for the end of the evening: everything you jotted down during play
 ## Tips
 
 - AI generators that create an NPC, a trap, a loot table and the like still put their GM-side asides in the DM note. The deity generator writes its generated secrets there as well.
-- NPC **Quick Create** saves its **Concept** box as the new NPC's DM note.
+- NPC **Quick create** saves what you wrote in **What to make** as the new NPC's DM note.
 - The note works the same way on every entity, so a habit learned on NPCs carries over to places and quests.
 
 ## Related

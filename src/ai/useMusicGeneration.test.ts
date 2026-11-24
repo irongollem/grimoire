@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   acknowledge: vi.fn(),
   listUnconsumed: vi.fn(),
   invalidateQueries: vi.fn(),
-  openPanel: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -21,10 +20,6 @@ vi.mock("@/lib/supabase", () => ({
 
 vi.mock("@tanstack/vue-query", () => ({
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
-}));
-
-vi.mock("@/stores/ui/ask", () => ({
-  useAskUiStore: () => ({ openPanel: mocks.openPanel }),
 }));
 
 vi.mock("./useAiGenerationJob", async (importOriginal) => {
@@ -74,12 +69,8 @@ describe("useMusicGeneration", () => {
     music.clearCompleted();
   });
 
-  // Bug caught: the badge's Reopen opened a dialog that no longer has a Generate tab, so a failed track left the DM nowhere to go.
-  it("registers with the badge, and Reopen brings the Familiar back", () => {
-    const entry = getAiGeneratorRegistry().find((e) => e.label === "Music");
-    expect(entry).toBeDefined();
-    entry!.openPanel();
-    expect(mocks.openPanel).toHaveBeenCalledOnce();
+  it("registers with the badge", () => {
+    expect(getAiGeneratorRegistry().find((e) => e.label === "Music")).toBeDefined();
   });
 
   it("applies the finished track and marks it completed for the badge", async () => {

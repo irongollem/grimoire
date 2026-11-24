@@ -51,7 +51,7 @@ Beside the name, each button does one job:
 
 ## Generating a location with AI
 
-Click **Generate** on the Atlas list page to open the Location Generator panel. Describe the place in the **Concept** box, optionally constrain it with a **Location Type** and **Parent Location**, and toggle **Generate location art** / **Generate map sketch** if you want the AI to produce art alongside the write-up. Generation runs in the background: you can close the panel and keep working. See [AI Generation & Credits](#ai-generation-credits) for how costs are shown and charged.
+Click **Generate** on the Atlas list page to open the Familiar on the right with a place card. Describe the place in **What to make**, optionally constrain it with a **Location Type** and **Parent Location**, and switch on the location art or map sketch if you want the AI to produce art alongside the write-up. Generation runs in the background: you can close the Familiar and keep working. See [AI Generation & Credits](#ai-generation-credits) for how costs are shown and charged.
 
 ## Interactive maps and pins
 

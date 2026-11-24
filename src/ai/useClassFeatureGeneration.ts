@@ -2,7 +2,6 @@ import { generateEntityText } from "./entityTextGeneration";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useAskUiStore } from "@/stores/ui/ask";
 import { captureImageGenerationContext } from "./useImageGeneration";
 import { featureInsertFromAi, type FeatureAiResult } from "@/lib/codex/featureAi";
 import type { ClassFeatureInsert } from "@/types/feature.types";
@@ -16,9 +15,6 @@ registerAiGenerator({
   label: "Ability",
   entityRoute: (id) => `/features/${id}`,
   // The generator is a card in the Familiar now: the badge brings the DM back to it.
-  openPanel: () => {
-    useAskUiStore().openPanel();
-  },
 });
 
 // ────────────────────────────────────────────────────────────────────────────

@@ -9,7 +9,6 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useAskUiStore } from "@/stores/ui/ask";
 import {
   captureFailureMessage,
   captureImageGenerationContext,
@@ -29,9 +28,6 @@ registerAiGenerator({
   label: "NPC",
   entityRoute: (id) => `/npcs/${id}`,
   // The generator is a card in the Familiar now: the badge brings the DM back to it.
-  openPanel: () => {
-    useAskUiStore().openPanel();
-  },
 });
 
 // ────────────────────────────────────────────────────────────────────────────

@@ -9,7 +9,6 @@ import type {
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useCampaignStore } from "@/stores/campaign";
-import { useAskUiStore } from "@/stores/ui/ask";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -19,9 +18,6 @@ registerAiGenerator({
   label: "Document",
   entityRoute: (id) => `/scriptorium/${id}`,
   // The draft's card is in the Familiar now (#1270): the badge brings the DM back to it.
-  openPanel: () => {
-    useAskUiStore().openPanel();
-  },
 });
 
 export interface ScriptoriumDraftRequest {

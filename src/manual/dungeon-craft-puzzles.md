@@ -67,7 +67,7 @@ When a Location or Dungeon Feature is set, the puzzle's header shows a pill link
 
 ## AI puzzle generator
 
-Click **Generate** to open the Puzzle Generator and describe a puzzle concept. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost, and if AI is off, the panel points you at the toggle instead of the form. Optionally constrain type and difficulty, and leave **Generate room illustration** on for a picture. **New Blank Puzzle** gives you an empty one instead. Grimoire produces the full puzzle including setup, hints, and solution.
+Click **Generate** to open the Familiar on the right with a puzzle card, and describe the puzzle in **What to make**. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost. If AI is off, the card points you at the toggle. Optionally constrain type and difficulty, and leave the room illustration switch on for a picture. **New Blank Puzzle** gives you an empty one instead. Grimoire produces the full puzzle including setup, hints, and solution.
 
 ## Revealing a puzzle to players
 

@@ -29,7 +29,7 @@ import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 import { useCampaignStore } from "@/stores/campaign";
 
-// Mounted app-wide in AiGeneratorPanels and opened through the ui store, from the board and from the deck library.
+// Mounted app-wide in DefaultLayout and opened through the ui store, from the board and from the deck library.
 // Its content only mounts while open (AppModal's v-if), so SoundForm's window drop listeners never run app-wide.
 // Its Generate button is not a tab: it opens the track's card in the Familiar and closes this dialog (#1270).
 const soundboardUi = useSoundboardUiStore();

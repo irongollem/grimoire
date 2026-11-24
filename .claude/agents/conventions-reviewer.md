@@ -70,8 +70,9 @@ before reporting.
 
 **Rich text and images.** `RichTextEditor` for multi-line text, `FocalImage`
 for images, `TagInput` for tag fields.
-*Exception:* the ~40 **AI-prompt fields** (`*GeneratorPanel`, `*GenerateDialog`,
-`AdminPromptsTab`) stay native `<textarea>` on purpose — rich text in a prompt
+*Exception:* the **AI-prompt fields** (the Familiar's composer, a generator
+card's concept box and multi-line fields in `src/components/ask/`, and
+`AdminPromptsTab`) stay native `<textarea>` on purpose: rich text in a prompt
 box means the model receives markup as content.
 
 **Filter state.** A list view's filters live in its domain's UI store (`src/stores/ui/<domain>.ts`), with a

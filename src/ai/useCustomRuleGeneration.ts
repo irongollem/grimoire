@@ -5,7 +5,6 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useAskUiStore } from "@/stores/ui/ask";
 import { captureImageGenerationContext } from "./useImageGeneration";
 import type { AiProvenance } from "./provenance";
 import { normalizeCustomRule, type CustomRuleDraft } from "@/lib/rules/customRuleAi";
@@ -17,9 +16,6 @@ registerAiGenerator({
   label: "House rule",
   entityRoute: (id) => `/rules/${id}`,
   // The generator is a card in the Familiar now: the badge brings the DM back to it.
-  openPanel: () => {
-    useAskUiStore().openPanel();
-  },
 });
 
 export interface CustomRuleGenerationOptions {

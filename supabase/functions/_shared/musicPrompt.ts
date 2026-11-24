@@ -12,7 +12,7 @@
  *
  * Pure: no Deno/network/DB imports, so this is unit-tested exactly like
  * lyria.ts (see musicPrompt.test.ts), and the browser imports it directly:
- * src/lib/audio/aiMusic.ts re-exports `MUSIC_PROMPT_MAX_CHARS` from here, so
+ * src/lib/audio/aiMusic.ts re-exports the request type from here, so
  * there is one copy.
  */
 
