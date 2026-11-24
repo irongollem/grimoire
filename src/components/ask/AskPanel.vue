@@ -84,10 +84,11 @@ const convo = useAskConversation({
   adapters,
   campaignName: () => campaign.activeCampaign?.name ?? "this campaign",
   routePath: () => route.fullPath,
-  // Oolu reads its own words only: the conversation hands over the replies, nothing else.
+  // Oolu reads its own words only: the conversation hands over the replies, nothing else. Only while its switch is
+  // on screen: a voice the DM cannot see cannot be turned off, so it must not speak (or charge).
   onReplied: ({ sessionId, texts }) => {
     const campaignId = campaign.activeCampaignId;
-    if (campaignId !== null) voice.say({ campaignId, sessionId, texts });
+    if (campaignId !== null && voicePerMinute.value !== null) voice.say({ campaignId, sessionId, texts });
   },
   onFinished: ({ startedAt, ...finished }) => {
     // Generation goes on with the panel shut. The DM is told by the dot, and by a slip if they are not looking at
@@ -138,9 +139,9 @@ const surfaceProps = computed(() => ({
   adapters,
   running: convo.running.value,
   startingOverBlocked: convo.generating.value,
-  // While Oolu reads aloud the owl moves with the real audio; otherwise with the words arriving.
-  // (Not while it has gone quiet: then the words arriving are all there is.)
-  speaking: voice.on.value && voiceNote.value === null ? voice.speaking.value : convo.speaking.value,
+  // The owl moves while the words arrive and while Oolu reads them aloud: either is Oolu talking. Following the audio
+  // alone left it still through the streaming, and for good on a reply the server declined to voice.
+  speaking: convo.speaking.value || voice.speaking.value,
   campaignName: campaign.activeCampaign?.name ?? "No campaign",
   pageTitle: (route.meta.title as string | undefined) ?? null,
   allowanceLine: allowanceLine.value,
@@ -151,11 +152,7 @@ const surfaceHandlers = {
   new: () => void startOver(),
   voice: (on: boolean) => voice.setOn(on),
   close: () => ui.closePanel(),
-  // A new question silences the old answer.
-  send: (text: string) => {
-    voice.stop();
-    void convo.send(text);
-  },
+  send: (text: string) => void convo.send(text),
   choose: convo.choose,
   "hand-off": convo.handOff,
   confirm: (id: number) => void convo.confirm(id),
@@ -195,10 +192,7 @@ watch(
     const text = ui.takePendingQuery();
     if (text === null) return;
     // When a generation is in flight or awaiting a yes, the question joins the thread it is in.
-    void startOver().then(() => {
-      voice.stop();
-      return convo.send(text);
-    });
+    void startOver().then(() => convo.send(text));
   },
   { immediate: true },
 );
@@ -237,9 +231,17 @@ watch(
 // A conversation belongs to one campaign: the old one's answer must not carry on speaking in the new.
 watch(() => campaign.activeCampaignId, () => voice.stop());
 
-// The day's free questions are read again after each turn, so the line is the server's and not a guess.
+// A new turn silences the old answer, however it was started (typed, a chip chosen, a question carried over from
+// search): in one place, so no path into a turn can forget it. The day's free questions are read again after each
+// turn, so the line is the server's and not a guess.
 watch(convo.running, (isRunning) => {
-  if (!isRunning) usage.refetch();
+  if (isRunning) voice.stop();
+  else usage.refetch();
+});
+
+// The switch went away (voices off, or their price unknown): whatever was playing stops with it.
+watch(voicePerMinute, (perMinute) => {
+  if (perMinute === null) voice.stop();
 });
 
 // Opening the panel is seeing the result in the thread: the slip has done its job.

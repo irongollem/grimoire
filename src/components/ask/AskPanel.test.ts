@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 import type { AnyAskAdapter, AskAdapter, AskRunResult } from "@/lib/ask/askAdapter";
 import type { User } from "@supabase/supabase-js";
 import { useAuthStore } from "@/stores/auth";
@@ -41,8 +41,11 @@ vi.mock("@/composables/table/useTableVoice", async (importOriginal) => ({ ...(aw
 const voiceTransport = vi.fn(async () => new Response(JSON.stringify({ audio: "AAAA", mime: "audio/mpeg" })));
 vi.mock("@/composables/ask/useFamiliarVoice", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/composables/ask/useFamiliarVoice")>();
-  return { ...real, useFamiliarVoice: () => real.useFamiliarVoice({ transport: voiceTransport as never, player: () => ({ done: Promise.resolve(), stop: () => undefined }) }) };
+  return { ...real, useFamiliarVoice: () => real.useFamiliarVoice({ transport: voiceTransport as never, player: (src) => voicePlayer(src) }) };
 });
+// Plays at once by default; a test that needs a reply still playing swaps in one that never ends by itself.
+const stoppedClips: string[] = [];
+let voicePlayer = (_src: string) => ({ done: Promise.resolve(), stop: () => undefined as void });
 
 import FamiliarAvatar from "@/components/ask/FamiliarAvatar.vue";
 import AskPanel from "./AskPanel.vue";
@@ -59,6 +62,8 @@ describe("AskPanel", () => {
     push.mockClear();
     route.fullPath = "/dashboard";
     voiceTransport.mockClear();
+    stoppedClips.length = 0;
+    voicePlayer = () => ({ done: Promise.resolve(), stop: () => undefined });
     rates.value = { on: true, perMinute: { elevenlabs: 6, inworld: null } };
     // The switch is remembered per account for the life of the module: a fresh account starts every test off.
     useAuthStore().user = { id: `u${++accounts}` } as User;
@@ -253,6 +258,38 @@ describe("AskPanel", () => {
     const norate = mount(AskPanel, { global: { stubs } });
     expect(norate.find('[data-testid="ask-voice"]').exists()).toBe(false);
     norate.unmount();
+  });
+
+  // Bug caught: the price lookup failing after the DM turned Oolu on, which hid the switch while Oolu kept speaking
+  // (and charging) with no control left to mute it.
+  it("reads nothing aloud once its switch has gone from the screen", async () => {
+    useAskUiStore().openPanel();
+    transport.mockResolvedValueOnce(sse([{ type: "session", sessionId: "s1" }, { type: "text", delta: "Harl runs it." }, done]));
+    const w = mount(AskPanel, { global: { stubs } });
+    await w.get('[data-testid="ask-voice"]').trigger("click");
+    rates.value = undefined;
+    await nextTick();
+    expect(w.find('[data-testid="ask-voice"]').exists()).toBe(false);
+    await ask(w);
+    expect(voiceTransport).not.toHaveBeenCalled();
+    w.unmount();
+  });
+
+  // Bug caught: a path into a new turn (a chip chosen, a question carried over) that forgot to silence the old
+  // answer, so the old reply kept playing over the new one.
+  it("silences the answer still being read when a new turn starts", async () => {
+    useAskUiStore().openPanel();
+    voicePlayer = (src: string) => ({ done: new Promise<void>(() => {}), stop: () => void stoppedClips.push(src) });
+    transport.mockResolvedValueOnce(sse([{ type: "session", sessionId: "s1" }, { type: "text", delta: "Harl runs it." }, done]));
+    const w = mount(AskPanel, { global: { stubs } });
+    await w.get('[data-testid="ask-voice"]').trigger("click");
+    await ask(w);
+    await flushPromises();
+    expect(stoppedClips).toEqual([]);
+    transport.mockResolvedValueOnce(sse([{ type: "text", delta: "And Mirel keeps the books." }, done]));
+    await ask(w);
+    expect(stoppedClips).toEqual(["data:audio/mpeg;base64,AAAA"]);
+    w.unmount();
   });
 
   // Bug caught: Oolu silently going quiet when credits run out, leaving the DM to think the switch broke.

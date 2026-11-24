@@ -323,7 +323,7 @@ select is(
         -- the 5e rules catalogue, and operator configuration. None of it is
         -- personal data — it describes the product, not a person — so there is
         -- nothing for a retention period to protect.
-        'abuse_guard_config', 'ai_generation_credit_costs', 'ai_model_pricing',
+        'abuse_guard_config', 'ai_generation_credit_costs', 'ai_model_pricing', 'speech_voices',
         'ai_system_prompts', 'app_settings', 'checkout_config',
         'credit_pack_config', 'plans', 'platform_api_keys', 'provider_config',
         'simulacrum_config',

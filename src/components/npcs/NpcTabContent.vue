@@ -47,7 +47,8 @@
     </div>
 
     <!-- Voice tab -->
-    <div v-else-if="activeTab === 'voice'">
+    <div v-else-if="activeTab === 'voice'" class="flex flex-col gap-4">
+      <NpcSpokenVoice v-if="full" :npc="full" />
       <!-- The coach reads the prose to write in the NPC's voice, so it waits for the record. -->
       <NpcVoiceCoach v-if="full" :npc="full" />
       <div v-else class="flex min-h-40 items-center justify-center"><BannerLoader class="h-8" /></div>
@@ -66,6 +67,7 @@ import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
 import NpcMemoryTab from "@/components/npcs/NpcMemoryTab.vue";
 import NpcPartyTab from "@/components/npcs/NpcPartyTab.vue";
 import NpcRelationsTab from "@/components/npcs/NpcRelationsTab.vue";
+import NpcSpokenVoice from "@/components/npcs/NpcSpokenVoice.vue";
 import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
 import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";

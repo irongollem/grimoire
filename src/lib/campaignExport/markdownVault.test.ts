@@ -62,6 +62,7 @@ function npc(over: Partial<Npc> = {}): Npc {
     appearance: tiptapDoc("A grey-bearded old man."),
     personality: tiptapDoc("Wry and forgetful."),
     voice: null,
+    speech_voice_id: null,
     backstory: null,
     notes: null,
     status: "alive",

@@ -6,7 +6,8 @@ vi.mock("@/lib/supabase", () => ({ supabase: {} }));
 
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useAuthStore } from "@/stores/auth";
-import { useTableVoice, VOICE_CHANGE_PAUSE_MS, type VoicePlayer, type VoiceRequest } from "./useTableVoice";
+import { useTableVoice, VOICE_CHANGE_PAUSE_MS, type VoiceRequest } from "./useTableVoice";
+import type { VoicePlayer } from "@/composables/voices/useClipQueue";
 
 const ok = (audio = "AAAA") => new Response(JSON.stringify({ audio, mime: "audio/mpeg" }), { status: 200, headers: { "content-type": "application/json" } });
 const line = (text: string) => ({ role: "character" as const, speakerId: "n1", speakerName: "Honeycomb", text, how: null, key: `k:${text}` });
@@ -208,8 +209,8 @@ describe("useTableVoice", () => {
   it("takes a breath when the voice changes, and none while the same voice goes on", async () => {
     const pauses: number[] = [];
     const p = manualPlayer();
-    const voice = useTableVoice({ campaignId: () => "c1", sessionId: () => "s1", transport: async () => ok(), player: p.player, pause: async (ms) => { pauses.push(ms); } });
     useAuthStore().user = { id: "u-breath" } as User;
+    const voice = useTableVoice({ campaignId: () => "c1", sessionId: () => "s1", transport: async () => ok(), player: p.player, pause: async (ms) => { pauses.push(ms); } });
     voice.setPart("characters", true);
     const narrator = { role: "narrator" as const, speakerId: null, speakerName: "The Narrator", text: "Rain starts.", how: null, key: "k:n" };
     voice.say([line("One."), line("Two."), narrator]);
@@ -225,8 +226,8 @@ describe("useTableVoice", () => {
   // Bug caught (seen live): with the allowance used up, every new line was still asked for and failed in silence.
   it("stops asking once the allowance is used up, until a voice is switched on again", async () => {
     let calls = 0;
-    const voice = useTableVoice({ campaignId: () => "c1", sessionId: () => "s1", transport: async () => { calls += 1; return new Response("{}", { status: 402 }); }, player: manualPlayer().player });
     useAuthStore().user = { id: "u-spent" } as User;
+    const voice = useTableVoice({ campaignId: () => "c1", sessionId: () => "s1", transport: async () => { calls += 1; return new Response("{}", { status: 402 }); }, player: manualPlayer().player });
     voice.setPart("characters", true);
     voice.say([line("One.")]);
     await tick();

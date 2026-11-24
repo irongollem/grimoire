@@ -8,7 +8,7 @@ import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { clipName, lineKeyFits } from "../_shared/agent/lineKey.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { clipKey, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
-import { shownInTurns, speakLine, VOICE_MESSAGES, voiceRates, type TableVoiceDeps } from "./handler.ts";
+import { NO_TRAITS, shownInTurns, speakLine, VOICE_MESSAGES, voiceRates, type TableVoiceDeps } from "./handler.ts";
 import { base64FromBytes } from "../_shared/base64.ts";
 import { bytesFromBase64, hasSpeechService, loadSpeechRate, speechModelOf, synthesizeSpeech, voicesOn } from "../_shared/speech.ts";
 import { serveUser } from "../_shared/pipeline/serveUser.ts";
@@ -19,6 +19,8 @@ import { screenChatText } from "../_shared/moderation.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { loadSpeechEnv } from "../_shared/speechKeys.ts";
 import { deliveryCue } from "../_shared/agent/characterTurn.ts";
+import { choiceOf, judge, JEV_MODEL } from "../_shared/typesafe.ts";
+import type { VoiceSlot } from "./casting.ts";
 import { ageOf, inworldText, isNarratorVoice, NARRATION_MAX_CHARS, sexFromGender, sexOf, speechText } from "./voicePick.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -28,6 +30,18 @@ const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY
 // serves but this function, to the conversation's own owner. Without R2 credentials nothing is kept and every line
 // is made anew, as before.
 const voiceStore = voiceStoreFrom((key) => Deno.env.get(key));
+
+const SLOT_COLUMNS = "id, name, description, sex, age, service, voice_id, active";
+/** How long the judgment may take before the least used slot is taken instead. */
+const JEV_TIMEOUT_MS = 4000;
+/** The most of a character's record sent to the judgment model. */
+const FITTING_MAX_CHARS = 1500;
+
+/** A slot row as a filled, active slot; null for one that cannot speak (unfilled or retired). */
+function slotOf(row: Record<string, unknown>): VoiceSlot | null {
+  if (row.active !== true || (row.service !== "elevenlabs" && row.service !== "inworld") || typeof row.voice_id !== "string") return null;
+  return { id: row.id as string, name: row.name as string, description: row.description as string, sex: (row.sex as VoiceSlot["sex"]) ?? null, age: (row.age as VoiceSlot["age"]) ?? null, service: row.service, voiceId: row.voice_id };
+}
 
 /** "she/her" as words the pronoun count can read. */
 const pronounWords = (pronouns: string): string => pronouns.replace(/[/,;|]+/g, " ");
@@ -58,12 +72,87 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     keyFits: (sessionId, line, key) => lineKeyFits(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", sessionId, line, key),
 
     // Read as the caller, in the campaign: the record is only used to cast a voice and nothing of it is returned.
+    // Sex is read from everything the record says about the person (a backstory is full of pronouns); the text a
+    // slot is matched on leaves the backstory and the DM's notes out, since secrets must not steer a voice.
     async loadTraits(campaignId, speakerId) {
-      const { data, error } = await supabase.from("npcs").select("age, appearance, personality, backstory, spoken_voice_id").eq("id", speakerId).eq("campaign_id", campaignId).maybeSingle();
+      const { data, error } = await supabase
+        .from("npcs")
+        .select("age, occupation, appearance, personality, voice, backstory, speech_voice_id, location_id")
+        .eq("id", speakerId)
+        .eq("campaign_id", campaignId)
+        .maybeSingle();
       if (error) throw error;
-      if (!data) return { sex: null, age: null, voiceId: null };
-      const about = [data.appearance, data.personality, data.backstory].map((t) => toPlainText(t as string | null)).join(" ");
-      return { sex: sexOf(about), age: ageOf(String(data.age ?? "")), voiceId: (data.spoken_voice_id as string | null) ?? null };
+      if (!data) return NO_TRAITS;
+      const text = (t: unknown): string => toPlainText(t as string | null);
+      const fitting = [data.occupation, data.appearance, data.personality, data.voice].map(text).filter((t) => t !== "").join("\n").slice(0, FITTING_MAX_CHARS);
+      return {
+        sex: sexOf([data.appearance, data.personality, data.backstory].map(text).join(" ")),
+        age: ageOf(String(data.age ?? "")),
+        hasRecord: true,
+        slotId: (data.speech_voice_id as string | null) ?? null,
+        locationId: (data.location_id as string | null) ?? null,
+        fitting,
+      };
+    },
+
+    // Read as the caller: a slot they cannot read (retired, unfilled, someone else's signature voice) is null.
+    async loadSlot(slotId) {
+      const { data, error } = await supabase.from("speech_voices").select(SLOT_COLUMNS).eq("id", slotId).maybeSingle();
+      if (error) throw error;
+      return data === null ? null : slotOf(data);
+    },
+
+    async loadSlots() {
+      const { data, error } = await supabase.from("speech_voices").select(SLOT_COLUMNS).eq("kind", "cast").eq("active", true).not("voice_id", "is", null);
+      if (error) throw error;
+      return (data ?? []).map(slotOf).filter((slot): slot is VoiceSlot => slot !== null);
+    },
+
+    async loadAssignments(campaignId) {
+      const { data, error } = await supabase.from("npcs").select("id, speech_voice_id, location_id").eq("campaign_id", campaignId).not("speech_voice_id", "is", null);
+      if (error) throw error;
+      return (data ?? []).map((r) => ({ npcId: r.id as string, slotId: r.speech_voice_id as string, locationId: (r.location_id as string | null) ?? null }));
+    },
+
+    // Jev, the judgment model: one choice among the slots. Short on purpose: a line is waiting, and past this the
+    // least used slot is taken. Without the platform's key it does not run. Its tokens are the platform's cost.
+    async judgeSlot(options, fitting) {
+      if (options.length === 0 || fitting.trim() === "") return null;
+      const keys = await fetchPlatformKeys(admin, ["typesafe"]);
+      const apiKey = keys.typesafe && keys.typesafe.length > 0 ? keys.typesafe : null;
+      if (apiKey === null) return null;
+      const result = await judge(
+        {
+          model: JEV_MODEL,
+          state: { character: fitting },
+          questions: {
+            voice: {
+              type: "choice",
+              instructions: "Which voice would suit this character best, going by who they are and how they would sound?",
+              criteria: Object.fromEntries(options.map((o) => [o.name, o.description || o.name])),
+            },
+          },
+        },
+        { apiKey, timeoutMs: JEV_TIMEOUT_MS, signal: AbortSignal.timeout(JEV_TIMEOUT_MS) },
+      );
+      return { choice: choiceOf(result, "voice")?.choice ?? null, inputTokens: result.inputTokens };
+    },
+
+    // Only onto a character with no voice yet: the first line to cast a new character wins, and a line that lost
+    // reads the winner back so it speaks the same voice.
+    async saveSlot(campaignId, npcId, slotId) {
+      const { data, error } = await supabase
+        .from("npcs")
+        .update({ speech_voice_id: slotId })
+        .eq("id", npcId)
+        .eq("campaign_id", campaignId)
+        .is("speech_voice_id", null)
+        .select("speech_voice_id");
+      if (error) throw error;
+      if ((data ?? []).length > 0) return slotId;
+      const { data: held, error: readError } = await supabase.from("npcs").select("speech_voice_id").eq("id", npcId).eq("campaign_id", campaignId).maybeSingle();
+      if (readError) throw readError;
+      return held === null ? null : ((held.speech_voice_id as string | null) ?? null);
     },
 
     async loadClip(at, line) {
@@ -96,10 +185,10 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
         .eq("campaign_id", campaignId)
         .maybeSingle();
       if (error) throw error;
-      if (!data) return { sex: null, age: null, voiceId: null };
+      if (!data) return NO_TRAITS;
       const stated = sexFromGender(String(data.gender ?? "")) ?? sexOf(pronounWords(String(data.pronouns ?? "")));
       const about = [data.physical_description, data.player_description, data.personality_traits, data.notes].map((t) => toPlainText(t as string | null)).join(" ");
-      return { sex: stated ?? sexOf(about), age: null, voiceId: null };
+      return { ...NO_TRAITS, sex: stated ?? sexOf(about) };
     },
 
     // The same screen the turn's own words go through (`_shared/moderation.ts`), logged under this surface.

@@ -28,7 +28,9 @@
 import { VoicesSpent, type SpeechService } from "../_shared/speech.ts";
 import { creditsForSpeech, creditsPerMinute, speechChars } from "../_shared/agent/voiceCost.ts";
 import type { CreditCalibration } from "../_shared/agent/metering.ts";
-import { NARRATOR_CUE, narratorSpeaker, pickVoice, type AgeBand, type NarratorVoice, type Sex } from "./voicePick.ts";
+import { NARRATOR_CUE, narratorSpeaker, type AgeBand, type NarratorVoice, type Sex } from "./voicePick.ts";
+import { castNpc, pickByKey, type Judgment, type SlotAssignment, type VoiceSlot } from "./casting.ts";
+import { JEV_MODEL } from "../_shared/typesafe.ts";
 import { FAMILIAR_SPEAKER, VOICE_ROLES, type VoiceRole } from "../_shared/agent/lineKey.ts";
 import { FAMILIAR_VOICE } from "../_shared/narratorVoice.ts";
 import { UUID_RE } from "../_shared/agent/parse.ts";
@@ -77,10 +79,30 @@ export interface TableVoiceDeps {
   /** The played character's own pronouns and voice, for the player's said lines. */
   loadPlayerTraits(campaignId: string, memberId: string): Promise<SpeakerTraits>;
   /**
-   * What the character's record says of its sex and age, for casting, and the voice the DM gave it
-   * (`npcs.spoken_voice_id`); nulls when it says nothing or has no record.
+   * What the character's record says: sex and age for casting, the slot it already holds (`npcs.speech_voice_id`),
+   * where it is found, and the text it is matched to a slot on. `hasRecord` false when there is no such record.
    */
   loadTraits(campaignId: string, speakerId: string): Promise<SpeakerTraits>;
+  /**
+   * One slot, read with the caller's own client. Null when it is gone, retired, unfilled, or not one this caller may
+   * read: the character is then cast again.
+   */
+  loadSlot(slotId: string): Promise<VoiceSlot | null>;
+  /** The filled, active cast slots the caller may read, on any service. The handler keeps the ones this stack can speak. */
+  loadSlots(): Promise<VoiceSlot[]>;
+  /** Who holds which slot in the campaign, for spreading voices over a place. */
+  loadAssignments(campaignId: string): Promise<SlotAssignment[]>;
+  /**
+   * Asks the judgment model which of the options fits the character best. Null when there is no key or it could
+   * not answer in time; the choice is an option's name. Throws are the caller's to survive.
+   */
+  judgeSlot(options: Array<{ name: string; description: string }>, fitting: string): Promise<Judgment | null>;
+  /**
+   * Remembers the slot on a character that has none yet, with the caller's own client, and answers the slot the
+   * character holds afterwards: this one, or the one another line saved first (every line of a reply is asked for at
+   * once, so several may cast the same new character together; the first save wins). Throws when it cannot.
+   */
+  saveSlot(campaignId: string, npcId: string, slotId: string): Promise<string | null>;
   /** Whether this stack can speak through the service (its key is set). */
   hasService(service: VoiceService): boolean;
   /**
@@ -118,8 +140,17 @@ export interface VoicedLine {
 export interface SpeakerTraits {
   sex: Sex | null;
   age: AgeBand | null;
-  voiceId: string | null;
+  /** Whether the speaker has a record to cast from and remember a voice on. */
+  hasRecord: boolean;
+  /** The slot the character already holds; null until one is cast or picked. */
+  slotId: string | null;
+  locationId: string | null;
+  /** What the character is matched to a slot on: occupation, appearance, personality, voice. Not backstory or notes. */
+  fitting: string;
 }
+
+/** Nothing known about the speaker. */
+export const NO_TRAITS: SpeakerTraits = { sex: null, age: null, hasRecord: false, slotId: null, locationId: null, fitting: "" };
 
 /** A voice id as a speech service writes them. It goes into a URL or a request, so anything else is not used. */
 export const VOICE_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
@@ -131,17 +162,9 @@ export interface VoiceRef {
   id: string;
 }
 
-/** A stored voice reference read: a bare id is ElevenLabs', `inworld:<id>` is Inworld's. Null for anything else. */
-export function voiceRefOf(stored: string | null): VoiceRef | null {
-  if (stored === null) return null;
-  const inworld = stored.startsWith("inworld:");
-  const id = inworld ? stored.slice("inworld:".length) : stored;
-  return VOICE_ID_RE.test(id) ? { service: inworld ? "inworld" : "elevenlabs", id } : null;
-}
-
-/** The voice the DM gave the character, or null when there is none or it is not a voice reference. */
-export function ownVoice(traits: Pick<SpeakerTraits, "voiceId">): VoiceRef | null {
-  return voiceRefOf(traits.voiceId);
+/** A slot's voice, when this stack can speak through its service and the id is the shape a speech service takes. */
+function refOf(slot: VoiceSlot, deps: Pick<TableVoiceDeps, "hasService">): VoiceRef | null {
+  return deps.hasService(slot.service) && VOICE_ID_RE.test(slot.voiceId) ? { service: slot.service, id: slot.voiceId } : null;
 }
 
 /** Thrown by `synthesize` when the speech service says its allowance is used up: asking again cannot help. */
@@ -175,8 +198,15 @@ export interface VoiceBody {
   role: VoiceRole;
 }
 
-/** The longest reply Oolu will read, in characters. */
-export const FAMILIAR_TEXT_MAX = 8000;
+/**
+ * The longest reply Oolu is handed, in characters. The page joins a reply's text across the model's steps (text, a
+ * tool call, more text), so one reply can run past a single answer's 1,500 tokens; it is accepted whole, so the
+ * words still prove against the stored turns, and read only up to `FAMILIAR_SPOKEN_MAX`.
+ */
+export const FAMILIAR_TEXT_MAX = 32000;
+
+/** The most of a reply Oolu reads aloud, cut at the end of a sentence: what one answer's worth of speech costs. */
+export const FAMILIAR_SPOKEN_MAX = 8000;
 
 export function parseVoiceBody(raw: unknown): VoiceBody | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
@@ -187,7 +217,7 @@ export function parseVoiceBody(raw: unknown): VoiceBody | null {
   if (typeof r.speakerName !== "string" || r.speakerName.trim() === "" || r.speakerName.length > 200) return null;
   const role = r.role === undefined ? "character" : r.role;
   if (typeof role !== "string" || !(VOICE_ROLES as readonly string[]).includes(role)) return null;
-  // An Ask answer runs to 1,500 output tokens; a spoken line of the table is a few sentences.
+  // An Ask reply can join several answers (see FAMILIAR_TEXT_MAX); a spoken line of the table is a few sentences.
   const maxText = role === "familiar" ? FAMILIAR_TEXT_MAX : 4000;
   if (typeof r.text !== "string" || r.text.trim() === "" || r.text.length > maxText) return null;
   const how = r.how === undefined || r.how === null ? null : r.how;
@@ -199,15 +229,18 @@ export function parseVoiceBody(raw: unknown): VoiceBody | null {
   return { campaignId: r.campaignId, sessionId: r.sessionId, speakerId: r.speakerId, speakerName: r.speakerName, text: r.text, how, key, role: role as VoiceRole };
 }
 
-/** Whose voice says the line: the narrator's one voice, or a cast from the speaker's record. */
-async function voiceFor(deps: TableVoiceDeps, session: VoiceSession, line: VoicedLine): Promise<VoiceRef> {
+/**
+ * Whose voice says the line: the narrator's one voice, or a slot of the registry cast from the speaker's record.
+ * `inputTokens` is what the judgment model spent on the way (0 when it did not run), for the ledger.
+ */
+async function voiceFor(deps: TableVoiceDeps, session: VoiceSession, line: VoicedLine): Promise<{ voice: VoiceRef; inputTokens: number }> {
   const campaignId = session.campaign_id;
+  const narrator = () => narratorSpeaker(session.narrator_voice, deps.hasService);
   if (line.role === "narrator") {
     // The table's choice, on that choice's own service; the same choice on the other where this stack lacks the key.
-    return narratorSpeaker(session.narrator_voice, deps.hasService);
+    return { voice: narrator(), inputTokens: 0 };
   }
-  // Cast from the record when there is one; someone without a record is cast by their shown name alone.
-  let traits: SpeakerTraits = { sex: null, age: null, voiceId: null };
+  let traits: SpeakerTraits = NO_TRAITS;
   if (line.speaker.id !== null) {
     try {
       traits = line.role === "player" ? await deps.loadPlayerTraits(campaignId, line.speaker.id) : await deps.loadTraits(campaignId, line.speaker.id);
@@ -215,11 +248,64 @@ async function voiceFor(deps: TableVoiceDeps, session: VoiceSession, line: Voice
       console.error("table-voice: reading the speaker's record failed:", error);
     }
   }
-  // A voice the DM gave the character wins over the casting, where this stack can speak through its service; a
-  // character whose own voice cannot be reached is cast like anyone else rather than left silent.
-  const own = ownVoice(traits);
-  if (own !== null && deps.hasService(own.service)) return own;
-  return { service: "elevenlabs", id: pickVoice(line.speaker.id ?? line.speaker.name, traits).id };
+  const npcId = line.role === "character" && traits.hasRecord ? line.speaker.id : null;
+
+  let pool: VoiceSlot[] = [];
+  try {
+    pool = (await deps.loadSlots()).filter((slot) => refOf(slot, deps) !== null);
+  } catch (error) {
+    console.error("table-voice: reading the voice registry failed:", error);
+  }
+  const ref = (slot: VoiceSlot): VoiceRef => ({ service: slot.service, id: slot.voiceId });
+
+  // A character with a slot speaks in it. One that cannot be used from here (retired or emptied for a while, someone
+  // else's signature voice, a service this stack has no key for, a read that failed) is spoken around with a stand-in
+  // picked from the character alone: no judgment and no save, so the same stand-in every line and the slot itself
+  // left on the character for when it can be used again. A slot that is deleted is cleared by its foreign key, and
+  // the character is cast afresh.
+  if (npcId !== null && traits.slotId !== null) {
+    try {
+      const slot = await deps.loadSlot(traits.slotId);
+      const own = slot === null ? null : refOf(slot, deps);
+      if (own !== null) return { voice: own, inputTokens: 0 };
+    } catch (error) {
+      console.error("table-voice: reading the character's voice slot failed:", error);
+    }
+    if (pool.length === 0) return { voice: narrator(), inputTokens: 0 };
+    return { voice: ref(pickByKey(npcId, pool, traits)), inputTokens: 0 };
+  }
+
+  // Nothing filled on any service this stack has: the narrator's voice rather than silence.
+  if (pool.length === 0) return { voice: narrator(), inputTokens: 0 };
+
+  // A player's character and someone with no record keep to the old, cheap way: the same voice every time from a key.
+  if (npcId === null) {
+    const slot = pickByKey(line.speaker.id ?? line.speaker.name, pool, line.role === "player" ? traits : { sex: null, age: null });
+    return { voice: ref(slot), inputTokens: 0 };
+  }
+
+  let assignments: SlotAssignment[] = [];
+  try {
+    assignments = await deps.loadAssignments(campaignId);
+  } catch (error) {
+    console.error("table-voice: reading who holds which voice failed:", error);
+  }
+  const cast = await castNpc({ npcId, traits, fitting: traits.fitting, locationId: traits.locationId, pool, assignments }, deps.judgeSlot);
+  // The pool is not empty, so a cast is always made.
+  if (cast === null) return { voice: narrator(), inputTokens: 0 };
+  let spoken = cast.slot;
+  try {
+    // Another line of the same reply may have cast this character first: then its slot is theirs, and every line
+    // speaks it. A failed save costs the character a stable voice, never the line.
+    const holder = await deps.saveSlot(campaignId, npcId, cast.slot.id);
+    if (holder !== null && holder !== cast.slot.id) {
+      const first = pool.find((slot) => slot.id === holder);
+      if (first !== undefined) spoken = first;
+    }
+  } catch (error) {
+    console.error("table-voice: remembering the character's voice failed:", error);
+  }
+  return { voice: ref(spoken), inputTokens: cast.inputTokens };
 }
 
 export async function speakLine(input: {
@@ -232,6 +318,9 @@ export async function speakLine(input: {
   const body = parseVoiceBody(input.body);
   if (!body) return jsonError(400, "invalid_body", VOICE_MESSAGES.badBody);
   if (!deps.voiceOn()) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
+  // Oolu speaks on ElevenLabs alone: no stand-in on another service, so without its key Oolu is silent. Answered
+  // here, before the rate limit, the kept-clip read, the stored-turn proof and the paid screen are spent on nothing.
+  if (body.role === "familiar" && !deps.hasService(FAMILIAR_VOICE.service)) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
 
   // Someone else's conversation, or one in another campaign, is "not found": a 403 would say it exists.
   const session = await deps.loadSession(body.sessionId);
@@ -269,7 +358,7 @@ export async function speakLine(input: {
   }
 
   // What is said aloud: Oolu's Markdown as plain words. Screened, counted and spoken in this form.
-  const said = familiar ? spokenFromMarkdown(line.text) : line.text;
+  const said = familiar ? headOf(spokenFromMarkdown(line.text), FAMILIAR_SPOKEN_MAX) : line.text;
   if (said === "") return jsonError(422, "line_unspeakable", VOICE_MESSAGES.unspeakable);
 
   // A line is voiced the moment it arrives, before its turn has been screened and kept, so it is screened here
@@ -280,9 +369,8 @@ export async function speakLine(input: {
     console.error("table-voice: screening the line failed:", error);
   }
 
-  // Oolu speaks on ElevenLabs alone: no stand-in on another service, so without its key Oolu is silent.
-  if (familiar && !deps.hasService(FAMILIAR_VOICE.service)) return jsonError(503, "voices_off", VOICE_MESSAGES.off);
-  const voice: VoiceRef = familiar ? { ...FAMILIAR_VOICE } : await voiceFor(deps, session, line);
+  const cast = familiar ? { voice: { ...FAMILIAR_VOICE }, inputTokens: 0 } : await voiceFor(deps, session, line);
+  const voice: VoiceRef = cast.voice;
   // A line that is made is paid for: what it costs is worked out before it is made, from the admin's numbers.
   // Without them nothing is made, because nothing could be charged.
   const rate = await deps.loadRate(voice.service);
@@ -294,6 +382,8 @@ export async function speakLine(input: {
   const credits = creditsForSpeech(chars, rate.usdPerMillionChars, rate.calibration);
   const reason: VoiceReason = familiar ? "ask_voice" : "table_voice";
   return deps.withHold(userId, Math.max(1, Math.ceil(credits)), reason, async (hold) => {
+    // The judgment model was paid for by the platform, not the player: a free line keeps that spend visible.
+    if (cast.inputTokens > 0) hold.free("entity_judgment", { model: JEV_MODEL, provider: "typesafe", input_tokens: cast.inputTokens });
     let audio: string;
     try {
       // The words and the cue are the ones under the key: the page could not have changed either.
@@ -391,23 +481,47 @@ export function familiarShown(turns: ReadonlyArray<{ role: string; blocks: unkno
   return inRun();
 }
 
+/** A table row's cells as a spoken line ("Goblin, 7, 15."); null for a separator row ("|---|:--:|"). */
+function tableRow(line: string): string | null {
+  const cells = line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+  if (cells.every((c) => /^:?-{1,}:?$/.test(c) || c === "")) return null;
+  return `${cells.filter((c) => c !== "").join(", ")}.`;
+}
+
 /**
- * Ask's reply as it is said aloud: the Markdown's marks dropped, its words kept. Headings, list bullets, quote marks,
- * fences, emphasis and code ticks go; a link or an image says its text. Blank lines collapse to one.
+ * Ask's reply as it is said aloud: the Markdown's marks dropped, its words kept, as the reader sees it rendered.
+ * Headings, list bullets, quote marks, fences, rules and code ticks go; a link or an image says its text; a table
+ * is read a row at a time with its cells in a list. Emphasis goes only where it wraps words, so a `*` between
+ * spaces ("2 * 3") is kept. Blank lines collapse to one.
  */
 export function spokenFromMarkdown(md: string): string {
   return md
+    .split("\n")
+    .map((row) => (/^\s*\|.*\|\s*$/.test(row) ? tableRow(row) : row))
+    .filter((row): row is string => row !== null)
+    .join("\n")
     .replace(/^\s*(```|~~~).*$/gm, "")
+    .replace(/^\s{0,3}([-*_])(\s*\1){2,}\s*$/gm, "")
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/^\s{0,3}#{1,6}\s+/gm, "")
     .replace(/^\s*>\s?/gm, "")
     .replace(/^\s*[-*+]\s+/gm, "")
     .replace(/`+([^`\n]*)`+/g, "$1")
-    .replace(/\*+/g, "")
+    .replace(/(\*{1,3})(?=\S)([^*\n]*?\S)\1/g, "$2")
     .replace(/(^|[^\w])_{1,2}([^_\n]+)_{1,2}(?![\w])/g, "$1$2")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+/** At most `max` characters of `text`, ending at the last full sentence that fits (or a word, when none ends). */
+export function headOf(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const sentence = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "), cut.lastIndexOf(".\n"));
+  if (sentence > max / 2) return cut.slice(0, sentence + 1).trim();
+  const word = cut.lastIndexOf(" ");
+  return (word > 0 ? cut.slice(0, word) : cut).trim();
 }
 
 /**

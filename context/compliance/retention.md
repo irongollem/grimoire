@@ -43,7 +43,7 @@ decided answer, not that every number is small.
 | Deleted canon entries | `canon_trash` (#1255): a canon entry deleted from the Canon page, kept with a snapshot of what hung off it so the DM can restore it | **30 days** from `deleted_at` | `purge-canon-trash` (`20261123235700`) |
 | Derived vectors | the eight `*_embeddings` tables | Lifetime of the row they describe | FK cascade from the source row |
 | Shared library content | `library_*`, `sound_library`, `content_sources` | **Indefinite** | — not personal data |
-| Rules catalogue and operator config | `plans`, `provider_config`, `ai_model_pricing`, the `class_*` policy tables, and the rest | **Indefinite** | — not personal data |
+| Rules catalogue and operator config | `plans`, `provider_config`, `ai_model_pricing`, `speech_voices` (the voice registry, #1272), the `class_*` policy tables, and the rest | **Indefinite** | — not personal data |
 
 *The Pro waitlist stood here — `pro_waitlist`, its `disposable_email_domains`
 signup guard, and the `checkout_config.pro_signup_open` switch that chose

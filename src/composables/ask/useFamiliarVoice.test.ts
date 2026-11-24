@@ -6,7 +6,8 @@ vi.mock("@/lib/supabase", () => ({ supabase: {} }));
 
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useAuthStore } from "@/stores/auth";
-import type { VoicePlayer, VoiceRequest } from "@/composables/table/useTableVoice";
+import type { VoiceRequest } from "@/composables/table/useTableVoice";
+import type { VoicePlayer } from "@/composables/voices/useClipQueue";
 import { useFamiliarVoice } from "./useFamiliarVoice";
 
 const ok = (audio = "AAAA") => new Response(JSON.stringify({ audio, mime: "audio/mpeg" }), { status: 200 });
