@@ -1,4 +1,4 @@
--- #1021 row 17: the AI table makes a map for a place that has none (`make_place_map`, security invoker; 20261124113255).
+-- #1021 row 17: the AI table makes a map for a place that has none (`make_place_map`, security invoker; 20261124115639).
 --   1 Dana  owner and DM   2 Pia  player at the table
 -- The DM's call writes the drawing, the place's picture and snapshot, a room per part of the plan (reusing a room the
 -- place already has by name), each room's region and the doors, in one transaction. A retry with the same request key
