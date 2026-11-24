@@ -22,8 +22,9 @@ import { declinedText, rollText } from "../_shared/agent/playerRoll.ts";
 import type { HazardRules } from "../_shared/agent/hazard.ts";
 import type { CanonCheckMaterial } from "../_shared/agent/canonCheck.ts";
 import { runTurn } from "../_shared/agent/turn.ts";
+import { flaggedForRoll, isJudgedForRoll, lastNarratorText, ROLL_HINT, rollCheckRequest } from "../_shared/agent/rollCheck.ts";
 import { makeTurnTools } from "./turnTools.ts";
-import { narrationGate, type NarrationGate } from "./narration.ts";
+import { narrationGate, NARRATION_JUDGE_LIMIT_MS, type NarrationGate } from "./narration.ts";
 import { AFTERMATH_TEXT, foeLineText, helperTurnText, OPENING_TEXT, playerText } from "./turnBody.ts";
 import { safely } from "./turnSupport.ts";
 import { AgentProviderError } from "../_shared/agent/types.ts";
@@ -158,6 +159,21 @@ export async function beginTurn(input: {
           const text = body.message.trim();
           emit({ type: "voice", role: "player", text, voice: deps.voiceKey(sessionId, { role: "player", speaker: { id: character.id, name: character.name }, text }) });
         }
+        // Whether this attempt needs a roll is asked while the secrets load below, and awaited just before the turn:
+        // the narrator reads the answer, so it cannot run later, but it need not add its own wait.
+        const judgedForRoll = isJudgedForRoll({
+          mode: body.mode,
+          message: body.message,
+          answersRoll: scored !== null || pendingRoll !== null,
+          fightRunning,
+        });
+        const rollNeed: Promise<number | null> = judgedForRoll
+          ? flaggedForRoll({
+            judge: deps.judgeNarration,
+            request: rollCheckRequest({ mode: body.mode, message: body.message, scene: lastNarratorText(history) }),
+            limitMs: NARRATION_JUDGE_LIMIT_MS,
+          })
+          : Promise.resolve(null);
         // The narration check needs the secrets before the first word streams; with no judge it asks for none.
         let secrets: readonly string[] = [];
         if (deps.judgeNarration !== null) {
@@ -194,9 +210,11 @@ export async function beginTurn(input: {
         const foe = foeAsked === undefined || !fightRunning
           ? undefined
           : fights.fight!.fighters.find((f) => f.side === "enemy" && f.hp > 0 && f.name === foeAsked.name);
+        const rollFlagged = await rollNeed;
         const result = await runTurn({
           system,
-          state,
+          // A hint, not a ruling: the narrator may still decide no roll is needed.
+          state: rollFlagged === null ? state : `${state}\n\n${ROLL_HINT}`,
           history,
           // The roll (or that it was not made) comes first, then the player's own words when there are any.
           user: [
@@ -224,6 +242,11 @@ export async function beginTurn(input: {
         await narration.finish();
         narration.applyShown(result.added);
 
+        // Narration has already streamed, so a flagged attempt that went untold-by-roll is logged, not re-run. No
+        // player text: only that it happened and how sure the judge was.
+        if (rollFlagged !== null && fx.asked === null && fx.fightPlan === null) {
+          console.warn(`agent-turn: an uncertain action was settled without a roll (judged ${rollFlagged.toFixed(2)} likely to need one).`);
+        }
         await keepTurn(scope, fx, session, ctx, { result, turnTools });
         return;
       } catch (error) {

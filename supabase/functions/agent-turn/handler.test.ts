@@ -6,6 +6,7 @@
  * out from the price and calibration below: input is free and output costs 10 USD per million tokens, a credit is
  * worth 0.01 USD at margin 1, so 600 output tokens are 0.006 USD, which is 0.6 credits.
  */
+import { ROLL_HINT } from "../_shared/agent/rollCheck";
 import type { AgentProvider } from "../_shared/agent/providerIo";
 import type { Companion } from "../_shared/agent/companions";
 import type { HazardRules, KeptHazard } from "../_shared/agent/hazard";
@@ -766,11 +767,18 @@ function existingSession(h: Harness, over: Partial<SessionRow> = {}, accrued = 0
   return row;
 }
 
-async function play(h: Harness, over: { body?: unknown; userId?: string; signal?: AbortSignal } = {}) {
+async function play(h: Harness, over: { body?: unknown; userId?: string; signal?: AbortSignal; rollCheck?: true } = {}) {
+  // The roll check (#1021) asks the same judge its own question about a say or a do. The tests of the narration
+  // check count and script that judge's requests, so it is answered "no answer" unless a test is about the roll check.
+  const narrationJudge = h.deps.judgeNarration;
+  const deps: typeof h.deps =
+    over.rollCheck === true || narrationJudge === null
+      ? h.deps
+      : { ...h.deps, judgeNarration: (request) => ("roll" in request.questions ? Promise.resolve({ model: "jev-1", inputTokens: 0, answers: {} }) : narrationJudge(request)) };
   const refusal = await handleAgentTurn({
     userId: over.userId ?? DM,
     body: over.body ?? { campaignId: CAMPAIGN, message: "I open the door.", mode: "say" },
-    deps: h.deps,
+    deps,
     send: (e) => {
       h.events.push(e);
       if (e.type === "done") h.log.push("done");
@@ -4540,5 +4548,150 @@ describe("the Narrator rules on the played character's inventions (#1021 row 14)
     expect(h.requests[0].tools.map((t) => t.name)).not.toContain("rule_invention");
     expect(answers(h, 1)[0]).toMatchObject({ isError: true });
     expect(h.rulingsMade).toEqual([]);
+  });
+});
+
+// #1021 / #1205: an uncertain attempt settled without a roll. Prevention is a hint to the narrator, the fault is logged.
+describe("the roll check", () => {
+  const wren = (): PlayerCharacter => ({
+    id: WREN, name: "Wren Ashfield", pronouns: null, species: null, className: "Ranger", subclass: null, level: 3, hitPoints: null,
+  });
+  const PICK = { campaignId: CAMPAIGN, sessionId: SESSION, message: "SECRET-PLAYER-WORDS I pick the lock.", mode: "do" };
+  const played = (script: Script, over: Partial<SessionRow> = {}): Harness => {
+    const h = harness(script);
+    h.state.characters.set(WREN, wren());
+    existingSession(h, { party_member_id: WREN, ...over });
+    return h;
+  };
+  /** A judge that answers the roll question with `noul` (null: no answer) and keeps what it was sent. */
+  const rollJudge = (noul: number | null) => {
+    const requests: JudgeRequest[] = [];
+    const judge = async (request: JudgeRequest): Promise<JudgeResult> => {
+      requests.push(request);
+      return { model: "jev-1", inputTokens: 5, answers: noul === null ? {} : { roll: { type: "noul", noul } } };
+    };
+    return { judge, requests };
+  };
+  const askStep = (): ModelStep =>
+    step(10, { blocks: [{ type: "tool_call", id: "r1", name: "ask_roll", input: { kind: "check", skill: "sleight_of_hand", dc: 15 } }], stop: "tool_calls" });
+  const told = (h: Harness): string => opening(h.requests[0]);
+  const faults = (warn: ReturnType<typeof vi.spyOn>) => warn.mock.calls.filter((c) => String(c[0]).includes("without a roll"));
+
+  it("tells the narrator to call ask_roll when the attempt is judged uncertain, in what it reads this turn", async () => {
+    const h = played([step(10)]);
+    h.deps.judgeNarration = rollJudge(0.9).judge;
+    await play(h, { body: PICK, rollCheck: true });
+    expect(told(h)).toContain(ROLL_HINT);
+  });
+
+  it("adds no hint below the threshold, or without an answer, or without a judge", async () => {
+    const low = played([step(10)]);
+    low.deps.judgeNarration = rollJudge(0.2).judge;
+    await play(low, { body: PICK, rollCheck: true });
+    const none = played([step(10)]);
+    none.deps.judgeNarration = rollJudge(null).judge;
+    await play(none, { body: PICK, rollCheck: true });
+    const keyless = played([step(10)]);
+    await play(keyless, { body: PICK, rollCheck: true });
+    for (const h of [low, none, keyless]) expect(told(h)).not.toContain(ROLL_HINT);
+  });
+
+  it("plays the turn as before when the judge throws", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const h = played([step(10)]);
+      h.deps.judgeNarration = async () => { throw new Error("typesafe down"); };
+      await play(h, { body: PICK, rollCheck: true });
+      expect(told(h)).not.toContain(ROLL_HINT);
+      expect(last(h)).toMatchObject({ type: "done" });
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("judges the player's words where they happen, with the narrator's last shown text as the scene", async () => {
+    const h = played([step(10)]);
+    const j = rollJudge(0.9);
+    h.deps.judgeNarration = j.judge;
+    await play(h, { body: PICK, rollCheck: true });
+    expect(j.requests).toHaveLength(1);
+    expect(j.requests[0].state).toMatchObject({ message: PICK.message });
+  });
+
+  it.each([
+    ["an ask", { ...PICK, mode: "ask" }],
+    ["a listening turn, which has no words of the player's", { campaignId: CAMPAIGN, sessionId: SESSION, message: "", mode: "do", listening: true }],
+    ["a roll's answer", { ...PICK, roll: { faces: [13], mode: "normal", bonus: 4, atTable: true } }],
+  ])("asks the judge nothing for %s", async (_name, body) => {
+    const h = played([step(10)], { pending_roll: { label: "Dexterity", kind: "check", ability: "dex", skill: null, dc: 12 } });
+    const j = rollJudge(0.9);
+    h.deps.judgeNarration = j.judge;
+    await play(h, { body, rollCheck: true });
+    expect(j.requests).toHaveLength(0);
+    expect(told(h)).not.toContain(ROLL_HINT);
+  });
+
+  it("asks nothing while a fight is running, which has its own rolls", async () => {
+    const h = played([step(10)], { fight_encounter_id: FIGHT });
+    h.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "Rats", phase: "running", round: 1, fighters: [] } };
+    const j = rollJudge(0.9);
+    h.deps.judgeNarration = j.judge;
+    await play(h, { body: PICK, rollCheck: true });
+    expect(j.requests).toHaveLength(0);
+  });
+
+  it("logs the fault when a flagged attempt ends with no roll asked, with the likelihood and none of the player's words", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const h = played([step(10, { blocks: [{ type: "text", text: "The lock clicks open." }] })]);
+      h.deps.judgeNarration = rollJudge(0.9).judge;
+      await play(h, { body: PICK, rollCheck: true });
+      expect(faults(warn)).toHaveLength(1);
+      expect(String(faults(warn)[0][0])).toContain("0.90");
+      expect(JSON.stringify(warn.mock.calls)).not.toContain("SECRET-PLAYER-WORDS");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("logs no fault when the narrator did ask for the roll", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const h = played([askStep(), step(10)]);
+      h.deps.judgeNarration = rollJudge(0.9).judge;
+      await play(h, { body: PICK, rollCheck: true });
+      expect(faults(warn)).toHaveLength(0);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("logs no fault when the attempt was not flagged, though no roll was asked", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const h = played([step(10)]);
+      h.deps.judgeNarration = rollJudge(0.1).judge;
+      await play(h, { body: PICK, rollCheck: true });
+      expect(faults(warn)).toHaveLength(0);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("logs no fault when the narrator started a fight instead of asking", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const h = played([
+        step(10, { blocks: [{ type: "tool_call", id: "f1", name: "start_fight", input: { encounter_id: FIGHT } }], stop: "tool_calls" }),
+        step(10),
+      ], { scene_location_id: CELLAR });
+      h.state.fights = { prepared: [{ id: FIGHT, name: "The cellar rats", creatures: "3 Giant Rats" }], fight: null };
+      h.deps.judgeNarration = rollJudge(0.9).judge;
+      await play(h, { body: PICK, rollCheck: true });
+      expect(h.events.some((e) => e.type === "fight")).toBe(true);
+      expect(faults(warn)).toHaveLength(0);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

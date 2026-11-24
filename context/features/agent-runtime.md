@@ -436,6 +436,15 @@ Live, after characters had spoken, the narrator kept closing the turn by restati
 - **What is stored is what the player saw.** Nothing kept: the stored text blocks get `unshown: true`; the model still reads them in the history, but a page replaying the turn must not draw them. Part kept: the stored message's text becomes the kept text (in its first text block, further text blocks of that message removed, never an empty block), so the next turn's history shows the narrator its own narration as the player read it, which is also the example it should follow. All kept: untouched. A stored message whose text differs from the held text is left alone.
 - **Held text is no longer streamed word by word** once a line has been shown: it appears whole, after the step ends and the judgment returns.
 
+### An uncertain attempt gets a roll (#1021, #1205)
+
+5e calls for an ability check when the outcome of an attempt is uncertain and failing would matter (SRD 5.1 "Ability Checks"), and the narrator sometimes told how such an attempt went without asking. Narration has already streamed when that is known, so the turn is not re-run: the check prevents it and logs it when it happens anyway (`_shared/agent/rollCheck.ts`).
+
+- **Before the turn.** For a player's say or do with words in it, that does not answer a roll and is not in a running fight (a fight has its own rolls), the same judge as the narration check is asked one question: is the character attempting something whose outcome is uncertain, where failure would matter (speech that persuades, deceives or intimidates counts), judged against the narrator's last shown text. It runs while the campaign's secrets load, bounded by the narration judge's 1.5 s limit. At `ROLL_NEEDED_MIN` or above, one sentence (`ROLL_HINT`) is added to the state the narrator reads, telling it to call `ask_roll` first. It is a hint, not a ruling: the narrator may still decide no roll is needed.
+- **After the turn.** When the attempt was flagged and the turn asked for no roll and started no fight, `agent-turn: an uncertain action was settled without a roll (judged 0.xx ...)` is logged with `console.warn`. Only the probability is logged, never the player's words.
+- **It fails open.** No judge, a throw (logged as skipped), a timeout or a missing answer: no hint and no fault.
+- **The threshold is 0.7 and is not measured.** There is no labelled set behind it (the narration check's 0.85 was measured on invented examples, this has not been). It errs toward fewer hints, because a needless hint makes the narrator ask for pointless rolls. Count the logged faults in real play and move it when a labelled set says otherwise.
+
 ## The screen (`/table`, `src/views/table/`, `src/components/table/solo/`, `src/lib/table/`, `src/composables/table/`)
 
 The Solo Table canvas, built for version one: the story, the composer, the scene column and continuing an earlier sitting. No map yet.
