@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   acknowledge: vi.fn(),
   listUnconsumed: vi.fn(),
   invalidateQueries: vi.fn(),
-  ui: { addSoundDialogOpen: false },
+  openPanel: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -23,8 +23,8 @@ vi.mock("@tanstack/vue-query", () => ({
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
 }));
 
-vi.mock("@/stores/ui/soundboard", () => ({
-  useSoundboardUiStore: () => mocks.ui,
+vi.mock("@/stores/ui/ask", () => ({
+  useAskUiStore: () => ({ openPanel: mocks.openPanel }),
 }));
 
 vi.mock("./useAiGenerationJob", async (importOriginal) => {
@@ -61,7 +61,6 @@ const INPUT: MusicGenerationInput = {
   category: "music",
   request: { description: "Rosie", lengthSeconds: 180, vocals: "vocals", mentions: [], imageCount: 1 },
   imageUrls: ["https://cdn.example/rosie.jpeg"],
-  prompt: null,
 };
 
 describe("useMusicGeneration", () => {
@@ -69,25 +68,23 @@ describe("useMusicGeneration", () => {
     vi.clearAllMocks();
     fake.reset();
     localStorage.clear();
-    mocks.ui.addSoundDialogOpen = false;
     mocks.invoke.mockResolvedValue({ data: { job_id: "job-1" }, error: null });
     const music = useMusicGeneration();
-    music.resetDraft();
     music.clearError();
     music.clearCompleted();
   });
 
-  it("registers with the badge, and Reopen opens the Add Sound dialog", () => {
+  // Bug caught: the badge's Reopen opened a dialog that no longer has a Generate tab, so a failed track left the DM nowhere to go.
+  it("registers with the badge, and Reopen brings the Familiar back", () => {
     const entry = getAiGeneratorRegistry().find((e) => e.label === "Music");
     expect(entry).toBeDefined();
     entry!.openPanel();
-    expect(mocks.ui.addSoundDialogOpen).toBe(true);
+    expect(mocks.openPanel).toHaveBeenCalledOnce();
   });
 
-  it("applies the finished track, clears the draft and marks it completed for the badge", async () => {
+  it("applies the finished track and marks it completed for the badge", async () => {
     mocks.waitForJob.mockResolvedValue(job());
     const music = useMusicGeneration();
-    music.draft.description.value = "@Rosie";
 
     const done = await music.generate(INPUT);
 
@@ -96,26 +93,10 @@ describe("useMusicGeneration", () => {
     expect(mocks.acknowledge).toHaveBeenCalledWith("job-1");
     expect(music.completedEntityId.value).toBe("sound-1");
     expect(music.concept.value).toBe("Rosie's Defense");
-    expect(music.draft.description.value).toBe("");
     expect(music.isGenerating.value).toBe(false);
   });
 
-  it("leaves the Generate tab's draft untouched on success, a refusal and a re-file when asked to keep it", async () => {
-    const music = useMusicGeneration();
-    music.draft.description.value = "half typed";
-    music.draft.category.value = "ambient";
-
-    mocks.waitForJob.mockResolvedValue(job());
-    expect(await music.generate({ ...INPUT, keepDraft: true })).toBe(true);
-    expect(music.draft.description.value).toBe("half typed");
-    expect(music.draft.category.value).toBe("ambient");
-
-    mocks.waitForJob.mockRejectedValue(new AiGenerationJobFailedError(job({ status: "failed", artifacts: { url: null, storagePath: null, mimeType: null, metadata: { prompt: "Ask's prompt" } } })));
-    expect(await music.generate({ ...INPUT, keepDraft: true })).toBe(false);
-    expect(music.draft.editedPrompt.value).toBeNull();
-  });
-
-  it("hands a refused prompt back as the editable draft prompt", async () => {
+  it("reports a refused prompt as the error and applies nothing", async () => {
     const refused = job({
       status: "failed",
       error: "Input blocked: The prompt contains sensitive words.",
@@ -128,21 +109,7 @@ describe("useMusicGeneration", () => {
 
     expect(done).toBe(false);
     expect(music.error.value).toBe("Input blocked: The prompt contains sensitive words.");
-    expect(music.draft.editedPrompt.value).toBe("A song about Rosetta Vermeil.");
-    expect(music.draft.category.value).toBe("music");
     expect(music.completedEntityId.value).toBeNull();
-  });
-
-  it("leaves the draft prompt alone when the job failed before a prompt existed", async () => {
-    mocks.waitForJob.mockRejectedValue(new AiGenerationJobFailedError(
-      job({ status: "failed", error: "Could not prepare the music prompt.", artifacts: { url: null, storagePath: null, mimeType: null, metadata: {} } }),
-    ));
-    const music = useMusicGeneration();
-
-    await music.generate(INPUT);
-
-    expect(music.error.value).toBe("Could not prepare the music prompt.");
-    expect(music.draft.editedPrompt.value).toBeNull();
   });
 
   it("does not start a second generation while one is running", async () => {
@@ -293,16 +260,5 @@ describe("useMusicGeneration", () => {
       expect(mocks.acknowledge).toHaveBeenCalledWith("job-1");
       expect(music.completedEntityId.value).toBe("sound-1");
     });
-  });
-
-  it("sends an edited prompt as written", async () => {
-    mocks.waitForJob.mockResolvedValue(job());
-    const music = useMusicGeneration();
-
-    await music.generate({ ...INPUT, prompt: "A defiant duel song for a swashbuckler." });
-
-    expect(mocks.invoke).toHaveBeenCalledWith("generate-music", expect.objectContaining({
-      body: expect.objectContaining({ prompt: "A defiant duel song for a swashbuckler." }),
-    }));
   });
 });

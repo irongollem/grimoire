@@ -50,8 +50,8 @@ describe("useConnectionSuggestionsAskAdapter", () => {
     expect(useConnectionSuggestionsAskAdapter().quote(proposal()).total).toBe(useConnectionSuggestionsQuote()().total);
   });
 
-  // Bug caught: suggestions were asked for a record that is not an NPC (the model named a quest), and stored where no sheet reads them.
-  it("blocks without an NPC target, with AI off, on a short balance and on an over-long steer", () => {
+  // Bug caught: suggestions were asked for a record no tie can join (the model named a quest), and stored where no sheet reads them.
+  it("blocks without a target a tie can join, with AI off, on a short balance and on an over-long steer", () => {
     const adapter = useConnectionSuggestionsAskAdapter();
     expect(adapter.quote(proposal({ target: undefined })).block?.reason).toBe("missing");
     expect(adapter.quote(proposal({ target: { type: "quest", id: "q1", name: "Q" } })).block?.reason).toBe("missing");
@@ -84,6 +84,21 @@ describe("useConnectionSuggestionsAskAdapter", () => {
     expect((await useConnectionSuggestionsAskAdapter().run(proposal())).parts[0]).toMatchObject({ ok: false, error: "boom" });
     state.count = 0;
     expect((await useConnectionSuggestionsAskAdapter().run(proposal())).parts[0]).toMatchObject({ ok: false });
+  });
+
+  // Bug caught: the card opened from a faction's, a place's or a canon entry's Connections block asked for, and sent the DM to, an NPC
+  // (the adapter was NPC-only), so the suggestions landed under a subject the page never reads.
+  it("asks for any kind the Connections block supports and ends on that record's own page", async () => {
+    const cases = [
+      ["faction", "/factions/r1"], ["party_member", "/party/r1"], ["location", "/locations?at=r1"],
+      ["deity", "/deities/r1"], ["item", "/vault/r1"], ["canon", "/canon?entry=r1"],
+    ] as const;
+    for (const [type, route] of cases) {
+      calls.suggest.mockClear();
+      const result = await useConnectionSuggestionsAskAdapter().run(proposal({ target: { type, id: "r1", name: "R" } }));
+      expect(calls.suggest).toHaveBeenCalledExactlyOnceWith({ kind: type, id: "r1" }, "someone with a grudge");
+      expect(result.route).toBe(route);
+    }
   });
 
   it("does not run when blocked or while another generation runs", async () => {

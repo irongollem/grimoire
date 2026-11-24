@@ -1,7 +1,6 @@
 /**
- * Turning a model's draft into a Scriptorium document, extracted from `ScriptoriumDraftDialog` so Ask Grimoire files
- * a draft exactly as the dialog does (#1253). Deliberately narrow: the dialog keeps the paywall, the retained-draft
- * retry and the navigation; this is the book shape and the create call.
+ * Turning a model's draft into a Scriptorium document (#1253). Deliberately narrow: the Ask adapter keeps the
+ * quota message and the save-again retry; this is the book shape and the create call.
  */
 import type { DraftKind } from "@edge-shared/scriptoriumDraft.ts";
 import type { ScriptoriumDocInsert } from "@/scriptorium/types";

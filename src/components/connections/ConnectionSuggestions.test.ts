@@ -5,12 +5,11 @@ import type { ResolvedSuggestion } from "@/ai/useConnectionSuggestions";
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
-  suggest: vi.fn(),
+  open: vi.fn(),
   dismiss: vi.fn(),
   dismissAll: vi.fn(),
   toastError: vi.fn(),
   aiEnabled: { value: true },
-  canSpend: { value: true },
 }));
 const suggestions = ref<ResolvedSuggestion[]>([]);
 const setAside = ref<{ target_name: string; claim: string; reason: string }[]>([]);
@@ -22,15 +21,10 @@ vi.mock("@/stores/campaign", () => ({
 vi.mock("@/composables/connections/useConnections", () => ({
   useCreateConnection: () => ({ mutateAsync: mocks.create }),
 }));
-vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
-vi.mock("@/composables/ai/useGenerationGate", () => ({ useGenerationGate: () => ({ canSpend: () => mocks.canSpend.value }) }));
-vi.mock("@/composables/ai/useCampaignProviders", () => ({
-  useCampaignProviders: () => ({ textCredits: (n: number) => n }),
-}));
+vi.mock("@/composables/ask/useOpenGenerator", () => ({ useOpenGenerator: () => ({ open: mocks.open }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: mocks.toastError, success: vi.fn() }) }));
 vi.mock("@/ai/useConnectionSuggestions", () => ({
   useConnectionSuggestions: () => ({
-    suggest: mocks.suggest,
     forSubject: () => ({
       isGenerating: ref(false),
       error: ref(null),
@@ -50,7 +44,6 @@ const npcSubject = { kind: "npc", id: "n1" } as const;
 function mountFor(subject: { kind: "npc" | "item" | "faction"; id: string } = npcSubject, subjectName = "Mara Voss") {
   return mount(ConnectionSuggestions, {
     props: { subject, subjectName },
-    global: { stubs: { GenerationCostBadge: true } },
   });
 }
 
@@ -59,7 +52,6 @@ describe("ConnectionSuggestions", () => {
     Object.values(mocks).forEach((m) => typeof m === "function" && m.mockReset());
     mocks.create.mockResolvedValue(undefined);
     mocks.aiEnabled.value = true;
-    mocks.canSpend.value = true;
     suggestions.value = [];
     setAside.value = [];
     provenance.value = { generatorType: "npc_relationship_suggestion" };
@@ -70,15 +62,13 @@ describe("ConnectionSuggestions", () => {
     expect(mountFor().html()).toBe("<!--v-if-->");
   });
 
-  it("opens a steer box and asks for the subject with the steer", async () => {
-    const w = mountFor();
-    expect(w.text()).not.toContain("Steer the suggestions");
+  // Bug caught: Suggest still opened the page's own steer box (or ran at once), so the steer and the price never reached the Familiar's card,
+  // or the card opened on another record than the sheet's.
+  it("opens the record's card in the Familiar and asks nothing of the model itself", async () => {
+    const w = mountFor({ kind: "faction", id: "f1" } as never, "Toll-men");
     await w.findAll("button").find((b) => b.text() === "Suggest")!.trigger("click");
-    expect(w.text()).toContain("Steer the suggestions");
-    await w.find("input").setValue("a grudge");
-    mocks.suggest.mockResolvedValue(true);
-    await w.findAll("button").find((b) => b.text().includes("Suggest connections"))!.trigger("click");
-    expect(mocks.suggest).toHaveBeenCalledWith(npcSubject, "a grudge");
+    expect(mocks.open).toHaveBeenCalledExactlyOnceWith("connection_suggestions", { target: { type: "faction", id: "f1", name: "Toll-men" } });
+    expect(w.find("input").exists()).toBe(false);
   });
 
   it("accepts a link with the direction the suggestion names, and the provenance", async () => {
@@ -194,33 +184,6 @@ describe("ConnectionSuggestions", () => {
     const w = mountFor({ kind: "item", id: "i1" } as never, "The Ferry Bell");
     expect(w.text()).toContain('Set aside: "The Ferry Bell is kept at Weir Chapel". Brenna carries it.');
     expect(w.findAll("button").filter((b) => b.text() === "Accept")).toHaveLength(0);
-  });
-
-  it("does not ask the model when the DM cannot afford the run", async () => {
-    mocks.canSpend.value = false;
-    const w = mountFor();
-    await w.findAll("button").find((b) => b.text() === "Suggest")!.trigger("click");
-    await w.findAll("button").find((b) => b.text().includes("Suggest connections"))!.trigger("click");
-    expect(mocks.suggest).not.toHaveBeenCalled();
-  });
-
-  it("closes the steer box and forgets the steer after a run, but keeps both when the run fails", async () => {
-    const w = mountFor();
-    const open = () => w.findAll("button").find((b) => b.text() === "Suggest")!.trigger("click");
-    await open();
-    await w.find("input").setValue("a grudge");
-    mocks.suggest.mockResolvedValueOnce(false);
-    await w.findAll("button").find((b) => b.text().includes("Suggest connections"))!.trigger("click");
-    await flushPromises();
-    expect(w.text()).toContain("Steer the suggestions");
-    expect((w.find("input").element as HTMLInputElement).value).toBe("a grudge");
-
-    mocks.suggest.mockResolvedValueOnce(true);
-    await w.findAll("button").find((b) => b.text().includes("Suggest connections"))!.trigger("click");
-    await flushPromises();
-    expect(w.text()).not.toContain("Steer the suggestions");
-    await open();
-    expect((w.find("input").element as HTMLInputElement).value).toBe("");
   });
 
   it("locks Accept and Dismiss while a suggestion is being written", async () => {

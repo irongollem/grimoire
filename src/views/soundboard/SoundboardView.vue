@@ -698,8 +698,7 @@ useHotkeys(
 );
 
 // ── Add sound ───────────────────────────────────────────────────────────
-// The dialog is mounted app-wide (AiGeneratorPanels) so music generation can be
-// reopened from its badge on any page.
+// The dialog is mounted app-wide (AiGeneratorPanels); its Generate button opens the track's card in the Familiar.
 function openAddSound() {
   if (!canCreateSound.value) {
     showSoundPaywall.value = true;

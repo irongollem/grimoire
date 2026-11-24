@@ -1,24 +1,27 @@
 /**
- * Ask Grimoire (#1253): drafting a Scriptorium document, as a quote and a run.
+ * Ask Grimoire (#1253, #1270): drafting a Scriptorium document, as a quote and a run.
  *
- * The price is the dialog's (`useScriptoriumDraftQuote`), the gates are the dialog's (`useAskGate` with the
- * `scriptorium_documents` quota), and the run is the dialog's
- * two steps: `generate` then `saveDraft` (`useGenerateScriptoriumDraft`).
+ * The Scriptorium's "Draft with AI" opens this card (`useOpenGenerator`), and the model may propose it too. The price is
+ * the old dialog's (`useScriptoriumDraftQuote`), the gates are its (`useAskGate` with the `scriptorium_documents`
+ * quota), and the run is its two steps: `generate` then `saveDraft` (`useGenerateScriptoriumDraft`).
  *
- * The draft is grounded in one record, so the proposal must name it: a subject type and id the model took from the
- * campaign. An id this campaign does not have is a "missing" block, never sent: the server would answer 404 after the
+ * The draft is grounded in one record, so the proposal must name it. The card picks it by kind (`npc_id`,
+ * `location_id`, `faction_id`, or `session_id` for a recap), so the id read is the one that matches what the draft is
+ * about: a dossier is about a faction and a recap about a session whatever `subject_type` says, and only a handout
+ * chooses. An id this campaign does not have is a "missing" block, never sent: the server would answer 404 after the
  * DM pressed the button.
  *
- * A paid draft whose save failed is not retried here: the part says so, and the DM drafts again from the dialog, which
- * keeps such a draft for a free save.
+ * A paid draft whose save failed is kept by the part, and its retry only saves it again, free: the dialog's "Save
+ * again" (its "Discard" is the DM's "Leave it" on the card).
  */
 import { computed, ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { DraftAudience, DraftKind, DraftSubjectType } from "@edge-shared/scriptoriumDraft.ts";
-import type { AskAdapter, AskQuote, AskQuoteLine, AskRunResult } from "@/lib/ask/askAdapter";
+import type { AskAdapter, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
 import { failedRun } from "@/ai/ask/adapters/askAdapterKit";
 import { askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
+import { useChronicleSessionOptions } from "@/ai/ask/askSessionNotes";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { useScriptoriumDraft } from "@/ai/useScriptoriumDraft";
@@ -27,12 +30,13 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useAllLocations } from "@/composables/locations/useLocations";
-import { useNotes } from "@/composables/notes/useNotes";
 import { useScriptoriumDraftQuote } from "@/composables/ai/quotes/scriptoriumDraftQuote";
-import { useSaveScriptoriumDraft } from "@/scriptorium/composables/useGenerateScriptoriumDraft";
+import { useSaveScriptoriumDraft, type KindedDraft } from "@/scriptorium/composables/useGenerateScriptoriumDraft";
 
 const KINDS: readonly DraftKind[] = ["handout", "faction_dossier", "session_recap"];
-const SUBJECT_TYPES: readonly DraftSubjectType[] = ["npc", "location", "faction", "session"];
+const HANDOUT_SUBJECTS = ["npc", "location", "faction"] as const;
+/** The contract input that holds the record each kind of subject is picked by. */
+const SUBJECT_INPUT: Record<DraftSubjectType, string> = { npc: "npc_id", location: "location_id", faction: "faction_id", session: "session_id" };
 const KIND_LABEL: Record<DraftKind, string> = {
   handout: "Player handout", faction_dossier: "Faction dossier", session_recap: "Session recap",
 };
@@ -54,13 +58,13 @@ export function useScriptoriumDraftAskAdapter(): AskAdapter {
   const { data: npcs } = useNpcs(() => wanted.value === "npc");
   const { data: locations } = useAllLocations(() => wanted.value === "location");
   const { data: factions } = useAllFactions(() => wanted.value === "faction");
-  const { data: notes } = useNotes(() => wanted.value === "session");
+  const sessions = useChronicleSessionOptions(() => wanted.value === "session");
   const loading = computed(() => {
     switch (wanted.value) {
       case "npc": return npcs.value === undefined;
       case "location": return locations.value === undefined;
       case "faction": return factions.value === undefined;
-      case "session": return notes.value === undefined;
+      case "session": return sessions.loading.value;
       case null: return false;
     }
   });
@@ -71,7 +75,7 @@ export function useScriptoriumDraftAskAdapter(): AskAdapter {
       case "location": return locations.value?.find((l) => l.id === id)?.name ?? null;
       case "faction": return factions.value?.find((f) => f.id === id)?.name ?? null;
       // A recap is written about a chronicle entry: a note linked to a session.
-      case "session": return notes.value?.find((n) => n.id === id && n.session_id !== null)?.title ?? null;
+      case "session": return sessions.options.value.find((o) => o.id === id)?.name ?? null;
     }
   }
 
@@ -79,10 +83,9 @@ export function useScriptoriumDraftAskAdapter(): AskAdapter {
     const inputs = readAskInputs("scriptorium_draft", proposal.inputs);
     const kind = pick(KINDS, askString(inputs, "kind")) ?? "handout";
     // A dossier is about a faction and a recap about a session; only a handout chooses what it is about.
-    const stated = pick(SUBJECT_TYPES, askString(inputs, "subject_type"));
-    // A handout may be about an NPC, a place or a faction, never a session.
-    const subjectType: DraftSubjectType | null = kind === "faction_dossier" ? "faction" : kind === "session_recap" ? "session" : stated === "session" ? null : stated;
-    const subjectId = askString(inputs, "subject_id");
+    const stated = pick(HANDOUT_SUBJECTS, askString(inputs, "subject_type"));
+    const subjectType: DraftSubjectType | null = kind === "faction_dossier" ? "faction" : kind === "session_recap" ? "session" : stated;
+    const subjectId = subjectType === null ? null : askString(inputs, SUBJECT_INPUT[subjectType]);
     wanted.value = subjectType !== null && subjectId !== null ? subjectType : null;
     const said = askString(inputs, "audience");
     // Audience follows the kind (a dossier is prep, the others are handed out) until the proposal says otherwise.
@@ -107,13 +110,13 @@ export function useScriptoriumDraftAskAdapter(): AskAdapter {
     if (read.subjectType !== null && read.subjectName !== null) {
       lines.push({ label: SUBJECT_LABEL[read.subjectType], value: read.subjectName, credits: null });
     }
-    lines.push({ label: "Written for", value: read.audience === "dm" ? "DM only" : "Players", credits: null });
+    lines.push({ label: "Written for", value: read.audience === "dm" ? "DM only, secrets included" : "Players, from what they can already see", credits: null });
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
 
     let block = blockFor({ total: priced.total });
     if (!block && (read.subjectType === null || read.subjectId === null)) {
-      block = { reason: "missing", message: "Say who or what the document is about first." };
+      block = { reason: "missing", message: read.subjectType === null ? "Say who or what the handout is about first." : `Pick the ${read.subjectType === "npc" ? "NPC" : SUBJECT_LABEL[read.subjectType].toLowerCase()} first.` };
     } else if (!block && loading.value) {
       block = { reason: "missing", message: "Still reading this campaign's records." };
     } else if (!block && read.subjectName === null) {
@@ -140,20 +143,43 @@ export function useScriptoriumDraftAskAdapter(): AskAdapter {
     };
     const draft = await generate(request);
     if (!draft) return failedRun("Draft", draftError.value ?? "The draft could not be written. Nothing was charged.");
+    // A retry files the draft in the campaign it was written for, whatever the DM has switched to since.
+    const campaignId = campaign.activeCampaignId;
+    const kinded = { ...draft, kind: read.kind };
     try {
-      const created = await saveDraft({ ...draft, kind: read.kind }, campaign.activeCampaignId);
+      const created = await saveDraft(kinded, campaignId);
       return {
         record: { type: "other", id: created.id, name: created.title },
         route: `/scriptorium/${created.id}`,
         parts: [{ label: "Draft", ok: true, credits }],
       };
     } catch (e) {
-      const message = isQuotaExceeded(e)
-        ? "You have reached your limit of documents on this plan."
-        : e instanceof Error ? e.message : "The draft could not be saved.";
-      // The draft was paid for and is lost to this panel; the dialog keeps one for a free retry, so say what happened.
-      return { record: null, route: null, parts: [{ label: "Draft", ok: false, credits, error: `The draft was written but not saved: ${message}` }] };
+      return { record: null, route: null, parts: [saveFailed(kinded, campaignId, credits, e)] };
     }
+  }
+
+  /** The paid draft whose save failed: the part says so and its retry saves the kept draft again, which costs nothing. */
+  function saveFailed(draft: KindedDraft, campaignId: string | null, credits: number, cause: unknown): AskRunPart {
+    const message = isQuotaExceeded(cause)
+      ? "You have reached your limit of documents on this plan."
+      : cause instanceof Error ? cause.message : "The draft could not be saved.";
+    return {
+      label: "Draft",
+      ok: false,
+      credits,
+      error: `The draft was written but not saved: ${message}`,
+      retry: {
+        credits: 0,
+        run: async () => {
+          try {
+            const created = await saveDraft(draft, campaignId);
+            return { label: `Saved "${created.title}" to the Scriptorium`, ok: true, credits: 0 };
+          } catch (e) {
+            return saveFailed(draft, campaignId, credits, e);
+          }
+        },
+      },
+    };
   }
 
   return { id: "scriptorium_draft", quote, run };
