@@ -228,7 +228,7 @@ describe("AskPanel", () => {
     const w = mount(AskPanel, { global: { stubs } });
     const toggle = w.get('[data-testid="ask-voice"]');
     expect(toggle.attributes("aria-pressed")).toBe("false");
-    expect(toggle.attributes("aria-label")).toBe("Oolu reads replies aloud · about 6 credits a minute");
+    expect(toggle.attributes("aria-label")).toBe("Oolu reads replies aloud · about 6 credits per minute of speech, charged only while it reads");
     await ask(w);
     expect(voiceTransport).not.toHaveBeenCalled();
     w.unmount();

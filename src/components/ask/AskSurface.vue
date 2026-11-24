@@ -118,7 +118,8 @@ const emit = defineEmits<{
 
 const voiceLabel = computed(() => {
   const base = "Oolu reads replies aloud";
-  return props.voice.perMinute === null ? base : `${base} · about ${creditsText(props.voice.perMinute)} a minute`;
+  // Priced by the minute of speech, said as such: "a minute" alone read like a line that charges while it is silent.
+  return props.voice.perMinute === null ? base : `${base} · about ${creditsText(props.voice.perMinute)} per minute of speech, charged only while it reads`;
 });
 
 const composer = ref<InstanceType<typeof AskComposer> | null>(null);
