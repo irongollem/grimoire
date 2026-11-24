@@ -146,6 +146,11 @@ export interface AccountResponse {
   /** The ElevenLabs custom voice slots; null when the stack has no ElevenLabs key. */
   slots: { used: number; limit: number } | null;
   unregistered: AccountVoice[];
+  /**
+   * The parts the service refused with the key on file (its permissions, not a failure): "elevenlabs-slots" (the
+   * count needs ElevenLabs' User read), "elevenlabs-voices" / "inworld-voices" (listing the account's voices).
+   */
+  refused: string[];
 }
 
 /** An ElevenLabs voice found by its ID (pasted from their website), to fill a slot with. */

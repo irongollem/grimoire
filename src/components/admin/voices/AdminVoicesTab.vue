@@ -8,6 +8,7 @@
           <template v-else>Voices</template>
         </h2>
         <p class="mt-0.5 text-caption text-muted-foreground italic">Designed voices each use one of your custom slots on ElevenLabs. Voices added from the Voice Library use none, so there is no limit to how many you add.</p>
+        <p v-if="refusedNote" class="mt-1 text-caption text-muted-foreground" role="status" data-testid="voices-refused">{{ refusedNote }}</p>
       </div>
       <AppButton variant="primary" size="sm" :icon="IconAdd" label="New slot" @click="openNew" />
     </header>
@@ -75,6 +76,15 @@ const studio = useVoiceStudio(sample);
 const account = studio.account;
 // Null when the stack has no ElevenLabs key: the count is then not shown at all.
 const slots = computed(() => account.data.value?.slots ?? null);
+/** Why part of the summary is missing: the key on file may not do it. Each part says which permission it needs. */
+const refusedNote = computed(() => {
+  const refused = account.data.value?.refused ?? [];
+  const parts: string[] = [];
+  if (refused.includes("elevenlabs-slots")) parts.push("the slot count needs User read");
+  if (refused.includes("elevenlabs-voices")) parts.push("listing your ElevenLabs voices needs Voices read");
+  if (refused.includes("inworld-voices")) parts.push("listing your Inworld voices needs a key that may list them");
+  return parts.length === 0 ? null : `The key on file is not allowed some of this: ${parts.join("; ")}. Add it to the key in Admin > Providers.`;
+});
 
 const list = computed(() => voices.data.value ?? []);
 const groups = computed(() => [

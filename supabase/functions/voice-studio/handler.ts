@@ -364,15 +364,38 @@ async function libraryAdd(body: Record<string, unknown>, deps: StudioDeps): Prom
   }
 }
 
+/** Whether the service refused the key for this call: the key's permissions, not a hiccup. */
+const refusedKey = (error: unknown): boolean => error instanceof ServiceError && (error.status === 401 || error.status === 403);
+
+/**
+ * The account summary: the custom-slot count and the voices on the accounts that no slot holds. Each part stands on
+ * its own: a key allowed to list voices but not to read the subscription (ElevenLabs' "User read") still lists them,
+ * and the parts it was refused are named (`refused`) so the page can say why they are missing. Seen live after #1275:
+ * one refused part failed the whole summary, retried on every visit, and hid the voices to import.
+ */
 async function account(deps: StudioDeps): Promise<Response> {
   const held = new Set((await deps.db.listAll()).filter((r) => r.service !== null && r.voice_id !== null).map((r) => `${r.service}:${r.voice_id}`));
-  const slots = deps.services.hasService("elevenlabs") ? await deps.services.accountSlots() : null;
+  const refused: string[] = [];
+  let slots: { used: number; limit: number } | null = null;
+  if (deps.services.hasService("elevenlabs")) {
+    try {
+      slots = await deps.services.accountSlots();
+    } catch (error) {
+      if (!refusedKey(error)) throw error;
+      refused.push("elevenlabs-slots");
+    }
+  }
   const unregistered: AccountVoice[] = [];
   for (const service of SERVICES as SpeechService[]) {
     if (!deps.services.hasService(service)) continue;
-    for (const v of await deps.services.accountVoices(service)) if (!held.has(`${v.service}:${v.voiceId}`)) unregistered.push(v);
+    try {
+      for (const v of await deps.services.accountVoices(service)) if (!held.has(`${v.service}:${v.voiceId}`)) unregistered.push(v);
+    } catch (error) {
+      if (!refusedKey(error)) throw error;
+      refused.push(`${service}-voices`);
+    }
   }
-  return json({ slots, unregistered });
+  return json({ slots, unregistered, refused });
 }
 
 /**

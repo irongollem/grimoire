@@ -190,6 +190,28 @@ describe("design", () => {
     expect(h.calls).toEqual(["lookup:nosuchvoice1"]);
   });
 
+  // Bug caught (seen live): a key without User read failing the whole summary (retried on every visit), which also hid
+  // the account's voices to import.
+  it("lists the account's voices when the slot count is refused, and names what was refused", async () => {
+    const { h, run } = harness();
+    h.deps.services.accountSlots = async () => {
+      throw new ServiceError("elevenlabs", 401);
+    };
+    const body = (await read(await run({ action: "account" }))) as unknown as { slots: unknown; unregistered: unknown[]; refused: string[] };
+    expect(body.slots).toBeNull();
+    expect(body.unregistered.length).toBeGreaterThan(0);
+    expect(body.refused).toEqual(["elevenlabs-slots"]);
+  });
+
+  // Bug caught: a real failure of the service hidden as a refusal, so the page shows a part missing with no error.
+  it("still fails the summary for a failure that is not a refused key", async () => {
+    const { h, run } = harness();
+    h.deps.services.accountSlots = async () => {
+      throw new ServiceError("elevenlabs", 500);
+    };
+    expect((await run({ action: "account" })).status).toBe(502);
+  });
+
   // Bug caught (seen live): a key not allowed to design voices answered "try again in a moment", which can never help.
   it("says the key is not allowed, not to try again, when the service refuses the key", async () => {
     const { h, run } = harness();

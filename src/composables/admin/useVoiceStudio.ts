@@ -120,6 +120,8 @@ export function useVoiceStudio(sample?: { forget: (slotId: string) => void }) {
     queryKey: VOICE_ACCOUNT_KEY,
     queryFn: () => voiceStudioCall<AccountResponse>({ action: "account" }),
     staleTime: 5 * 60_000,
+    // A refused key is answered inside the summary now; what is left to fail is worth one more try, not three.
+    retry: 1,
   });
   const refreshAccount = () => queryClient.invalidateQueries({ queryKey: VOICE_ACCOUNT_KEY });
 
