@@ -170,7 +170,7 @@ function onExperiment() {
 }
 
 async function onInvent() {
-  if (!requireCredits(inventCost.value, false)) return;
+  if (!requireCredits(inventCost.value)) return;
   inventNote.value = null;
   const out = await inventions.inventFromMaterials(member.id, disciplineId, lastRowIds.value);
   if (!out) return;

@@ -18,7 +18,7 @@ export const outOfCreditsNeeded: Readonly<Ref<number | null>> = needed;
 /**
  * The credit gate every AI action goes through before it spends anything.
  *
- * `requireCredits(cost, byok)` returns true when the action may run; otherwise
+ * `requireCredits(cost)` returns true when the action may run; otherwise
  * it opens the "not enough credits" dialog and returns false. The dialog lets
  * the DM buy a pack on the spot (and, on Free, subscribe) — being blocked
  * mid-prep is exactly when they want to buy, and a disabled button that sends
@@ -40,12 +40,12 @@ export function useOutOfCredits() {
     needed.value = credits;
   }
 
-  function requireCredits(credits: number | null, byok = false): boolean {
+  function requireCredits(credits: number | null): boolean {
     if (credits === null) {
       toast.error("AI generation isn't available right now. Try again in a moment.");
       return false;
     }
-    if (affordable(credits, byok)) return true;
+    if (affordable(credits)) return true;
     openOutOfCredits(credits);
     return false;
   }

@@ -10,7 +10,6 @@ import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenera
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useCampaignStore } from "@/stores/campaign";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
-import { localKeyModeChosen } from "@/lib/localKeyVault";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -41,9 +40,7 @@ export interface ScriptoriumDraft {
  * Drafts a Scriptorium document from campaign data (epic #910, S12).
  *
  * Server-path only: the draft is grounded in rows (and, for players, in what
- * they may see) that only the edge function's service-role client reads, and
- * BYOK-local is a legacy tier that new AI features do not ship a weaker second
- * path for. Creating the document from the returned draft is the dialog's job.
+ * they may see) that only the edge function's service-role client reads. Creating the document from the returned draft is the dialog's job.
  */
 export function useScriptoriumDraft() {
   const campaign = useCampaignStore();
@@ -55,12 +52,6 @@ export function useScriptoriumDraft() {
     startAiQuotes();
 
     try {
-      if (localKeyModeChosen()) {
-        throw new Error(
-          "Drafting reads your campaign on the server, so it is not available in local-key mode. " +
-          "Switch to platform credits or a campaign API key in Settings → AI.",
-        );
-      }
       const campaignId = campaign.activeCampaignId;
       if (!campaignId) throw new Error("No active campaign selected.");
 

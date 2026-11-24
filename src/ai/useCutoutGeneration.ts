@@ -25,10 +25,7 @@ interface GenerateCutoutResponse {
 /**
  * Generate a cutout FROM an entity's existing picture (#917 story 5): the
  * server sends the picture to the image model as an edit ("same figure, drop
- * the background"), so the cutout always matches the picture. Server-only —
- * there is no local/BYOK branch, mirroring the platform-keys-only choice
- * Simulacrum makes (context/features/simulacrum.md) — generate-cutout never
- * reads a campaign's own key, so this composable never offers one either.
+ * the background"), so the cutout always matches the picture.
  */
 export function useCutoutGeneration() {
   const campaign = useCampaignStore();

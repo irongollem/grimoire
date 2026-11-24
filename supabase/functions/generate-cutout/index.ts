@@ -8,7 +8,7 @@
  * PLATFORM KEYS ONLY, the same choice Simulacrum makes (SIMULACRUM_PLAN.md
  * §4, mirrored in forge-mini/index.ts) — a campaign's own OpenAI key is never
  * read here, so every call is charged (or refused for insufficient credits);
- * there is no BYOK discount to a cutout.
+ * there is no discount on a cutout.
  *
  * Never trusts a client-supplied image URL: the source row is read back
  * server-side through a client scoped to the CALLER's own JWT, so RLS decides
@@ -57,9 +57,7 @@ interface SourceRow {
 }
 
 serve(serveUser(async ({ user, req, userClient, report }) => {
-  // Frozen or child accounts cannot generate (#919) — including BYOK, which
-  // skips the credit gate for both (see generationRefusal's own doc). This
-  // feature has no BYOK path at all, but the check stays first regardless,
+  // Frozen or child accounts cannot generate (#919). The check stays first,
   // matching every other generator.
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
@@ -71,7 +69,7 @@ serve(serveUser(async ({ user, req, userClient, report }) => {
   const { campaign_id: campaignId, table, id } = validation.request;
 
   // DMs only: no player surface calls this, and it spends the campaign's
-  // credits or the owner's own provider key (see _shared/campaignAccess.ts).
+  // credits (see _shared/campaignAccess.ts).
   const load = await loadAiCampaign(admin, campaignId, user.id);
   if (!load.ok) return load.response;
 
@@ -111,7 +109,6 @@ serve(serveUser(async ({ user, req, userClient, report }) => {
   ]);
   const img = resolveImageProvider({
     imageProvider: "openai",
-    campaignKeys: {}, // deliberately empty — no BYOK path for cutouts, see file doc
     pinned: true, // transparent output is OpenAI-only: a capability, not the campaign's Quick/Detailed choice
     platformKeys: { openai: platformKeys.openai },
     providerConfigs,
@@ -147,7 +144,7 @@ serve(serveUser(async ({ user, req, userClient, report }) => {
     // The picture exists, so it is charged before the provenance mark below. If marking throws, the hold writes
     // this charge as a free line.
     hold.charge("entity_cutout", {
-      cost, isByok: false,
+      cost,
       log: {
         model: img.model, quality, size: CUTOUT_IMAGE_SIZE,
         provider: imgResult.usage.provider, image_count: 1,

@@ -2,7 +2,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { resetCanonSuggestions, useCanonSuggestions } from "./useCanonSuggestions";
-import { LOCAL_MODE_KEY } from "@/lib/localKeyVault";
 
 const invoke = vi.fn();
 vi.mock("@/lib/supabase", () => ({ supabase: { functions: { invoke: (...a: unknown[]) => invoke(...a) } } }));
@@ -48,16 +47,6 @@ describe("useCanonSuggestions", () => {
     expect(premise.suggestions.value.map((s) => s.text)).toEqual(["B"]);
     premise.dismissAll();
     expect(premise.suggestions.value).toEqual([]);
-  });
-
-  it("refuses in local-key mode without calling the server", async () => {
-    localStorage.setItem(LOCAL_MODE_KEY, "local");
-    const { useCampaignStore } = await import("@/stores/campaign");
-    useCampaignStore().decryptedAnthropicKey = "sk-ant";
-    const truths = useCanonSuggestions("truths");
-    expect(await truths.suggest("")).toBe(false);
-    expect(invoke).not.toHaveBeenCalled();
-    expect(truths.error.value).toContain("local-key mode");
   });
 
   it("surfaces a server error as the run's error and keeps no proposals", async () => {

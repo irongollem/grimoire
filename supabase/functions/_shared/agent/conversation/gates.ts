@@ -68,9 +68,9 @@ export interface Admitted<C extends GateCampaign, S extends GateSession> {
   existing: S | null;
   provider: AgentProvider;
   callModel: CallModel;
-  /** Null for own-key conversations, which are not metered. */
-  price: ModelPrice | null;
-  calibration: CreditCalibration | null;
+  /** What the model costs by the token. */
+  price: ModelPrice;
+  calibration: CreditCalibration;
 }
 
 export type GateResult<C extends GateCampaign, S extends GateSession> =
@@ -140,19 +140,17 @@ export async function admitConversation<C extends GateCampaign, S extends GateSe
   if (!provider.callModel) return refuse(503, messages.noAdapter);
   const callModel = provider.callModel;
 
-  // A conversation must never run unmetered. Own-key use is not charged, so it needs neither number.
-  let price: ModelPrice | null = null;
-  let calibration: CreditCalibration | null = null;
-  if (!provider.isByok) {
-    try {
-      price = await deps.loadPrice(provider.model);
-      calibration = usableCalibration(await deps.loadCalibration());
-    } catch (error) {
-      console.error(`${logName}: metering lookup failed:`, error);
-      return refuse(503, messages.noMetering);
-    }
-    if (!price || !calibration) return refuse(503, messages.noMetering);
+  // A conversation must never run unmetered.
+  let price: ModelPrice | null;
+  let calibration: CreditCalibration | null;
+  try {
+    price = await deps.loadPrice(provider.model);
+    calibration = usableCalibration(await deps.loadCalibration());
+  } catch (error) {
+    console.error(`${logName}: metering lookup failed:`, error);
+    return refuse(503, messages.noMetering);
   }
+  if (!price || !calibration) return refuse(503, messages.noMetering);
 
   if (input.afterMetering) {
     const refusal = await input.afterMetering();

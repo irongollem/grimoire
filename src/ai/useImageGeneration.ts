@@ -1,24 +1,7 @@
 import { useCampaignStore } from "@/stores/campaign";
 import { supabase } from "@/lib/supabase";
-import { worldImageSetting } from "@edge-shared/worldBlock.ts";
-import { fetchWorldBlock, requireWorld, type WorldBlock } from "./worldBlock";
-import { localKeyModeChosen } from "@/lib/localKeyVault";
-import { imagesRunOnLocalKey, textRunsOnLocalKey } from "./localKeyMode";
-import {
-  uploadToBucket,
-  uploadWithVariants,
-  type BucketKey,
-} from "@/lib/storage";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { b64ToBlob } from "@/ai/utils";
-import { fetchImageBasePrompt } from "@/ai/systemPrompts";
-import { buildEntityImagePrompt } from "@/ai/imagePrompt";
-import { getImageProvider, localImageChoice } from "@/ai/providers";
-import { logUsage } from "@/composables/ai/useAiCredits";
 import { waitForImageJob } from "@/ai/useImageJob";
-import { buildAiProvenance } from "@/ai/provenance";
-import { markGeneratedImageB64 } from "@edge-shared/provenance/mark.ts";
-import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
 import { blobToBase64 } from "@/lib/blobToBase64";
 
 export type ImagePurpose =
@@ -26,40 +9,29 @@ export type ImagePurpose =
   | "monster" | "item" | "spell" | "faction" | "location" | "location_map"
   | "trap" | "puzzle" | "party_member" | "species" | "dungeon_feature" | "deity";
 
-interface PurposeConfig {
-  bucket: BucketKey;
-  size: string;
-  variants: boolean;
-  scene: boolean;
-}
-
-const PURPOSES: Record<ImagePurpose, PurposeConfig> = {
-  chronicler:     { bucket: "chronicle",      size: "1024x1024", variants: false, scene: true },
-  group_portrait: { bucket: "chronicle",      size: "1536x1024", variants: false, scene: true },
-  npc_portrait:   { bucket: "npcPortraits",   size: "1024x1536", variants: true,  scene: false },
-  npc_disguise:   { bucket: "npcPortraits",   size: "1024x1536", variants: true,  scene: false },
-  monster:        { bucket: "monsterImages",  size: "1024x1536", variants: true,  scene: false },
-  item:           { bucket: "itemImages",     size: "1024x1536", variants: true,  scene: false },
-  spell:          { bucket: "spellImages",    size: "1024x1024", variants: true,  scene: false },
-  faction:        { bucket: "factionImages",  size: "1024x1024", variants: true,  scene: false },
-  location:       { bucket: "locationImages", size: "1024x1024", variants: true,  scene: false },
-  location_map:   { bucket: "locationImages", size: "1024x1024", variants: true,  scene: false },
-  trap:           { bucket: "trapImages",     size: "1024x1536", variants: true,  scene: false },
-  puzzle:         { bucket: "puzzleImages",   size: "1024x1536", variants: true,  scene: false },
-  party_member:   { bucket: "chronicle",      size: "1024x1536", variants: false, scene: false },
-  species:        { bucket: "speciesImages",  size: "1024x1024", variants: true,  scene: false },
-  dungeon_feature: { bucket: "dungeonFeatureImages", size: "1024x1536", variants: true, scene: false },
-  deity:          { bucket: "pantheonEmblems", size: "1024x1536", variants: true,  scene: false },
+/** The picture size the server renders each purpose at unless a caller asks for another. */
+const PURPOSE_SIZES: Record<ImagePurpose, string> = {
+  chronicler: "1024x1024",
+  group_portrait: "1536x1024",
+  npc_portrait: "1024x1536",
+  npc_disguise: "1024x1536",
+  monster: "1024x1536",
+  item: "1024x1536",
+  spell: "1024x1024",
+  faction: "1024x1024",
+  location: "1024x1024",
+  location_map: "1024x1024",
+  trap: "1024x1536",
+  puzzle: "1024x1536",
+  party_member: "1024x1536",
+  species: "1024x1024",
+  dungeon_feature: "1024x1536",
+  deity: "1024x1536",
 };
 
 export interface ImageGenerationRequest {
   /** Captured at the start of the parent generation; never re-read after awaits. */
   campaignId: string;
-  /** The campaign's world block; the local-key path writes its picture setting from it (#1226). */
-  world: WorldBlock | null;
-  imageProvider: string | null;
-  /** Browser-local BYOK key captured with the campaign; never sent server-side. */
-  imageApiKey: string | null;
   purpose: ImagePurpose;
   /** Model-ready visual subject. The central pipeline adds style and setting. */
   subject: string;
@@ -75,10 +47,7 @@ export interface ImageGenerationRequest {
   noteId?: string | null;
 }
 
-export type ImageGenerationContext = Pick<
-  ImageGenerationRequest,
-  "campaignId" | "world" | "imageProvider" | "imageApiKey"
->;
+export type ImageGenerationContext = Pick<ImageGenerationRequest, "campaignId">;
 
 export class NoActiveCampaignError extends Error {
   constructor() {
@@ -98,148 +67,16 @@ export async function captureImageGenerationContext(): Promise<ImageGenerationCo
   const store = useCampaignStore();
   const campaign = store.activeCampaign;
   if (!campaign) throw new NoActiveCampaignError();
-  // Only the local-key path reads these two; the edge function resolves for itself.
-  const local = localImageChoice();
-  return {
-    campaignId: campaign.id,
-    // The server path loads the block itself; only a local-key run reads it here.
-    world: (await textRunsOnLocalKey()) || (await imagesRunOnLocalKey()) ? await fetchWorldBlock(campaign.id) : null,
-    imageProvider: local?.provider ?? null,
-    imageApiKey: local?.apiKey ?? null,
-  };
-}
-
-const localJobs = new Map<string, Promise<string>>();
-
-/**
- * Local only when the DM chose it AND the context captured a decrypted key.
- * The key rides on the request, so the decision cannot drift across awaits, and
- * a chosen mode with no usable key falls to the server job (#1043).
- */
-function runsLocally(request: ImageGenerationRequest): boolean {
-  return localKeyModeChosen() && !!request.imageApiKey;
-}
-
-function buildScenePrompt(subject: string, descriptions: string[], setting: string, base: string): string {
-  const parts = [base, setting, "Compose a scene illustration."];
-  if (descriptions.length) {
-    parts.push(`Characters, creatures and factions:\n${descriptions.map((entry) => `• ${entry}`).join("\n")}`);
-    parts.push("Use references for likeness only; re-pose every subject naturally for this scene and depict each exactly once. A faction's reference image is its emblem — render it as heraldry (on banners, shields, tabards, or insignia) carried by the people in the scene, never as a character in its own right.");
-  }
-  parts.push(`Scene: ${subject}`);
-  return parts.filter(Boolean).join("\n\n");
-}
-
-/**
- * Marks a local (BYOK) generation result before it's ever uploaded — EU AI
- * Act Art 50(2), write point B (context/compliance/provenance-architecture.md
- * §5). This is the ONLY place these bytes are marked: `runLocal` never
- * touches the server, so unlike the server-backed generators there is no
- * edge function to do it first. The provider's true byte format is sniffed
- * from the decoded bytes rather than assumed — OpenAI honors an explicit
- * `output_format: "webp"`, but Gemini returns PNG, and marking with the wrong
- * format-specific embedder silently no-ops.
- */
-async function markLocalResult(
-  purpose: ImagePurpose,
-  b64: string,
-  usage: { provider: string; model: string },
-): Promise<string> {
-  const bytes = new Uint8Array(await b64ToBlob(b64).arrayBuffer());
-  const contentType = sniffImageFormat(bytes) ?? "image/webp";
-  const prov = buildAiProvenance(purpose, usage.provider, usage.model);
-  return markGeneratedImageB64(b64, contentType, prov);
-}
-
-async function uploadLocalResult(purpose: ImagePurpose, b64: string): Promise<{ url: string; userId: string }> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("You must be signed in to store generated art.");
-  const config = PURPOSES[purpose];
-  const blob = b64ToBlob(b64);
-  if (config.variants) {
-    const url = await uploadWithVariants({ bucket: config.bucket, userId: user.id, blob });
-    if (!url) throw new Error("Generated image upload failed.");
-    return { url, userId: user.id };
-  }
-  const path = `${user.id}/${purpose}-${crypto.randomUUID()}.webp`;
-  const url = await uploadToBucket({ bucket: config.bucket, blob, path, contentType: "image/webp" });
-  if (!url) throw new Error("Generated image upload failed.");
-  return { url, userId: user.id };
-}
-
-async function recordLocalChroniclerImage(args: {
-  campaignId: string;
-  userId: string;
-  imageUrl: string;
-  prompt: string;
-  size: string;
-}): Promise<void> {
-  const { error } = await supabase.from("chronicler_images").insert({
-    campaign_id: args.campaignId,
-    user_id: args.userId,
-    image_url: args.imageUrl,
-    prompt: args.prompt.slice(0, 500),
-    size: args.size,
-  });
-  if (error) throw new Error(`Could not save Chronicle image: ${error.message}`);
-}
-
-async function runLocal(request: ImageGenerationRequest): Promise<string> {
-  const config = PURPOSES[request.purpose];
-  const [base, references] = await Promise.all([
-    fetchImageBasePrompt(),
-    Promise.all((request.referenceUrls ?? []).map(async (url) => {
-      try {
-        const response = await fetch(url);
-        return response.ok ? await response.blob() : null;
-      } catch {
-        return null;
-      }
-    })),
-  ]);
-  if (request.sourceImage) references.push(request.sourceImage);
-  const world = requireWorld(request.world);
-  const setting = worldImageSetting(world);
-  // The browser-key path takes no look pictures: it has no refusal fallback, and it is being removed (#1260).
-  const basePrompt = config.scene
-    ? buildScenePrompt(request.subject, request.textDescriptions ?? [], setting, base)
-    : request.purpose === "location_map"
-      ? request.subject
-    : buildEntityImagePrompt(request.purpose, { base, setting, subject: request.subject });
-  const provider = await getImageProvider({
-    imageProvider: request.imageProvider,
-    apiKey: request.imageApiKey,
-  });
-  const sources = references.filter((entry): entry is Blob => !!entry);
-  const { b64, usage } = sources.length > 0 && provider.edit
-    ? await provider.edit(sources, basePrompt, request.size ?? config.size)
-    : await provider.generate(basePrompt, request.size ?? config.size);
-  const markedB64 = await markLocalResult(request.purpose, b64, usage);
-  const { url, userId } = await uploadLocalResult(request.purpose, markedB64);
-  if (request.purpose === "chronicler") {
-    await recordLocalChroniclerImage({
-      campaignId: request.campaignId,
-      userId,
-      imageUrl: url,
-      prompt: request.subject,
-      size: request.size ?? config.size,
-    });
-  }
-  const reason = request.purpose === "chronicler"
-    ? "chronicle_image"
-    : "entity_image";
-  logUsage({ reason, imageUsage: usage });
-  return url;
+  return { campaignId: campaign.id };
 }
 
 async function startServer(request: ImageGenerationRequest): Promise<string> {
-  const config = PURPOSES[request.purpose];
   const { data, error } = await supabase.functions.invoke("generate-chronicle-image", {
     body: {
       campaign_id: request.campaignId,
       purpose: request.purpose,
       subject: request.subject,
-      size: request.size ?? config.size,
+      size: request.size ?? PURPOSE_SIZES[request.purpose],
       portrait_urls: request.referenceUrls ?? [],
       text_descriptions: request.textDescriptions ?? [],
       source_image_b64: request.sourceImage ? await blobToBase64(request.sourceImage) : null,
@@ -256,22 +93,11 @@ async function startServer(request: ImageGenerationRequest): Promise<string> {
 export async function startImageGeneration(request: ImageGenerationRequest): Promise<{ jobId: string }> {
   if (!request.subject.trim()) throw new Error("Image subject is required.");
   if (!request.campaignId) throw new Error("No campaign selected for image generation.");
-  if (!runsLocally(request)) return { jobId: await startServer(request) };
-
-  const jobId = `local-${crypto.randomUUID()}`;
-  const promise = runLocal(request).finally(() => localJobs.delete(jobId));
-  localJobs.set(jobId, promise);
-  return { jobId };
+  return { jobId: await startServer(request) };
 }
 
-export function getLocalImageJob(jobId: string): Promise<string> | undefined {
-  return localJobs.get(jobId);
-}
-
-/** Start and await an image while preserving a durable server job in platform mode. */
+/** Start an image and await its durable server job. */
 export async function generateImage(request: ImageGenerationRequest): Promise<string> {
   const { jobId } = await startImageGeneration(request);
-  return jobId.startsWith("local-")
-    ? localJobs.get(jobId) ?? Promise.reject(new Error("Local image job not found."))
-    : waitForImageJob(jobId);
+  return waitForImageJob(jobId);
 }

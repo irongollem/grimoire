@@ -426,7 +426,7 @@ async function finishJoin(result: JoinResult, partyMemberId?: string) {
   await auth.refreshMembership(campaignId);
 
   // Hydrate the whole campaign row. Assigning only activeCampaignId can
-  // leave the previous mode's theme, calendar and BYOK-bearing object alive.
+  // leave the previous mode's theme, calendar and campaign object alive.
   const { data: freshCampaigns } = await refetchCampaigns();
   const joined = freshCampaigns?.find((c) => c.id === campaignId) ?? null;
   if (joined) {

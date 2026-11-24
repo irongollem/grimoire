@@ -1,5 +1,4 @@
 import { computed, ref } from "vue";
-import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import type {
@@ -93,12 +92,6 @@ export function useCanonSuggestions<M extends CanonSuggestionMode>(mode: M, scop
     startAiQuotes();
 
     try {
-      if (await textRunsOnLocalKey()) {
-        throw new Error(
-          "These suggestions need the server so they can draw on your campaign, and are not available in local-key mode. " +
-          "Switch to platform credits or a campaign API key in Settings → AI.",
-        );
-      }
       const campaignId = campaign.activeCampaignId;
       if (!campaignId) throw new Error("No active campaign selected.");
 

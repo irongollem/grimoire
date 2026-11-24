@@ -1,11 +1,6 @@
 import { ref } from "vue";
-import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { wrapUserInput, buildCampaignContext } from "./utils";
-import { fetchWorldBlock } from "./worldBlock";
-import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RollTableAiResult } from "./types";
 import {
   createAiGenerationState,
@@ -14,12 +9,9 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
-import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
-import { logUsage } from "@/composables/ai/useAiCredits";
-import { ROLL_TABLE_DIE_MAX, validateEntryRanges } from "@/types/rollTable.types";
+import { validateEntryRanges } from "@/types/rollTable.types";
 import type { RollTableDie, RollTableEntry } from "@/types/rollTable.types";
-import { buildAiProvenance } from "@/ai/provenance";
 
 
 // ── Module-level singleton state ────────────────────────────────────────────
@@ -41,7 +33,6 @@ export interface RollTableGenerationOptions {
 
 export function useRollTableGeneration() {
   const campaign = useCampaignStore();
-  const { ruleset } = useTableRuleset();
 
   async function generate(
     userPrompt: string,
@@ -54,11 +45,7 @@ export function useRollTableGeneration() {
     startAiQuotes();
 
     try {
-      const isLocalMode = await textRunsOnLocalKey();
-
-      const result = isLocalMode
-        ? await generateClientSide(userPrompt, options)
-        : await generateServerSide(userPrompt, options);
+      const result = await generateServerSide(userPrompt, options);
 
       if (!Array.isArray(result.entries) || result.entries.length === 0) {
         throw new Error("AI returned no table entries. Please try again.");
@@ -67,8 +54,7 @@ export function useRollTableGeneration() {
       // The model occasionally returns out-of-bounds or overlapping ranges;
       // surface a clean error so the DM can regenerate rather than saving a
       // table that fails range validation on create. The server deliberately
-      // does not range-validate — this is the single validation point for
-      // both generation paths.
+      // does not range-validate — this is the single validation point.
       const normalized: RollTableEntry[] = result.entries.map((e) => ({
         id: crypto.randomUUID(),
         min: e.min,
@@ -110,47 +96,8 @@ export function useRollTableGeneration() {
     if (data?.error) throw new Error(data.error);
 
     // The server bills credits itself as part of the retrieval+generation call,
-    // so — unlike generateClientSide below — there is no client-side logUsage here.
+    // so there is no client-side usage log.
     return data as RollTableAiResult;
-  }
-
-  async function generateClientSide(
-    userPrompt: string,
-    options: RollTableGenerationOptions,
-  ): Promise<RollTableAiResult> {
-    const textProvider = getTextProvider();
-    const [basePrompt, rulesetContext] = await Promise.all([
-      fetchSystemPrompt("roll_table"),
-      fetchRulesetContext(ruleset.value),
-    ]);
-    if (!basePrompt) throw new Error("Roll table system prompt not configured.");
-    const worldCampaignId = campaign.activeCampaign?.id;
-    if (!worldCampaignId) throw new Error("No active campaign selected.");
-    const world = await fetchWorldBlock(worldCampaignId);
-    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext(world)}`;
-
-    const dieMax = ROLL_TABLE_DIE_MAX[options.die];
-    const userContent =
-      `${wrapUserInput(userPrompt)}\n\nConstraints:\n` +
-      `Die: ${options.die}\n` +
-      `Entries must cover the full range 1–${dieMax} with no gaps and no overlaps.`;
-
-    // The local (BYOK) path can't retrieve the DM's NPCs/locations/factions —
-    // that's a DB read the edge function does with service-role access the
-    // browser doesn't have. Tables generated here simply come back without
-    // npcs/locations/factions arrays. This parity gap is policy, not debt:
-    // local-key mode exists for early adopters who didn't want to hand over an
-    // API key, and it is not a target for new AI capabilities — the server
-    // path is the product. Do not invest in closing this gap.
-    const { content, usage: textUsage } = await textProvider.complete(
-      systemContent,
-      userContent,
-    );
-    const result = JSON.parse(content) as RollTableAiResult;
-    result.ai_provenance = buildAiProvenance("roll_table_generation", textUsage.provider, textUsage.model);
-
-    logUsage({ reason: "roll_table_generation", textUsage });
-    return result;
   }
 
   function clearResult() {

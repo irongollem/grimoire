@@ -5,7 +5,6 @@
     title="Archetype Generator"
     concept-placeholder="Smiths who forge their own armour from the embers of fallen comrades, growing stronger with every name they carry…"
     :credits="textCreditCost"
-    :byok="textIsByok"
     :is-generating="isGenerating"
     :error="genError"
     :can-generate="!!parentClass && !pending && !creating"
@@ -77,7 +76,6 @@ import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue"
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useToast } from "@/composables/useToast";
 import { useSubclassQuote } from "@/composables/ai/quotes/subclassQuote";
 import { useGenerateCustomSubclass, useSubclassParents } from "@/composables/rules/useGenerateCustomSubclass";
@@ -95,7 +93,6 @@ const { levelByClass: subclassLevelByClass, options: classOptions } = useSubclas
 
 const { canSpend } = useGenerationGate();
 // The price comes from the quote Ask Grimoire reads too, so the page and the panel cannot disagree.
-const { textIsByok } = useCampaignProviders();
 const quote = useSubclassQuote();
 const textCreditCost = computed(() => quote().total);
 
@@ -116,7 +113,7 @@ async function generateSubclass() {
   const parent = parentClass.value;
   const subclassLevel = parent ? subclassLevelByClass.value.get(parent) : undefined;
   if (!parent || subclassLevel === undefined) return;
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(textCreditCost.value)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

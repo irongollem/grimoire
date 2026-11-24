@@ -6,7 +6,6 @@
     concept-placeholder="The smugglers' vault beneath the Rusty Anchor: coin, contraband, one thing they stole and couldn't sell…"
     :concept-limit="CONCEPT_LIMIT"
     :credits="quote.total"
-    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     :show-results="!!result"
@@ -244,7 +243,7 @@ const quoteLootTable = useLootTableQuote();
 const quote = computed(() => quoteLootTable());
 
 async function runGenerate() {
-  if (!requireCredits(quote.value.total, quote.value.byok)) return;
+  if (!requireCredits(quote.value.total)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

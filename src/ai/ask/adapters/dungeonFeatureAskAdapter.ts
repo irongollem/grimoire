@@ -49,9 +49,9 @@ export function useDungeonFeatureAskAdapter(): AskAdapter {
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
 
-    let block = blockFor({ total: priced.total, byok: priced.byok, fiveE: true });
+    let block = blockFor({ total: priced.total, fiveE: true });
     block = block ?? conceptBlock(read.concept, "feature");
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal): Promise<AskRunResult> {

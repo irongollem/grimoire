@@ -14,7 +14,7 @@ describe("attempt budget", () => {
     expect([0, 1, 2, 3, 4, 9].map(attemptsRemaining)).toEqual([4, 3, 2, 1, 0, 0]);
   });
 
-  // The cap bounds provider calls, not only credits — a BYOK run reserves
+  // The cap bounds provider calls, not only credits — a spent budget reserves
   // nothing and must still stop at four.
   it("charges nothing once the budget is spent", () => {
     expect(attemptCharge(12, MAX_GENERATION_ATTEMPTS)).toBe(0);

@@ -46,8 +46,9 @@ select '93000000-0000-4000-8000-000000000001',
        'tile_pack_generation', 'gpt-image-2', 'openai', 'low', '1024x1024', 262, 250, 196, 1
 from generate_series(1, 25) slot, generate_series(1, 4) attempt;
 
--- A BYOK render: the user paid that provider bill, so it is neither our cost nor
--- our revenue and must not move either figure.
+-- An own-key render from before #1260 removed bring-your-own-key: the user paid
+-- that provider bill, so it is neither our cost nor our revenue and must not
+-- move either figure. Such rows stay in the ledger as history.
 insert into public.ai_credit_ledger
   (user_id, delta, reason, model, provider, quality, size, is_byok,
    input_tokens, input_image_tokens, output_tokens, image_count)
@@ -63,7 +64,7 @@ set local role authenticated;
 select is(
   (select sample_size from public.get_credit_calibration_hints() where generation_type = 'entity_image'),
   25::bigint,
-  'BYOK is excluded from the charge count — the user paid that provider bill');
+  'an own-key row from before #1260 is excluded from the charge count: the user paid that provider bill');
 
 select is(
   (select round(cost_per_charge_usd_cents, 4) from public.get_credit_calibration_hints() where generation_type = 'entity_image'),

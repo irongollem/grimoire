@@ -45,7 +45,7 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
 
 // ── Config ────────────────────────────────────────────────────────────────
 
-// Client ID is stored in the campaign (BYOK). The spotify store passes it in.
+// Client ID is stored in the campaign. The spotify store passes it in.
 export function getRedirectUri(): string {
   return `${window.location.origin}/spotify/callback`;
 }

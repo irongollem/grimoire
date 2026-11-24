@@ -51,7 +51,7 @@ Choose **Export for another VTT (.dd2vtt)** to save the map with its walls, door
 
 **Style it with AI** passes your baked tile map through an image model and re-renders it in a chosen artistic style. The tile data is never changed: the result is a new standalone image you save or download separately, with no rooms/doors/placements to reconcile (there's nothing structural in a styled image to publish a plan for).
 
-**This uses AI credits.** Using your own API key (BYOK) skips the credit charge.
+**This uses AI credits.** The cost is shown before you confirm.
 
 ### How to use it
 

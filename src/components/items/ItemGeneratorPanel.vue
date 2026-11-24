@@ -6,7 +6,6 @@
     title="Item Generator"
     concept-placeholder="A staff carved from petrified dragon bone, crackling with lightning and able to call storms when wielded by a chosen champion…"
     :credits="quote.total"
-    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     blank-to="/vault/new"
@@ -97,7 +96,7 @@ const generateCursed = ref(false);
 const quote = computed(() => quoteItem({ image: generateImage.value }));
 
 async function generateAndCreate() {
-  if (!requireCredits(quote.value.total, quote.value.byok)) return;
+  if (!requireCredits(quote.value.total)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

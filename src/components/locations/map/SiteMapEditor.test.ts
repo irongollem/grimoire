@@ -124,7 +124,6 @@ vi.mock("@/composables/cartographer/useMapExport", () => ({
     styleAtlasSaving: ref(false),
     styleAtlasTargetHasMap: ref(false),
     styleFixedTargetLabel: ref(""),
-    styleByok: ref(false),
     styleCost: ref(null),
     onGenerateStyle: vi.fn(),
     onRetryStyle: vi.fn(),

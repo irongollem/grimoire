@@ -5,7 +5,6 @@
     title="Ability Generator"
     concept-placeholder="A ranger's trick for turning a fallen tree into cover in a single breath, usable a few times between rests…"
     :credits="textCreditCost"
-    :byok="textIsByok"
     :is-generating="isGenerating"
     :unsaved-label="retained.unsaved.value ? 'feature' : null"
     :is-saving="retained.isSaving.value"
@@ -43,7 +42,6 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import { useClassFeatureQuote } from "@/composables/ai/quotes/classFeatureQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useClassFeatureGeneration } from "@/ai/useClassFeatureGeneration";
 import { ACTIVATIONS, type Activation } from "@/rules/features/mechanics.types";
 import { ACTIVATION_LABELS } from "@/types/feature.types";
@@ -57,7 +55,6 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 const { canSpend } = useGenerationGate();
 
 // The price comes from the quote Ask Grimoire reads too, so the page and the panel cannot disagree.
-const { textIsByok } = useCampaignProviders();
 const quote = useClassFeatureQuote();
 const textCreditCost = computed(() => quote().total);
 
@@ -77,7 +74,7 @@ async function onGenerate() {
 }
 
 async function generateAndCreate() {
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(textCreditCost.value)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

@@ -57,13 +57,13 @@ function harness(over: Partial<ChatLine> = {}) {
   h.deps = {
     loadLine: async () => h.line,
     // Member-only and AI-on are `loadAiCampaign`'s rules (its own test); here only that its refusal is passed through.
-    loadCampaign: async () => (h.loadRefusal ? { ok: false, response: h.loadRefusal } : { ok: true, campaign: { id: CAMPAIGN, user_id: DM, ai_enabled: true, text_provider: null } }),
+    loadCampaign: async () => (h.loadRefusal ? { ok: false, response: h.loadRefusal } : { ok: true, campaign: { id: CAMPAIGN, user_id: DM, ai_enabled: true } }),
     aiOn: async () => h.aiOn,
     loadParty: async () => h.party,
     answeredBy: async () => h.answered,
     ownerRefused: async () => h.ownerRefused,
     isFlagged: async () => h.flagged,
-    resolveProvider: async () => ({ provider: "openai", model: "m1", isByok: false, callModel }),
+    resolveProvider: async () => ({ provider: "openai", model: "m1", callModel }),
     // 1 USD a million tokens in, 4 out: 2000 in and 400 out is 0.0036 USD; doubled over 0.0066 USD a credit is 1.09, so 2.
     loadPrice: async () => ({ inputPerMillion: 1, outputPerMillion: 4, cachedInputPerMillion: null }),
     loadCalibration: async () => ({ usdPerCredit: 0.0066, margin: 2 }),

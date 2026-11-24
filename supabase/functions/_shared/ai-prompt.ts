@@ -12,7 +12,7 @@
  *   2. Call validatePromptInput() — return its errorResponse if not ok
  *   3. Build systemContent with INJECTION_GUARD_SUFFIX appended
  *   4. Build userContent with wrapUserInput(prompt) + any structured constraints
- *   5. Call the AI provider using the campaign's API key (from api-key-vault or Supabase Vault)
+ *   5. Call the AI provider on the platform's key (platform_api_keys, decrypted server-side)
  *   6. Return the JSON result
  */
 

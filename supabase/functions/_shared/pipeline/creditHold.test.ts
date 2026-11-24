@@ -35,7 +35,7 @@ beforeEach(() => {
   });
 });
 
-const freeRows = () => fake.rows("ai_credit_ledger").filter((r) => r.is_byok === false && r.delta === 0);
+const freeRows = () => fake.rows("ai_credit_ledger").filter((r) => r.delta === 0);
 
 describe("withCreditHold", () => {
   it("#1234 releases the hold when the work throws after the reserve (a model reply that will not parse)", async () => {
@@ -54,7 +54,7 @@ describe("withCreditHold", () => {
     });
     const report = vi.fn();
     const res = await withCreditHold(admin(), { ...opts, report }, async (hold) => {
-      hold.charge("trap_generation", { cost: 3, isByok: false });
+      hold.charge("trap_generation", { cost: 3 });
       return ok();
     });
     expect(res.status).toBe(200);
@@ -64,8 +64,8 @@ describe("withCreditHold", () => {
 
   it("charges each line of a successful request, after the hold is released", async () => {
     await withCreditHold(admin(), { ...opts, cost: 5 }, async (hold) => {
-      hold.charge("trap_generation", { cost: 3, isByok: false });
-      hold.charge("entity_image", { cost: 2, isByok: false });
+      hold.charge("trap_generation", { cost: 3 });
+      hold.charge("entity_image", { cost: 2 });
       expect(held.size).toBe(1);
       return ok();
     });
@@ -76,7 +76,7 @@ describe("withCreditHold", () => {
   it("does not charge for work that threw, and keeps the platform's spend visible as a free line", async () => {
     await expect(
       withCreditHold(admin(), opts, async (hold) => {
-        hold.charge("trap_generation", { cost: 3, isByok: false });
+        hold.charge("trap_generation", { cost: 3 });
         throw new Error("image upload failed");
       }),
     ).rejects.toThrow("image upload failed");
@@ -86,19 +86,10 @@ describe("withCreditHold", () => {
 
   it("#1234 records a zero-cost platform line, which a zero spend would drop (entity_image_prompt)", async () => {
     await withCreditHold(admin(), opts, async (hold) => {
-      hold.charge("entity_image_prompt", { cost: 0, isByok: false, log: { model: "m" } });
+      hold.charge("entity_image_prompt", { cost: 0, log: { model: "m" } });
       return ok();
     });
     expect(freeRows().map((r) => r.reason)).toEqual(["entity_image_prompt"]);
-  });
-
-  it("records a BYOK line as a zero row marked BYOK and charges nothing", async () => {
-    await withCreditHold(admin(), { ...opts, cost: 0 }, async (hold) => {
-      hold.charge("trap_generation", { cost: 3, isByok: true });
-      return ok();
-    });
-    expect(spends).toEqual([]);
-    expect(fake.rows("ai_credit_ledger")).toMatchObject([{ reason: "trap_generation", delta: 0, is_byok: true }]);
   });
 
   it("does not run the work when the hold is refused for want of credits", async () => {
@@ -135,7 +126,7 @@ describe("withCreditHold", () => {
       kept = hold;
       return ok();
     });
-    expect(() => kept!.charge("trap_generation", { cost: 3, isByok: false })).toThrow(/settled/);
+    expect(() => kept!.charge("trap_generation", { cost: 3 })).toThrow(/settled/);
   });
 });
 
@@ -152,7 +143,7 @@ describe("settleHandedOff", () => {
   it("charges a job that stored its result and releases the hold it was handed", async () => {
     const ids = await handedOff();
     await settleHandedOff(admin(), { payerId: "dm-1", ids }, async (ledger) => {
-      ledger.charge("character_doll", { cost: 3, isByok: false });
+      ledger.charge("character_doll", { cost: 3 });
     });
     expect(held.size).toBe(0);
     expect(spends).toEqual([{ reason: "character_doll", cost: 3 }]);

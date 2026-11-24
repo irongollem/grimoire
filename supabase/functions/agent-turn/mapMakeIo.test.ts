@@ -162,7 +162,7 @@ describe("paintTableMap", () => {
     const charges: unknown[] = [];
     const painter: Painter | null = over.painter === undefined
       ? {
-        cost: 4, isByok: false,
+        cost: 4,
         generate: async (prompt, source) => {
           log.push(`generate:${source.size}:${prompt.includes("The Honey Cellar") && prompt.includes("Barrels.")}`);
           if (over.generateThrows) throw new Error("provider down");

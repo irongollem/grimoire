@@ -211,7 +211,7 @@ const submittingId = ref<string | null>(null);
 const highlighted = ref<string | null>(null);
 
 async function onInvent() {
-  if (!requireCredits(cost.value, false)) return;
+  if (!requireCredits(cost.value)) return;
   const out = await inventions.inventFromIdea(member.id, disciplineId, wish.value.trim());
   if (out?.kind === "invention") {
     wish.value = "";
@@ -226,7 +226,7 @@ function toggleRevise(id: string) {
 }
 
 async function onRevise(id: string) {
-  if (!requireCredits(cost.value, false)) return;
+  if (!requireCredits(cost.value)) return;
   const out = await inventions.revise(id, note.value.trim());
   if (out) {
     revisingId.value = null;

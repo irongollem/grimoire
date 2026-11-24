@@ -2166,7 +2166,7 @@ active` on arrival, never demotes, never touches `completed`/`failed`.
 `AiGeneratorPanels.vue`), `src/ai/useQuestGeneration.ts`, edge function
 `generate-quest`. `ai_enabled`- and credit-gated, not plan-gated — it runs on
 any plan (24 Sep 2026 policy). Produces **exactly 5** hooks — the system prompt says
-so, and both the server and the local-key client path load the same prompt row.
+so, and the prompt row is the server's.
 
 Picking one creates the quest, **its story spine**, its objectives and `quest_refs`
 for every resolved NPC/location.

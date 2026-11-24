@@ -47,7 +47,7 @@ serve(serveUser(async ({ user, req, report }) => {
   let campaignRow: ReplyCampaign | null = null;
   let resolved: Awaited<ReturnType<typeof resolveAgentProvider>> | undefined;
   const provider = async () => {
-    if (resolved === undefined) resolved = campaignRow ? await resolveAgentProvider(admin, { id: campaignRow.id, ownerId: campaignRow.user_id, textProvider: campaignRow.text_provider }) : null;
+    if (resolved === undefined) resolved = campaignRow ? await resolveAgentProvider(admin) : null;
     return resolved;
   };
 
@@ -76,7 +76,7 @@ serve(serveUser(async ({ user, req, report }) => {
     // (`aiOn`), because AI off is a quiet "nobody answered" rather than a refusal.
     async loadCampaign(campaignId, userId) {
       const load = await loadAiCampaign<ReplyCampaign>(admin, campaignId, userId, {
-        columns: ["text_provider"], access: "member", aiSwitch: false, forbiddenMessage: "Only someone at this campaign can ask its characters to answer.",
+        access: "member", aiSwitch: false, forbiddenMessage: "Only someone at this campaign can ask its characters to answer.",
       });
       if (load.ok) campaignRow = load.campaign;
       return load;

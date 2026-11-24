@@ -1,5 +1,4 @@
 import { generateEntityText } from "./entityTextGeneration";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { SpellAiResult, SpellAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -35,7 +34,6 @@ registerAiGenerator({
 // ────────────────────────────────────────────────────────────────────────────
 
 export function useSpellGeneration() {
-  const { ruleset } = useTableRuleset();
 
   async function generate(
     userPrompt: string,
@@ -70,8 +68,6 @@ export function useSpellGeneration() {
       const result = await generateEntityText<SpellAiResult>({
         generator: "spell",
         campaignId: imageContext.campaignId,
-        world: imageContext.world,
-        ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,
       });

@@ -202,7 +202,7 @@ export interface AgentTurnDeps {
   /** Whether any of these characters of the campaign is a child by their record (`readsAsChild`). */
   anyChild(campaignId: string, characterIds: string[]): Promise<boolean>;
   /**
-   * Takes the hold (`withCreditHold`, reason "agent_turn"; 0 credits holds nothing, own-key play) and runs `work` under
+   * Takes the hold (`withCreditHold`, reason "agent_turn"; 0 credits holds nothing) and runs `work` under
    * it. The work `hand`s the hold off to the stream, which settles it (`settle`). A refused hold answers its refusal
    * without running `work`.
    */
@@ -463,7 +463,7 @@ export type BegunTurn =
   | { kind: "refused"; refusal: Refusal }
   | {
     kind: "ready";
-    /** Credits to hold before running: 0 for own-key play. */
+    /** Credits to hold before running. */
     reserve: number;
     /** `reservationIds` are the hold's, handed off to this run, which settles them. */
     run: (send: (event: AgentEvent) => void, signal: AbortSignal | undefined, reservationIds: string[]) => Promise<void>;

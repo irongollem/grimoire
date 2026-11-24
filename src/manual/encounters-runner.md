@@ -114,7 +114,7 @@ A few honest limits:
 - Counts are capped; if the AI asks for twenty guards you'll get fewer, and the preview says so.
 - A hazard is described, not applied: it posts to chat and stays written out under the events strip, but which creatures it actually restrains is your call with the condition picker.
 - **Show to players when fired** is checked by default and controls whether the text reaches the player view as a narrative beat.
-- Building the proposal means reading your bestiary and cast, so it needs platform credits or a cloud API key: it's unavailable if your campaign's AI key is set to **Store keys locally on this device only** (**Campaign Settings → AI Assistant**).
+- Building the proposal means reading your bestiary and cast, so it spends AI credits and needs the campaign's AI Assistant switched on (**Campaign Settings → AI Assistant**).
 
 ## Boss mechanics panel
 

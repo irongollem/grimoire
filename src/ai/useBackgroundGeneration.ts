@@ -60,8 +60,6 @@ export function useBackgroundGeneration() {
       const result = await generateEntityText<BackgroundAiResult>({
         generator: "background",
         campaignId: context.campaignId,
-        world: context.world,
-        ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,
       });

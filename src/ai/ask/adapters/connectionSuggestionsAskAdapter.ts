@@ -39,13 +39,13 @@ export function useConnectionSuggestionsAskAdapter(): AskAdapter {
     if (concept !== "") lines.push({ label: "Steer", value: concept, credits: null });
     lines.push(...priced.lines);
 
-    let block = blockFor({ total: priced.total, byok: priced.byok });
+    let block = blockFor({ total: priced.total });
     if (!block && subject === null) {
       block = { reason: "missing", message: "Open the NPC these are for first." };
     } else if (!block && concept.length > AI_PROMPT_LIMIT_SHORT) {
       block = { reason: "missing", message: `Shorten the steer to ${AI_PROMPT_LIMIT_SHORT} characters.` };
     }
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal): Promise<AskRunResult> {

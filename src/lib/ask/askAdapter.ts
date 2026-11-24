@@ -40,8 +40,6 @@ export interface AskQuote {
   lines: AskQuoteLine[];
   /** Null while the provider (and so the price) is not known yet: the button waits, it never guesses. */
   total: number | null;
-  /** The campaign runs this on the DM's own key: no credits are spent. */
-  byok: boolean;
   block: AskQuoteBlock | null;
 }
 

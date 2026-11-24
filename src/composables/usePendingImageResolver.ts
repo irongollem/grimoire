@@ -3,11 +3,10 @@
  * anchors (block atoms inserted where a chronicle image job is still
  * rendering) and resolves each one exactly once:
  *
- *   - server job id  → waitForImageJob (Realtime + poll on image_generation_jobs)
- *   - "local-" job id → getLocalImageJob (in-memory promise, BYOK client render)
+ *   job id → waitForImageJob (Realtime + poll on image_generation_jobs)
  *
  * On success the anchor is replaced with a standard `image` node at its
- * current position. On failure (or a local job orphaned by a reload) the
+ * current position. On failure the
  * anchor's `status` attr is set to "failed" so the UI can render its own
  * error state; a toast only fires when the anchor itself is gone by then,
  * since otherwise the anchor's failed state IS the visible signal.
@@ -36,7 +35,6 @@ import {
   replacePendingImageWithImage,
 } from "@/lib/pendingImages";
 import { waitForImageJob } from "@/ai/useImageJob";
-import { getLocalImageJob } from "@/ai/useImageGeneration";
 import { useToast } from "@/composables/useToast";
 
 // Module-level so multiple resolver instances (or repeated scan() calls)
@@ -113,18 +111,6 @@ function editorTarget(editor: Editor): ResolverTarget {
   };
 }
 
-async function resolveLocalJob(jobId: string): Promise<string> {
-  const promise = getLocalImageJob(jobId);
-  if (!promise) {
-    // Reload orphan — the in-memory render promise didn't survive a page
-    // reload/note re-open. There is nothing left to wait for.
-    throw new Error(
-      "This image didn't finish rendering before the session ended. Try generating it again.",
-    );
-  }
-  return promise;
-}
-
 function handleFailure(getTarget: GetTarget, jobId: string, e: unknown): void {
   const target = getTarget();
   if (!target || target.isGone()) return; // note closed mid-wait — a future scan on reopen re-tracks
@@ -137,9 +123,7 @@ function handleFailure(getTarget: GetTarget, jobId: string, e: unknown): void {
 
 async function resolveOne(getTarget: GetTarget, jobId: string): Promise<void> {
   try {
-    const url = jobId.startsWith("local-")
-      ? await resolveLocalJob(jobId)
-      : await waitForImageJob(jobId);
+    const url = await waitForImageJob(jobId);
 
     const target = getTarget();
     if (!target || target.isGone()) return;

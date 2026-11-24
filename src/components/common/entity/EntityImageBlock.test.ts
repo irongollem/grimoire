@@ -12,7 +12,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 
 const routerPush = vi.fn();
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: routerPush }) }));
-const campaignMock = { isAiEnabled: false, decryptedOpenAiKey: null as string | null };
+const campaignMock = { isAiEnabled: false };
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => campaignMock,
 }));
@@ -40,10 +40,8 @@ vi.mock("@/composables/ai/useCampaignProviders", async () => {
   return {
     useCampaignProviders: () => ({
       textProvider: ref("openai"),
-      textIsByok: ref(false),
       textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base),
       imageProvider: ref("openai"),
-      imageIsByok: ref(false),
       imageMultiplier: ref(1), imageCredits: (base: number) => Math.ceil(base),
     }),
   };
@@ -155,7 +153,6 @@ describe('EntityImageBlock — "Cut out from picture" (#917 story 5)', () => {
 
   beforeEach(() => {
     campaignMock.isAiEnabled = true;
-    campaignMock.decryptedOpenAiKey = null;
     cutoutGenerateMock.mockReset();
   });
 

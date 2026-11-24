@@ -1,19 +1,11 @@
 import { supabase } from "@/lib/supabase";
-import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { buildCampaignContext, wrapUserInput } from "./utils";
-import { fetchWorldBlock } from "./worldBlock";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { getTextProvider } from "./providers";
-import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { logUsage } from "@/composables/ai/useAiCredits";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCurrency } from "@/composables/currency/useCurrency";
-import { currencyPromptBlock } from "@edge-shared/currency.ts";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { seedFromAiResult } from "@/lib/downtime/downtimeAiSeed";
-import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
+import type { AiProvenance } from "@/ai/provenance";
 import type { DowntimeActivity, DowntimeSeed } from "@/types/downtime.types";
 
 /**
@@ -64,7 +56,6 @@ export interface DowntimeDraftResult {
 export function useDowntimeGeneration() {
   const campaign = useCampaignStore();
   const { currency } = useCurrency();
-  const { ruleset } = useTableRuleset();
 
   async function generate(args: DowntimeDraftArgs): Promise<DowntimeDraftResult | null> {
     if (isAnyAiGenerating.value) return null;
@@ -81,11 +72,7 @@ export function useDowntimeGeneration() {
     }
 
     try {
-      const isLocalMode = await textRunsOnLocalKey();
-
-      const raw = isLocalMode
-        ? await draftClientSide(args)
-        : await draftServerSide(args, campaignId);
+      const raw = await draftServerSide(args, campaignId);
 
       // The airlock: anything the model invented that we can't honour is dropped
       // here, and a genuinely unusable draft throws with a message the DM reads.
@@ -116,40 +103,6 @@ export function useDowntimeGeneration() {
     if (error) throw new Error(await edgeErrorMessage(error));
     if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
     return data;
-  }
-
-  /** BYOK/local mode: the key never leaves the browser, so no edge call. */
-  async function draftClientSide(args: DowntimeDraftArgs): Promise<unknown> {
-    const textProvider = getTextProvider();
-    const [basePrompt, rulesetContext] = await Promise.all([
-      fetchSystemPrompt("downtime"),
-      fetchRulesetContext(ruleset.value),
-    ]);
-    if (!basePrompt) throw new Error("Downtime system prompt not configured.");
-
-    const worldCampaignId = campaign.activeCampaign?.id;
-    if (!worldCampaignId) throw new Error("No active campaign selected.");
-    const world = await fetchWorldBlock(worldCampaignId);
-    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext(world)}`;
-
-    const constraints = [
-      `Archetype: ${args.activity.title} (${args.activity.key})`,
-      `reward.kind MUST be: ${args.activity.rewardType}`,
-    ];
-    if (args.characterName) constraints.push(`Character: ${args.characterName}`);
-    // The server path appends the same block (generate-downtime): coin effects
-    // must name this campaign's coins.
-    constraints.push(currencyPromptBlock(currency.value));
-
-    const userContent = args.steer
-      ? `${wrapUserInput(args.steer)}\n\nConstraints:\n${constraints.join("\n")}`
-      : `Draft the outcome.\n\nConstraints:\n${constraints.join("\n")}`;
-
-    const { content, usage: textUsage } = await textProvider.complete(systemContent, userContent);
-    logUsage({ reason: "downtime_generation", textUsage });
-    const raw = JSON.parse(content) as Record<string, unknown>;
-    raw.ai_provenance = buildAiProvenance("downtime_generation", textUsage.provider, textUsage.model);
-    return raw;
   }
 
   return { ..._state, generate };

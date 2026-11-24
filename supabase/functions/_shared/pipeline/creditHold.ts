@@ -8,7 +8,7 @@
 //      balance read short for two hours.
 //   2. A throw after the release (a ledger write, a provenance mark) landed in a catch that released again and
 //      answered 502 for a result that had been made and paid for.
-//   3. `recordGeneration(..., isByok=false, cost=0)` writes nothing, so platform-paid side calls vanished from the
+//   3. `recordGeneration(..., cost=0)` writes nothing, so platform-paid side calls vanished from the
 //      cost reports.
 //
 // So the hold is a scope. `withCreditHold` reserves, runs the work, and releases exactly once in `finally`, whatever
@@ -29,19 +29,17 @@ import {
 } from "../credits.ts";
 
 export interface ChargeLine {
-  /** Whole credits to charge; 0 for a BYOK call or a free one. */
+  /** Whole credits to charge; 0 for a free call. */
   cost: number;
-  /** The caller paid the provider with their own key: a delta-0 row marked BYOK. */
-  isByok: boolean;
   log?: CreditLogFields;
 }
 
 export interface CreditHold {
-  /** What is held, in credits; 0 when nothing is (BYOK, or a free request). */
+  /** What is held, in credits; 0 when nothing is (a free request). */
   readonly held: number;
   /**
    * Queue a ledger line for work that succeeded. Several lines may come from one hold (a trap's text and its picture
-   * are two rows). A non-BYOK line with cost 0 is written as a free line, since a zero spend writes nothing.
+   * are two rows). A line with cost 0 is written as a free line, since a zero spend writes nothing.
    */
   charge(reason: string, line: ChargeLine): void;
   /** Queue a platform-paid line that costs the user nothing (an embedding, a judgement), so the spend stays visible. */
@@ -69,9 +67,8 @@ type Line = { kind: "charge"; reason: string; line: ChargeLine } | { kind: "free
 async function write(admin: SupabaseClient, payerId: string, entry: Line, workFailed: boolean): Promise<void> {
   if (entry.kind === "free") return recordFreeGeneration(admin, payerId, entry.reason, entry.log);
   const { reason, line } = entry;
-  if (line.isByok) return recordGeneration(admin, payerId, reason, true, 0, line.log);
   if (workFailed || line.cost <= 0) return recordFreeGeneration(admin, payerId, reason, line.log);
-  return recordGeneration(admin, payerId, reason, false, line.cost, line.log);
+  return recordGeneration(admin, payerId, reason, line.cost, line.log);
 }
 
 async function settle(

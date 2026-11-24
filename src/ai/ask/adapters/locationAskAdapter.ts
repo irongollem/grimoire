@@ -101,13 +101,13 @@ export function useLocationAskAdapter(): AskAdapter {
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
 
-    let block = blockFor({ total: priced.total, byok: priced.byok }) ?? conceptBlock(read.concept, "place");
+    let block = blockFor({ total: priced.total }) ?? conceptBlock(read.concept, "place");
     if (!block && lookupsLoading.value) {
       block = { reason: "missing", message: "Still reading this campaign's places." };
     }
     if (!block && keeperLoading.value) block = { reason: "missing", message: "Still reading this campaign's NPCs." };
     if (!block && linkRecords.loading.value) block = { reason: "missing", message: "Still reading the records it is tied to." };
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult> {

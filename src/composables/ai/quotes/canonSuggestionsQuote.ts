@@ -18,6 +18,6 @@ const LEDGER: Record<CanonSuggestionMode, QuoteCostKey> = {
 };
 
 export function useCanonSuggestionsQuote(): (mode: CanonSuggestionMode) => GeneratorQuote {
-  const { textLine, quoteOf, textIsByok } = useQuoteKit();
-  return (mode) => quoteOf([textLine("Suggestions", "Written by AI", LEDGER[mode])], textIsByok.value);
+  const { textLine, quoteOf } = useQuoteKit();
+  return (mode) => quoteOf([textLine("Suggestions", "Written by AI", LEDGER[mode])]);
 }

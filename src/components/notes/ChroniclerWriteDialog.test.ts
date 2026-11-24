@@ -24,10 +24,10 @@ vi.mock("@/composables/ai/useAiCredits", () => ({
 const requireCredits = vi.fn(() => true);
 vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits }) }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
-  useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false) }),
+  useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base) }),
 }));
 vi.mock("@/stores/campaign", () => ({
-  useCampaignStore: () => ({ activeCampaign: { text_provider: "openai" } }),
+  useCampaignStore: () => ({ activeCampaign: {} }),
 }));
 
 import ChroniclerWriteDialog from "./ChroniclerWriteDialog.vue";

@@ -99,14 +99,14 @@ export function useFactionAskAdapter(): AskAdapter {
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Emblem", value: "None", credits: null });
 
-    let block = blockFor({ total: priced.total, byok: priced.byok }) ?? conceptBlock(read.concept, "faction");
+    let block = blockFor({ total: priced.total }) ?? conceptBlock(read.concept, "faction");
     if (!block && lookupsLoading.value) {
       block = { reason: "missing", message: "Still reading this campaign's NPCs and places." };
     }
     if (!block && linkRecords.loading.value) {
       block = { reason: "missing", message: "Still reading the records it is tied to." };
     }
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult> {

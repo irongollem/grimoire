@@ -28,8 +28,7 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     isAiEnabled: true,
     activeCampaignId: "campaign-1",
-    activeCampaign: { text_provider: "openai" },
-    decryptedOpenAiKey: null,
+    activeCampaign: {},
   }),
 }));
 vi.mock("@/composables/dungeon-features/useDungeonFeatures", () => ({
@@ -59,10 +58,8 @@ vi.mock("@/composables/ai/useCampaignProviders", async () => {
   return {
     useCampaignProviders: () => ({
       textProvider: ref("openai"),
-      textIsByok: ref(false),
       textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base),
       imageProvider: ref("openai"),
-      imageIsByok: ref(false),
       imageMultiplier: ref(1), imageCredits: (base: number) => Math.ceil(base),
     }),
   };
@@ -226,12 +223,12 @@ describe("DungeonFeatureGeneratorPanel credits and concept", () => {
     const w = mountPanel();
     await w.get("textarea").setValue("A bookcase.");
     await click(w);
-    expect(mocks.canSpend).toHaveBeenLastCalledWith(2, false);
+    expect(mocks.canSpend).toHaveBeenLastCalledWith(2);
 
     w.findComponent({ name: "GeneratorPanelShell" }).vm.$emit("update:generateImage", false);
     await w.vm.$nextTick();
     await click(w);
-    expect(mocks.canSpend).toHaveBeenLastCalledWith(1, false);
+    expect(mocks.canSpend).toHaveBeenLastCalledWith(1);
   });
 
   it("does not generate when the table cannot afford it", async () => {

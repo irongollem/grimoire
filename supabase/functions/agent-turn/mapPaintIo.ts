@@ -4,7 +4,6 @@
 // `mapMakeIo.ts`; this file is only the binding, so it holds no logic of its own to test beyond what those functions do.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { applyMultiplier, fetchProviderConfigs } from "../_shared/provider-config.ts";
 import { fetchCreditCost, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
@@ -55,7 +54,6 @@ export interface PaintBinding {
   placeId: string;
   drawingId: string;
   plainUrl: string;
-  decrypt: (ciphertext: string) => Promise<string>;
   report: (error: unknown) => void;
 }
 
@@ -68,14 +66,12 @@ export function makePaintDeps(b: PaintBinding): PaintDeps {
       const { data: campaign, error } = await admin.from("campaigns").select("id, user_id, image_provider").eq("id", b.campaignId).maybeSingle();
       if (error) throw error;
       if (campaign === null) return null;
-      const [keys, platformKeys, providerConfigs] = await Promise.all([
-        loadCampaignKeys(admin, campaign as { id: string; user_id: string }, b.decrypt),
+      const [platformKeys, providerConfigs] = await Promise.all([
         fetchPlatformKeys(admin, ["openai", "gemini"]),
         fetchProviderConfigs(admin, ["openai", "gemini"]),
       ]);
       const img = resolveImageProvider({
         imageProvider: campaign.image_provider as string | null,
-        campaignKeys: { openai: keys.openai, gemini: keys.gemini },
         platformKeys: { openai: platformKeys.openai, gemini: platformKeys.gemini },
         providerConfigs,
         surface: "map_style",
@@ -87,12 +83,11 @@ export function makePaintDeps(b: PaintBinding): PaintDeps {
         : isFlexibleOpenAiModel(img.model) && isValidStyleImageSize(dims.width, dims.height);
       if (!sizeOk) return null;
       const size = `${dims.width}x${dims.height}`;
-      const baseCost = img.isByok ? 0 : await fetchCreditCost(admin, "map_style_generation");
+      const baseCost = await fetchCreditCost(admin, "map_style_generation");
       const cost = wholeCredits(applyMultiplier(baseCost, img.imageMultiplier) * sizeMultiplier(styleChargeSize(dims.width, dims.height)));
       const quality = await resolveImageQuality(admin, "map_style_generation", img);
       return {
         cost,
-        isByok: img.isByok,
         async generate(prompt, source): Promise<Painted> {
           const result = await generateImage({
             provider: img.provider, model: img.model, apiKey: img.apiKey,
@@ -119,7 +114,7 @@ export function makePaintDeps(b: PaintBinding): PaintDeps {
 
     async withHold(painter, work): Promise<boolean> {
       const response = await withCreditHold(admin, { payerId: userId, reason: "map_style_generation", cost: painter.cost, report: b.report }, async (hold) => {
-        await work((log) => hold.charge("map_style_generation", { cost: painter.cost, isByok: painter.isByok, log }));
+        await work((log) => hold.charge("map_style_generation", { cost: painter.cost, log }));
         return new Response(null, { status: 204 });
       });
       return response.ok;

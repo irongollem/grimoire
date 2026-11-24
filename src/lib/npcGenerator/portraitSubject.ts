@@ -5,7 +5,7 @@
 // run, 23 Nov 2026) though the record said halfling. The species is put in front here, in code, so the picture and the
 // record cannot disagree; for the small and stocky folk an image model draws as humans it also says how they are
 // built, because the word alone does not change the figure. `useNpcGeneration` paints every NPC portrait through the
-// image job pipeline (server key and own key alike), so this is the one place the subject is made.
+// image job pipeline, so this is the one place the subject is made.
 
 /** Builds an image model does not infer from the name, by the word a race starts with. */
 const BUILD: Record<string, string> = {

@@ -3,7 +3,7 @@
  * and one call asks the image model for ONE sheet of four separate marks, black on white, 2x2. The client
  * cuts the sheet into four tips. One call costs what one picture costs.
  *
- * Cloned from illuminate-picture: OpenAI only and PLATFORM KEYS ONLY, never a campaign's own key. A brush
+ * Cloned from illuminate-picture: OpenAI only and PLATFORM KEYS ONLY. A brush
  * belongs to the painter, so there is no document. The model is a setting (provider_config.brush_tip_model).
  * Synchronous, nothing stored here: the result carries the AI-made mark (EU AI Act Art 50(2)).
  */
@@ -57,7 +57,6 @@ serve(serveUser(async ({ user, req, report }) => {
   ]);
   const img = resolveImageProvider({
     imageProvider: "openai",
-    campaignKeys: {}, // deliberately empty: no BYOK path, see file doc
     pinned: true,
     platformKeys: { openai: platformKeys.openai },
     providerConfigs,
@@ -89,7 +88,7 @@ serve(serveUser(async ({ user, req, report }) => {
     }
 
     hold.charge(GENERATION_TYPE, {
-      cost, isByok: false,
+      cost,
       log: {
         model: img.model, quality, size: BRUSH_TIPS_SIZE,
         provider: imgResult.usage.provider, image_count: 1,

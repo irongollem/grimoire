@@ -10,7 +10,7 @@
  * after the DM confirms each entity.
  *
  * Structure mirrors `generate-trap/index.ts` — auth → account gate → campaign +
- * membership → ai_enabled → prompt fetch → BYOK-vs-platform key resolution →
+ * membership → ai_enabled → prompt fetch → platform key resolution →
  * rate limit → credit hold (`withCreditHold`) → provider call → charge. That
  * order is security-ordered (CLAUDE.md), not arbitrary, so it is kept intact
  * here even though the provider call itself looks nothing like a text
@@ -49,9 +49,7 @@ import { base64FromBytes } from "../_shared/base64.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { PDFDocument } from "pdf-lib";
-import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
-import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { resolveTextProvider, NO_TEXT_PROVIDER_MESSAGE } from "../_shared/textGen.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
@@ -456,7 +454,6 @@ interface ImportRow {
 }
 
 interface ImportCampaign extends BaseCampaign {
-  text_provider: string | null;
 }
 
 /** A row-status write that says so when it fails: a stored result the row never reached is not a success. */
@@ -516,14 +513,11 @@ serve(serveUser(async ({ user, req, report }) => {
   // mean a DM who was later demoted to player could still spend credits
   // extracting into a campaign they no longer run. An import writes monsters,
   // NPCs, locations, quests, factions and encounters, which is DM work.
-  const load = await loadAiCampaign<ImportCampaign>(admin, importRow.campaign_id, userId, {
-    columns: ["text_provider"],
-  });
+  const load = await loadAiCampaign<ImportCampaign>(admin, importRow.campaign_id, userId);
   if (!load.ok) return load.response;
   const campaign = load.campaign;
 
-  // BYOK is Pro-only (same gate generate-trap uses), and this owner-Pro check
-  // doubles as the page-cap lookup — both key off the campaign owner's plan.
+  // The owner-Pro check is the page-cap lookup — it keys off the campaign owner's plan.
   const ownerIsPro = await isUserPro(admin, campaign.user_id);
   const pageLimit = ownerIsPro ? PRO_PAGE_LIMIT : FREE_PAGE_LIMIT;
 
@@ -535,20 +529,17 @@ serve(serveUser(async ({ user, req, report }) => {
 
   // Provider rows go through the shared module, not a direct query:
   // `_shared/provider-config.ts` is the one place they are read and cached.
-  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
-    loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
+  const [platformKeys, providerConfigs] = await Promise.all([
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
   const text = resolveTextProvider({
-    chosen: campaign.text_provider,
-    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
     platformKeys,
     providerConfigs,
   });
   if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
   // Captured as consts so the narrowing survives into the closures below.
-  const { provider, apiKey, isByok: textIsByok } = text;
+  const { provider, apiKey } = text;
   const configuredModel = text.config?.document_model ?? null;
   if (!configuredModel) return jsonError(422, "provider_unsupported", "Document import isn't available right now.");
   const documentModel: string = configuredModel;
@@ -706,7 +697,6 @@ serve(serveUser(async ({ user, req, report }) => {
     const { usage } = outcome;
     hold.charge("document_import_extraction", {
       cost,
-      isByok: textIsByok,
       log: {
         model: usage.model, provider: usage.provider,
         input_tokens: usage.input_tokens ?? undefined,

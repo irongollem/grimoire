@@ -170,12 +170,10 @@ Meshy tasks run multi-minute — longer than an edge isolate reliably lives. So:
   - `sculpting` > 30 min → treat as stale-failed (same sweep).
 - Client: `useMiniJob()` clone of `src/ai/useImageJob.ts` (Realtime UPDATE + 4 s
   poll fallback).
-- Meshy platform key: new row via `_shared/platform-keys.ts`. **Unlike the other
-  AI features, Simulacrum has NO BYOK path — by design, not just v1 scope.** The
+- Meshy platform key: new row via `_shared/platform-keys.ts`. The
   whole pipeline (stylize images included) runs on platform keys and always
-  charges credits; the `isByok ⇒ cost 0` branch never applies here. The 500
-  bundle prices in real Meshy COGS that a user's LLM/image keys can't offset,
-  and we don't want to support user-owned Meshy subs. The stylize step must
+  charges credits. The 500 bundle prices in real Meshy COGS, and we don't want
+  to support user-owned Meshy subs. The stylize step must
   therefore skip `resolveImageProvider`'s campaign-key routing (force platform).
 
 ## 5. Credits & economics
@@ -207,8 +205,8 @@ Meshy tasks run multi-minute — longer than an edge isolate reliably lives. So:
   upgrade, top-up packs (200/1,000/4,000 "permanent" credits — never expire, so
   no waste) are available on Pro+; per-credit top-up price isn't published,
   check in-account before relying on it as the overage path.
-- PRO gating: same as all AI generation (`isPro` / `AiTab` pattern) — but **no
-  BYOK discount** (§4): Simulacrum always charges credits, Pro-with-keys or not.
+- PRO gating: same as all AI generation (`isPro` / `AiTab` pattern). Simulacrum
+  always charges credits.
 
 ## 6. Retention
 

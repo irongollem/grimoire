@@ -1,54 +1,11 @@
 import { serve } from "std/http/server.ts";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
-import { decryptValue, encryptValue } from "../_shared/vault.ts";
+import { encryptValue } from "../_shared/vault.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const MAX_VALUE_LENGTH = 16_384;
-
-// `campaign_api_keys` columns that hold an encrypted BYOK key.
-const CAMPAIGN_KEY_COLUMNS = [
-  "openai_api_key",
-  "anthropic_api_key",
-  "gemini_api_key",
-] as const;
-
-/**
- * Is `blob` a ciphertext the caller is actually allowed to decrypt?
- * - Any of the BYOK key columns in the caller's own `campaign_api_keys` rows (#1228), OR
- * - (admins only) a stored platform_api_keys ciphertext.
- * Prevents this endpoint from being a decryption oracle for keys the caller
- * could never read through RLS.
- */
-async function callerOwnsBlob(
-  admin: SupabaseClient,
-  userId: string,
-  isAdmin: boolean,
-  blob: string,
-): Promise<boolean> {
-  // Columns are joined at runtime, so PostgREST cannot infer the row shape.
-  const { data: keyRows, error } = await admin
-    .from("campaign_api_keys")
-    .select(CAMPAIGN_KEY_COLUMNS.join(", "))
-    .eq("user_id", userId)
-    .overrideTypes<Record<string, string | null>[], { merge: false }>();
-  // Fail closed: a read that errored is not "owns nothing", and must never fall through to approving a decrypt.
-  if (error) return false;
-  for (const row of keyRows ?? []) {
-    if (CAMPAIGN_KEY_COLUMNS.some((col) => row[col] === blob)) return true;
-  }
-  if (isAdmin) {
-    const { data: platformKeys } = await admin
-      .from("platform_api_keys")
-      .select("encrypted_key");
-    if ((platformKeys ?? []).some((r: { encrypted_key: string }) => r.encrypted_key === blob)) {
-      return true;
-    }
-  }
-  return false;
-}
 
 serve(withCors(async (req: Request) => {
   if (req.method !== "POST") {
@@ -58,7 +15,7 @@ serve(withCors(async (req: Request) => {
     });
   }
 
-  // Require an authenticated caller — this endpoint holds the master vault key.
+  // Require an authenticated caller: this endpoint holds the master vault key.
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -89,36 +46,21 @@ serve(withCors(async (req: Request) => {
       });
     }
 
-    let result: string;
-
-    if (action === "encrypt") {
-      // Any authenticated user may encrypt their own key. Whether it can then be
-      // *stored* is gated separately by RLS + the BYOK Pro-only trigger.
-      result = await encryptValue(value);
-    } else if (action === "decrypt") {
-      // Only decrypt ciphertext the caller is entitled to (their own campaign
-      // keys, or platform keys for admins). Never a blind decryption oracle.
-      const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-      if (!value.startsWith("enc:v1:")) {
-        // Not a vault ciphertext — reject rather than echo arbitrary input back.
-        return new Response(JSON.stringify({ error: "Invalid ciphertext" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        });
-      } else if (await callerOwnsBlob(admin, user.id, isAdmin, value)) {
-        result = await decryptValue(value);
-      } else {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-    } else {
+    // Only the admin's platform keys are ever encrypted here (Admin -> Providers). The vault holds the master key,
+    // so no one else gets to use it, and nothing decrypts: the platform's keys are read server-side only.
+    if (action !== "encrypt") {
       return new Response(JSON.stringify({ error: "Invalid action" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
     }
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const result = await encryptValue(value);
 
     return new Response(JSON.stringify({ result }), {
       status: 200,

@@ -22,8 +22,7 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() { return mocks.isAiEnabled; },
     activeCampaignId: "campaign-1",
-    activeCampaign: { text_provider: "openai", group_portrait_url: "party.png" },
-    decryptedOpenAiKey: null,
+    activeCampaign: { group_portrait_url: "party.png" },
   }),
 }));
 vi.mock("@/composables/dungeon-features/useTraps", () => ({
@@ -40,10 +39,8 @@ vi.mock("@/composables/ai/useCampaignProviders", async () => {
   return {
     useCampaignProviders: () => ({
       textProvider: ref("openai"),
-      textIsByok: ref(false),
       textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base),
       imageProvider: ref("openai"),
-      imageIsByok: ref(false),
       imageMultiplier: ref(1), imageCredits: (base: number) => Math.ceil(base),
     }),
   };

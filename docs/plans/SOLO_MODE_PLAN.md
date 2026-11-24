@@ -308,7 +308,7 @@ of it, apart from the open question on the base prompt.
 - **Metering.** Credits are charged per call today; the Quest Designer charges 1
   credit an exchange. A play session runs to hundreds of tool-loop calls, so solo mode
   needs token-based metering, or a per-session budget the player sees, from the
-  ledger's existing token columns. BYOK (Pro) is the natural first audience.
+  ledger's existing token columns.
 
 ## 8. Open questions
 

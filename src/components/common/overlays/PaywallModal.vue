@@ -134,13 +134,12 @@ const limitText = computed(() => {
 })
 
 // AI generation itself is on every plan (paid in credits), so Pro's AI benefit
-// is the included allowance and bringing your own key, not access.
+// is the included allowance, not access.
 const BENEFITS = computed(() => [
   "Unlimited campaigns, NPCs, monsters, encounters & notes",
   ...(proMonthlyCredits.value > 0
     ? [`${proMonthlyCredits.value.toLocaleString()} AI credits every month, included`]
     : []),
-  "Bring your own OpenAI or Gemini key for AI generation",
   "Soundboard and tile-pack uploads, unlimited pages & playlists",
   "Your whole table plays free, always",
 ])

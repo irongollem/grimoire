@@ -77,7 +77,7 @@
           @click="activeSourceTab = 'spotify'"
         />
         <AppButton
-          v-if="isAiEnabled && (geminiApiKey || campaignId)"
+          v-if="isAiEnabled && campaignId"
           :variant="activeSourceTab === 'generate' ? 'tinted' : 'subtle'"
           tone="arcane"
           emphasis="strong"
@@ -175,7 +175,7 @@
         </div>
 
         <!-- Cost -->
-        <GenerationCostBadge :credits="musicCost" :byok="!!geminiApiKey" />
+        <GenerationCostBadge :credits="musicCost" />
 
         <!-- Lyrics — only meaningful once the track will actually sing. -->
         <div v-if="generateVocals === 'vocals'" class="space-y-1">
@@ -333,8 +333,6 @@ import { useNpcAppearances } from "@/composables/npcs/useNpcFields";
 import { useLocationDescriptions } from "@/composables/locations/useLocationDescriptions";
 import { useMentionedMonsters } from "@/composables/monsters/useMentionedMonsters";
 import {
-  generateMusicLocally,
-  composeFallbackPrompt,
   MUSIC_LENGTHS,
   MUSIC_MAX_IMAGES,
   LYRICS_MAX_CHARS,
@@ -343,10 +341,9 @@ import {
   type MusicLengthSeconds,
   type MusicVocals,
 } from "@/lib/audio/aiMusic";
-import { logUsage } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useMusicGeneration } from "@/ai/useMusicGeneration";
-import { currentLoadingQuote, startAiQuotes, stopAiQuotes } from "@/ai/aiGenerationState";
+import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import SoundProviderBrowser from "@/components/soundboard/SoundProviderBrowser.vue";
 import SpotifyLocalOnlyInfo from "@/components/soundboard/SpotifyLocalOnlyInfo.vue";
@@ -354,7 +351,6 @@ import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import type { SoundCategory } from "@/types/sound.types";
 import { useMusicTrackQuote } from "@/composables/ai/quotes/musicTrackQuote";
-import { localKeyModeChosen } from "@/lib/localKeyVault";
 
 const spotifyStore = useSpotifyStore();
 // The server multiplies the song's price by Gemini's audio multiplier (generate-music); the quote carries that, and
@@ -365,13 +361,11 @@ const { requireCredits } = useOutOfCredits();
 const { isPro } = useSubscription();
 // Upload (own audio, not AI) stays Pro-only; Generate reads the campaign's
 // own AI Assistant toggle instead — the same gate generate-music enforces
-// server-side. BYOK gets no exemption from the toggle, only from the credit
-// charge (see GenerationCostBadge below).
+// server-side.
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 
-const { geminiApiKey = null, campaignId = null } = defineProps<{
-  geminiApiKey?: string | null;
+const { campaignId = null } = defineProps<{
   campaignId?: string | null;
 }>();
 
@@ -540,10 +534,8 @@ const {
   vocals: generateVocals,
   editedPrompt,
 } = music.draft;
-// The local-vault BYOK path runs here in the foreground; the server path's
-// progress is the module-level music.isGenerating.
-const localGenerating = ref(false);
-const isGenerating = computed(() => music.isGenerating.value || localGenerating.value);
+// Progress is the module-level music.isGenerating, so it outlives this dialog.
+const isGenerating = computed(() => music.isGenerating.value);
 const generateError = ref("");
 const shownGenerateError = computed(() => generateError.value || music.error.value);
 
@@ -672,7 +664,7 @@ async function handleSubmit() {
     // Defensive: the Generate tab is hidden while the toggle is off, so this
     // only guards a stray trigger.
     if (!isAiEnabled.value) return;
-    if (!geminiApiKey && !campaignId) return;
+    if (!campaignId) return;
 
     // Unique portrait/image URLs from resolved @mentions — Lyria reads at
     // most MUSIC_MAX_IMAGES; over that, the DM trims mentions rather than
@@ -685,7 +677,7 @@ async function handleSubmit() {
       return;
     }
 
-    if (!requireCredits(musicCost.value, !!geminiApiKey)) return;
+    if (!requireCredits(musicCost.value)) return;
 
     const musicRequest: FallbackPromptRequest = {
       description: stripMentionTokens(generateDescription.value.trim()),
@@ -704,72 +696,26 @@ async function handleSubmit() {
     const originatingCampaignId = campaignId;
 
     const promptOverride = editedPrompt.value?.trim() || null;
-    const isLocalMode = localKeyModeChosen();
 
-    // Server path: structuring and Lyria both run in generate-music's worker,
-    // and useMusicGeneration waits on the job at module level, so the DM can
-    // close this dialog ("Continue in background") and the badge takes over.
-    if (!(isLocalMode && geminiApiKey)) {
-      if (!originatingCampaignId) {
-        generateError.value = "No campaign or API key configured for music generation.";
-        return;
-      }
-      const done = await music.generate({
-        campaignId: originatingCampaignId,
-        soundName,
-        category: soundCategory,
-        request: musicRequest,
-        imageUrls,
-        prompt: promptOverride,
-      });
-      if (done) {
-        emit("saved");
-        resetForm();
-      }
+    // Structuring and Lyria both run in generate-music's worker, and
+    // useMusicGeneration waits on the job at module level, so the DM can close
+    // this dialog ("Continue in background") and the badge takes over.
+    if (!originatingCampaignId) {
+      generateError.value = "No campaign selected for music generation.";
       return;
     }
-
-    // Local-vault BYOK path: browser-owned and legacy per the BYOK-tier
-    // policy, so it runs in the foreground and sends a hand-composed prompt
-    // (composeFallbackPrompt) rather than adding a second BYOK text-provider
-    // call here.
-    localGenerating.value = true;
-    startAiQuotes("music");
-    let file: File;
-    // Built here, so a refusal can hand it back to be reworded.
-    const localPrompt = promptOverride ?? composeFallbackPrompt(musicRequest);
-    try {
-      const generated = await generateMusicLocally(localPrompt, geminiApiKey, imageUrls);
-      file = generated.file;
-      logUsage({ reason: "music_generation", imageUsage: { model: generated.model, provider: "google", image_count: 1 } });
-    } catch (err) {
-      generateError.value = err instanceof Error ? err.message : "Generation failed.";
-      editedPrompt.value = localPrompt;
-      return;
-    } finally {
-      localGenerating.value = false;
-      stopAiQuotes();
-    }
-
-    const result = await upload(file);
-    if (!result) {
-      generateError.value = "Upload failed. Please try again.";
-      return;
-    }
-    await mutateAsync({
-      name: form.value.name.trim() || musicRequest.description.slice(0, 60),
-      category: form.value.category,
-      source_type: "upload",
-      file_url: result.file_url,
-      storage_path: result.storage_path,
-      tags: [],
-      attribution: null,
-      attribution_url: null,
-      artist: "Grimoire AI",
-      thumbnail_url: null,
+    const done = await music.generate({
+      campaignId: originatingCampaignId,
+      soundName,
+      category: soundCategory,
+      request: musicRequest,
+      imageUrls,
+      prompt: promptOverride,
     });
-    emit("saved");
-    resetForm();
+    if (done) {
+      emit("saved");
+      resetForm();
+    }
     return;
   }
 

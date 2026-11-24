@@ -6,7 +6,6 @@
     title="Feature Generator"
     concept-placeholder="A bookcase in the abbot's study that swings aside when the wrong tome is pulled, revealing a stair down to the old crypt, and a needle trap for anyone who guesses wrong…"
     :credits="effectiveCreditCost"
-    :byok="fullyByok"
     :is-generating="isGenerating"
     :unsaved-label="retained.unsaved.value ? 'feature' : null"
     :is-saving="retained.isSaving.value"
@@ -71,7 +70,6 @@ const generateImage = ref(true);
 const quote = computed(() => quoteFeature({ image: generateImage.value }));
 // Null while any part that will be charged has no known price yet.
 const effectiveCreditCost = computed(() => quote.value.total);
-const fullyByok = computed(() => quote.value.byok);
 
 type Generated = NonNullable<Awaited<ReturnType<typeof generate>>>;
 const retained = useRetainedGeneration<Generated>();
@@ -85,7 +83,7 @@ async function onGenerate() {
 }
 
 async function generateAndCreate() {
-  if (!canSpend(effectiveCreditCost.value, fullyByok.value)) return;
+  if (!canSpend(effectiveCreditCost.value)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

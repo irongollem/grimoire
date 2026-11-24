@@ -1,5 +1,4 @@
 import { generateEntityText } from "./entityTextGeneration";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import {
   createAiGenerationState,
   startAiQuotes,
@@ -38,7 +37,6 @@ export interface DeityGenerationOptions {
 }
 
 export function useDeityGeneration() {
-  const { ruleset } = useTableRuleset();
 
   async function generate(
     userPrompt: string,
@@ -63,8 +61,6 @@ export function useDeityGeneration() {
       const raw = await generateEntityText<Record<string, unknown>>({
         generator: "deity",
         campaignId: imageContext.campaignId,
-        world: imageContext.world,
-        ruleset: ruleset.value,
         prompt: userPrompt,
         constraints: buildDeityConstraints({
           pantheonName: options?.pantheonName,

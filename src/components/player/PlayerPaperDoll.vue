@@ -7,7 +7,7 @@
       <div v-if="action.control !== 'none' && doll" class="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
         <template v-if="action.control === 'make'">
           <span v-if="action.askedByPlayer" class="text-caption text-ink-caution">Asked by the player</span>
-          <GenerationCostBadge v-if="!isMakingDoll" :credits="dollCost" :byok="false" :show-balance="false" />
+          <GenerationCostBadge v-if="!isMakingDoll" :credits="dollCost" :show-balance="false" />
           <AppButton
             variant="subtle"
             size="xs"

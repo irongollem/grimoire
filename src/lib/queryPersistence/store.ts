@@ -2,9 +2,8 @@
  * IndexedDB layer for the persisted query cache.
  *
  * One database, one object store, one record per query keyed by `queryHash`.
- * Hand-rolled (no idb wrapper, no query-persist-client-core) in the style of
- * `localKeyVault`: the surface needed is five calls, and the persister the
- * library ships serialises the WHOLE cache on every write, which is the wrong
+ * Hand-rolled (no idb wrapper, no query-persist-client-core): the
+ * surface needed is five calls, and the persister the library ships serialises the WHOLE cache on every write, which is the wrong
  * shape for a cache with a 3,500-row array in it.
  *
  * Reads are by hash, one record at a time, so a query only ever pays for its

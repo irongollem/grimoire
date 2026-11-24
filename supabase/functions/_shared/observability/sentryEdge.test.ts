@@ -123,7 +123,7 @@ describe("buildEdgeEvent", () => {
   it("scrubs PII out of the error message", () => {
     const event = buildEdgeEvent(
       new Error("no credits for jeffrey@crocode.nl using sk-ant-api03-AAAABBBBCCCCDDDD"),
-      { functionName: "deduct-ai-credit" },
+      { functionName: "generate-trap" },
       CONFIG,
       "abc123",
       1_700_000_000,

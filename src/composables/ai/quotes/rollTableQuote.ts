@@ -6,6 +6,6 @@
 import { useQuoteKit, type GeneratorQuote } from "@/composables/ai/quotes/quoteKit";
 
 export function useRollTableQuote(): () => GeneratorQuote {
-  const { textLine, quoteOf, textIsByok } = useQuoteKit();
-  return () => quoteOf([textLine("Roll table", "Written by AI", "roll_table_generation")], textIsByok.value);
+  const { textLine, quoteOf } = useQuoteKit();
+  return () => quoteOf([textLine("Roll table", "Written by AI", "roll_table_generation")]);
 }

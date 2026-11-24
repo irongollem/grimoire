@@ -5,7 +5,6 @@
     title="Recipe Generator"
     concept-placeholder="A smoky draught brewed from ember-moss and wyrm scale that lets the drinker breathe fire once, found only in the fire-scarred Ashen Reach…"
     :credits="textCreditCost"
-    :byok="textIsByok"
     :is-generating="isGenerating"
     :error="genError"
     :can-generate="!pending && !creating"
@@ -94,7 +93,6 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useRecipeQuote } from "@/composables/ai/quotes/recipeQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useToast } from "@/composables/useToast";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import {
@@ -126,7 +124,6 @@ const { data: items } = useItemIndex(() => ({ enabled: generatorsUi.recipeGenera
 
 const { canSpend } = useGenerationGate();
 // The price comes from the quote Ask Grimoire reads too, so the page and the panel cannot disagree.
-const { textIsByok } = useCampaignProviders();
 const quote = useRecipeQuote();
 const textCreditCost = computed(() => quote().total);
 
@@ -147,7 +144,7 @@ const ingredientSummary = computed(() =>
 );
 
 async function generateRecipe() {
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(textCreditCost.value)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

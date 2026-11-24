@@ -6,7 +6,7 @@ function row(over: Partial<AiGenerationCostRow>): AiGenerationCostRow {
     id: crypto.randomUUID(), user_id: "u", delta: -12, reason: "tile_pack_generation",
     model: "gpt-image-2", provider: "openai", quality: "low", size: "1024x1024",
     input_tokens: 262, input_image_tokens: 250, output_tokens: 196, image_count: 1,
-    is_byok: false, created_at: "2026-08-26T00:00:00.000Z", estimated_cost_usd_cents: 0.919,
+    created_at: "2026-08-26T00:00:00.000Z", estimated_cost_usd_cents: 0.919,
     ...over,
   };
 }
@@ -55,16 +55,15 @@ describe("aggregateModelStats", () => {
     expect(stats[0]!.count).toBe(2);
   });
 
-  // BYOK rows cost the user's own key, not credits: they count as generations
+  // A free row (delta 0, e.g. history from before every call ran on credits) counts as a generation
   // but must not dilute the average credits a charged generation costs.
   it("averages credits over charged generations only", () => {
     const [stat] = aggregateModelStats([
       row({ delta: -12 }),
       row({ delta: -8 }),
-      row({ delta: 0, is_byok: true }),
+      row({ delta: 0 }),
     ]);
     expect(stat!.count).toBe(3);
-    expect(stat!.byok_count).toBe(1);
     expect(stat!.charged_count).toBe(2);
     expect(stat!.credits).toBe(20);
     expect(stat!.avg_credits).toBe(10);

@@ -14,11 +14,11 @@ export interface LocationQuoteOptions {
 }
 
 export function useLocationQuote(): (options: LocationQuoteOptions) => GeneratorQuote {
-  const { textLine, artLine, quoteOf, textIsByok, imageIsByok } = useQuoteKit();
+  const { textLine, artLine, quoteOf } = useQuoteKit();
   return ({ image, map = false }) => {
     const lines = [textLine("Place", "Written by AI", "location_generation")];
     if (image) lines.push(artLine("Picture", "Painted by AI", 1, "entity_image", "1024x1024"));
     if (map) lines.push(artLine("Map sketch", "Drawn by AI", 1, "entity_image", "1024x1024"));
-    return quoteOf(lines, textIsByok.value && ((!image && !map) || imageIsByok.value));
+    return quoteOf(lines);
   };
 }

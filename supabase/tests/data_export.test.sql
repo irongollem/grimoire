@@ -123,12 +123,12 @@ select is_empty(
   'the same set is handled by prepare_user_erasure — export and erasure agree on what has no FK');
 
 -- ── 3. Redaction ────────────────────────────────────────────────────────────
--- The predicate is what stands between a downloaded file and a working BYOK key
+-- The predicate is what stands between a downloaded file and a working API key
 -- or campaign invite. Both directions matter: `input_tokens` on the credit
 -- ledger is a billing count, and a `%token%` rule would redact the usage
 -- history — the most useful numbers in the export — to protect nothing.
 
-select ok(private.is_credential_column('gemini_api_key'), 'a BYOK key column is a credential');
+select ok(private.is_credential_column('gemini_api_key'), 'an API key column is a credential');
 select ok(private.is_credential_column('ical_token'), 'a calendar-feed token is a credential');
 select ok(private.is_credential_column('token'), 'a bare token column is a credential');
 select ok(not private.is_credential_column('input_tokens'), 'a token COUNT is not a credential');
@@ -162,10 +162,7 @@ values
    'authenticated', 'authenticated', 'export-b@example.invalid', '', now(), now());
 
 -- `ical_token` defaults to a generated uuid and is NOT NULL, so one ordinary
--- campaign row carries a real credential to redact. Deliberately not a BYOK
--- key: setting one trips enforce_byok_pro_only(), and making the fixture
--- account Pro to satisfy an unrelated trigger would be fighting the schema to
--- test a rule that applies to every credential column equally.
+-- campaign row carries a real credential to redact.
 insert into public.campaigns (id, user_id, name, game_system)
 values
   ('32000000-0000-4000-8000-0000000000a2', '32000000-0000-4000-8000-0000000000a1', 'A''s campaign', 'dnd5e-2014'),
@@ -185,15 +182,15 @@ select is(
 -- A null credential stays null rather than becoming "[redacted]": "no key was
 -- ever set" and "a key is withheld" are different facts about the account, and
 -- the subject is entitled to the first one.
--- The BYOK keys live in campaign_api_keys (#1228). A row with no key set is
--- the case here: the key must come out null, and the row must be there at all
--- (a missing key would also read as null, which is not the same assertion).
-insert into public.campaign_api_keys (campaign_id, user_id)
-values ('32000000-0000-4000-8000-0000000000a2', '32000000-0000-4000-8000-0000000000a1');
+-- parental_consent_requests.campaign_invite_token is the one nullable credential
+-- column a subject is keyed to (through child_user_id): a consent request sent
+-- before any campaign invite has none.
+insert into public.parental_consent_requests (parent_email, child_user_id)
+values ('parent-a@example.invalid', '32000000-0000-4000-8000-0000000000a1');
 
 select is(
   (select public.export_user_data('32000000-0000-4000-8000-0000000000a1')
-            -> 'tables' -> 'campaign_api_keys' -> 0 -> 'gemini_api_key'),
+            -> 'tables' -> 'parental_consent_requests' -> 0 -> 'campaign_invite_token'),
   'null'::jsonb,
   'an unset credential stays null rather than being reported as redacted');
 

@@ -6,7 +6,7 @@
 // pays ("players always play for free"), so every reply is reserved, charged and logged on the campaign owner.
 
 import type { AgentProvider } from "../_shared/agent/providerIo.ts";
-import { creditsForUsd, usableCalibration, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
+import { creditsForUsd, usableCalibration, usdForSteps, type ModelPrice } from "../_shared/agent/metering.ts";
 import { STAND_IN_MAX_OUTPUT_TOKENS, STAND_IN_REPLIES_MAX, standInPrompt, standInReply, standInsAnswering, type StandIn } from "../_shared/agent/standIn.ts";
 import { noulOf, type JudgeRequest, type JudgeResult } from "../_shared/typesafe.ts";
 import { causeRequest, hasCause, namesInLine, unpromptedCandidates, unpromptedLeft, unpromptedPrompt, UNPROMPTED_WINDOW_MS, type KnownThings } from "./unprompted.ts";
@@ -29,7 +29,6 @@ export interface ChatLine {
 }
 
 export interface ReplyCampaign extends BaseCampaign {
-  text_provider: string | null;
 }
 
 /** The ledger lines a reply may queue; the hold itself (reserve, release, write) is `withCreditHold`'s. */
@@ -57,7 +56,7 @@ export interface ReplyDeps {
   /** The newest public chat lines before this one, oldest first. Whispers are never among them. */
   loadRecent(line: ChatLine): Promise<{ from: string; text: string }[]>;
   /**
-   * Holds `credits` on the campaign owner's account (0 holds nothing: own-key play), runs one character's reply and
+   * Holds `credits` on the campaign owner's account (0 holds nothing), runs one character's reply and
    * releases the hold whatever happens. A refused hold answers its refusal without running `work`.
    */
   withHold(ownerId: string, credits: number, work: (hold: ReplyHold) => Promise<Response>): Promise<Response>;
@@ -130,17 +129,13 @@ export async function answerChatLine(input: { userId: string; body: unknown; dep
 
   const provider = await deps.resolveProvider(campaign);
   if (!provider || !provider.callModel) return nobody();
-  let price: ModelPrice | null = null;
-  let calibration: CreditCalibration | null = null;
-  if (!provider.isByok) {
-    price = await deps.loadPrice(provider.model);
-    const found = await deps.loadCalibration();
-    calibration = usableCalibration(found);
-    if (!price || !calibration) return nobody();
-  }
+  const loadedPrice = await deps.loadPrice(provider.model);
+  const loadedCalibration = usableCalibration(await deps.loadCalibration());
+  if (!loadedPrice || !loadedCalibration) return nobody();
+  // `speak` is a declaration, which does not keep the narrowing above, so the checked pair travels as one object.
+  const metering = { price: loadedPrice, calibration: loadedCalibration };
 
   const callModel = provider.callModel;
-  const chosen = provider;
   const said = line;
   const whisper = line.recipient_user_id !== null;
   const recent = whisper ? [] : await deps.loadRecent(line);
@@ -150,7 +145,7 @@ export async function answerChatLine(input: { userId: string; body: unknown; dep
   /** One character's line: held, written, screened by the shape of what came back, posted, charged, remembered. Null when the hold was refused. */
   async function speak(character: StandIn, how: { unprompted: false } | { unprompted: true; names: readonly string[]; memories: readonly string[] }): Promise<Response | null> {
     let ran = false;
-    const answer = await deps.withHold(campaign.user_id, chosen.isByok ? 0 : REPLY_RESERVE_CREDITS, async (hold) => {
+    const answer = await deps.withHold(campaign.user_id, REPLY_RESERVE_CREDITS, async (hold) => {
       ran = true;
       const memories = how.unprompted ? how.memories : await deps.loadMemories(campaign.id, character.id);
       const prompt = how.unprompted
@@ -167,14 +162,14 @@ export async function answerChatLine(input: { userId: string; body: unknown; dep
       const text = step.stop === "refusal" ? "" : step.blocks.filter((b): b is Extract<AgentBlock, { type: "text" }> => b.type === "text").map((b) => b.text).join("");
       const reply = standInReply(text);
       if (reply === null) {
-        hold.charge(GENERATION, { cost: 0, isByok: chosen.isByok, log });
+        hold.charge(GENERATION, { cost: 0, log });
         return nobody();
       }
       // A whisper is answered in a whisper, back to the one who sent it. An unprompted line is only ever in the open.
       await deps.postReply({ line: said, character, ownerId: campaign.user_id, text: reply.says, recipientUserId: whisper ? said.user_id : null, provider: usage.provider, model: usage.model, unprompted: how.unprompted });
       replies += 1;
-      const credits = chosen.isByok || !price || !calibration ? 0 : Math.max(1, Math.ceil(creditsForUsd(usdForSteps([usage], price), calibration)));
-      hold.charge(GENERATION, { cost: credits, isByok: chosen.isByok, log });
+      const credits = Math.max(1, Math.ceil(creditsForUsd(usdForSteps([usage], metering.price), metering.calibration)));
+      hold.charge(GENERATION, { cost: credits, log });
       if (reply.remembers !== null) {
         // A memory is a nicety: failing to file it must not turn a posted, paid reply into an error.
         try {

@@ -27,7 +27,7 @@ vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: ref({ id: "u1" })
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf }) }));
 vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits }) }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
-  useCampaignProviders: () => ({ imageCredits: (n: number) => n, imageIsByok: ref(false) }),
+  useCampaignProviders: () => ({ imageCredits: (n: number) => n }),
 }));
 vi.mock("@/composables/ai/useLikenessGate", () => ({ useLikenessGate: () => ({ ensureLikenessAck }) }));
 

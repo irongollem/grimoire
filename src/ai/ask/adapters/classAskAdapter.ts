@@ -41,8 +41,8 @@ export function useClassAskAdapter(): AskAdapter {
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
 
-    const block = blockFor({ total: priced.total, byok: priced.byok, fiveE: true }) ?? conceptBlock(read.concept, "class");
-    return { lines, total: priced.total, byok: priced.byok, block };
+    const block = blockFor({ total: priced.total, fiveE: true }) ?? conceptBlock(read.concept, "class");
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal): Promise<AskRunResult> {

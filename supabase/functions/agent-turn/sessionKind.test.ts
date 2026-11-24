@@ -25,7 +25,9 @@ function depsWith(stored: SessionRow): AgentTurnDeps {
     loadSession: async () => stored,
     now: () => Date.now(),
     rateLimit: async () => true,
-    resolveProvider: async () => ({ provider: "openai", model: "m1", isByok: true, callModel: async () => { throw new Error("not called"); } }),
+    resolveProvider: async () => ({ provider: "openai", model: "m1", callModel: async () => { throw new Error("not called"); } }),
+    loadPrice: async () => ({ inputPerMillion: 1, outputPerMillion: 1, cachedInputPerMillion: null }),
+    loadCalibration: async () => ({ usdPerCredit: 0.01, margin: 1 }),
     strikes: async () => 0,
     isFlagged: async () => false,
   };

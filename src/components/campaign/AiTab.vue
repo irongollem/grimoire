@@ -9,7 +9,7 @@
   <form v-else class="max-w-md flex flex-col gap-6" @submit.prevent="save">
 
     <!-- AI enabled toggle — free users can turn this on/off; everything else
-         in this tab (BYOK keys, provider pickers) is Pro. -->
+         in this tab (the image choice) is Pro. -->
     <div class="rounded-lg border border-border bg-card p-4">
       <div class="flex items-center justify-between gap-4">
         <div>
@@ -35,116 +35,19 @@
     <ProFeatureGate
       v-if="!isPro"
       class="max-w-md"
-      message="Bring your own API keys and choose specific providers; available on the Pro plan. Free campaigns still get AI generation billed to Grimoire-managed credits once the toggle above is on."
+      message="Choosing how images are made is a Pro feature. Free campaigns still generate with AI once the toggle above is on, paid in credits."
     />
 
     <template v-else-if="form.ai_enabled">
 
-    <!-- Local Mode Toggle -->
-    <div class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-3 border-b border-border bg-muted/20">
-        <span class="text-label-lg font-semibold text-muted-foreground">Key Storage Mode</span>
-      </div>
-      <div class="p-4 flex flex-col gap-3">
-        <AppCheckbox v-model="localModeEnabled" label="Store keys locally on this device only" :disabled="!canKeepKeysLocally" />
-        <p v-if="!canKeepKeysLocally" class="text-caption text-muted-foreground italic">
-          This browser blocks site data, so a key can't be kept on this device. Generation uses the campaign's key or credits.
-        </p>
-        <p class="text-caption text-muted-foreground italic">
-          <span v-if="localModeEnabled" class="block text-ink-caution  font-semibold mb-1">
-            ⚠️ Local storage only: Your keys are not saved to your account. Using Grimoire on a different browser or device will require re-entering them.
-          </span>
-          <span v-else class="block text-ink-success ">
-            ✓ Encrypted in your account: Your keys are encrypted and stored securely in your campaign.
-          </span>
-        </p>
-      </div>
-    </div>
-
-    <!-- Provider Keys -->
-    <div class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-3 border-b border-border bg-muted/20">
-        <span class="text-label-lg font-semibold text-muted-foreground">API Keys · BYOK</span>
-      </div>
-      <div class="p-4 flex flex-col gap-4">
-        <p class="text-caption text-muted-foreground italic">
-          Bring your own key (BYOK): your own provider bills you directly instead of spending credits.
-        </p>
-
-        <div v-for="p in providerDefs" :key="p.id" class="flex flex-col gap-1">
-          <div class="flex items-center justify-between">
-            <label class="text-label-lg text-muted-foreground">
-              {{ p.label }}
-              <span v-if="clearedKeys[p.id]" class="ml-1.5 text-caption-sm normal-case tracking-normal text-ink-caution ">(will be removed on save)</span>
-              <span v-else-if="providerHasKey(p.id) && !form.keys[p.id].trim()" class="ml-1.5 text-caption-sm normal-case tracking-normal text-primary/80">(key on file; leave blank to keep)</span>
-            </label>
-            <div class="flex items-center gap-3">
-              <button
-                v-if="clearedKeys[p.id]"
-                type="button"
-                class="text-caption text-muted-foreground hover:underline"
-                @click="undoClearKey(p.id)"
-              >Undo</button>
-              <button
-                v-else-if="providerHasKeyStored(p.id)"
-                type="button"
-                class="text-caption text-destructive hover:underline"
-                @click="clearKey(p.id)"
-              >Clear</button>
-              <a :href="p.link" target="_blank" rel="noopener noreferrer" class="text-caption text-primary hover:underline">Get key →</a>
-            </div>
-          </div>
-          <div class="relative">
-            <AppInput
-              v-model="form.keys[p.id]"
-              :type="showKeys[p.id] ? 'text' : 'password'"
-              :disabled="clearedKeys[p.id]"
-              :placeholder="clearedKeys[p.id] ? 'Will use platform credits' : (providerHasKey(p.id) ? 'Enter a new key to replace…' : p.placeholder)"
-              tone="filled"
-              size="body"
-              class="pr-10"
-              autocomplete="off"
-              spellcheck="false"
-            />
-            <AppButton
-              variant="ghost"
-              size="icon-xs"
-              icon-size="md"
-              class="absolute right-2.5 top-1/2 -translate-y-1/2"
-              :icon="showKeys[p.id] ? IconHide : IconReveal"
-              :tooltip="showKeys[p.id] ? 'Hide key' : 'Reveal key'"
-              @click="showKeys[p.id] = !showKeys[p.id]"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Generation. Which model writes or draws is the platform's decision and
          is never shown: text runs on whatever the admin enabled, and the DM is
-         asked only whether images should be quick or detailed. A DM holding
-         their own keys additionally says which key pays for text. -->
+         asked only whether images should be quick or detailed. -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20">
         <span class="text-label-lg font-semibold text-muted-foreground">Generation</span>
       </div>
       <div class="p-4 flex flex-col gap-4">
-
-        <div v-if="availableTextProviders.length > 0" class="flex flex-col gap-1">
-          <label class="text-label-lg text-muted-foreground">Text</label>
-          <AppSelect
-            v-if="availableTextProviders.length > 1"
-            v-model="form.text_provider"
-            tone="filled"
-            size="body"
-            weight="normal"
-          >
-            <option v-for="o in availableTextProviders" :key="o.value" :value="o.value">Your {{ o.label }} key</option>
-          </AppSelect>
-          <p class="text-caption text-muted-foreground">
-            <template v-if="availableTextProviders.length === 1">Your {{ availableTextProviders[0].label }} key · </template>no credits charged
-          </p>
-        </div>
 
         <div class="flex flex-col gap-1">
           <label class="text-label-lg text-muted-foreground">Images</label>
@@ -155,10 +58,7 @@
             size="sm"
             block
           />
-          <p v-if="providerHasKey(form.image_provider)" class="text-caption text-muted-foreground">
-            Your key · no credits charged
-          </p>
-          <template v-else-if="configLoaded">
+          <template v-if="configLoaded">
             <p v-if="imageOptions.length === 0" class="text-caption text-muted-foreground italic">
               Image generation isn't available right now.
             </p>
@@ -175,12 +75,10 @@
       <RouterLink to="/canon" class="underline">Canon</RouterLink>.
     </p>
 
-    <!-- Your AI usage — platform-credit users only (BYOK pays their own provider) -->
     <AiUsageStatsPanel
-      v-if="!localModeEnabled"
       title="Your AI Usage"
       currency="credits"
-      subtitle="Credits spent on generations. BYOK calls (your own key) are billed by your provider, not here."
+      subtitle="Credits spent on generations."
     />
 
     <!-- Promotional consent -->
@@ -217,20 +115,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, watch } from "vue";
-import { IconHide, IconReveal } from '@/lib/icons';
+import { ref, computed, watch } from "vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
-import { encryptApiKey, decryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";
-import { saveCampaignApiKeys, type CampaignApiKeyField, type CampaignApiKeys } from "@/ai/campaignApiKeys";
-import { encryptLocalKey, decryptLocalKey, isLocalCiphertext, LOCAL_MODE_KEY, localKeyModeChosen } from "@/lib/localKeyVault";
-import { safeLocalStorage, localStorageAvailable } from "@/lib/safeLocalStorage";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useChildAccount } from "@/composables/account/useChildAccount";
-import { useProviderConfig, PROVIDER_DISPLAY } from "@/composables/ai/useProviderConfig";
+import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { IMAGE_SPEED_LABEL } from "@/composables/ai/useCampaignProviders";
-import { BYOK_TEXT_ORDER, imageOffered } from "@edge-shared/providerChoice.ts";
+import { imageOffered } from "@edge-shared/providerChoice.ts";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
 import { useAiAcknowledgements } from "@/composables/ai/useAiAcknowledgements";
@@ -239,8 +132,6 @@ import AiUsageStatsPanel from "@/components/common/ai/AiUsageStatsPanel.vue";
 import AiNoticeDialog from "@/components/campaign/AiNoticeDialog.vue";
 import ProFeatureGate from "@/components/billing/ProFeatureGate.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import AppInput from "@/components/common/controls/AppInput.vue";
-import AppSelect from "@/components/common/controls/AppSelect.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 
@@ -248,45 +139,15 @@ const { isPro } = useSubscription();
 const { isChild } = useChildAccount();
 const { hasAcknowledged } = useAiAcknowledgements();
 
-interface ProviderDef {
-  id:          string;
-  label:       string;
-  placeholder: string;
-  link:        string;
-  dbField:     CampaignApiKeyField;
-  localKey:    string;
-}
-
-const providerDefs: ProviderDef[] = [
-  { id: "openai",    label: "OpenAI",          placeholder: "sk-…",     dbField: "openai_api_key",    localKey: "grimoire_openai_key",    link: "https://platform.openai.com/api-keys" },
-  { id: "gemini",    label: "Google Gemini",    placeholder: "AIza…",    dbField: "gemini_api_key",    localKey: "grimoire_gemini_key",    link: "https://aistudio.google.com/app/apikey" },
-  // Anthropic is temporarily not offered (no platform contract/key yet) — its
-  // backend provider + key field are retained so it can be re-enabled here.
-  // fal.ai is not a "temporarily": it was removed outright in #641.
-];
-
 const campaign = useCampaignStore();
 const { mutateAsync: updateCampaign } = useUpdateCampaign();
-
-// Keys must NEVER be initialised from the DB value — that field holds the
-// encrypted ciphertext, not the plaintext. Treating it as user input meant
-// (a) the input field rendered ciphertext as "the key", and (b) toggling
-// local mode would write that ciphertext to localStorage as the new "key"
-// while wiping the real one from the DB. The form input is always empty;
-// entering a value replaces the stored key, leaving it empty preserves
-// whatever's currently stored (see save()).
-function initialKeys(): Record<string, string> {
-  return Object.fromEntries(providerDefs.map((p) => [p.id, ""]));
-}
 
 const form = ref({
   // The toggle is binary; a campaign that hasn't chosen yet (null) starts it
   // off, same as an explicit false — see context/compliance/ai-act.md §4.
   ai_enabled:        campaign.activeCampaign?.ai_enabled === true,
-  text_provider:    campaign.activeCampaign?.text_provider  ?? "openai",
   image_provider:   campaign.activeCampaign?.image_provider ?? "openai",
   allow_chronicle_promotion: campaign.activeCampaign?.allow_chronicle_promotion ?? false,
-  keys: initialKeys(),
 });
 
 const showAiNoticeDialog = ref(false);
@@ -309,28 +170,12 @@ function toggleAi() {
   showAiNoticeDialog.value = true;
 }
 
-const showKeys     = reactive<Record<string, boolean>>(Object.fromEntries(providerDefs.map((p) => [p.id, false])));
-// Staged removal: a provider whose stored key should be deleted on save, so the
-// user can fall back to platform credits instead of being forced to replace it.
-const clearedKeys  = reactive<Record<string, boolean>>(Object.fromEntries(providerDefs.map((p) => [p.id, false])));
 const isSaving     = ref(false);
-
-function clearKey(id: string) {
-  clearedKeys[id] = true;
-  form.value.keys[id] = "";
-}
-function undoClearKey(id: string) {
-  clearedKeys[id] = false;
-}
-// Nothing survives a reload when the browser blocks site data, so a key kept
-// "on this device" would vanish; the option is offered only when it can work.
-const canKeepKeysLocally = localStorageAvailable();
-const localModeEnabled = ref(canKeepKeysLocally && localKeyModeChosen());
 
 const { query: providerConfigQuery, rowFor, imageMultiplierFor } = useProviderConfig();
 // Until provider_config arrives nothing is known about what the admin offers:
 // no "unavailable" notice, no price, and no correcting the DM's pick against
-// options that are only the keys they hold.
+// options that are not yet known.
 // Off the data, not `isSuccess`: a failed background refetch keeps the rows.
 const configLoaded = computed(() => providerConfigQuery.data.value !== undefined);
 const { costOf } = useAiCredits();
@@ -343,69 +188,17 @@ const selectedImageCredits = computed(
 // Quick first, then Detailed.
 const IMAGE_CHOICE_ORDER = ["gemini", "openai"] as const;
 
-function providerHasKey(providerId: string): boolean {
-  if (form.value.keys[providerId].trim()) return true;
-  // A staged clear means "no key" immediately, so the provider drops out of the
-  // active-provider pickers and the UI falls back to platform credits.
-  if (clearedKeys[providerId]) return false;
-  const p = providerDefs.find((d) => d.id === providerId);
-  if (!p) return false;
-  if (localModeEnabled.value) {
-    return !!safeLocalStorage().getItem(p.localKey);
-  }
-  const c = campaign.activeCampaign;
-  return !!(c?.[p.dbField as keyof typeof c] as string | null);
-}
-
-// Whether a key is actually persisted (DB or local) right now — drives the
-// "Clear" affordance, independent of form input or staged-clear state.
-function providerHasKeyStored(providerId: string): boolean {
-  const p = providerDefs.find((d) => d.id === providerId);
-  if (!p) return false;
-  if (localModeEnabled.value) return !!safeLocalStorage().getItem(p.localKey);
-  const c = campaign.activeCampaign;
-  return !!(c?.[p.dbField as keyof typeof c] as string | null);
-}
-
-// Anthropic keys are no longer offered here, but a campaign already set to
-// Anthropic with its key still runs on it (chooseTextProvider honours an
-// explicit pick), so it is listed while it is the pick. Leaving it out made the
-// watcher below re-point the campaign to another key on the next unrelated save.
-// Read off the stored key, like providerHasKey: the decrypted one is empty
-// while the vault answers (after every save) and after a failed decryption.
-const keepsAnthropic = computed(
-  () =>
-    form.value.text_provider === "anthropic" &&
-    (localModeEnabled.value
-      ? !!safeLocalStorage().getItem("grimoire_anthropic_key")
-      : !!campaign.storedKeys?.anthropic_api_key),
-);
-const availableTextProviders = computed(() =>
-  [...BYOK_TEXT_ORDER.filter((p) => providerHasKey(p)), ...(keepsAnthropic.value ? ["anthropic" as const] : [])]
-    .map((p) => ({ value: p, label: PROVIDER_DISPLAY[p] ?? p })),
-);
-// A choice is open when the admin offers it on platform credits or the DM holds
-// its key: chooseImageProvider (_shared/providerChoice.ts) honours exactly
-// those, by the same `imageOffered` rule.
+// A choice is open when the admin offers it on platform credits:
+// chooseImageProvider (_shared/providerChoice.ts) honours exactly that, by the
+// same `imageOffered` rule.
 const imageOptions = computed(() =>
   IMAGE_CHOICE_ORDER
-    .filter((p) => providerHasKey(p) || imageOffered(rowFor(p)))
+    .filter((p) => imageOffered(rowFor(p)))
     .map((p) => ({ value: p, label: IMAGE_SPEED_LABEL[p] })),
 );
 
-// Keep each pick on an option that exists, including one stored that way (a
-// null or stale text_provider while the DM holds a single other key), so the
-// form shows and saves what chooseTextProvider will actually run. Watching the
-// form value too re-applies it after the campaign watcher below resets the form.
-watch(
-  [availableTextProviders, () => form.value.text_provider],
-  ([options, chosen]) => {
-    if (options.length > 0 && !options.some((o) => o.value === chosen)) {
-      form.value.text_provider = options[0].value;
-    }
-  },
-  { immediate: true },
-);
+// Keep the image pick on an option that exists, so the form shows and saves
+// what chooseImageProvider will actually run.
 watch(
   [imageOptions, () => form.value.image_provider, configLoaded],
   ([options, chosen, loaded]) => {
@@ -421,14 +214,8 @@ watch(
   (c) => {
     if (c) {
       form.value.ai_enabled       = c.ai_enabled === true;
-      form.value.text_provider    = c.text_provider  ?? "openai";
       form.value.image_provider   = c.image_provider ?? "openai";
       form.value.allow_chronicle_promotion = c.allow_chronicle_promotion ?? false;
-      // Inputs deliberately stay empty — see initialKeys() for the reasoning.
-      for (const p of providerDefs) {
-        form.value.keys[p.id] = "";
-        clearedKeys[p.id] = false;
-      }
     }
   },
 );
@@ -437,79 +224,10 @@ async function save() {
   if (!campaign.activeCampaignId || !campaign.activeCampaign) return;
   isSaving.value = true;
   try {
-    const encryptedKeys: CampaignApiKeys = { openai_api_key: null, anthropic_api_key: null, gemini_api_key: null };
-    const stored = campaign.storedKeys;
-
-    // Per-provider save rules:
-    //   - Non-empty input: store in the active location (local or DB), clear the other.
-    //   - Empty input: preserve whatever's stored. If the user switched modes and
-    //     the new location is empty but the old one has a key, migrate it so
-    //     toggling the local-mode checkbox doesn't silently destroy the user's key.
-    if (localModeEnabled.value) {
-      for (const p of providerDefs) {
-        const trimmed   = form.value.keys[p.id].trim();
-        const existingDb = stored ? stored[p.dbField] : null;
-        const existingLocal = safeLocalStorage().getItem(p.localKey);
-
-        if (clearedKeys[p.id]) {
-          safeLocalStorage().removeItem(p.localKey);
-        } else if (trimmed) {
-          // Encrypted at rest with the local vault — never sent to our server.
-          safeLocalStorage().setItem(p.localKey, await encryptLocalKey(trimmed));
-        } else if (!existingLocal && existingDb) {
-          try {
-            const decrypted = await decryptApiKey(existingDb);
-            if (decrypted) safeLocalStorage().setItem(p.localKey, await encryptLocalKey(decrypted));
-          } catch (e) { console.error(`Failed to migrate ${p.id} key to local mode:`, e); }
-        }
-        encryptedKeys[p.dbField] = null;
-      }
-      safeLocalStorage().setItem(LOCAL_MODE_KEY, "local");
-    } else {
-      for (const p of providerDefs) {
-        const trimmed   = form.value.keys[p.id].trim();
-        const existingDb = stored ? stored[p.dbField] : null;
-        const existingLocal = safeLocalStorage().getItem(p.localKey);
-
-        if (clearedKeys[p.id]) {
-          encryptedKeys[p.dbField] = null;
-        } else if (trimmed) {
-          const enc = await encryptApiKey(trimmed);
-          primeDecryptCache(enc, trimmed);
-          encryptedKeys[p.dbField] = enc;
-        } else if (!existingDb && existingLocal) {
-          // Migrate a local key into the cloud vault. The stored local value is
-          // local-vault ciphertext, so decrypt it client-side before re-encrypting
-          // with the server vault.
-          const plain = isLocalCiphertext(existingLocal) ? await decryptLocalKey(existingLocal) : existingLocal;
-          const enc = await encryptApiKey(plain);
-          primeDecryptCache(enc, plain);
-          encryptedKeys[p.dbField] = enc;
-        } else {
-          encryptedKeys[p.dbField] = existingDb;
-        }
-        safeLocalStorage().removeItem(p.localKey);
-      }
-      safeLocalStorage().removeItem(LOCAL_MODE_KEY);
-    }
-
-    // Anthropic is not offered above, so a stored Anthropic key is kept as it is.
-    if (stored) encryptedKeys.anthropic_api_key = stored.anthropic_api_key;
-    // The keys are the owner's own (#1228), in a table nobody else can read or
-    // write; this tab is only open to the owner (useCampaignStore().isOwner).
-    const ownerId = campaign.activeCampaign.user_id;
-    // No row is written for a campaign that never held a key and gains none.
-    if (stored || Object.values(encryptedKeys).some((key) => key !== null)) {
-      await saveCampaignApiKeys(campaign.activeCampaignId, ownerId, encryptedKeys);
-    }
-    // What was just saved is what the reload below should use: no read back,
-    // and never an older copy a campaign read primed before this save.
-    campaign.keysArriving(campaign.activeCampaignId, Promise.resolve(encryptedKeys));
     const updated = await updateCampaign({
       id: campaign.activeCampaignId,
       update: {
         ai_enabled:        form.value.ai_enabled,
-        text_provider:     form.value.text_provider  || null,
         image_provider:    form.value.image_provider || null,
         allow_chronicle_promotion: form.value.allow_chronicle_promotion,
       },

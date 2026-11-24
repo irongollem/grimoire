@@ -24,7 +24,7 @@
               aria-label="Steer the room"
               :disabled="isGenerating"
             />
-            <GenerationCostBadge :credits="fillCreditCost" :byok="textIsByok" />
+            <GenerationCostBadge :credits="fillCreditCost" />
             <AppButton
               variant="outline"
               size="sm"
@@ -114,7 +114,6 @@ import { useAllLocations, useFetchLocation, useUpdateLocation } from "@/composab
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useRoomQuote } from "@/composables/ai/quotes/roomQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useRoomFill } from "@/ai/useRoomFill";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import type { AiProvenance } from "@/ai/provenance";
@@ -245,7 +244,6 @@ const aiDraft = ref<string | null>(null);
 const aiProvenance = ref<AiProvenance | null>(null);
 const { isGenerating, error: genError, clearError, fill } = useRoomFill();
 const { canSpend } = useGenerationGate();
-const { textIsByok } = useCampaignProviders();
 // The price is the quote's, the one Ask Grimoire shows for the same fill.
 const roomQuote = useRoomQuote();
 const fillCreditCost = computed(() => roomQuote().total);
@@ -258,7 +256,7 @@ const roomIds = computed(() => (fillOpen() ? rooms.map((r) => r.id) : []));
 const { data: doors } = useSiteDoors(roomIds);
 
 async function rollFill(room: Location): Promise<void> {
-  if (!canSpend(fillCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(fillCreditCost.value)) return;
   // The slim list has no description; the fill wants the site's, so read that
   // one row by id (cached with the place's own `["locations", id]` entry).
   let site: Location;

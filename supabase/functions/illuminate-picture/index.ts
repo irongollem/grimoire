@@ -3,7 +3,7 @@
  * extend to the page edge and match the book's look, on a picture the DM is editing in a document.
  *
  * Cloned from generate-nook-part: OpenAI only (transparent output and edit masks are OpenAI features) and
- * PLATFORM KEYS ONLY, never a campaign's own key. The client sends the picture as PNG bytes; the server never
+ * PLATFORM KEYS ONLY. The client sends the picture as PNG bytes; the server never
  * fetches a URL the client names. Synchronous, no upload here: the client stores the returned bytes, which carry
  * the AI-made mark (EU AI Act Art 50(2)).
  *
@@ -75,7 +75,6 @@ serve(serveUser(async ({ user, req, report }) => {
   ]);
   const img = resolveImageProvider({
     imageProvider: "openai",
-    campaignKeys: {}, // deliberately empty: no BYOK path, see file doc
     pinned: true, // transparent output and edit masks are OpenAI-only capabilities
     platformKeys: { openai: platformKeys.openai },
     providerConfigs,
@@ -111,7 +110,7 @@ serve(serveUser(async ({ user, req, report }) => {
     }
 
     hold.charge(GENERATION_TYPE, {
-      cost, isByok: false,
+      cost,
       log: {
         model: img.model, quality, size,
         provider: imgResult.usage.provider, image_count: 1,

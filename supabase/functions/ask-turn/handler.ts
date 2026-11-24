@@ -92,10 +92,9 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
   if (scope.kind === "off_topic") return { kind: "refused", refusal: { status: 422, error: ASK_REFUSALS.offTopic } };
 
   // Earlier routed turns are settled first: each is free if the DM ran a generator after it, else metered as an answer
-  // and charged (`settle_ask_routes` charges it itself, and says how many free answers are left). Own-key use is never
-  // counted, so an own-key account never calls it and none of its routes exist. A settlement that fails is logged, and
+  // and charged (`settle_ask_routes` charges it itself, and says how many free answers are left). A settlement that fails is logged, and
   // its routes stay open for the next turn.
-  const { freeLeft } = await settleEarlierRoutes({ userId, isByok: provider.isByok, settleRoutes: (id) => deps.settleRoutes(id) });
+  const { freeLeft } = await settleEarlierRoutes({ userId, settleRoutes: (id) => deps.settleRoutes(id) });
 
   // A report draft is the free path: nothing is held, nothing is counted, and what comes out is a draft and nothing
   // else, so it cannot be used for free answers (the model is shown only `draft_report`, and no text is streamed).
@@ -186,7 +185,7 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
           emit({ type: "done", end: result.end, routed: false, free: false, credits: 0, freeLeft });
           return;
         }
-        const accrued = !provider.isByok && price && calibration ? round6(creditsForUsd(usdForSteps(billed, price), calibration)) : 0;
+        const accrued = round6(creditsForUsd(usdForSteps(billed, price), calibration));
         const last = result.steps[result.steps.length - 1];
         // ledger input_tokens is ALL input (full rate, cache read and cache write); the exact split is on the rows.
         const log: CreditLogFields = {
@@ -208,15 +207,15 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
         });
         if (saved.kind !== "kept") {
           // The tokens were spent, so they are logged, at no charge.
-          ledger.charge("ask_answer", { cost: 0, isByok: provider.isByok, log });
+          ledger.charge("ask_answer", { cost: 0, log });
           emit({ type: "error", message: saved.kind === "conflict" ? ASK_MESSAGES.conflict : ASK_MESSAGES.notSaved });
           return;
         }
-        // A routed turn is pending until the DM runs the generator (see askBilling.ts). Only a kept turn is written, and
-        // never for an own key. Failing to write it costs the platform one routed turn, never the DM or the answer.
+        // A routed turn is pending until the DM runs the generator (see askBilling.ts). Only a kept turn is written.
+        // Failing to write it costs the platform one routed turn, never the DM or the answer.
         // A withheld turn is refused whole: its proposal is taken back with its words, so it is no route either.
         const proposal = withheld ? null : tools.proposal();
-        if (proposal !== null && !provider.isByok) {
+        if (proposal !== null) {
           try {
             await deps.recordRoute(userId, { proposalId: proposal.proposalId, sessionId: session.id, credits: accrued });
           } catch (error) {
@@ -227,7 +226,6 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
         const settlement = await settleAnswer({
           userId,
           routed: proposal !== null,
-          isByok: provider.isByok,
           accrued,
           freeLeft,
           ledger,
@@ -246,8 +244,7 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
             session,
             storedNow,
             callModel,
-            isByok: provider.isByok,
-            price,
+              price,
             calibration,
             reason: "ask_summary",
             billed: false,
@@ -263,7 +260,7 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
     });
   };
 
-  return { kind: "ready", reserve: reserveFor({ freeLeft, isByok: provider.isByok }), run };
+  return { kind: "ready", reserve: reserveFor({ freeLeft }), run };
 }
 
 /** The report turn's reading of where the DM is and what was said just before, for a short message such as "yes, that one". */

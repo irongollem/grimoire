@@ -1,5 +1,4 @@
 import { computed, ref } from "vue";
-import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import type { ResolvedSuggestion, SetAsideClaim } from "@edge-shared/connectionSuggestions.ts";
@@ -54,8 +53,7 @@ export function resetConnectionSuggestions() {
 /**
  * "Suggest connections" for one thing (an NPC, character, faction, place, deity
  * or item). Server-path only: candidates come from service-role reads and
- * embeddings the browser cannot make, and BYOK-local is a legacy tier that new
- * AI features do not ship a weaker second path for.
+ * embeddings the browser cannot make.
  *
  * Only PROPOSES. Writing a tie is the caller's job, one accepted row at a time.
  * The server resolves each suggestion's target to an id, so a reply carries
@@ -76,14 +74,6 @@ export function useConnectionSuggestions() {
     startAiQuotes();
 
     try {
-      const isLocalMode = await textRunsOnLocalKey();
-      if (isLocalMode) {
-        throw new Error(
-          "Connection suggestions need the server so they can draw on your campaign, and are not available in local-key mode. " +
-          "Switch to platform credits or a campaign API key in Settings → AI.",
-        );
-      }
-
       const campaignId = campaign.activeCampaignId;
       if (!campaignId) throw new Error("No active campaign selected.");
 

@@ -27,7 +27,7 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() { return campaignState.isAiEnabled; },
     activeCampaignId: "campaign-1",
-    activeCampaign: { text_provider: "openai" },
+    activeCampaign: {},
   }),
 }));
 vi.mock("@/composables/dungeon-features/usePuzzles", () => ({
@@ -39,9 +39,7 @@ vi.mock("@/composables/ai/useAiCredits", () => ({
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
   // The picture is quoted with the text (it is a separate entity_image charge), so the image half is mocked too.
   useCampaignProviders: () => ({
-    textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false),
-    imageProvider: ref("openai"), imageCredits: (base: number) => Math.ceil(base), imageIsByok: ref(false),
-  }),
+    textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), imageProvider: ref("openai"), imageCredits: (base: number) => Math.ceil(base), }),
 }));
 vi.mock("@/composables/billing/useQuota", () => ({
   useQuota: () => ({ canCreate: { get value() { return quotaState.canCreate; } }, quota: ref(null) }),

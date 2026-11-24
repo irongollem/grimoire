@@ -31,7 +31,7 @@ vi.mock("@/ai/useImageGeneration", () => ({
 }));
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 4 }) }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
-  useCampaignProviders: () => ({ imageCredits: (n: number) => n * 2, imageIsByok: { value: false } }),
+  useCampaignProviders: () => ({ imageCredits: (n: number) => n * 2 }),
 }));
 vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits: m.require }) }));
 

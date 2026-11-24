@@ -1,7 +1,5 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { decryptValue } from "../_shared/vault.ts";
-import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { rulesetContextKey } from "../_shared/gameSystem.ts";
@@ -42,7 +40,7 @@ import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
  * illustration step, so no `entity_image` charge and no image provider to
  * resolve.
  *
- * Roll tables were, until now, entirely client-side BYOK-only
+ * Roll tables were, until now, entirely client-side
  * (src/ai/useRollTableGeneration.ts): the same "roll_table" system prompt +
  * ruleset context + campaign setting as here, but with zero visibility into
  * the DM's own NPCs, factions and locations. This function is the server
@@ -86,8 +84,7 @@ interface RollTableEntryAiResult {
  * — only that `entries` itself is a non-empty array (see the parse guard in
  * the handler). Range/coverage validation (gaps, overlaps, out-of-bounds)
  * deliberately stays CLIENT-side — validateEntryRanges in
- * src/types/rollTable.types.ts runs there for both this server path and the
- * local BYOK path, so there is exactly one place that decides what a valid
+ * src/types/rollTable.types.ts runs there for this server path, so there is exactly one place that decides what a valid
  * table looks like. `npcs`/`locations`/`factions` are the schema extension
  * this function adds server-side (see SCHEMA_EXTENSION_INSTRUCTION below);
  * they are OPTIONAL on purpose — a table that weaves in none of the offered
@@ -121,15 +118,13 @@ const SCHEMA_EXTENSION_INSTRUCTION =
   "references anything of that type.";
 
 interface RollTableCampaign extends BaseCampaign {
-  text_provider: string | null;
   game_system: string | null;
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(serveUser(async ({ user, req, report }) => {
-  // Frozen or child accounts cannot generate — including BYOK, which skips
-  // the credit gate for both (#919).
+  // Frozen or child accounts cannot generate (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
@@ -155,7 +150,7 @@ serve(serveUser(async ({ user, req, report }) => {
   // DMs only: this reads DM-only campaign content with the service role (see
   // _shared/campaignAccess.ts for why a player member must not get through).
   const load = await loadAiCampaign<RollTableCampaign>(admin, campaign_id, user.id, {
-    columns: ["text_provider", "game_system"],
+    columns: ["game_system"],
   });
   if (!load.ok) return load.response;
   const campaign = load.campaign;
@@ -173,8 +168,7 @@ serve(serveUser(async ({ user, req, report }) => {
     promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
   if (!promptRow) return jsonError(500, "prompt_not_configured", "This generator is not set up yet.");
 
-  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
-    loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
+  const [platformKeys, providerConfigs] = await Promise.all([
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
@@ -184,19 +178,15 @@ serve(serveUser(async ({ user, req, report }) => {
     (rulesetContext ? `\n\n${rulesetContext}` : "") +
     worldBlockText(world) + INJECTION_GUARD_SUFFIX;
 
-  // The platform decides the text model: a campaign on platform credits runs on
-  // whichever provider the admin enabled, and `campaign.text_provider` only counts
-  // when the campaign holds its own key for it. Refuse before anything is spent.
+  // The platform decides the text model: the first provider the admin enabled. Refuse before anything is spent.
   const text = resolveTextProvider({
-    chosen: campaign.text_provider,
-    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
     platformKeys,
     providerConfigs,
   });
   if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
-  const baseCost = text.isByok ? 0 : await fetchCreditCost(admin, "roll_table_generation");
+  const baseCost = await fetchCreditCost(admin, "roll_table_generation");
   const cost = wholeCredits(
     applyMultiplier(baseCost, text.textMultiplier),
   );
@@ -219,8 +209,8 @@ serve(serveUser(async ({ user, req, report }) => {
     // roll-table generation down. A missing vendor, a mid-flip config, a
     // provider outage or an RPC error all cost grounding, not the feature —
     // the whole block is one try/catch whose failure path leaves the
-    // candidates empty and the prompt falls back to exactly what the
-    // client-side BYOK path already sends (see useRollTableGeneration.ts): the
+    // candidates empty and the prompt falls back to the plain
+    // prompt: the
     // "roll_table" system prompt + ruleset context + campaign setting, no
     // entity block.
     let candidates: { npcs: CandidateEntity[]; locations: CandidateEntity[]; factions: CandidateEntity[] } =
@@ -282,7 +272,7 @@ serve(serveUser(async ({ user, req, report }) => {
 
     // Constraint text is the client's exact current wording (useRollTableGeneration.ts)
     // — kept identical so a table generated server-side reads the same as one
-    // generated via the local BYOK path.
+    // generated before this function existed.
     const userContent =
       `${wrapUserInput(prompt)}\n\nConstraints:\n` +
       `Die: ${die}\n` +
@@ -317,15 +307,14 @@ serve(serveUser(async ({ user, req, report }) => {
       return malformed();
     }
     // Range/coverage validation (gaps, overlaps, out-of-bounds) deliberately
-    // stays CLIENT-side — validateEntryRanges runs there for both this server
-    // path and the local BYOK path. This guard only checks that the model
+    // stays CLIENT-side — validateEntryRanges runs there for this server
+    // path. This guard only checks that the model
     // returned a non-empty entries array at all.
     if (!rollTableData || !Array.isArray(rollTableData.entries) || rollTableData.entries.length === 0) return malformed();
 
-    // Charged the moment the paid call has produced a usable result (delta 0 on BYOK).
+    // Charged the moment the paid call has produced a usable result.
     hold.charge("roll_table_generation", {
       cost,
-      isByok: text.isByok,
       log: {
         model: textResult.usage.model, provider: textResult.usage.provider,
         input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,

@@ -15,7 +15,6 @@ interface AiGenerationCostRow {
   input_image_tokens: number | null
   output_tokens: number | null
   image_count: number | null
-  is_byok: boolean
   created_at: string
   estimated_cost_usd_cents: number | null
 }
@@ -43,7 +42,6 @@ export interface ModelStat {
   /** `model`, or `model (low 1024x1024)` when the row identifies a variant. */
   label: string
   count: number
-  byok_count: number
   total_input_tokens: number
   total_input_image_tokens: number
   total_output_tokens: number
@@ -51,9 +49,9 @@ export interface ModelStat {
   estimated_cost_usd: number
   /** Mean estimated cost per generation (estimated_cost_usd / count). */
   avg_cost_usd: number
-  /** Credits actually charged (−delta summed; BYOK rows contribute 0). */
+  /** Credits actually charged (−delta summed). */
   credits: number
-  /** Charged (non-BYOK) generation count — credits only apply to these. */
+  /** Generations that charged credits (delta below zero); a free row is not one. */
   charged_count: number
   /** Mean credits per *charged* generation (credits / charged_count). */
   avg_credits: number
@@ -86,7 +84,6 @@ export function aggregateModelStats(rows: AiGenerationCostRow[]): ModelStat[] {
         size: row.size,
         label: variant ? `${model} (${variant})` : model,
         count: 0,
-        byok_count: 0,
         total_input_tokens: 0,
         total_input_image_tokens: 0,
         total_output_tokens: 0,
@@ -100,8 +97,7 @@ export function aggregateModelStats(rows: AiGenerationCostRow[]): ModelStat[] {
     }
     const stat = map.get(key)!
     stat.count++
-    if (row.is_byok) stat.byok_count++
-    else stat.charged_count++
+    if (row.delta < 0) stat.charged_count++
     stat.total_input_tokens       += row.input_tokens       ?? 0
     stat.total_input_image_tokens += row.input_image_tokens ?? 0
     stat.total_output_tokens      += row.output_tokens      ?? 0
@@ -128,8 +124,6 @@ export function useAiUsageStats() {
 
   const totalGenerations = computed(() => rows.value.length)
 
-  const byokCount = computed(() => rows.value.filter((r) => r.is_byok).length)
-
   const totalEstimatedCostUsd = computed(() => {
     const sum = rows.value.reduce(
       (acc, r) => acc + (r.estimated_cost_usd_cents ?? 0),
@@ -138,7 +132,7 @@ export function useAiUsageStats() {
     return sum / 100
   })
 
-  /** Credits actually spent across all generations (−delta; BYOK = 0). */
+  /** Credits actually spent across all generations (−delta). */
   const totalCreditsSpent = computed(() =>
     rows.value.reduce((acc, r) => acc + (r.delta < 0 ? -r.delta : 0), 0),
   )
@@ -166,7 +160,6 @@ export function useAiUsageStats() {
     isPending: query.isPending,
     isError:   query.isError,
     totalGenerations,
-    byokCount,
     totalEstimatedCostUsd,
     totalCreditsSpent,
     modelStats,

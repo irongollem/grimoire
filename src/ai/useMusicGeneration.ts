@@ -21,11 +21,6 @@ import {
  * every other generator: the state lives here at module level, so the DM can
  * close the Add Sound dialog while Lyria works and the AiGenerationBadge tells
  * them when the track is on the board, or brings the dialog back if it failed.
- *
- * Server path only. The local-vault BYOK path stays in SoundForm, in the
- * foreground: it runs in the browser tab and saves through component-bound
- * upload and create composables, and new capability does not ship to that
- * legacy tier (project_ai_byok_tiers).
  */
 
 // ── Module-level singleton state ────────────────────────────────────────────

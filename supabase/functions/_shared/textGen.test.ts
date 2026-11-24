@@ -51,7 +51,7 @@ describe("OpenAI text generation", () => {
     });
   });
 
-  it("does not send reasoning effort to older BYOK models", async () => {
+  it("does not send reasoning effort to older models", async () => {
     const { requestBody } = stubJsonResponse({
       choices: [{ message: { content: "{}" } }],
       usage: {},
@@ -89,7 +89,7 @@ describe("provider failures", () => {
 
 describe("callText", () => {
   const text = (provider: ResolvedTextProvider["provider"]): ResolvedTextProvider =>
-    ({ provider, apiKey: "key-1", isByok: false, config: undefined, textMultiplier: 1 });
+    ({ provider, apiKey: "key-1", config: undefined, textMultiplier: 1 });
   const answers = {
     openai: { choices: [{ message: { content: "{}" } }], usage: {} },
     anthropic: { content: [{ text: "{}" }], usage: {} },
@@ -150,25 +150,20 @@ describe("resolveTextProvider — the platform picks the model, not the DM", () 
     gemini: { text_model: "gemini-2.5-flash", text_enabled: false, text_multiplier: 3.8 },
   };
 
-  it("runs a platform-credit campaign on the enabled provider whatever text_provider says", () => {
-    const text = resolveTextProvider({ chosen: "gemini", campaignKeys: {}, platformKeys, providerConfigs });
-    expect(text).toMatchObject({ provider: "openai", apiKey: "sk-platform", isByok: false, textMultiplier: 1 });
-  });
-
-  it("runs on the DM's own key for the provider they chose", () => {
-    const text = resolveTextProvider({ chosen: "gemini", campaignKeys: { gemini: "g-own" }, platformKeys, providerConfigs });
-    expect(text).toMatchObject({ provider: "gemini", apiKey: "g-own", isByok: true });
-    expect(text?.config?.text_model).toBe("gemini-2.5-flash");
+  it("runs on the enabled provider, with its platform key and config", () => {
+    const text = resolveTextProvider({ platformKeys, providerConfigs });
+    expect(text).toMatchObject({ provider: "openai", apiKey: "sk-platform", textMultiplier: 1 });
+    expect(text?.config?.text_model).toBe("gpt-6-luna");
   });
 
   it("prices at one credit per credit when the provider's multiplier is unset", () => {
     const unset = { openai: { text_model: "gpt-6-luna", text_enabled: true } };
-    expect(resolveTextProvider({ chosen: null, campaignKeys: {}, platformKeys, providerConfigs: unset })?.textMultiplier).toBe(1);
+    expect(resolveTextProvider({ platformKeys, providerConfigs: unset })?.textMultiplier).toBe(1);
   });
 
   it("finds nothing when no provider is enabled with a key", () => {
     const allOff = { openai: { ...providerConfigs.openai, text_enabled: false }, gemini: providerConfigs.gemini };
-    expect(resolveTextProvider({ chosen: null, campaignKeys: {}, platformKeys, providerConfigs: allOff })).toBeNull();
-    expect(resolveTextProvider({ chosen: null, campaignKeys: {}, platformKeys: {}, providerConfigs })).toBeNull();
+    expect(resolveTextProvider({ platformKeys, providerConfigs: allOff })).toBeNull();
+    expect(resolveTextProvider({ platformKeys: {}, providerConfigs })).toBeNull();
   });
 });

@@ -21,7 +21,6 @@ import { useAskGate } from "@/ai/ask/useAskGate";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { useMusicGeneration } from "@/ai/useMusicGeneration";
 import { MUSIC_LENGTHS, type MusicLengthSeconds } from "@/lib/audio/aiMusic";
-import { localKeyModeChosen } from "@/lib/localKeyVault";
 import { useCampaignStore } from "@/stores/campaign";
 import { useMusicTrackQuote } from "@/composables/ai/quotes/musicTrackQuote";
 
@@ -62,17 +61,15 @@ export function useMusicTrackAskAdapter(): AskAdapter {
       ...priced.lines,
     ];
 
-    let block = blockFor({ total: priced.total, byok: priced.byok });
-    if (!block && localKeyModeChosen() && campaign.decryptedGeminiKey) {
-      block = { reason: "system", message: "Your own Gemini key runs music in the Add Sound dialog, not from here." };
-    } else if (!block && !campaign.activeCampaignId) {
+    let block = blockFor({ total: priced.total });
+    if (!block && !campaign.activeCampaignId) {
       block = { reason: "missing", message: "No active campaign selected." };
     } else if (!block && read.concept === "") {
       block = { reason: "missing", message: "Say what the music should sound like first." };
     } else if (!block && read.concept.length > DESCRIPTION_MAX) {
       block = { reason: "missing", message: `Shorten the description to ${DESCRIPTION_MAX} characters.` };
     }
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal): Promise<AskRunResult> {

@@ -1,11 +1,8 @@
 import { ref } from "vue";
-import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
-import { wrapUserInput, AI_PROMPT_LIMIT_CHRONICLE, buildCampaignContext } from "./utils";
-import { fetchWorldBlock } from "./worldBlock";
+import { AI_PROMPT_LIMIT_CHRONICLE } from "./utils";
 import { mentionedLocationIds, mentionedMonsterIds, mentionedNpcIds, parseSceneEntities, type ResolvedSceneEntity } from "./sceneEntities";
 import { fetchNpcAppearances } from "@/composables/npcs/useNpcFields";
 import type { NpcListRow } from "@/types/npc.types";
@@ -14,11 +11,8 @@ import type { Faction } from "@/types/faction.types";
 import type { LocationSummary } from "@/types/location.types";
 import { fetchLocationDescriptions } from "@/composables/locations/useLocationDescriptions";
 import { fetchMentionedMonsters } from "@/composables/monsters/useMentionedMonsters";
-import { logUsage } from "@/composables/ai/useAiCredits";
-import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { fetchSessionCanonText } from "./sessionCanonContext";
-import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
+import type { AiProvenance } from "@/ai/provenance";
 
 export type ChroniclerTone = "dramatic" | "humorous" | "mysterious" | "epic";
 
@@ -36,20 +30,6 @@ const TONE_INSTRUCTIONS: Record<ChroniclerTone, string> = {
   epic:       "Write in a grand epic style — heroic deeds, soaring language, fate-altering consequences.",
 };
 
-
-function buildEntityDescriptions(entities: ResolvedSceneEntity[]): string {
-  if (entities.length === 0) return "No specific entities mentioned.";
-  return entities
-    .map((e) => `- ${e.label}${e.textDescription && e.textDescription !== e.label ? `: ${e.textDescription}` : ""}`)
-    .join("\n");
-}
-
-/** Comma-joined existing campaign tags for the `{existingTags}` prompt
- *  placeholder, matching the edge function's formatting exactly so the
- *  server and client (BYOK) paths produce the same prompt shape. */
-function buildExistingTagsBlock(existingTags: string[]): string {
-  return existingTags.length > 0 ? existingTags.join(", ") : "None yet.";
-}
 
 /** Pre-process AI output: replace [[scene: ...]] with styled blockquotes. */
 export function preprocessChronicleMarkdown(md: string): string {
@@ -70,7 +50,6 @@ export function useChroniclerTextGeneration() {
   const isGenerating = ref(false);
   const error = ref<string | null>(null);
   const campaign = useCampaignStore();
-  const { ruleset } = useTableRuleset();
 
   async function generate(params: {
     rawText: string;
@@ -123,16 +102,8 @@ export function useChroniclerTextGeneration() {
             `(currently ${rawText.length.toLocaleString()}). Trim the text and try again.`,
         );
       }
-      const isLocalMode = await textRunsOnLocalKey();
-
-      if (!isLocalMode && campaignId) {
-        return await generateServerSide({ rawText, tone, entities, campaignId, existingTags, excludeNoteId, canonThisSession });
-      }
-      // The `{settingPrompt}` placeholder now carries the world block (#1226).
-      const settingPrompt = campaignId
-        ? buildCampaignContext(await fetchWorldBlock(campaignId)).trim() || "No setting configured."
-        : "No setting configured.";
-      return await generateClientSide({ rawText, tone, entities, settingPrompt, existingTags, canonThisSession });
+      if (!campaignId) throw new Error("No active campaign selected.");
+      return await generateServerSide({ rawText, tone, entities, campaignId, existingTags, excludeNoteId, canonThisSession });
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Generation failed.";
       throw e;
@@ -174,52 +145,6 @@ export function useChroniclerTextGeneration() {
     if (data?.error) throw new Error(data.error);
     const body = data as { chronicle: string; ai_provenance?: AiProvenance };
     return { chronicle: body.chronicle, ai_provenance: body.ai_provenance };
-  }
-
-  async function generateClientSide(params: {
-    rawText: string;
-    tone: ChroniclerTone;
-    entities: ResolvedSceneEntity[];
-    settingPrompt: string;
-    existingTags: string[];
-    canonThisSession: string;
-  }): Promise<ChroniclerTextResult> {
-    const { rawText, tone, entities, settingPrompt, existingTags, canonThisSession } = params;
-
-    // The local (BYOK) path can't retrieve the DM's notes -- that's a DB read
-    // the edge function does with service-role access the browser doesn't
-    // have, so there is no exclude_note_id concern here either. This parity
-    // gap is policy, not debt: local-key mode exists for early adopters who
-    // didn't want to hand over an API key, and it is not a target for new AI
-    // capabilities -- the server path is the product. Do not invest in
-    // closing this gap.
-    const [basePrompt, rulesetContext] = await Promise.all([
-      fetchSystemPrompt("chronicle_text"),
-      fetchRulesetContext(ruleset.value),
-    ]);
-    if (!basePrompt) throw new Error("Chronicle text prompt not configured.");
-
-    const systemPrompt =
-      basePrompt
-        .replace("{entities}", buildEntityDescriptions(entities))
-        .replace("{settingPrompt}", settingPrompt)
-        .replace("{toneInstruction}", TONE_INSTRUCTIONS[tone])
-        .replace("{existingTags}", buildExistingTagsBlock(existingTags)) +
-      (rulesetContext ? `\n\n${rulesetContext}` : "") +
-      (canonThisSession !== "" ? `\n\n${canonThisSession}` : "");
-
-    const provider = getTextProvider();
-    const { content, usage: textUsage } = await provider.complete(systemPrompt, wrapUserInput(rawText));
-    logUsage({ reason: "chronicler_text", textUsage });
-    const ai_provenance = buildAiProvenance("chronicle_text", textUsage.provider, textUsage.model);
-    // Plain markdown since the JSON wrapper was dropped (an unescaped quote in
-    // the narrative could legally terminate the JSON string and silently
-    // truncate the chronicle); tolerate the legacy wrapper if a model emits it.
-    try {
-      const parsed = JSON.parse(content) as { chronicle?: string };
-      if (parsed && typeof parsed.chronicle === "string") return { chronicle: parsed.chronicle, ai_provenance };
-    } catch { /* plain markdown — use as-is */ }
-    return { chronicle: content, ai_provenance };
   }
 
   return { isGenerating, error, generate };

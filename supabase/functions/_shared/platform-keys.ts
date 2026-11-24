@@ -1,6 +1,6 @@
 /**
  * Fetches platform-level API keys from the platform_api_keys table.
- * Used as fallback when a campaign has no BYOK key configured.
+ * Every AI call runs on these keys.
  * Keys are stored encrypted; this returns them already decrypted.
  */
 import { decryptValue } from "./vault.ts";
@@ -23,7 +23,7 @@ export async function fetchPlatformKeys(
     .from("platform_api_keys")
     .select("provider, encrypted_key")
     .in("provider", providers);
-  // Every caller treats a missing platform key as a path of its own (a campaign's BYOK key, the feature off), so a
+  // Every caller treats a missing platform key as a path of its own (the feature off), so a
   // failed read answers no keys rather than failing the request. It is logged, never silent: otherwise a database
   // hiccup reads as "the admin never set a key".
   if (error) {

@@ -289,7 +289,7 @@ export async function beginTurn(input: {
     });
   };
 
-  return { kind: "ready", reserve: provider.isByok ? 0 : RESERVE_CREDITS, run };
+  return { kind: "ready", reserve: RESERVE_CREDITS, run };
 }
 
 /** The whole turn in one call, for a caller that does not need to answer a status before streaming (the tests). */

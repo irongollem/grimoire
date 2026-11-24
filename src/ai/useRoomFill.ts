@@ -1,5 +1,4 @@
 import { generateEntityText } from "./entityTextGeneration";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { captureImageGenerationContext } from "./useImageGeneration";
@@ -26,7 +25,6 @@ export interface RoomFillResult {
 }
 
 export function useRoomFill() {
-  const { ruleset } = useTableRuleset();
 
   async function fill(options: { room: Location; constraints: string[]; steer: string }): Promise<RoomFillResult | null> {
     if (isAnyAiGenerating.value) return null;
@@ -34,12 +32,10 @@ export function useRoomFill() {
     _state.error.value = null;
     startAiQuotes();
     try {
-      const { campaignId, world } = await captureImageGenerationContext();
+      const { campaignId } = await captureImageGenerationContext();
       const raw = await generateEntityText<{ ai_provenance?: AiProvenance }>({
         generator: "room",
         campaignId,
-        world,
-        ruleset: ruleset.value,
         prompt: options.steer.trim() || "Fill this room.",
         constraints: options.constraints,
       });

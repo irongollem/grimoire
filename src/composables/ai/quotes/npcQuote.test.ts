@@ -4,8 +4,6 @@ import { ref } from "vue";
 // Prices by the table's own keys, so a quote that asks the wrong row gets the wrong number.
 const costs: Record<string, number> = { npc_text: 1, monster_stat_block: 3, entity_image: 50, portrait: 2 };
 const providers = {
-  textIsByok: ref(false),
-  imageIsByok: ref(false),
   imageProvider: ref<string | null>("openai"),
   imageMultiplier: ref(1),
   textMultiplier: ref(1),
@@ -32,8 +30,6 @@ const { useNpcQuote } = await import("./npcQuote");
 
 describe("useNpcQuote", () => {
   beforeEach(() => {
-    providers.textIsByok.value = false;
-    providers.imageIsByok.value = false;
     providers.imageProvider.value = "openai";
     providers.imageMultiplier.value = 1;
     providers.textMultiplier.value = 1;
@@ -70,22 +66,5 @@ describe("useNpcQuote", () => {
     providers.imageProvider.value = null;
     const quoteFor = useNpcQuote();
     expect(quoteFor({ portrait: true, alterEgo: false }).total).toBeNull();
-  });
-
-  it("charges nothing for a part on the DM's own key but still bills the part that is not", () => {
-    providers.textIsByok.value = true;
-    const quoteFor = useNpcQuote();
-    const quote = quoteFor({ portrait: true, alterEgo: false });
-    expect(quote.total).toBe(75);
-    expect(quote.byok).toBe(false);
-  });
-
-  it("is free of credits only when every part in play is on the DM's own key", () => {
-    providers.textIsByok.value = true;
-    providers.imageIsByok.value = true;
-    const quoteFor = useNpcQuote();
-    expect(quoteFor({ portrait: true, alterEgo: false })).toMatchObject({ total: 0, byok: true });
-    providers.imageIsByok.value = false;
-    expect(quoteFor({ portrait: false, alterEgo: false })).toMatchObject({ total: 0, byok: true });
   });
 });

@@ -5,7 +5,6 @@
     title="Background Generator"
     concept-placeholder="A former lamplighter of the river district who learned which windows stay dark, and why…"
     :credits="textCreditCost"
-    :byok="textIsByok"
     :is-generating="isGenerating"
     :unsaved-label="retained.unsaved.value ? 'background' : null"
     :is-saving="retained.isSaving.value"
@@ -38,7 +37,6 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { useBackgroundQuote } from "@/composables/ai/quotes/backgroundQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useBackgroundGeneration } from "@/ai/useBackgroundGeneration";
 import { SKILLS } from "@/types/party.types";
 
@@ -51,7 +49,6 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 const { canSpend } = useGenerationGate();
 
 // The price comes from the quote Ask Grimoire reads too, so the page and the panel cannot disagree.
-const { textIsByok } = useCampaignProviders();
 const quote = useBackgroundQuote();
 const textCreditCost = computed(() => quote().total);
 
@@ -70,7 +67,7 @@ async function onGenerate() {
 }
 
 async function generateAndCreate() {
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(textCreditCost.value)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

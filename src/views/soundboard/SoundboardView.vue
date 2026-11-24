@@ -65,7 +65,7 @@
         </AppButton>
       </template>
 
-      <!-- Spotify is per-campaign BYOK. Without a Client ID the whole control
+      <!-- Spotify uses a per-campaign Client ID. Without a Client ID the whole control
            vanished, so a DM on a campaign that has not been configured saw no
            trace of the feature and no way to find it. Point at the setting. -->
       <AppButton

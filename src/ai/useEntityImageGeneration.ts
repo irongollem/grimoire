@@ -1,23 +1,13 @@
 import type { BucketId } from "@/lib/storage";
-import { imagesRunOnLocalKey } from "@/ai/localKeyMode";
 import { ref } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { getTextProvider, getImageProvider } from "./providers";
-import { fetchImageBasePrompt } from "./systemPrompts";
-import { buildEntityImagePrompt, buildImagePromptAuthorSystem } from "./imagePrompt";
-import { buildCampaignContext, b64ToBlob, wrapUserInput } from "./utils";
-import { fetchWorldBlock } from "./worldBlock";
-import { worldImageSetting } from "@edge-shared/worldBlock.ts";
-import { startAiQuotes, stopAiQuotes } from "./aiGenerationState";
-import { logUsage } from "@/composables/ai/useAiCredits";
-import { useImageGenerationLog, type ImageGenKind } from "@/composables/ai/useImageGenerationLog";
-import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
-import { markGeneratedImage } from "@edge-shared/provenance/mark.ts";
+import { b64ToBlob } from "./utils";
 import { sniffImageFormat } from "@edge-shared/provenance/sniff.ts";
-import { readXmpFromWebp, readXmpFromPng, readXmpFromJpeg } from "@edge-shared/provenance/embed.ts";
+import { startAiQuotes, stopAiQuotes } from "./aiGenerationState";
+import { useImageGenerationLog, type ImageGenKind } from "@/composables/ai/useImageGenerationLog";
 
 const IMAGE_SIZE = "1024x1536";
 /** Mirror of the edge function's AI_PROMPT_LIMIT_LONG — clamp entity facts before sending. */
@@ -33,16 +23,6 @@ const EXT_BY_CONTENT_TYPE: Record<string, string> = {
   "image/png":  "png",
   "image/jpeg": "jpeg",
 };
-
-/** Reads an XMP packet out of `bytes`, if any, for the sniffed `contentType`. Used to detect a server-marked round-trip so the local path never marks over it. */
-function readEmbeddedXmp(bytes: Uint8Array, contentType: string): string | null {
-  switch (contentType) {
-    case "image/webp": return readXmpFromWebp(bytes);
-    case "image/png":  return readXmpFromPng(bytes);
-    case "image/jpeg": return readXmpFromJpeg(bytes);
-    default:           return null;
-  }
-}
 
 export interface GenerateEntityImageOptions {
   /** Image-job kind — selects the subject noun for the prompt author (npc_portrait, monster, item, …). */
@@ -72,23 +52,11 @@ export function useEntityImageGeneration(bucketId: BucketId) {
   const isGenerating = ref(false);
   const error = ref<string | null>(null);
 
-  /**
-   * `localProv` is only ever passed by the local (BYOK) path — the server
-   * path's `image_b64` already carries an XMP mark embedded server-side
-   * (generate-entity-image, before the response leaves the edge function),
-   * so it's never re-marked here. The real content type is sniffed from the
-   * decoded bytes, never assumed to be webp — Gemini returns PNG, and marking
-   * with the wrong format-specific embedder would silently no-op.
-   */
-  async function uploadB64(b64: string, localProv: AiProvenance | null = null): Promise<string | null> {
+  /** The server marks the picture's provenance before it leaves the edge function, so the bytes are uploaded as they came. The real content type is sniffed, never assumed to be webp. */
+  async function uploadB64(b64: string): Promise<string | null> {
     const bytes = new Uint8Array(await b64ToBlob(b64).arrayBuffer());
     const contentType = sniffImageFormat(bytes) ?? "image/webp";
-    const alreadyMarked = readEmbeddedXmp(bytes, contentType) !== null;
-    // Re-wrapped via the ArrayLike<number> constructor overload: mark.ts's
-    // markGeneratedImage has a bare `Uint8Array` return annotation, which
-    // widens to `Uint8Array<ArrayBufferLike>` — not assignable to `BlobPart`.
-    const finalBytes = new Uint8Array(localProv && !alreadyMarked ? markGeneratedImage(bytes, contentType, localProv) : bytes);
-    const file = new File([finalBytes], `ai-art.${EXT_BY_CONTENT_TYPE[contentType] ?? "webp"}`, { type: contentType });
+    const file = new File([bytes], `ai-art.${EXT_BY_CONTENT_TYPE[contentType] ?? "webp"}`, { type: contentType });
     const url = await upload(file);
     if (!url) throw new Error("Failed to upload the generated image.");
     return url;
@@ -116,11 +84,7 @@ export function useEntityImageGeneration(bucketId: BucketId) {
     };
 
     try {
-      const isLocalMode = await imagesRunOnLocalKey();
-
-      const url = isLocalMode
-        ? await generateClientSide(clamped)
-        : await generateServerSide(clamped, campaignId);
+      const url = await generateServerSide(clamped, campaignId);
 
       if (url) {
         void logImageGeneration({
@@ -142,7 +106,7 @@ export function useEntityImageGeneration(bucketId: BucketId) {
     }
   }
 
-  // ── Server-side path (platform / campaign key, decrypted in the Edge Function) ──
+  // ── Server-side path (the key is resolved in the Edge Function) ──
   async function generateServerSide(
     options: GenerateEntityImageOptions,
     campaignId: string,
@@ -162,42 +126,6 @@ export function useEntityImageGeneration(bucketId: BucketId) {
 
     startAiQuotes("image");
     return await uploadB64(res.image_b64);
-  }
-
-  // ── Client-side path (BYOK local mode — key never leaves the browser) ──────────
-  async function generateClientSide(options: GenerateEntityImageOptions): Promise<string | null> {
-    const campaignId = campaign.activeCampaign?.id;
-    if (!campaignId) throw new Error("No active campaign selected.");
-    const world = await fetchWorldBlock(campaignId);
-
-    // 1. Author a visual prompt from the entity's facts (the "AI weighs in" step).
-    const textProvider = getTextProvider();
-    const authorSystem =
-      buildImagePromptAuthorSystem(options.kind) +
-      buildCampaignContext(world);
-    const { content: subject, usage: textUsage } = await textProvider.complete(
-      authorSystem,
-      wrapUserInput(options.context),
-    );
-    logUsage({ reason: "entity_image_prompt", textUsage });
-
-    if (!subject.trim()) throw new Error("The AI did not return an image description.");
-
-    // 2. Render the image, layering the campaign style + setting under the subject.
-    startAiQuotes("image");
-    const imageBasePrompt = await fetchImageBasePrompt();
-    const imageProvider = await getImageProvider();
-    const imagePrompt = buildEntityImagePrompt(options.kind, {
-      base: imageBasePrompt,
-      setting: worldImageSetting(world),
-      subject,
-    });
-    // The browser-key path takes no look pictures: it has no refusal fallback, and it is being removed (#1260).
-    const { b64, usage: imageUsage } = await imageProvider.generate(imagePrompt, IMAGE_SIZE);
-    logUsage({ reason: "entity_image", imageUsage });
-
-    const prov = buildAiProvenance(options.kind, imageUsage.provider, imageUsage.model);
-    return await uploadB64(b64, prov);
   }
 
   return { isGenerating, error, generate };

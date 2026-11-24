@@ -7,6 +7,6 @@
 import { useQuoteKit, type GeneratorQuote } from "@/composables/ai/quotes/quoteKit";
 
 export function useClassQuote(): () => GeneratorQuote {
-  const { textLine, quoteOf, textIsByok } = useQuoteKit();
-  return () => quoteOf([textLine("Class text", "Written by AI", "custom_class_generation")], textIsByok.value);
+  const { textLine, quoteOf } = useQuoteKit();
+  return () => quoteOf([textLine("Class text", "Written by AI", "custom_class_generation")]);
 }

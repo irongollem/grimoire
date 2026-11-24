@@ -85,7 +85,6 @@
         <GenerationCostBadge
           v-if="isAiEnabled"
           :credits="textCreditCost"
-          :byok="textIsByok"
           class="self-center"
         />
         <AppButton
@@ -132,7 +131,7 @@ const MEMORY_BODY_LIMIT = 1000;
 const campaign = useCampaignStore();
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
+const { textCredits } = useCampaignProviders();
 
 const situation = ref("");
 
@@ -190,7 +189,7 @@ const textCreditCost = computed(
 async function runSuggest() {
   const trimmed = situation.value.trim();
   if (!trimmed) return;
-  if (!requireCredits(textCreditCost.value, textIsByok.value)) return;
+  if (!requireCredits(textCreditCost.value)) return;
   await suggest(npc, trimmed);
 }
 

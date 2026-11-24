@@ -91,11 +91,4 @@ describe("boot with site data blocked", () => {
     const { safeLocalStorage } = await import("@/lib/safeLocalStorage");
     await vi.waitFor(() => expect(safeLocalStorage().getItem("grimoire_active_campaign")).toBe("c-1"));
   });
-
-  it("sends AI generation to the server when the local key cannot be read", async () => {
-    setActivePinia(createPinia());
-    const { textRunsOnLocalKey, imagesRunOnLocalKey } = await import("@/ai/localKeyMode");
-    expect(await textRunsOnLocalKey()).toBe(false);
-    expect(await imagesRunOnLocalKey()).toBe(false);
-  });
 });

@@ -34,8 +34,7 @@ import type { CraftingDiscipline, InventionBenchEntry, InventionDraft, Invention
  * AI invention on the experiment bench (#1103 story 5).
  *
  * The asking player pays: credits are reserved from the caller, as the paper
- * doll does, and there is NO BYOK path (campaignKeys is empty), because the
- * campaign's keys belong to the DM. The model drafts, validateInvention
+ * doll does, and the platform's keys run it, never the DM's. The model drafts, validateInvention
  * (_shared/invention/) bounds the draft, and only a validated draft is stored.
  * Only this function writes crafting_inventions.draft; the DM approves later
  * through decide_crafting_invention.
@@ -71,7 +70,6 @@ function contextRefusal(code: string | undefined): Response | null {
 }
 
 interface InventionCampaign extends BaseCampaign {
-  text_provider: string | null;
   game_system: string | null;
 }
 
@@ -146,7 +144,7 @@ serve(serveUser(async ({ user, req, userClient: supabase, report }) => {
   // the access rule here is "anyone who got that far": the campaign is named by the context, not by the body, and
   // is not the DM's to gate. The campaign read (its error checked) and the AI switch are the shared ones.
   const load = await loadAiCampaign<InventionCampaign>(admin, context.campaign_id, user.id, {
-    columns: ["text_provider", "game_system"],
+    columns: ["game_system"],
     access: async () => true,
   });
   if (!load.ok) return load.response;
@@ -181,9 +179,8 @@ serve(serveUser(async ({ user, req, userClient: supabase, report }) => {
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
-  // Empty campaignKeys on purpose: the campaign's keys are the DM's, and a
-  // player's generation must not spend them. Platform keys and credits only.
-  const text = resolveTextProvider({ chosen: campaign.text_provider, campaignKeys: {}, platformKeys, providerConfigs });
+  // Platform keys and the asking player's credits only.
+  const text = resolveTextProvider({ platformKeys, providerConfigs });
   if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
 
   const cost = wholeCredits(applyMultiplier(await fetchCreditCost(admin, GENERATOR), text.textMultiplier));
@@ -276,10 +273,10 @@ serve(serveUser(async ({ user, req, userClient: supabase, report }) => {
         input_tokens: spent.input_tokens,
         output_tokens: spent.output_tokens,
       };
-      const charge = () => hold.charge(GENERATOR, { cost, isByok: text.isByok, log });
+      const charge = () => hold.charge(GENERATOR, { cost, log });
       // The player is not charged on the paths that give them nothing, but the platform paid the provider, so that
       // spend is still recorded (#1234: spend that vanished from the cost reports).
-      const recordUncharged = () => (text.isByok ? hold.charge(GENERATOR, { cost: 0, isByok: true, log }) : hold.free(GENERATOR, log));
+      const recordUncharged = () => hold.free(GENERATOR, log);
 
       // Not fitted to the rules: nothing to store and nothing charged.
       if (verdict.kind === "invalid") {

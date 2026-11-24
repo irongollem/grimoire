@@ -382,7 +382,7 @@ export function useAskConversation(deps: AskConversationDeps) {
     const quote = adapter.quote(proposal, choices);
     // The button is disabled in these states; the guard is for a press that races a re-quote.
     if (quote.block !== null) return;
-    const price = quote.byok ? "your own key" : quote.total === null ? null : creditsText(quote.total);
+    const price = quote.total === null ? null : creditsText(quote.total);
     if (price === null) return;
     if (ran.has(proposal.proposalId)) return;
     ran.add(proposal.proposalId);

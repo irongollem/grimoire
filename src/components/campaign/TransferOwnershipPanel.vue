@@ -41,8 +41,7 @@
           are copied into their library, so yours keeps its own.
         </p>
         <p class="text-caption text-muted-foreground">
-          Staying with you: your AI provider keys (cleared from the campaign), your
-          chat messages, your private entity notes, your credit history and minis,
+          Staying with you: your chat messages, your private entity notes, your credit history and minis,
           and your Cartographer maps, locations lose their “open in Cartographer”
           link.
         </p>
@@ -307,8 +306,7 @@ async function doTransfer() {
   }
 
   // Still in the campaign, now as a player. Re-seat the store on the freshly
-  // read row so the stale owner id and the decrypted AI keys (cleared by the
-  // transfer) do not linger, then hand over to the player portal.
+  // read row so the stale owner id (changed by the transfer) does not linger, then hand over to the player portal.
   const updated =
     (fresh ?? campaignList.value ?? []).find((c) => c.id === campaignId) ?? null;
   // The transferred campaign must not be remembered as a DM campaign: this

@@ -8,7 +8,7 @@ import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 const mocks = vi.hoisted(() => ({
   generateAndCreateMonster: vi.fn(),
   push: vi.fn(),
-  quoteFor: vi.fn(() => ({ lines: [], total: 1, byok: false })),
+  quoteFor: vi.fn(() => ({ lines: [], total: 1 })),
 }));
 
 // The campaign's AI toggle, mutable per test (#thisspec: "AI for every plan
@@ -33,7 +33,7 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() { return campaignState.isAiEnabled; },
     activeCampaignId: "campaign-1",
-    activeCampaign: { text_provider: "openai" },
+    activeCampaign: {},
   }),
 }));
 vi.mock("@/composables/monsters/useGenerateMonster", () => ({

@@ -12,9 +12,6 @@ vi.mock("@/lib/supabase", () => ({ supabase: { functions: { invoke: mocks.invoke
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({ activeCampaign: { id: "campaign-1" } }),
 }));
-vi.mock("@/composables/rules/useRuleset", () => ({
-  useTableRuleset: () => ({ ruleset: { value: "2024" } }),
-}));
 vi.mock("@/composables/npcs/useNpcFields", () => ({ fetchNpcAppearances: mocks.appearances }));
 vi.mock("@/composables/locations/useLocationDescriptions", () => ({
   fetchLocationDescriptions: async () => new Map(),
@@ -23,9 +20,6 @@ vi.mock("@/composables/monsters/useMentionedMonsters", () => ({
   fetchMentionedMonsters: async () => new Map(),
 }));
 vi.mock("./sessionCanonContext", () => ({ fetchSessionCanonText: mocks.canon }));
-vi.mock("./providers", () => ({ getTextProvider: vi.fn() }));
-vi.mock("./systemPrompts", () => ({ fetchSystemPrompt: vi.fn(), fetchRulesetContext: vi.fn() }));
-vi.mock("@/composables/ai/useAiCredits", () => ({ logUsage: vi.fn() }));
 
 describe("useChroniclerTextGeneration NPC context", () => {
   it.each([

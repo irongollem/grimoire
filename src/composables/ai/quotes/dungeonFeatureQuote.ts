@@ -11,10 +11,10 @@ export interface DungeonFeatureQuoteOptions {
 }
 
 export function useDungeonFeatureQuote(): (options: DungeonFeatureQuoteOptions) => GeneratorQuote {
-  const { textLine, artLine, quoteOf, textIsByok, imageIsByok } = useQuoteKit();
+  const { textLine, artLine, quoteOf } = useQuoteKit();
   return ({ image }) => {
     const lines = [textLine("Feature text", "Written by AI", "feature_generation")];
     if (image) lines.push(artLine("Picture", "Painted by AI", 1));
-    return quoteOf(lines, textIsByok.value && (!image || imageIsByok.value));
+    return quoteOf(lines);
   };
 }

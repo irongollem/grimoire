@@ -46,7 +46,7 @@ export function useMissingPortrait(kind: PortraitKind) {
   const { generate, error } = useEntityImageGeneration(config.bucket);
   const { canSpend } = useGenerationGate();
   const { costOf } = useAiCredits();
-  const { imageCredits, imageIsByok: byok } = useCampaignProviders();
+  const { imageCredits } = useCampaignProviders();
 
   const updateNpc = useUpdateNpc();
   const updateParty = useUpdatePartyMember();
@@ -91,7 +91,7 @@ export function useMissingPortrait(kind: PortraitKind) {
   /** Resolves to the saved URL, or null when gated, failed, or another paint is running. */
   async function paint(id: string, context: string): Promise<string | null> {
     if (isPaintingAny.value || !context.trim()) return null;
-    if (!canSpend(cost.value, byok.value)) return null;
+    if (!canSpend(cost.value)) return null;
     paintingId.value = id;
     try {
       const url = await generate({ kind: config.aiKind, context, targetId: id });
@@ -106,5 +106,5 @@ export function useMissingPortrait(kind: PortraitKind) {
     }
   }
 
-  return { paint, isPainting, isPaintingAny, enabled, cost, byok, error };
+  return { paint, isPainting, isPaintingAny, enabled, cost, error };
 }

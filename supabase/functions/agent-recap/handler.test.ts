@@ -26,7 +26,7 @@ function harness(over: Partial<RecapNote> = {}) {
     holds: [] as number[],
     prompts: [] as string[],
     written: [] as string[],
-    charged: [] as Array<{ cost: number; isByok: boolean }>,
+    charged: [] as Array<{ cost: number }>,
     deps: undefined as unknown as RecapDeps,
   };
   const callModel: CallModel = async (request) => {
@@ -38,12 +38,12 @@ function harness(over: Partial<RecapNote> = {}) {
     loadNote: async () => h.note,
     // The DM-only, AI-on rule is `loadAiCampaign`'s (its own test); here only that a refusal is passed through.
     loadCampaign: async (_id, userId) =>
-      userId === DM ? { ok: true, campaign: { id: CAMPAIGN, user_id: DM, ai_enabled: true, text_provider: null } } : { ok: false, response: jsonError(404, "campaign_not_found") },
+      userId === DM ? { ok: true, campaign: { id: CAMPAIGN, user_id: DM, ai_enabled: true } } : { ok: false, response: jsonError(404, "campaign_not_found") },
     loadSitting: async () => h.sitting,
     loadTurns: async () => turns,
     loadFacts: async () => [{ body: "The brass key is gone.", known_to_player: true }, { body: "THE-HIDDEN-FACT: the mayor took it.", known_to_player: false }],
     characterName: async () => "Wren",
-    resolveProvider: async () => ({ provider: "openai", model: "m1", isByok: false, callModel }),
+    resolveProvider: async () => ({ provider: "openai", model: "m1", callModel }),
     // 1 USD a million tokens in, 4 out: 2000 in and 400 out is 0.0036 USD; doubled over 0.0066 USD a credit is 1.09.
     loadPrice: async () => ({ inputPerMillion: 1, outputPerMillion: 4, cachedInputPerMillion: null }),
     loadCalibration: async () => ({ usdPerCredit: 0.0066, margin: 2 }),
@@ -51,7 +51,7 @@ function harness(over: Partial<RecapNote> = {}) {
     withHold: async (credits, work) => {
       h.holds.push(credits);
       const hold: RecapHold = {
-        charge: (_reason, line) => void h.charged.push({ cost: line.cost, isByok: line.isByok }),
+        charge: (_reason, line) => void h.charged.push({ cost: line.cost }),
         free: () => {},
       };
       return work(hold);
@@ -90,7 +90,7 @@ describe("telling a sitting as a story", () => {
     expect(doc.indexOf("The brass key is gone.")).toBeGreaterThan(doc.indexOf("Wren opened the workshop door."));
     expect(doc).not.toContain("THE-HIDDEN-FACT");
     expect(h.holds).toEqual([3]);
-    expect(h.charged).toEqual([{ cost: 2, isByok: false }]);
+    expect(h.charged).toEqual([{ cost: 2 }]);
   });
 
   // The maintainer: "we charge every successful AI call". Bug caught: a call that produced nothing charged.
@@ -98,7 +98,7 @@ describe("telling a sitting as a story", () => {
     const h = harness();
     h.story = null;
     expect(await answer(await tell(h))).toMatchObject({ status: 502, body: { error: "generation_failed", message: RECAP_MESSAGES.noStory } });
-    expect(h.charged).toEqual([{ cost: 0, isByok: false }]);
+    expect(h.charged).toEqual([{ cost: 0 }]);
     expect(h.written).toEqual([]);
   });
 

@@ -56,7 +56,7 @@ export function useRoomAskAdapter(): AskAdapter {
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
 
-    let block = blockFor({ total: priced.total, byok: priced.byok });
+    let block = blockFor({ total: priced.total });
     if (!block && proposal.target?.type !== "room") {
       block = { reason: "missing", message: "Say which room to describe first." };
     } else if (!block && found === undefined && sourceError.value) {
@@ -66,7 +66,7 @@ export function useRoomAskAdapter(): AskAdapter {
     } else if (!block && found === null) {
       block = { reason: "missing", message: "That is not a room of a site in this campaign, so there is nothing to describe." };
     }
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal): Promise<AskRunResult> {

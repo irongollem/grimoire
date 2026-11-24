@@ -1,16 +1,8 @@
 import { supabase } from "@/lib/supabase";
-import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { formatNpcUserInput, NPC_CONTEXT_LIMIT } from "@edge-shared/npcPrompt.ts";
+import { NPC_CONTEXT_LIMIT } from "@edge-shared/npcPrompt.ts";
 import type { NpcAiResult, NpcAiGenerated } from "./types";
-import { requireWorld } from "./worldBlock";
-import {
-  AI_PROMPT_LIMIT,
-  buildCampaignContext,
-} from "./utils";
-import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
-import { getTextProvider } from "./providers";
+import { AI_PROMPT_LIMIT } from "./utils";
 import {
   createAiGenerationState,
   startAiQuotes,
@@ -18,7 +10,6 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useNpcsUiStore } from "@/stores/ui/npcs";
-import { logUsage } from "@/composables/ai/useAiCredits";
 import {
   captureFailureMessage,
   captureImageGenerationContext,
@@ -26,10 +17,8 @@ import {
   type ImageGenerationContext,
 } from "@/ai/useImageGeneration";
 import { reportHandledError } from "@/lib/observability/sentry";
-import { buildAiProvenance } from "@/ai/provenance";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 import { useCampaignStore } from "@/stores/campaign";
-import type { RulesetKey } from "@/types/ruleset.types";
 import { npcPortraitSubject, speciesPictureFor } from "@/lib/npcGenerator/portraitSubject";
 
 // ── Module-level singleton state ────────────────────────────────────────────
@@ -70,7 +59,6 @@ async function speciesPicture(campaignId: string, race: string | null | undefine
 }
 
 export function useNpcGeneration() {
-  const { ruleset } = useTableRuleset();
   const { ensureLikenessAck } = useLikenessGate();
 
   async function generate(
@@ -85,7 +73,6 @@ export function useNpcGeneration() {
     }
     const campaign = useCampaignStore();
     const campaignAtStart = campaign.activeCampaignId;
-    const rulesetAtStart = ruleset.value;
     const generationOptions = { ...options, context: options?.context?.trim().slice(0, NPC_CONTEXT_LIMIT) };
     if (options?.generateAlterEgo && !(await ensureLikenessAck())) return null;
     if (campaign.activeCampaignId !== campaignAtStart) {
@@ -114,15 +101,7 @@ export function useNpcGeneration() {
     const campaignId = imageContext.campaignId;
 
     try {
-      const isLocalMode = await textRunsOnLocalKey();
-      if (campaign.activeCampaignId !== campaignAtStart) {
-        _state.error.value = "The active campaign changed. Reopen the generator and try again.";
-        return null;
-      }
-
-      return isLocalMode
-        ? await generateClientSide(prompt, generationOptions, imageContext, rulesetAtStart)
-        : await generateServerSide(prompt, generationOptions, campaignId, imageContext);
+      return await generateServerSide(prompt, generationOptions, campaignId, imageContext);
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";
       return null;
@@ -132,8 +111,7 @@ export function useNpcGeneration() {
     }
   }
 
-  // ── Server-side path (key stored encrypted in DB) ──────────────────────────
-  // API key is decrypted inside the Edge Function — never sent to the browser.
+  // The text call runs in the edge function and is paid in credits.
 
   async function generateServerSide(
     userPrompt: string,
@@ -158,49 +136,6 @@ export function useNpcGeneration() {
     }
 
     const npcData = normalizeNpcVoice(data as NpcAiResult);
-    return { ...npcData, ...await generateNpcImages(npcData, options, imageContext) };
-  }
-
-  // ── Client-side path (key kept in localStorage, never leaves the browser) ──
-  // Used when the user has opted into local-key mode for privacy.
-
-  async function generateClientSide(
-    userPrompt: string,
-    options: NpcGenerationOptions | undefined,
-    imageContext: ImageGenerationContext,
-    rulesetAtStart: RulesetKey,
-  ): Promise<NpcAiGenerated | null> {
-    const world = requireWorld(imageContext.world);
-
-    // ── 1. Text generation ─────────────────────────────────────────────────
-    const textProvider = getTextProvider();
-    const [basePrompt, rulesetContext] = await Promise.all([
-      fetchSystemPrompt("npc"),
-      fetchRulesetContext(rulesetAtStart),
-    ]);
-    if (!basePrompt) throw new Error("NPC system prompt not configured.");
-    const systemContent =
-      basePrompt +
-      (rulesetContext ? `\n\n${rulesetContext}` : "") +
-      buildCampaignContext(world);
-
-    const userContent = formatNpcUserInput(
-      userPrompt, options?.context ?? "", options?.generateAlterEgo === true,
-    );
-
-    const { content, usage: textUsage } = await textProvider.complete(systemContent, userContent);
-    logUsage({ reason: "npc_generation", textUsage });
-
-    const npcData = normalizeNpcVoice(JSON.parse(content) as NpcAiResult);
-    npcData.ai_provenance = buildAiProvenance("npc_text", textUsage.provider, textUsage.model);
-
-    if (
-      options?.generateAlterEgo &&
-      (!npcData.disguise_name || !npcData.disguise_image_prompt)
-    ) {
-      throw new Error("AI response was missing disguise fields. Please try again.");
-    }
-
     return { ...npcData, ...await generateNpcImages(npcData, options, imageContext) };
   }
 

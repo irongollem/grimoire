@@ -5,30 +5,24 @@ import { useEnhanceAvailable, useTextEnhancement } from "./useTextEnhancement";
 
 const campaignMock = {
   isAiEnabled: true,
-  activeCampaign: { id: "c1", text_provider: "openai" } as { id: string; text_provider: string } | null,
+  activeCampaign: { id: "c1" } as { id: string } | null,
 };
 const authMock = { isDM: true };
-const requireCredits = vi.fn((_credits: number, _byok?: boolean) => true);
+const requireCredits = vi.fn((_credits: number) => true);
 const generateProseText = vi.fn(async (_request: unknown) => "Rewritten.");
 
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => campaignMock }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => authMock }));
-vi.mock("@/composables/rules/useRuleset", () => ({ useTableRuleset: () => ({ ruleset: ref("2024") }) }));
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
-  useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false) }),
+  useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base) }),
 }));
 vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits }) }));
-const worldFixture = vi.hoisted(() => ({ world: "Grim north", pitch: null, themes: [], table: [], voice: null, look: null, lines: [], veils: [], truths: [] }));
-const fetchWorldBlock = vi.fn(async (_id: string) => worldFixture);
-const localKey = vi.hoisted(() => ({ local: true }));
-vi.mock("./localKeyMode", () => ({ textRunsOnLocalKey: async () => localKey.local }));
-vi.mock("./worldBlock", () => ({ fetchWorldBlock: (id: string) => fetchWorldBlock(id) }));
 vi.mock("./entityTextGeneration", () => ({ generateProseText: (r: unknown) => generateProseText(r) }));
 
 beforeEach(() => {
   campaignMock.isAiEnabled = true;
-  campaignMock.activeCampaign = { id: "c1", text_provider: "openai" };
+  campaignMock.activeCampaign = { id: "c1" };
   authMock.isDM = true;
   requireCredits.mockClear().mockReturnValue(true);
   generateProseText.mockClear();
@@ -52,15 +46,6 @@ describe("useEnhanceAvailable", () => {
 });
 
 describe("useTextEnhancement", () => {
-  it("does not read the world block when the text runs on the server, which loads it itself", async () => {
-    localKey.local = false;
-    fetchWorldBlock.mockClear();
-    await useTextEnhancement().enhance({ selectedText: "He was sad.", context: "c" });
-    expect(fetchWorldBlock).not.toHaveBeenCalled();
-    expect(generateProseText).toHaveBeenCalledWith(expect.objectContaining({ world: null }));
-    localKey.local = true;
-  });
-
   it("charges through the credit gate and sends the selection with its context lines", async () => {
     const { enhance } = useTextEnhancement();
     const out = await enhance({
@@ -72,12 +57,10 @@ describe("useTextEnhancement", () => {
     });
 
     expect(out).toBe("Rewritten.");
-    expect(requireCredits).toHaveBeenCalledWith(1, false);
+    expect(requireCredits).toHaveBeenCalledWith(1);
     expect(generateProseText).toHaveBeenCalledWith({
       generator: "text_enhancement",
       campaignId: "c1",
-      world: worldFixture,
-      ruleset: "2024",
       prompt: "He was sad.",
       constraints: [
         "Context: NPC backstory: Mira",

@@ -22,7 +22,6 @@ import { useAskGate } from "@/ai/ask/useAskGate";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { useScriptoriumDraft } from "@/ai/useScriptoriumDraft";
-import { localKeyModeChosen } from "@/lib/localKeyVault";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { useCampaignStore } from "@/stores/campaign";
 import { useNpcs } from "@/composables/npcs/useNpcs";
@@ -112,11 +111,8 @@ export function useScriptoriumDraftAskAdapter(): AskAdapter {
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
 
-    let block = blockFor({ total: priced.total, byok: priced.byok });
-    // The same refusal `useScriptoriumDraft.generate` throws: the draft reads the campaign on the server.
-    if (!block && localKeyModeChosen()) {
-      block = { reason: "system", message: "Drafting reads your campaign on the server, so it is not available in local-key mode." };
-    } else if (!block && (read.subjectType === null || read.subjectId === null)) {
+    let block = blockFor({ total: priced.total });
+    if (!block && (read.subjectType === null || read.subjectId === null)) {
       block = { reason: "missing", message: "Say who or what the document is about first." };
     } else if (!block && loading.value) {
       block = { reason: "missing", message: "Still reading this campaign's records." };
@@ -125,7 +121,7 @@ export function useScriptoriumDraftAskAdapter(): AskAdapter {
     } else if (!block && read.concept.length > AI_PROMPT_LIMIT) {
       block = { reason: "missing", message: `Shorten the description to ${AI_PROMPT_LIMIT} characters.` };
     }
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal): Promise<AskRunResult> {

@@ -28,8 +28,8 @@ export interface Admitted {
   scored: ReturnType<typeof scoreRoll> | null;
   provider: AgentProvider;
   callModel: CallModel;
-  price: ModelPrice | null;
-  calibration: CreditCalibration | null;
+  price: ModelPrice;
+  calibration: CreditCalibration;
 }
 
 export type Admission = { kind: "refused"; refusal: Refusal } | { kind: "admitted"; admitted: Admitted };

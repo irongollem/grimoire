@@ -29,7 +29,7 @@ export interface NpcAiResult {
   disguise_image_prompt?: string;
   /** AI-suggested name for the NPC's disguise */
   disguise_name?: string;
-  /** Present when the server (or the local BYOK path) attached provenance to the draft. */
+  /** Present when the server attached provenance to the draft. */
   ai_provenance?: AiProvenance;
 }
 
@@ -61,7 +61,7 @@ export interface MonsterAiResult {
   stat_block: AiMonsterStatBlock;
   /** Subject description for image generation */
   image_prompt: string;
-  /** Built by `generate-entity-text` (or buildAiProvenance() on the local-key path). */
+  /** Built by `generate-entity-text`. */
   ai_provenance?: AiProvenance;
 }
 
@@ -98,7 +98,7 @@ export interface ItemAiResult {
   tags: string[];
   /** Subject description for image generation */
   image_prompt: string;
-  /** Built by `generate-entity-text` (or buildAiProvenance() on the local-key path). */
+  /** Built by `generate-entity-text`. */
   ai_provenance?: AiProvenance;
 }
 
@@ -123,7 +123,7 @@ export interface PuzzleAiResult {
   notes: string;
   /** Room illustration description for image generation */
   image_prompt: string;
-  /** Attached by buildAiProvenance() — puzzle generation is client-direct BYOK, no server draft. */
+  /** Attached by buildAiProvenance(). */
   ai_provenance?: AiProvenance;
 }
 
@@ -174,7 +174,7 @@ export interface SpellAiResult {
   tags: string[];
   /** Effect-in-flight description for image generation */
   image_prompt: string;
-  /** Built by `generate-entity-text` (or buildAiProvenance() on the local-key path). */
+  /** Built by `generate-entity-text`. */
   ai_provenance?: AiProvenance;
 }
 
@@ -204,7 +204,7 @@ export interface TrapAiResult {
   notes: string;
   /** Subject description for image generation */
   image_prompt: string;
-  /** Present when the server (or the local BYOK path) attached provenance to the draft. */
+  /** Present when the server attached provenance to the draft. */
   ai_provenance?: AiProvenance;
 }
 
@@ -221,7 +221,7 @@ export interface FactionAiResult {
   tags: string[];
   /** Square emblem description for image generation */
   image_prompt: string;
-  /** Built by `generate-entity-text` (or buildAiProvenance() on the local-key path). */
+  /** Built by `generate-entity-text`. */
   ai_provenance?: AiProvenance;
 }
 
@@ -242,7 +242,7 @@ export interface LocationAiResult {
   image_prompt: string;
   /** Top-down spatial description for map generation */
   map_prompt: string;
-  /** Present when the server (or the local BYOK path) attached provenance to the draft. */
+  /** Present when the server attached provenance to the draft. */
   ai_provenance?: AiProvenance;
 }
 
@@ -360,7 +360,7 @@ export interface QuestHookResult {
    * Names of campaign NPCs/locations/factions the hook references, resolved
    * client-side (see resolveGeneratedEntities) against the DM's own campaign
    * data. Only the server (generate-quest) retrieval path populates these —
-   * the local BYOK path and older responses lack them entirely, so all three
+   * older responses lack them entirely, so all three
    * are optional and every consumer must tolerate absence.
    */
   npcs?: string[];
@@ -396,13 +396,13 @@ export interface RollTableAiResult {
    * Names of campaign NPCs/locations/factions the table references, resolved
    * client-side (see resolveGeneratedEntities) against the DM's own campaign
    * data. Only the server (generate-roll-table) retrieval path populates
-   * these — the local BYOK path and older responses lack them entirely, so
+   * these — older responses lack them entirely, so
    * all three are optional and every consumer must tolerate absence.
    */
   npcs?: string[];
   locations?: string[];
   factions?: string[];
-  /** Present when the server (or the local BYOK path) attached provenance to the draft. */
+  /** Present when the server attached provenance to the draft. */
   ai_provenance?: AiProvenance;
 }
 
@@ -496,6 +496,6 @@ export interface EncounterAiResult {
   tactics: string;
   twist: string;
   combatants: EncounterCombatantAiResult[];
-  /** Present when the server (or the local BYOK path) attached provenance to the draft. */
+  /** Present when the server attached provenance to the draft. */
   ai_provenance?: AiProvenance;
 }

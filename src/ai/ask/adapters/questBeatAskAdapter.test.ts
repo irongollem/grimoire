@@ -13,7 +13,7 @@ vi.mock("@/composables/ai/useAiCredits", () => ({
 }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
   useCampaignProviders: () => ({
-    textIsByok: ref(false), imageIsByok: ref(false), imageProvider: ref("openai"),
+    imageProvider: ref("openai"),
     textCredits: (base: number) => base, imageCredits: (base: number) => base,
   }),
 }));

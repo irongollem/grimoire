@@ -274,7 +274,7 @@ export async function speakLine(input: {
     // asking again, since the clip is kept.
     try {
       const due = await deps.accrue(session.id, credits);
-      if (due > 0) hold.charge("table_voice", { cost: due, isByok: false, log: { provider: voice.service, model: deps.modelOf(voice.service) } });
+      if (due > 0) hold.charge("table_voice", { cost: due, log: { provider: voice.service, model: deps.modelOf(voice.service) } });
     } catch (error) {
       console.error("table-voice: charging the line failed:", error);
     }

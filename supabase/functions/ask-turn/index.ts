@@ -96,7 +96,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     async loadCampaign(campaignId): Promise<AskCampaignRow | null> {
       const { data, error } = await admin
         .from("campaigns")
-        .select("id, user_id, name, ai_enabled, game_system, text_provider")
+        .select("id, user_id, name, ai_enabled, game_system")
         .eq("id", campaignId)
         .maybeSingle();
       if (error) throw error;
@@ -122,9 +122,9 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
 
     rateLimit: (userId) => checkRateLimit(admin, userId, "ask_turn"),
 
-    async resolveProvider(campaign) {
+    async resolveProvider() {
       if (!rawCampaign) return null;
-      const resolved = await resolveAgentProvider(admin, { id: campaign.id, ownerId: campaign.user_id, textProvider: rawCampaign.text_provider as string | null });
+      const resolved = await resolveAgentProvider(admin);
       if (resolved === null) return null;
       moderationKey = resolved.moderationKey;
       return resolved.provider;

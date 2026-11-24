@@ -67,9 +67,9 @@ export function useItemAskAdapter(): AskAdapter {
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
 
-    let block = blockFor({ total: priced.total, byok: priced.byok, fiveE: true }) ?? conceptBlock(read.concept, "item");
+    let block = blockFor({ total: priced.total, fiveE: true }) ?? conceptBlock(read.concept, "item");
     if (!block && linkRecords.loading.value) block = { reason: "missing", message: "Still reading the records it is tied to." };
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult> {

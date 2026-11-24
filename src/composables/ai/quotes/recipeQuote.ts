@@ -7,6 +7,6 @@
 import { useQuoteKit, type GeneratorQuote } from "@/composables/ai/quotes/quoteKit";
 
 export function useRecipeQuote(): () => GeneratorQuote {
-  const { textLine, quoteOf, textIsByok } = useQuoteKit();
-  return () => quoteOf([textLine("Recipe text", "Written by AI", "recipe_generation")], textIsByok.value);
+  const { textLine, quoteOf } = useQuoteKit();
+  return () => quoteOf([textLine("Recipe text", "Written by AI", "recipe_generation")]);
 }

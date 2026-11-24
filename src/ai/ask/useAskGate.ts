@@ -15,7 +15,6 @@ import type { QuotaResource } from "@/types/subscription.types";
 
 export interface AskGateInput {
   total: number | null;
-  byok: boolean;
   /** A 5e-only generator: needs a game system that offers stat blocks. */
   fiveE?: boolean;
 }
@@ -27,7 +26,7 @@ export function useAskGate(resource: QuotaResource | null, noun: string, plural 
   const { offers } = useGameSystem();
   const quota = resource ? useQuota(resource) : null;
 
-  function blockFor({ total, byok, fiveE }: AskGateInput): AskQuoteBlock | null {
+  function blockFor({ total, fiveE }: AskGateInput): AskQuoteBlock | null {
     if (!campaign.isAiEnabled) {
       return { reason: "system", message: "AI is switched off for this campaign." };
     }
@@ -38,7 +37,7 @@ export function useAskGate(resource: QuotaResource | null, noun: string, plural 
       return { reason: "quota", message: `You have reached your limit of ${plural} on this plan.` };
     }
     // A price not known yet is no block: the quote waits for it instead of guessing.
-    if (total !== null && !affordable(total, byok)) {
+    if (total !== null && !affordable(total)) {
       return { reason: "credits", message: `This costs ${total} credits and your balance is short.` };
     }
     return null;

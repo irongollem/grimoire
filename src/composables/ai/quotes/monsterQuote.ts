@@ -11,10 +11,10 @@ export interface MonsterQuoteOptions {
 }
 
 export function useMonsterQuote(): (options: MonsterQuoteOptions) => GeneratorQuote {
-  const { textLine, artLine, quoteOf, textIsByok, imageIsByok } = useQuoteKit();
+  const { textLine, artLine, quoteOf } = useQuoteKit();
   return ({ image }) => {
     const lines = [textLine("Stat block", "Written by AI", "monster_stat_block")];
     if (image) lines.push(artLine("Picture", "Painted by AI", 1));
-    return quoteOf(lines, textIsByok.value && (!image || imageIsByok.value));
+    return quoteOf(lines);
   };
 }

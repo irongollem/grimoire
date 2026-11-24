@@ -10,7 +10,7 @@
     </div>
 
     <template v-else>
-      <div class="grid grid-cols-3 gap-2">
+      <div class="grid grid-cols-2 gap-2">
         <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
           <p class="text-heading-sm font-bold text-foreground">{{ stats.totalGenerations.value }}</p>
           <p class="text-caption text-muted-foreground italic">Total gens</p>
@@ -19,10 +19,6 @@
           <p v-if="currency === 'credits'" class="text-heading-sm font-bold text-foreground">{{ Math.round(stats.totalCreditsSpent.value) }}</p>
           <p v-else class="text-heading-sm font-bold text-foreground">${{ stats.totalEstimatedCostUsd.value.toFixed(2) }}</p>
           <p class="text-caption text-muted-foreground italic">{{ currency === 'credits' ? 'Credits used' : 'Est. cost (USD)' }}</p>
-        </div>
-        <div class="rounded-md bg-muted/30 border border-border px-3 py-2 text-center">
-          <p class="text-heading-sm font-bold text-foreground">{{ stats.byokCount.value }}</p>
-          <p class="text-caption text-muted-foreground italic">BYOK gens</p>
         </div>
       </div>
 

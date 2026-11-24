@@ -35,8 +35,6 @@ export interface GeneratorQuote {
   lines: AskQuoteLine[];
   /** Null while any part that will be charged has no known price yet. */
   total: number | null;
-  /** Every part in play runs on the DM's own key: nothing is charged. */
-  byok: boolean;
 }
 
 /**
@@ -45,15 +43,14 @@ export interface GeneratorQuote {
  */
 export function useQuoteKit() {
   const { costOf } = useAiCredits();
-  const { textCredits, textIsByok, imageProvider, imageCredits, imageIsByok } = useCampaignProviders();
+  const { textCredits, imageProvider, imageCredits } = useCampaignProviders();
 
   function costFor(key: QuoteCostKey, size?: string): number {
     return costOf(key, { size });
   }
 
-  /** One text part: its price, or 0 on the DM's own key. Null while the provider is unknown. */
+  /** One text part: its price. Null while the provider is unknown. */
   function textLine(label: string, value: string, key: QuoteCostKey): AskQuoteLine {
-    if (textIsByok.value) return { label, value, credits: 0 };
     return { label, value, credits: textCredits(costFor(key)) };
   }
 
@@ -62,21 +59,20 @@ export function useQuoteKit() {
    * whole-credit line rather than rounding a pre-multiplied total.
    */
   function artLine(label: string, value: string, count: number, key: QuoteCostKey = "entity_image", size: string = ART_SIZE): AskQuoteLine {
-    if (imageIsByok.value) return { label, value, credits: 0 };
     if (imageProvider.value === null) return { label, value, credits: null };
     const each = imageCredits(costFor(key, size));
     return { label, value, credits: each === null ? null : each * count };
   }
 
   /** The lines with their total: null while any priced part has no known price yet. */
-  function quoteOf(lines: AskQuoteLine[], byok: boolean): GeneratorQuote {
+  function quoteOf(lines: AskQuoteLine[]): GeneratorQuote {
     let total: number | null = 0;
     for (const line of lines) {
       if (line.credits === null) { total = null; break; }
       total += line.credits;
     }
-    return { lines, total, byok };
+    return { lines, total };
   }
 
-  return { textLine, artLine, quoteOf, textIsByok, imageIsByok };
+  return { textLine, artLine, quoteOf };
 }

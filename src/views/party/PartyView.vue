@@ -73,7 +73,7 @@
       </div>
 
       <div v-if="isAiEnabled && hasPartyMembers && !generating" class="px-4 pt-2 flex justify-end">
-        <GenerationCostBadge :credits="groupPortraitCost" :byok="groupPortraitByok" :show-balance="false" />
+        <GenerationCostBadge :credits="groupPortraitCost" :show-balance="false" />
       </div>
 
       <div v-if="error" class="px-4 py-2">
@@ -141,7 +141,6 @@ const {
   generateGroupPortrait,
   uploadGroupPortrait,
   groupPortraitCost,
-  groupPortraitByok,
 } = useGroupPortrait();
 const hasPartyMembers = computed(() => (partyMembers.value?.length ?? 0) > 0);
 

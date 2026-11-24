@@ -23,7 +23,6 @@ export function useCardPortraitPainter() {
   // Any painter's flag will do for "one at a time": they share module state.
   const isPaintingAny = computed(() => npc.isPaintingAny.value);
   const cost = computed(() => npc.cost.value);
-  const byok = computed(() => npc.byok.value);
 
   const failures = ref(new Map<string, string>());
 
@@ -95,5 +94,5 @@ export function useCardPortraitPainter() {
     }
   }
 
-  return { paintable, paint, isPainting, isPaintingAny, cost, byok, errorFor };
+  return { paintable, paint, isPainting, isPaintingAny, cost, errorFor };
 }

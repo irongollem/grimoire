@@ -1,7 +1,5 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { decryptValue } from "../_shared/vault.ts";
-import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { fetchCreditCost, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
@@ -38,7 +36,6 @@ const admin = createClient(
 );
 
 interface EntityImageCampaign extends BaseCampaign {
-  text_provider: string | null;
   image_provider: string | null;
 }
 
@@ -47,8 +44,7 @@ const optionalString = (v: unknown) => (typeof v === "string" && v ? v : undefin
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(serveUser(async ({ user, req, report }) => {
-  // Frozen or child accounts cannot generate — including BYOK, which skips
-  // the credit gate for both (#919).
+  // Frozen or child accounts cannot generate (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
@@ -62,9 +58,9 @@ serve(serveUser(async ({ user, req, report }) => {
   if (!promptCheck.ok) return promptCheck.errorResponse;
 
   // DMs only: no player surface calls this, and it spends the campaign's
-  // credits or the owner's own provider key (see _shared/campaignAccess.ts).
+  // credits (see _shared/campaignAccess.ts).
   const load = await loadAiCampaign<EntityImageCampaign>(admin, campaign_id, user.id, {
-    columns: ["text_provider", "image_provider"],
+    columns: ["image_provider"],
   });
   if (!load.ok) return load.response;
   const campaign = load.campaign;
@@ -75,15 +71,12 @@ serve(serveUser(async ({ user, req, report }) => {
   if (imageBaseError) throw imageBaseError;
   const imageBasePrompt = imageBaseRow?.content ?? "";
 
-  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
-    loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
+  const [platformKeys, providerConfigs] = await Promise.all([
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
 
   const text = resolveTextProvider({
-    chosen: campaign.text_provider,
-    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
     platformKeys,
     providerConfigs,
   });
@@ -92,12 +85,10 @@ serve(serveUser(async ({ user, req, report }) => {
   // Resolve the campaign's chosen image provider (openai / gemini).
   const img = resolveImageProvider({
     imageProvider: campaign.image_provider,
-    campaignKeys: { openai: campaignOpenai, gemini: campaignGemini },
     platformKeys: { openai: platformKeys.openai, gemini: platformKeys.gemini },
     providerConfigs,
   });
   if (!img) return jsonError(422, "no_image_provider", "No image API key is configured.");
-  const isByok = img.isByok;
 
   // Throttle abusive burst volume before any paid provider work (issue #466).
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
@@ -106,7 +97,7 @@ serve(serveUser(async ({ user, req, report }) => {
   const world = await loadWorldBlock(admin, campaign.id);
   // Entity portraits render at ENTITY_IMAGE_SIZE; cost scales with output area
   // (portrait = 1.5× a square render) and the chosen provider's multiplier.
-  const baseCost = isByok ? 0 : await fetchCreditCost(admin, "entity_image");
+  const baseCost = await fetchCreditCost(admin, "entity_image");
   const cost = wholeCredits(
     applyMultiplier(baseCost, img.imageMultiplier) * sizeMultiplier(ENTITY_IMAGE_SIZE),
   );
@@ -138,7 +129,7 @@ serve(serveUser(async ({ user, req, report }) => {
     // Analytics-only row for the prompt-author text tokens (no extra deduction). Zero-cost on the platform, so the
     // hold writes it as a free line rather than dropping it.
     hold.charge("entity_image_prompt", {
-      cost: 0, isByok,
+      cost: 0,
       log: {
         model: textResult.usage.model, provider: textResult.usage.provider,
         input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
@@ -176,10 +167,10 @@ serve(serveUser(async ({ user, req, report }) => {
       return jsonError(502, "generation_failed", e instanceof Error ? e.message : "Image generation failed");
     }
 
-    // Charge once for the image (delta = -cost, or 0 on BYOK) as soon as it exists, before the provenance mark. If
+    // Charge once for the image (delta = -cost) as soon as it exists, before the provenance mark. If
     // marking throws, the hold writes this charge as a free line.
     hold.charge("entity_image", {
-      cost, isByok,
+      cost,
       log: {
         model: img.model, quality, size: ENTITY_IMAGE_SIZE,
         provider: imgResult.usage.provider, image_count: 1,

@@ -6,7 +6,6 @@
     title="Trap Generator"
     concept-placeholder="A pressure plate in a dungeon corridor that triggers a volley of poisoned darts from hidden alcoves in the walls…"
     :credits="effectiveCreditCost"
-    :byok="fullyByok"
     :is-generating="isGenerating"
     :error="genError"
     blank-to="/traps/new"
@@ -79,11 +78,9 @@ const includeParty  = ref(false);
 const quote = computed(() => quoteTrap({ image: generateImage.value }));
 // Null while any part that will be charged has no known price yet.
 const effectiveCreditCost = computed(() => quote.value.total);
-// Whole generation is BYOK-covered only when every part of it is.
-const fullyByok = computed(() => quote.value.byok);
 
 async function generateAndCreate() {
-  if (!requireCredits(effectiveCreditCost.value, fullyByok.value)) return;
+  if (!requireCredits(effectiveCreditCost.value)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

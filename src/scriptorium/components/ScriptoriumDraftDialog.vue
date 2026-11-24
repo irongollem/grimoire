@@ -74,7 +74,6 @@
       <GenerationCostBadge
         v-if="campaign.isAiEnabled && !retained.unsaved.value"
         :credits="textCreditCost"
-        :byok="textIsByok"
         class="me-auto"
       />
       <AppButton variant="subtle" size="md" label="Cancel" :disabled="busy" @click="close" />
@@ -121,7 +120,6 @@ import { IconGenerate } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useAllLocations } from "@/composables/locations/useLocations";
@@ -160,7 +158,6 @@ const { data: sessions } = useCampaignSessions({ enabled: () => open });
 
 // The price is the quote's, the one Ask Grimoire shows for the same draft.
 const draftQuote = useScriptoriumDraftQuote();
-const { textIsByok } = useCampaignProviders();
 const textCreditCost = computed(() => draftQuote().total);
 
 const KIND_OPTIONS: ReadonlyArray<SegmentedOption<DraftKind>> = [
@@ -239,7 +236,7 @@ function close() {
 async function generateAndCreate() {
   if (!subjectId.value) return;
   createError.value = "";
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(textCreditCost.value)) return;
 
   const draft = await generate({
     kind: kind.value,

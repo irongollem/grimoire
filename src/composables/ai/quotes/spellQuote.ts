@@ -12,10 +12,10 @@ export interface SpellQuoteOptions {
 }
 
 export function useSpellQuote(): (options: SpellQuoteOptions) => GeneratorQuote {
-  const { textLine, artLine, quoteOf, textIsByok, imageIsByok } = useQuoteKit();
+  const { textLine, artLine, quoteOf } = useQuoteKit();
   return ({ image }) => {
     const lines = [textLine("Spell", "Written by AI", "spell_generation")];
     if (image) lines.push(artLine("Picture", "Painted by AI", 1, "entity_image", "1024x1024"));
-    return quoteOf(lines, textIsByok.value && (!image || imageIsByok.value));
+    return quoteOf(lines);
   };
 }

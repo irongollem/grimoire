@@ -387,7 +387,7 @@ Four positions worth not re-deriving:
    the document, the entire point of Art. 20, reads as two characters or a
    primary-key collision.
 2. **Two reasons to withhold a column, kept as two predicates.**
-   `is_credential_column` covers bearer credentials — BYOK keys, invite and
+   `is_credential_column` covers bearer credentials — invite and
    calendar tokens — where exporting the string exports the capability, and
    `enc:v1:…` at rest does not help because the app decrypts on use.
    `is_third_party_column` covers identifiers belonging to someone else

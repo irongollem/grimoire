@@ -1,5 +1,4 @@
 import { generateEntityText } from "./entityTextGeneration";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { captureImageGenerationContext } from "./useImageGeneration";
@@ -38,7 +37,6 @@ export interface CalendarEventDraft extends CalendarEventDraftResult {
  * fill, and the DM reviews and saves it.
  */
 export function useCalendarEventGeneration() {
-  const { ruleset } = useTableRuleset();
 
   async function generate(
     steer: string,
@@ -55,8 +53,6 @@ export function useCalendarEventGeneration() {
       const raw = await generateEntityText<CalendarEventAiResult>({
         generator: "calendar_event",
         campaignId: context.campaignId,
-        world: context.world,
-        ruleset: ruleset.value,
         // The edge function rejects an empty prompt, so an unsteered draft asks plainly.
         prompt: steer.trim() || "Create an event that fits this date and this world.",
         constraints,

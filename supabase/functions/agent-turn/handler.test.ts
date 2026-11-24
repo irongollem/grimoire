@@ -121,7 +121,7 @@ interface Harness {
   summaries: Array<{ expectedThroughSeq: number; throughSeq: number; summary: string; credits: number }>;
   /** The running total of credits accrued per conversation, as the database keeps it. */
   totals: Map<string, number>;
-  ledger: Array<{ kind: "spend" | "free" | "byok"; cost: number; log: CreditLogFields }>;
+  ledger: Array<{ kind: "spend" | "free"; cost: number; log: CreditLogFields }>;
   open: Set<string>;
   reserved: number[];
   state: {
@@ -279,7 +279,7 @@ interface Harness {
   script: Script;
 }
 
-function harness(script: Script = [step(600)], isByok = false): Harness {
+function harness(script: Script = [step(600)]): Harness {
   const log: string[] = [];
   const requests: ModelRequest[] = [];
   let calls = 0;
@@ -313,7 +313,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     state: {
       campaign: { id: CAMPAIGN, user_id: DM, name: "Cup Town", game_system: "dnd5e-2024", ai_enabled: true, table_violence: "standard", date: START_DATE },
       isDm: true,
-      provider: { provider: "openai", model: "m1", isByok, callModel },
+      provider: { provider: "openai", model: "m1", callModel },
       price: { inputPerMillion: 0, outputPerMillion: 10, cachedInputPerMillion: null },
       calibration: { usdPerCredit: 0.01, margin: 1 },
       flagged: false,
@@ -490,18 +490,18 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       return work({ handOff: () => ids });
     },
     settle: async (_user, ids, work) => {
-      const lines: Array<{ byok: boolean; cost: number; free: boolean; log: CreditLogFields }> = [];
+      const lines: Array<{ cost: number; free: boolean; log: CreditLogFields }> = [];
       try {
         await work({
-          charge: (_reason, line) => void lines.push({ byok: line.isByok, cost: line.cost, free: false, log: line.log ?? { model: "", provider: "", input_tokens: 0, output_tokens: 0 } }),
-          free: (_reason, fields) => void lines.push({ byok: false, cost: 0, free: true, log: fields ?? { model: "", provider: "", input_tokens: 0, output_tokens: 0 } }),
+          charge: (_reason, line) => void lines.push({ cost: line.cost, free: false, log: line.log ?? { model: "", provider: "", input_tokens: 0, output_tokens: 0 } }),
+          free: (_reason, fields) => void lines.push({ cost: 0, free: true, log: fields ?? { model: "", provider: "", input_tokens: 0, output_tokens: 0 } }),
         });
       } finally {
         for (const id of ids) h.open.delete(id);
         for (const l of lines) {
-          if (l.byok || (!l.free && l.cost > 0)) {
+          if (!l.free && l.cost > 0) {
             log.push("charge");
-            h.ledger.push({ kind: l.byok ? "byok" : "spend", cost: l.cost, log: l.log });
+            h.ledger.push({ kind: "spend", cost: l.cost, log: l.log });
           } else {
             log.push("free");
             h.ledger.push({ kind: "free", cost: 0, log: l.log });
@@ -1123,17 +1123,6 @@ describe("credits", () => {
     await play(h);
     expect(h.ledger[0].log.input_tokens).toBe(35);
   });
-
-  it("BYOK reserves nothing, accrues nothing and writes one zero BYOK row, with no price on file", async () => {
-    const h = harness([step(600)], true);
-    h.state.price = null;
-    h.state.calibration = null;
-    await play(h);
-    expect(h.reserved).toEqual([]);
-    expect(h.appends[0].credits).toBe(0);
-    expect(h.ledger).toEqual([{ kind: "byok", cost: 0, log: expect.objectContaining({ output_tokens: 600 }) }]);
-    expect(last(h)).toMatchObject({ type: "done", credits: 0 });
-  });
 });
 
 describe("saving", () => {
@@ -1537,18 +1526,6 @@ describe("the rolling summary", () => {
     await play(h, { body: GO });
     expect(h.modelCalls()).toBe(1);
     expect(h.summaries).toEqual([]);
-  });
-
-  it("summarises own-key play without spending: no credits accrued, zero rows only", async () => {
-    const h = harness([step(100), summaryStep(2000)], true);
-    h.state.price = null;
-    h.state.calibration = null;
-    longConversation(h);
-    await play(h, { body: GO });
-    expect(h.summaries).toHaveLength(1);
-    expect(h.summaries[0].credits).toBe(0);
-    expect(h.ledger.map((l) => l.kind)).toEqual(["byok", "byok"]);
-    expect(h.ledger.every((l) => l.cost === 0)).toBe(true);
   });
 });
 

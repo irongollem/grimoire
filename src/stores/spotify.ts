@@ -90,7 +90,7 @@ let positionTick: ReturnType<typeof setInterval> | null = null;
 // ─────────────────────────────────────────────────────────────────────────
 
 export const useSpotifyStore = defineStore("spotify", () => {
-  // Client ID comes from the campaign's spotify_client_id (BYOK).
+  // Client ID comes from the campaign's spotify_client_id.
   // Stored in the campaign settings by the DM.
   const clientId = computed(() => useCampaignStore().activeCampaign?.spotify_client_id ?? "");
 

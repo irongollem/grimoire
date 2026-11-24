@@ -13,7 +13,7 @@
       </template>
       {{ loading ? "Painting…" : "Paint portrait" }}
     </AppButton>
-    <GenerationCostBadge v-if="!loading" :credits="cost" :byok="byok" :show-balance="false" />
+    <GenerationCostBadge v-if="!loading" :credits="cost" :show-balance="false" />
     <p v-if="error" class="text-caption text-destructive text-center">{{ error }}</p>
   </div>
 </template>
@@ -33,7 +33,6 @@ defineProps<{
   /** True while any paint runs, or the caller cannot paint this entity. */
   disabled: boolean;
   cost: number | null;
-  byok: boolean;
   error?: string | null;
 }>();
 

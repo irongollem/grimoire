@@ -1,5 +1,4 @@
 import { ref } from "vue";
-import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import type { LootTableAiResult } from "./types";
@@ -35,16 +34,9 @@ export interface LootGenerationOptions {
 /**
  * AI loot-table generation (#602).
  *
- * SERVER-PATH ONLY — the one structural difference from every sibling
- * generator in this folder, and a deliberate one. The others carry a
- * client-side BYOK-local twin because they predate retrieval and had one
- * already; this generator was grounded from day one, and its whole value is a
- * candidate block built from `items`/`library_items` vectors that only the
- * edge function's service-role client can read. A local-key path would not be
- * a weaker version of this feature, it would be a different feature that
- * invents item names the DM's vault has never heard of. BYOK-local is a legacy
- * tier and not a parity target (see useQuestGeneration.ts) — so local-key mode
- * gets an honest error instead of a silent downgrade.
+ * Built on the server path: its whole value is a candidate block built from
+ * `items`/`library_items` vectors that only the edge function's service-role
+ * client can read.
  */
 export function useLootGeneration() {
   const campaign = useCampaignStore();
@@ -60,14 +52,6 @@ export function useLootGeneration() {
     startAiQuotes();
 
     try {
-      const isLocalMode = await textRunsOnLocalKey();
-      if (isLocalMode) {
-        throw new Error(
-          "Loot generation needs the server so it can search your Vault. It isn't available in local-key mode. " +
-          "Switch to platform credits or a campaign API key in Settings → AI.",
-        );
-      }
-
       const campaignId = campaign.activeCampaignId;
       if (!campaignId) throw new Error("No active campaign selected.");
 
@@ -83,9 +67,7 @@ export function useLootGeneration() {
       if (error) throw new Error(await edgeErrorMessage(error));
       if (data?.error) throw new Error(data.error);
 
-      // The server bills credits itself as part of the retrieval+generation
-      // call, so — unlike the client-side paths in sibling generators — there
-      // is no logUsage() here.
+      // The server bills credits itself as part of the retrieval+generation call.
       const result = data as LootTableAiResult;
       if (!Array.isArray(result.entries) || result.entries.length === 0) {
         throw new Error("AI returned no loot entries. Please try again.");

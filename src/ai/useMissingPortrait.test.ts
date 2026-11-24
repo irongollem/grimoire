@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({ costOf: vi.fn((_key: string, opts?: { size?: s
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ isAiEnabled: true }) }));
 vi.mock("@/ai/useEntityImageGeneration", () => ({ useEntityImageGeneration: () => ({ generate: vi.fn(), error: ref(null) }) }));
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: mocks.costOf }) }));
-vi.mock("@/composables/ai/useCampaignProviders", () => ({ useCampaignProviders: () => ({ imageCredits: (n: number) => n, imageIsByok: ref(false) }) }));
+vi.mock("@/composables/ai/useCampaignProviders", () => ({ useCampaignProviders: () => ({ imageCredits: (n: number) => n }) }));
 vi.mock("@/composables/ai/useGenerationGate", () => ({ useGenerationGate: () => ({ canSpend: () => true }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useUpdateNpc: () => ({}) }));
 vi.mock("@/composables/party/useParty", () => ({ useUpdatePartyMember: () => ({}) }));

@@ -1,7 +1,5 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { decryptValue } from "../_shared/vault.ts";
-import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { fetchCreditCost, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
@@ -36,8 +34,7 @@ interface StyleMapCampaign extends BaseCampaign {
 const optionalString = (v: unknown) => (typeof v === "string" && v ? v : null);
 
 serve(serveUser(async ({ user, req, report }) => {
-  // Frozen or child accounts cannot generate — including BYOK, which skips
-  // the credit gate for both (#919).
+  // Frozen or child accounts cannot generate (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
@@ -59,13 +56,12 @@ serve(serveUser(async ({ user, req, report }) => {
   }
 
   // DMs only: no player surface calls this, and it spends the campaign's
-  // credits or the owner's own provider key (see _shared/campaignAccess.ts).
+  // credits (see _shared/campaignAccess.ts).
   const load = await loadAiCampaign<StyleMapCampaign>(admin, campaign_id, user.id, { columns: ["image_provider"] });
   if (!load.ok) return load.response;
   const campaign = load.campaign;
 
-  const [[campaignOpenai, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
-    loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.gemini] as const),
+  const [platformKeys, providerConfigs] = await Promise.all([
     fetchPlatformKeys(admin, ["openai", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "gemini"]),
   ]);
@@ -73,7 +69,6 @@ serve(serveUser(async ({ user, req, report }) => {
   // Resolve the campaign's chosen image provider (openai / gemini).
   const img = resolveImageProvider({
     imageProvider: campaign.image_provider,
-    campaignKeys: { openai: campaignOpenai, gemini: campaignGemini },
     platformKeys: { openai: platformKeys.openai, gemini: platformKeys.gemini },
     providerConfigs,
     // Admin → Providers' map styler model (sunburst; see migration 20261004230642).
@@ -82,7 +77,6 @@ serve(serveUser(async ({ user, req, report }) => {
   if (!img) {
     return jsonError(422, "no_image_provider", "No image API key is configured.");
   }
-  const isByok = img.isByok;
 
   // Everything that can reject the upload runs here, before the rate limit
   // and the credit hold below, so a bad upload never reserves anything.
@@ -133,7 +127,7 @@ serve(serveUser(async ({ user, req, report }) => {
   }
   const size = `${dims.width}x${dims.height}`;
 
-  const baseCost = isByok ? 0 : await fetchCreditCost(admin, "map_style_generation");
+  const baseCost = await fetchCreditCost(admin, "map_style_generation");
   // By area, like every image generator; see styleChargeSize.
   const cost = wholeCredits(
     applyMultiplier(baseCost, img.imageMultiplier) * sizeMultiplier(styleChargeSize(dims.width, dims.height)),
@@ -163,7 +157,7 @@ serve(serveUser(async ({ user, req, report }) => {
     }
 
     hold.charge("map_style_generation", {
-      cost, isByok,
+      cost,
       log: {
         model: img.model, quality, size,
         provider: imgResult.usage.provider,

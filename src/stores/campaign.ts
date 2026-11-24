@@ -3,106 +3,41 @@ import { ref, computed, watch } from "vue";
 import type { Campaign } from "@/types/campaign.types";
 import { setPlayerSeat, setTheme } from "@/lib/themeRuntime";
 import { useAuthStore } from "@/stores/auth";
-import { decryptApiKey } from "@/lib/apiKeyVault";
-import { fetchCampaignApiKeys, type CampaignApiKeyField, type CampaignApiKeys } from "@/ai/campaignApiKeys";
-import { reportHandledError } from "@/lib/observability/sentry";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
-import { isLocalCiphertext, localKeyModeChosen, encryptLocalKey, decryptLocalKey } from "@/lib/localKeyVault";
 import { DEFAULT_THEME_ID } from "@/lib/themes";
 import { DEFAULT_RULESET, type RulesetKey } from "@/types/ruleset.types";
 import { DEFAULT_GAME_SYSTEM, gameSystemEdition, isGameSystemKey, setActiveGameSystem, type GameSystemKey } from "@/systems/registry";
 
 const STORAGE_KEY      = "grimoire_active_campaign";
 const GAME_SYSTEM_HINT_KEY = "grimoire_active_campaign_game_system";
+const RETIRED_KEY_STORAGE = [
+  "grimoire_openai_key",
+  "grimoire_anthropic_key",
+  "grimoire_gemini_key",
+  "grimoire_key_local_mode",
+  "grimoire_falai_key",
+];
 
 
-// Per-provider localStorage keys (local mode only)
-const LOCAL_KEYS: Record<string, string> = {
-  openai:    "grimoire_openai_key",
-  anthropic: "grimoire_anthropic_key",
-  gemini:    "grimoire_gemini_key",
-};
-
-// Provider slug → its column in campaign_api_keys
-const DB_KEY_FIELDS: Record<string, CampaignApiKeyField> = {
-  openai:    "openai_api_key",
-  anthropic: "anthropic_api_key",
-  gemini:    "gemini_api_key",
-};
-
-// #641 dropped fal.ai. A BYOK-local user can still be holding its key on this
-// device, and nothing reads that entry any more — so purge it rather than leave
-// a live credential on disk for a provider we no longer talk to. Server-stored
-// keys went with the falai_api_key column (20260809145858).
-safeLocalStorage().removeItem("grimoire_falai_key");
+// Every AI request runs on the server now (#1260). A device that once kept its
+// own keys (the removed local mode) still holds them, plus an IndexedDB vault of
+// the encryption key, and nothing reads them any more: purge, best effort.
+function sweepRetiredKeyStorage() {
+  const storage = safeLocalStorage();
+  for (const key of RETIRED_KEY_STORAGE) storage.removeItem(key);
+  try {
+    indexedDB.deleteDatabase("grimoire-keyvault");
+  } catch {
+    // Firefox throws on reading `indexedDB` when site data is blocked.
+  }
+}
+sweepRetiredKeyStorage();
 
 export const useCampaignStore = defineStore("campaign", () => {
   const activeCampaignId = ref<string | null>(
     safeLocalStorage().getItem(STORAGE_KEY),
   );
   const activeCampaign   = ref<Campaign | null>(null);
-
-  // Decrypted keys per provider
-  const decryptedOpenAiKey    = ref<string>("");
-  const decryptedAnthropicKey = ref<string>("");
-  const decryptedGeminiKey    = ref<string>("");
-  // The owner's stored keys as ciphertext (#1228), for the AI tab to tell a
-  // stored key from none. Null for anyone but the owner, and until it loads.
-  const storedKeys = ref<CampaignApiKeys | null>(null);
-  // Keys on their way from a campaign read (useCampaignById embeds them) or
-  // from the AI tab's save. The next load of that campaign takes them instead
-  // of a request of its own, which is what keeps the DM boot to its request
-  // budget: a warm boot shows the cached row first and the refetch that
-  // follows is the one carrying the keys. Each is used once.
-  const keysOnTheWay = new Map<string, Promise<CampaignApiKeys | null>>();
-  function keysArriving(campaignId: string, keys: Promise<CampaignApiKeys | null>) {
-    keysOnTheWay.set(campaignId, keys);
-  }
-  // Whose keys are loaded, and in which storage mode: a campaign row that is
-  // merely updated (the weather, the group portrait) reloads the same campaign,
-  // and its keys have not changed.
-  let keysLoadedFor: { campaignId: string; localMode: boolean } | null = null;
-
-  // Decryptions in flight for the current load. Until they settle the refs
-  // above are empty, so whether the campaign pays with its own key is not known
-  // yet: useCampaignProviders prices nothing meanwhile.
-  //
-  // Each load (a campaign switch, a settings save, clearing the campaign) starts
-  // a new generation, and a decryption only lands, or counts as pending, in the
-  // generation that started it: switching A -> B while A's key is still in the
-  // vault must not write A's key into B. A decryption that never answers (a
-  // backgrounded tab, a hung function) gives up after KEY_DECRYPT_TIMEOUT_MS as
-  // "no key", so it cannot hold every price back for the rest of the session.
-  const KEY_DECRYPT_TIMEOUT_MS = 15_000;
-  const keysPending = ref(0);
-  const providerKeysLoading = computed(() => keysPending.value > 0);
-  let keysGeneration = 0;
-  function newKeysGeneration() {
-    keysGeneration++;
-    keysPending.value = 0;
-  }
-  function trackKey<T>(decryption: Promise<T>, land: (value: T) => void, fail: (error: unknown) => void) {
-    const generation = keysGeneration;
-    const current = () => generation === keysGeneration;
-    keysPending.value++;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error("Key decryption timed out")), KEY_DECRYPT_TIMEOUT_MS);
-    });
-    Promise.race([decryption, timeout])
-      .then((value) => { if (current()) land(value); })
-      .catch((error: unknown) => { if (current()) fail(error); })
-      .finally(() => {
-        clearTimeout(timer);
-        if (current()) keysPending.value--;
-      });
-  }
-
-  const providerKeyRefs: Record<string, ReturnType<typeof ref<string>>> = {
-    openai:    decryptedOpenAiKey,
-    anthropic: decryptedAnthropicKey,
-    gemini:    decryptedGeminiKey,
-  };
 
   watch(activeCampaignId, (id) => {
     if (id) safeLocalStorage().setItem(STORAGE_KEY, id);
@@ -187,89 +122,11 @@ export const useCampaignStore = defineStore("campaign", () => {
    */
   const activeRuleset = computed<RulesetKey>(() => gameSystemEdition(activeGameSystem.value) ?? DEFAULT_RULESET);
 
-  // Resolve a BYOK-local key into its plaintext (in-memory) form, decrypting
-  // the local-vault ciphertext. Legacy values — pre-vault plaintext, or a
-  // server `enc:v1:` blob left over from a cloud→local switch — are surfaced
-  // immediately and then re-encrypted into the local vault so at-rest storage
-  // is always ciphertext going forward.
-  function loadLocalKey(localKey: string, ref_: ReturnType<typeof ref<string>>) {
-    const stored = safeLocalStorage().getItem(localKey) ?? "";
-    if (!stored) { ref_.value = ""; return; }
-
-    if (isLocalCiphertext(stored)) {
-      trackKey(decryptLocalKey(stored), (key) => { ref_.value = key; }, () => { ref_.value = ""; });
-      return;
-    }
-
-    const migrate = (plaintext: string) => {
-      ref_.value = plaintext;
-      if (!plaintext) return;
-      encryptLocalKey(plaintext)
-        .then((enc) => { if (enc) safeLocalStorage().setItem(localKey, enc); })
-        .catch(() => { /* keep plaintext fallback; retried next load */ });
-    };
-
-    if (stored.startsWith("enc:v1:")) {
-      // Server-encrypted blob wrongly left in localStorage — decrypt via the
-      // server vault once, then hand it to the local vault.
-      trackKey(decryptApiKey(stored), migrate, () => { ref_.value = ""; });
-    } else {
-      migrate(stored);
-    }
-  }
-
-  // The keys are the owner's alone (campaign_api_keys admits nobody else), so
-  // a co-DM or a player has none to load and generates on platform credits;
-  // their generations still run server-side on the owner's key.
-  function loadProviderKeys(campaign: Campaign) {
-    const localMode = localKeyModeChosen();
-    const sameKeys = keysLoadedFor?.campaignId === campaign.id && keysLoadedFor.localMode === localMode;
-    if (sameKeys && !keysOnTheWay.has(campaign.id)) return;
-    keysLoadedFor = { campaignId: campaign.id, localMode };
-    newKeysGeneration();
-    storedKeys.value = null;
-    for (const [provider, localKey] of Object.entries(LOCAL_KEYS)) {
-      const ref_ = providerKeyRefs[provider];
-      if (!ref_) continue;
-      // Not the previous campaign's key while this one loads.
-      ref_.value = "";
-      if (localMode) loadLocalKey(localKey, ref_);
-    }
-
-    const ownerId = useAuthStore().user?.id;
-    if (ownerId === undefined || campaign.user_id !== ownerId) return;
-
-    const land = (stored: CampaignApiKeys | null) => {
-      storedKeys.value = stored;
-      if (localMode || !stored) return;
-      for (const [provider, field] of Object.entries(DB_KEY_FIELDS)) {
-        const ref_ = providerKeyRefs[provider];
-        const encrypted = stored[field];
-        if (!ref_ || !encrypted) continue;
-        trackKey(decryptApiKey(encrypted), (key) => { ref_.value = key; }, () => { ref_.value = ""; });
-      }
-    };
-    // One task's grace, so a campaign read that has only just started can say
-    // its keys are coming; otherwise they are read on their own.
-    const keys = new Promise<void>((resolve) => setTimeout(resolve, 0)).then(() => {
-      const arriving = keysOnTheWay.get(campaign.id);
-      keysOnTheWay.delete(campaign.id);
-      return arriving === undefined ? fetchCampaignApiKeys(campaign.id, ownerId) : arriving;
-    });
-    trackKey(
-      keys,
-      land,
-      (error) => reportHandledError(error, "campaign.loadProviderKeys"),
-    );
-  }
-
   function switchToCampaign(campaign: Campaign) {
     activeCampaignId.value = campaign.id;
     activeCampaign.value   = campaign;
 
     setTheme(campaign.theme ?? DEFAULT_THEME_ID);
-
-    loadProviderKeys(campaign);
 
     // On boot initialize() loaded exactly this campaign's membership a moment
     // ago, so asking again is a third identical read. Only fetch when the
@@ -318,12 +175,6 @@ export const useCampaignStore = defineStore("campaign", () => {
   function clearActiveCampaign() {
     activeCampaignId.value      = null;
     activeCampaign.value        = null;
-    newKeysGeneration();
-    keysLoadedFor               = null;
-    storedKeys.value            = null;
-    decryptedOpenAiKey.value    = "";
-    decryptedAnthropicKey.value = "";
-    decryptedGeminiKey.value    = "";
   }
 
   // Mode switch (#729): each mode remembers its own last-active campaign, so
@@ -404,7 +255,7 @@ export const useCampaignStore = defineStore("campaign", () => {
   // owner hands the chair to. Both are `role = 'dm'` and RLS gives both the
   // campaign; ownership is `campaigns.user_id` alone. This decides only which
   // owner-only controls render (who sits in the DM chair, the danger zone, the
-  // campaign's AI keys); the server refuses the rest whatever the UI shows.
+  // transfer panel); the server refuses the rest whatever the UI shows.
   const isOwner = computed(() => {
     const campaign = activeCampaign.value;
     const userId = useAuthStore().user?.id;
@@ -422,12 +273,6 @@ export const useCampaignStore = defineStore("campaign", () => {
     activeRuleset,
     isAiEnabled,
     isOwner,
-    decryptedOpenAiKey,
-    decryptedAnthropicKey,
-    decryptedGeminiKey,
-    storedKeys,
-    keysArriving,
-    providerKeysLoading,
     switchToCampaign,
     clearActiveCampaign,
     switchUserMode,

@@ -3,7 +3,7 @@ import { ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 
 const mocks = vi.hoisted(() => ({ generate: vi.fn(), saveDraft: vi.fn() }));
-const state = vi.hoisted(() => ({ aiEnabled: true, canCreate: true, affordable: true, localKey: false, busy: false }));
+const state = vi.hoisted(() => ({ aiEnabled: true, canCreate: true, affordable: true, busy: false }));
 
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
@@ -17,13 +17,12 @@ vi.mock("@/composables/ai/useAiCredits", () => ({
 }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
   useCampaignProviders: () => ({
-    textIsByok: ref(false), imageIsByok: ref(false), imageProvider: ref("openai"),
+    imageProvider: ref("openai"),
     textCredits: (base: number) => base, imageCredits: (base: number) => base * 10,
   }),
 }));
 vi.mock("@/composables/billing/useQuota", () => ({ useQuota: () => ({ canCreate: { get value() { return state.canCreate; } } }) }));
 vi.mock("@/composables/rules/useGameSystem", () => ({ useGameSystem: () => ({ offers: () => true }) }));
-vi.mock("@/lib/localKeyVault", () => ({ localKeyModeChosen: () => state.localKey }));
 vi.mock("@/ai/aiGeneratorRegistry", () => ({ isAnyAiGenerating: { get value() { return state.busy; } } }));
 vi.mock("@/ai/useScriptoriumDraft", () => ({ useScriptoriumDraft: () => ({ generate: mocks.generate, error: ref(null) }) }));
 vi.mock("@/scriptorium/composables/useGenerateScriptoriumDraft", () => ({ useSaveScriptoriumDraft: () => ({ saveDraft: mocks.saveDraft }) }));
@@ -44,7 +43,7 @@ describe("useScriptoriumDraftAskAdapter", () => {
   beforeEach(() => {
     mocks.generate.mockReset().mockResolvedValue(draft);
     mocks.saveDraft.mockReset().mockResolvedValue({ id: "d1", title: "Letter" });
-    Object.assign(state, { aiEnabled: true, canCreate: true, affordable: true, localKey: false, busy: false });
+    Object.assign(state, { aiEnabled: true, canCreate: true, affordable: true, busy: false });
   });
 
   it("quotes the price the dialog shows", () => {
@@ -62,8 +61,6 @@ describe("useScriptoriumDraftAskAdapter", () => {
     state.affordable = false;
     expect(adapter.quote(proposal()).block?.reason).toBe("credits");
     state.affordable = true;
-    state.localKey = true;
-    expect(adapter.quote(proposal()).block).toMatchObject({ reason: "system" });
   });
 
   it("blocks a draft that names no subject, or one this campaign does not have", () => {
@@ -92,9 +89,6 @@ describe("useScriptoriumDraftAskAdapter", () => {
   });
 
   it("does not run while blocked or while another generation is running", async () => {
-    state.localKey = true;
-    expect((await useScriptoriumDraftAskAdapter().run(proposal())).record).toBeNull();
-    state.localKey = false;
     state.busy = true;
     expect((await useScriptoriumDraftAskAdapter().run(proposal())).parts[0].ok).toBe(false);
     expect(mocks.generate).not.toHaveBeenCalled();

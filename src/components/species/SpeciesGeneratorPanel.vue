@@ -6,7 +6,6 @@
     title="Species Generator"
     concept-placeholder="A people of ash and ember who walk the cooled lava fields of the Smoulder Coast, quiet, warm to the touch, and wary of rain…"
     :credits="textCreditCost"
-    :byok="textIsByok"
     :is-generating="isGenerating"
     :unsaved-label="retained.unsaved.value ? 'species' : null"
     :is-saving="retained.isSaving.value"
@@ -40,7 +39,6 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { useSpeciesQuote } from "@/composables/ai/quotes/speciesQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useSpeciesGeneration } from "@/ai/useSpeciesGeneration";
 import { SPECIES_SIZES } from "@/lib/codex/speciesAi";
 import type { SpeciesSize } from "@/types/species.types";
@@ -54,7 +52,6 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 const { canSpend } = useGenerationGate();
 
 // The price comes from the quote Ask Grimoire reads too, so the page and the panel cannot disagree.
-const { textIsByok } = useCampaignProviders();
 const quote = useSpeciesQuote();
 const textCreditCost = computed(() => quote({ image: false }).total);
 
@@ -74,7 +71,7 @@ async function onGenerate() {
 }
 
 async function generateAndCreate() {
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(textCreditCost.value)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

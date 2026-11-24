@@ -56,8 +56,6 @@ export function useCustomSubclassGeneration() {
       const raw = await generateEntityText<SubclassAiResult>({
         generator: "custom_subclass",
         campaignId: context.campaignId,
-        world: context.world,
-        ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,
       });

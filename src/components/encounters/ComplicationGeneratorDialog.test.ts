@@ -17,7 +17,7 @@ vi.mock("@/ai/useComplicationGeneration", () => ({
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
 vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits: () => true }) }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
-  useCampaignProviders: () => ({ textCredits: (n: number) => n, textIsByok: ref(false) }),
+  useCampaignProviders: () => ({ textCredits: (n: number) => n }),
 }));
 vi.mock("@/lib/supabase", () => ({ supabase: {} }));
 

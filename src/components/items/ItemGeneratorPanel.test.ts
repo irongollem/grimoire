@@ -17,7 +17,7 @@ vi.mock("vue-router", async (importOriginal) => ({
 }));
 vi.mock("@/stores/ui/items", () => ({ useItemsUiStore: () => ui }));
 vi.mock("@/stores/campaign", () => ({
-  useCampaignStore: () => ({ isAiEnabled: true, activeCampaignId: "campaign-1", activeCampaign: { text_provider: "openai" } }),
+  useCampaignStore: () => ({ isAiEnabled: true, activeCampaignId: "campaign-1", activeCampaign: {} }),
 }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: mocks.toastError }) }));
 vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits: () => true }) }));
@@ -26,8 +26,8 @@ vi.mock("@/composables/ai/useAiCredits", () => ({
 }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
   useCampaignProviders: () => ({
-    textProvider: ref("openai"), textIsByok: ref(false), textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base),
-    imageProvider: ref("openai"), imageIsByok: ref(false), imageMultiplier: ref(1), imageCredits: (base: number) => Math.ceil(base),
+    textProvider: ref("openai"), textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base),
+    imageProvider: ref("openai"), imageMultiplier: ref(1), imageCredits: (base: number) => Math.ceil(base),
   }),
 }));
 vi.mock("@/composables/items/useGenerateItem", () => ({

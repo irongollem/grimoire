@@ -94,7 +94,7 @@
       <div>
         <h2 class="text-heading-sm font-semibold text-foreground">Generation Costs</h2>
         <p class="text-caption text-muted-foreground italic mt-0.5">
-          Credits deducted per generation when not using BYOK (server-side mode).
+          Credits deducted per generation.
         </p>
       </div>
       <DraftConflictNotice :fields="genConflictLabels" />

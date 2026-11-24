@@ -209,7 +209,7 @@ rather than protective, which is worth saying rather than glossing.*
   can be set against real provider costs instead of a guess.
 - **What this covers, and what it does not.** Calibration is served by
   *metering*, not by content: `ai_credit_ledger` rows carry model, provider,
-  token counts, image count and a BYOK flag, and **no prompt text at all**.
+  token counts, image count and an `is_byok` flag (history only, no longer written), and **no prompt text at all**.
   Those columns already exist to charge the user under the contract, so the
   calibration use is a further use of data lawfully held for a compatible
   purpose in the same context (Art. 6(4)) rather than a fresh collection.

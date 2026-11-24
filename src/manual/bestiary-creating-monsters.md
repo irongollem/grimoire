@@ -93,7 +93,7 @@ Enable the Spellcasting section to set a spellcasting ability (INT, WIS, or CHA)
 
 This needs the active campaign's AI switched on (Campaign Settings) and enough credits to cover the cost. With AI off, only **New Blank Monster** is offered.
 
-When it's available, the button shows its cost in credits before you confirm, or, if you've set your own API key for this campaign, it shows that you're using your own key and nothing will be charged.
+When it's available, the button shows its cost in credits before you confirm.
 
 ## Duplicating and copying a monster
 

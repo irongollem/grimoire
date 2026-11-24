@@ -18,8 +18,7 @@ import {
  * The Quest Designer (#873) — a multi-turn conversational alternative to the
  * one-shot hook generator (`useQuestGeneration`). Server path only: the edge
  * function (`quest-designer-turn`) charges credits itself, exactly like
- * `generate-quest`, so there is no client-side `logUsage` here and no
- * BYOK/local-key branch — the designer's per-turn retrieval and system prompt
+ * `generate-quest`, so there is no client-side usage log here: the designer's per-turn retrieval and system prompt
  * both need service-role access the browser doesn't have.
  *
  * Deliberately NOT registered via `registerAiGenerator()` and NOT a

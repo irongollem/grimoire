@@ -41,7 +41,7 @@ Open **Campaign Settings** (the gear in the sidebar's Campaign group, or the set
 | **Travel** | How fast the party moves over each kind of terrain and by each way of travelling. |
 | **Classes** | Which classes your players can pick. |
 | **Species** | Which species your players can pick. |
-| **AI Assistant** | AI generation on/off, available on every plan; your own key instead of credits is Pro only. See [AI Generation & Credits](#ai-generation-credits). Owner only. |
+| **AI Assistant** | AI generation on/off, available on every plan, paid in credits. See [AI Generation & Credits](#ai-generation-credits). Owner only. |
 | **AI Connections** | Connects an external AI assistant to your campaign over MCP. |
 | **Spotify** | Spotify integration for ambient music. |
 | **Backup** | Campaign backup/export. |

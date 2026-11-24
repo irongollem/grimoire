@@ -60,8 +60,6 @@ export function useSpeciesGeneration() {
       const result = await generateEntityText<SpeciesAiResult>({
         generator: "species",
         campaignId: imageContext.campaignId,
-        world: imageContext.world,
-        ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,
       });

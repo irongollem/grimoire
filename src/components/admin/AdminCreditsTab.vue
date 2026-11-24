@@ -121,7 +121,7 @@
             <div class="flex-1 min-w-0">
               <span class="text-caption font-semibold text-foreground">{{ row.reason }}</span>
               <span v-if="row.model" class="text-caption text-muted-foreground italic ml-1">
-                · {{ row.model }}<template v-if="row.is_byok"> · BYOK</template>
+                · {{ row.model }}
               </span>
             </div>
             <span

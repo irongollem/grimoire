@@ -6,7 +6,6 @@
     title="Faction Generator"
     concept-placeholder="A shadowy thieves' guild operating beneath the city's merchant quarter, secretly manipulating trade routes and bribing officials to maintain their monopoly on smuggled goods…"
     :credits="quote.total"
-    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     blank-to="/factions/new"
@@ -113,7 +112,7 @@ const headquartersLocation = computed(() =>
 );
 
 async function generateAndCreate() {
-  if (!canSpend(quote.value.total, quote.value.byok)) return;
+  if (!canSpend(quote.value.total)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

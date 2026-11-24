@@ -40,9 +40,9 @@ export function useLootTableAskAdapter(): AskAdapter {
 
     const lines: AskQuoteLine[] = [{ label: "Tier", value: LOOT_CR_TIER_LABELS[read.crTier], credits: null }, ...priced.lines];
 
-    let block = blockFor({ total: priced.total, byok: priced.byok, fiveE: true });
+    let block = blockFor({ total: priced.total, fiveE: true });
     block = block ?? conceptBlock(read.concept, "treasure", { empty: "Say what this treasure is first.", limit: AI_PROMPT_LIMIT_SHORT });
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal): Promise<AskRunResult> {

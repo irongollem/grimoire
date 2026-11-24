@@ -19,9 +19,7 @@
  * so `sculpt`/`resculpt` only CREATE the task and write meshy_task_id; the
  * pg_cron-driven poll-meshy-jobs function finishes the job.
  *
- * PLATFORM KEYS ONLY: unlike every other AI generator in this app, Simulacrum
- * has no BYOK path (SIMULACRUM_PLAN.md §4) — the stylize step never reads a
- * campaign's stored key and isByok is always false.
+ * Platform keys only, like every AI generator in this app.
  */
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
@@ -165,14 +163,13 @@ async function runStylize(args: {
   portraitUrl: string;
   previousStatus: string;
   previousHadImage: boolean;
-  isByok: boolean;
   cost: number;
   reservationIds: string[];
   report: Report;
 }): Promise<void> {
   const {
     jobId, miniId, userId, provider, model, apiKey, moderationKey, quality, prompt, portraitUrl,
-    previousStatus, previousHadImage, isByok, cost, reservationIds, report,
+    previousStatus, previousHadImage, cost, reservationIds, report,
   } = args;
 
   // True once the style image is published on the mini: from then on it is delivered and charged, and nothing that
@@ -203,7 +200,7 @@ async function runStylize(args: {
       // Queued the moment the provider answered. If the image then cannot be published the work throws, and the hold
       // writes this line free: the provider's spend stays on the books and the user is not charged.
       ledger.charge("entity_image", {
-        cost, isByok,
+        cost,
         log: {
           model,
           quality,
@@ -287,7 +284,7 @@ async function handleStylize(userId: string, body: Record<string, unknown>, repo
   // campaign must exist and the caller must have access to it regardless of
   // whether the source table itself carries a campaign_id (monsters don't).
   // DMs only: no player surface calls this, and it spends the campaign's
-  // credits or the owner's own provider key (see _shared/campaignAccess.ts).
+  // credits (see _shared/campaignAccess.ts).
   const load = await loadAiCampaign(admin, campaignId, userId);
   if (!load.ok) return load.response;
 
@@ -351,7 +348,6 @@ async function handleStylize(userId: string, body: Record<string, unknown>, repo
   const providerChoice: "openai" | "gemini" = platformKeys.openai ? "openai" : "gemini";
   const img = resolveImageProvider({
     imageProvider: providerChoice,
-    campaignKeys: {}, // deliberately empty — never honor a campaign's stored key (no BYOK path)
     pinned: true, // reference-image forging needs this provider's capability, so the image_enabled switch does not apply
     platformKeys: { openai: platformKeys.openai, gemini: platformKeys.gemini },
     providerConfigs,
@@ -445,7 +441,6 @@ async function handleStylize(userId: string, body: Record<string, unknown>, repo
       portraitUrl: source.portrait!,
       previousStatus: target.status,
       previousHadImage: !!target.stylized_image_url,
-      isByok: img.isByok,
       cost,
       reservationIds: hold.handOff(),
       report,
@@ -600,7 +595,7 @@ async function handleSculptAction(
 function settleAbandonedSculpt(mini: { user_id: string; reservation_ids: string[] | null; credits_spent: number }, report: Report): Promise<void> {
   if (!mini.reservation_ids?.length) return Promise.resolve();
   return settleHandedOff(admin, { payerId: mini.user_id, ids: mini.reservation_ids, report }, async (ledger) => {
-    ledger.charge("mini_sculpt", { cost: mini.credits_spent, isByok: false });
+    ledger.charge("mini_sculpt", { cost: mini.credits_spent });
   });
 }
 
@@ -839,7 +834,7 @@ serve(serveUser(async ({ user, req, report }) => {
 
   // Deleting generates nothing, so a frozen or child account may still remove
   // its minis, and its campaigns with them. Everything else is blocked for
-  // those accounts (Simulacrum has no BYOK path that would skip the credit gate).
+  // those accounts (the credit gate would not apply to them).
   const deletes = body.action === "delete" || body.action === "delete_campaign";
   if (!deletes) {
     const accountRefusal = await generationRefusal(admin, user.id);

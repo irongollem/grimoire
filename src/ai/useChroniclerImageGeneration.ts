@@ -2,28 +2,15 @@ import type { ChroniclerSize, ImageJobKind } from "@/types/chronicler.types";
 import {
   captureImageGenerationContext,
   startImageGeneration as startCentralImageGeneration,
-  getLocalImageJob as getCentralLocalImageJob,
 } from "@/ai/useImageGeneration";
 import { waitForImageJob } from "@/ai/useImageJob";
 import type { ResolvedSceneEntity } from "@/ai/sceneEntities";
 
 // ── Image generation ──────────────────────────────────────────────────────────
 
-// Local (BYOK) jobs never touch the DB — there is no row to poll — so an
-// in-memory map is the only record of an in-flight local render. Entries are
-// removed once the promise settles (either way); a page reload loses any
-// still-pending entries, which is accepted (see task notes).
-/** Looks up an in-flight local (BYOK) image render started by startChroniclerImage. */
-export function getLocalImageJob(jobId: string): Promise<string> | undefined {
-  return getCentralLocalImageJob(jobId);
-}
-
 /**
  * Kicks off a chronicle image render and returns immediately with a job id —
- * never awaits the render itself. Server mode: the edge function's job id.
- * Local (BYOK) mode: a synthetic `local-<uuid>` id backed by an in-memory
- * promise (see `localImageJobs` / `getLocalImageJob`), since there is no DB
- * row to poll for a client-side render.
+ * never awaits the render itself. The job id is the edge function's.
  */
 export async function startChroniclerImage(params: {
   sceneText: string;
@@ -59,10 +46,5 @@ export async function generateChroniclerImage(params: {
   kind?: ImageJobKind;
 }): Promise<string> {
   const { jobId } = await startChroniclerImage(params);
-  if (jobId.startsWith("local-")) {
-    const promise = getLocalImageJob(jobId);
-    if (!promise) throw new Error("Local image job not found.");
-    return promise;
-  }
   return waitForImageJob(jobId);
 }

@@ -93,7 +93,7 @@ export interface AskRecordLookup {
 export interface AskTurnDeps extends GateDeps<AskCampaignRow, AskSessionRow> {
   /**
    * `settle_ask_routes`: confirms each open routed turn against a generation charged after it, meters the rest as
-   * answers, and says what is owed and how many free answers are left. Never called for an own-key account.
+   * answers, and says what is owed and how many free answers are left.
    */
   settleRoutes(userId: string): Promise<AskRouteSettlement>;
   /**
@@ -144,7 +144,7 @@ export interface AskTurnDeps extends GateDeps<AskCampaignRow, AskSessionRow> {
 
 export interface BegunAsk {
   kind: "ready";
-  /** Credits to hold before running: 0 while a free answer is left, and for own-key use. */
+  /** Credits to hold before running: 0 while a free answer is left. */
   reserve: number;
   run: (send: (event: AskEvent) => void, signal: AbortSignal | undefined, reservationIds: string[]) => Promise<void>;
 }

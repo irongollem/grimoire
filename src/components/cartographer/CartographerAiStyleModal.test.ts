@@ -31,7 +31,6 @@ function mountModal(props: Partial<InstanceType<typeof CartographerAiStyleModal>
       atlasError: null,
       atlasSaving: false,
       credits: 1,
-      byok: false,
       ...props,
     },
     global: { stubs },

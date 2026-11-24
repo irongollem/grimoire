@@ -50,8 +50,8 @@ const AUTH_SCHEME = /\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}/gi;
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 
 /**
- * Provider key shapes. BYOK means a user's *own* OpenAI/Anthropic key can pass
- * through an edge function, so these are not hypothetical — a provider error
+ * Provider key shapes. A provider key can pass
+ * through an edge function, so these are not hypothetical: a provider error
  * that echoes the request would otherwise carry the key into the event.
  */
 const KEY_SHAPES: readonly RegExp[] = [

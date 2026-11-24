@@ -6,6 +6,6 @@
 import { useQuoteKit, type GeneratorQuote } from "@/composables/ai/quotes/quoteKit";
 
 export function useLootTableQuote(): () => GeneratorQuote {
-  const { textLine, quoteOf, textIsByok } = useQuoteKit();
-  return () => quoteOf([textLine("Loot table", "Written by AI", "loot_generation")], textIsByok.value);
+  const { textLine, quoteOf } = useQuoteKit();
+  return () => quoteOf([textLine("Loot table", "Written by AI", "loot_generation")]);
 }

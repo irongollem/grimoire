@@ -11,7 +11,7 @@ function sse(events: unknown[]): Response {
 
 const done: AskEvent = { type: "done", end: "done", routed: false, free: true, credits: 0, freeLeft: 3 };
 const proposal: AskProposal = { proposalId: "p1", generator: "npc", concept: "a baker", inputs: {} };
-const readyQuote: AskQuote = { lines: [], total: 4, byok: false, block: null };
+const readyQuote: AskQuote = { lines: [], total: 4, block: null };
 const okResult: AskRunResult = {
   record: { type: "npc", id: "n1", name: "Mara" },
   route: "/npcs/n1",
@@ -167,7 +167,7 @@ describe("useAskConversation: the quote", () => {
 
   // Bug caught: the confirmed line read "You confirmed: Create NPC · 1 credits".
   it("words a one-credit confirmation as 1 credit", async () => {
-    const { convo, card } = await withProposal({ quote: { lines: [], total: 1, byok: false, block: null } });
+    const { convo, card } = await withProposal({ quote: { lines: [], total: 1, block: null } });
     await convo.confirm(card.id);
     const line = convo.items.value.find((i) => i.kind === "confirmed");
     expect(line).toMatchObject({ text: expect.stringMatching(/ · 1 credit$/) });
@@ -188,8 +188,8 @@ describe("useAskConversation: the quote", () => {
 
   // Bug caught: the gilt button running while the price is unknown or a gate (credits, quota) says no.
   it.each([
-    ["an unknown price", { lines: [], total: null, byok: false, block: null }],
-    ["a block", { lines: [], total: 4, byok: false, block: { reason: "credits" as const, message: "Not enough credits." } }],
+    ["an unknown price", { lines: [], total: null, block: null }],
+    ["a block", { lines: [], total: 4, block: { reason: "credits" as const, message: "Not enough credits." } }],
   ])("does not run with %s", async (_name, quote) => {
     const { convo, card, run } = await withProposal({ quote });
     await convo.confirm(card.id);

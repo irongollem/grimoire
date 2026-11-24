@@ -10,11 +10,10 @@
  * (`user_subscriptions.suspended_at`, set on chargeback / fraud / admin
  * action) is normally enforced inside `reserve_credits`. But that RPC — and
  * its TS wrapper `reserveCredits` — short-circuit on `cost <= 0` BEFORE the
- * suspension branch, so a BYOK generation (cost 0) skips the freeze entirely.
- * A frozen Pro account could therefore keep generating on its own API keys.
+ * suspension branch, so a free generation (cost 0) skips the freeze entirely.
  * Generators call `isAccountSuspended` before any provider work so the freeze
- * covers BYOK and platform paths alike (defense in depth; the paid path is
- * still separately gated by reserve_credits).
+ * covers free calls too (defense in depth; the paid path is still separately
+ * gated by reserve_credits).
  *
  * Fails OPEN (returns false) on a query error: a transient DB blip must not
  * block a legitimate user, and the paid path remains gated by the RPC. A
@@ -108,9 +107,8 @@ export function childAccountResponse(): Response {
  * gate misses a child account on a transient DB blip, the platform-credit
  * path is independently refused by `assert_spend_allowed` (which raises
  * `child_account` before the velocity check, inside `reserve_credits` /
- * `spend_credits`), and the bring-your-own-key path requires Pro, which
- * `is_user_pro` denies to a child and which itself fails CLOSED on a query
- * error. So a miss here is caught by a check downstream that does not miss.
+ * `spend_credits`). So a miss here is caught by a check downstream that does
+ * not miss, as long as the call is paid.
  *
  * That argument needs a downstream check. A caller whose AI call is free
  * (embeddings) has none, and passes `failClosed: true` instead.

@@ -79,8 +79,8 @@
         </AppButton>
       </div>
       <div v-if="(showAiButton && !isGenerating) || (showCutoutButton && !isCutoutGenerating)" class="flex justify-center">
-        <GenerationCostBadge v-if="showAiButton && !isGenerating" :credits="imageCost" :byok="imageByok" :show-balance="false" />
-        <GenerationCostBadge v-if="showCutoutButton && !isCutoutGenerating" :credits="cutoutCost" :byok="false" :show-balance="false" />
+        <GenerationCostBadge v-if="showAiButton && !isGenerating" :credits="imageCost" :show-balance="false" />
+        <GenerationCostBadge v-if="showCutoutButton && !isCutoutGenerating" :credits="cutoutCost" :show-balance="false" />
       </div>
       <p v-if="isGenerating || isCutoutGenerating" class="text-caption text-muted-foreground italic text-center">
         {{ currentLoadingQuote }}
@@ -191,7 +191,7 @@ const { isGenerating, error, generate } = useEntityImageGeneration(bucket);
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
 const { imageMultiplierFor } = useProviderConfig();
-const { imageCredits, imageIsByok: imageByok } = useCampaignProviders();
+const { imageCredits } = useCampaignProviders();
 const imageCost = computed(
   () => imageCredits(costOf("entity_image", { size: "1024x1536" })),
 );
@@ -212,8 +212,7 @@ function goToMiniForge() {
 }
 
 // Cutout generation (#917 story 5) — always OpenAI at the same portrait size
-// as an entity image, and never BYOK (generate-cutout is platform-keys-only,
-// like Simulacrum), so the cost badge never reads the campaign's own key.
+// as an entity image (generate-cutout is platform-keys-only, like Simulacrum).
 const { isGenerating: isCutoutGenerating, error: cutoutError, generate: generateCutout } = useCutoutGeneration();
 // Pinned to OpenAI: mirrors generate-cutout, which ignores the campaign's image pick.
 const cutoutCost = computed(
@@ -224,14 +223,14 @@ const cutoutDisabled = computed(() => isCutoutGenerating.value || disabled || !c
 
 async function runCutoutGenerate() {
   if (!cutoutFrom) return;
-  if (!requireCredits(cutoutCost.value, false)) return;
+  if (!requireCredits(cutoutCost.value)) return;
   const url = await generateCutout({ table: cutoutFrom.table, id: cutoutFrom.id, bucket });
   if (url) emit("update:modelValue", url);
 }
 
 async function runGenerate() {
   if (!aiKind || !aiContext?.trim()) return;
-  if (!requireCredits(imageCost.value, imageByok.value)) return;
+  if (!requireCredits(imageCost.value)) return;
   const url = await generate({ kind: aiKind, context: aiContext, targetId: aiTargetId ?? null });
   if (url) {
     emit("update:modelValue", url);

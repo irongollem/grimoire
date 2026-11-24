@@ -18,7 +18,6 @@
       <GenerationCostBadge
         v-if="isAiEnabled"
         :credits="effectiveCreditCost"
-        :byok="isFullyByok"
         class="self-center"
       />
       <AppButton
@@ -133,9 +132,6 @@ const quoteFor = useNpcQuote();
 // The price Ask Grimoire quotes for the same run. Null while any part that will be charged has no known price yet.
 const quote = computed(() => quoteFor({ portrait: generateImage.value, alterEgo: generateAlterEgo.value }));
 const effectiveCreditCost = computed(() => quote.value.total);
-// GenerationCostBadge's own byok flag needs "no credits will be charged at all", not just the text provider: an
-// image-only BYOK key still leaves the text portion billed.
-const isFullyByok = computed(() => quote.value.byok);
 
 function dismissToBackground() {
   npcsUi.npcGeneratorOpen = false;
@@ -175,7 +171,7 @@ async function generateAndCreate() {
 }
 
 async function runGenerateAndCreate() {
-  if (!canSpend(effectiveCreditCost.value, isFullyByok.value)) return;
+  if (!canSpend(effectiveCreditCost.value)) return;
   const campaignId = campaign.activeCampaignId;
   if (!campaignId) return;
   // The species the DM picked, else one rolled at the world's shares (#1255 item 30).

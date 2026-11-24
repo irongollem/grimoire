@@ -50,8 +50,7 @@ export interface Campaign {
   excluded_monster_ids: string[];
   disabled_class_names: string[];
   disabled_species_ids: string[];
-  // Active provider selection
-  text_provider: string | null;
+  // Active image provider selection (text is picked by the platform)
   image_provider: string | null;
   allow_chronicle_promotion: boolean;
   /** Tri-state EU AI Act consent (context/compliance/ai-act.md §4): true =
@@ -96,7 +95,7 @@ export interface Campaign {
 }
 
 type PortraitFields = "group_portrait_url";
-type ProviderFields = "text_provider" | "image_provider";
+type ProviderFields = "image_provider";
 
 export type CampaignInsert = Omit<
   Campaign,
@@ -148,7 +147,6 @@ export type CampaignInsert = Omit<
   optional_rules?: CampaignOptionalRules;
   game_system?: GameSystemKey;
   allows_mixed_rulesets?: boolean;
-  text_provider?: string | null;
   image_provider?: string | null;
   allow_chronicle_promotion?: boolean;
   /** Omitted on create so new campaigns start unchosen (null) — see the

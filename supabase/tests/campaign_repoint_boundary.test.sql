@@ -174,8 +174,8 @@ select matches(
 -- table was created; the UPDATE `with check` never did, from 20260824214506
 -- until 20260907065132. A `document_imports` row is not passive data — it is a
 -- work order that `supabase/functions/import-extract` executes with the service
--- role, reading the named campaign's BYOK keys and spending its credits. So the
--- repoint here aims someone else's credentials at an attacker-controlled import.
+-- role and spends the campaign owner's credits. So the repoint here aims someone
+-- else's credits at an attacker-controlled import.
 --
 -- This one is why the structural assertion below had to be rewritten: the older
 -- guard only inspected tables whose SELECT is campaign-wide, and document_imports

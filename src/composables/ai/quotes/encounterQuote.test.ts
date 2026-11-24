@@ -3,7 +3,7 @@ import { ref } from "vue";
 
 // Prices by the table's own keys, so a quote that asks the wrong row gets the wrong number.
 const costs: Record<string, number> = { encounter_generation: 4, entity_image: 50 };
-const providers = { textIsByok: ref(false), imageIsByok: ref(false), imageProvider: ref<string | null>("openai") };
+const providers = { imageProvider: ref<string | null>("openai") };
 
 vi.mock("@/composables/ai/useAiCredits", () => ({
   useAiCredits: () => ({ costOf: (key: string) => costs[key] ?? 1 }),
@@ -20,20 +20,11 @@ const { useEncounterQuote } = await import("./encounterQuote");
 
 describe("useEncounterQuote", () => {
   beforeEach(() => {
-    providers.textIsByok.value = false;
   });
 
   it("prices the text under encounter_generation, the row the server charges, and nothing else", () => {
     const quote = useEncounterQuote()();
     expect(quote.lines.map((l) => l.credits)).toEqual([4]);
     expect(quote.total).toBe(4);
-    expect(quote.byok).toBe(false);
-  });
-
-  it("costs nothing on the DM's own key", () => {
-    providers.textIsByok.value = true;
-    const quote = useEncounterQuote()();
-    expect(quote.total).toBe(0);
-    expect(quote.byok).toBe(true);
   });
 });

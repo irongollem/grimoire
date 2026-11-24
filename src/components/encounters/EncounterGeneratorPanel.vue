@@ -6,7 +6,6 @@
     concept-placeholder="Goblin ambush on the forest road, levels 3–5, a betrayal mid-fight…"
     :concept-limit="CONCEPT_LIMIT"
     :credits="quote.total"
-    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     :show-results="!!result"
@@ -297,7 +296,7 @@ function matchedLabel(m: GeneratedCombatantMatch): string {
 }
 
 async function runGenerate() {
-  if (!canSpend(quote.value.total, quote.value.byok)) return;
+  if (!canSpend(quote.value.total)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

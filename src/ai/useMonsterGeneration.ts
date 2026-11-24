@@ -62,8 +62,6 @@ export function useMonsterGeneration() {
       const result = await generateEntityText<MonsterAiResult>({
         generator: "monster",
         campaignId: imageContext.campaignId,
-        world: imageContext.world,
-        ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,
       });

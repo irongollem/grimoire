@@ -41,7 +41,7 @@ serve(serveUser(async ({ user, req, report }) => {
 
     // The DM only, and a caller who is not is told the note does not exist: a 403 would say it does.
     loadCampaign: (campaignId, userId) =>
-      loadAiCampaign<RecapCampaign>(admin, campaignId, userId, { columns: ["text_provider"], aiSwitch: "table", hideFromOutsiders: true }),
+      loadAiCampaign<RecapCampaign>(admin, campaignId, userId, { aiSwitch: "table", hideFromOutsiders: true }),
 
     async loadSitting(noteId, userId) {
       const { data, error } = await admin
@@ -68,8 +68,8 @@ serve(serveUser(async ({ user, req, report }) => {
       return data ? (data.name as string) : null;
     },
 
-    async resolveProvider(campaign) {
-      const resolved = await resolveAgentProvider(admin, { id: campaign.id, ownerId: campaign.user_id, textProvider: campaign.text_provider });
+    async resolveProvider() {
+      const resolved = await resolveAgentProvider(admin);
       return resolved === null ? null : resolved.provider;
     },
 

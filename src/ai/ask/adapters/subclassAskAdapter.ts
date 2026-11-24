@@ -47,13 +47,13 @@ export function useSubclassAskAdapter(): AskAdapter {
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
 
-    let block = blockFor({ total: priced.total, byok: priced.byok, fiveE: true }) ?? conceptBlock(read.concept, "archetype");
+    let block = blockFor({ total: priced.total, fiveE: true }) ?? conceptBlock(read.concept, "archetype");
     if (!block && loading.value) {
       block = { reason: "missing", message: "Still reading this campaign's classes." };
     } else if (!block && read.parent === null) {
       block = { reason: "missing", message: "Which class is it a subclass of?" };
     }
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal): Promise<AskRunResult> {

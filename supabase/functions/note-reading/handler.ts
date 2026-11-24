@@ -206,7 +206,7 @@ export async function readNote(input: { userId: string; body: unknown; deps: Not
     await deps.keepAudio(key, joinAudio(spoken));
     await deps.setReading(note.id, { hash, voice: body.voice, chars: text.length });
     // Queued last: a reading that could not be kept or put on the note is not paid for.
-    hold.charge("note_reading", { cost: credits, isByok: false, log: { provider: voice.service, model: deps.modelOf(voice.service) } });
+    hold.charge("note_reading", { cost: credits, log: { provider: voice.service, model: deps.modelOf(voice.service) } });
     // The note now refers to this recording alone: an earlier telling of it is nobody's any more. Best effort: a
     // recording left behind costs storage, never the reading.
     await deps.sweep(campaignId).catch((error) => console.error("note-reading: sweeping the old recordings failed:", error));

@@ -56,9 +56,9 @@ export function useRecipeAskAdapter(): AskAdapter {
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
 
-    let block = blockFor({ total: priced.total, byok: priced.byok, fiveE: true }) ?? conceptBlock(read.concept, "recipe");
+    let block = blockFor({ total: priced.total, fiveE: true }) ?? conceptBlock(read.concept, "recipe");
     if (!block && items.value === undefined) block = { reason: "missing", message: "Still reading this campaign's items." };
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal): Promise<AskRunResult> {

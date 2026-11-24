@@ -12,17 +12,14 @@ import { effectScope, type EffectScope } from "vue";
 import { usePendingImageDocResolver, usePendingImageResolver } from "./usePendingImageResolver";
 
 vi.mock("@/ai/useImageJob", () => ({ waitForImageJob: vi.fn() }));
-vi.mock("@/ai/useImageGeneration", () => ({ getLocalImageJob: vi.fn() }));
 const toastError = vi.hoisted(() => vi.fn());
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ error: toastError }),
 }));
 
 import { waitForImageJob } from "@/ai/useImageJob";
-import { getLocalImageJob } from "@/ai/useImageGeneration";
 
 const waitForImageJobMock = vi.mocked(waitForImageJob);
-const getLocalImageJobMock = vi.mocked(getLocalImageJob);
 
 interface FakeAnchor {
   jobId: string;
@@ -135,26 +132,6 @@ describe("usePendingImageResolver", () => {
 
     await vi.waitFor(() => expect(live.images).toEqual(["https://img/live.webp"]));
     expect(waitForImageJobMock).not.toHaveBeenCalledWith("job-late");
-  });
-
-  it("resolves a job rendered in this session from the local job table, not the server", async () => {
-    const { editor, images } = makeFakeEditor(["local-1"]);
-    getLocalImageJobMock.mockReturnValue(Promise.resolve("https://img/local.webp"));
-
-    makeResolver(() => editor).scan();
-
-    await vi.waitFor(() => expect(images).toEqual(["https://img/local.webp"]));
-    expect(waitForImageJobMock).not.toHaveBeenCalled();
-  });
-
-  it("marks a local job failed when the session that rendered it has ended", async () => {
-    const { editor, anchors } = makeFakeEditor(["local-gone"]);
-    getLocalImageJobMock.mockReturnValue(undefined);
-
-    makeResolver(() => editor).scan();
-
-    await vi.waitFor(() => expect(anchors[0]?.status).toBe("failed"));
-    expect(waitForImageJobMock).not.toHaveBeenCalled();
   });
 
   it("says nothing when the placeholder was deleted and the job still finishes", async () => {

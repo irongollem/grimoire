@@ -4,7 +4,6 @@ import { supabase, getCurrentUser } from '@/lib/supabase'
 import { edgeErrorMessage } from '@edge-shared/edgeError.ts'
 import { CREDIT_COST, type CreditBuckets } from '@/types/subscription.types'
 import { useGenerationCreditCosts } from '@/composables/billing/useCreditConfig'
-import type { TextUsage, ImageUsage } from '@/ai/providers/types'
 // The single place a charge becomes a whole number of credits (rounded up) —
 // imported from the edge function's own pure, dependency-free module rather
 // than mirrored, so there is exactly one implementation of this rule and the
@@ -25,49 +24,6 @@ export function sizeMultiplier(size: string | null | undefined): number {
   const area = Number(m[1]) * Number(m[2])
   if (!Number.isFinite(area) || area <= 0) return 1
   return area / (1024 * 1024)
-}
-
-/**
- * Log a BYOK/local-key generation for the AI usage record. Fire-and-forget —
- * never blocks the caller. Every call site is a client-direct (BYOK or local
- * key vault) provider call, so `is_byok: true` is always correct here — the
- * platform-key path is logged server-side instead (recordGeneration() /
- * spend_credits(), see `_shared/credits.ts`).
- *
- * #609: every generation logs a row, even when the provider didn't report
- * token counts (some responses omit them — see `ImageUsage`).
- * Token columns land NULL in that case; delta stays 0 and model/provider/
- * reason are always present, so the usage record stays complete even where
- * it can't estimate cost. This never sends prompt content — only the
- * generator type (`reason`), provider, model and token/image counts — so
- * local-key mode's "plaintext never reaches the server" promise holds for
- * this beacon too (context/compliance/ai-act.md §6a).
- */
-export function logUsage(params:
-  | { reason: string; textUsage: TextUsage; imageUsage?: never }
-  | { reason: string; imageUsage: ImageUsage; textUsage?: never }
-): void {
-  const { reason, textUsage, imageUsage } = params
-  const inputTokens      = textUsage?.input_tokens  ?? imageUsage?.input_tokens
-  const inputImageTokens = imageUsage?.input_image_tokens
-  const outputTokens     = textUsage?.output_tokens ?? imageUsage?.output_tokens
-
-  supabase.functions.invoke('deduct-ai-credit', {
-    body: {
-      reason,
-      amount: 0,
-      is_byok: true,
-      model:              textUsage?.model    ?? imageUsage?.model,
-      provider:           textUsage?.provider ?? imageUsage?.provider,
-      // Token-based image models (OpenAI gpt-image) report tokens on imageUsage;
-      // text generators report on textUsage. Forward whichever is present so the
-      // ledger can compute real cost on every path.
-      input_tokens:       inputTokens,
-      input_image_tokens: inputImageTokens,
-      output_tokens:      outputTokens,
-      image_count:        imageUsage?.image_count,
-    },
-  }).catch(() => { /* analytics logging failure is never fatal */ })
 }
 
 async function fetchBalance(): Promise<number> {
@@ -131,13 +87,12 @@ export function useAiCredits() {
   }
 
   /**
-   * Whether a generation costing `credits` is affordable. BYOK is always
-   * affordable (the user pays their own API bill), and we never block while the
+   * Whether a generation costing `credits` is affordable. We never block while the
    * balance is still loading. Shared by GenerationCostBadge and the generate
    * buttons so the disabled state and the cost tint stay in sync.
    */
-  function affordable(credits: number, byok = false): boolean {
-    return byok || isLoading.value || (balance.value ?? 0) >= credits
+  function affordable(credits: number): boolean {
+    return isLoading.value || (balance.value ?? 0) >= credits
   }
 
   /** `returnPath` — where Stripe sends the buyer back to; Billing when omitted. */
@@ -171,7 +126,6 @@ export function useAiCredits() {
     isLoading,
     affordable,
     costOf,
-    logUsage: logUsage,
     purchasePack,
     purchaseLoading,
     purchaseError,

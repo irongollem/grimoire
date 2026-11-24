@@ -4,7 +4,6 @@ import { computed } from "vue";
 import RichTextViewer from "./RichTextViewer.vue";
 
 vi.mock("@/ai/useImageJob", () => ({ waitForImageJob: vi.fn() }));
-vi.mock("@/ai/useImageGeneration", () => ({ getLocalImageJob: vi.fn() }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn() }) }));
 vi.mock("@/components/tiptap/PendingImageCard.vue", () => ({
   default: { props: ["status", "prompt", "startedAt", "editable"], template: '<div class="pending-stub" />' },

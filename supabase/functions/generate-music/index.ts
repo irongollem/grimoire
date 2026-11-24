@@ -1,7 +1,5 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { decryptValue } from "../_shared/vault.ts";
-import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
 import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
@@ -200,7 +198,7 @@ async function runMusicGeneration(jobId: string, request: MusicRuntimeRequest): 
     // Step 1: expand the DM's request into a complete Lyria prompt with a
     // text model — unless the DM supplied the prompt themselves, which is
     // sent exactly as written. This used to run in the browser via a
-    // BYOK-only provider that threw for every platform-credit DM (see this
+    // provider that threw for every platform-credit DM (see this
     // file's top comment) — deliberately NO fallback to a hand-composed
     // prompt here. A silent downgrade is exactly what hid that bug for four
     // months, so a failed structuring step fails the whole job instead.
@@ -397,7 +395,6 @@ function parseMusicRequest(body: Record<string, unknown>): ParsedMusicRequest | 
 }
 
 interface MusicCampaign extends BaseCampaign {
-  text_provider: string | null;
 }
 
 serve(serveUser(async ({ user, req, report }) => {
@@ -421,10 +418,9 @@ serve(serveUser(async ({ user, req, report }) => {
   const { campaignId, soundName, category, requestId, imageUrls, description, lengthSeconds, vocals, lyrics, mentions, prompt } = parsed;
 
   // DMs only: no player surface calls this, and it spends the campaign's
-  // credits or the owner's own provider key (see _shared/campaignAccess.ts).
-  const load = await loadAiCampaign<MusicCampaign>(admin, campaignId, user.id, { columns: ["text_provider"] });
+  // credits (see _shared/campaignAccess.ts).
+  const load = await loadAiCampaign<MusicCampaign>(admin, campaignId, user.id, {});
   if (!load.ok) return load.response;
-  const campaign = load.campaign;
 
   const existing = await findGenerationJob(admin, user.id, "music", requestId);
   if (existing) {
@@ -439,8 +435,7 @@ serve(serveUser(async ({ user, req, report }) => {
     if (existing.status !== "queued") return json({ job_id: existing.id });
   }
 
-  const [[campaignGemini, campaignOpenai, campaignAnthropic], platformKeys, geminiProviderRow, providerConfigs] = await Promise.all([
-    loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.gemini, k.openai, k.anthropic] as const),
+  const [platformKeys, geminiProviderRow, providerConfigs] = await Promise.all([
     fetchPlatformKeys(admin, ["gemini", "openai", "anthropic"]),
     admin.from("provider_config").select("audio_enabled, audio_multiplier, audio_model").eq("provider", "gemini").maybeSingle()
       .then((r) => {
@@ -450,23 +445,19 @@ serve(serveUser(async ({ user, req, report }) => {
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
 
-  // ── Audio (Lyria) key — unchanged lane logic ────────────────────────────────
-  // A queued retry keeps the original billing lane. In particular, it must
-  // never fall back from a vanished BYOK key to a platform key while retaining
-  // its zero-cost reservation context.
-  const isByok = existing ? existing.billing_context.is_byok === true : !!campaignGemini;
-  if (!isByok && !geminiProviderRow?.audio_enabled) {
+  // ── Audio (Lyria) key: the platform's ───────────────────────────────────────
+  if (!geminiProviderRow?.audio_enabled) {
     if (existing) {
       await failGenerationJob(admin, existing.id, "Platform music generation was disabled before this queued request could start.");
     }
     return jsonError(403, "music_disabled", "Music generation is not enabled on this platform. Contact your admin.");
   }
-  const geminiKey = isByok ? campaignGemini : platformKeys.gemini ?? null;
+  const geminiKey = platformKeys.gemini ?? null;
   if (!geminiKey) {
     if (existing) {
-      await failGenerationJob(admin, existing.id, "The API key for this queued music generation is no longer available.");
+      await failGenerationJob(admin, existing.id, "The platform's music key is no longer available.");
     }
-    return jsonError(422, "no_music_key", "No Gemini API key configured. Add one in Campaign Settings → AI, or ask your admin to configure a platform key.");
+    return jsonError(422, "no_music_key", "No Gemini API key is configured on the platform. Contact your admin.");
   }
 
   // ── Text (structuring) key — no billing lane of its own; resolved fresh on
@@ -475,8 +466,6 @@ serve(serveUser(async ({ user, req, report }) => {
   // provider surfaces immediately instead of failing the job after Lyria's
   // (billed) work has already started. ─────────────────────────────────────
   const text = resolveTextProvider({
-    chosen: campaign.text_provider,
-    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
     platformKeys,
     providerConfigs,
   });
@@ -515,7 +504,7 @@ serve(serveUser(async ({ user, req, report }) => {
   // call's own provider cost rides along on this single charge rather than
   // being metered separately (see this file's top comment).
   const audioCost = wholeCredits(
-    (isByok ? 0 : await fetchCreditCost(admin, generationType)) * (geminiProviderRow?.audio_multiplier ?? 1),
+    (await fetchCreditCost(admin, generationType)) * (geminiProviderRow?.audio_multiplier ?? 1),
   );
 
   return withCreditHold(admin, { payerId: user.id, reason: generationType, cost: audioCost, report }, async (hold) => {
@@ -546,7 +535,6 @@ serve(serveUser(async ({ user, req, report }) => {
           reservation_ids: reservationIds,
           generation_type: generationType,
           cost: audioCost,
-          is_byok: isByok,
           log: { model: durableRequest.model, provider: "google", image_count: 1 },
         },
         idempotency_key: requestId,

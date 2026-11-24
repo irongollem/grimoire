@@ -35,8 +35,6 @@ const mocks = vi.hoisted(() => {
     // once per `useCampaignStore()` call (see the mock below), so a test
     // sets these BEFORE constructing its `useMapExport` instance.
     activeCampaign: null as { id: string; image_provider: string | null } | null,
-    decryptedOpenAiKey: "",
-    decryptedGeminiKey: "",
     // False stands for provider_config not loaded yet: nothing resolves.
     configLoaded: true,
     // provider -> multiplier, close to production's real openai=1/gemini=0.5.
@@ -61,7 +59,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
 // Stands in for the resolver (covered by providerChoice.test.ts): the
-// campaign's pick, its own key for that pick, and that provider's multiplier.
+// campaign's pick and that provider's multiplier.
 vi.mock("@/composables/ai/useCampaignProviders", async () => {
   const { computed } = await import("vue");
   const { wholeCredits } = await import("@edge-shared/credit-math.ts");
@@ -72,7 +70,6 @@ vi.mock("@/composables/ai/useCampaignProviders", async () => {
       );
       return {
         imageProvider,
-        imageIsByok: computed(() => !!(imageProvider.value === "gemini" ? mocks.decryptedGeminiKey : mocks.decryptedOpenAiKey)),
         imageCredits: (base: number) =>
           imageProvider.value === null ? null : wholeCredits(base * mocks.imageMultiplierFor(imageProvider.value)),
       };
@@ -92,8 +89,6 @@ vi.mock("@/composables/locations/useSaveStyledSitePicture", () => ({
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     activeCampaign: mocks.activeCampaign,
-    decryptedOpenAiKey: mocks.decryptedOpenAiKey,
-    decryptedGeminiKey: mocks.decryptedGeminiKey,
   }),
 }));
 
@@ -129,8 +124,6 @@ describe("useMapExport", () => {
     mocks.allLocations.value = [];
     mocks.activeCampaign = { id: "camp-1", image_provider: null };
     mocks.invoke.mockClear();
-    mocks.decryptedOpenAiKey = "";
-    mocks.decryptedGeminiKey = "";
   });
 
   describe("a request from Ask Grimoire", () => {
@@ -381,19 +374,6 @@ describe("useMapExport", () => {
       // credit, rounded up (wholeCredits).
       expect(exp.styleCost.value).toBe(1);
       expect(mocks.imageMultiplierFor).toHaveBeenCalledWith("gemini");
-    });
-
-    it("reads BYOK off the Gemini key for a Gemini campaign, not the OpenAI one", () => {
-      mocks.activeCampaign = { id: "camp-1", image_provider: "gemini" };
-      mocks.decryptedOpenAiKey = "sk-openai-unrelated";
-      mocks.decryptedGeminiKey = "";
-      const exp = useMapExport({ buildMap: () => null, runtimes: () => new Map(), loadDressing: async () => new Map(), mapName: () => "", glyphs: () => ({}) });
-      // Has an OpenAI key but not a Gemini one — a Gemini campaign must not
-      // read BYOK true off the wrong provider's key.
-      expect(exp.styleByok.value).toBe(false);
-      mocks.decryptedGeminiKey = "gm-key";
-      const exp2 = useMapExport({ buildMap: () => null, runtimes: () => new Map(), loadDressing: async () => new Map(), mapName: () => "", glyphs: () => ({}) });
-      expect(exp2.styleByok.value).toBe(true);
     });
 
     it("neither prices nor bakes before the provider is known, rather than guessing OpenAI's shape", async () => {

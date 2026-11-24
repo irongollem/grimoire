@@ -6,7 +6,6 @@
     concept-placeholder="Forest road at night, bandits active in the region, levels 3–5…"
     :concept-limit="CONCEPT_LIMIT"
     :credits="quote.total"
-    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     :show-results="!!result"
@@ -177,7 +176,7 @@ const creating = ref(false);
 const createdTableId = ref<string | null>(null);
 
 async function runGenerate() {
-  if (!requireCredits(quote.value.total, quote.value.byok)) return;
+  if (!requireCredits(quote.value.total)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

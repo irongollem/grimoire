@@ -32,7 +32,7 @@
         />
       </div>
       <div class="flex items-center justify-end gap-2">
-        <GenerationCostBadge :credits="suggestCost" :byok="textIsByok" />
+        <GenerationCostBadge :credits="suggestCost" />
         <AppButton variant="subtle" size="sm" label="Cancel" @click="showSteer = false" />
         <AppButton
           variant="primary"
@@ -113,7 +113,6 @@ import ConnectionSlip, { type ConnectionTag } from "@/components/common/entity/C
 import { useCreateConnection } from "@/composables/connections/useConnections";
 import { useConnectionSuggestionsQuote } from "@/composables/ai/quotes/connectionSuggestionsQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
@@ -153,7 +152,6 @@ const {
 const { mutateAsync: createConnection } = useCreateConnection();
 const { canSpend } = useGenerationGate();
 const quoteFor = useConnectionSuggestionsQuote();
-const { textIsByok } = useCampaignProviders();
 const suggestCost = computed(() => quoteFor().total);
 
 const showSteer = ref(false);
@@ -161,7 +159,7 @@ const steer = ref("");
 const isAccepting = ref(false);
 
 async function runSuggest() {
-  if (!canSpend(suggestCost.value, textIsByok.value)) return;
+  if (!canSpend(suggestCost.value)) return;
   const ok = await suggest(subject, steer.value);
   if (ok) {
     showSteer.value = false;

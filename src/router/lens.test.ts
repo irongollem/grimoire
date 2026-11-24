@@ -11,7 +11,6 @@ vi.mock("@/lib/supabase", () => ({
   getCurrentUser: () => null,
   setCachedUser: () => {},
 }));
-vi.mock("@/lib/apiKeyVault", () => ({ decryptApiKey: async () => "" }));
 vi.mock("@/lib/themeRuntime", () => ({ setTheme: () => {}, setPlayerSeat: () => {} }));
 
 import { routes } from "./routes";

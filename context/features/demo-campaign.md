@@ -54,7 +54,7 @@ It is catalogue-driven, because production has 82 campaign-scoped tables and a h
 4. **Insert.** None of the 346 foreign keys is deferrable, so rows go in by passes, a table at a time, and row by row for self-referencing tables. The three real cycles are broken by `defer_columns` (`quests.entry_beat_id`, `locations.npc_owner_id`, `notes.linked_calendar_event_id`), which go in null and are restored at the end.
 5. **Side effects.** Two insert triggers that would duplicate template rows stand down while `grimoire.copying_campaign` is on: the quest's auto "Main" thread, and the attachment-to-`quest_refs` mirror.
 6. **What a copy leaves behind.**
-   - The campaign row drops the author's BYOK keys, Spotify client and iCal token, and gets a fresh token of its own.
+   - The campaign row drops the author's Spotify client and iCal token, and gets a fresh token of its own.
    - It resets `ai_enabled` and the provider choice. AI Act consent belongs to the owner, so the new owner is asked.
    - AI provenance on the content itself is copied verbatim.
    - Embeddings are copied, so the demo is searchable by the AI tools from the start.

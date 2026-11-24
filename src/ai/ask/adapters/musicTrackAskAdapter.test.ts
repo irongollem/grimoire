@@ -3,12 +3,11 @@ import { ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 
 const mocks = vi.hoisted(() => ({ generate: vi.fn() }));
-const state = vi.hoisted(() => ({ aiEnabled: true, affordable: true, localKey: false, geminiKey: null as string | null, busy: false, multiplier: 1.5 }));
+const state = vi.hoisted(() => ({ aiEnabled: true, affordable: true, busy: false, multiplier: 1.5 }));
 
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() { return state.aiEnabled; },
-    get decryptedGeminiKey() { return state.geminiKey; },
     activeCampaign: { name: "Sugarwell" },
     activeCampaignId: "c1",
   }),
@@ -19,12 +18,11 @@ vi.mock("@/composables/ai/useAiCredits", () => ({
 vi.mock("@/composables/ai/useProviderConfig", () => ({ useProviderConfig: () => ({ audioMultiplierFor: () => state.multiplier }) }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
   useCampaignProviders: () => ({
-    textIsByok: ref(false), imageIsByok: ref(false), imageProvider: ref("openai"),
+    imageProvider: ref("openai"),
     textCredits: (base: number) => base, imageCredits: (base: number) => base,
   }),
 }));
 vi.mock("@/composables/rules/useGameSystem", () => ({ useGameSystem: () => ({ offers: () => true }) }));
-vi.mock("@/lib/localKeyVault", () => ({ localKeyModeChosen: () => state.localKey }));
 vi.mock("@/ai/aiGeneratorRegistry", () => ({ isAnyAiGenerating: { get value() { return state.busy; } } }));
 const music = vi.hoisted(() => ({ error: { value: null as string | null }, completedEntityId: { value: null as string | null } }));
 vi.mock("@/ai/useMusicGeneration", () => ({
@@ -43,18 +41,16 @@ describe("useMusicTrackAskAdapter", () => {
     mocks.generate.mockReset().mockResolvedValue(true);
     music.error.value = null;
     music.completedEntityId.value = "s9";
-    Object.assign(state, { aiEnabled: true, affordable: true, localKey: false, geminiKey: null, busy: false, multiplier: 1.5 });
+    Object.assign(state, { aiEnabled: true, affordable: true, busy: false, multiplier: 1.5 });
   });
 
-  it("quotes the Generate tab's price: the row times the audio multiplier, rounded up, nothing on the DM's own key", () => {
+  it("quotes the Generate tab's price: the row times the audio multiplier, rounded up", () => {
     const adapter = useMusicTrackAskAdapter();
     expect(adapter.quote(proposal()).total).toBe(useMusicTrackQuote()().total);
     expect(adapter.quote(proposal()).total).toBe(5);
-    state.geminiKey = "key";
-    expect(adapter.quote(proposal())).toMatchObject({ total: 0, byok: true });
   });
 
-  it("blocks on AI off, a short balance, an empty description and a DM on the local-key path", () => {
+  it("blocks on AI off, a short balance, and an empty description", () => {
     const adapter = useMusicTrackAskAdapter();
     state.aiEnabled = false;
     expect(adapter.quote(proposal()).block?.reason).toBe("system");
@@ -63,9 +59,6 @@ describe("useMusicTrackAskAdapter", () => {
     expect(adapter.quote(proposal()).block?.reason).toBe("credits");
     state.affordable = true;
     expect(adapter.quote(proposal({}, "  ")).block?.reason).toBe("missing");
-    state.localKey = true;
-    state.geminiKey = "key";
-    expect(adapter.quote(proposal()).block?.reason).toBe("system");
   });
 
   it("composes without touching the Add Sound dialog's half-typed draft", async () => {

@@ -31,12 +31,12 @@ export function useGenerationGate(resource?: QuotaResource) {
   const { requireCredits } = useOutOfCredits();
   const showQuotaPaywall = ref(false);
 
-  function canSpend(cost: number | null, byok = false): boolean {
+  function canSpend(cost: number | null): boolean {
     if (quota && !quota.canCreate.value) {
       showQuotaPaywall.value = true;
       return false;
     }
-    return requireCredits(cost, byok);
+    return requireCredits(cost);
   }
 
   function gateQuotaError(error: unknown): boolean {

@@ -68,7 +68,7 @@ vi.mock("@/stores/campaign", () => ({
     get activeCampaignId() { return campaignState.activeCampaignId; },
     activeGameSystem: "dnd5e-2014",
     todayYear: 1495,
-    get activeCampaign() { return { text_provider: "openai", image_provider: "openai" }; },
+    get activeCampaign() { return { image_provider: "openai" }; },
   }),
 }));
 vi.mock("@/composables/npcs/useNpcs", () => ({
@@ -87,10 +87,8 @@ vi.mock("@/composables/ai/useCampaignProviders", async () => {
   return {
     useCampaignProviders: () => ({
       textProvider: ref("openai"),
-      textIsByok: ref(false),
       textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base),
       imageProvider: ref("openai"),
-      imageIsByok: ref(false),
       imageMultiplier: ref(1), imageCredits: (base: number) => Math.ceil(base),
     }),
   };

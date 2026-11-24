@@ -102,23 +102,19 @@ const campaign = useCampaignStore();
 const { generate, isGenerating, error: draftError } = useDowntimeGeneration();
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
+const { textCredits } = useCampaignProviders();
 
 const steer = ref("");
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 
 /** Text-only generator — there is no illustration, so no entity_image charge. */
-const effectiveCreditCost = computed(() =>
-  textIsByok.value
-    ? 0
-    : textCredits(costOf("downtime_generation")),
-);
+const effectiveCreditCost = computed(() => textCredits(costOf("downtime_generation")));
 
 async function onDraft() {
   if (!activity.value) return;
   errorMessage.value = null;
-  if (!requireCredits(effectiveCreditCost.value, textIsByok.value)) return;
+  if (!requireCredits(effectiveCreditCost.value)) return;
   const draft = await generate({
     activity: activity.value,
     characterName: memberName,
@@ -234,7 +230,7 @@ async function onCancel() {
               @click="onDraft"
             />
           </div>
-          <GenerationCostBadge class="mt-1" :credits="effectiveCreditCost" :byok="textIsByok" />
+          <GenerationCostBadge class="mt-1" :credits="effectiveCreditCost" />
           <p v-if="draftError" class="mt-1 text-caption-sm text-destructive">{{ draftError }}</p>
         </div>
 

@@ -1,10 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { requireWorld } from "./worldBlock";
-import {
-  buildCampaignContext,
-} from "./utils";
 import type { TrapAiResult, TrapAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -13,18 +8,12 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
-import { getTextProvider } from "./providers";
-import { wrapUserInput } from "./utils";
-import { logUsage } from "@/composables/ai/useAiCredits";
-import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import {
   captureFailureMessage,
   captureImageGenerationContext,
   generateImage,
   type ImageGenerationContext,
 } from "@/ai/useImageGeneration";
-import { buildAiProvenance } from "@/ai/provenance";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 
 // ── Module-level singleton state ────────────────────────────────────────────
@@ -50,7 +39,6 @@ export interface TrapGenerationOptions {
 }
 
 export function useTrapGeneration() {
-  const { ruleset } = useTableRuleset();
   const { ensureLikenessAck } = useLikenessGate();
 
   async function generate(
@@ -75,11 +63,7 @@ export function useTrapGeneration() {
     const campaignId = imageContext.campaignId;
 
     try {
-      const isLocalMode = await textRunsOnLocalKey();
-
-      return isLocalMode
-        ? await generateClientSide(userPrompt, options, imageContext)
-        : await generateServerSide(userPrompt, options, campaignId, imageContext);
+      return await generateServerSide(userPrompt, options, campaignId, imageContext);
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";
       return null;
@@ -112,39 +96,6 @@ export function useTrapGeneration() {
     }
 
     const trapData = data as TrapAiResult;
-    return { ...trapData, image_url: await generateTrapImage(trapData, options, imageContext) };
-  }
-
-  async function generateClientSide(
-    userPrompt: string,
-    options: TrapGenerationOptions | undefined,
-    imageContext: ImageGenerationContext,
-  ): Promise<TrapAiGenerated | null> {
-    const world = requireWorld(imageContext.world);
-    const textProvider = getTextProvider();
-
-    const [basePrompt, rulesetContext] = await Promise.all([
-      fetchSystemPrompt("trap"),
-      fetchRulesetContext(ruleset.value),
-    ]);
-    if (!basePrompt) throw new Error("Trap system prompt not configured.");
-
-    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext(world)}`;
-
-    const constraints: string[] = [];
-    if (options?.trap_type) constraints.push(`Trap Type: ${options.trap_type}`);
-    if (options?.cr) constraints.push(`CR: ${options.cr}`);
-
-    const wrappedPrompt = wrapUserInput(userPrompt);
-    const userContent = constraints.length
-      ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}`
-      : wrappedPrompt;
-
-    const { content, usage: textUsage } = await textProvider.complete(systemContent, userContent);
-    const trapData = JSON.parse(content) as TrapAiResult;
-    trapData.ai_provenance = buildAiProvenance("trap_generation", textUsage.provider, textUsage.model);
-
-    logUsage({ reason: "trap_generation", textUsage });
     return { ...trapData, image_url: await generateTrapImage(trapData, options, imageContext) };
   }
 

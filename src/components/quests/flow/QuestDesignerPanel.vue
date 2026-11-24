@@ -26,7 +26,7 @@
 
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="space-y-0.5">
-                <GenerationCostBadge :credits="textCreditCost" :byok="textIsByok" />
+                <GenerationCostBadge :credits="textCreditCost" />
                 <p class="text-caption text-muted-foreground/70">
                   1 credit per exchange · up to {{ QUEST_DESIGN_TURN_BUDGET }} exchanges in a sitting
                 </p>
@@ -206,7 +206,7 @@ const { data: locations } = useAllLocations();
 const { data: factions } = useAllFactions();
 const { createFromHook } = useCreateQuestFromHook();
 const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
+const { textCredits } = useCampaignProviders();
 const { confirm } = useConfirm();
 const toast = useToast();
 
@@ -290,13 +290,13 @@ function goToEntity(entity: ResolvedEntity) {
 }
 
 async function onPropose() {
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(textCreditCost.value)) return;
   await propose();
 }
 
 async function onSendAnswers() {
   if (!canSend.value) return;
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(textCreditCost.value)) return;
   const newAnswers: QuestDesignAnswer[] = [];
   for (const question of questions.value) {
     const selection = selections.value[question.key];

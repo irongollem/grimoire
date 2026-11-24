@@ -30,7 +30,7 @@ export function useGroupPortrait() {
   const { mutateAsync: updateCampaign } = useUpdateCampaign();
   const { costOf } = useAiCredits();
   const { requireCredits } = useOutOfCredits();
-  const { imageCredits, imageIsByok: groupPortraitByok } = useCampaignProviders();
+  const { imageCredits } = useCampaignProviders();
 
   const generating = ref(false);
   const error      = ref("");
@@ -56,7 +56,7 @@ export function useGroupPortrait() {
     if (!store.isAiEnabled) return;
     if (!store.activeCampaignId || !store.activeCampaign) return;
     if (!(await ensureLikenessAck())) return;
-    if (!requireCredits(groupPortraitCost.value, groupPortraitByok.value)) return;
+    if (!requireCredits(groupPortraitCost.value)) return;
     const campaignId = store.activeCampaignId;
     generating.value = true;
     error.value      = "";
@@ -126,6 +126,5 @@ export function useGroupPortrait() {
     generateGroupPortrait,
     uploadGroupPortrait,
     groupPortraitCost,
-    groupPortraitByok,
   };
 }

@@ -6,7 +6,6 @@
     title="Puzzle Generator"
     concept-placeholder="A flooded crypt where water levels rise unless the players reroute flow through a series of ancient stone sluices…"
     :credits="quote.total"
-    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     blank-to="/puzzles/new"
@@ -67,7 +66,7 @@ const generateImage = ref(true);
 const quote = computed(() => quotePuzzle({ image: generateImage.value }));
 
 async function generateAndCreate() {
-  if (!canSpend(quote.value.total, quote.value.byok)) return;
+  if (!canSpend(quote.value.total)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

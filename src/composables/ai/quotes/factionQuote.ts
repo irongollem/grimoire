@@ -12,10 +12,10 @@ export interface FactionQuoteOptions {
 }
 
 export function useFactionQuote(): (options: FactionQuoteOptions) => GeneratorQuote {
-  const { textLine, artLine, quoteOf, textIsByok, imageIsByok } = useQuoteKit();
+  const { textLine, artLine, quoteOf } = useQuoteKit();
   return ({ image }) => {
     const lines = [textLine("Faction", "Written by AI", "faction_generation")];
     if (image) lines.push(artLine("Emblem", "Painted by AI", 1, "entity_image", "1024x1024"));
-    return quoteOf(lines, textIsByok.value && (!image || imageIsByok.value));
+    return quoteOf(lines);
   };
 }

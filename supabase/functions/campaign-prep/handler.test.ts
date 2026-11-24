@@ -21,7 +21,7 @@ function harness() {
     makeThrowsFor: null as string | null,
     calls: 0,
     made: [] as Proposal[],
-    charged: [] as Array<{ cost: number; isByok: boolean }>,
+    charged: [] as Array<{ cost: number }>,
     deps: undefined as unknown as PrepDeps,
   };
   const callModel: CallModel = async () => {
@@ -32,17 +32,17 @@ function harness() {
   h.deps = {
     // The DM-only, AI-on rule is `loadAiCampaign`'s (its own test); here only that a refusal is passed through.
     loadCampaign: async (_id, userId) =>
-      userId === DM ? { ok: true, campaign: { id: CAMPAIGN, user_id: DM, name: "Sugarwell", ai_enabled: true, text_provider: null } } : { ok: false, response: jsonError(404, "campaign_not_found") },
+      userId === DM ? { ok: true, campaign: { id: CAMPAIGN, user_id: DM, name: "Sugarwell", ai_enabled: true } } : { ok: false, response: jsonError(404, "campaign_not_found") },
     loadDigest: async () => ({ campaign: "Sugarwell", quests: [], places: [], hazards: [], items: [], tables: [], features: [], levelling: { mode: "milestone", partyLevel: null, milestones: [] } }),
     loadExisting: async () => h.existing,
-    resolveProvider: async () => ({ provider: "openai", model: "m1", isByok: false, callModel }),
+    resolveProvider: async () => ({ provider: "openai", model: "m1", callModel }),
     loadPrice: async () => ({ inputPerMillion: 1, outputPerMillion: 4, cachedInputPerMillion: null }),
     loadCalibration: async () => ({ usdPerCredit: 0.0066, margin: 2 }),
     // The release-once and charge-after-release rules are `withCreditHold`'s (its own test); this records what was asked.
     withHold: async (credits, work) => {
       h.holds.push(credits);
       const hold: PrepHold = {
-        charge: (_reason, line) => void h.charged.push({ cost: line.cost, isByok: line.isByok }),
+        charge: (_reason, line) => void h.charged.push({ cost: line.cost }),
         free: () => {},
       };
       return work(hold);
@@ -71,7 +71,7 @@ describe("proposing", () => {
     expect(out.proposals?.map((p) => p.name)).toEqual(["Quicksand", "The Old Ferry", "Brass Winding Key"]);
     expect(h.made).toEqual([]);
     expect(h.holds).toEqual([4]);
-    expect(h.charged).toEqual([{ cost: 2, isByok: false }]);
+    expect(h.charged).toEqual([{ cost: 2 }]);
   });
 
   // "Nothing that matches something already there is proposed twice." Bug caught: a second Quicksand beside the
@@ -98,7 +98,7 @@ describe("proposing", () => {
     const silent = harness();
     silent.answer = null;
     expect(await ask(silent, { action: "propose" })).toMatchObject({ status: 502, error: "generation_failed", message: PREP_MESSAGES.noAnswer });
-    expect(silent.charged).toEqual([{ cost: 0, isByok: false }]);
+    expect(silent.charged).toEqual([{ cost: 0 }]);
     const stranger = harness();
     expect((await ask(stranger, { action: "propose" }, "player")).status).toBe(404);
     expect(stranger.calls).toBe(0);

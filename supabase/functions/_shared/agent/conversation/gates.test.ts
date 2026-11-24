@@ -13,7 +13,7 @@ interface Session extends GateSession { kind: string }
 
 function harness(over: Partial<GateDeps<GateCampaign, Session>> = {}, session: Session | null = null) {
   const calls: string[] = [];
-  const provider: AgentProvider = { provider: "openai", model: "m1", isByok: false, callModel: async () => { throw new Error("not called"); } };
+  const provider: AgentProvider = { provider: "openai", model: "m1", callModel: async () => { throw new Error("not called"); } };
   const deps: GateDeps<GateCampaign, Session> = {
     accountRefusal: async () => { calls.push("account"); return null; },
     loadCampaign: async () => { calls.push("campaign"); return { id: CAMPAIGN, ai_enabled: true }; },
@@ -85,12 +85,7 @@ describe("admitConversation", () => {
     expect(h.calls).not.toContain("rate");
   });
 
-  it("does not meter an own-key conversation, and refuses a metered one with no usable price", async () => {
-    const own = harness();
-    own.deps.resolveProvider = async () => ({ ...own.provider, isByok: true });
-    expect((await own.run()).kind).toBe("admitted");
-    expect(own.calls).not.toContain("price");
-
+  it("refuses a conversation with no usable price, rather than running it unmetered", async () => {
     const broken = harness({ loadCalibration: async () => ({ usdPerCredit: null, margin: 1 }) });
     expect(await broken.run()).toEqual({ kind: "refused", refusal: { status: 503, error: "no metering" } });
   });

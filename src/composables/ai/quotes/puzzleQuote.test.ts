@@ -3,7 +3,7 @@ import { ref } from "vue";
 
 // Prices by the table's own keys, so a quote that asks the wrong row gets the wrong number.
 const costs: Record<string, number> = { puzzle_generation: 4, entity_image: 50 };
-const providers = { textIsByok: ref(false), imageIsByok: ref(false), imageProvider: ref<string | null>("openai") };
+const providers = { imageProvider: ref<string | null>("openai") };
 
 vi.mock("@/composables/ai/useAiCredits", () => ({
   useAiCredits: () => ({
@@ -22,8 +22,6 @@ const { usePuzzleQuote } = await import("./puzzleQuote");
 
 describe("usePuzzleQuote", () => {
   beforeEach(() => {
-    providers.textIsByok.value = false;
-    providers.imageIsByok.value = false;
     providers.imageProvider.value = "openai";
   });
 
@@ -39,14 +37,5 @@ describe("usePuzzleQuote", () => {
   it("stays unknown while the picture's provider is unknown, never a guessed price", () => {
     providers.imageProvider.value = null;
     expect(usePuzzleQuote()({ image: true }).total).toBeNull();
-  });
-
-  it("is free only when every part in play runs on the DM's own key", () => {
-    providers.textIsByok.value = true;
-    expect(usePuzzleQuote()({ image: true }).byok).toBe(false);
-    providers.imageIsByok.value = true;
-    const quote = usePuzzleQuote()({ image: true });
-    expect(quote.byok).toBe(true);
-    expect(quote.total).toBe(0);
   });
 });

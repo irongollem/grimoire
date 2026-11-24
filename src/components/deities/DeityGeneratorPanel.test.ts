@@ -18,7 +18,7 @@ vi.mock("vue-router", async (importOriginal) => ({
 }));
 vi.mock("@/stores/ui/generators", () => ({ useGeneratorUiStore: () => mocks.ui }));
 vi.mock("@/stores/campaign", () => ({
-  useCampaignStore: () => ({ isAiEnabled: true, activeCampaignId: "campaign-1", activeCampaign: { text_provider: "openai" } }),
+  useCampaignStore: () => ({ isAiEnabled: true, activeCampaignId: "campaign-1", activeCampaign: {} }),
 }));
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ error: mocks.toastError, fromError: (e: unknown) => (e instanceof Error ? e.message : "boom") }),
@@ -39,8 +39,7 @@ vi.mock("@/composables/ai/useAiCredits", () => ({
 }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
   useCampaignProviders: () => ({
-    textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false),
-    imageIsByok: ref(false), imageProvider: ref("openai"), imageCredits: (base: number) => Math.ceil(base),
+    textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), imageProvider: ref("openai"), imageCredits: (base: number) => Math.ceil(base),
   }),
 }));
 vi.mock("@/composables/billing/useQuota", () => ({ useQuota: () => ({ canCreate: ref(true), quota: ref(null) }) }));

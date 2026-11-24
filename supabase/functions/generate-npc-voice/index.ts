@@ -1,7 +1,5 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { decryptValue } from "../_shared/vault.ts";
-import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
@@ -67,7 +65,6 @@ const admin = createClient(
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 interface VoiceCampaign extends BaseCampaign {
-  text_provider: string | null;
   current_year: number | null;
   current_month: number | null;
   current_day: number | null;
@@ -76,8 +73,7 @@ interface VoiceCampaign extends BaseCampaign {
 const optionalString = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 
 serve(serveUser(async ({ user, req, report }) => {
-  // Frozen or child accounts cannot generate — including BYOK, which skips
-  // the credit gate for both (#919).
+  // Frozen or child accounts cannot generate (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
@@ -95,7 +91,7 @@ serve(serveUser(async ({ user, req, report }) => {
   // DMs only: this reads DM-only campaign content with the service role (see
   // _shared/campaignAccess.ts for why a player member must not get through).
   const load = await loadAiCampaign<VoiceCampaign>(admin, campaign_id, user.id, {
-    columns: ["text_provider", "current_year", "current_month", "current_day"],
+    columns: ["current_year", "current_month", "current_day"],
   });
   if (!load.ok) return load.response;
   const campaign = load.campaign;
@@ -124,8 +120,7 @@ serve(serveUser(async ({ user, req, report }) => {
   if (promptError) throw promptError;
   if (!promptRow) return jsonError(500, "prompt_not_configured", "This generator is not set up yet.");
 
-  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
-    loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
+  const [platformKeys, providerConfigs] = await Promise.all([
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini", "typesafe"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
@@ -153,12 +148,8 @@ serve(serveUser(async ({ user, req, report }) => {
     `${wrapUserInput(situation)}\n\nNPC Profile:\n${buildNpcProfile(npc, campaignToday(campaign))}` +
     (memoryBlock ? `\n\n${memoryBlock}` : "");
 
-  // The platform decides the text model: a campaign on platform credits runs on
-  // whichever provider the admin enabled, and `campaign.text_provider` only counts
-  // when the campaign holds its own key for it. Refuse before anything is spent.
+  // The platform decides the text model: the first provider the admin enabled. Refuse before anything is spent.
   const text = resolveTextProvider({
-    chosen: campaign.text_provider,
-    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
     platformKeys,
     providerConfigs,
   });
@@ -167,7 +158,7 @@ serve(serveUser(async ({ user, req, report }) => {
   // Throttle abusive burst volume before any paid provider work (issue #466).
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
-  const baseCost = text.isByok ? 0 : await fetchCreditCost(admin, "npc_voice_generation");
+  const baseCost = await fetchCreditCost(admin, "npc_voice_generation");
   const cost = wholeCredits(
     applyMultiplier(baseCost, text.textMultiplier),
   );
@@ -211,7 +202,6 @@ serve(serveUser(async ({ user, req, report }) => {
 
       hold.charge("npc_voice_generation", {
         cost,
-        isByok: text.isByok,
         log: {
           model: textResult.usage.model, provider: textResult.usage.provider,
           input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,

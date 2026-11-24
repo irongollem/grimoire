@@ -2,14 +2,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 
-// The store reaches for the vault and the theme on hydration; neither is under
+// The store reaches for the theme on hydration; neither is under
 // test here and @/lib/supabase throws at module load without env vars.
 vi.mock("@/lib/supabase", () => ({ supabase: {}, getCurrentUser: () => null }));
-const decryptApiKey = vi.hoisted(() => vi.fn(async (_blob: string) => ""));
-vi.mock("@/lib/apiKeyVault", () => ({ decryptApiKey }));
-const fetchCampaignApiKeys = vi.hoisted(() => vi.fn());
-vi.mock("@/ai/campaignApiKeys", () => ({ fetchCampaignApiKeys }));
-vi.mock("@/lib/observability/sentry", () => ({ reportHandledError: () => {} }));
 const setTheme = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/themeRuntime", () => ({ setTheme, setPlayerSeat: () => {} }));
 
@@ -373,112 +368,37 @@ describe("the active game system (#934)", () => {
   });
 });
 
-describe("provider keys — a decryption lands only in the load that started it", () => {
-  beforeEach(() => {
-    localStorage.clear();
-    setActivePinia(createPinia());
-    decryptApiKey.mockReset();
-    fetchCampaignApiKeys.mockReset();
-    mockUseAuthStore.mockReturnValue({ isChildAccount: false, user: { id: "owner" }, refreshMembership: () => {} });
-  });
+// Fails if the module-load sweep is removed: a device that once kept its own AI
+// keys (#1260) would hold a live credential on disk that nothing reads or clears.
+describe("retired key storage is swept when the store module loads (#1260)", () => {
   afterEach(() => {
-    mockUseAuthStore.mockReset();
-    mockUseAuthStore.mockImplementation(() => ({ isChildAccount: false }));
+    vi.unstubAllGlobals();
+    vi.resetModules();
   });
 
-  const keysOf: Record<string, string | null> = {};
-  function campaignWith(id: string, openai: string | null, ownerId = "owner"): Campaign {
-    keysOf[id] = openai;
-    return { id, user_id: ownerId, theme: null } as unknown as Campaign;
-  }
-  function serveKeys() {
-    fetchCampaignApiKeys.mockImplementation(async (id: string) =>
-      keysOf[id] ? { openai_api_key: keysOf[id], anthropic_api_key: null, gemini_api_key: null } : null);
-  }
-
-  it("decrypts the owner's stored key into the provider ref", async () => {
-    serveKeys();
-    decryptApiKey.mockResolvedValueOnce("sk-a");
-    const store = useCampaignStore();
-    store.switchToCampaign(campaignWith("a", "enc:v1:a"));
-    await vi.waitFor(() => expect(store.decryptedOpenAiKey).toBe("sk-a"));
-    expect(store.storedKeys?.openai_api_key).toBe("enc:v1:a");
-    expect(fetchCampaignApiKeys).toHaveBeenCalledWith("a", "owner");
-  });
-
-  // The campaign read embeds the keys (useCampaignById) and says so before its
-  // request goes, so a load meanwhile must not spend a request of its own: the
-  // DM boot journeys hold the request count to a budget.
-  it("takes the keys a campaign read is bringing instead of reading them itself", async () => {
-    serveKeys();
-    decryptApiKey.mockResolvedValue("sk-arriving");
-    const store = useCampaignStore();
-    let deliver: (keys: { openai_api_key: string; anthropic_api_key: null; gemini_api_key: null }) => void = () => {};
-    store.keysArriving("a", new Promise((resolve) => { deliver = resolve; }));
-    store.switchToCampaign(campaignWith("a", "enc:v1:a"));
-    deliver({ openai_api_key: "enc:v1:arriving", anthropic_api_key: null, gemini_api_key: null });
-    await vi.waitFor(() => expect(store.decryptedOpenAiKey).toBe("sk-arriving"));
-    expect(fetchCampaignApiKeys).not.toHaveBeenCalled();
-  });
-
-  it("keeps a campaign's keys when its row is merely updated, and takes new ones when they are saved", async () => {
-    serveKeys();
-    decryptApiKey.mockImplementation(async (blob: string) => blob.replace("enc:v1:", "sk-"));
-    const store = useCampaignStore();
-    store.switchToCampaign(campaignWith("a", "enc:v1:a"));
-    await vi.waitFor(() => expect(store.decryptedOpenAiKey).toBe("sk-a"));
-
-    store.switchToCampaign(campaignWith("a", "enc:v1:a"));
-    expect(store.providerKeysLoading).toBe(false);
-    expect(store.decryptedOpenAiKey).toBe("sk-a");
-
-    store.keysArriving("a", Promise.resolve({ openai_api_key: "enc:v1:saved", anthropic_api_key: null, gemini_api_key: null }));
-    store.switchToCampaign(campaignWith("a", "enc:v1:a"));
-    await vi.waitFor(() => expect(store.decryptedOpenAiKey).toBe("sk-saved"));
-    expect(fetchCampaignApiKeys).toHaveBeenCalledTimes(1);
-  });
-
-  // The keys are the owner's alone (#1228): a co-DM must not even ask for them.
-  it("loads no keys for anyone but the campaign's owner", async () => {
-    serveKeys();
-    const store = useCampaignStore();
-    store.switchToCampaign(campaignWith("a", "enc:v1:a", "someone-else"));
-    await new Promise((r) => setTimeout(r, 0));
-    expect(fetchCampaignApiKeys).not.toHaveBeenCalled();
-    expect(store.storedKeys).toBeNull();
-    expect(store.providerKeysLoading).toBe(false);
-  });
-
-  it("does not write campaign A's key into B when A's decryption answers late", async () => {
-    serveKeys();
-    let answerA: (key: string) => void = () => {};
-    decryptApiKey.mockImplementationOnce(() => new Promise<string>((resolve) => { answerA = resolve; }));
-    const store = useCampaignStore();
-
-    store.switchToCampaign(campaignWith("a", "enc:v1:a"));
-    expect(store.providerKeysLoading).toBe(true);
-    await vi.waitFor(() => expect(decryptApiKey).toHaveBeenCalled());
-    store.switchToCampaign(campaignWith("b", null));
-    await vi.waitFor(() => expect(store.providerKeysLoading).toBe(false));
-
-    answerA("sk-a");
-    await new Promise((r) => setTimeout(r, 0));
-    expect(store.decryptedOpenAiKey).toBe("");
-  });
-
-  it("gives up on a decryption that never answers, rather than blocking prices for the session", async () => {
-    vi.useFakeTimers();
-    try {
-      serveKeys();
-      decryptApiKey.mockImplementationOnce(() => new Promise<string>(() => {}));
-      const store = useCampaignStore();
-      store.switchToCampaign(campaignWith("a", "enc:v1:a"));
-      expect(store.providerKeysLoading).toBe(true);
-      await vi.advanceTimersByTimeAsync(15_000);
-      expect(store.providerKeysLoading).toBe(false);
-      expect(store.decryptedOpenAiKey).toBe("");
-    } finally {
-      vi.useRealTimers();
+  it("removes the local keys and drops the key vault database", async () => {
+    for (const key of ["grimoire_openai_key", "grimoire_anthropic_key", "grimoire_gemini_key", "grimoire_key_local_mode", "grimoire_falai_key"]) {
+      localStorage.setItem(key, "left-over");
     }
+    localStorage.setItem("grimoire_active_campaign", "kept");
+    const deleteDatabase = vi.fn();
+    vi.stubGlobal("indexedDB", { deleteDatabase });
+    vi.resetModules();
+    await import("./campaign");
+    expect(localStorage.getItem("grimoire_openai_key")).toBeNull();
+    expect(localStorage.getItem("grimoire_anthropic_key")).toBeNull();
+    expect(localStorage.getItem("grimoire_gemini_key")).toBeNull();
+    expect(localStorage.getItem("grimoire_key_local_mode")).toBeNull();
+    expect(localStorage.getItem("grimoire_falai_key")).toBeNull();
+    expect(deleteDatabase).toHaveBeenCalledWith("grimoire-keyvault");
+    expect(localStorage.getItem("grimoire_active_campaign")).toBe("kept");
+  });
+
+  it("still boots when reading indexedDB throws (Firefox with site data blocked)", async () => {
+    vi.stubGlobal("indexedDB", undefined);
+    Object.defineProperty(globalThis, "indexedDB", { configurable: true, get() { throw new Error("SecurityError"); } });
+    vi.resetModules();
+    await expect(import("./campaign")).resolves.toBeDefined();
+    Reflect.deleteProperty(globalThis, "indexedDB");
   });
 });

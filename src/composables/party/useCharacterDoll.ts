@@ -48,7 +48,7 @@ export function useCharacterDoll() {
   async function make(memberId: string): Promise<boolean> {
     if (isGenerating.value) return false;
     if (!(await ensureLikenessAck())) return false;
-    if (!requireCredits(dollCost.value, false)) return false;
+    if (!requireCredits(dollCost.value)) return false;
 
     isGenerating.value = true;
     error.value = null;

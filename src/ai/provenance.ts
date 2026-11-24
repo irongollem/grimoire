@@ -4,11 +4,10 @@ export type { AiProvenance };
 
 /**
  * The ONLY place client code constructs an `AiProvenance` record. Used by the
- * client-direct BYOK generators (monster, item, spell, faction, puzzle) and by
- * the local-key (`runLocal()`) paths inside the server-backed generator
- * composables — both bypass the edge function, which is where every other
- * generator's provenance is built (see the `ai_provenance` object each
- * `supabase/functions/generate-*` function returns in its draft JSON).
+ * client-side builders that do not go through an edge function; the edge
+ * functions build every generator's provenance themselves (see the
+ * `ai_provenance` object each `supabase/functions/generate-*` function returns
+ * in its draft JSON).
  *
  * `generatorType` should match the string the equivalent edge function uses
  * (e.g. "npc_text", "location_generation") so a query for "what generated

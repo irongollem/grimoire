@@ -74,7 +74,7 @@
       </template>
     </div>
     <div class="flex shrink-0 justify-end items-center gap-2 px-5 pb-5 pt-2">
-      <GenerationCostBadge :credits="credits" :byok="byok" class="mr-auto" />
+      <GenerationCostBadge :credits="credits" class="mr-auto" />
       <!-- The render carries on without the dialog and its result opens when
            it lands, so closing mid-render is "later", not "cancel". -->
       <AppButton
@@ -211,7 +211,6 @@ const {
   atlasError,
   atlasSaving,
   credits,
-  byok,
 } = defineProps<{
   showPicker: boolean;
   showResult: boolean;
@@ -231,7 +230,6 @@ const {
   atlasError: string | null;
   atlasSaving: boolean;
   credits: number | null;
-  byok: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -259,7 +257,7 @@ const { confirm } = useConfirm();
  * the eventual "Use as the base image" click.
  */
 async function onGenerateClick() {
-  if (!requireCredits(credits, byok)) return;
+  if (!requireCredits(credits)) return;
   if (fixedTargetLabel) {
     const ok = await confirm(
       "The styled map replaces this site's base image. Your tile drawing is set aside, it stays in the Cartographer, so you can draw fixes on top and style again. Walls, doors and lights keep working at the table, unseen under the painting. Check that the grid still lines up; the AI can drift a little, and Line up the grid on the Base image tab fixes it.",

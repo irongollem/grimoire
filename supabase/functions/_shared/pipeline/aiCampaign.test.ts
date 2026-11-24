@@ -6,7 +6,7 @@ import { loadAiCampaign } from "./aiCampaign";
 let fake: SupabaseFake;
 const admin = () => fake.client as unknown as SupabaseClient;
 
-const campaign = (over: Record<string, unknown> = {}) => ({ id: "c-1", user_id: "owner", ai_enabled: true, text_provider: "openai", ...over });
+const campaign = (over: Record<string, unknown> = {}) => ({ id: "c-1", user_id: "owner", ai_enabled: true, game_system: "dnd5e", ...over });
 
 beforeEach(() => {
   fake = createSupabaseFake();
@@ -29,10 +29,10 @@ describe("loadAiCampaign", () => {
 
   it("returns the requested columns to the DM", async () => {
     fake.seed("campaigns", [campaign()]);
-    const load = await loadAiCampaign<{ id: string; user_id: string; ai_enabled: boolean; text_provider: string }>(
-      admin(), "c-1", "co-dm", { columns: ["text_provider"] },
+    const load = await loadAiCampaign<{ id: string; user_id: string; ai_enabled: boolean; game_system: string }>(
+      admin(), "c-1", "co-dm", { columns: ["game_system"] },
     );
-    expect(load.ok && load.campaign.text_provider).toBe("openai");
+    expect(load.ok && load.campaign.game_system).toBe("dnd5e");
   });
 
   it("refuses a player, who is a member but not the DM", async () => {

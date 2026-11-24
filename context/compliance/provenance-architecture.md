@@ -78,10 +78,8 @@ generate-chronicle-image.) Server produces no resized variants, so one mark
 per asset. Audio (`generate-music`): SynthID verification + register entry;
 container metadata where the format allows.
 
-### 5. Write point B — client uploads (local key mode + variants)
+### 5. Write point B — client uploads (variants)
 
-- Local-mode originals: mark in `uploadLocalResult()` (`src/ai/useImageGeneration.ts`)
-  and the analogous entity-image local paths before `uploadToBucket`.
 - Variants: `resizeToWebP()` (canvas) strips metadata — `uploadWithVariants()`
   re-embeds the XMP into every variant blob when provenance is supplied.
   User-photo uploads (no provenance arg) are untouched.
@@ -182,7 +180,7 @@ marketing surface.
 
 ### 8. Log hardening (#609)
 
-Separate wave: delta-0 rows for token-less BYOK calls, settlement-only
+Separate wave: settlement-only
 mutations on settled ledger rows, retention policy. Not a legal duty
 (documented in #609) — evidence hygiene.
 

@@ -1,7 +1,5 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { decryptValue } from "../_shared/vault.ts";
-import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { rulesetContextKey } from "../_shared/gameSystem.ts";
@@ -42,7 +40,7 @@ import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
  * illustration step, so no `entity_image` charge and no image provider to
  * resolve.
  *
- * Quest generation was, until now, entirely client-side BYOK-only
+ * Quest generation was, until now, entirely client-side
  * (src/ai/useQuestGeneration.ts): the same "quest" system prompt + ruleset
  * context + campaign setting as here, but with zero visibility into the DM's
  * own NPCs, factions and locations — the model could only invent generic
@@ -155,15 +153,13 @@ const SCHEMA_EXTENSION_INSTRUCTION =
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 interface QuestCampaign extends BaseCampaign {
-  text_provider: string | null;
   game_system: string | null;
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(serveUser(async ({ user, req, report }) => {
-  // Frozen or child accounts cannot generate — including BYOK, which skips
-  // the credit gate for both (#919).
+  // Frozen or child accounts cannot generate (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
@@ -182,7 +178,7 @@ serve(serveUser(async ({ user, req, report }) => {
   // DMs only: this reads DM-only campaign content with the service role (see
   // _shared/campaignAccess.ts for why a player member must not get through).
   const load = await loadAiCampaign<QuestCampaign>(admin, campaign_id, user.id, {
-    columns: ["text_provider", "game_system"],
+    columns: ["game_system"],
   });
   if (!load.ok) return load.response;
   const campaign = load.campaign;
@@ -200,8 +196,7 @@ serve(serveUser(async ({ user, req, report }) => {
     promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
   if (!promptRow) return jsonError(500, "prompt_not_configured", "This generator is not set up yet.");
 
-  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
-    loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
+  const [platformKeys, providerConfigs] = await Promise.all([
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
@@ -211,19 +206,15 @@ serve(serveUser(async ({ user, req, report }) => {
     (rulesetContext ? `\n\n${rulesetContext}` : "") +
     worldBlockText(world) + INJECTION_GUARD_SUFFIX;
 
-  // The platform decides the text model: a campaign on platform credits runs on
-  // whichever provider the admin enabled, and `campaign.text_provider` only counts
-  // when the campaign holds its own key for it. Refuse before anything is spent.
+  // The platform decides the text model: the first provider the admin enabled. Refuse before anything is spent.
   const text = resolveTextProvider({
-    chosen: campaign.text_provider,
-    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
     platformKeys,
     providerConfigs,
   });
   if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
 
   // ── Pre-flight credit check ────────────────────────────────────────────────
-  const baseCost = text.isByok ? 0 : await fetchCreditCost(admin, "quest_generation");
+  const baseCost = await fetchCreditCost(admin, "quest_generation");
   const cost = wholeCredits(
     applyMultiplier(baseCost, text.textMultiplier),
   );
@@ -245,8 +236,8 @@ serve(serveUser(async ({ user, req, report }) => {
     // quest generation down. A missing vendor, a mid-flip config, a provider
     // outage or an RPC error all cost grounding, not the feature — the whole
     // block is one try/catch whose failure path leaves the candidate arrays
-    // empty and the prompt falls back to exactly what the client-side BYOK path
-    // already sends (see useQuestGeneration.ts): the "quest" system prompt +
+    // empty and the prompt falls back to the plain
+    // prompt: the "quest" system prompt +
     // ruleset context + campaign setting, no entity block.
     let candidates: { npcs: CandidateEntity[]; locations: CandidateEntity[]; factions: CandidateEntity[] } =
       { npcs: [], locations: [], factions: [] };
@@ -339,10 +330,9 @@ serve(serveUser(async ({ user, req, report }) => {
     }
     if (!questData || !Array.isArray(questData.hooks) || questData.hooks.length === 0) return malformed();
 
-    // Charged the moment the paid call has produced a usable result (delta 0 on BYOK).
+    // Charged the moment the paid call has produced a usable result.
     hold.charge("quest_generation", {
       cost,
-      isByok: text.isByok,
       log: {
         model: textResult.usage.model, provider: textResult.usage.provider,
         input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,

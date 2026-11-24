@@ -17,11 +17,11 @@ insert into public.ai_generation_jobs (id, user_id, campaign_id, generator_type,
   ('a1c70000-0000-4000-8000-000000000020', 'a1c70000-0000-4000-8000-000000000001', 'a1c70000-0000-4000-8000-000000000010',
    'music', 'settling', 'https://cdn.example.invalid/old.mp3', 'a1c70000-0000-4000-8000-000000000001/ai/old.mp3',
    '{"name": "Old request", "category": "misc", "page_id": "a1c70000-0000-4000-8000-000000000099"}'::jsonb,
-   '{"is_byok": true}'::jsonb),
+   '{}'::jsonb),
   ('a1c70000-0000-4000-8000-000000000021', 'a1c70000-0000-4000-8000-000000000001', 'a1c70000-0000-4000-8000-000000000010',
    'music', 'settling', 'https://cdn.example.invalid/new.mp3', 'a1c70000-0000-4000-8000-000000000001/ai/new.mp3',
    '{"name": "New request", "category": "music"}'::jsonb,
-   '{"is_byok": true}'::jsonb);
+   '{}'::jsonb);
 
 select public.finalize_music_generation_job('a1c70000-0000-4000-8000-000000000020');
 select public.finalize_music_generation_job('a1c70000-0000-4000-8000-000000000021');

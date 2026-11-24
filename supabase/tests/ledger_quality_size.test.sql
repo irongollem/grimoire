@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(4);
+select plan(3);
 
 -- Cover for 20261108220525. `spend_credits` and `settle_ai_generation_job`
 -- were the only writers of a charged ledger row, and both dropped the render's
@@ -47,25 +47,6 @@ select results_eq(
      where user_id = '93100000-0000-4000-8000-000000000001' and reason = 'entity_image' and bucket = 'purchased'$$,
   $$values (null::text, null::text)$$,
   'the purchased half of a split spend carries no usage, so nothing is counted twice'
-);
-
--- A settled BYOK job writes its own zero-delta row from the job's billing log.
-insert into public.campaigns (id, user_id, name)
-values ('93100000-0000-4000-8000-0000000000c1', '93100000-0000-4000-8000-000000000001', 'Ledger variant');
-
-insert into public.ai_generation_jobs (id, user_id, campaign_id, generator_type, status, artifact_url, billing_context)
-values ('93100000-0000-4000-8000-0000000000a1', '93100000-0000-4000-8000-000000000001',
-        '93100000-0000-4000-8000-0000000000c1', 'entity_image', 'settling', 'https://example.invalid/a.webp',
-        '{"is_byok": true, "generation_type": "entity_image",
-          "log": {"model": "gpt-image-2.5-flare", "provider": "openai", "quality": "low", "size": "1024x1024"}}'::jsonb);
-
-select public.settle_ai_generation_job('93100000-0000-4000-8000-0000000000a1', '{}'::jsonb);
-
-select results_eq(
-  $$select quality, size from public.ai_credit_ledger
-     where user_id = '93100000-0000-4000-8000-000000000001' and is_byok$$,
-  $$values ('low'::text, '1024x1024'::text)$$,
-  'a settled BYOK render records the quality and size it was rendered at'
 );
 
 select * from finish();

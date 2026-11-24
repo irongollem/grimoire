@@ -16,7 +16,7 @@ function run(over: { billed: boolean; due: number }) {
   const charged: Array<{ reason: string; cost: number }> = [];
   const ledger: JobLedger = { charge: (reason, line) => { charged.push({ reason, cost: line.cost }); }, free: () => undefined };
   const saveSummary = vi.fn(async () => ({ due: over.due }));
-  return foldIntoSummary({ saveSummary, ledger, session, storedNow: stored, callModel, isByok: false, price, calibration, reason: "ask_summary", billed: over.billed, logName: "test" })
+  return foldIntoSummary({ saveSummary, ledger, session, storedNow: stored, callModel, price, calibration, reason: "ask_summary", billed: over.billed, logName: "test" })
     .then(() => ({ charged, saveSummary }));
 }
 
@@ -36,7 +36,7 @@ describe("foldIntoSummary", () => {
     const saveSummary = vi.fn();
     await foldIntoSummary({
       saveSummary, ledger: { charge: () => undefined, free: () => undefined }, session, storedNow: stored.slice(0, 2),
-      callModel, isByok: false, price, calibration, reason: "r", billed: true, logName: "test",
+      callModel, price, calibration, reason: "r", billed: true, logName: "test",
     });
     expect(saveSummary).not.toHaveBeenCalled();
   });

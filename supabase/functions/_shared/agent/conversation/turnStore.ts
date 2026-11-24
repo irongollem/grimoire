@@ -86,7 +86,7 @@ export async function saveTurn(input: {
   userId: string;
   lastSeq: number;
   result: Pick<TurnResult, "added" | "steps" | "toolSteps">;
-  /** What the turn accrued, exact; 0 for own-key use. */
+  /** What the turn accrued, exact. */
   credits: number;
   logName: string;
 }): Promise<SavedTurn> {

@@ -79,7 +79,6 @@
         :loading="isPainting(subject)"
         :disabled="isPaintingAny"
         :cost="cost"
-        :byok="byok"
         :error="errorFor(subject)"
         @paint="paint(subject)"
       />
@@ -115,7 +114,7 @@ function cardKey(s: CardSubject) {
   return s.kind + cardSubjectId(s);
 }
 
-const { paintable, paint, isPainting, isPaintingAny, cost, byok, errorFor } = useCardPortraitPainter();
+const { paintable, paint, isPainting, isPaintingAny, cost, errorFor } = useCardPortraitPainter();
 
 const { savingKey, saveCardImage } = useCardImageExport();
 

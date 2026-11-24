@@ -149,10 +149,8 @@ export interface Painted {
 
 /** A provider ready to paint, its price settled. */
 export interface Painter {
-  /** Whole credits held across the call; 0 for the owner's own key. */
+  /** Whole credits held across the call. */
   cost: number;
-  /** The owner's own key paid for it: a free line on the ledger. */
-  isByok: boolean;
   generate(prompt: string, source: Blob): Promise<Painted>;
 }
 

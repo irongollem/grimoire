@@ -8,8 +8,8 @@ import type { Npc } from "@/types/npc.types";
 /**
  * Every plan may run AI generation as long as the campaign's AI Assistant
  * toggle is on and the account can afford the credit cost (see
- * ai-policy-spec.md) — there is no Pro gate on generation itself, only on
- * BYOK. This covers the two states that matter for that policy: AI on shows
+ * ai-policy-spec.md) — there is no Pro gate on generation itself.
+ * This covers the two states that matter for that policy: AI on shows
  * the real Suggest lines button for a Free account, AI off shows AiOffNotice
  * instead, regardless of plan.
  */
@@ -62,7 +62,7 @@ vi.mock("@/stores/campaign", () => ({
     get isAiEnabled() {
       return isAiEnabled.value;
     },
-    activeCampaign: { text_provider: "openai" },
+    activeCampaign: {},
   }),
 }));
 vi.mock("@/composables/ai/useAiCredits", () => ({
@@ -70,7 +70,7 @@ vi.mock("@/composables/ai/useAiCredits", () => ({
 }));
 vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits: mocks.requireCredits }) }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
-  useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false) }),
+  useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base) }),
 }));
 const coachLines = ref<string[]>([]);
 const coachReveals = ref<boolean[]>([]);

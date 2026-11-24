@@ -1,9 +1,6 @@
 import { computed, ref } from "vue";
-import { fetchWorldBlock } from "./worldBlock";
-import { textRunsOnLocalKey } from "./localKeyMode";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
@@ -46,9 +43,8 @@ function line(label: string, text: string): string {
 export function useTextEnhancement() {
   const isEnhancing = ref(false);
   const campaign = useCampaignStore();
-  const { ruleset } = useTableRuleset();
   const { costOf } = useAiCredits();
-  const { textCredits, textIsByok } = useCampaignProviders();
+  const { textCredits } = useCampaignProviders();
   const { requireCredits } = useOutOfCredits();
 
   const creditCost = computed(
@@ -66,7 +62,7 @@ export function useTextEnhancement() {
     if (request.selectedText.length > AI_PROMPT_LIMIT_LONG) {
       throw new Error(`Select at most ${AI_PROMPT_LIMIT_LONG.toLocaleString()} characters to enhance.`);
     }
-    if (!requireCredits(creditCost.value, textIsByok.value)) return null;
+    if (!requireCredits(creditCost.value)) return null;
 
     const constraints = [line("Context", request.context)];
     if (request.styleHint) constraints.push(line("Writing style", request.styleHint));
@@ -78,9 +74,6 @@ export function useTextEnhancement() {
       return await generateProseText({
         generator: "text_enhancement",
         campaignId: active.id,
-        // Only a local-key run builds the prompt here; the server loads the block itself.
-        world: (await textRunsOnLocalKey()) ? await fetchWorldBlock(active.id) : null,
-        ruleset: ruleset.value,
         prompt: request.selectedText,
         constraints,
       });
@@ -89,5 +82,5 @@ export function useTextEnhancement() {
     }
   }
 
-  return { isEnhancing, creditCost, isByok: textIsByok, enhance };
+  return { isEnhancing, creditCost, enhance };
 }

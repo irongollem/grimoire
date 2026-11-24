@@ -70,12 +70,12 @@ export function useQuestHooksAskAdapter(): AskAdapter {
     lines.push({ label: "You get", value: "Five hooks to pick one from", credits: null });
     lines.push(...priced.lines);
 
-    let block = blockFor({ total: priced.total, byok: priced.byok });
+    let block = blockFor({ total: priced.total });
     block = block ?? conceptBlock(read.concept, "quest", { empty: "Say what kind of quest you want first.", limit: AI_PROMPT_LIMIT_SHORT });
     if (!block && loading.value) {
       block = { reason: "missing", message: "Still reading this campaign's party, people and places." };
     }
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal): Promise<AskRunResult> {

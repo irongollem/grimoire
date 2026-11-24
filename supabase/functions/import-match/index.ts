@@ -427,8 +427,7 @@ serve(serveUser(async ({ user, req }) => {
 
       // Recorded immediately after embed() returns -- real provider spend was
       // incurred the moment it resolved, and everything below can still
-      // throw into this catch. Platform-paid, charged to nobody: is_byok
-      // stays false because we paid for it, not the DM (recordFreeGeneration's
+      // throw into this catch. Platform-paid, charged to nobody (recordFreeGeneration's
       // own doc comment; same placement generate-quest uses).
       await recordFreeGeneration(admin, userId, "entity_embedding", {
         model: embedProvider.model,

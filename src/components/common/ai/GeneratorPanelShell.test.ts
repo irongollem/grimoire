@@ -31,7 +31,6 @@ function mountShell(props: Record<string, unknown> = {}) {
       title: "Thing Generator",
       conceptPlaceholder: "Describe it",
       credits: 1,
-      byok: false,
       isGenerating: false,
       error: null,
       blankTo: "/things/new",
@@ -107,7 +106,7 @@ describe("GeneratorPanelShell", () => {
   it("omits the CONSTRAINTS heading without a constraints slot", () => {
     expect(mountShell().text()).not.toContain("CONSTRAINTS");
     const w = mount(GeneratorPanelShell, {
-      props: { open: true, concept: "", title: "T", conceptPlaceholder: "p", credits: 1, byok: false, isGenerating: false, error: null },
+      props: { open: true, concept: "", title: "T", conceptPlaceholder: "p", credits: 1, isGenerating: false, error: null },
       global: { stubs: { GenerationCostBadge: true } },
       slots: { constraints: "<div>extra field</div>" },
     });

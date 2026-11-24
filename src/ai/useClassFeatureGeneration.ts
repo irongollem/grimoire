@@ -52,8 +52,6 @@ export function useClassFeatureGeneration() {
       const raw = await generateEntityText<FeatureAiResult>({
         generator: "class_feature",
         campaignId: context.campaignId,
-        world: context.world,
-        ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,
       });

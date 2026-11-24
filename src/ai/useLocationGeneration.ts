@@ -1,12 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { requireWorld } from "./worldBlock";
-import {
-  buildCampaignContext,
-} from "./utils";
-import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { LocationAiResult, LocationAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -15,16 +8,12 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
-import { getTextProvider } from "./providers";
-import { wrapUserInput } from "./utils";
-import { logUsage } from "@/composables/ai/useAiCredits";
 import {
   captureFailureMessage,
   captureImageGenerationContext,
   generateImage,
   type ImageGenerationContext,
 } from "@/ai/useImageGeneration";
-import { buildAiProvenance } from "@/ai/provenance";
 import { placeRoute } from "@/lib/locations/placeRoute";
 
 
@@ -53,7 +42,6 @@ export interface LocationGenerationOptions {
 }
 
 export function useLocationGeneration() {
-  const { ruleset } = useTableRuleset();
 
   async function generate(
     userPrompt: string,
@@ -76,11 +64,7 @@ export function useLocationGeneration() {
     const campaignId = imageContext.campaignId;
 
     try {
-      const isLocalMode = await textRunsOnLocalKey();
-
-      return isLocalMode
-        ? await generateClientSide(userPrompt, options, imageContext)
-        : await generateServerSide(userPrompt, options, campaignId, imageContext);
+      return await generateServerSide(userPrompt, options, campaignId, imageContext);
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";
       return null;
@@ -113,42 +97,6 @@ export function useLocationGeneration() {
     }
 
     const locationData = data as LocationAiResult;
-    return { ...locationData, ...await generateLocationImages(locationData, options, imageContext) };
-  }
-
-  async function generateClientSide(
-    userPrompt: string,
-    options: LocationGenerationOptions | undefined,
-    imageContext: ImageGenerationContext,
-  ): Promise<LocationAiGenerated | null> {
-    const world = requireWorld(imageContext.world);
-    const textProvider = getTextProvider();
-
-    const [basePrompt, rulesetContext] = await Promise.all([
-      fetchSystemPrompt("location"),
-      fetchRulesetContext(ruleset.value),
-    ]);
-    if (!basePrompt) throw new Error("Location system prompt not configured.");
-    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext(world)}`;
-
-    const constraints: string[] = [];
-    if (options?.location_type) constraints.push(`Location Type: ${options.location_type}`);
-    if (options?.parent_name) constraints.push(`Parent Location: ${options.parent_name}`);
-
-    const wrappedPrompt = wrapUserInput(userPrompt);
-    const userContent = constraints.length
-      ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}`
-      : wrappedPrompt;
-
-    const { content, usage: textUsage } = await textProvider.complete(systemContent, userContent);
-    const locationData = JSON.parse(content) as LocationAiResult;
-    locationData.ai_provenance = buildAiProvenance("location_generation", textUsage.provider, textUsage.model);
-
-    if (options?.generateImage !== false || options?.generateMap) {
-      startAiQuotes("image");
-    }
-
-    logUsage({ reason: "location_generation", textUsage });
     return { ...locationData, ...await generateLocationImages(locationData, options, imageContext) };
   }
 

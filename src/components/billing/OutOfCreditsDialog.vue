@@ -34,7 +34,7 @@
             <template v-if="monthlyCredits > 0">
               {{ monthlyCredits.toLocaleString() }} AI credits every month, included,
             </template>
-            plus no Free limits and your own API key if you have one.
+            plus no Free limits.
           </p>
           <WithdrawalConsent v-model="subConsent" kind="subscription" />
           <AppButton

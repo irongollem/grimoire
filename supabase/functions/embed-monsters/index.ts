@@ -48,8 +48,7 @@ import {
  * call still goes through `recordFreeGeneration()` with a delta of 0 and the
  * real model/provider/input_tokens, generation type "monster_embedding"
  * (seeded at 0 credits in `ai_generation_credit_costs` by the migration).
- * Note that is NOT the BYOK path: is_byok stays false because the platform
- * key paid for this call, and platform-cost reporting filters BYOK rows out.
+ * The platform key paid for this call, so it is written as a free line (delta 0).
  * A call that wrote no ledger row would be invisible spend: the owner prices features from
  * measured provider cost, not usage estimates, and `ai_model_pricing` has
  * rows for the embedding models specifically so this cost is measurable.
@@ -279,9 +278,8 @@ async function handleBatch(body: { target?: unknown; limit?: unknown }, adminUse
   // Real provider spend was just incurred, regardless of whether the DB
   // write below succeeds -- record it now. ONE row for the whole batch
   // (summed input tokens), not one per monster -- see the module doc.
-  // recordFreeGeneration, NOT recordGeneration(isByok=true): this is spend WE
-  // incurred on the platform key, so is_byok must stay false or platform-cost
-  // reporting filters the row out and the spend goes invisible.
+  // recordFreeGeneration, NOT recordGeneration: this is spend WE
+  // incurred on the platform key, and recordGeneration with no cost writes nothing.
   await recordFreeGeneration(admin, adminUserId, "monster_embedding", {
     model: provider.model,
     provider: usage.provider,
@@ -413,7 +411,7 @@ async function handleSingle(user: User, body: { monster_id?: unknown }): Promise
 
   // One row per actual embed -- the short-circuit above already returned
   // before this point when there was nothing to log. Platform-paid, charged to
-  // nobody -- see recordFreeGeneration's note on why is_byok must be false.
+  // nobody -- see recordFreeGeneration's note.
   await recordFreeGeneration(admin, user.id, "monster_embedding", {
     model: provider.model,
     provider: usage.provider,

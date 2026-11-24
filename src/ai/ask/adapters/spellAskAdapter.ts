@@ -52,8 +52,8 @@ export function useSpellAskAdapter(): AskAdapter {
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
 
-    const block = blockFor({ total: priced.total, byok: priced.byok, fiveE: true }) ?? conceptBlock(read.concept, "spell");
-    return { lines, total: priced.total, byok: priced.byok, block };
+    const block = blockFor({ total: priced.total, fiveE: true }) ?? conceptBlock(read.concept, "spell");
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal): Promise<AskRunResult> {

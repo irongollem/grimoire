@@ -6,7 +6,6 @@
     title="Spell Generator"
     concept-placeholder="A storm of luminous moths that swarm a target, biting and dazzling them with flashes of bioluminescence…"
     :credits="quote.total"
-    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     blank-to="/spells/new"
@@ -81,7 +80,7 @@ function levelSuffix(n: number): string {
 }
 
 async function generateAndCreate() {
-  if (!requireCredits(quote.value.total, quote.value.byok)) return;
+  if (!requireCredits(quote.value.total)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

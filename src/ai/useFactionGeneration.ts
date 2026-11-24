@@ -1,5 +1,4 @@
 import { generateEntityText } from "./entityTextGeneration";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { FactionAiResult, FactionAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -33,7 +32,6 @@ export interface FactionGenerationOptions {
 }
 
 export function useFactionGeneration() {
-  const { ruleset } = useTableRuleset();
 
   async function generate(
     userPrompt: string,
@@ -64,8 +62,6 @@ export function useFactionGeneration() {
       const factionData = await generateEntityText<FactionAiResult>({
         generator: "faction",
         campaignId: imageContext.campaignId,
-        world: imageContext.world,
-        ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,
       });

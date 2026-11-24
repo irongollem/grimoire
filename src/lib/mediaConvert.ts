@@ -34,7 +34,7 @@ export function readEmbeddedXmp(bytes: Uint8Array): string | null {
 }
 
 // Return type is intentionally inferred (not annotated `Uint8Array`), same
-// reasoning as localKeyVault.ts's `fromBase64`: a bare `Uint8Array`
+// reasoning as any base64 decoder here: a bare `Uint8Array`
 // annotation widens to `Uint8Array<ArrayBufferLike>` (embed.ts's own
 // embedXmpIn*/mark.ts's markGeneratedImage return type), which newer
 // lib.dom typings reject as a `BlobPart`. Re-wrapping via the
@@ -59,7 +59,7 @@ export function reembedXmp(bytes: Uint8Array, xmpPacket: string, format: "image/
  * a plain user photo — is forced through (`useImageUpload`, the entity-image
  * generation paths, group-portrait upload). Canvas never preserves embedded
  * metadata, so if the INPUT already carries an XMP packet (EU AI Act Art
- * 50(2) disclosure on server- or local-marked AI art; a camera photo's own
+ * 50(2) disclosure on server-marked AI art; a camera photo's own
  * XMP is equally worth keeping), the same packet is re-embedded into the
  * re-encoded output — otherwise the mark silently disappears at this single
  * chokepoint regardless of who marked it or why.

@@ -6,7 +6,6 @@
  * recipe. The writer keeps writing meanwhile, so the picture is found again by its block id (an image) or
  * its own id (art), never by the position it had. A mark that outlives a reload is picked up by resume().
  */
-import { getLocalImageJob } from "@/ai/useChroniclerImageGeneration";
 import { waitForImageJob } from "@/ai/useImageJob";
 import { useToast } from "@/composables/useToast";
 import { describeShapes, shapeById, type DescribeShape } from "@/scriptorium/lib/describeShapes";
@@ -21,16 +20,9 @@ interface Options {
   wait?: (jobId: string) => Promise<string>;
 }
 
-/** A server job is polled for; a local (BYOK) one lives in memory and does not survive a reload. */
-export function waitForJob(jobId: string): Promise<string> {
-  if (!jobId.startsWith("local-")) return waitForImageJob(jobId);
-  const local = getLocalImageJob(jobId);
-  return local ?? Promise.reject(new Error("The picture was being made on this device and was lost when the page reloaded."));
-}
-
 export function useDescribedPictures(opts: Options) {
   const toast = useToast();
-  const wait = opts.wait ?? waitForJob;
+  const wait = opts.wait ?? waitForImageJob;
   /** Jobs this editor is already waiting on, so a resume never waits twice. */
   const waiting = new Set<string>();
 

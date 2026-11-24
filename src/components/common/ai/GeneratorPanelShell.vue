@@ -86,7 +86,6 @@
         <GenerationCostBadge
           v-if="campaign.isAiEnabled && !unsavedLabel"
           :credits="credits"
-          :byok="byok"
           class="self-center"
         />
         <!-- Saving a paid result costs nothing and needs no AI: it survives AI being switched off. -->
@@ -154,7 +153,6 @@ const {
   conceptPlaceholder,
   conceptLimit = AI_PROMPT_LIMIT,
   credits,
-  byok,
   isGenerating,
   error,
   blankTo,
@@ -170,7 +168,6 @@ const {
   conceptPlaceholder: string;
   conceptLimit?: number;
   credits: number | null;
-  byok: boolean;
   isGenerating: boolean;
   error: string | null;
   blankTo?: string;

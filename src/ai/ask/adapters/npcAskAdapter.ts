@@ -190,7 +190,7 @@ export function useNpcAskAdapter(): AskAdapter {
     lines.push(...priced.lines);
     if (!read.portrait) lines.push({ label: "Portrait", value: "None", credits: null });
 
-    let block = blockFor({ total: priced.total, byok: priced.byok });
+    let block = blockFor({ total: priced.total });
     block = block ?? conceptBlock(read.concept, "NPC");
     if (!block && lookupsLoading.value) {
       block = { reason: "missing", message: "Still reading this campaign's places and factions." };
@@ -201,7 +201,7 @@ export function useNpcAskAdapter(): AskAdapter {
     if (!block && peopleLoading.value) {
       block = { reason: "missing", message: "Still reading this campaign's people." };
     }
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult> {

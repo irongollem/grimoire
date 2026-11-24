@@ -63,7 +63,6 @@
       :atlas-error="styleAtlasError"
       :atlas-saving="styleAtlasSaving"
       :credits="styleCost"
-      :byok="styleByok"
       @close-picker="showStylePicker = false"
       @close-result="showStyleResult = false"
       @generate="onGenerateStyle"
@@ -196,7 +195,6 @@ const {
   styleAtlasError,
   styleAtlasSaving,
   styleAtlasTargetHasMap,
-  styleByok,
   styleCost,
   onGenerateStyle,
   onRetryStyle,

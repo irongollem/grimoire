@@ -1,7 +1,5 @@
 import { serve } from "std/http/server.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { decryptValue } from "../_shared/vault.ts";
-import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
 import { rulesetContextKey } from "../_shared/gameSystem.ts";
@@ -68,7 +66,6 @@ const admin = createClient(
 );
 
 interface CanonCampaign extends BaseCampaign {
-  text_provider: string | null;
   game_system: string | null;
 }
 
@@ -185,7 +182,7 @@ function spotLinesWithIds(spots: SpotCandidate[], beatQuest: Map<string, string>
 }
 
 serve(serveUser(async ({ user, req, report }) => {
-  // Frozen or child accounts cannot generate, including BYOK (#919).
+  // Frozen or child accounts cannot generate (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
@@ -216,7 +213,7 @@ serve(serveUser(async ({ user, req, report }) => {
   // DMs only: the helper reads every truth, including secrets, with the service role, and a player must not
   // be able to ask the model to echo them.
   const load = await loadAiCampaign<CanonCampaign>(admin, campaign_id, user.id, {
-    columns: ["text_provider", "game_system"],
+    columns: ["game_system"],
   });
   if (!load.ok) return load.response;
   const campaign = load.campaign;
@@ -231,22 +228,18 @@ serve(serveUser(async ({ user, req, report }) => {
   const rulesetContext = promptRows?.find((r) => r.generator_type === rulesetKey)?.content ?? null;
   if (!promptRow) return jsonError(500, "prompt_not_configured", "This generator is not set up yet.");
 
-  // The owner's BYOK keys live in campaign_api_keys (#1228), Pro-only, checked by the loader at use time.
-  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
-    loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
+  const [platformKeys, providerConfigs] = await Promise.all([
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
 
   const text = resolveTextProvider({
-    chosen: campaign.text_provider,
-    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
     platformKeys,
     providerConfigs,
   });
   if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
 
-  const baseCost = text.isByok ? 0 : await fetchCreditCost(admin, LEDGER_REASON);
+  const baseCost = await fetchCreditCost(admin, LEDGER_REASON);
   const cost = wholeCredits(applyMultiplier(baseCost, text.textMultiplier));
 
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
@@ -456,7 +449,6 @@ serve(serveUser(async ({ user, req, report }) => {
       if (mode !== "read" && suggestions.length === 0) return json({ suggestions, setAside, ai_provenance: null });
       hold.charge(LEDGER_REASON, {
         cost,
-        isByok: text.isByok,
         log: {
           model: textResult.usage.model, provider: textResult.usage.provider,
           input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,

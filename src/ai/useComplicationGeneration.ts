@@ -1,5 +1,4 @@
 import { ref } from "vue";
-import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import type { ComplicationAiResult } from "./types";
@@ -31,8 +30,7 @@ export type ComplicationMode = "complication" | "reinforcements";
  *
  * Server-path only, like the loot generator: the proposal is built from
  * bestiary and campaign-entity vectors that only the edge function's
- * service-role client can read, and BYOK-local is a legacy tier that new AI
- * features do not ship a weaker second path for.
+ * service-role client can read.
  *
  * This composable only PROPOSES. It never touches the encounter — resolving,
  * previewing and (on the DM's confirmation) adding the event are the panel's
@@ -71,14 +69,6 @@ export function useComplicationGeneration() {
     startAiQuotes();
 
     try {
-      const isLocalMode = await textRunsOnLocalKey();
-      if (isLocalMode) {
-        throw new Error(
-          "Complications need the server so they can draw on your bestiary and cast. They aren't available in local-key mode. " +
-          "Switch to platform credits or a campaign API key in Settings → AI.",
-        );
-      }
-
       const campaignId = campaign.activeCampaignId;
       if (!campaignId) throw new Error("No active campaign selected.");
 

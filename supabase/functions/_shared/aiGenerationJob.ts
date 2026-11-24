@@ -23,7 +23,6 @@ export interface GenerationBillingContext {
   reservation_ids?: string[];
   generation_type?: string;
   cost?: number;
-  is_byok?: boolean;
   log?: GenerationJson;
 }
 

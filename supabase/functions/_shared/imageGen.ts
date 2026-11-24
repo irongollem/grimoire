@@ -417,7 +417,6 @@ export interface ResolvedImageProvider {
   apiKey: string;
   /** OpenAI key for prompt screening, independent of the chosen renderer (null when the account has none). */
   moderationKey: string | null;
-  isByok: boolean;
   /** Credit multiplier from provider_config (1.0 if unset). */
   imageMultiplier: number;
   /** Provider-specific quality lever from provider_config (null = provider default). */
@@ -426,15 +425,14 @@ export interface ResolvedImageProvider {
 
 /**
  * Resolve the campaign's chosen image provider into a concrete model + API key.
- * `campaignKeys`/`platformKeys` are decrypted keys keyed by underlying provider
- * (openai/gemini). Which provider, and whether the campaign's own key pays, is
+ * `platformKeys` are decrypted keys keyed by underlying provider
+ * (openai/gemini). Which provider is
  * `chooseImageProvider`'s answer (providerChoice.ts, where the rule and its
  * reasons live); the client prices with the same function. Returns null when
  * nothing usable remains.
  */
 export function resolveImageProvider(args: {
   imageProvider: string | null | undefined;
-  campaignKeys: Partial<Record<"openai" | "gemini", string | null>>;
   platformKeys: Partial<Record<"openai" | "gemini", string | null>>;
   providerConfigs: Partial<Record<string, ImageProviderConfig | undefined>>;
   /**
@@ -455,14 +453,13 @@ export function resolveImageProvider(args: {
 }): ResolvedImageProvider | null {
   const choice = chooseImageProvider({
     chosen: args.imageProvider,
-    ownKeys: keysPresent(args.campaignKeys),
     platformKeys: keysPresent(args.platformKeys),
     configs: args.providerConfigs,
     pinned: args.pinned,
   });
   if (!choice) return null;
   const base = choice.provider;
-  const apiKey = (choice.isByok ? args.campaignKeys : args.platformKeys)[base];
+  const apiKey = args.platformKeys[base];
   if (!apiKey) return null;
 
   const config = args.providerConfigs[base];
@@ -479,8 +476,7 @@ export function resolveImageProvider(args: {
     // rather than `base`'s — a Gemini campaign on a platform OpenAI key is
     // still screened. Null only when neither key exists, and the caller then
     // renders unscreened rather than not at all.
-    moderationKey: args.campaignKeys.openai ?? args.platformKeys.openai ?? null,
-    isByok: choice.isByok,
+    moderationKey: args.platformKeys.openai ?? null,
     imageMultiplier: args.providerConfigs[base]?.image_multiplier ?? 1.0,
     imageQuality: args.providerConfigs[base]?.image_quality ?? null,
   };

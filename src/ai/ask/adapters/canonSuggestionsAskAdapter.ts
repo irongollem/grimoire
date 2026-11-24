@@ -146,10 +146,10 @@ export function useCanonSuggestionsAskAdapter(): AskAdapter {
       ...priced.lines,
     ];
 
-    let block = blockFor({ total: priced.total, byok: priced.byok });
+    let block = blockFor({ total: priced.total });
     block = block ?? conceptBlock(concept, "canon", { empty: "Say what the canon should be about first." });
     if (block === null && !target.ok) block = { reason: "missing", message: target.message };
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal): Promise<AskRunResult> {

@@ -46,7 +46,7 @@ export function useStartNook() {
   const { mutateAsync: showAtPlace } = useShowNookAtPlace();
   const { costOf } = useAiCredits();
   const { requireCredits } = useOutOfCredits();
-  const { imageCredits, imageIsByok } = useCampaignProviders();
+  const { imageCredits } = useCampaignProviders();
 
   const starting = ref(false);
   const error = ref<string | null>(null);
@@ -140,7 +140,7 @@ export function useStartNook() {
   /** Paints an empty room from `subject`; shown at `place` when one is given. Null when the DM is out of credits. */
   function startFromPainted(place: StartPlace | null, subject: string): Promise<string | null> {
     return guarded(async () => {
-      if (!requireCredits(paintCost.value, imageIsByok.value)) return null;
+      if (!requireCredits(paintCost.value)) return null;
       const url = await generateImage({
         ...(await captureImageGenerationContext()),
         purpose: "location",

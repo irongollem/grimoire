@@ -6,7 +6,6 @@
     title="Deity Generator"
     concept-placeholder="A weary goddess of crossroads and second chances, worshipped by wanderers and exiles, who bargains rather than commands…"
     :credits="textCreditCost"
-    :byok="textIsByok"
     :is-generating="isGenerating"
     :unsaved-label="retained.unsaved.value ? 'deity' : null"
     :is-saving="retained.isSaving.value"
@@ -63,7 +62,6 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import GeneratorLinksField from "@/components/generators/GeneratorLinksField.vue";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useDeityQuote } from "@/composables/ai/quotes/deityQuote";
 import { useGenerateDeity, type DeityDraft } from "@/composables/deities/useGenerateDeity";
 import { CLERIC_DOMAINS, DEITY_ALIGNMENTS } from "@/types/deity.types";
@@ -83,7 +81,6 @@ const { data: deities } = useAllDeities(panelOpen);
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("deities");
 
 // The price comes from the quote Ask Grimoire reads too, so the page and the panel cannot disagree.
-const { textIsByok } = useCampaignProviders();
 const quote = useDeityQuote();
 const textCreditCost = computed(() => quote({ image: false }).total);
 
@@ -111,7 +108,7 @@ async function onGenerate() {
 }
 
 async function generateAndCreate() {
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(textCreditCost.value)) return;
 
   const pantheon = (pantheons.value ?? []).find((p) => p.id === pantheonId.value);
   const draft = await generateDeityDraft(concept.value.trim(), {

@@ -1,5 +1,4 @@
 import { generateEntityText } from "./entityTextGeneration";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import {
   createAiGenerationState,
   startAiQuotes,
@@ -37,7 +36,6 @@ export interface DungeonFeatureAiGenerated extends DungeonFeatureAiResult {
 }
 
 export function useDungeonFeatureGeneration() {
-  const { ruleset } = useTableRuleset();
 
   async function generate(
     userPrompt: string,
@@ -66,8 +64,6 @@ export function useDungeonFeatureGeneration() {
       const raw = await generateEntityText<Record<string, unknown> & { ai_provenance?: AiProvenance }>({
         generator: "feature",
         campaignId: imageContext.campaignId,
-        world: imageContext.world,
-        ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,
       });

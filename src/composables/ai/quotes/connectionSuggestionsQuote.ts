@@ -5,6 +5,6 @@
 import { useQuoteKit, type GeneratorQuote } from "@/composables/ai/quotes/quoteKit";
 
 export function useConnectionSuggestionsQuote(): () => GeneratorQuote {
-  const { textLine, quoteOf, textIsByok } = useQuoteKit();
-  return () => quoteOf([textLine("Connections", "Written by AI", "npc_relationship_suggestion")], textIsByok.value);
+  const { textLine, quoteOf } = useQuoteKit();
+  return () => quoteOf([textLine("Connections", "Written by AI", "npc_relationship_suggestion")]);
 }

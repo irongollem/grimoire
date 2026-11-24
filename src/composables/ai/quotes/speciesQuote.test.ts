@@ -3,7 +3,7 @@ import { ref } from "vue";
 
 // Prices by the table's own keys and area, so a quote that asks the wrong row or size gets the wrong number.
 const costs: Record<string, number> = { species_generation: 3, entity_image: 40 };
-const state = { textByok: ref(false), imageByok: ref(false), provider: ref<string | null>("openai") };
+const state = { provider: ref<string | null>("openai") };
 vi.mock("@/composables/ai/useAiCredits", () => ({
   useAiCredits: () => ({
     costOf: (key: string, opts?: { size?: string | null }) => {
@@ -15,7 +15,7 @@ vi.mock("@/composables/ai/useAiCredits", () => ({
 }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
   useCampaignProviders: () => ({
-    textIsByok: state.textByok, imageIsByok: state.imageByok, imageProvider: state.provider,
+    imageProvider: state.provider,
     textCredits: (base: number) => base, imageCredits: (base: number) => base,
   }),
 }));
@@ -24,8 +24,6 @@ const { useSpeciesQuote } = await import("./speciesQuote");
 
 describe("useSpeciesQuote", () => {
   beforeEach(() => {
-    state.textByok.value = false;
-    state.imageByok.value = false;
     state.provider.value = "openai";
   });
 
@@ -43,12 +41,5 @@ describe("useSpeciesQuote", () => {
   it("leaves the total unknown while the image provider is not known", () => {
     state.provider.value = null;
     expect(useSpeciesQuote()({ image: true }).total).toBeNull();
-  });
-
-  it("is on the DM's own key only when every part in play is", () => {
-    state.textByok.value = true;
-    expect(useSpeciesQuote()({ image: true }).byok).toBe(false);
-    state.imageByok.value = true;
-    expect(useSpeciesQuote()({ image: true }).byok).toBe(true);
   });
 });

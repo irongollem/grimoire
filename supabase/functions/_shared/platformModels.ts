@@ -2,8 +2,7 @@
  * Every AI model id the code names, in one place.
  *
  * Which model a feature runs on is a setting, not code: `provider_config` in the
- * database, edited in Admin → Providers, read by the server and by the browser's
- * own-key path alike. Code needs ids only where a setting is empty (the
+ * database, edited in Admin → Providers, read by the server and by the browser. Code needs ids only where a setting is empty (the
  * fallbacks), where a caller is fixed to one model on purpose (the paper doll),
  * in scripts, as suggestions in the admin panel, and in the rules for what a
  * request may send. Until 16 Nov 2026 those ids were copied into a dozen files

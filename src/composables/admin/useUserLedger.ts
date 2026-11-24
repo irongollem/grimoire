@@ -9,7 +9,6 @@ export interface UserLedgerRow {
   delta: number
   model: string | null
   provider: string | null
-  is_byok: boolean
   image_count: number | null
   input_tokens: number | null
   input_image_tokens: number | null
@@ -32,7 +31,6 @@ async function fetchUserLedger(userId: string): Promise<UserLedgerRow[]> {
     delta: num(r.delta),
     model: (r.model as string | null) ?? null,
     provider: (r.provider as string | null) ?? null,
-    is_byok: !!r.is_byok,
     image_count: numOrNull(r.image_count),
     input_tokens: numOrNull(r.input_tokens),
     input_image_tokens: numOrNull(r.input_image_tokens),

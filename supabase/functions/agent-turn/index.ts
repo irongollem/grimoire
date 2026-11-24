@@ -59,7 +59,6 @@ import { sceneFrom } from "./sceneRows.ts";
 import { hitPointsWrite } from "../_shared/agent/hitPoints.ts";
 import { makeTableMap, paintTableMap, placeHasMap, writePlaceMap } from "./mapMakeIo.ts";
 import { makePaintDeps, uploadPlainMapPicture } from "./mapPaintIo.ts";
-import { decryptValue } from "../_shared/vault.ts";
 import { travelMapFrom } from "./travelRows.ts";
 import { afterUse, asCompanion, characterInsert, characterRewrite, companionMemoriesText, companionRows, foundCharacters, isUntouchedTableCharacter, memoryRowsFor, profileWithBelongings } from "./characterRows.ts";
 import { escapeLike } from "./likeEscape.ts";
@@ -177,7 +176,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     async loadCampaign(campaignId): Promise<CampaignRow | null> {
       const { data, error } = await admin
         .from("campaigns")
-        .select("id, user_id, name, ai_enabled, table_violence, game_system, text_provider, current_year, current_month, current_day, calendar_id, custom_calendar")
+        .select("id, user_id, name, ai_enabled, table_violence, game_system, current_year, current_month, current_day, calendar_id, custom_calendar")
         .eq("id", campaignId)
         .maybeSingle();
       if (error) throw error;
@@ -286,9 +285,9 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
 
     // The campaign's text provider, the model's price and what a credit is worth: the same lookups a told recap
     // uses (`_shared/agent/providerIo.ts`).
-    async resolveProvider(campaign): Promise<AgentProvider | null> {
+    async resolveProvider(): Promise<AgentProvider | null> {
       if (!rawCampaign) return null;
-      const resolved = await resolveAgentProvider(admin, { id: campaign.id, ownerId: campaign.user_id, textProvider: rawCampaign.text_provider as string | null });
+      const resolved = await resolveAgentProvider(admin);
       if (resolved === null) return null;
       moderationKey = resolved.moderationKey;
       return resolved.provider;
@@ -804,7 +803,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
         { placeId, plan },
       ),
     paintMap(campaignId, made) {
-      const run = paintTableMap(makePaintDeps({ admin, userId: user.id, campaignId, placeId: made.placeId, drawingId: made.drawingId, plainUrl: made.plainUrl, decrypt: decryptValue, report }), made)
+      const run = paintTableMap(makePaintDeps({ admin, userId: user.id, campaignId, placeId: made.placeId, drawingId: made.drawingId, plainUrl: made.plainUrl, report }), made)
         .then((outcome) => {
           if (outcome !== "painted") console.warn(`agent-turn: the map of ${made.name} stays the plain picture (${outcome}).`);
         })

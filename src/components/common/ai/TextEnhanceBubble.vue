@@ -49,11 +49,10 @@ const { editor, context, styleHint, contextRadius } = defineProps<{
   contextRadius?: number;
 }>();
 
-const { isEnhancing, creditCost, isByok, enhance } = useTextEnhancement();
+const { isEnhancing, creditCost, enhance } = useTextEnhancement();
 // The price is null until it is known (see useCampaignProviders); say nothing about it then.
 const enhanceTooltip = computed(() => {
   const base = "Rewrite the selection as richer prose";
-  if (isByok.value) return `${base} (your API key, no credits)`;
   const cost = creditCost.value;
   if (cost === null) return base;
   return `${base} (${cost} credit${cost === 1 ? "" : "s"})`;

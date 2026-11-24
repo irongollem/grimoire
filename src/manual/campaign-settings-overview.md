@@ -130,11 +130,8 @@ The **AI Assistant** tab configures in-app AI generation for this campaign, sepa
 1. Flip the **AI Assistant** toggle on. The first time any account turns it on, a one-time notice explains what enabling AI generation means before it takes effect; declining leaves the toggle off. Turning it off hides every AI-generation button across the campaign.
 2. On a **free** plan, that's the whole tab: generation runs on Grimoire-managed credits (see [Billing & Subscription](#billing-subscription)).
 3. On **Pro**, more options appear:
-   - **Key Storage Mode**: check **Store keys locally on this device only** to keep API keys in this browser's storage instead of your account (they won't follow you to another device); leave it unchecked to store them encrypted in your account.
-   - **API Keys · BYOK**: bring your own key for OpenAI and/or Google Gemini. Each field has a **Get key →** link to the provider's key page, and a **Clear**/**Undo** control once a key is on file. Bringing your own key means that provider bills you directly instead of spending Grimoire credits.
-   - **Generation**: choose **Quick** or **Detailed** images, with the estimated credit cost per image. Which model writes and draws is Grimoire's choice and isn't shown; with your own keys for more than one provider, you also pick which key pays for text.
-   - **Campaign Setting Prompt**: a free-text box describing your world's tone and visual style, included in every AI generation request for consistency. Click **Load [Setting] Defaults** to start from your chosen setting's built-in prompt.
-   - **Your AI Usage**: your total generations and credits spent (platform-credit users only; BYOK calls are billed by your own provider and don't appear here).
+   - **Generation**: choose **Quick** or **Detailed** images, with the estimated credit cost per image. Which model writes and draws is Grimoire's choice and isn't shown.
+   - **Your AI Usage**: your total generations and credits spent.
    - **Chronicler Promotion**: an opt-in checkbox allowing Grimoire to feature your campaign's AI-generated Chronicler scene images in its gallery or marketing. Off by default; your campaign name, notes, and player data are never shared either way.
 4. Click **Save**.
 
@@ -144,7 +141,9 @@ Players never see Campaign Settings: the route is DM-only. They do see the *effe
 
 ## Tips
 
-> Bring-your-own-key AI setup, provider choice, and the campaign setting prompt are Pro-only. Free campaigns still get AI generation once the **AI Assistant** toggle is on: it's billed to Grimoire-managed credits instead.
+> Choosing how images are made is Pro-only. Free campaigns still generate with AI once the **AI Assistant** toggle is on, paid in credits.
+
+> What the AI writes and paints follows your campaign's Premise and tone, which you set in the **Canon**, on every plan.
 
 - Removing a player never deletes their character: it detaches back to their own personal pool, ready to bring into another campaign.
 - Regenerating the calendar's `.ics` URL breaks every subscription that already exists; only do it if you have to.

@@ -100,7 +100,6 @@
       :atlas-error="styleAtlasError"
       :atlas-saving="styleAtlasSaving"
       :credits="styleCost"
-      :byok="styleByok"
       @close-picker="showStylePicker = false"
       @close-result="showStyleResult = false"
       @generate="onGenerateStyle"
@@ -329,7 +328,6 @@ const {
   styleAtlasSaving,
   styleAtlasTargetHasMap,
   styleFixedTargetLabel,
-  styleByok,
   styleCost,
   onGenerateStyle,
   onRetryStyle,

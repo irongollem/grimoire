@@ -63,8 +63,6 @@ export function useItemGeneration() {
       const result = await generateEntityText<ItemAiResult>({
         generator: "item",
         campaignId: imageContext.campaignId,
-        world: imageContext.world,
-        ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,
       });

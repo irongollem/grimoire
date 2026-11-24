@@ -11,10 +11,10 @@ export interface TrapQuoteOptions {
 }
 
 export function useTrapQuote(): (options: TrapQuoteOptions) => GeneratorQuote {
-  const { textLine, artLine, quoteOf, textIsByok, imageIsByok } = useQuoteKit();
+  const { textLine, artLine, quoteOf } = useQuoteKit();
   return ({ image }) => {
     const lines = [textLine("Trap text", "Written by AI", "trap_generation")];
     if (image) lines.push(artLine("Picture", "Painted by AI", 1));
-    return quoteOf(lines, textIsByok.value && (!image || imageIsByok.value));
+    return quoteOf(lines);
   };
 }

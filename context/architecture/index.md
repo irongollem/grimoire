@@ -59,7 +59,6 @@ flowchart TB
     dm & player --> spa
     spa --> auth & pg & rt & store
     spa -- "functions.invoke" --> edge
-    spa -.->|"BYOK (Pro) direct"| llms
     spa -.->|"browser-side: PKCE + Playback SDK"| spotify
     spa --> cdn
     cdn --> r2
@@ -94,7 +93,7 @@ from the symptom:
 | One feature's list empty or stale, rest fine | RLS / composable / realtime | The feature's composable → RLS policy; if only *live updates* broken → `SYNC_TABLES` in `campaignLiveSync` ([internal.md](internal.md)) |
 | Players don't see DM changes until reload | Realtime channel | `lib/campaignLiveSync/realtimeChannel.ts` heal/status, then Supabase Realtime health |
 | AI generation fails for everyone | Provider or credits | Edge logs for the `generate-*` fn; provider status; `provider_config` table |
-| AI generation fails for one campaign only | BYOK | Their vaulted key (`api-key-vault`), browser console — never in edge logs |
+| AI generation fails for one campaign only | Campaign settings | The campaign's `ai_enabled` and `image_provider`, the owner's credit balance and plan; edge logs for the `generate-*` fn |
 | Credits stuck "held" | Cron | `release-stale-credit-holds` / `fail-stale-*` pg_cron jobs |
 | Minis stuck "sculpting" | Meshy poll loop | `poll-meshy-jobs` cron + `SIMULACRUM_POLLER_TOKEN`; then Meshy status (assets expire after 3 days!) |
 | Paid but no Pro / no credits | Stripe webhook | Stripe dashboard delivery → event parity (`stripe:check`) → `stripe-webhook` logs ([integrations.md](integrations.md)) |

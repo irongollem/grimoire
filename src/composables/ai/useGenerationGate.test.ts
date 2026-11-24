@@ -8,7 +8,7 @@ vi.mock("@/composables/billing/useQuota", () => ({
   useQuota: (resource: QuotaResource) => useQuotaMock(resource),
 }));
 
-const requireCredits = vi.fn<(cost: number, byok?: boolean) => boolean>();
+const requireCredits = vi.fn<(cost: number) => boolean>();
 vi.mock("@/composables/ai/useOutOfCredits", () => ({
   useOutOfCredits: () => ({ requireCredits }),
 }));
@@ -62,8 +62,8 @@ describe("useGenerationGate", () => {
       requireCredits.mockReturnValue(true);
       const { canSpend, showQuotaPaywall } = useGenerationGate("npcs");
 
-      expect(canSpend(5, true)).toBe(true);
-      expect(requireCredits).toHaveBeenCalledWith(5, true);
+      expect(canSpend(5)).toBe(true);
+      expect(requireCredits).toHaveBeenCalledWith(5);
       expect(showQuotaPaywall.value).toBe(false);
     });
 

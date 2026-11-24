@@ -5,7 +5,7 @@
 // that succeeded. A note the Dungeon Master has since rewritten by hand is not overwritten.
 
 import type { AgentProvider } from "../_shared/agent/providerIo.ts";
-import { creditsForUsd, usableCalibration, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
+import { creditsForUsd, usableCalibration, usdForSteps, type ModelPrice } from "../_shared/agent/metering.ts";
 import { recapDocument, shownStory, tellRecap } from "../_shared/agent/recap.ts";
 import type { StoredTurn } from "../_shared/agent/transcript.ts";
 import { UUID_RE } from "../_shared/agent/parse.ts";
@@ -29,7 +29,6 @@ export interface RecapSitting {
 }
 
 export interface RecapCampaign extends BaseCampaign {
-  text_provider: string | null;
 }
 
 /** The ledger lines a telling may queue; the hold itself (reserve, release, write) is `withCreditHold`'s. */
@@ -48,7 +47,7 @@ export interface RecapDeps {
   resolveProvider(campaign: RecapCampaign): Promise<AgentProvider | null>;
   loadPrice(model: string): Promise<ModelPrice | null>;
   loadCalibration(): Promise<{ usdPerCredit: number | null; margin: number } | null>;
-  /** Holds `credits` (0 holds nothing: own-key play), runs the telling and releases the hold whatever happens. */
+  /** Holds `credits` (0 holds nothing), runs the telling and releases the hold whatever happens. */
   withHold(credits: number, work: (hold: RecapHold) => Promise<Response>): Promise<Response>;
   /** Puts the telling in the note. */
   writeNote(noteId: string, content: string): Promise<void>;
@@ -90,14 +89,9 @@ export async function tellSitting(input: { userId: string; body: unknown; deps: 
   const provider = await deps.resolveProvider(campaign);
   if (!provider || !provider.callModel) return jsonError(503, "no_provider", RECAP_MESSAGES.noProvider);
   const callModel = provider.callModel;
-  let price: ModelPrice | null = null;
-  let calibration: CreditCalibration | null = null;
-  if (!provider.isByok) {
-    price = await deps.loadPrice(provider.model);
-    const found = await deps.loadCalibration();
-    calibration = usableCalibration(found);
-    if (!price || !calibration) return jsonError(503, "metering_unavailable", RECAP_MESSAGES.noMetering);
-  }
+  const price = await deps.loadPrice(provider.model);
+  const calibration = usableCalibration(await deps.loadCalibration());
+  if (!price || !calibration) return jsonError(503, "metering_unavailable", RECAP_MESSAGES.noMetering);
 
   const name = sitting.party_member_id === null ? null : await deps.characterName(campaign.id, sitting.party_member_id);
   const playerName = name ?? "The player's character";
@@ -106,18 +100,18 @@ export async function tellSitting(input: { userId: string; body: unknown; deps: 
   const facts = (await deps.loadFacts(sitting.id)).filter((f) => f.known_to_player).map((f) => f.body);
   if (lines.length === 0 && facts.length === 0) return jsonError(422, "nothing_to_tell", RECAP_MESSAGES.nothing);
 
-  return deps.withHold(provider.isByok ? 0 : RECAP_RESERVE_CREDITS, async (hold) => {
+  return deps.withHold(RECAP_RESERVE_CREDITS, async (hold) => {
     const { story, usage } = await tellRecap({ callModel, earlier: sitting.summary, lines, facts, playerName });
     const log = { provider: usage.provider, model: usage.model, input_tokens: usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens, output_tokens: usage.outputTokens };
     if (story === null) {
       // The call was paid for by us and nothing came of it: logged, not charged.
-      hold.charge("agent_recap", { cost: 0, isByok: provider.isByok, log });
+      hold.charge("agent_recap", { cost: 0, log });
       return jsonError(502, "generation_failed", RECAP_MESSAGES.noStory);
     }
     await deps.writeNote(note.id, recapDocument(story, facts));
-    // Whole credits, at least one: a telling that was written and kept is one charge. Own-key play is logged, not charged.
-    const credits = provider.isByok || !price || !calibration ? 0 : Math.max(1, Math.ceil(creditsForUsd(usdForSteps([usage], price), calibration)));
-    hold.charge("agent_recap", { cost: credits, isByok: provider.isByok, log });
+    // Whole credits, at least one: a telling that was written and kept is one charge.
+    const credits = Math.max(1, Math.ceil(creditsForUsd(usdForSteps([usage], price), calibration)));
+    hold.charge("agent_recap", { cost: credits, log });
     return json({ told: true, credits });
   });
 }

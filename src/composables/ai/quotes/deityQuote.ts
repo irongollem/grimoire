@@ -12,10 +12,10 @@ export interface DeityQuoteOptions {
 }
 
 export function useDeityQuote(): (options: DeityQuoteOptions) => GeneratorQuote {
-  const { textLine, artLine, quoteOf, textIsByok, imageIsByok } = useQuoteKit();
+  const { textLine, artLine, quoteOf } = useQuoteKit();
   return ({ image }) => {
     const lines = [textLine("Deity text", "Written by AI", "deity_generation")];
     if (image) lines.push(artLine("Picture", "Painted by AI", 1));
-    return quoteOf(lines, textIsByok.value && (!image || imageIsByok.value));
+    return quoteOf(lines);
   };
 }

@@ -5,7 +5,6 @@
     title="Class Generator"
     concept-placeholder="A warrior-priest of the Ashen Reach who tends the last forge-fires, shields allies with cinders, and burns bright at a cost to herself…"
     :credits="textCreditCost"
-    :byok="textIsByok"
     :is-generating="isGenerating"
     :error="genError"
     :can-generate="!pending && !creating"
@@ -88,7 +87,6 @@ import GeneratorPanelShell from "@/components/common/ai/GeneratorPanelShell.vue"
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useToast } from "@/composables/useToast";
 import { useClassQuote } from "@/composables/ai/quotes/classQuote";
 import { useGenerateCustomClass } from "@/composables/rules/useGenerateCustomClass";
@@ -111,7 +109,6 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 
 const { canSpend } = useGenerationGate();
 // The price comes from the quote Ask Grimoire reads too, so the page and the panel cannot disagree.
-const { textIsByok } = useCampaignProviders();
 const quote = useClassQuote();
 const textCreditCost = computed(() => quote().total);
 
@@ -133,7 +130,7 @@ const bandSummary = computed(() =>
 );
 
 async function generateClass() {
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(textCreditCost.value)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

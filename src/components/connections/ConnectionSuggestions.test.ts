@@ -25,7 +25,7 @@ vi.mock("@/composables/connections/useConnections", () => ({
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
 vi.mock("@/composables/ai/useGenerationGate", () => ({ useGenerationGate: () => ({ canSpend: () => mocks.canSpend.value }) }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
-  useCampaignProviders: () => ({ textCredits: (n: number) => n, textIsByok: ref(false) }),
+  useCampaignProviders: () => ({ textCredits: (n: number) => n }),
 }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: mocks.toastError, success: vi.fn() }) }));
 vi.mock("@/ai/useConnectionSuggestions", () => ({

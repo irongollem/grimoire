@@ -11,7 +11,7 @@ Use this page to see what you are paying for and what you have left: your plan, 
 
 ## Key ideas
 
-- **Free DM / Pro DM**: the two plans, shown as a badge at the top of the page. Free gives the full toolset with per-resource quotas (campaigns, NPCs, and more; see the table below); Pro removes those limits and adds a monthly AI credit allowance plus BYOK.
+- **Free DM / Pro DM**: the two plans, shown as a badge at the top of the page. Free gives the full toolset with per-resource quotas (campaigns, NPCs, and more; see the table below); Pro removes those limits and adds a monthly AI credit allowance.
 - **Monthly credits vs. purchased credits**: two separate buckets that make up your balance (see below).
 - **Pending cancellation**: a subscription that's scheduled to end but hasn't yet; you keep Pro access until the date shown.
 
@@ -80,8 +80,6 @@ Under **Buy more credits**, tick the withdrawal-right consent checkbox, then cli
 Nothing: billing and AI credits are entirely DM-account-scoped. Players never see this page, never see your plan, and never spend your credits directly; AI generation they trigger from the player portal still draws from your account's balance.
 
 ## Tips
-
-> BYOK (bring your own API key), connecting your own OpenAI or Gemini key so that provider bills you instead of Grimoire credits, is a **Pro-only** feature, configured per campaign under **Campaign Settings → AI Assistant**, not here. See [Campaign Settings](#campaign-settings).
 
 - A complimentary beta-tester account counts as Pro, and can still start a real paid Pro checkout at any time from this page.
 - Cancelling from the Stripe portal schedules an end-of-period cancellation: you are never cut off mid-period.

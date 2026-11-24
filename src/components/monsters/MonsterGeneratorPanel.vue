@@ -6,7 +6,6 @@
     title="Monster Generator"
     concept-placeholder="A colossal spider deity that dwells in the Underdark, commanding its cultists through webs of illusion and dreams…"
     :credits="quote.total"
-    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     blank-to="/monsters/new"
@@ -82,7 +81,7 @@ const generateImage = ref(true);
 const quote = computed(() => quoteFor({ image: generateImage.value }));
 
 async function generateAndCreate() {
-  if (!canSpend(quote.value.total, quote.value.byok)) return;
+  if (!canSpend(quote.value.total)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

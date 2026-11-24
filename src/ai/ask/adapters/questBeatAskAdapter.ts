@@ -56,7 +56,7 @@ export function useQuestBeatAskAdapter(): AskAdapter {
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
 
-    let block = blockFor({ total: priced.total, byok: priced.byok });
+    let block = blockFor({ total: priced.total });
     if (!block && proposal.target?.type !== "quest_beat") {
       block = { reason: "missing", message: "Say which beat to write first." };
     } else if (!block && found === undefined && sourceError.value) {
@@ -66,7 +66,7 @@ export function useQuestBeatAskAdapter(): AskAdapter {
     } else if (!block && found === null) {
       block = { reason: "missing", message: "That beat is not in this campaign, so there is nothing to write." };
     }
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal): Promise<AskRunResult> {

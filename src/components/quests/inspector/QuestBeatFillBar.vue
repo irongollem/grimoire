@@ -21,7 +21,7 @@
       />
     </div>
     <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <GenerationCostBadge :credits="creditCost" :byok="isByok" />
+      <GenerationCostBadge :credits="creditCost" />
       <span v-if="isGenerating" class="text-caption text-muted-foreground">{{ currentLoadingQuote }}</span>
       <span v-else-if="error" role="alert" class="text-caption text-destructive">{{ error }}</span>
     </div>
@@ -34,7 +34,6 @@ import { IconGenerate } from "@/lib/icons";
 import { useConfirm } from "@/composables/useConfirm";
 import { useQuestBeatQuote } from "@/composables/ai/quotes/questBeatQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useQuestBeatFill, type QuestBeatFilled } from "@/ai/useQuestBeatFill";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
@@ -53,7 +52,6 @@ const emit = defineEmits<{ filled: [result: QuestBeatFilled & { overwrite: boole
 
 const { confirm } = useConfirm();
 const { canSpend } = useGenerationGate();
-const { textIsByok: isByok } = useCampaignProviders();
 const { isGenerating, error, generate } = useQuestBeatFill();
 
 const steer = ref("");
@@ -70,7 +68,7 @@ async function run() {
     confirmLabel: "Replace",
     danger: false,
   }))) return;
-  if (!canSpend(creditCost.value, isByok.value)) return;
+  if (!canSpend(creditCost.value)) return;
   const result = await generate(questId, context, steer.value);
   if (result) emit("filled", { ...result, overwrite });
 }

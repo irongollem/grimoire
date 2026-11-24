@@ -5,8 +5,7 @@ credential it uses, and what breaks when it's down. The one-screen overview
 lives in [index.md](index.md); this doc is the per-provider detail.
 
 **Reading rule for outages:** the frontend only ever talks directly to
-Supabase, Spotify, Google Cast, the CDN — and, for Pro BYOK campaigns, the AI
-providers. *Everything else* goes through an edge function, so a non-Supabase
+Supabase, Spotify, Google Cast and the CDN. *Everything else* goes through an edge function, so a non-Supabase
 provider outage always surfaces as a failing `functions.invoke()` call.
 
 ## AI generation (text · image · music · 3D)
@@ -15,7 +14,7 @@ provider outage always surfaces as a failing `functions.invoke()` call.
 flowchart LR
     fe["Frontend src/ai/*"]
 
-    subgraph edgepath ["Platform path (default, credit-metered)"]
+    subgraph edgepath ["Server path (credit-metered)"]
         gen["generate-* edge functions<br/>_shared/textGen.ts · imageGen.ts"]
         credits["_shared/credits.ts<br/>reserve → settle/release<br/>(FIFO lots, ai_credit_ledger)"]
     end
@@ -30,7 +29,6 @@ flowchart LR
     fe -- "functions.invoke()" --> gen
     gen --> credits
     gen --> openai & anthropic & gemini
-    fe -. "BYOK, Pro only:<br/>browser calls provider directly<br/>(src/ai/providers/*)" .-> openai & anthropic & gemini
 
     forge["forge-mini"] --> meshy
     cron["pg_cron every minute<br/>poll-meshy-jobs"] --> meshy
@@ -76,17 +74,10 @@ flowchart LR
   is seeded to `low` (migration `20260926104103`): a tile's whole economy — four
   attempts for 12 credits — is calibrated against `low`'s ~196 output tokens, and
   this is now an ordinary, visible row rather than a separate hardcoded constant.
-- **Two call paths.** Platform keys (in `platform_api_keys`, credit-metered)
-  run through edge functions. **BYOK** (Pro-only, enforced server-side) calls
-  providers straight from the browser with per-campaign keys decrypted via the
-  `api-key-vault` edge function (`VAULT_KEY`). A BYOK bug can therefore be
-  CORS/key-shaped and never appear in edge-function logs. The keys are stored
-  in `campaign_api_keys`, never on the campaign row (#1228): every member,
-  players included, reads `campaigns`, while the keys table admits the owner
-  alone. The client loads it only for the owner (`src/ai/campaignApiKeys.ts`);
-  the generators read it with the service role through
-  `_shared/campaignKeys.ts`, which pins the read to the current owner and checks
-  Pro at use time. An owner change empties the row.
+- **One call path.** Every AI request runs through an edge function with a
+  platform key (in `platform_api_keys`, credit-metered). The browser never
+  calls a provider. Platform keys are encrypted and decrypted by the
+  admin-only `api-key-vault` edge function (`VAULT_KEY`).
 - **One request pipeline for every paid function (#1234).** The platform path
   runs through three primitives in `supabase/functions/_shared/pipeline/`, and
   nothing else touches credits. `serveUser` does CORS, the method, auth and
@@ -118,10 +109,9 @@ flowchart LR
   service would be worth it.
 - **Embeddings** (`embed-content`, `embed-monsters` → 8 pgvector
   `*_embeddings` tables) are platform-wide single-provider, pinned to 1536
-  dims, never BYOK. Retrieval feeds the generators (RAG).
+  dims. Retrieval feeds the generators (RAG).
 - **Cutout generation** (`generate-cutout`, #917 story 5) is platform-keys-only
-  like Simulacrum below — it never reads a campaign's own OpenAI key, so a
-  Pro campaign's BYOK never applies here. It sends the entity's *existing*
+  like Simulacrum below. It sends the entity's *existing*
   picture to OpenAI's image-edit endpoint (`background: "transparent"`) rather
   than authoring a fresh prompt, priced as its own `entity_cutout` generation
   type.
@@ -296,8 +286,7 @@ HEAD cannot size.
   never merely because the soundboard opened — loading it hands the visitor's
   IP to Google. Chrome/Edge desktop + Android only.
 - **Lyria (AI music)**: `lyria-3.5` via the Gemini **Interactions API**
-  (`/v1beta/interactions`, `store: false`) — edge `generate-music` (platform)
-  or browser BYOK (`src/lib/audio/aiMusic.ts`). Model id comes from
+  (`/v1beta/interactions`, `store: false`) — edge `generate-music`. Model id comes from
   `provider_config.audio_model`.
 
 ## Email — Resend
@@ -418,4 +407,4 @@ surface.
 | Edge functions | Supabase secrets | service-role key, `VAULT_KEY`, Stripe secret + webhook secret, Resend, Freesound, `SIMULACRUM_POLLER_TOKEN`, `SENTRY_DSN` |
 | Database (pg_net callers) | Supabase Vault | `marketing_deploy_hook`, `simulacrum_poller_url/token` |
 | CI | GitHub Actions secrets | `SUPABASE_ACCESS_TOKEN`, `PRODUCTION_DB_PASSWORD`, `PRODUCTION_PROJECT_ID`, `STRIPE_SECRET_KEY` |
-| Per-campaign (BYOK) | `platform_api_keys`-style encrypted rows via `api-key-vault` | OpenAI / Anthropic / Gemini keys, Spotify client ID |
+| Per-campaign | The campaign row | Spotify client ID |

@@ -60,8 +60,7 @@ import {
  * with delta 0 and the real model/provider/input_tokens, generation type
  * "entity_embedding" (must be seeded at 0 credits in
  * `ai_generation_credit_costs` by the side-table migration, same as
- * "monster_embedding" was for #595). is_byok stays false: the platform key
- * paid for this call, and platform-cost reporting filters BYOK rows out. A
+ * "monster_embedding" was for #595). The platform key paid for this call, so it is a free line. A
  * call that wrote no ledger row would be invisible spend. Batch mode writes
  * ONE row per invocation (summed tokens across the whole batch), not one per
  * row. Single mode writes one row per actual embed, and none at all when the
@@ -661,7 +660,7 @@ async function handleSingle(req: Request, body: { entity?: unknown; id?: unknown
 
   // One row per actual embed -- the short-circuit above already returned
   // before this point when there was nothing to log. Platform-paid, charged
-  // to nobody -- see recordFreeGeneration's note on why is_byok must be false.
+  // to nobody -- see recordFreeGeneration's note.
   await recordFreeGeneration(admin, user.id, "entity_embedding", {
     model: provider.model,
     provider: usage.provider,

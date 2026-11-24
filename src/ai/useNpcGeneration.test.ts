@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
-import { ref } from "vue";
 
 const mocks = vi.hoisted(() => ({
   invoke: vi.fn(),
@@ -26,12 +25,10 @@ vi.mock("@/lib/supabase", () => ({
     },
   },
 }));
-vi.mock("@/ai/localKeyMode", () => ({ textRunsOnLocalKey: async () => false }));
-vi.mock("@/composables/rules/useRuleset", () => ({ useTableRuleset: () => ({ ruleset: ref("2014") }) }));
 vi.mock("@/composables/ai/useLikenessGate", () => ({ useLikenessGate: () => ({ ensureLikenessAck: async () => true }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
 vi.mock("@/ai/useImageGeneration", () => ({
-  captureImageGenerationContext: async () => ({ campaignId: "c1", world: null }),
+  captureImageGenerationContext: async () => ({ campaignId: "c1" }),
   captureFailureMessage: () => "no",
   generateImage: mocks.generateImage,
 }));

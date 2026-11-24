@@ -209,7 +209,7 @@ describe("sizeToAspect", () => {
 });
 
 describe("resolveImageProvider — which model a surface renders on", () => {
-  const keys = { campaignKeys: {}, platformKeys: { openai: "sk-platform", gemini: "g-platform" } };
+  const keys = { platformKeys: { openai: "sk-platform", gemini: "g-platform" } };
   const providerConfigs = {
     openai: { image_model: "gpt-image-2.6-flare", map_style_model: "gpt-image-2.6-sunburst", chronicle_image_model: "gpt-image-2.6-sunburst", brush_tip_model: "gpt-image-2.6-sunburst", image_enabled: true },
     gemini: { image_model: "gemini-3.1-flash-image", map_style_model: null, chronicle_image_model: null, brush_tip_model: null, image_enabled: true },
@@ -245,38 +245,28 @@ describe("resolveImageProvider — which provider renders", () => {
   const geminiOff = { openai: { image_enabled: true }, gemini: { image_enabled: false } };
 
   it("honours the campaign's Quick / Detailed choice while the admin has it enabled", () => {
-    const img = resolveImageProvider({ imageProvider: "gemini", campaignKeys: {}, platformKeys, providerConfigs: bothOn });
-    expect(img).toMatchObject({ provider: "gemini", base: "gemini", apiKey: "g-platform", isByok: false });
+    const img = resolveImageProvider({ imageProvider: "gemini", platformKeys, providerConfigs: bothOn });
+    expect(img).toMatchObject({ provider: "gemini", base: "gemini", apiKey: "g-platform" });
   });
 
   it("moves a choice the admin switched off onto an enabled provider", () => {
-    const img = resolveImageProvider({ imageProvider: "gemini", campaignKeys: {}, platformKeys, providerConfigs: geminiOff });
-    expect(img).toMatchObject({ provider: "openai", base: "openai", apiKey: "sk-platform", isByok: false });
+    const img = resolveImageProvider({ imageProvider: "gemini", platformKeys, providerConfigs: geminiOff });
+    expect(img).toMatchObject({ provider: "openai", base: "openai", apiKey: "sk-platform" });
   });
 
   it("renders on nothing when every provider is switched off", () => {
     const allOff = { openai: { image_enabled: false }, gemini: { image_enabled: false } };
-    expect(resolveImageProvider({ imageProvider: "openai", campaignKeys: {}, platformKeys, providerConfigs: allOff })).toBeNull();
-  });
-
-  it("uses the campaign's own key for its choice whatever the switch says", () => {
-    const img = resolveImageProvider({ imageProvider: "gemini", campaignKeys: { gemini: "g-own" }, platformKeys, providerConfigs: geminiOff });
-    expect(img).toMatchObject({ provider: "gemini", apiKey: "g-own", isByok: true });
-  });
-
-  it("falls back to the DM's own key before platform credits when the choice is switched off", () => {
-    const img = resolveImageProvider({ imageProvider: "gemini", campaignKeys: { openai: "sk-own" }, platformKeys, providerConfigs: geminiOff });
-    expect(img).toMatchObject({ provider: "openai", apiKey: "sk-own", isByok: true });
+    expect(resolveImageProvider({ imageProvider: "openai", platformKeys, providerConfigs: allOff })).toBeNull();
   });
 
   it("offers a provider the admin switched on without picking a model", () => {
-    const img = resolveImageProvider({ imageProvider: "gemini", campaignKeys: {}, platformKeys, providerConfigs: { gemini: { image_enabled: true, image_model: null } } });
-    expect(img).toMatchObject({ provider: "gemini", model: "gemini-3.1-flash-image", isByok: false });
+    const img = resolveImageProvider({ imageProvider: "gemini", platformKeys, providerConfigs: { gemini: { image_enabled: true, image_model: null } } });
+    expect(img).toMatchObject({ provider: "gemini", model: "gemini-3.1-flash-image" });
   });
 
   it("keeps a pinned capability on its provider even when that provider is not offered as a choice", () => {
     const openaiOff = { openai: { image_enabled: false }, gemini: { image_enabled: true } };
-    const img = resolveImageProvider({ imageProvider: "openai", campaignKeys: {}, platformKeys, providerConfigs: openaiOff, pinned: true });
+    const img = resolveImageProvider({ imageProvider: "openai", platformKeys, providerConfigs: openaiOff, pinned: true });
     expect(img).toMatchObject({ provider: "openai", apiKey: "sk-platform" });
   });
 });

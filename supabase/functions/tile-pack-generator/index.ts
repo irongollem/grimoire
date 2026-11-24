@@ -4,9 +4,7 @@ import { createDraftManifest, createGenerationPlan, enumerateSchemaSlots, rotati
 import { validatePack } from "../../../src/cartographer/validatePack.ts";
 import { coverageCounts, hasCompleteArt, undrawnSlotIds } from "../../../src/cartographer/packCoverage.ts";
 import { TILE_PACK_SCHEMA, type TilePackManifest } from "../../../src/cartographer/packSchema.ts";
-import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
-import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { generateImage } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
@@ -751,7 +749,6 @@ async function generateSlot(user: User, body: Record<string, unknown>, report: (
 
   // Which gate applies depends on the lane, and the lane is only known once
   // the run (and its target) is resolved above.
-  let campaign: BaseCampaign | null = null;
   if (run.lane === "user") {
     // tile_pack_generation_runs_campaign_matches_lane guarantees campaign_id
     // is set whenever tile_pack_id (user lane) is. campaignForGeneration is
@@ -759,7 +756,6 @@ async function generateSlot(user: User, body: Record<string, unknown>, report: (
     // on, same as every other generator.
     const gate = await campaignForGeneration(run.campaign_id!, userId);
     if (!gate.ok) return gate.response;
-    campaign = gate.campaign;
   }
   // Library lane: the admin claim was already verified inside
   // requireGenerationRun. There is no campaign and no per-user plan to check
@@ -786,14 +782,8 @@ async function generateSlot(user: User, body: Record<string, unknown>, report: (
     fetchCreditCost(admin, "tile_pack_generation"),
     fetchProviderConfigs(admin, ["openai"]),
   ]);
-  let campaignKey: string | null = null;
-  // Library lane: platform key only. There is no campaign, so there is no
-  // BYOK — `campaign` stays null for this lane (set above) and this block
-  // is skipped entirely.
-  if (campaign) campaignKey = (await loadCampaignKeys(admin, campaign, decryptValue)).openai;
-  const apiKey = campaignKey ?? platformKeys.openai;
+  const apiKey = platformKeys.openai;
   if (!apiKey) return jsonError(422, "no_openai_key", "No OpenAI API key is configured.");
-  const isByok = !!campaignKey;
   const model = tilePackModel(providerConfigs.openai);
   // A tile's whole economy rests on its quality: "low" is ~196 output tokens
   // against thousands for "high", and the 12-credit price covers four
@@ -809,13 +799,13 @@ async function generateSlot(user: User, body: Record<string, unknown>, report: (
   // Retries are inside the price: the first attempt on a slot is charged, the
   // three after it are not. A provider error never reaches the increment below,
   // so our own failures do not eat the budget the user paid for. A zero cost
-  // (a free retry, BYOK, the library lane) is still written as a free ledger
+  // (a free retry, the library lane) is still written as a free ledger
   // line by the hold, so every provider call stays visible to cost reporting
   // and get_credit_calibration_hints.
   //
   // Library lane charges nothing at all — it is platform content, not billed
   // to any user — so it holds nothing.
-  const cost = run.lane === "library" ? 0 : isByok ? 0 : wholeCredits(attemptCharge(baseCost, attemptsSoFar));
+  const cost = run.lane === "library" ? 0 : wholeCredits(attemptCharge(baseCost, attemptsSoFar));
 
   return withCreditHold(admin, { payerId: userId, reason: "tile_pack_generation", cost, report }, async (hold) => {
     // Atomic claim: only one concurrent request flips pending -> generating.
@@ -918,7 +908,7 @@ async function generateSlot(user: User, body: Record<string, unknown>, report: (
     }
 
     // Stored: charge now, before any bookkeeping that might throw.
-    hold.charge("tile_pack_generation", { cost, isByok, log: usage });
+    hold.charge("tile_pack_generation", { cost, log: usage });
 
     try {
       const attempt: GenerationAttempt = {

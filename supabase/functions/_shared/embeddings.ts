@@ -16,8 +16,7 @@
  *    meaningless, and Anthropic has no embedding endpoint at all. So which
  *    provider produces embeddings is a PLATFORM-WIDE
  *    choice, configured once in `provider_config` (see `resolveEmbeddingProvider`),
- *    never per-campaign or per-user the way text/image generation is — and
- *    never BYOK. Two rows embedded by different vendors would silently
+ *    never per-campaign or per-user the way image generation is. Two rows embedded by different vendors would silently
  *    corrupt the shared similarity index — every query would return
  *    near-random neighbours with no error anywhere. `isEmbeddingStale`
  *    below is what makes a provider swap self-healing rather than silently

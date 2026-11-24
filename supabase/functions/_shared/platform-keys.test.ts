@@ -15,7 +15,7 @@ function adminAnswering(result: { data: unknown; error: unknown }): SupabaseClie
 }
 
 describe("fetchPlatformKeys", () => {
-  // Callers fall back on a missing key (a campaign's BYOK key, the feature off), so a failed read must not fail the
+  // Callers fall back on a missing key (the feature off), so a failed read must not fail the
   // request; but it must be logged, or a database error reads as "the admin never set a key".
   it("answers no keys on a failed read, and logs it", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});

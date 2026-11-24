@@ -4,8 +4,6 @@
 // Moved here unchanged from `agent-turn/index.ts` when the second caller arrived.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { decryptValue } from "../vault.ts";
-import { loadCampaignKeys } from "../campaignKeys.ts";
 import { fetchPlatformKeys } from "../platform-keys.ts";
 import { fetchProviderConfigs } from "../provider-config.ts";
 import { DEFAULT_TEXT_MODELS, resolveTextProvider } from "../textGen.ts";
@@ -17,44 +15,33 @@ import type { CallModel } from "./types.ts";
 export interface AgentProvider {
   provider: string;
   model: string;
-  /** The campaign's own key pays. */
-  isByok: boolean;
   /** Null when the provider has no adapter yet. */
   callModel: CallModel | null;
 }
 
 /**
- * The campaign's text provider, from its own keys (a Pro owner's only, read through `loadCampaignKeys`) and the
- * platform's, with the key the moderation screen should use. Null when no provider can answer.
+ * The platform's text provider, with the key the moderation screen should use. Null when no provider can answer.
  */
 export async function resolveAgentProvider(
   admin: SupabaseClient,
-  campaign: { id: string; ownerId: string; textProvider: string | null },
 ): Promise<{ provider: AgentProvider; moderationKey: string | null } | null> {
-  const { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini } = await loadCampaignKeys(
-    admin,
-    { id: campaign.id, user_id: campaign.ownerId },
-    decryptValue,
-  );
   const [platformKeys, providerConfigs] = await Promise.all([
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
   const text = resolveTextProvider({
-    chosen: campaign.textProvider,
-    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
     platformKeys,
     providerConfigs,
   });
   if (!text) return null;
-  // The moderation endpoint is free; the platform's key is preferred so a campaign's own key is not used for it.
-  const moderationKey = platformKeys.openai ?? campaignOpenai ?? null;
+  // The moderation endpoint is free; it uses the platform's OpenAI key.
+  const moderationKey = platformKeys.openai ?? null;
   // text_model is the platform's pick; `?? default` is the one place a nullable column means "use the default".
   const model = text.config?.text_model ?? DEFAULT_TEXT_MODELS[text.provider];
   let callModel: CallModel | null = null;
   if (text.provider === "openai") callModel = openaiModel(text.apiKey, model);
   else if (text.provider === "anthropic") callModel = anthropicModel(text.apiKey, model);
-  return { provider: { provider: text.provider, model, isByok: text.isByok, callModel }, moderationKey };
+  return { provider: { provider: text.provider, model, callModel }, moderationKey };
 }
 
 /** What the model costs by the token, as the admin's price rows have it; null when it has no row or no price. */

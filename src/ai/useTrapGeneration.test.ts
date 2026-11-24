@@ -4,11 +4,6 @@ import { useTrapGeneration } from "./useTrapGeneration";
 const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
 
 vi.mock("@/lib/supabase", () => ({ supabase: { functions: { invoke: mocks.invoke } } }));
-vi.mock("@/ai/localKeyMode", () => ({ textRunsOnLocalKey: async () => false }));
-vi.mock("@/composables/rules/useRuleset", () => ({
-  useTableRuleset: () => ({ ruleset: { value: "2024" } }),
-}));
-vi.mock("@/composables/ai/useAiCredits", () => ({ logUsage: vi.fn() }));
 vi.mock("@/composables/ai/useLikenessGate", () => ({
   useLikenessGate: () => ({ ensureLikenessAck: async () => true }),
 }));

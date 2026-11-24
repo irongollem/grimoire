@@ -323,7 +323,7 @@ async function processMini(mini: MiniRow, meshyKey: string, report: Report): Pro
   // overlapping/reclaimed worker cannot enter this block and double-charge.
   if (mini.reservation_ids?.length) {
     await settleHandedOff(admin, { payerId: mini.user_id, ids: mini.reservation_ids, report }, async (ledger) => {
-      ledger.charge("mini_sculpt", { cost: mini.credits_spent, isByok: false });
+      ledger.charge("mini_sculpt", { cost: mini.credits_spent });
     });
   }
 }

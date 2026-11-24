@@ -1,7 +1,5 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { decryptValue } from "../_shared/vault.ts";
-import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { applyMultiplier, fetchProviderConfigs } from "../_shared/provider-config.ts";
 import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
@@ -39,7 +37,6 @@ const PROMPT_ROW = "canon_look";
 const MAX_TOKENS = 4000;
 
 interface LookCampaign extends BaseCampaign {
-  text_provider: string | null;
 }
 
 /** Fetches one already-guarded URL as a document part. See fetchGuardedImage for what is refused. */
@@ -49,7 +46,7 @@ async function fetchPart(url: string): Promise<DocumentPart | null> {
 }
 
 serve(serveUser(async ({ user, req, report }) => {
-  // Frozen or child accounts cannot generate, including BYOK (#919).
+  // Frozen or child accounts cannot generate (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
@@ -61,24 +58,20 @@ serve(serveUser(async ({ user, req, report }) => {
   if (!checked.ok) return jsonError(checked.refusal.status, checked.refusal.code, checked.refusal.message);
   const { campaignId, images, currentLook } = checked.request;
 
-  // DMs only: it spends the campaign's credits or the owner's own provider key.
-  const load = await loadAiCampaign<LookCampaign>(admin, campaignId, user.id, { columns: ["text_provider"] });
+  // DMs only: it spends the campaign's credits.
+  const load = await loadAiCampaign<LookCampaign>(admin, campaignId, user.id, {});
   if (!load.ok) return load.response;
-  const campaign = load.campaign;
 
   const { data: promptRow, error: promptError } = await admin
     .from("ai_system_prompts").select("content").eq("generator_type", PROMPT_ROW).maybeSingle();
   if (promptError) throw promptError;
   if (!promptRow) return jsonError(500, "prompt_not_configured", "This generator is not set up yet.");
 
-  const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
-    loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
+  const [platformKeys, providerConfigs] = await Promise.all([
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
   const text = resolveTextProvider({
-    chosen: campaign.text_provider,
-    campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
     platformKeys,
     providerConfigs,
   });
@@ -87,7 +80,7 @@ serve(serveUser(async ({ user, req, report }) => {
   const documentModel = text.config?.document_model ?? null;
   if (!documentModel) return jsonError(422, "provider_unsupported", "Reading pictures isn't available right now.");
 
-  const baseCost = text.isByok ? 0 : await fetchCreditCost(admin, LEDGER_REASON);
+  const baseCost = await fetchCreditCost(admin, LEDGER_REASON);
   const cost = wholeCredits(applyMultiplier(baseCost, text.textMultiplier));
 
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
@@ -137,7 +130,6 @@ serve(serveUser(async ({ user, req, report }) => {
     const { usage } = shaped;
     hold.charge(LEDGER_REASON, {
       cost,
-      isByok: text.isByok,
       log: {
         model: usage.model,
         provider: usage.provider,

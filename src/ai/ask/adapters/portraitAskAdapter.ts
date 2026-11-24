@@ -76,7 +76,7 @@ export function usePortraitAskAdapter(): AskAdapter {
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
 
-    let block = blockFor({ total: priced.total, byok: priced.byok });
+    let block = blockFor({ total: priced.total });
     if (!block && !target) {
       block = { reason: "missing", message: "Say whose portrait to paint first." };
     } else if (!block && read === undefined && subjectQuery.error.value) {
@@ -88,7 +88,7 @@ export function usePortraitAskAdapter(): AskAdapter {
     } else if (!block && read && read.context.trim() === "") {
       block = { reason: "missing", message: "There is nothing written about them to paint from yet." };
     }
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function paintPart(subjectRead: PortraitSubject, credits: number): Promise<AskRunPart> {

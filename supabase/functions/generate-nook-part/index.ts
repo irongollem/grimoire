@@ -9,7 +9,7 @@
  *          part moves.
  *
  * OpenAI only (transparent background and edit masks are OpenAI features) and PLATFORM KEYS ONLY, as
- * generate-cutout: a campaign's own key is never read. Every call is priced as one `entity_cutout` picture
+ * generate-cutout: Every call is priced as one `entity_cutout` picture
  * at 1024x1024, so Paint is one picture and Lift, which the client runs as a lift then a fill, is two.
  *
  * Never fetches a client-supplied URL: the room picture is read from the nook row server-side and still
@@ -105,7 +105,6 @@ serve(serveUser(async ({ user, req, report }) => {
   ]);
   const img = resolveImageProvider({
     imageProvider: "openai",
-    campaignKeys: {}, // deliberately empty: no BYOK path, see file doc
     pinned: true, // transparent output and edit masks are OpenAI-only capabilities
     platformKeys: { openai: platformKeys.openai },
     providerConfigs,
@@ -142,7 +141,7 @@ serve(serveUser(async ({ user, req, report }) => {
     // The picture exists, so it is charged before the provenance mark below. If marking throws, the hold writes
     // this charge as a free line.
     hold.charge("entity_cutout", {
-      cost, isByok: false,
+      cost,
       log: {
         model: img.model, quality, size: NOOK_PART_SIZE,
         provider: imgResult.usage.provider, image_count: 1,

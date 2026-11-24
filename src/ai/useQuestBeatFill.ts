@@ -1,6 +1,5 @@
 import { questLinkHref } from "@/lib/quests/navigation";
 import { generateEntityText } from "./entityTextGeneration";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { captureImageGenerationContext } from "./useImageGeneration";
@@ -38,7 +37,6 @@ registerAiGenerator({
 const DEFAULT_STEER = "Fill in this beat so it continues the quest's flow.";
 
 export function useQuestBeatFill() {
-  const { ruleset } = useTableRuleset();
 
   async function generate(
     questId: string,
@@ -56,8 +54,6 @@ export function useQuestBeatFill() {
       const raw = await generateEntityText<QuestBeatFillResult>({
         generator: "quest_beat",
         campaignId: imageContext.campaignId,
-        world: imageContext.world,
-        ruleset: ruleset.value,
         prompt: steer?.trim().slice(0, AI_PROMPT_LIMIT) || DEFAULT_STEER,
         constraints: buildBeatFillConstraints(context),
       });

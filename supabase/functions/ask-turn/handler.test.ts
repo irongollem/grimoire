@@ -35,7 +35,7 @@ interface Harness {
   turns: Array<{ session_id: string; seq: number; role: string; blocks: AgentBlock[] }>;
   usage: { day: string; free_used: number } | null;
   charges: number[];
-  ledger: Array<{ kind: "charge" | "free"; reason: string; cost?: number; isByok?: boolean; tokens?: number }>;
+  ledger: Array<{ kind: "charge" | "free"; reason: string; cost?: number; tokens?: number }>;
   holds: number[];
   held: { refuse: boolean };
   appends: number;
@@ -50,14 +50,13 @@ interface Harness {
   /** What the scope judge is asked and what it answers: a probability of "in scope", null for no key, or a throw. */
   scope: { asked: JudgeRequest[]; answer: number | null | "throws"; report: { app_report: number; is_bug: number } | null };
   settleFails: boolean;
-  byok: boolean;
   summaries: number;
 }
 
 function harness(): Harness {
   const h: Harness = {
     deps: undefined as unknown as AskTurnDeps, events: [], requests: [], steps: [], sessions: new Map(), turns: [], usage: null,
-    charges: [], ledger: [], holds: [], held: { refuse: false }, appends: 0, records: new Map(), gaps: [], pending: [], generations: 0, settleCalls: 0, scope: { asked: [], answer: 1, report: null }, settleFails: false, byok: false, summaries: 0,
+    charges: [], ledger: [], holds: [], held: { refuse: false }, appends: 0, records: new Map(), gaps: [], pending: [], generations: 0, settleCalls: 0, scope: { asked: [], answer: 1, report: null }, settleFails: false, summaries: 0,
   };
   const callModel: CallModel = async (request) => {
     h.requests.push(request);
@@ -73,7 +72,7 @@ function harness(): Harness {
     return { free: false, credits: Math.floor(credits), freeLeft: 0 };
   };
   const ledger: JobLedger = {
-    charge: (reason, line) => { h.ledger.push({ kind: "charge", reason, cost: line.cost, isByok: line.isByok }); },
+    charge: (reason, line) => { h.ledger.push({ kind: "charge", reason, cost: line.cost }); },
     free: (reason, log) => { h.ledger.push({ kind: "free", reason, tokens: log?.output_tokens }); },
   };
   h.deps = {
@@ -82,7 +81,7 @@ function harness(): Harness {
     isDm: async (_c, userId) => userId === DM,
     loadSession: async (id) => { const s = h.sessions.get(id); return s ? { ...s } : null; },
     rateLimit: async () => true,
-    resolveProvider: async () => ({ provider: "openai", model: "m1", isByok: h.byok, callModel }),
+    resolveProvider: async () => ({ provider: "openai", model: "m1", callModel }),
     loadPrice: async () => ({ inputPerMillion: 0, outputPerMillion: 10, cachedInputPerMillion: null }),
     loadCalibration: async () => ({ usdPerCredit: 0.01, margin: 1 }),
     isFlagged: async () => false,
@@ -289,7 +288,7 @@ describe("an answer", () => {
     // 600 output tokens at 10 USD per million, 0.01 USD a credit: 0.6 credits, measured exactly.
     expect(h.charges).toEqual([0.6]);
     expect(done(h)).toEqual({ type: "done", end: "done", routed: false, free: true, credits: 0, freeLeft: 4 });
-    expect(h.ledger[0]).toEqual({ kind: "charge", reason: "ask_answer", cost: 0, isByok: false });
+    expect(h.ledger[0]).toEqual({ kind: "charge", reason: "ask_answer", cost: 0 });
   });
 
   it("charges the whole credits `charge_ask_answer` says once the day's free answers are spent, and holds one credit first", async () => {
@@ -319,20 +318,6 @@ describe("an answer", () => {
     expect(h.requests).toEqual([]);
     expect(h.events).toEqual([]);
     expect(h.sessions.size).toBe(0);
-  });
-
-  it("does not meter, charge or count an own-key answer, and looks up neither price nor usage", async () => {
-    const h = harness();
-    h.byok = true;
-    h.usage = { day: TODAY, free_used: 5 };
-    const price = vi.fn(h.deps.loadPrice);
-    h.deps.loadPrice = price;
-    h.steps.push(say("x"));
-    await ask(h);
-    expect(price).not.toHaveBeenCalled();
-    expect(h.holds).toEqual([0]);
-    expect(h.charges).toEqual([]);
-    expect(h.ledger).toEqual([{ kind: "charge", reason: "ask_answer", cost: 0, isByok: true }]);
   });
 
   it("continues its own conversation: history is sent, and the standing instructions stay byte-identical", async () => {
@@ -395,23 +380,17 @@ describe("a proposal", () => {
     expect(h.charges).toEqual([]);
     // 100 output tokens: 0.1 credits, kept exactly until the DM runs the generator or the next turn meters it.
     expect(h.pending).toEqual([{ proposalId: "proposal-1", sessionId: SESSION, credits: 0.1 }]);
-    expect(h.ledger).toEqual([{ kind: "charge", reason: "ask_routing", cost: 0, isByok: false }]);
+    expect(h.ledger).toEqual([{ kind: "charge", reason: "ask_routing", cost: 0 }]);
     expect(done(h)).toMatchObject({ routed: true, credits: 0 });
     expect(types(h)).toContain("propose");
   });
 
-  it("writes no pending route for a turn that was not kept, and none for an own key", async () => {
+  it("writes no pending route for a turn that was not kept", async () => {
     const h = harness();
     h.deps.appendTurns = async () => "conflict";
     h.steps.push(call("c1", "propose", { generator: "npc", concept: "a" }));
     await ask(h);
     expect(h.pending).toEqual([]);
-    const own = harness();
-    own.byok = true;
-    own.steps.push(call("c1", "propose", { generator: "npc", concept: "a" }));
-    await ask(own);
-    expect(own.pending).toEqual([]);
-    expect(own.settleCalls).toBe(0);
   });
 
   it("still answers when the route could not be recorded: the DM is never charged for bookkeeping", async () => {
@@ -518,7 +497,7 @@ describe("a turn that is not kept", () => {
     expect(h.charges).toEqual([]);
     expect(types(h)).toContain("error");
     expect(types(h)).not.toContain("done");
-    expect(h.ledger).toEqual([{ kind: "charge", reason: "ask_answer", cost: 0, isByok: false }]);
+    expect(h.ledger).toEqual([{ kind: "charge", reason: "ask_answer", cost: 0 }]);
   });
 
   it("answers with a sentence of ours when the provider fails, charging nothing", async () => {

@@ -33,12 +33,10 @@ recording, not a target date.
 
 **Grimoire is a *provider* of generative AI systems** built on general-purpose
 AI models (OpenAI, Anthropic, Google, Meshy) and placed on the market
-under Grimoire's own name and branding. This holds across all three AI
-access tiers — platform-credit, BYOK-cloud, and local-key — because in every
-tier the system doing the generating is Grimoire's: our prompts, our UI, our
-pipeline. Whose API key pays for the call does not change whose system it is;
-a user supplying their own OpenAI key to a Grimoire generator panel is still
-using a Grimoire AI system, not operating OpenAI directly.
+under Grimoire's own name and branding. Every request runs
+server-side through Grimoire's edge functions on platform keys and is paid in
+credits, so the system doing the generating is Grimoire's: our prompts, our UI,
+our pipeline.
 
 **Grimoire's users are *deployers*, exempt under Art 2(10)** — their use is
 personal, non-professional activity (running a home D&D campaign), which the
@@ -74,7 +72,7 @@ contact, or Grimoire's scale or feature set shifts the risk calculus.
 
 Verified against `supabase/functions/` and `src/ai/` on 5 Aug 2026.
 
-### Server-side edge functions (platform-credit and BYOK-cloud paths)
+### Server-side edge functions
 
 | Function | Modality | Providers (shared module) | Notes |
 |---|---|---|---|
@@ -111,28 +109,16 @@ Verified against `supabase/functions/` and `src/ai/` on 5 Aug 2026.
 | `character-reply` | text, conversational | same | #1021 row 26. A character whose player is away answers a chat line that addresses it. Needs the player's consent (`party_members.ai_speaks`) and the DM's switch (`ai_stands_in`); the sender's line is screened (`_shared/moderation.ts`); a child account's character is never played. **Art. 50(1):** every reply carries `metadata.ai` and is drawn with an "AI" mark in chat. |
 | `table-voice`, `note-reading` | speech (synthetic audio) | ElevenLabs, Inworld (`_shared/speech.ts`) | #1021 rows 18, 19 and 21. The Narrator's and characters' lines, a told recap and a note the DM chose are spoken in generated voices. Only the text to speak and a voice id are sent. **Art. 50(2):** the audio is synthetic and is presented as the Narrator's or a character's generated voice (the table's first-visit notice; the Read aloud control names the Narrator's voice); no file is offered for download. A child's voice is not designed where a provider refuses it, and the request is not reworded. |
 | `embed-monsters` | embedding | same | monster retrieval corpus |
-| `api-key-vault` | infra | n/a | stores/decrypts BYOK keys; not itself a generator, but part of every BYOK pipeline |
+| `api-key-vault` | infra | n/a | encrypts and decrypts the platform provider keys (admin only); not itself a generator |
 | `list-provider-models` | infra | queries provider APIs for model lists | not generation |
 
 NPC Tracker requests bound the DM concept and added campaign context separately. Both are wrapped as user input before generation.
 
-### Client-direct generators (`src/ai/`, browser-side, BYOK-cloud or local-key only)
+### No client-direct generation
 
-Every `generate-entity-text` generator (the original four and the twelve epic
-#910 added) still has a client-direct branch, but only in local-key mode; by
-default they go through `generate-entity-text`
-(`src/ai/entityTextGeneration.ts` picks the path). Since #1043 every generator
-asks `src/ai/localKeyMode.ts`, which takes the browser path only when local-key
-mode is chosen *and* a key decrypted on this device; otherwise the generation
-runs server-side like any other, so the server's marking and logging apply.
-
-`usePuzzleGeneration.ts` and `useTextEnhancement.ts` call `getTextProvider()` from
-`src/ai/providers/` (`openai.ts`, `anthropic.ts`, `gemini.ts`)
-directly from the browser, using the campaign's configured key (BYOK-cloud)
-or a locally-vaulted key (local-key tier) — never touching an edge function.
-As §2 states, this is still a Grimoire AI system: the prompts, panel UI, and
-pipeline are all Grimoire's, so the provider role does not shift to the user
-just because the key does.
+Every generator runs in an edge function. The browser never calls a model
+provider, so the server's marking, screening and logging apply to every
+generation.
 
 ### MCP server
 
@@ -269,8 +255,8 @@ Stripe webhook/checkout/portal functions specifically) and none of them write
 
 Free-tier accessibility: the master AI on/off toggle in `AiTab.vue` moved
 outside `ProFeatureGate` (it previously gated the entire tab, so free owners
-could not even see the switch to decline or accept). BYOK key storage,
-provider pickers and the campaign setting-prompt textarea remain Pro-gated;
+could not even see the switch to decline or accept). The image
+choice and the campaign setting-prompt textarea remain Pro-gated;
 only the toggle and its existing consent-dialog flow are free.
 
 **Free->Pro one-time re-offer (Jeffrey, 4 Aug 2026).** When a campaign owner
@@ -347,7 +333,7 @@ embeds an XMP packet — IPTC `DigitalSourceType = trainedAlgorithmicMedia`,
 provider/model/generatedAt — into WebP/PNG/JPEG bytes (idempotent re-marking,
 pass-through on unknown formats, colocated tests). Server side: every
 generated image is marked before upload or inside the returned `image_b64`,
-using the provider's true output format (OpenAI webp, Gemini png). Client side: local-key-mode output is marked before upload, and the
+using the provider's true output format (OpenAI webp, Gemini png). Client side: the
 canvas resize pipeline (`toWebP`, `resizeToWebP` variants, `backfillVariants`)
 re-embeds the original's XMP after every re-encode — canvas strips metadata,
 so re-embedding is what makes the mark survive. A C2PA spike (#605) remains
@@ -404,8 +390,7 @@ that remain open (C2PA feasibility spike) are image-side, not audio.
 every client accept-save persists it into the `ai_provenance jsonb` column
 (migration `20260804000002`) across all 13 content tables — including
 detail-page regenerate flows and the `resolve_downtime_draw` RPC path
-(migration `20260804000004`). Client-direct BYOK/local generators construct
-the same block via `src/ai/provenance.ts`. Chronicle-inserted rich text is
+(migration `20260804000004`).  Chronicle-inserted rich text is
 additionally wrapped in a `data-ai-generated` / `data-ai-model` container — a
 dedicated TipTap node so the marker survives editor round-trips, and
 `sanitizeHtml` (DOMPurify `ALLOW_DATA_ATTR` default) preserves it through
@@ -453,23 +438,11 @@ the AI usage record (`ai_credit_ledger`, `ai_generation_jobs`,
 abuse investigation, and doubles as Art 50 supporting evidence if ever asked.
 See provenance-architecture.md §8 for the engineering summary.
 
-**Logging-gap decision.** `useAiCredits.ts` `logUsage()` previously skipped
-the `deduct-ai-credit` call entirely when the provider reported no token
-counts — silently dropping any token-less BYOK/local-key call from the
-record. Fixed: every client-direct
-(BYOK or local-key-vault) generation now logs a row unconditionally — delta 0,
-`is_byok: true`, token columns NULL when the provider didn't report them,
-`model`/`provider`/`reason` always present.
-
-**Local-key mode's privacy promise, explicitly checked.** Local-key mode's
-guarantee is that plaintext prompts and provider keys never reach Grimoire's
-server — not that the server hears nothing at all. `logUsage()` sends only
-`reason` (generator type), `provider`, `model`, `is_byok`, token counts and
-image count — never prompt/response content, never the key. That payload was
-already metadata-only before #609; the fix only removed the early-return that
-was dropping rows, it didn't add a new field. Decision: this metadata beacon
-does not contradict the local-mode promise, so it ships without a separate
-opt-out.
+**What the usage record holds.** Every generation logs a row through the
+server. The row carries `reason` (generator type), `provider`, `model`, token
+counts and image count, never prompt or response content. `is_byok` remains on
+`ai_credit_ledger` as a read-only history column (rows written before own keys
+were retired); nothing writes it now.
 
 **Tamper-evidence.** Migration `20260804000005_ai_log_tamper_evidence.sql`:
 `ai_credit_ledger` is now a trigger-enforced append-only table (an audit of
@@ -545,12 +518,8 @@ reads it. A line that passed is never stored, however close it came, so the log
 is not a record of what players said to each other. Its rows carry no image
 provider (null).
 
-**This does not touch the local-key promise in 6a.** Screening runs only in the
-edge functions, where the prompt is composed server-side and is already on our
-server by construction. The client-direct generators in `src/ai/` (BYOK-cloud
-and local-key) are not screened and write no screening row — consistent with
-BYOK being legacy and new AI work shipping server-path-only. No prompt text
-reaches the server from local-key mode as a result of this change.
+Screening runs in the edge functions, where the prompt is composed server-side.
+Every generator is server-side, so every generation is screened.
 
 ## 7. Provider register
 
@@ -592,7 +561,7 @@ processing addendum, so there is no Art 28(3) processor contract available to
 put in place and it cannot lawfully receive personal data on our behalf,
 whatever the model quality. The integration was deleted outright rather than
 disabled: provider module, edge-function wiring, the `campaigns.falai_api_key`
-BYOK column, and its `provider_config` / `ai_model_pricing` rows are all gone
+key column, and its `provider_config` / `ai_model_pricing` rows are all gone
 (migration `20260809145858`). Nothing was ever generated through it — zero
 campaigns had selected it, zero keys were stored, and no ledger row names a fal
 model — so this removes a capability, not a processing history. The public

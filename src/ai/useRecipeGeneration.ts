@@ -1,5 +1,4 @@
 import { generateEntityText } from "./entityTextGeneration";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
@@ -29,7 +28,6 @@ export interface RecipeGenerationOptions {
 }
 
 export function useRecipeGeneration() {
-  const { ruleset } = useTableRuleset();
 
   async function generate(
     userPrompt: string,
@@ -60,8 +58,6 @@ export function useRecipeGeneration() {
       const raw = await generateEntityText<RecipeAiResult>({
         generator: "recipe",
         campaignId: imageContext.campaignId,
-        world: imageContext.world,
-        ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,
       });

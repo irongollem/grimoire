@@ -72,7 +72,7 @@ Two deliberate separations that look mergeable but are not:
   Placement.
 - `src/ai/` holds one composable per AI generator plus the credit/quota
   composables; the generators call **edge functions**, never providers
-  directly (provider keys live server-side or in the per-campaign vault).
+  directly (provider keys live server-side only).
 
 ## State management: two planes, never mixed
 
@@ -117,7 +117,7 @@ The 8 stores and their roles:
 | Store | Role |
 | --- | --- |
 | `auth.ts` | Supabase session, campaign membership, `isAppAdmin`/`isDM`/`isPlayer`; feeds the router guard and `setCachedUser()`. Boots from a per-user snapshot of membership, username and child link (`src/lib/auth/authSnapshot.ts`) and re-reads them in the background, so the app mounts without waiting on those three reads. A token refresh that is slow (over 4 s) or fails for want of a network starts the app on the session auth-js has stored (`src/lib/persistedSession.ts`) rather than as signed out; only a refresh the server rejects signs out. Auth and data requests carry a deadline (`src/lib/requestDeadline.ts`), because a request frozen by iOS never answers and a refresh among them held the auth lock for good |
-| `campaign.ts` | `activeCampaignId` (localStorage-persisted) — the key nearly every query is scoped by; BYOK API-key decryption |
+| `campaign.ts` | `activeCampaignId` (localStorage-persisted) — the key nearly every query is scoped by |
 | `ui.ts` | All list filters + per-feature UI modes + `dmPreviewMode` (mandated by CLAUDE.md) |
 | `encounterRun.ts` | Live combat run state. Deliberately UI-only: DB writes are injected via `setPersistHandler`, dice via `InitiativeRoller` |
 | `soundboard.ts` | Playback, buses, ducking, playlist run state (audio objects held non-reactive at module level) |

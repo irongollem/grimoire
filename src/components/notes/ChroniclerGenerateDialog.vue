@@ -60,7 +60,7 @@
             @click="shapeId = s.id"
           >
             <span class="text-label-lg ">{{ s.label }}</span>
-            <span class="text-caption-sm opacity-60">{{ byok ? 'BYOK' : (shapeCost(s.size) === null ? '' : `${shapeCost(s.size)} cr`) }}</span>
+            <span class="text-caption-sm opacity-60">{{ shapeCost(s.size) === null ? '' : `${shapeCost(s.size)} cr` }}</span>
           </AppButton>
         </div>
       </div>
@@ -80,7 +80,7 @@
 
     <!-- Actions -->
     <div class="flex gap-2 justify-end items-center shrink-0 px-5 py-3 border-t border-border">
-      <GenerationCostBadge :credits="selectedCost" :byok="byok" class="mr-auto" />
+      <GenerationCostBadge :credits="selectedCost" class="mr-auto" />
       <span v-if="queuedCount > 0" class="text-caption text-muted-foreground/70">
         Queued this session: {{ queuedCount }}
       </span>
@@ -205,15 +205,15 @@ const { activeCampaignId } = storeToRefs(campaignStore);
 const { user } = storeToRefs(useAuthStore());
 
 // Live credit cost — chronicle images (generate-chronicle-image) run on the campaign's resolved image provider; cost scales with
-// the chosen shape's output area (landscape = 1.5× square). BYOK = no credits.
+// the chosen shape's output area (landscape = 1.5× square).
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { imageCredits, imageIsByok: byok } = useCampaignProviders();
+const { imageCredits } = useCampaignProviders();
 function shapeCost(s: SceneShape["size"]): number | null {
   return imageCredits(costOf("chronicle_image", { size: s }));
 }
 const selectedShape = computed(() => offeredShapes.value.find((s) => s.id === shapeId.value) ?? offeredShapes.value[0]);
-const selectedCost = computed(() => (byok.value ? 0 : shapeCost(selectedShape.value.size)));
+const selectedCost = computed(() => shapeCost(selectedShape.value.size));
 
 const { ensureLikenessAck } = useLikenessGate();
 
@@ -224,7 +224,7 @@ async function generate() {
   // needs no likeness ack, matching the server's portrait_urls-shaped gate.
   const hasPortraitReferences = resolvedEntities.value.some((e) => e.portraitUrl);
   if (hasPortraitReferences && !(await ensureLikenessAck())) return; // user declined — abort silently
-  if (!requireCredits(selectedCost.value, byok.value)) return;
+  if (!requireCredits(selectedCost.value)) return;
   starting.value = true;
   error.value = "";
   queuedNotice.value = "";

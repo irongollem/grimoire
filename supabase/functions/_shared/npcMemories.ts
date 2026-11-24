@@ -26,7 +26,7 @@ export type SecretEntityType = (typeof SECRET_ENTITY_TYPES)[number];
 // ── Prompt formatting ─────────────────────────────────────────────────────────
 //
 // One formatter for every model that speaks as an NPC: the Voice Coach edge
-// function calls it on the server, and the client's BYOK path imports the very
+// function calls it on the server, and the client imports the very
 // same function, so the two can never disagree about what the model is told.
 // It stays pure (no Deno or https imports) for that reason.
 
@@ -163,7 +163,7 @@ function promptSessionLabel(number: number | null, title: string | null): string
 /**
  * The newest `limit` (default MEMORY_PROMPT_LIMIT) memories of an NPC, oldest first, with session
  * labels and the names of who was present resolved within the campaign. The
- * edge function passes its service-role client and the BYOK path the user's,
+ * edge function passes its service-role client and the browser the user's,
  * so both send the model the same thing. Failure is logged and answered with no
  * memories: the Voice Coach is felt live at the table.
  */

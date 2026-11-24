@@ -1,7 +1,5 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { decryptValue } from "../_shared/vault.ts";
-import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchCreditCost, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
@@ -159,14 +157,13 @@ async function runGeneration(args: {
   portrait_urls: string[];
   /** The look's style pictures (#1252), empty for a map. */
   look_reference_urls: string[];
-  isByok: boolean;
   cost: number;
   reservationIds: string[];
   purpose: ImagePurpose;
   source_image_b64: string | null;
   report: (err: unknown) => void;
 }) {
-  const { jobId, userId, provider, model, apiKey, moderationKey, prompt, size, quality, portrait_urls, look_reference_urls, isByok, cost, reservationIds, purpose, source_image_b64, report } = args;
+  const { jobId, userId, provider, model, apiKey, moderationKey, prompt, size, quality, portrait_urls, look_reference_urls, cost, reservationIds, purpose, source_image_b64, report } = args;
 
   // Once the picture is stored it is charged, and nothing after that may call the job failed (the hand-wired worker
   // marked a delivered image failed when completeImageJob or the release threw, #1234).
@@ -207,7 +204,7 @@ async function runGeneration(args: {
       // the resolved model this call was made with.
       stored.url = await uploadResult(b64, contentType, userId, purpose, usage.provider, model);
       ledger.charge(PURPOSE_CONFIG[purpose].creditType, {
-        cost, isByok,
+        cost,
         log: {
           model,
           quality,
@@ -250,8 +247,7 @@ async function runGeneration(args: {
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(serveUser(async ({ user, req, report }) => {
-  // Frozen or child accounts cannot generate — including BYOK, which skips
-  // the credit gate for both (#919).
+  // Frozen or child accounts cannot generate (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
@@ -291,19 +287,17 @@ serve(serveUser(async ({ user, req, report }) => {
   }
 
   // DMs only: no player surface calls this, and it spends the campaign's
-  // credits or the owner's own provider key (see _shared/campaignAccess.ts).
+  // credits (see _shared/campaignAccess.ts).
   const load = await loadAiCampaign<ChronicleCampaign>(admin, campaign_id, user.id, { columns: ["image_provider"] });
   if (!load.ok) return load.response;
   const campaign = load.campaign;
 
-  const [[campaignOpenai, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
-    loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.gemini] as const),
+  const [platformKeys, providerConfigs] = await Promise.all([
     fetchPlatformKeys(admin, ["openai", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "gemini"]),
   ]);
   const img = resolveImageProvider({
     imageProvider: campaign.image_provider,
-    campaignKeys: { openai: campaignOpenai, gemini: campaignGemini },
     platformKeys: { openai: platformKeys.openai, gemini: platformKeys.gemini },
     providerConfigs,
     // Scenes and group portraits follow Admin → Providers' Chronicler model;
@@ -311,7 +305,6 @@ serve(serveUser(async ({ user, req, report }) => {
     surface: PURPOSE_CONFIG[purpose].creditType === "chronicle_image" ? "chronicle" : undefined,
   });
   if (!img) return jsonError(422, "no_image_provider", "No image API key is configured.");
-  const isByok = img.isByok;
   const model = img.model;
 
   // Throttle abusive burst volume before any paid provider work (issue #466).
@@ -320,9 +313,7 @@ serve(serveUser(async ({ user, req, report }) => {
   // Everything that can throw is read before the hold is taken.
   // Cost scales with output area (landscape/portrait = 1.5×) and the provider's multiplier.
   const config = PURPOSE_CONFIG[purpose];
-  const imageCost = isByok
-    ? 0
-    : wholeCredits(await fetchCreditCost(admin, config.creditType) * sizeMultiplier(size) * img.imageMultiplier);
+  const imageCost = wholeCredits(await fetchCreditCost(admin, config.creditType) * sizeMultiplier(size) * img.imageMultiplier);
   const quality = await resolveImageQuality(admin, config.creditType, img);
 
   const world = await loadWorldBlock(admin, campaign.id);
@@ -386,7 +377,7 @@ serve(serveUser(async ({ user, req, report }) => {
     // past response. Deno Deploy's EdgeRuntime keeps the isolate alive for waitUntil.
     const run = runGeneration({
       jobId, userId: user.id, provider: img.provider, model, apiKey: img.apiKey, moderationKey: img.moderationKey,
-      prompt, size, quality, portrait_urls, look_reference_urls: lookReferenceUrls, isByok, cost: imageCost,
+      prompt, size, quality, portrait_urls, look_reference_urls: lookReferenceUrls, cost: imageCost,
       reservationIds: hold.handOff(), purpose, source_image_b64, report,
     });
     try {

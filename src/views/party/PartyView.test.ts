@@ -14,7 +14,6 @@ vi.mock("@/composables/party/useGroupPortrait", () => ({
     generating: ref(false),
     error: ref(""),
     groupPortraitCost: ref(1),
-    groupPortraitByok: ref(false),
     generateGroupPortrait: vi.fn(),
   }),
 }));

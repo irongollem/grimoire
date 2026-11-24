@@ -18,7 +18,7 @@ vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignI
 let finishRun: (r: AskRunResult) => void = () => undefined;
 const adapter: AskAdapter = {
   id: "npc",
-  quote: () => ({ lines: [], total: 4, byok: false, block: null }),
+  quote: () => ({ lines: [], total: 4, block: null }),
   run: () => new Promise<AskRunResult>((r) => (finishRun = r)),
 };
 vi.mock("@/ai/ask/useAskAdapters", () => ({

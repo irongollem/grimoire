@@ -10,7 +10,7 @@ const push = vi.fn();
 vi.mock("vue-router", () => ({ useRouter: () => ({ push }), RouterLink: { template: "<a><slot /></a>" } }));
 
 const proposal: AskProposal = { proposalId: "p1", generator: "npc", concept: "a baker", inputs: {} };
-const ready: AskQuote = { lines: [{ label: "NPC", value: "a baker", credits: 4 }], total: 4, byok: false, block: null };
+const ready: AskQuote = { lines: [{ label: "NPC", value: "a baker", credits: 4 }], total: 4, block: null };
 
 function adapters(quote: AskQuote | null, screen = false): AskAdapters {
   const adapter: AskAdapter | undefined = quote ? { id: "npc", quote: () => quote, run: vi.fn() } : undefined;
@@ -75,13 +75,6 @@ describe("AskQuoteCard", () => {
     const credits = w.findAll("button").find((b) => b.text() === "Get credits");
     await credits?.trigger("click");
     expect(w.emitted("credits")).toEqual([[4]]);
-  });
-
-  // Bug caught: BYOK shown as a credit price, which the DM is not charged.
-  it("says Your own key for a campaign on its own key", () => {
-    const w = card({ ...ready, byok: true });
-    expect(w.get('[data-testid="ask-total"]').text()).toContain("Your own key");
-    expect(w.get('[data-testid="ask-confirm"]').text()).toBe("Create NPC");
   });
 
   // Bug caught: a generator with no adapter yet pretending it can run.

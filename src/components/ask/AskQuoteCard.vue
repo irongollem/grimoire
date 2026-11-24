@@ -122,15 +122,14 @@ const quote = computed(() => adapter.value?.quote(item.proposal, item.choices) ?
 
 const working = computed(() => item.state === "running");
 /** The provider, and so the price, is not known yet: the button waits and never guesses. */
-const waitingForPrice = computed(() => quote.value !== null && quote.value.total === null && !quote.value.byok);
+const waitingForPrice = computed(() => quote.value !== null && quote.value.total === null);
 const totalText = computed(() => {
   if (quote.value === null) return "";
-  if (quote.value.byok) return "Your own key";
   return quote.value.total === null ? "…" : creditsText(quote.value.total);
 });
 /** The gilt button: drawn only inside the branch where the generator is known. */
 function buttonText(known: AskGenerator): string {
-  if (quote.value === null || quote.value.byok || quote.value.total === null) return known.action;
+  if (quote.value === null || quote.value.total === null) return known.action;
   return `${known.action} · ${creditsText(quote.value.total)}`;
 }
 </script>

@@ -44,7 +44,7 @@ vi.mock("@/stores/campaign", () => ({
     get isAiEnabled() {
       return isAiEnabled.value;
     },
-    activeCampaign: { text_provider: "openai" },
+    activeCampaign: {},
   }),
 }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: ref([]) }) }));
@@ -57,7 +57,7 @@ vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf:
 const requireCredits = vi.fn(() => true);
 vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits }) }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
-  useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false) }),
+  useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base) }),
 }));
 vi.mock("@/composables/billing/useQuota", () => ({
   useQuota: () => ({ canCreate: canCreateQuest, quota: ref(null) }),

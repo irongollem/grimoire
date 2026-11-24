@@ -91,9 +91,8 @@ function pngChunk(type: string, data: number[]): number[] {
   return [...u32be(data.length), ...ascii(type), ...data, ...u32be(crc)];
 }
 
-// Return type is intentionally inferred (not annotated `Uint8Array`) —
-// same reasoning as localKeyVault.ts's `fromBase64`: a bare `Uint8Array`
-// annotation widens to `Uint8Array<ArrayBufferLike>`, which BlobPart rejects.
+// Return type is intentionally inferred (not annotated `Uint8Array`):
+// a bare `Uint8Array` annotation widens to `Uint8Array<ArrayBufferLike>`, which BlobPart rejects.
 function buildMinimalPng() {
   const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
   const ihdr = pngChunk("IHDR", [0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0]);

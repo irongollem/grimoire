@@ -30,8 +30,7 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() { return campaignState.isAiEnabled; },
     activeCampaignId: "campaign-1",
-    activeCampaign: { text_provider: "openai" },
-    decryptedOpenAiKey: null,
+    activeCampaign: {},
   }),
 }));
 vi.mock("@/composables/locations/useLocations", () => ({
@@ -54,10 +53,8 @@ vi.mock("@/composables/ai/useCampaignProviders", async () => {
   return {
     useCampaignProviders: () => ({
       textProvider: ref("openai"),
-      textIsByok: ref(false),
       textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base),
       imageProvider: ref("openai"),
-      imageIsByok: ref(false),
       imageMultiplier: ref(1), imageCredits: (base: number) => Math.ceil(base),
     }),
   };

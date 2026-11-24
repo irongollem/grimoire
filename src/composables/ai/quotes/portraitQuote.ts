@@ -12,7 +12,7 @@ export interface PortraitQuoteOptions {
 }
 
 export function usePortraitQuote(): (options: PortraitQuoteOptions) => GeneratorQuote {
-  const { artLine, quoteOf, imageIsByok } = useQuoteKit();
+  const { artLine, quoteOf } = useQuoteKit();
   return ({ replaces }) =>
-    quoteOf([artLine("Portrait", replaces ? "Replaces the current portrait" : "Painted by AI", 1)], imageIsByok.value);
+    quoteOf([artLine("Portrait", replaces ? "Replaces the current portrait" : "Painted by AI", 1)]);
 }

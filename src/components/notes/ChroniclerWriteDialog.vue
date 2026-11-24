@@ -42,7 +42,6 @@
       <div class="flex gap-2 justify-end items-center shrink-0 px-5 py-3 border-t border-border">
         <GenerationCostBadge
           :credits="textCreditCost"
-          :byok="textIsByok"
           class="mr-auto"
         />
         <AppButton variant="subtle" size="sm" label="Cancel" :disabled="isGenerating" @click="requestClose" />
@@ -230,7 +229,7 @@ const { data: notes } = useNotes();
 
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
+const { textCredits } = useCampaignProviders();
 const textCreditCost = computed(
   () => textCredits(costOf("chronicle_text")),
 );
@@ -310,7 +309,7 @@ function sameTags(a: string[], b: string[]): boolean {
 
 async function generate() {
   if (!rawText.value.trim()) return;
-  if (!requireCredits(textCreditCost.value, textIsByok.value)) return;
+  if (!requireCredits(textCreditCost.value)) return;
   error.value = "";
   try {
     const result = await generateChronicle({

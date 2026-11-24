@@ -11,7 +11,6 @@ import type { PageFurnitureItem } from "@/scriptorium/types";
 const toastError = vi.fn();
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: toastError }) }));
 vi.mock("@/ai/useImageJob", () => ({ waitForImageJob: vi.fn() }));
-vi.mock("@/ai/useChroniclerImageGeneration", () => ({ getLocalImageJob: vi.fn() }));
 
 let editor: Editor | null = null;
 afterEach(() => {

@@ -34,7 +34,7 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
     get isAiEnabled() { return campaignState.isAiEnabled; },
     activeCampaignId: "campaign-1",
-    activeCampaign: { text_provider: "openai" },
+    activeCampaign: {},
   }),
 }));
 vi.mock("@/composables/factions/useFactions", () => ({
@@ -65,9 +65,8 @@ vi.mock("@/composables/ai/useAiCredits", () => ({
 }));
 vi.mock("@/composables/ai/useCampaignProviders", () => ({
   useCampaignProviders: () => ({
-    textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false),
-    // The panel prices through the faction quote, which also reads the picture's provider (the emblem is on by default).
-    imageIsByok: ref(false), imageProvider: ref("openai"), imageCredits: (base: number) => Math.ceil(base),
+    textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), // The panel prices through the faction quote, which also reads the picture's provider (the emblem is on by default).
+    imageProvider: ref("openai"), imageCredits: (base: number) => Math.ceil(base),
   }),
 }));
 vi.mock("@/composables/billing/useQuota", () => ({

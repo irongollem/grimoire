@@ -94,8 +94,7 @@ a player who flipped to DM mode could land on the DM shell of somebody else's
 game — and, once there, the id was written to the DM slot in localStorage and
 came back on every boot. RLS held: `npcs`, `quests`, `locations`, `encounters`
 and `monsters` are owner-only or player-visibility-gated, `campaigns` itself is
-owner-only for writes, and the BYOK vault refuses a blob the caller does not own
-(`callerOwnsBlob`), so the shell came up empty rather than leaking. What it cost
+owner-only for writes, so the shell came up empty rather than leaking. What it cost
 was trust, plus a free account reading as over its campaign quota for campaigns
 it had only joined (`check_quota` counts owned rows).
 

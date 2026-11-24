@@ -5,7 +5,6 @@
     title="House Rule Generator"
     concept-placeholder="Sanity: characters who witness horrors lose Lucidity, and at low Lucidity they struggle to act. Rest and calming rituals restore it…"
     :credits="textCreditCost"
-    :byok="textIsByok"
     :is-generating="isGenerating"
     :unsaved-label="retained.unsaved.value ? 'rule' : null"
     :is-saving="retained.isSaving.value"
@@ -43,7 +42,6 @@ import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import { useHouseRuleQuote } from "@/composables/ai/quotes/houseRuleQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useRetainedGeneration } from "@/composables/ai/useRetainedGeneration";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { RULE_CATEGORIES } from "@/types/rule.types";
 
 const generatorsUi = useGeneratorUiStore();
@@ -55,7 +53,6 @@ const { isGenerating, error: genError, completedEntityId, concept: genConcept, c
 const { canSpend } = useGenerationGate();
 
 // The price comes from the quote Ask Grimoire reads too, so the page and the panel cannot disagree.
-const { textIsByok } = useCampaignProviders();
 const quote = useHouseRuleQuote();
 const textCreditCost = computed(() => quote().total);
 
@@ -74,7 +71,7 @@ async function onGenerate() {
 }
 
 async function generateAndCreate() {
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(textCreditCost.value)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

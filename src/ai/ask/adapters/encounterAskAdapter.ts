@@ -55,10 +55,10 @@ export function useEncounterAskAdapter(): AskAdapter {
     if (read.location) lines.push({ label: "In", value: read.location.name, credits: null, choice: askChoice(choices, "location_id", true) });
     lines.push(...priced.lines);
 
-    let block = blockFor({ total: priced.total, byok: priced.byok, fiveE: true });
+    let block = blockFor({ total: priced.total, fiveE: true });
     block = block ?? conceptBlock(read.concept, "encounter", { empty: "Say what this encounter is first.", limit: AI_PROMPT_LIMIT_SHORT });
     if (!block && lookupsLoading.value) block = { reason: "missing", message: "Still reading this campaign's places." };
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult> {

@@ -59,8 +59,6 @@ export function useCustomClassGeneration() {
       const raw = await generateEntityText<ClassAiResult>({
         generator: "custom_class",
         campaignId: context.campaignId,
-        world: context.world,
-        ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,
       });

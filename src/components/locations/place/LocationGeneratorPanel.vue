@@ -6,7 +6,6 @@
     title="Location Generator"
     concept-placeholder="A crumbling dwarven forge district deep beneath the mountain, long abandoned after a cave-in sealed the lower tunnels and the forgemasters never returned…"
     :credits="quote.total"
-    :byok="quote.byok"
     :is-generating="isGenerating"
     :error="genError"
     blank-to="/locations/new"
@@ -108,12 +107,12 @@ const links            = ref<GeneratorLink[]>([]);
 const generateImage    = ref(true);
 const generateMap      = ref(false);
 
-// The price Ask Grimoire quotes for the same run. A scene or map still charged while the text is free is not a BYOK
+// The price Ask Grimoire quotes for the same run. A scene or map still charged while the text is free is not a free
 // generation, and each picture is its own charge; null while any charged part has no known price yet.
 const quote = computed(() => quoteLocation({ image: generateImage.value, map: generateMap.value }));
 
 async function generateAndCreate() {
-  if (!canSpend(quote.value.total, quote.value.byok)) return;
+  if (!canSpend(quote.value.total)) return;
 
   genConcept.value = concept.value.trim();
   clearCompleted();

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const useAiCreditsSpy = vi.fn();
-const affordable = vi.fn<(credits: number, byok?: boolean) => boolean>();
+const affordable = vi.fn<(credits: number) => boolean>();
 vi.mock("@/composables/ai/useAiCredits", () => ({
   useAiCredits: () => {
     useAiCreditsSpy();
@@ -40,11 +40,6 @@ describe("useOutOfCredits", () => {
     expect(requireCredits(null)).toBe(false);
     expect(needed.value).toBeNull();
     expect(toastError).toHaveBeenCalledOnce();
-  });
-
-  it("passes BYOK through, so an own-key action is never blocked on credits", () => {
-    affordable.mockImplementation((_credits, byok) => byok === true);
-    expect(useOutOfCredits().requireCredits(12, true)).toBe(true);
   });
 
   it("shares one dialog between every caller", () => {

@@ -89,8 +89,7 @@ the `campaigns` row, which every member reads (#1228).
 to all; nothing else can enter (no secret, no force, no truth known to some). Every generator appends
 `worldBlockText`, which renders lines as "Never include, in any form" and veils as "May happen, but only off the page",
 so they bind every suggestion; pictures take `worldImageSetting` (the world, the look and the lines). Edge functions
-load it with `loadWorldBlock` (`worldBlockLoad.ts`); the browser's local-key path with `fetchWorldBlock`
-(`src/ai/worldBlock.ts`), and only when a local key will run the generation (`captureImageGenerationContext`). The
+load it with `loadWorldBlock` (`worldBlockLoad.ts`). The
 Chronicler's `{settingPrompt}` placeholder is filled with it. It also carries `## Peoples of the world` (who lives
 there, as shares, largest first, with "do not default to humans"; see "How the world works"), left out when the DM
 listed none. Both loaders read the names and shares from `campaign_peoples_named` in the same round trip as the canon rows.
@@ -148,7 +147,7 @@ words `forces`, `questions`) and `?backstory=<member>` resolve to the chapter th
   named lore, and the whole-canon read for contradictions), quotes it naming the chapter, runs it and sends the DM to the
   chapter, where `CanonReview` shows what to accept. An unknown title fails before anything is charged. No Suggest is
   offered where the server has no helper: a force's steps and a backstory's passages. The read's findings show above any
-  chapter (`CanonReview mode="read"`). There is no BYOK path (#1260).
+  chapter (`CanonReview mode="read"`).
 - **A new canon is led in** (`CanonWayIn`, `canonWayIn.ts`): until it has a pitch, three truths, a force and a secret with a
   clue, the page shows four steps in place of the chapter, each writing into its real chapter, with "Bring in a book you
   have" and "Let the Familiar walk you through it". **Skip to the chapters** is kept per campaign (`wayInDismissed`).
@@ -468,8 +467,7 @@ else" becomes "The creatures are not <listed>: something this country rarely see
 DM's concept and never over it, a creature the reader cannot read is never named, and no place or a place in no habitat
 sends nothing. **A place's own table wins (#1258 item 15):** `encounterSourceForPlace` (`habitats.ts`) is the one rule: the roll table placed on the
 place, or on the nearest place it lies inside (`tablesForPlaces`), comes first, and the habitat is the fallback only when neither has one. With a table
-the Where line says "Uses <table> here" and nothing is rolled from the habitat. The lines travel as `constraints` on `generate` (`useEncounterGeneration`): appended to the Constraints
-block on the browser (BYOK) path and sent as `constraints` in the body to `generate-encounter`.
+the Where line says "Uses <table> here" and nothing is rolled from the habitat. The lines travel as `constraints` on `generate` (`useEncounterGeneration`): sent as `constraints` in the body to `generate-encounter`.
 
 **On the place.** The DM's place page shows `PlaceHabitat.vue` beside the canon placed here: "Lies in <habitat>" (with
 ", through <place>" when the habitat is inherited), its shares line, and a link to `/canon?section=life`. Nothing renders
@@ -625,7 +623,7 @@ the field and autosaves; replacing existing text asks first, as the other canon 
 
 The pictures travel with the world block (`WorldBlock.lookReferences`), so every generator that paints from the look
 also hands them to the image model as style references: `generate-entity-image`, `generate-npc`, `generate-location`'s
-scene, `generate-trap`, `generate-chronicle-image`, and the two local-key paths. A map never gets them (top-down
+scene, `generate-trap`, and `generate-chronicle-image`. A map never gets them (top-down
 cartography), and neither do the tools that edit a given picture. `generateImage`'s `styleReferences` puts them after
 any source images and adds the one sentence that names them as style only (`_shared/styleReferences.ts`). On OpenAI
 they send the render to the edits endpoint, which cannot take `moderation: "low"`; so when the pictures were the only
@@ -696,8 +694,7 @@ found (`found_session_id`), passages told (`told_session_id`), secrets revealed 
 (`reached_session_id`) and clock moves (`canon_force_ticks.session_id`, leaving out the tick a reached step wrote, which is
 the step), and questions answered. A question stores `closed_at` and no session, so it is matched to the session played
 that calendar day. Each item links to its entry. The same list, as text (`sessionCanonText`), is read for the note's session
-by `fetchSessionCanonText` and sent with the Chronicler draft as `canon_this_session`; the client (BYOK) path appends it to
-the prompt and `generate-chronicle-text` adds it (capped at 4000 characters) after the notes in the model's input.
+by `fetchSessionCanonText` and sent with the Chronicler draft as `canon_this_session`; `generate-chronicle-text` adds it (capped at 4000 characters) after the notes in the model's input.
 
 **The almanac** (`ChronicleAlmanac`, `almanac()`): one timeline in the world's calendar of lore with a `world_year`, force
 ticks that carry a world date (`canon_force_ticks.world_year`, worded by the DM's note or by which way the clock moved) and

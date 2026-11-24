@@ -1,5 +1,4 @@
 import { generateEntityText } from "./entityTextGeneration";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import {
   createAiGenerationState,
   startAiQuotes,
@@ -30,7 +29,6 @@ export interface CustomRuleGenerationOptions {
 export type CustomRuleGenerated = CustomRuleDraft & { ai_provenance: AiProvenance | null };
 
 export function useCustomRuleGeneration() {
-  const { ruleset } = useTableRuleset();
 
   async function generate(
     userPrompt: string,
@@ -54,8 +52,6 @@ export function useCustomRuleGeneration() {
       const raw = await generateEntityText<{ ai_provenance?: AiProvenance } & Record<string, unknown>>({
         generator: "custom_rule",
         campaignId: context.campaignId,
-        world: context.world,
-        ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,
       });

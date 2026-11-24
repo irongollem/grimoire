@@ -12,13 +12,13 @@ export interface NpcQuoteOptions {
 }
 
 export function useNpcQuote(): (options: NpcQuoteOptions) => GeneratorQuote {
-  const { textLine, artLine, quoteOf, textIsByok, imageIsByok } = useQuoteKit();
+  const { textLine, artLine, quoteOf } = useQuoteKit();
   return ({ portrait, alterEgo }) => {
     const lines = [textLine("NPC text", "Written by AI", "npc_text")];
     if (portrait) {
       const count = alterEgo ? 2 : 1;
       lines.push(artLine("Portrait", count === 2 ? "Painted by AI, with the alter ego" : "Painted by AI", count));
     }
-    return quoteOf(lines, textIsByok.value && (!portrait || imageIsByok.value));
+    return quoteOf(lines);
   };
 }

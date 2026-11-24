@@ -1,14 +1,6 @@
 import { supabase } from "@/lib/supabase";
-import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { buildCampaignContext, wrapUserInput } from "./utils";
-import { requireWorld, type WorldBlock } from "./worldBlock";
-import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { getTextProvider } from "./providers";
-import { logUsage } from "@/composables/ai/useAiCredits";
-import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
-import type { RulesetKey } from "@/types/ruleset.types";
-import { SPELL_CONDITION_EFFECT_PROMPT } from "@/lib/spells/spellConditionPrompt";
+import type { AiProvenance } from "@/ai/provenance";
 
 /**
  * The generators served by the `generate-entity-text` edge function. Each is
@@ -27,28 +19,20 @@ export type EntityTextGenerator =
 export interface EntityTextRequest {
   generator: EntityTextGenerator;
   campaignId: string;
-  /** The campaign's world block, read before the call (#1226). */
-  world: WorldBlock | null;
-  ruleset: RulesetKey;
   prompt: string;
   /** The panel's structured fields, one line each ("Level: 3"). */
   constraints: string[];
 }
 
 /**
- * Run an entity generator's text call — through the server by default, or
- * straight to the provider with the browser-vault key in local mode — and
- * return the model's JSON with its provenance attached. The two paths build
- * the same prompt; the caller's post-processing is shared by both.
+ * Run an entity generator's text call through the `generate-entity-text` edge
+ * function (paid in credits) and return the model's JSON with the provenance
+ * the server attached.
  */
 export async function generateEntityText<T extends { ai_provenance?: AiProvenance }>(
   request: EntityTextRequest,
 ): Promise<T> {
-  if (!(await textRunsOnLocalKey())) return invokeServer<T>(request);
-  const { content, provenance } = await completeLocally(request);
-  const result = JSON.parse(content) as T;
-  result.ai_provenance = provenance;
-  return result;
+  return invokeServer<T>(request);
 }
 
 export type ProseTextGenerator = "text_enhancement";
@@ -59,11 +43,9 @@ export interface ProseTextRequest extends Omit<EntityTextRequest, "generator"> {
 
 /**
  * The same call for a generator that answers in Markdown rather than JSON:
- * Enhance (#992), which rewrites a selection in place. Credits through the
- * server by default, the browser-vault key in local mode, like the rest.
+ * Enhance (#992), which rewrites a selection in place. Paid in credits.
  */
 export async function generateProseText(request: ProseTextRequest): Promise<string> {
-  if (await textRunsOnLocalKey()) return (await completeLocally(request)).content.trim();
   const { content } = await invokeServer<{ content: string }>(request);
   return content;
 }
@@ -80,34 +62,4 @@ async function invokeServer<T>(request: EntityTextRequest | ProseTextRequest): P
   if (error) throw new Error(await edgeErrorMessage(error));
   if (data?.error) throw new Error(data.error);
   return data as T;
-}
-
-/** Mirrors GENERATORS in generate-entity-text: Enhance kept its historical reason. */
-function ledgerReason(generator: EntityTextGenerator | ProseTextGenerator): string {
-  return generator === "text_enhancement" ? generator : `${generator}_generation`;
-}
-
-async function completeLocally(
-  request: EntityTextRequest | ProseTextRequest,
-): Promise<{ content: string; provenance: AiProvenance }> {
-  const textProvider = getTextProvider();
-  const [basePrompt, rulesetContext] = await Promise.all([
-    fetchSystemPrompt(request.generator),
-    fetchRulesetContext(request.ruleset),
-  ]);
-  if (!basePrompt) throw new Error(`The ${request.generator} prompt is not configured.`);
-
-  // Mirrors `extraInstructions` in generate-entity-text: the stored spell prompt predates `condition_effect` (#1021).
-  const extra = request.generator === "spell" ? SPELL_CONDITION_EFFECT_PROMPT : "";
-  const systemContent = `${basePrompt}${extra}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext(requireWorld(request.world))}`;
-  const wrappedPrompt = wrapUserInput(request.prompt);
-  const userContent = request.constraints.length
-    ? `${wrappedPrompt}\n\nConstraints:\n${request.constraints.join("\n")}`
-    : wrappedPrompt;
-
-  const reason = ledgerReason(request.generator);
-  const format = request.generator === "text_enhancement" ? "text" : "json";
-  const { content, usage } = await textProvider.complete(systemContent, userContent, format);
-  logUsage({ reason, textUsage: usage });
-  return { content, provenance: buildAiProvenance(reason, usage.provider, usage.model) };
 }

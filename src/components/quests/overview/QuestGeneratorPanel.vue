@@ -199,7 +199,6 @@
       <GenerationCostBadge
         v-if="isAiEnabled && !hooks.length"
         :credits="textCreditCost"
-        :byok="textIsByok"
         class="self-center"
       />
       <AppButton
@@ -251,7 +250,6 @@ import AiOffNotice from "@/components/common/feedback/AiOffNotice.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useQuestHooksQuote } from "@/composables/ai/quotes/questHooksQuote";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { resolveGeneratedEntities, type ResolvedEntity, ENTITY_KIND_ROUTE } from "@/ai/resolveGeneratedEntities";
 import { describeSpineRoutes, planSpineBeats } from "@/lib/quests/spine";
 import { buildQuestHooksPrompt } from "@/lib/quests/hooksPrompt";
@@ -318,7 +316,6 @@ function goToEntity(entity: ResolvedEntity) {
 }
 
 const quoteHooks = useQuestHooksQuote();
-const { textIsByok } = useCampaignProviders();
 const textCreditCost = computed(() => quoteHooks().total);
 
 const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("quests");
@@ -351,7 +348,7 @@ function handleClose() {
 }
 
 async function runGenerate() {
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(textCreditCost.value)) return;
 
   const npc = giverNpcId.value ? (npcs.value ?? []).find((n) => n.id === giverNpcId.value) : null;
   const loc = locationId.value ? (locations.value ?? []).find((l) => l.id === locationId.value) : null;

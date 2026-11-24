@@ -58,7 +58,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
   const deps: PrepDeps = {
     // The DM only, and anyone else is told the campaign does not exist: a 403 would say it does.
     loadCampaign: (campaignId, userId) =>
-      loadAiCampaign<PrepCampaign>(admin, campaignId, userId, { columns: ["name", "text_provider"], aiSwitch: "table", hideFromOutsiders: true }),
+      loadAiCampaign<PrepCampaign>(admin, campaignId, userId, { columns: ["name"], aiSwitch: "table", hideFromOutsiders: true }),
 
     async loadDigest(campaign): Promise<PrepDigest> {
       const [quests, beats, places, hazards, items, tables, features, levelling] = await Promise.all([
@@ -117,8 +117,8 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
       };
     },
 
-    async resolveProvider(campaign) {
-      const resolved = await resolveAgentProvider(admin, { id: campaign.id, ownerId: campaign.user_id, textProvider: campaign.text_provider });
+    async resolveProvider() {
+      const resolved = await resolveAgentProvider(admin);
       return resolved === null ? null : resolved.provider;
     },
 
@@ -131,7 +131,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     // (their policies, and a plan's limits): a record the DM could not have made by hand is not made here either.
     async make({ campaign, userId }, proposal) {
       // The mark names the model that proposes for this campaign: the same lookup the proposing step made.
-      const resolved = await resolveAgentProvider(admin, { id: campaign.id, ownerId: campaign.user_id, textProvider: campaign.text_provider });
+      const resolved = await resolveAgentProvider(admin);
       const mark = {
         generatorType: "campaign_prep",
         provider: resolved === null ? "unknown" : resolved.provider.provider,

@@ -1,10 +1,3 @@
-import { worldBlockText, type WorldBlock } from "@edge-shared/worldBlock.ts";
-
-/** The campaign's world block as a system-prompt suffix; "" when the campaign has no canon (#1226). */
-export function buildCampaignContext(world: WorldBlock | null | undefined): string {
-  return world ? worldBlockText(world) : "";
-}
-
 export function b64ToBlob(b64: string, mimeType = "image/webp"): Blob {
   const chars = atob(b64);
   const bytes = new Uint8Array(chars.length);

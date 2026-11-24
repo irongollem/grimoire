@@ -37,9 +37,9 @@ export function useRollTableAskAdapter(): AskAdapter {
 
     const lines: AskQuoteLine[] = [{ label: "Die", value: read.die, credits: null }, ...priced.lines];
 
-    let block = blockFor({ total: priced.total, byok: priced.byok });
+    let block = blockFor({ total: priced.total });
     block = block ?? conceptBlock(read.concept, "table", { empty: "Say what this table is for first.", limit: AI_PROMPT_LIMIT_SHORT });
-    return { lines, total: priced.total, byok: priced.byok, block };
+    return { lines, total: priced.total, block };
   }
 
   async function run(proposal: AskProposal): Promise<AskRunResult> {

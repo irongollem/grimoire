@@ -178,7 +178,6 @@
           <GenerationCostBadge
             v-if="isAiEnabled"
             :credits="textCreditCost"
-            :byok="textIsByok"
             class="self-center"
           />
           <AppButton
@@ -289,7 +288,7 @@ const resolved = computed(() =>
 
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
+const { textCredits } = useCampaignProviders();
 const textCreditCost = computed(
   () => textCredits(costOf("complication_generation")),
 );
@@ -303,7 +302,7 @@ function dismissToBackground() {
 }
 
 async function runGenerate() {
-  if (!requireCredits(textCreditCost.value, textIsByok.value)) return;
+  if (!requireCredits(textCreditCost.value)) return;
   await generate(mode, steer.value.trim());
 }
 

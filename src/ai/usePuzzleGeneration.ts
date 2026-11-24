@@ -1,5 +1,4 @@
 import { generateEntityText } from "./entityTextGeneration";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { PuzzleAiResult, PuzzleAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -31,7 +30,6 @@ export interface PuzzleGenerationOptions {
 }
 
 export function usePuzzleGeneration() {
-  const { ruleset } = useTableRuleset();
 
   async function generate(
     userPrompt: string,
@@ -63,8 +61,6 @@ export function usePuzzleGeneration() {
       const puzzleData = await generateEntityText<PuzzleAiResult>({
         generator: "puzzle",
         campaignId: imageContext.campaignId,
-        world: imageContext.world,
-        ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,
       });

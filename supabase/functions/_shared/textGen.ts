@@ -150,10 +150,9 @@ export interface TextProviderConfig {
 export interface ResolvedTextProvider {
   provider: TextProviderKey;
   apiKey: string;
-  isByok: boolean;
   /** That provider's provider_config row; the caller picks text_model, fast_text_model or document_model from it. */
   config: TextProviderConfig | undefined;
-  /** Credit multiplier from provider_config (1.0 if unset). Irrelevant when `isByok`. */
+  /** Credit multiplier from provider_config (1.0 if unset). */
   textMultiplier: number;
 }
 
@@ -166,24 +165,19 @@ export interface ResolvedTextProvider {
  * reserving any credits.
  */
 export function resolveTextProvider(args: {
-  chosen: string | null | undefined;
-  campaignKeys: Partial<Record<TextProviderKey, string | null>>;
   platformKeys: Partial<Record<TextProviderKey, string | null>>;
   providerConfigs: Partial<Record<string, TextProviderConfig | undefined>>;
 }): ResolvedTextProvider | null {
   const choice = chooseTextProvider({
-    chosen: args.chosen,
-    ownKeys: keysPresent(args.campaignKeys),
     platformKeys: keysPresent(args.platformKeys),
     configs: args.providerConfigs,
   });
   if (!choice) return null;
-  const apiKey = (choice.isByok ? args.campaignKeys : args.platformKeys)[choice.provider];
+  const apiKey = args.platformKeys[choice.provider];
   if (!apiKey) return null;
   return {
     provider: choice.provider,
     apiKey,
-    isByok: choice.isByok,
     config: args.providerConfigs[choice.provider],
     textMultiplier: args.providerConfigs[choice.provider]?.text_multiplier ?? 1.0,
   };

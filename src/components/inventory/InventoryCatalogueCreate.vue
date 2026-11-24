@@ -99,7 +99,7 @@ const { mutateAsync: createItem } = useCreateItem();
 const { generate, error: generatorError } = useItemGeneration();
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
+const { textCredits } = useCampaignProviders();
 const textCost = computed(() => textCredits(costOf("item_generation")));
 
 const itemName = ref(props.name);
@@ -117,12 +117,12 @@ const pending = shallowRef<ItemInsert | null>(null);
 const error = ref<string | null>(null);
 const ready = computed(() => pending.value !== null || (props.mode === "manual"
   ? itemName.value.trim().length > 0
-  : concept.value.trim().length > 0 && campaign.isAiEnabled && (textIsByok.value || textCost.value !== null)));
+  : concept.value.trim().length > 0 && campaign.isAiEnabled && textCost.value !== null));
 const buttonLabel = computed(() => {
   if (busy.value) return "Working…";
   if (pending.value) return "Retry save";
   if (props.mode === "manual") return "Create item";
-  if (textIsByok.value || textCost.value === null) return "Generate item";
+  if (textCost.value === null) return "Generate item";
   return `Generate item · ${textCost.value} ${textCost.value === 1 ? "credit" : "credits"}`;
 });
 
@@ -157,7 +157,7 @@ async function submit() {
       throw new Error("Enter valid damage dice, such as 1d8.");
     }
     if (props.mode === "ai" && !pending.value) {
-      if (!requireCredits(textCost.value, textIsByok.value)) return;
+      if (!requireCredits(textCost.value)) return;
       const result = await generate(concept.value.trim(), { generateImage: generateImage.value });
       if (!result) throw new Error(generatorError.value ?? "Item generation could not start. Try again.");
       pending.value = generatedItemPayload(result, campaignId);

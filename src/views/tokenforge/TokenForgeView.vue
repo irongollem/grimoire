@@ -39,7 +39,6 @@
           :loading="activePainter.isPainting(paintTarget.id)"
           :disabled="activePainter.isPaintingAny.value"
           :cost="activePainter.cost.value"
-          :byok="activePainter.byok.value"
           :error="activePainter.error.value"
           @paint="paintSelected"
         />

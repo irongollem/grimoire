@@ -42,9 +42,8 @@
 // *model* (only `gpt-image-2.5-*` and `gpt-image-2.6-*` accept a flexible size), so a campaign an
 // admin pointed at an older OpenAI model gets a clear 400 before any charge,
 // rather than a mismatched request reaching the provider. The same resolved
-// provider also prices `styleCost` and picks which decrypted key counts as
-// BYOK — both used to hardcode OpenAI's multiplier/key regardless of what
-// the campaign was actually configured for.
+// provider also prices `styleCost`, which used to hardcode OpenAI's
+// multiplier regardless of what the campaign was actually configured for.
 //
 // ── grid_calibration: derived, not skipped, and why that's still safe ──────
 //
@@ -164,13 +163,12 @@ export function useMapExport(opts: {
    * `resolvedImageProvider` is the provider style-map will actually run on (the
    * campaign's pick resolved against its own keys and the admin's switches),
    * used for the AI input's sizing (`bake.ts`'s `StyleImageProvider`) and for
-   * pricing/BYOK below. It is null until provider_config loads, and the input
+   * pricing below. It is null until provider_config loads, and the input
    * is never baked for a guessed shape: a Gemini render sent an OpenAI-sized
    * input is refused by style-map with a 400.
    */
   const {
     imageProvider: resolvedImageProvider,
-    imageIsByok: styleByok,
     imageCredits,
   } = useCampaignProviders();
   const { logImageGeneration } = useImageGenerationLog();
@@ -366,7 +364,6 @@ export function useMapExport(opts: {
     styleAtlasSaving,
     styleAtlasTargetHasMap,
     styleFixedTargetLabel,
-    styleByok,
     styleCost,
     // Actions
     onGenerateStyle,

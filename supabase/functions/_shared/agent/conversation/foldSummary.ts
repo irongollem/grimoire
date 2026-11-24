@@ -23,16 +23,15 @@ export async function foldIntoSummary(input: {
   session: { id: string; summary: string | null; summary_through_seq: number };
   storedNow: StoredTurn[];
   callModel: CallModel;
-  isByok: boolean;
-  price: ModelPrice | null;
-  calibration: CreditCalibration | null;
+  price: ModelPrice;
+  calibration: CreditCalibration;
   /** The ledger reason of the summary call's line. */
   reason: string;
   /** False when the function bills somewhere else (Ask): the summary is accrued on the session and logged, never charged. */
   billed: boolean;
   logName: string;
 }): Promise<void> {
-  const { session, isByok, logName } = input;
+  const { session, logName } = input;
   const lineCost = (due: number) => (input.billed ? due : 0);
   try {
     const plan = planSummary(input.storedNow, session.summary_through_seq);
@@ -49,7 +48,7 @@ export async function foldIntoSummary(input: {
       input_tokens: usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens,
       output_tokens: usage.outputTokens,
     };
-    const logWithoutCharge = async () => input.ledger.charge(input.reason, { cost: 0, isByok, log: logFields });
+    const logWithoutCharge = async () => input.ledger.charge(input.reason, { cost: 0, log: logFields });
 
     // Nothing to store and nothing to bill, but the provider was paid for the call, so the tokens are logged.
     if (summary === null) {
@@ -57,10 +56,7 @@ export async function foldIntoSummary(input: {
       return;
     }
 
-    let credits = 0;
-    if (!isByok && input.price && input.calibration) {
-      credits = round6(creditsForUsd(usdForSteps([usage], input.price), input.calibration));
-    }
+    const credits = round6(creditsForUsd(usdForSteps([usage], input.price), input.calibration));
     // Like a turn: a summary that was not kept is not billed, but its tokens were spent and are logged.
     let saved: { due: number } | "stale" | "failed";
     try {
@@ -81,7 +77,7 @@ export async function foldIntoSummary(input: {
       return;
     }
     const due = lineCost(saved.due);
-    await safelyLog(logName, async () => input.ledger.charge(input.reason, { cost: due, isByok, log: logFields }));
+    await safelyLog(logName, async () => input.ledger.charge(input.reason, { cost: due, log: logFields }));
   } catch (error) {
     console.error(`${logName}: the summary failed:`, error);
   }

@@ -5,7 +5,7 @@
     <p class="text-caption font-semibold text-ink-caution">Asked for a paper doll</p>
     <p v-if="error" class="text-caption text-destructive">{{ error }}</p>
     <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-      <GenerationCostBadge v-if="!isGenerating" :credits="dollCost" :byok="false" :show-balance="false" />
+      <GenerationCostBadge v-if="!isGenerating" :credits="dollCost" :show-balance="false" />
       <AppButton
         variant="tinted"
         tone="caution"

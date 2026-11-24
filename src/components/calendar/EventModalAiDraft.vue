@@ -15,7 +15,7 @@
     <p v-if="isGenerating" class="text-caption text-muted-foreground italic">{{ currentLoadingQuote }}</p>
     <p v-else-if="genError" class="text-caption text-destructive">{{ genError }}</p>
     <div class="flex items-center justify-between gap-2">
-      <GenerationCostBadge :credits="textCreditCost" :byok="textIsByok" />
+      <GenerationCostBadge :credits="textCreditCost" />
       <div class="flex items-center gap-2">
         <AppButton type="button" variant="subtle" size="sm" label="Close" @click="emit('close')" />
         <AppButton
@@ -70,7 +70,7 @@ const { data: factions } = useAllFactions();
 const { isGenerating, error: genError, generate } = useCalendarEventGeneration();
 const { canSpend } = useGenerationGate();
 const { costOf } = useAiCredits();
-const { textCredits, textIsByok } = useCampaignProviders();
+const { textCredits } = useCampaignProviders();
 const textCreditCost = computed(
   () => textCredits(costOf("calendar_event_generation")),
 );
@@ -85,7 +85,7 @@ const grounding = computed(() =>
 
 async function draft() {
   if (!grounding.value) return;
-  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+  if (!canSpend(textCreditCost.value)) return;
   const constraints = buildCalendarEventConstraints({ dateLabel, eventType, ...grounding.value });
   const result = await generate(steer.value, constraints, eventType);
   if (result) emit("draft", result);

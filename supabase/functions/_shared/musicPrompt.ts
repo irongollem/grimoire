@@ -3,18 +3,17 @@
  * expands a DM's soundboard request into a complete Lyria 3.5 prompt.
  *
  * Moved here from the browser (src/lib/audio/aiMusic.ts) on 25 Sep 2026.
- * `structureMusicPrompt` used to run client-side through the BYOK-only text
- * provider (`getTextProvider()`), which throws when a campaign has no local
- * key — true for every DM on platform credits, so structuring silently fell
- * back to `composeFallbackPrompt` for all of them since the feature shipped
- * (ada26322, 1 Jun 2026). Structuring now runs here, inside generate-music's
+ * `structureMusicPrompt` used to run client-side through a text
+ * provider that threw when a campaign had no local key, so structuring
+ * silently fell back to `composeFallbackPrompt` for every DM on platform
+ * credits since the feature shipped (ada26322, 1 Jun 2026). Structuring now runs here, inside generate-music's
  * worker, using the same shared `_shared/textGen.ts` dispatcher every other
  * text generator uses.
  *
  * Pure: no Deno/network/DB imports, so this is unit-tested exactly like
  * lyria.ts (see musicPrompt.test.ts), and the browser imports it directly —
  * src/lib/audio/aiMusic.ts re-exports `composeFallbackPrompt` and
- * `MUSIC_PROMPT_MAX_CHARS` from here for the local-BYOK path, so there is one
+ * `MUSIC_PROMPT_MAX_CHARS` from here, so there is one
  * copy of each.
  */
 
@@ -55,7 +54,7 @@ export interface MusicRequest {
    * model to read for context — never copied verbatim into the prompt. */
   mentions?: MusicMention[];
   /** How many images will reach Lyria. The bytes travel separately (fetched
-   * by generate-music, or by generateMusicLocally for the BYOK path) — this
+   * by generate-music) — this
    * is only what the structuring model needs to know to write around them. */
   imageCount?: number;
 }
@@ -167,7 +166,7 @@ export function buildStructureMessage(req: MusicRequest): string {
  * downgrade to a hand-composed prompt is exactly what hid the structuring
  * bug for four months (see this file's top comment), so a failed structuring
  * step fails the job instead. This stays exported only for the client-side
- * local-BYOK path (src/lib/audio/aiMusic.ts), which keeps its own copy —
+ path (src/lib/audio/aiMusic.ts), which keeps its own copy —
  * Deno can't import that browser module — kept identical by the cross-copy
  * test in aiMusic.test.ts.
  */

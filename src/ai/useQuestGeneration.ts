@@ -1,11 +1,6 @@
 import { ref } from "vue";
-import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { wrapUserInput, buildCampaignContext } from "./utils";
-import { fetchWorldBlock } from "./worldBlock";
-import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { QuestHookResult, QuestHooksAiResult } from "./types";
 import {
   createAiGenerationState,
@@ -14,10 +9,8 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useQuestsUiStore } from "@/stores/ui/quests";
-import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
-import { logUsage } from "@/composables/ai/useAiCredits";
-import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
+import type { AiProvenance } from "@/ai/provenance";
 
 
 // ── Module-level singleton state ────────────────────────────────────────────
@@ -38,7 +31,6 @@ registerAiGenerator({
 
 export function useQuestGeneration() {
   const campaign = useCampaignStore();
-  const { ruleset } = useTableRuleset();
 
   async function generate(userPrompt: string): Promise<QuestHookResult[] | null> {
     if (isAnyAiGenerating.value) return null;
@@ -49,11 +41,7 @@ export function useQuestGeneration() {
     startAiQuotes();
 
     try {
-      const isLocalMode = await textRunsOnLocalKey();
-
-      const draft = isLocalMode
-        ? await generateClientSide(userPrompt)
-        : await generateServerSide(userPrompt);
+      const draft = await generateServerSide(userPrompt);
 
       _hooks.value = draft.hooks;
       _provenance.value = draft.ai_provenance ?? null;
@@ -86,42 +74,8 @@ export function useQuestGeneration() {
     }
 
     // The server bills credits itself as part of the retrieval+generation call,
-    // so — unlike generateClientSide below — there is no client-side logUsage here.
+    // so there is no client-side usage log.
     return data as QuestHooksAiResult;
-  }
-
-  async function generateClientSide(userPrompt: string): Promise<QuestHooksAiResult> {
-    const textProvider = getTextProvider();
-    const [basePrompt, rulesetContext] = await Promise.all([
-      fetchSystemPrompt("quest"),
-      fetchRulesetContext(ruleset.value),
-    ]);
-    if (!basePrompt) throw new Error("Quest system prompt not configured.");
-    const worldCampaignId = campaign.activeCampaign?.id;
-    if (!worldCampaignId) throw new Error("No active campaign selected.");
-    const world = await fetchWorldBlock(worldCampaignId);
-    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext(world)}`;
-
-    // The local (BYOK) path can't retrieve the DM's NPCs/locations/factions —
-    // that's a DB read the edge function does with service-role access the
-    // browser doesn't have. Hooks generated here simply come back without
-    // npcs/locations/factions arrays. This parity gap is policy, not debt:
-    // local-key mode exists for early adopters who didn't want to hand over an
-    // API key, and it is not a target for new AI capabilities — the server
-    // path is the product. Do not invest in closing this gap.
-    const { content, usage: textUsage } = await textProvider.complete(
-      systemContent,
-      wrapUserInput(userPrompt),
-    );
-    const result = JSON.parse(content) as QuestHooksAiResult;
-
-    if (!Array.isArray(result.hooks) || result.hooks.length === 0) {
-      throw new Error("AI returned no quest hooks. Please try again.");
-    }
-
-    logUsage({ reason: "quest_generation", textUsage });
-    result.ai_provenance = buildAiProvenance("quest_generation", textUsage.provider, textUsage.model);
-    return result;
   }
 
   function clearHooks() {

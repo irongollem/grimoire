@@ -7,7 +7,7 @@
 //            marked as made by AI. No model is called, so it costs nothing.
 
 import type { AgentProvider } from "../_shared/agent/providerIo.ts";
-import { creditsForUsd, usableCalibration, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
+import { creditsForUsd, usableCalibration, usdForSteps, type ModelPrice } from "../_shared/agent/metering.ts";
 import { keptProposals, prepPrompt, PREP_SYSTEM, proposalInput, proposalsFromReply, type PrepDigest, type PrepExisting, type Proposal } from "../_shared/campaignPrep.ts";
 import { UUID_RE } from "../_shared/agent/parse.ts";
 import type { BaseCampaign, CampaignLoad } from "../_shared/pipeline/aiCampaign.ts";
@@ -16,7 +16,6 @@ import { json, jsonError } from "../_shared/pipeline/respond.ts";
 
 export interface PrepCampaign extends BaseCampaign {
   name: string;
-  text_provider: string | null;
 }
 
 /** The ledger lines a proposing may queue; the hold itself (reserve, release, write) is `withCreditHold`'s. */
@@ -32,7 +31,7 @@ export interface PrepDeps {
   resolveProvider(campaign: PrepCampaign): Promise<AgentProvider | null>;
   loadPrice(model: string): Promise<ModelPrice | null>;
   loadCalibration(): Promise<{ usdPerCredit: number | null; margin: number } | null>;
-  /** Holds `credits` (0 holds nothing: own-key play), runs the proposing and releases the hold whatever happens. */
+  /** Holds `credits` (0 holds nothing), runs the proposing and releases the hold whatever happens. */
   withHold(credits: number, work: (hold: PrepHold) => Promise<Response>): Promise<Response>;
   /** Makes one proposal a record of the campaign. Throws when it cannot be made (a plan's limit, a name taken meanwhile). */
   make(ctx: { campaign: PrepCampaign; userId: string }, proposal: Proposal): Promise<void>;
@@ -81,18 +80,13 @@ export async function prepCampaign(input: { userId: string; body: unknown; deps:
 
   const provider = await deps.resolveProvider(campaign);
   if (!provider || !provider.callModel) return jsonError(503, "no_provider", PREP_MESSAGES.noProvider);
-  let price: ModelPrice | null = null;
-  let calibration: CreditCalibration | null = null;
-  if (!provider.isByok) {
-    price = await deps.loadPrice(provider.model);
-    const found = await deps.loadCalibration();
-    calibration = usableCalibration(found);
-    if (!price || !calibration) return jsonError(503, "metering_unavailable", PREP_MESSAGES.noMetering);
-  }
+  const price = await deps.loadPrice(provider.model);
+  const calibration = usableCalibration(await deps.loadCalibration());
+  if (!price || !calibration) return jsonError(503, "metering_unavailable", PREP_MESSAGES.noMetering);
 
   const callModel = provider.callModel;
   const [digest, existing] = await Promise.all([deps.loadDigest(campaign), deps.loadExisting(campaign.id)]);
-  return deps.withHold(provider.isByok ? 0 : PREP_RESERVE_CREDITS, async (hold) => {
+  return deps.withHold(PREP_RESERVE_CREDITS, async (hold) => {
     const step = await callModel({
       system: PREP_SYSTEM,
       messages: [{ role: "user", blocks: [{ type: "text", text: prepPrompt(digest) }] }],
@@ -107,13 +101,13 @@ export async function prepCampaign(input: { userId: string; body: unknown; deps:
     // A reply with no list (a refusal, plain talk) is no answer: nothing came of it, nothing is charged. The call
     // was still paid for by us, so it is logged.
     if (listed === null) {
-      hold.charge("campaign_prep", { cost: 0, isByok: provider.isByok, log });
+      hold.charge("campaign_prep", { cost: 0, log });
       return jsonError(502, "generation_failed", PREP_MESSAGES.noAnswer);
     }
     const proposals = keptProposals(listed, existing);
-    // Whole credits, at least one: the list was written, whatever of it the DM keeps. Own-key play is logged, not charged.
-    const credits = provider.isByok || !price || !calibration ? 0 : Math.max(1, Math.ceil(creditsForUsd(usdForSteps([usage], price), calibration)));
-    hold.charge("campaign_prep", { cost: credits, isByok: provider.isByok, log });
+    // Whole credits, at least one: the list was written, whatever of it the DM keeps.
+    const credits = Math.max(1, Math.ceil(creditsForUsd(usdForSteps([usage], price), calibration)));
+    hold.charge("campaign_prep", { cost: credits, log });
     return json({ proposals: proposals.map(proposalInput), credits });
   });
 }
