@@ -633,8 +633,9 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     return { content: takenBackText(parsed.days), isError: false };
   };
 
-  // Once a reply, and only for the place the reply began in: a plan drawn for a room the party then leaves would be
-  // written to the wrong place. A plan that does not parse goes back as an error, so the narrator may fix it.
+  // Once a reply, and only for the place the reply began in: the plan is keyed to that place, so one drawn after the
+  // party moved would describe where they are and be written to where they were. A move after the plan leaves it on
+  // the place it was drawn for. A plan that does not parse goes back as an error, so the narrator may fix it.
   let mapDrawn = false;
   const makeMap = (toolInput: Record<string, unknown>) => {
     if (!input.makeMap) return { content: "No map is drawn now.", isError: true };
