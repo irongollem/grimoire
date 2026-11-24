@@ -224,6 +224,17 @@ describe("design", () => {
     expect(body.message).not.toMatch(/Try again/);
   });
 
+  // Bug caught (seen live): an Inworld refusal sending the admin to ElevenLabs' permission names.
+  it("names Inworld's own permission when Inworld refuses the key", async () => {
+    const { h, run } = harness();
+    h.serviceDown = true;
+    h.serviceStatus = 401;
+    const body = await read(await run({ action: "design", service: "inworld", prompt: "p", previewText: "hi" }));
+    expect(body.message).toMatch(/Inworld/);
+    expect(body.message).toMatch(/Voices: Write/);
+    expect(body.message).not.toMatch(/ElevenLabs/);
+  });
+
   it("without the service's key says so instead of calling it", async () => {
     const { h, run } = harness();
     h.keys.inworld = false;

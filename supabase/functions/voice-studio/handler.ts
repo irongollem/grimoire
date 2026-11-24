@@ -155,8 +155,11 @@ export const STUDIO_MESSAGES = {
   serviceFailed: (service: SpeechService) => `${service === "inworld" ? "Inworld" : "ElevenLabs"} could not do that just now. Try again in a moment.`,
   // A refused key is not a hiccup: trying again cannot help. ElevenLabs keys are limited per feature, and a key made
   // for speech alone refuses the studio's calls (seen live, 24 Nov 2026).
+  // Each service names its own permissions: an Inworld refusal sent the admin to ElevenLabs' settings.
   keyRefused: (service: SpeechService) =>
-    `${service === "inworld" ? "Inworld" : "ElevenLabs"} refused this with the key on file: the key is not allowed to do it. Give the key the voice permissions (on ElevenLabs: Voices read and write, Voice Generation, User read) in Admin > Providers.`,
+    service === "inworld"
+      ? "Inworld refused the key on file. In Inworld's portal, give the key Voices: Write and press Save; if it already has that, create a new key with it and paste it into Admin > Providers."
+      : "ElevenLabs refused the key on file: it is not allowed to do this. In ElevenLabs, give the key Voices (read and write), Voice Generation and User (read), or paste a key that has them into Admin > Providers.",
   notFound: "That voice is not there.",
   empty: "That voice has not been made yet, so there is nothing to hear.",
   inRegistry: "That voice already fills a slot.",
