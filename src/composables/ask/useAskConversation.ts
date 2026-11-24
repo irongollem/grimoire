@@ -6,7 +6,7 @@
  * cannot make a second record). Lives in the panel's scope, which stays mounted while the panel is merely hidden,
  * so a running turn or generation carries on.
  */
-import { computed, ref, watch } from "vue";
+import { ref, watch } from "vue";
 import { creditsText } from "@/lib/ask/askCredits";
 import {
   ASK_OFF_TOPIC_MESSAGE,
@@ -14,92 +14,19 @@ import {
   askGenerator,
   type AskChoice,
   type AskContext,
-  type AskReportDraft,
-  type AskIdea,
-  type AskProposal,
   type AskRecordRef,
   type AskTurnBody,
 } from "@edge-shared/agent/askContract";
 import { readEventStream } from "@/lib/agentStream/readEventStream";
 import { parseAskEvent } from "@/lib/agentStream/parseAskEvent";
-import { isPreviewAdapter, type AskPreview, type AskPreviewShown, type AskResultLink, type AskRunPart, type AskRunResult } from "@/lib/ask/askAdapter";
+import { isPreviewAdapter, type AskRunResult } from "@/lib/ask/askAdapter";
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
 import type { PendingGenerator } from "@/stores/ui/ask";
 import { sendToAskTurn, type AskTransport } from "./askTransport";
+import { partsCredits, type AskItem, type NewItem, type ReplyItem } from "./askItems";
+import { useAskPreviews } from "./useAskPreviews";
 
-export type ResultPart = AskRunPart & { left?: boolean; retrying?: boolean };
-
-/** Where one row's own press stands: under way, done (with the links it left), or failed (the row may be pressed again). */
-export interface PreviewRowState {
-  phase: "running" | "done" | "failed";
-  doneLabel?: string;
-  links?: AskResultLink[];
-  /** On a failed row, why; on a done row, a quiet note the press came back with. */
-  error?: string;
-}
-
-/** A row of a preview is named by its place: the section and the row in it. */
-export const previewRowKey = (section: number, row: number) => `${section}:${row}`;
-
-export type AskItem =
-  | { kind: "user"; id: number; text: string }
-  | { kind: "reply"; id: number; text: string; who: string | null }
-  | { kind: "ask"; id: number; question: string; choices: AskChoice[]; answered: boolean }
-  | { kind: "read"; id: number; records: AskRecordRef[] }
-  | { kind: "ideas"; id: number; ideas: AskIdea[]; handedOff: number[] }
-  | {
-      kind: "proposal";
-      id: number;
-      proposal: AskProposal;
-      state: "quote" | "cancelled" | "running" | "previewing" | "discarded" | "done" | "failed";
-      /** What the generation cost so far, the folded line's price: each "Again" adds its own. Set once it has run. */
-      credits?: number;
-      /** The DM's yes or no to each line that would change an existing record; read by the quote and the run. */
-      choices: Record<string, boolean>;
-      /** Set when a page's button opened the card, so the DM fills it in; a card the model proposed has no such mark. */
-      origin?: "button";
-      /**
-       * Where the finished run landed: a run never holds up the conversation, so its result (or its failure) is added
-       * at the bottom when it ends, and the proposal's own place links to it.
-       */
-      landedAt?: number;
-    }
-  /**
-   * A generation held for the DM's yes (#1270): what it made, not saved yet. `ready` waits for Create, Again or
-   * Discard; the other phases are a press under way or its end.
-   */
-  | {
-      kind: "preview";
-      id: number;
-      proposalItemId: number;
-      phase: "ready" | "saving" | "again" | "saved" | "discarded" | "failed";
-      shown: AskPreviewShown;
-      /** The rows whose own press has run or is running, by `previewRowKey`; cleared when "Again" replaces what is shown. */
-      rows: Record<string, PreviewRowState>;
-      /** A save or a second generation that did not work, said for the DM; the preview stays as it was. */
-      error?: string;
-    }
-  /** A report Ask drafted. Nothing is sent: the DM reviews it in the report form and presses Send there. */
-  | { kind: "report"; id: number; report: AskReportDraft }
-  | { kind: "confirmed"; id: number; text: string }
-  | {
-      kind: "result";
-      id: number;
-      name: string;
-      noun: string;
-      review: boolean;
-      record: AskRunResult["record"];
-      route: string | null;
-      /** More ways in, beside the main Open. */
-      links?: AskResultLink[];
-      /** A result that lives in the page's own panel: opened there after navigating to `route`. */
-      open?: () => void;
-      /** The picture the run made, shown on the card. */
-      picture?: string;
-      parts: ResultPart[];
-    }
-  | { kind: "upsell"; id: number }
-  | { kind: "error"; id: number; message: string };
+export { previewRowKey, type AskItem, type ResultPart } from "./askItems";
 
 function dedupeRecords(records: AskRecordRef[]): AskRecordRef[] {
   const seen = new Set<string>();
@@ -110,9 +37,6 @@ function dedupeRecords(records: AskRecordRef[]): AskRecordRef[] {
     return true;
   });
 }
-
-type ReplyItem = Extract<AskItem, { kind: "reply" }>;
-type NewItem = AskItem extends infer T ? (T extends { id: number } ? Omit<T, "id"> : never) : never;
 
 /** What the panel needs to know when a run ends: the notice and the unread dot hang off it. */
 export interface AskRunFinished {
@@ -167,9 +91,6 @@ export function refusalMessage(body: unknown): string {
   return NOT_ANSWERED;
 }
 
-export function partsCredits(parts: readonly AskRunPart[]): number {
-  return parts.reduce((sum, p) => sum + p.credits, 0);
-}
 
 /** How long after the last words the Familiar keeps moving at least: text arrives in bursts, and a still-move-still flicker reads as a glitch. */
 export const SPEAKING_TAIL_MS = 700;
@@ -222,21 +143,14 @@ export function useAskConversation(deps: AskConversationDeps) {
   let epoch = 0;
   const ran = new Set<string>();
   const retrying = new Set<string>();
-  /** The previews held for a yes, by their item: the call that saves each, and what the run's finish needs to say. */
-  const held = new Map<number, { preview: AskPreview; proposalItemId: number; startedAt: string; campaignName: string }>();
-
-  /**
-   * A generation is in flight (a run under way, or a held generation being saved or redone): credits are being spent
-   * and the result has nowhere to land but this thread, so starting over must wait for it.
-   */
-  const generating = computed(() => items.value.some((i) => (i.kind === "proposal" && i.state === "running") || (i.kind === "preview" && (i.phase === "saving" || i.phase === "again"))));
-  /** What the DM has generated and not saved ("encounter"): starting over would lose it, credits and all; null when nothing is waiting. */
-  const holding = computed(() => {
-    const waiting = items.value.find((i) => i.kind === "preview" && i.phase === "ready");
-    if (!waiting || waiting.kind !== "preview") return null;
-    const owner = items.value.find((i) => i.id === waiting.proposalItemId);
-    return (owner?.kind === "proposal" && askGenerator(owner.proposal.generator)?.noun) || "result";
+  const previews = useAskPreviews({
+    items,
+    find: (id, kind) => find(id, kind),
+    adapters: deps.adapters,
+    epoch: () => epoch,
+    land: (item, result, from) => land(item, result, from),
   });
+  const { generating, holding } = previews;
 
   function push(item: NewItem): AskItem {
     items.value.push({ ...item, id: nextId++ } as AskItem);
@@ -391,7 +305,7 @@ export function useAskConversation(deps: AskConversationDeps) {
     hush();
     sessionId = undefined;
     items.value = [];
-    held.clear();
+    previews.held.clear();
     // The allowance line goes back to the server's row: an own-key turn had streamed 0.
     freeLeft.value = null;
   }
@@ -516,7 +430,7 @@ export function useAskConversation(deps: AskConversationDeps) {
           // A new conversation while it generated leaves no thread to show it in: nothing is kept for it.
           if (mine === epoch) {
             const card = push({ kind: "preview", proposalItemId: item.id, phase: "ready", shown: outcome.preview.shown, rows: {} });
-            held.set(card.id, { preview: outcome.preview, proposalItemId: item.id, startedAt, campaignName });
+            previews.held.set(card.id, { preview: outcome.preview, proposalItemId: item.id, startedAt, campaignName });
           }
           return;
         }
@@ -555,141 +469,6 @@ export function useAskConversation(deps: AskConversationDeps) {
     deps.onFinished?.({ name, noun: generator.noun, review, route: result.route, ...(result.open ? { open: result.open } : {}), credits: from.credits, campaign: from.campaignName, startedAt: from.startedAt });
   }
 
-  /** What a failed part says, for a save that did not happen. */
-  function failureOf(result: AskRunResult): string {
-    return result.parts.find((p) => !p.ok && p.error)?.error ?? "It could not be saved.";
-  }
-
-  /**
-   * Create on a held generation: saves it, then the usual result. Nothing is charged here (the generation was).
-   * `phase` is the guard: a second press, or a press while "Again" runs, finds it no longer `ready` and does nothing,
-   * so one preview makes one record.
-   */
-  async function createPreview(previewId: number) {
-    const card = find(previewId, "preview");
-    const keep = held.get(previewId);
-    if (!card || !keep || card.phase !== "ready") return;
-    // A row's own press is still under way: its record would be missing from what Create summarises.
-    if (Object.values(card.rows).some((r) => r.phase === "running")) return;
-    const item = find(keep.proposalItemId, "proposal");
-    if (!item) return;
-    card.phase = "saving";
-    card.error = undefined;
-    const mine = epoch;
-    let result: AskRunResult;
-    try {
-      result = await keep.preview.create();
-    } catch {
-      // Whether it saved is unknown, so there is no second press: the DM checks the list.
-      card.phase = "failed";
-      card.error = "That did not finish. Check the list before asking again.";
-      return;
-    }
-    if (result.record === null) {
-      // Nothing was saved: the preview stays, and Create can be pressed again.
-      card.phase = "ready";
-      card.error = failureOf(result);
-      return;
-    }
-    card.phase = "saved";
-    held.delete(previewId);
-    land(item, result, { mine, startedAt: keep.startedAt, campaignName: keep.campaignName, credits: item.credits ?? partsCredits(result.parts) });
-  }
-
-  /**
-   * "Again": a deliberate new generation from the same inputs (as the DM has them now), at the quote's price. It has
-   * its own guard, the phase: while it runs the card is not `ready`, so a double press is one generation. It replaces
-   * what was shown; what the earlier one cost stays spent and is added to the folded line.
-   */
-  async function againPreview(previewId: number) {
-    const card = find(previewId, "preview");
-    const keep = held.get(previewId);
-    if (!card || !keep || card.phase !== "ready") return;
-    const item = find(keep.proposalItemId, "proposal");
-    const adapter = item ? deps.adapters.adapterFor(item.proposal.generator) : undefined;
-    if (!item || !adapter || !isPreviewAdapter(adapter)) return;
-    // The gates again: a balance spent since, or a plan limit reached, says no before a second charge.
-    const quote = adapter.quote(item.proposal, item.choices);
-    if (quote.block !== null || quote.total === null) {
-      card.error = quote.block?.message ?? "The price is not known yet.";
-      return;
-    }
-    card.phase = "again";
-    card.error = undefined;
-    let outcome;
-    try {
-      outcome = await adapter.preview(item.proposal, { ...item.choices });
-    } catch {
-      card.phase = "ready";
-      card.error = "That did not finish. Check your credits before asking again.";
-      return;
-    }
-    if (!outcome.ok) {
-      card.phase = "ready";
-      card.error = failureOf(outcome.result);
-      return;
-    }
-    item.credits = (item.credits ?? 0) + partsCredits(outcome.preview.parts);
-    held.set(previewId, { ...keep, preview: outcome.preview });
-    card.shown = outcome.preview.shown;
-    card.rows = {};
-    card.phase = "ready";
-  }
-
-  /**
-   * A press on one row of the held generation ("Create quest" on a hook, "Said it" on a line). The row's own state is
-   * the guard: a second press while it runs, or after it is done, finds it taken and does nothing, so one row makes
-   * one record. The preview stays `ready`, so the other rows can be pressed; a failed row says why and may be pressed
-   * again. Credits a row spends are added to the folded line, as an "Again" adds its own.
-   */
-  async function actOnRow(previewId: number, section: number, row: number) {
-    const card = find(previewId, "preview");
-    const keep = held.get(previewId);
-    if (!card || !keep || card.phase !== "ready") return;
-    const key = previewRowKey(section, row);
-    const state = card.rows[key];
-    if (state?.phase === "running" || state?.phase === "done") return;
-    const action = card.shown.sections[section]?.rows[row]?.action;
-    if (!action) return;
-    card.rows[key] = { phase: "running" };
-    const mine = epoch;
-    let part: Awaited<ReturnType<typeof action.run>>;
-    try {
-      part = await action.run();
-    } catch {
-      if (mine !== epoch) return;
-      card.rows[key] = { phase: "failed", error: "That did not finish. Check the list before pressing again." };
-      return;
-    }
-    if (mine !== epoch) return;
-    if (!part.ok) {
-      card.rows[key] = { phase: "failed", error: part.error ?? "That did not work." };
-      return;
-    }
-    const item = find(keep.proposalItemId, "proposal");
-    if (item && part.credits > 0) item.credits = (item.credits ?? 0) + part.credits;
-    card.rows[key] = { phase: "done", doneLabel: action.doneLabel, ...(part.links ? { links: part.links } : {}), ...(part.error ? { error: part.error } : {}) };
-  }
-
-  /** A choice on a row of the held generation (a creature's version): the preview records it and `create` saves it. */
-  function choosePreview(previewId: number, key: string, value: string) {
-    const card = find(previewId, "preview");
-    const keep = held.get(previewId);
-    if (!card || !keep || card.phase !== "ready" || !keep.preview.choose) return;
-    card.shown = keep.preview.choose(key, value);
-  }
-
-  /** Discard: ends the held generation with nothing saved. What it cost is spent; the card says so. */
-  function discardPreview(previewId: number) {
-    const card = find(previewId, "preview");
-    const keep = held.get(previewId);
-    if (!card || !keep || card.phase !== "ready") return;
-    card.phase = "discarded";
-    held.delete(previewId);
-    const item = find(keep.proposalItemId, "proposal");
-    if (item) item.state = "discarded";
-  }
-
   async function retryPart(resultId: number, index: number) {
     const item = find(resultId, "result");
     const part = item?.parts[index];
@@ -713,5 +492,5 @@ export function useAskConversation(deps: AskConversationDeps) {
     if (part) part.left = true;
   }
 
-  return { items, running, generating, holding, speaking, freeLeft, send, choose, newConversation, handOff, openGenerator, setConcept, adjust, decide, cancel, confirm, quick, createPreview, actOnRow, againPreview, discardPreview, choosePreview, retryPart, leavePart };
+  return { items, running, generating, holding, speaking, freeLeft, send, choose, newConversation, handOff, openGenerator, setConcept, adjust, decide, cancel, confirm, quick, createPreview: previews.createPreview, actOnRow: previews.actOnRow, againPreview: previews.againPreview, discardPreview: previews.discardPreview, choosePreview: previews.choosePreview, retryPart, leavePart };
 }

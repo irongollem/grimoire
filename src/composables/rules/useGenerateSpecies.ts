@@ -1,7 +1,7 @@
 /**
- * "Generate a species with AI and save it": the step `SpeciesGeneratorPanel.vue` and Ask Grimoire (#1253) share.
- * Narrow on purpose, like `useGenerateMonster`: navigation, the paywall and toasts stay with the page, and a failed
- * save throws. The page splits generate from save to keep a paid result whose save failed; Ask runs both at once.
+ * "Generate a species with AI and save it": the step the species card in the Familiar runs (#1253, #1270).
+ * Narrow on purpose, like `useGenerateMonster`: navigation, the paywall and toasts stay with the caller, and a failed
+ * save throws.
  */
 import { useCreateSpecies } from "@/composables/rules/useSpecies";
 import { useSpeciesGeneration, type SpeciesGenerationOptions } from "@/ai/useSpeciesGeneration";
