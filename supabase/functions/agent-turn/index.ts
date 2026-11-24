@@ -57,7 +57,7 @@ import { beginTurn } from "./handler.ts";
 import { candidateFactIds, factFailure, NEWEST_FACTS, openFacts, recordFrom, recordTies, sessionIdsOf, sessionNumbers } from "./recordRows.ts";
 import { sceneFrom } from "./sceneRows.ts";
 import { makeTableMap, paintTableMap, placeHasMap, writePlaceMap } from "./mapMakeIo.ts";
-import { makePaintDeps, uploadMapPicture } from "./mapPaintIo.ts";
+import { makePaintDeps, uploadPlainMapPicture } from "./mapPaintIo.ts";
 import { decryptValue } from "../_shared/vault.ts";
 import { travelMapFrom } from "./travelRows.ts";
 import { afterUse, asCompanion, characterInsert, characterRewrite, companionMemoriesText, companionRows, foundCharacters, isUntouchedTableCharacter, memoryRowsFor, profileWithBelongings } from "./characterRows.ts";
@@ -778,7 +778,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     makeMap: (campaignId, placeId, plan) =>
       makeTableMap(
         {
-          upload: async (bytes) => (await uploadMapPicture(admin, user.id, bytes, "image/png")).url,
+          upload: (picture) => uploadPlainMapPicture(admin, user.id, picture),
           write: (write) => writePlaceMap(supabase, write),
           newRequestId: () => crypto.randomUUID(),
         },

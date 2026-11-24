@@ -8,7 +8,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(15);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('11241700-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -27,7 +27,8 @@ on conflict (campaign_id, user_id) do update set role = excluded.role;
 insert into public.locations (id, user_id, campaign_id, name, location_type, map_url) values
   ('11241700-0000-4000-8000-0000000000d1', '11241700-0000-4000-8000-000000000001', '11241700-0000-4000-8000-0000000000c1', 'The crypt', 'dungeon', null),
   ('11241700-0000-4000-8000-0000000000d2', '11241700-0000-4000-8000-000000000001', '11241700-0000-4000-8000-0000000000c1', 'The mapped keep', 'dungeon', 'https://example.invalid/keep.webp'),
-  ('11241700-0000-4000-8000-0000000000e1', '11241700-0000-4000-8000-000000000001', '11241700-0000-4000-8000-0000000000c1', 'Sugarport', 'city', null);
+  ('11241700-0000-4000-8000-0000000000e1', '11241700-0000-4000-8000-000000000001', '11241700-0000-4000-8000-0000000000c1', 'Sugarport', 'city', null),
+  ('11241700-0000-4000-8000-0000000000d3', '11241700-0000-4000-8000-000000000001', '11241700-0000-4000-8000-0000000000c1', 'The full vault', 'dungeon', null);
 insert into public.locations (id, user_id, campaign_id, parent_id, name, location_type) values
   ('11241700-0000-4000-8000-0000000000a1', '11241700-0000-4000-8000-000000000001', '11241700-0000-4000-8000-0000000000c1',
    '11241700-0000-4000-8000-0000000000d1', 'Ossuary', 'room');
@@ -92,6 +93,25 @@ select throws_ok($$ select pg_temp.make('11241700-0000-4000-8000-0000000000d2', 
 select lives_ok($$ select pg_temp.make('11241700-0000-4000-8000-0000000000e1', '11241700-0000-4000-8000-0000000000f3') $$,
   'a city gets a map');
 select is(pg_temp.counts('11241700-0000-4000-8000-0000000000e1'), '2|0|0|0', 'and no rooms, regions or doors (two drawings now: the crypt and the city; the keep was refused before its drawing)');
+
+-- An account whose plan has no room for more places: the plan limit refuses a room the way the quota trigger does.
+-- The map is still made, as open ground, and no room is half made.
+reset role;
+create function pg_temp.full_plan() returns trigger language plpgsql as $$
+begin
+  if new.location_type = 'room' and new.parent_id = '11241700-0000-4000-8000-0000000000d3' then
+    raise exception 'quota_exceeded';
+  end if;
+  return new;
+end $$;
+create trigger zz_test_full_plan before insert on public.locations for each row execute function pg_temp.full_plan();
+set local role authenticated;
+select pg_temp.as_user(1);
+select lives_ok($$ select pg_temp.make('11241700-0000-4000-8000-0000000000d3', '11241700-0000-4000-8000-0000000000f4') $$,
+  'a full plan still gets the map');
+select is((select (map_url is not null)::text || '|' || (select count(*) from public.locations r where r.parent_id = l.id)
+             from public.locations l where l.id = '11241700-0000-4000-8000-0000000000d3'),
+  'true|0', 'with its picture and walls, and no rooms at all');
 
 select * from finish();
 rollback;

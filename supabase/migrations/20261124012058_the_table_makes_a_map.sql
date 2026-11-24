@@ -16,6 +16,9 @@
 --   2. A room the place already has under the same name is used, not duplicated: the DM may have named the rooms
 --      before anything drew them. Rooms are made only where the place may hold rooms
 --      (`private.location_can_hold_rooms`); elsewhere the map is open ground with exact walls and no rooms.
+--   3. Rooms are records that count against the account's plan. When they do not fit (`quota_exceeded`, a free plan at
+--      its limit; seen live on the fixture, 24 Nov 2026) the map is still made, as open ground: the walls and doors are
+--      exact either way, and no room is half made (all of them or none).
 -- The regions are `floodfill`, the provenance a publish from the drawing gives, so the Cartographer can re-derive
 -- them; the doors are `publish` for the same reason.
 
@@ -100,6 +103,8 @@ begin
 
   v_holds_rooms := private.location_can_hold_rooms(v_place.location_type);
   if v_holds_rooms then
+    -- One block, so a plan limit met halfway through the rooms undoes all of them and keeps the map (rule 3).
+    begin
     for v_room in select * from jsonb_array_elements(p_rooms) loop
       select l.id into v_room_id
         from public.locations l
@@ -128,6 +133,11 @@ begin
         'publish'
       );
     end loop;
+    exception when raise_exception then
+      if sqlerrm <> 'quota_exceeded' then
+        raise;
+      end if;
+    end;
   end if;
 
   return to_jsonb(v_place);

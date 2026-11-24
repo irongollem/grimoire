@@ -29,6 +29,11 @@ export interface PlanPicture {
   padRight: number;
   /** Background added below the grid, for the same reason. */
   padBottom: number;
+  /**
+   * The same pixels as RGBA, row by row, for a caller that stores the picture in another format: the image buckets take
+   * WebP or JPEG only, while the styler is given the PNG.
+   */
+  rgba: Uint8ClampedArray<ArrayBuffer>;
 }
 
 export type Rgb = readonly [number, number, number];
@@ -180,8 +185,21 @@ export async function planPicturePng(input: PlanPictureInput): Promise<PlanPictu
   for (const door of input.doors) stroke(door, wallThickness * 2, false, DOOR);
   for (let y = 0; y < height; y++) data[y * stride] = 0;
 
+  const rgba = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const from = y * stride + 1 + x * 3;
+      const to = (y * width + x) * 4;
+      rgba[to] = data[from];
+      rgba[to + 1] = data[from + 1];
+      rgba[to + 2] = data[from + 2];
+      rgba[to + 3] = 255;
+    }
+  }
+
   return {
     png: await encodePng(width, height, data),
+    rgba,
     width,
     height,
     pxPerCell,

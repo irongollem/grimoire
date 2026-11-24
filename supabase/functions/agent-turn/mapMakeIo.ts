@@ -18,7 +18,7 @@ import { buildMapStylePrompt } from "../_shared/mapStylePrompt.ts";
 import type { CreditLogFields } from "../_shared/credits.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 
-const MAP_COLUMNS = "id, parent_id, map_url, grid_calibration, map_layer_url, map_layer_stand_url, map_layer_calibration, plan_size";
+const MAP_COLUMNS = "id, parent_id, map_url, grid_calibration, map_layer_url, map_layer_stand_url, map_layer_calibration, plan_size, source_map_id";
 
 /** The ceiling on what the rooms' own words add to the styler's prompt: a long plan must not crowd out its instructions. */
 const PAINT_ABOUT_MAX = 600;
@@ -34,7 +34,10 @@ export async function placeHasMap(client: SupabaseClient, campaignId: string, pl
     const { data, error } = await client.from("locations").select(MAP_COLUMNS).eq("id", id).eq("campaign_id", campaignId).maybeSingle();
     if (error) throw error;
     if (data === null) break;
-    const place = data as unknown as PlaceForMap;
+    const place = data as unknown as PlaceForMap & { source_map_id: string | null };
+    // A drawing bound to the place itself, even one never published (no picture yet), is the DM's map: the table must not
+    // draw over it, and `make_place_map` would refuse it anyway. Seen live on the demo inn, 24 Nov 2026.
+    if (place.id === placeId && place.source_map_id !== null) return true;
     byId.set(place.id, place);
     if (hasAnyMapLayer(place)) break;
     id = place.parent_id;
@@ -72,7 +75,7 @@ export interface PlaceMapWrite {
 
 export interface MakeMapIo {
   /** Stores the plain picture and answers its public URL. */
-  upload(bytes: Uint8Array): Promise<string>;
+  upload(picture: PlanPicture): Promise<string>;
   /** Writes the map; `"exists"` when the place already has one (the DM made a map meanwhile). Throws on anything else. */
   write(write: PlaceMapWrite): Promise<{ drawingId: string } | "exists">;
   newRequestId(): string;
@@ -96,7 +99,7 @@ export async function makeTableMap(io: MakeMapIo, input: { placeId: string; plan
   const built = buildMap(plan);
   const picture = await planPicturePng(built.segments);
   const calibration = pictureCalibration(picture);
-  const url = await io.upload(picture.png);
+  const url = await io.upload(picture);
   const written = await io.write({
     placeId,
     requestId: io.newRequestId(),

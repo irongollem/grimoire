@@ -141,3 +141,16 @@ describe("planPicturePng chunks", () => {
     expect(buf.readUInt32BE(29)).toBe(nodeCrc32(buf.subarray(12, 29)));
   });
 });
+
+// Bug caught: the RGBA copy the stored picture is encoded from drifting from the PNG the styler is given (a channel
+// order, an offset by the filter byte), so the map shown is not the map painted.
+describe("planPicturePng rgba", () => {
+  it("holds the same pixel as the PNG, opaque, at a floor, a wall and the background", async () => {
+    const out = await planPicturePng({ cols: 6, rows: 4, rooms: [{ x: 1, y: 1, w: 3, h: 2 }], walls: [{ a: [1, 1], b: [4, 1] }], doors: [] });
+    const png = decode(out.png);
+    const at = (x: number, y: number) => [...out.rgba.slice((y * out.width + x) * 4, (y * out.width + x) * 4 + 4)];
+    for (const [x, y] of [[Math.round(2.5 * out.pxPerCell), Math.round(2 * out.pxPerCell)], [Math.round(2.5 * out.pxPerCell), out.pxPerCell], [2, 2]]) {
+      expect(at(x, y)).toEqual([...png.pixel(x, y), 255]);
+    }
+  });
+});

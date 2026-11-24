@@ -43,7 +43,7 @@ describe("makeTableMap", () => {
     const writes: PlaceMapWrite[] = [];
     const uploads: Uint8Array[] = [];
     const fake: MakeMapIo = {
-      upload: async (bytes) => { uploads.push(bytes); return "https://cdn.example/plain.png"; },
+      upload: async (picture) => { uploads.push(picture.png); return "https://cdn.example/plain.webp"; },
       write: async (w) => { writes.push(w); return { drawingId: "drawing-9" }; },
       newRequestId: () => "request-1",
       ...over,
@@ -57,7 +57,7 @@ describe("makeTableMap", () => {
     const made = await makeTableMap(fake, { placeId: PLACE, plan: planOf(8, 6) });
     expect(uploads).toHaveLength(1);
     const [write] = writes;
-    expect(write.url).toBe("https://cdn.example/plain.png");
+    expect(write.url).toBe("https://cdn.example/plain.webp");
     expect(write.requestId).toBe("request-1");
     expect(write.calibration.cells_per_image_width).not.toBe(8);
     expect(write.mapLive.walls.length + write.mapLive.doors.length).toBeGreaterThan(0);
@@ -101,8 +101,8 @@ describe("writePlaceMap", () => {
 });
 
 describe("placeHasMap", () => {
-  type Row = { id: string; parent_id: string | null; map_url: string | null; map_layer_url: string | null; plan_size: unknown };
-  const row = (id: string, parent: string | null, over: Partial<Row> = {}): Row => ({ id, parent_id: parent, map_url: null, map_layer_url: null, plan_size: null, ...over });
+  type Row = { id: string; parent_id: string | null; map_url: string | null; map_layer_url: string | null; plan_size: unknown; source_map_id: string | null };
+  const row = (id: string, parent: string | null, over: Partial<Row> = {}): Row => ({ id, parent_id: parent, map_url: null, map_layer_url: null, plan_size: null, source_map_id: null, ...over });
   /** Answers each place by id, and only within the campaign asked. */
   const reads: string[] = [];
   const fake = (rows: Row[]) => ({
@@ -122,6 +122,12 @@ describe("placeHasMap", () => {
     expect(await placeHasMap(fake([row("room", "site"), row("site", null, { map_url: "u" })]), CAMPAIGN, "room")).toBe(true);
     expect(await placeHasMap(fake([row("room", null, { map_layer_url: "u" })]), CAMPAIGN, "room")).toBe(true);
     expect(await placeHasMap(fake([row("room", null, { plan_size: { cols: 4, rows: 4 } })]), CAMPAIGN, "room")).toBe(true);
+  });
+
+  // Bug caught (seen live on the demo inn, 24 Nov 2026): a place with a drawing bound and never published read as
+  // mapless, so the narrator drew a map that make_place_map then refused.
+  it("counts a drawing bound to the place itself as its map, published or not", async () => {
+    expect(await placeHasMap(fake([row("inn", null, { source_map_id: "drawing" })]), CAMPAIGN, "inn")).toBe(true);
   });
 
   // Bug caught: the walk going on up the tree after it found the map, one read of the database per ancestor for nothing.

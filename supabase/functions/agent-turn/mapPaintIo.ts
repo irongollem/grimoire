@@ -19,6 +19,8 @@ import { registerImageProvenance } from "../_shared/provenance/register.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { publicUrlFor, uploadWithRetry } from "../_shared/storage-upload.ts";
 import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
+import encodeWebp from "@jsquash/webp/encode";
+import type { PlanPicture } from "../_shared/planPicture.ts";
 import { adoptPicture, type PaintDeps, type Painted, type Painter } from "./mapMakeIo.ts";
 
 export const MAP_BUCKET = "location-images";
@@ -32,6 +34,17 @@ export async function uploadMapPicture(admin: SupabaseClient, userId: string, by
   const path = `${userId}/map-${crypto.randomUUID()}.${extension}`;
   await uploadWithRetry(admin, MAP_BUCKET, path, bytes, contentType);
   return { url: publicUrlFor(admin, MAP_BUCKET, path), path };
+}
+
+/**
+ * The plain picture as the buckets take it: lossless WebP (the image buckets accept WebP and JPEG, never PNG, and a
+ * plan of flat colours and sharp walls is what lossy JPEG smears). Code-drawn, so it carries no AI mark.
+ */
+export async function uploadPlainMapPicture(admin: SupabaseClient, userId: string, picture: PlanPicture): Promise<string> {
+  // Deno has no ImageData constructor; the encoder reads only these four fields of the one it is given.
+  const image = { data: picture.rgba, width: picture.width, height: picture.height, colorSpace: "srgb" } as ImageData;
+  const webp = await encodeWebp(image, { lossless: 1 });
+  return (await uploadMapPicture(admin, userId, new Uint8Array(webp), "image/webp")).url;
 }
 
 export interface PaintBinding {
