@@ -166,3 +166,13 @@ export function unaccountedThing(why: string, carried: readonly { name: string }
   }
   return null;
 }
+
+/**
+ * The sheet write for a character's hit points. Regaining any hit points resets death saving throws to zero (PHB 2014
+ * and SRD 5.2 "Death Saving Throws"), so a write above 0 clears both counts: without it a character set right after
+ * "dying" (seen live, 24 Nov 2026: 1 hit point and three failures) carries a death into the next time they drop.
+ * At 0 the counts are left as they stand; the fight keeps them.
+ */
+export function hitPointsWrite(hitPoints: number): { current_hp: number; death_save_successes?: 0; death_save_failures?: 0 } {
+  return hitPoints > 0 ? { current_hp: hitPoints, death_save_successes: 0, death_save_failures: 0 } : { current_hp: hitPoints };
+}

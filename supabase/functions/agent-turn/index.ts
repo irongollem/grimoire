@@ -45,7 +45,7 @@ import type { RecordedFact } from "../_shared/agent/record.ts";
 import { revealToCharacter, sharePlace } from "./revealIo.ts";
 import { revealRoom, seatParty, setPartyPlace } from "./partyMoveIo.ts";
 import { makeHandsStore } from "./handsIo.ts";
-import { finishFight, layFightLoot, loadFights, setFight, setPursuit, startFight, statlessFighters } from "./fightIo.ts";
+import { abandonFight, finishFight, layFightLoot, loadFights, setFight, setPursuit, startFight, statlessFighters } from "./fightIo.ts";
 import type { Prologue } from "../_shared/agent/prologue.ts";
 import { loadAgentCalibration, loadModelPrice, resolveAgentProvider } from "../_shared/agent/providerIo.ts";
 import { applyQuestMove, loadQuests } from "./questIo.ts";
@@ -56,6 +56,10 @@ import type { TurnRow } from "../_shared/agent/transcript.ts";
 import { beginTurn } from "./handler.ts";
 import { candidateFactIds, factFailure, NEWEST_FACTS, openFacts, recordFrom, recordTies, sessionIdsOf, sessionNumbers } from "./recordRows.ts";
 import { sceneFrom } from "./sceneRows.ts";
+import { hitPointsWrite } from "../_shared/agent/hitPoints.ts";
+import { makeTableMap, paintTableMap, placeHasMap, writePlaceMap } from "./mapMakeIo.ts";
+import { makePaintDeps, uploadPlainMapPicture } from "./mapPaintIo.ts";
+import { decryptValue } from "../_shared/vault.ts";
 import { travelMapFrom } from "./travelRows.ts";
 import { afterUse, asCompanion, characterInsert, characterRewrite, companionMemoriesText, companionRows, foundCharacters, isUntouchedTableCharacter, memoryRowsFor, profileWithBelongings } from "./characterRows.ts";
 import { escapeLike } from "./likeEscape.ts";
@@ -142,6 +146,23 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
       return Promise.resolve();
     }
     return recordFreeGeneration(admin, user.id, reason, log);
+  };
+
+  // Time moves as the caller (the campaign's own update policy decides who may), forwards or, in a correction, back.
+  const moveDate = async (fn: "advance_campaign_date" | "rewind_campaign_date", campaignId: string, days: number) => {
+    const { data, error } = await supabase.rpc(fn, { p_campaign_id: campaignId, p_days: days });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : null;
+    const date = campaignToday({ current_year: row?.year, current_month: row?.month, current_day: row?.day });
+    if (date === null) throw new Error(`${fn} returned no date`);
+    // A calendar that will not word the day costs the chat line, never the date that has moved.
+    let text: string | null = null;
+    try {
+      text = dateTextFor(rawCampaign)(date.year, date.month, date.day);
+    } catch (wording) {
+      console.error("agent-turn: wording the new date failed:", wording);
+    }
+    return { date, text };
   };
 
   const deps: AgentTurnDeps = {
@@ -391,7 +412,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
       if (parent.error) throw parent.error;
       if (children.error) throw children.error;
       if (people.error) throw people.error;
-      return sceneFrom(place, parent.data, siblings.data ?? [], children.data ?? [], people.data ?? []);
+      return sceneFrom(place, parent.data, siblings.data ?? [], children.data ?? [], people.data ?? [], await placeHasMap(admin, campaignId, place.id as string));
     },
 
     async setPendingRoll(sessionId, campaignId, pending): Promise<void> {
@@ -605,6 +626,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     // Fights: the campaign's own encounters, read and written as the caller; the conversation's row as the server.
     loadFights: (campaignId, locationId, fightEncounterId, pursuitEncounterId) => loadFights(supabase, campaignId, locationId, fightEncounterId, pursuitEncounterId),
     finishFight: (campaignId, encounterId) => finishFight(admin, campaignId, encounterId),
+    abandonFight: (campaignId, encounterId) => abandonFight(admin, campaignId, encounterId),
     setPursuit: (sessionId, campaignId, encounterId) => setPursuit(admin, sessionId, campaignId, encounterId),
     // As the caller: what they may read and share is the database's to decide.
     loadHandouts: (campaignId, memberId) => loadHandouts(supabase, campaignId, memberId),
@@ -646,7 +668,8 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
 
     // The campaign filter is in the query: a member of another campaign is not found, and nothing is written.
     async setHitPoints(campaignId, memberId, hitPoints) {
-      const { error } = await admin.from("party_members").update({ current_hp: hitPoints }).eq("id", memberId).eq("campaign_id", campaignId);
+      // Above 0 the death saves reset with it (`hitPointsWrite`).
+      const { error } = await admin.from("party_members").update(hitPointsWrite(hitPoints)).eq("id", memberId).eq("campaign_id", campaignId);
       if (error) throw error;
     },
 
@@ -767,20 +790,33 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     loadQuests: (campaignId, pressureClockId) => loadQuests(supabase, campaignId, pressureClockId, dateTextFor(rawCampaign)),
     applyQuestMove: (ctx, move) => applyQuestMove(supabase, admin, ctx, move),
     // Time moves as the caller (the campaign's own update policy decides who may); the chat line is the server's.
-    async advanceDate(campaignId, days) {
-      const { data, error } = await supabase.rpc("advance_campaign_date", { p_campaign_id: campaignId, p_days: days });
-      if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : null;
-      const date = campaignToday({ current_year: row?.year, current_month: row?.month, current_day: row?.day });
-      if (date === null) throw new Error("advance_campaign_date returned no date");
-      // A calendar that will not word the day costs the chat line, never the date that has moved.
-      let text: string | null = null;
+    advanceDate: (campaignId, days) => moveDate("advance_campaign_date", campaignId, days),
+    // A correction's days taken back: the same caller, the same reading of the new date.
+    rewindDate: (campaignId, days) => moveDate("rewind_campaign_date", campaignId, days),
+    // As the caller: `make_place_map` is security invoker, so the DM's own RLS decides who may give a place its map.
+    makeMap: (campaignId, placeId, plan) =>
+      makeTableMap(
+        {
+          upload: (picture) => uploadPlainMapPicture(admin, user.id, picture),
+          write: (write) => writePlaceMap(supabase, write),
+          newRequestId: () => crypto.randomUUID(),
+        },
+        { placeId, plan },
+      ),
+    paintMap(campaignId, made) {
+      const run = paintTableMap(makePaintDeps({ admin, userId: user.id, campaignId, placeId: made.placeId, drawingId: made.drawingId, plainUrl: made.plainUrl, decrypt: decryptValue, report }), made)
+        .then((outcome) => {
+          if (outcome !== "painted") console.warn(`agent-turn: the map of ${made.name} stays the plain picture (${outcome}).`);
+        })
+        .catch((error) => {
+          console.error("agent-turn: painting the map failed; the plain picture stays:", error);
+        });
       try {
-        text = dateTextFor(rawCampaign)(date.year, date.month, date.day);
-      } catch (wording) {
-        console.error("agent-turn: wording the new date failed:", wording);
+        // @ts-ignore EdgeRuntime is a Deno Deploy global, not in Deno's type defs; it keeps the isolate alive for the painting.
+        EdgeRuntime.waitUntil(run);
+      } catch (error) {
+        console.error("agent-turn: waitUntil failed; the painting runs while the isolate lives:", error);
       }
-      return { date, text };
     },
     async announce(campaignId, text) {
       const { error } = await admin.from("campaign_messages").insert({

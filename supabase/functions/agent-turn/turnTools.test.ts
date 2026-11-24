@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { Coins, HandsChange } from "../_shared/agent/hands.ts";
 import { makeTurnTools, type FiledFact, type TurnToolsInput } from "./turnTools";
 import { NO_QUESTS, type QuestMove } from "../_shared/agent/quests";
-import type { FightPlan } from "../_shared/agent/fight";
+import type { FightPlan, FightState } from "../_shared/agent/fight";
+import type { FightChange } from "../_shared/agent/fightChange";
+import type { CallOffHow } from "../_shared/agent/callOffFight";
 import type { PendingRoll } from "../_shared/agent/playerRoll";
 import type { SessionRow } from "./turnTypes";
 import type { CallModel } from "../_shared/agent/types";
@@ -40,7 +42,7 @@ const SHOWN_PLACE = "00000000-0000-4000-8000-0000000000f3";
 
 type HandsFixture = Omit<NonNullable<TurnToolsInput["hands"]>, "memberId" | "onChange">;
 
-function build(quests: TurnToolsInput["quests"] = null, played = false, hands: HandsFixture | null = null, canon: Partial<TurnToolsInput["canon"]> = {}, sessionOver: Partial<SessionRow> = {}) {
+function build(quests: TurnToolsInput["quests"] = null, played = false, hands: HandsFixture | null = null, canon: Partial<TurnToolsInput["canon"]> = {}, sessionOver: Partial<SessionRow> = {}, correcting = false, fightSet: { fight: FightState; rolled: boolean | null } | null = null) {
   const brought: BroughtOut[] = [];
   const handed: HandsChange[] = [];
   const handedOut: string[] = [];
@@ -55,6 +57,9 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
   };
   const mapReads = { count: 0 };
   const passed: number[] = [];
+  const takenBack: number[] = [];
+  const calledOff: CallOffHow[] = [];
+  const changed: FightChange[] = [];
   const turn = makeTurnTools({
     deps: {
       tools: [{ name: "search", description: "", inputSchema: {} }],
@@ -66,7 +71,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
         return { content: "from the campaign", isError: false };
       },
       loadSpeaker: async () => null,
-      setScene: async (_s, _c, id) => ({ id, name: "Cellar", kind: null, description: "", within: null, withinId: null, beside: [], places: [], characters: [] }),
+      setScene: async (_s, _c, id) => ({ id, name: "Cellar", kind: null, description: "", within: null, withinId: null, beside: [], places: [], characters: [], hasMap: true }),
       fileFact: async () => ({ id: "00000000-0000-4000-8000-00000000f001" }),
     },
     campaignId: CAMPAIGN,
@@ -86,13 +91,16 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
       ...canon,
     },
     onIntroduce: () => {},
-    fightChange: null,
+    fightChange: fightSet === null || fightSet.fight.phase !== "running" ? null : { fight: fightSet.fight, budget: null, rolled: fightSet.rolled, onChange: (c) => { changed.push(c); } },
+    callOffFight: fightSet === null ? null : { fight: fightSet.fight, onCallOff: (how) => { calledOff.push(how); } },
     hitPoints: null,
     hands: hands === null ? null : { memberId: MEMBER, ...hands, onChange: (change) => { handed.push(change); } },
     filed,
     quests,
     askRoll: played ? (pending) => asked.push(pending) : null,
     onDaysPassed: (days) => { passed.push(days); },
+    onDaysTakenBack: (days) => { takenBack.push(days); },
+    correcting,
     travel: {
       roll: () => 3,
       map: async () => {
@@ -120,7 +128,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
       : null,
     fight: played ? { view: { prepared: [{ id: FIGHT, name: "The cellar rats", creatures: "" }], fight: null }, viewAt: async () => ({ prepared: [{ id: ATTIC_FIGHT, name: "The attic bats", creatures: "" }], fight: null }), onStart: (plan) => { fights.push(plan); }, statless: async () => [] } : null,
   });
-  return { turn, calls, filed, moves, asked, fights, handed, handedOut, placesShared, mapReads, passed, brought };
+  return { turn, calls, filed, moves, asked, fights, handed, handedOut, placesShared, mapReads, passed, takenBack, brought, calledOff, changed };
 }
 
 describe("makeTurnTools", () => {
@@ -163,6 +171,44 @@ describe("makeTurnTools", () => {
     expect((await turn.callTool("pass_days", { days: 3 })).isError).toBe(false);
     expect((await turn.callTool("pass_days", { days: 3 })).isError).toBe(true);
     expect(passed).toEqual([3]);
+  });
+
+  // Bug caught: a player's ordinary turn (or the Narrator on its own) putting the date back; only a correction may.
+  it("offers take_days_back in a correction turn only, and refuses it anywhere else", async () => {
+    const plain = build();
+    expect(plain.turn.tools.map((t) => t.name)).not.toContain("take_days_back");
+    expect((await plain.turn.callTool("take_days_back", { days: 2 })).isError).toBe(true);
+    expect(plain.takenBack).toEqual([]);
+    const fixing = build(null, false, null, {}, {}, true);
+    expect(fixing.turn.tools.map((t) => t.name)).toContain("take_days_back");
+  });
+
+  // Bug caught: the date put back twice for days the correction took back once.
+  it("takes days back once a reply and refuses a second call", async () => {
+    const { turn, takenBack } = build(null, false, null, {}, {}, true);
+    expect((await turn.callTool("take_days_back", { days: 3 })).isError).toBe(false);
+    expect((await turn.callTool("take_days_back", { days: 2 })).isError).toBe(true);
+    expect(takenBack).toEqual([3]);
+  });
+
+  // Bug caught: the date shoved both ways in one reply, so the net move is nobody's reading of the story.
+  it("refuses taking days back after pass_days in the same reply, and pass_days after taking them back", async () => {
+    const a = build(null, false, null, {}, {}, true);
+    expect((await a.turn.callTool("pass_days", { days: 3 })).isError).toBe(false);
+    expect((await a.turn.callTool("take_days_back", { days: 2 })).isError).toBe(true);
+    expect(a.takenBack).toEqual([]);
+    const b = build(null, false, null, {}, {}, true);
+    expect((await b.turn.callTool("take_days_back", { days: 2 })).isError).toBe(false);
+    expect((await b.turn.callTool("pass_days", { days: 3 })).isError).toBe(true);
+    expect(b.passed).toEqual([]);
+  });
+
+  // Bug caught: a count outside 1 to 60 reaching the database, which then refuses the whole move.
+  it("refuses a count out of range", async () => {
+    const { turn, takenBack } = build(null, false, null, {}, {}, true);
+    expect((await turn.callTool("take_days_back", { days: 61 })).isError).toBe(true);
+    expect((await turn.callTool("take_days_back", { days: 0 })).isError).toBe(true);
+    expect(takenBack).toEqual([]);
   });
 
   // Bug caught: a held payoff fired where the tool is not offered (a fight on the board), answered as a quest tool.
@@ -510,5 +556,53 @@ describe("makeTurnTools and the canon (#1226)", () => {
     const { turn } = build(null, false, null, { lookup: async () => { asked++; return []; } });
     for (let i = 0; i < 8; i++) await turn.callTool("canon_lookup", { query: "the bell" });
     expect(asked).toBe(4);
+  });
+});
+
+describe("call_off_fight", () => {
+  const set = (phase: FightState["phase"] = "running", rolled: boolean | null = true) => ({
+    fight: { encounterId: "e1", name: "The Watching Pack", phase, round: 1, fighters: [{ name: "Rat", side: "enemy" as const, hp: 5, maxHp: 7 }] } satisfies FightState,
+    rolled,
+  });
+  const names = (t: ReturnType<typeof build>) => t.turn.tools.map((x) => x.name);
+
+  // Bug caught: a way to end any fight with no roll, offered to a player who is not correcting; or withheld from a
+  // fight that is only set up (the live case: the Sentry fight had not begun on the board).
+  it("is offered only in a correction, with a fight on the sitting running or not", () => {
+    expect(names(build(null, false, null, {}, {}, true, set("running")))).toContain("call_off_fight");
+    expect(names(build(null, false, null, {}, {}, true, set("waiting")))).toContain("call_off_fight");
+    expect(names(build(null, false, null, {}, {}, false, set("running")))).not.toContain("call_off_fight");
+    expect(names(build(null, false, null, {}, {}, true, null))).not.toContain("call_off_fight");
+  });
+
+  // Bug caught: a call by name from a turn that is not a correction (a tool list is advice; the call is the guard).
+  it("refuses a call outside a correction and one with a way that is not listed", async () => {
+    const plain = build(null, false, null, {}, {}, false, set());
+    expect((await plain.turn.callTool("call_off_fight", { how: "never_happened" })).isError).toBe(true);
+    const fixing = build(null, false, null, {}, {}, true, set());
+    expect((await fixing.turn.callTool("call_off_fight", { how: "they_die" })).isError).toBe(true);
+    expect((await fixing.turn.callTool("call_off_fight", {})).isError).toBe(true);
+    expect(plain.calledOff).toEqual([]);
+    expect(fixing.calledOff).toEqual([]);
+  });
+
+  // Bug caught: two endings in one reply, the second silently replacing the first.
+  it("takes one call-off a reply", async () => {
+    const t = build(null, false, null, {}, {}, true, set());
+    expect((await t.turn.callTool("call_off_fight", { how: "they_flee" })).isError).toBe(false);
+    expect((await t.turn.callTool("call_off_fight", { how: "never_happened" })).isError).toBe(true);
+    expect(t.calledOff).toEqual(["they_flee"]);
+  });
+
+  // Bug caught: a ruling and a call-off both carried out for one fight, in either order.
+  it("is never taken beside fight_change, in either order", async () => {
+    const ruled = build(null, false, null, {}, {}, true, set("running", true));
+    expect((await ruled.turn.callTool("fight_change", { costs: "nothing", ends: "they_flee" })).isError).toBe(false);
+    expect((await ruled.turn.callTool("call_off_fight", { how: "they_give_in" })).isError).toBe(true);
+    expect(ruled.calledOff).toEqual([]);
+    const called = build(null, false, null, {}, {}, true, set("running", true));
+    expect((await called.turn.callTool("call_off_fight", { how: "they_give_in" })).isError).toBe(false);
+    expect((await called.turn.callTool("fight_change", { costs: "nothing", ends: "they_flee" })).isError).toBe(true);
+    expect(called.changed).toEqual([]);
   });
 });

@@ -28,6 +28,17 @@ describe("AiGeneratedBadge", () => {
     expect(w.text()).toContain("AI-assisted, edited by the DM");
   });
 
+  // #1021 row 1: the table runs on the DM's account, so its session note must not read as the DM's own draft.
+  it.each([
+    [{ generatorType: "agent_table_record" }, "Written by the Narrator"],
+    [{ generatorType: "agent_table_record", edited: true }, "Written by the Narrator, edited by the DM"],
+    [{ generatorType: "agent_turn_fact" }, "Written by the Narrator"],
+    // A character's memory is in its own words, never the Narrator's.
+    [{ generatorType: "agent_turn_memory" }, "Drafted with AI assistance"],
+  ])("names who wrote %j", (provenance, expected) => {
+    expect(mountBadge({ variant: "line", provenance }).text()).toBe(expected);
+  });
+
   it.each([
     [{ model: "gpt-image-2", provider: "openai" }, "Model: gpt-image-2 (openai)"],
     [{ model: "gpt-image-2" }, "Model: gpt-image-2\n"],

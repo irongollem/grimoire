@@ -1,4 +1,6 @@
+import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useEncounterRunStore } from "@/stores/encounterRun";
 
 const mocks = vi.hoisted(() => ({ error: vi.fn() }));
 vi.mock("@/lib/toast", () => ({ toast: { error: mocks.error, info: vi.fn() } }));
@@ -20,6 +22,7 @@ function start(closed = false) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  setActivePinia(createPinia());
 });
 
 describe("being in a fight", () => {
@@ -86,5 +89,46 @@ describe("a fight that ends", () => {
     expect(api.fightTurn.value).toBeNull();
     expect(mocks.error).toHaveBeenCalledWith("The fight could not be continued here.");
     expect(aftermath).not.toHaveBeenCalled();
+  });
+});
+
+// A correction can let go of a fight that was never fought (#1021 row 23). Bug caught: the board's store keeping the
+// old fight, so running the encounter again showed it; or the turn's budget staying behind and being sent as if a
+// fight were still on.
+describe("the server letting go of the fight", () => {
+  it("drops the fight and its turn, and clears this tab's runner store when it still holds that fight", () => {
+    const { api } = start();
+    const run = useEncounterRunStore();
+    run.encounterId = FIGHT.encounterId;
+    api.onFightSet(null);
+    expect(api.fight.value).toBeNull();
+    expect(api.fightTurn.value).toBeNull();
+    expect(run.encounterId).toBeNull();
+  });
+
+  // Bug caught: wiping another fight's board because the sitting's fight was let go of.
+  it("leaves the runner store alone when it holds a different fight", () => {
+    const { api } = start();
+    const run = useEncounterRunStore();
+    run.encounterId = "e-other";
+    api.onFightSet(null);
+    expect(run.encounterId).toBe("e-other");
+  });
+
+  // Bug caught: a null from the server while no fight was held (a refused start) reading the id of nothing.
+  it("takes a null with no fight held without touching the runner store", () => {
+    const { api } = start();
+    api.fight.value = null;
+    const run = useEncounterRunStore();
+    run.encounterId = "e-other";
+    expect(() => api.onFightSet(null)).not.toThrow();
+    expect(run.encounterId).toBe("e-other");
+  });
+
+  it("takes a fight the server starts as it is", () => {
+    const { api } = start();
+    api.onFightSet({ encounterId: "e-2", name: "Rats" });
+    expect(api.fight.value).toEqual({ encounterId: "e-2", name: "Rats" });
+    expect(api.fightTurn.value).toEqual(TURN);
   });
 });

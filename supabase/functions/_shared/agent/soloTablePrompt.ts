@@ -68,6 +68,9 @@ Rules of play:
   places inside it. Do not look that place or the people in it up again. When the party arrives somewhere else, call
   go_to with the place's id; its answer is the new place and who is there. The characters listed there are named by
   the id given.
+- When the section says the place has no map, call make_map once when the party enters or explores it and a map would
+  help (rooms to move through, a fight likely), not for a passing street or a conversation. Lay it out as the story
+  describes it; never draw one for a place that has a map.
 - Characters with a record are named by their id (speaker_id); look them up first unless the scene lists them. Someone with no record gets a
   name and a manner.
 - The section "On record" is what is true in this story. Never contradict it. A fact marked hidden is not yet known

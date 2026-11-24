@@ -25,7 +25,7 @@
  *   npm run dev:table -- --campaign "kind"    another of the fixture's campaigns
  *
  * At the prompt: `/open` (before anything else) lets the Dungeon Master open the scene, as the app's screen does;
- * a plain line is said aloud; `/do <text>` is done; `/roll <face>
+ * a plain line is said aloud; `/do <text>` is done; `/correct <text>` says what happened instead; `/roll <face>
  * [bonus]` answers a roll the Dungeon Master asked for with a die you rolled
  * yourself (the terminal has no sheet, so the bonus is yours to type); `/new`
  * starts a fresh conversation (a new sitting); `/quit` leaves.
@@ -167,7 +167,7 @@ interface TypedRoll {
   atTable: true;
 }
 
-async function turn(sessionId: string | null, mode: "say" | "do" | "ask", message: string, roll?: TypedRoll, opening = false): Promise<string | null> {
+async function turn(sessionId: string | null, mode: "say" | "do" | "ask" | "correct", message: string, roll?: TypedRoll, opening = false): Promise<string | null> {
   const started = Date.now();
   const response = await fetch(endpoint, {
     method: "POST",
@@ -206,7 +206,7 @@ async function turn(sessionId: string | null, mode: "say" | "do" | "ask", messag
   return id;
 }
 
-console.log(`\nAt the table in "${campaignName}". A plain line is said aloud, /do <text> is done, /ask <text> asks the Dungeon Master, /roll <face> [bonus] answers a roll, /new starts a fresh sitting, /quit leaves.\n`);
+console.log(`\nAt the table in "${campaignName}". A plain line is said aloud, /do <text> is done, /ask <text> asks the Dungeon Master, /correct <text> says what happened instead, /roll <face> [bonus] answers a roll, /new starts a fresh sitting, /quit leaves.\n`);
 // Read line by line rather than asking a question each time: input that ends (a pipe, Ctrl-D) then simply ends
 // the sitting, where a question asked of a closed input throws.
 const prompt = createInterface({ input: process.stdin, output: process.stdout, prompt: "\n> " });
@@ -235,7 +235,10 @@ for await (const line of prompt) {
   } else if (typed !== "") {
     const done = typed.startsWith("/do ");
     const asked = typed.startsWith("/ask ");
-    sessionId = await turn(sessionId, asked ? "ask" : done ? "do" : "say", asked ? typed.slice(5).trim() : done ? typed.slice(4).trim() : typed);
+    // "That's not what happened" (#1021 row 23): the line is what happened instead.
+    const corrected = typed.startsWith("/correct ");
+    if (corrected) sessionId = await turn(sessionId, "correct", typed.slice(9).trim());
+    else sessionId = await turn(sessionId, asked ? "ask" : done ? "do" : "say", asked ? typed.slice(5).trim() : done ? typed.slice(4).trim() : typed);
   }
   if (open) prompt.prompt();
 }

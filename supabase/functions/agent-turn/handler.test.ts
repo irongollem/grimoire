@@ -30,6 +30,8 @@ import {
   type SessionRow,
 } from "./turnTypes";
 import type { SceneView } from "../_shared/agent/scene";
+import type { MapPlan } from "../_shared/agent/mapPlan";
+import type { MadeMap } from "./mapMakeIo";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter";
 import type { RecordedFact } from "../_shared/agent/record";
 import type { PendingRoll } from "../_shared/agent/playerRoll";
@@ -73,6 +75,7 @@ function cellarScene(over: Partial<SceneView> = {}): SceneView {
     beside: [],
     places: [],
     characters: [{ id: HONEYCOMB, name: "Honeycomb", occupation: "apprentice" }],
+    hasMap: true,
     ...over,
   };
 }
@@ -216,7 +219,10 @@ interface Harness {
     failArrival: Set<"place" | "reveal" | "seat">;
     /** The date move (`advance_campaign_date`) and the chat line after it fail. */
     advanceFails: boolean;
+    rewindFails: boolean;
     announceFails: boolean;
+    /** What drawing the narrator's map answers: made, the place already has one, or fails. */
+    mapResult: "made" | "exists" | "fails";
     /** The canon (#1226): the world block, the last sitting, what lies here, the lookup, what an invention is held against. */
     canonWorld: string;
     canonPrevious: string;
@@ -233,10 +239,14 @@ interface Harness {
   applied: Array<{ ctx: { campaignId: string; agentSessionId: string; today?: DatePoint | null }; move: QuestMove }>;
   /** Every date move asked of the database, and every chat line posted about one. */
   dateMoves: Array<{ campaignId: string; days: number }>;
+  dateRewinds: Array<{ campaignId: string; days: number }>;
   /** Every invention read (campaign and character) and every ruling asked of the database. */
   inventionReads: Array<{ campaignId: string; memberId: string }>;
   rulingsMade: InventionRuling[];
   announced: string[];
+  /** Every map asked to be drawn, and every one sent on to be painted. */
+  mapsMade: Array<{ campaignId: string; placeId: string; plan: MapPlan }>;
+  mapsPainted: MadeMap[];
   questLoads: Array<{ campaignId: string; pressureClockId: string | null }>;
   fightLoads: Array<{ campaignId: string; locationId: string | null; fightEncounterId: string | null }>;
   introduced: Array<{ ctx: { campaignId: string; memberId: string | null; locationId: string | null }; intro: { replaces: string | null; name: string; about: string; known: boolean; here: boolean } }>;
@@ -244,6 +254,7 @@ interface Harness {
   fightSets: Array<{ sessionId: string; campaignId: string; encounterId: string | null }>;
   /** Prepared fights marked as fought. */
   finished: string[];
+  abandoned: string[];
   /** The fights whose loot was laid where they were fought. */
   laidLoot: { encounterId: string; placeId: string | null; held: string }[];
   /** Handouts given for real, once their turn was kept. */
@@ -368,7 +379,9 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       failMoveAt: new Set<number>(),
       failArrival: new Set<"place" | "reveal" | "seat">(),
       advanceFails: false,
+      rewindFails: false,
       announceFails: false,
+      mapResult: "made",
       canonWorld: "",
       canonPrevious: "",
       canonHere: NO_CANON_HERE,
@@ -381,9 +394,12 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     canonAsked: { previously: [], here: [], lookups: [], brought: [] },
     applied: [],
     dateMoves: [],
+    dateRewinds: [],
     inventionReads: [],
     rulingsMade: [],
     announced: [],
+    mapsMade: [],
+    mapsPainted: [],
     questLoads: [],
     pendingRolls: [],
     reveals: [],
@@ -393,6 +409,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     startedFights: [],
     fightSets: [],
     finished: [],
+    abandoned: [],
     laidLoot: [],
     pursuits: [],
     screenedOutput: [],
@@ -561,6 +578,9 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     finishFight: async (_campaignId, encounterId) => {
       h.finished.push(encounterId);
     },
+    abandonFight: async (_campaignId, encounterId) => {
+      h.abandoned.push(encounterId);
+    },
     loadPrologue: async (campaignId) => {
       if (h.state.prologueThrows) throw new Error("db down");
       return campaignId === CAMPAIGN ? h.state.prologue : null;
@@ -676,6 +696,21 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       if (h.state.advanceFails) throw new Error("rpc failed");
       const date = { ...START_DATE, day: START_DATE.day + days };
       return { date, text: `day ${date.day} of month ${date.month}, ${date.year}` };
+    },
+    rewindDate: async (campaignId, days) => {
+      h.dateRewinds.push({ campaignId, days });
+      if (h.state.rewindFails) throw new Error("rpc failed");
+      const date = { ...START_DATE, day: START_DATE.day - days };
+      return { date, text: `day ${date.day} of month ${date.month}, ${date.year}` };
+    },
+    makeMap: async (campaignId, placeId, plan) => {
+      h.mapsMade.push({ campaignId, placeId, plan });
+      if (h.state.mapResult === "fails") throw new Error("rpc failed");
+      if (h.state.mapResult === "exists") return null;
+      return { placeId, drawingId: "drawing-1", plainUrl: "https://cdn.example/plain.webp", name: plan.name, about: "", picture: { png: new Uint8Array(), width: 64, height: 64 }, calibration: { cells_per_image_width: 1, origin_x_pct: 0, origin_y_pct: 0 } };
+    },
+    paintMap: (_campaignId, made) => {
+      h.mapsPainted.push(made);
     },
     announce: async (_campaignId, text) => {
       if (h.state.announceFails) throw new Error("insert failed");
@@ -3718,6 +3753,50 @@ describe("time and held payoffs, performed by the server once the turn is kept",
     expect(h.events.map((e) => e.type)).not.toContain("days");
   });
 
+  const CORRECT = { campaignId: CAMPAIGN, sessionId: SESSION, message: "We never spent three days in the swamp.", mode: "correct" };
+
+  // Bug caught: a correction that could not reach the date, so "we never spent those days" kept them.
+  it("puts the date back by the days a correction takes back and says so in the chat", async () => {
+    const h = table([call("d1", "take_days_back", { days: 3 }), step(10)]);
+    existingSession(h);
+    await play(h, { body: CORRECT });
+    expect(h.dateRewinds).toEqual([{ campaignId: CAMPAIGN, days: 3 }]);
+    expect(h.dateMoves).toEqual([]);
+    expect(h.announced).toEqual(["📅 The date is now day 11 of month 3, 1492"]);
+  });
+
+  // Bug caught: a date put back in a turn that is not a correction, where the tool is not offered.
+  it("offers take_days_back in a correction only", async () => {
+    const plain = table([step(10)]);
+    await play(plain, { body: BODY });
+    expect(plain.requests[0].tools.map((t) => t.name)).not.toContain("take_days_back");
+    const fixing = table([step(10)]);
+    existingSession(fixing);
+    await play(fixing, { body: CORRECT });
+    expect(fixing.requests[0].tools.map((t) => t.name)).toContain("take_days_back");
+  });
+
+  // Bug caught: the date put back for a turn that was never kept, and again when the player sent it again.
+  it("puts no date back for a correction that was not kept", async () => {
+    const h = table([call("d1", "take_days_back", { days: 3 }), step(10)]);
+    existingSession(h);
+    h.state.conflict = true;
+    await play(h, { body: CORRECT });
+    expect(h.dateRewinds).toEqual([]);
+    expect(h.announced).toEqual([]);
+  });
+
+  // Bug caught: one failed database call (the caller may not move time) throwing away a paid correction.
+  it("keeps the correction when the date cannot be put back, and says nothing about it", async () => {
+    const h = table([call("d1", "take_days_back", { days: 3 }), step(10)]);
+    existingSession(h);
+    h.state.rewindFails = true;
+    await play(h, { body: CORRECT });
+    expect(h.appends).toHaveLength(1);
+    expect(h.announced).toEqual([]);
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
   // Bug caught: a date written for a turn that was never kept, and then written again when the player sent it again.
   it("moves no date and posts no line for a turn that was not kept", async () => {
     const h = table([call("d1", "pass_days", { days: 3 }), step(10)]);
@@ -4031,6 +4110,111 @@ describe("the story turns into a fight", () => {
       h.state.saveThrows = true;
       await play(h, { body: rolling(13) });
       expect(h.events.some((e) => e.type === "fight_change")).toBe(false);
+    });
+  });
+
+  // #1021 row 23: "The Sentry never noticed me; I slipped past it" reached the story and the record but left the fight
+  // set on the sitting, because fight_change needs the player's roll and a running board.
+  describe("a correction calling off the fight", () => {
+    const standing = (phase: "running" | "waiting"): FightsInView => ({
+      prepared: [],
+      fight: { encounterId: FIGHT, name: "The Watching Pack", phase, round: phase === "running" ? 2 : null, fighters: [
+        { name: "Wren Ashfield", side: "party", hp: 20, maxHp: 24 },
+        { name: "Giant Rat 1", side: "enemy", hp: 5, maxHp: 7 },
+      ] },
+    });
+    const callOff = (how: string): ModelStep => step(10, { blocks: [{ type: "tool_call", id: "c1", name: "call_off_fight", input: { how } }], stop: "tool_calls" });
+    const CORRECTION = { campaignId: CAMPAIGN, sessionId: SESSION, message: "The rats never noticed me; I slipped past into the storeroom.", mode: "correct" };
+    const fighting = (script: Script, phase: "running" | "waiting" = "running", over: Partial<SessionRow> = {}): Harness => {
+      const h = played(script, { fight_encounter_id: FIGHT, ...over });
+      h.state.fights = standing(phase);
+      return h;
+    };
+    const names = (h: Harness) => h.requests[0].tools.map((t) => t.name);
+
+    // Bug caught: the tool offered to a player who was not correcting (a way to end any fight with no roll), or to a
+    // correction in a story with no fight set; and a fight only set up, not yet running, left out of reach.
+    it("is offered in a correction while a fight is set, running or not, and nowhere else", async () => {
+      for (const phase of ["running", "waiting"] as const) {
+        const h = fighting([step(10)], phase);
+        await play(h, { body: CORRECTION });
+        expect(names(h)).toContain("call_off_fight");
+      }
+      const notCorrecting = fighting([step(10)]);
+      await play(notCorrecting, { body: BODY });
+      expect(names(notCorrecting)).not.toContain("call_off_fight");
+      const noFight = played([step(10)]);
+      await play(noFight, { body: CORRECTION });
+      expect(names(noFight)).not.toContain("call_off_fight");
+    });
+
+    // Bug caught: a fight that never happened recorded as fought, finished (so never offered again), looted or
+    // rewarded; or left set on the sitting; or the page not told to drop the board.
+    it("lets go of a fight that never happened without recording, finishing or laying anything", async () => {
+      const h = fighting([callOff("never_happened"), step(10)]);
+      await play(h, { body: CORRECTION });
+      expect(h.fightSets).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN, encounterId: null }]);
+      expect(h.abandoned).toEqual([FIGHT]);
+      expect(h.facts.filter((f) => f.body.includes("fought"))).toEqual([]);
+      expect(h.finished).toEqual([]);
+      expect(h.laidLoot).toEqual([]);
+      expect(h.pursuits).toEqual([]);
+      expect(fightEvents(h)).toEqual([{ type: "fight", fight: null, calledOff: true }]);
+      expect(h.events.some((e) => e.type === "fight_change")).toBe(false);
+    });
+
+    // Bug caught: a fight only set up has no board row; a call-off that wrote anyway would throw, or one that
+    // skipped the sitting would leave the fight set. The sitting is cleared either way.
+    it("lets go of a fight that was only set up", async () => {
+      const h = fighting([callOff("never_happened"), step(10)], "waiting");
+      await play(h, { body: CORRECTION });
+      expect(h.fightSets).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN, encounterId: null }]);
+      expect(fightEvents(h)).toEqual([{ type: "fight", fight: null, calledOff: true }]);
+    });
+
+    // Bug caught: the three endings doing less (or more) than fight_change's: no record, a fight finished that the
+    // party ran from, no pursuit, no yielded loot, or the page never told to close the board.
+    it("ends a fight the way fight_change ends it, with no roll and no cost", async () => {
+      const gave = fighting([callOff("they_give_in"), step(10)]);
+      await play(gave, { body: CORRECTION });
+      expect(gave.fightSets).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN, encounterId: null }]);
+      expect(gave.facts.map((f) => f.body)).toContain('Wren Ashfield fought "The Watching Pack": Giant Rat 1 gave in and is still there, alive.');
+      expect(gave.finished).toEqual([FIGHT]);
+      expect(gave.laidLoot.map((l) => l.held)).toEqual(["yielded"]);
+      expect(gave.abandoned).toEqual([]);
+      expect(gave.events.filter((e) => e.type === "fight_change")).toEqual([
+        { type: "fight_change", change: { costs: "nothing", condition: null, damage: null, ends: "they_give_in" } },
+      ]);
+      const ran = fighting([callOff("you_get_away"), step(10)]);
+      await play(ran, { body: CORRECTION });
+      expect(ran.finished).toEqual([]);
+      expect(ran.laidLoot).toEqual([]);
+      expect(ran.pursuits).toEqual([FIGHT]);
+      const fled = fighting([callOff("they_flee"), step(10)]);
+      await play(fled, { body: CORRECTION });
+      expect(fled.finished).toEqual([FIGHT]);
+      expect(fled.laidLoot).toEqual([]);
+    });
+
+    // Bug caught: two endings in one reply, so the page ends the board twice and the record tells two outcomes.
+    // (Never beside fight_change: turnTools.test.ts, since a correction carries no roll of the player's.)
+    it("takes one call-off a reply", async () => {
+      const twice = fighting([callOff("they_flee"), callOff("never_happened"), step(10)]);
+      await play(twice, { body: CORRECTION });
+      expect(JSON.stringify(twice.requests[2])).toContain("already called off");
+      expect(twice.abandoned).toEqual([]);
+      expect(twice.finished).toEqual([FIGHT]);
+    });
+
+    // Bug caught: a call-off for a turn that was never kept, so the fight vanished and the player's message still
+    // stood unanswered.
+    it("calls nothing off when the turn is not kept", async () => {
+      const h = fighting([callOff("never_happened"), step(10)]);
+      h.state.saveThrows = true;
+      await play(h, { body: CORRECTION });
+      expect(h.fightSets).toEqual([]);
+      expect(h.abandoned).toEqual([]);
+      expect(fightEvents(h)).toEqual([]);
     });
   });
 
@@ -4562,6 +4746,111 @@ describe("the Narrator rules on the played character's inventions (#1021 row 14)
     expect(h.requests[0].tools.map((t) => t.name)).not.toContain("rule_invention");
     expect(answers(h, 1)[0]).toMatchObject({ isError: true });
     expect(h.rulingsMade).toEqual([]);
+  });
+});
+
+describe("the narrator draws a map for a place that has none", () => {
+  const BODY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "We search the cellar.", mode: "do" };
+  const PLAN = {
+    name: "The Honey Cellar", cols: 8, rows: 6, light: "dim",
+    rooms: [{ key: "a", name: "Cellar", x: 1, y: 1, w: 4, h: 3, about: "Barrels along the north wall." }],
+    doors: [{ from: "a", to: "outside", side: "south" }],
+  };
+  const draw = (input: Record<string, unknown> = PLAN, id = "m1"): ModelStep =>
+    step(10, { blocks: [{ type: "tool_call", id, name: "make_map", input }], stop: "tool_calls" });
+  /** A table standing in a place with no map, which is the only place the tool is offered. */
+  const bare = (script: Script, over: Partial<SessionRow> = {}): Harness => {
+    const h = harness(script);
+    h.state.places.set(CELLAR, cellarScene({ hasMap: false }));
+    existingSession(h, { scene_location_id: CELLAR, ...over });
+    return h;
+  };
+  const offered = (h: Harness) => h.requests[0].tools.map((t) => t.name).includes("make_map");
+  const answers = (h: Harness, request: number) =>
+    h.requests[request].messages.flatMap((m) => m.blocks).filter((b) => b.type === "tool_result");
+
+  // Bug caught: the tool offered over a map the DM drew, so the narrator replaced it; or never offered, so no map is made.
+  it("is offered only where the place has no map", async () => {
+    const without = bare([step(10)]);
+    await play(without, { body: BODY });
+    expect(offered(without)).toBe(true);
+    const withMap = harness([step(10)]);
+    existingSession(withMap, { scene_location_id: CELLAR });
+    await play(withMap, { body: BODY });
+    expect(offered(withMap)).toBe(false);
+  });
+
+  // Bug caught: a map drawn in the middle of a round, where the board is what is fought on.
+  it("is not offered, and is refused if called, in a fight on the board", async () => {
+    const h = bare([draw(), step(10)], { fight_encounter_id: FIGHT });
+    h.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "Rosie confronts Sift", phase: "running", round: 1, fighters: [] } };
+    await play(h, { body: BODY });
+    expect(offered(h)).toBe(false);
+    expect(answers(h, 1)[0]).toMatchObject({ isError: true });
+    expect(h.mapsMade).toEqual([]);
+  });
+
+  // Bug caught: a map written on the spot for a turn that was never kept, and again when the player sent it again.
+  it("draws nothing until the turn is kept, then once, and says so in the chat", async () => {
+    const h = bare([draw(), step(10)]);
+    await play(h, { body: BODY });
+    expect(h.mapsMade).toEqual([{ campaignId: CAMPAIGN, placeId: CELLAR, plan: expect.objectContaining({ name: "The Honey Cellar", cols: 8 }) }]);
+    expect(h.mapsPainted.map((m) => m.drawingId)).toEqual(["drawing-1"]);
+    expect(h.announced).toEqual(["🗺️ A map of The Honey Cellar is drawn"]);
+    expect(answers(h, 1)[0]).toMatchObject({ isError: false });
+
+    const unkept = bare([draw(), step(10)]);
+    unkept.state.conflict = true;
+    await play(unkept, { body: BODY });
+    expect(unkept.mapsMade).toEqual([]);
+    expect(unkept.mapsPainted).toEqual([]);
+  });
+
+  // Bug caught: a second plan silently replacing the first, or both written.
+  it("takes one map a reply", async () => {
+    const h = bare([draw(PLAN, "m1"), draw({ ...PLAN, name: "Another" }, "m2"), step(10)]);
+    await play(h, { body: BODY });
+    expect(answers(h, 2).map((r) => r.isError)).toEqual([false, true]);
+    expect(h.mapsMade.map((m) => m.plan.name)).toEqual(["The Honey Cellar"]);
+  });
+
+  // Bug caught: a plan the parser refuses written anyway, or the refusal never reaching the narrator to fix it.
+  it("sends a plan that does not parse back as an error, and writes nothing", async () => {
+    const h = bare([draw({ ...PLAN, rooms: [] }), step(10)]);
+    await play(h, { body: BODY });
+    expect(answers(h, 1)[0]).toMatchObject({ isError: true });
+    expect(h.mapsMade).toEqual([]);
+  });
+
+  // Bug caught: a plan drawn for the room the party then left, written to the wrong place.
+  it("refuses a map in a reply where the party moved", async () => {
+    const OTHER = "00000000-0000-4000-8000-0000000000a9";
+    const h = bare([step(10, { blocks: [{ type: "tool_call", id: "g1", name: "go_to", input: { location_id: OTHER } }], stop: "tool_calls" }), draw(), step(10)]);
+    h.state.places.set(OTHER, cellarScene({ id: OTHER, name: "The Yard", hasMap: false }));
+    await play(h, { body: BODY });
+    expect(h.mapsMade).toEqual([]);
+  });
+
+  // Bug caught: the DM's own map drawn meanwhile treated as a failure, or painted over.
+  it("treats a place that got a map meanwhile as skipped: no chat line, no painting, the turn kept", async () => {
+    const h = bare([draw(), step(10)]);
+    h.state.mapResult = "exists";
+    await play(h, { body: BODY });
+    expect(h.mapsMade).toHaveLength(1);
+    expect(h.announced).toEqual([]);
+    expect(h.mapsPainted).toEqual([]);
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
+  // Bug caught: a map the database refused throwing away a paid turn.
+  it("keeps the turn when the map cannot be written, and says nothing of it", async () => {
+    const h = bare([draw(), step(10)]);
+    h.state.mapResult = "fails";
+    await play(h, { body: BODY });
+    expect(h.appends).toHaveLength(1);
+    expect(h.announced).toEqual([]);
+    expect(h.mapsPainted).toEqual([]);
+    expect(last(h)).toMatchObject({ type: "done" });
   });
 });
 

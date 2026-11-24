@@ -71,7 +71,7 @@ export async function beginTurn(input: {
       try {
         const { session, prologue } = await openSitting(scope);
         const ctx = await readTurnContext(scope, session);
-        const { character, stored, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere, inventions } = ctx;
+        const { scene, character, stored, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere, inventions } = ctx;
         const fightRunning = fights !== null && fights.fight !== null && fights.fight.phase === "running";
         // The canon's material is read once a turn and shared by the invention check and the narration check. A failed
         // read is forgotten so the next asker may try again.
@@ -124,8 +124,13 @@ export async function beginTurn(input: {
           show: character
             ? { handouts, picture: (what, id) => deps.loadPicture(campaign.id, what, id), place: (id) => deps.loadPlace(campaign.id, id), onPlace: (place) => { fx.sharedPlaces.push(place); }, onHandout: (handout) => { fx.handedOut.push(handout); } }
             : null,
+          // Only where the party's place has no map, and not in a fight: a map is for exploring, and the board is fought on.
+          // Fights that could not be read might hold a running one, so no map then either (#1271 review).
+          makeMap: scene !== null && !scene.hasMap && fights !== null && !fightRunning ? { placeId: scene.id, onPlan: (plan) => { fx.mapPlan = { placeId: scene.id, plan }; } } : null,
           // Days that pass in the story move the campaign's date, on the server, once the turn is kept. Not in a fight.
           onDaysPassed: fightRunning ? null : (days) => { fx.daysPassed = days; },
+          // A correction can take days back; not in a fight, like days passing.
+          onDaysTakenBack: fightRunning ? null : (days) => { fx.daysTakenBack = days; },
           // How far somewhere is, by the campaign's roads. Not in a fight: nobody sets out on a journey mid-round.
           travel: fightRunning ? null : { map: () => deps.loadTravelMap(campaign.id, campaign.game_system), roll: deps.rollDie },
           // Not in a fight: a turn there is six seconds, and what it holds is the board's.
@@ -140,6 +145,10 @@ export async function beginTurn(input: {
           // Offered only while a fight is being fought on the board.
           fightChange: fightRunning
             ? { fight: fights.fight!, budget: fightTurn, rolled: scored === null ? null : scored.success, onChange: (change) => { fx.fightChange = change; } }
+            : null,
+          // A correction may call off the fight on the sitting, running or only set up; the tool is offered only when correcting.
+          callOffFight: fights !== null && fights.fight !== null && fights.fight.phase !== "over"
+            ? { fight: fights.fight, onCallOff: (how) => { fx.fightCalledOff = how; } }
             : null,
           // Only a played character has a sheet to roll from; without one the narrator rolls as before.
           askRoll: character ? (pending) => { fx.asked = pending; } : null,

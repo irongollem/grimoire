@@ -1,5 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
+import { ref } from "vue";
+
+// The ambience rules are proven in useTableAmbience.test.ts; here only what the column draws and presses.
+const toggle = vi.fn();
+const offered = ref(false);
+const on = ref(false);
+const unanswered = ref<string | null>(null);
+vi.mock("@/composables/table/useTableAmbience", () => ({
+  useTableAmbience: () => ({ offered, on, unanswered, toggle }),
+}));
 import SoloScene from "./SoloScene.vue";
 import type { SceneNpc } from "@/composables/table/useTableScene";
 
@@ -14,6 +24,40 @@ const npc = (over: Partial<SceneNpc> = {}): SceneNpc => ({
   is_revealed: false,
   unmasked_at: null,
   ...over,
+});
+
+beforeEach(() => {
+  offered.value = false;
+  on.value = false;
+  unanswered.value = null;
+  toggle.mockClear();
+});
+
+describe("SoloScene ambience", () => {
+  // Bug caught: a sound button in a place with no sound.
+  it("draws no control when the place has no ambience", () => {
+    const w = mount(SoloScene, { props: { placeName: "The Workshop", placeId: "p1", here: [] } });
+    expect(w.find('[aria-label="Play the ambience"]').exists()).toBe(false);
+  });
+
+  // Bug caught: the button that does not switch it on, or that never offers Stop once it plays.
+  it("offers Play, then Stop once it is on, and presses through to the switch", async () => {
+    offered.value = true;
+    const w = mount(SoloScene, { props: { placeName: "The Workshop", placeId: "p1", here: [] } });
+    await w.get('[aria-label="Play the ambience"]').trigger("click");
+    expect(toggle).toHaveBeenCalledOnce();
+    on.value = true;
+    await w.vm.$nextTick();
+    expect(w.find('[aria-label="Stop the ambience"]').exists()).toBe(true);
+  });
+
+  // Bug caught: a button that silently plays nothing.
+  it("says which theme nothing answers", () => {
+    offered.value = true;
+    unanswered.value = "tavern";
+    const w = mount(SoloScene, { props: { placeName: "The Workshop", placeId: "p1", here: [] } });
+    expect(w.get('[data-testid="solo-ambience-unanswered"]').text()).toContain("No ambient scene is tagged “tavern” yet");
+  });
 });
 
 describe("SoloScene", () => {
@@ -35,6 +79,13 @@ describe("SoloScene", () => {
     const w = mount(SoloScene, { props: { placeName: "The Locked Workshop", here: [] } });
     expect(w.text()).toContain("The Locked Workshop");
     expect(w.text()).toContain("No one else is here.");
+  });
+
+  // Bug caught (seen on a phone, 24 Nov 2026): a place with a name and no summary also read "Nowhere in particular yet",
+  // under its own name. Only a scene with no place says that.
+  it("says nowhere in particular only when there is no place", () => {
+    expect(mount(SoloScene, { props: { placeName: "The Working Kitchen", here: [] } }).text()).not.toContain("Nowhere in particular");
+    expect(mount(SoloScene, { props: { placeName: null, here: [] } }).text()).toContain("Nowhere in particular");
   });
 
   // Bug caught: what went on record spread across the column (it was taking over the story before), or the newest

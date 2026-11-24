@@ -107,7 +107,7 @@
                under it: whoever is in the room and not in the fight is still there, and vanished from the page when
                the list took the whole column. -->
           <div :id="FIGHT_SLOTS.roster" :class="inFight ? 'border-b border-border' : ''" />
-          <SoloScene :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" :after="after" :place-summary="placeSummary" :recorded="recorded" />
+          <SoloScene :place-id="sceneId" :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" :after="after" :place-summary="placeSummary" :recorded="recorded" />
         </aside>
       </div>
 
@@ -217,7 +217,7 @@ const fightState = useTableFightState({
   noteBoard: (lines, byServer) => noteBoard(lines, byServer),
   aftermath: () => turn.aftermath(),
 });
-const { fight, fightTurn, inFight, composerFight, onFightOver, onFightLost } = fightState;
+const { fight, fightTurn, inFight, composerFight, onFightOver, onFightLost, onFightSet } = fightState;
 const stage = ref<InstanceType<typeof SoloFightStage> | null>(null);
 
 // The weather where the story stands, from the campaign's own weather system: the Narrator is told it with every turn.
@@ -263,7 +263,7 @@ const turn = useTableTurn({
     scene.refresh();
   },
   onPressure: (now) => (pressure.value = now),
-  onFight: (now) => (fight.value = now),
+  onFight: onFightSet,
   onAskRoll: (ask) => (asked.value = ask),
   onDone: (floor) => {
     watchOn(floor);

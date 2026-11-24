@@ -6,7 +6,7 @@ import { shownNpcName } from "../_shared/npcProfile.ts";
 
 type Row = Record<string, unknown>;
 
-export function sceneFrom(place: Row, parent: Row | null, siblings: readonly Row[], children: readonly Row[], people: readonly Row[]): SceneView {
+export function sceneFrom(place: Row, parent: Row | null, siblings: readonly Row[], children: readonly Row[], people: readonly Row[], hasMap: boolean): SceneView {
   return {
     id: place.id as string,
     name: place.name as string,
@@ -16,6 +16,7 @@ export function sceneFrom(place: Row, parent: Row | null, siblings: readonly Row
     withinId: parent ? (place.parent_id as string) : null,
     beside: siblings.map((c) => ({ id: c.id as string, name: c.name as string })),
     places: children.map((c) => ({ id: c.id as string, name: c.name as string })),
+    hasMap,
     characters: people.map((n) => ({
       id: n.id as string,
       name: shownNpcName({

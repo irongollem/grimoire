@@ -4,6 +4,7 @@
 
 import type { BroughtOut } from "../_shared/agent/canon.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
+import type { CallOffHow } from "../_shared/agent/callOffFight.ts";
 import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
 import type { HazardRules } from "../_shared/agent/hazard.ts";
 import type { HandoutOffer, PlaceShare } from "../_shared/agent/show.ts";
@@ -12,6 +13,7 @@ import type { Introduction } from "../_shared/agent/introduce.ts";
 import type { FightPlan } from "../_shared/agent/fight.ts";
 import type { InventionRuling } from "../_shared/agent/invention.ts";
 import type { PendingRoll } from "../_shared/agent/playerRoll.ts";
+import type { MapPlan } from "../_shared/agent/mapPlan.ts";
 import type { QuestMove } from "../_shared/agent/quests.ts";
 import type { FiledFact } from "./turnTools.ts";
 import { safely } from "./turnSupport.ts";
@@ -47,6 +49,8 @@ export interface TurnEffects {
   handed: HandsChange[];
   // What the narrator's ruling does to the fight on the board; carried out by the page once the turn is kept.
   fightChange: FightChange | null;
+  // How a correction ends the fight (the player overruled it); carried out only once the turn is kept.
+  fightCalledOff: CallOffHow | null;
   // What the narrator's roll does to the played character's hit points; written only once the turn is kept.
   hitPointChange: HitPointChange | null;
   // People the narrator gave a record this turn; made only once the turn is kept.
@@ -54,6 +58,10 @@ export interface TurnEffects {
   // Hazards the narrator made this turn; written only once the turn is kept.
   madeHazards: HazardRules[];
   daysPassed: number;
+  // Days a correction takes the campaign's date back by; carried out only once the turn is kept.
+  daysTakenBack: number;
+  // The map the narrator drew for the place it has none for; written (and painted) only once the turn is kept.
+  mapPlan: { placeId: string; plan: MapPlan } | null;
   // The fight the narrator starts this turn; started only once the turn is kept.
   fightPlan: FightPlan | null;
   // Clues found and passages told in play this turn (#1226); marked only once the turn is kept.
@@ -74,10 +82,13 @@ export function newEffects(): TurnEffects {
     narratorKeeps: false,
     handed: [],
     fightChange: null,
+    fightCalledOff: null,
     hitPointChange: null,
     introduced: [],
     madeHazards: [],
     daysPassed: 0,
+    daysTakenBack: 0,
+    mapPlan: null,
     fightPlan: null,
     broughtOut: [],
     rulings: [],

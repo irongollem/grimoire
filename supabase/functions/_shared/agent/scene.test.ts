@@ -7,13 +7,14 @@ import {
   sceneResult,
   sceneSection,
   trimScene,
+  NO_MAP_LINE,
   type SceneView,
 } from "./scene";
 
 const ID = "00000000-0000-4000-8000-0000000000a5";
 
 function view(over: Partial<SceneView> = {}): SceneView {
-  return { id: ID, name: "Honey Cellar", kind: "cellar", description: "Damp stone.", within: "Cup Town", withinId: null, beside: [], places: [], characters: [], ...over };
+  return { id: ID, name: "Honey Cellar", kind: "cellar", description: "Damp stone.", within: "Cup Town", withinId: null, beside: [], places: [], characters: [], hasMap: true, ...over };
 }
 const people = (n: number) =>
   Array.from({ length: n }, (_, i) => ({ id: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`, name: `Person${i}`, occupation: null }));
@@ -42,6 +43,12 @@ describe("trimScene", () => {
 });
 
 describe("sceneSection", () => {
+  // Bug caught: the narrator never told a place has no map, so it never offers to draw one (or, said everywhere, offers over the DM's map).
+  it("says a place has no map only when it has none", () => {
+    expect(sceneSection(trimScene(view({ hasMap: false })))).toContain(NO_MAP_LINE);
+    expect(sceneSection(trimScene(view({ hasMap: true })))).not.toContain("no map");
+  });
+
   it("tells the narrator an empty room is empty", () => {
     expect(sceneSection(trimScene(view()))).toContain("Nobody with a record is here.");
   });

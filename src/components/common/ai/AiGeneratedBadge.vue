@@ -58,6 +58,7 @@
 import { computed } from "vue";
 import { IconGenerate } from "@/lib/icons";
 import { useAiLabelPrefs } from "@/composables/ai/useAiLabelPrefs";
+import { writtenByNarrator } from "@/lib/table/solo/narratorProvenance";
 
 /** Display-only projection of `AiProvenance` (src/ai/provenance.ts) — every field optional, so a caller that only knows the provider (e.g. minis) can still show a badge. */
 export interface AiBadgeProvenance {
@@ -65,6 +66,8 @@ export interface AiBadgeProvenance {
   provider?: string;
   generatedAt?: string;
   edited?: boolean;
+  /** Which feature wrote it; the AI table's own writes are labelled as the Narrator's. */
+  generatorType?: string;
 }
 
 const { variant, provenance, corner = "right" } = defineProps<{
@@ -78,13 +81,18 @@ const { variant, provenance, corner = "right" } = defineProps<{
 const { showAiLabels } = useAiLabelPrefs();
 const shown = computed(() => !!provenance && showAiLabels.value);
 
-const lineText = computed(() =>
-  provenance?.edited ? "AI-assisted, edited by the DM" : "Drafted with AI assistance",
-);
+// What the AI table wrote is the Narrator's, not the DM's drafted with help: the table runs on the DM's account, so
+// without this a note shared with the players reads as the DM's own (#1021 row 1).
+const byNarrator = computed(() => writtenByNarrator(provenance?.generatorType));
+
+const lineText = computed(() => {
+  if (byNarrator.value) return provenance?.edited ? "Written by the Narrator, edited by the DM" : "Written by the Narrator";
+  return provenance?.edited ? "AI-assisted, edited by the DM" : "Drafted with AI assistance";
+});
 
 const tooltipText = computed(() => {
   if (!provenance) return "";
-  const lines = ["AI-generated"];
+  const lines = [byNarrator.value ? "Written by the Narrator, the AI table's storyteller" : "AI-generated"];
   if (provenance.model) {
     lines.push(
       provenance.provider ? `Model: ${provenance.model} (${provenance.provider})` : `Model: ${provenance.model}`,

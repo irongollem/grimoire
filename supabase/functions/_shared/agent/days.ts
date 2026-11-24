@@ -43,3 +43,37 @@ export function parsePassDays(input: Record<string, unknown>): ParsedDays {
 export function passedText(days: number): string {
   return `${days} ${days === 1 ? "day passes" : "days pass"}. The campaign's date moves on with ${days === 1 ? "it" : "them"} when this reply is kept.`;
 }
+
+export const TAKE_DAYS_BACK_TOOL_NAME = "take_days_back";
+
+/**
+ * The other direction, for a correction only ("that's not what happened"): the date only ever moves on through
+ * `pass_days`, so a player who says the days never passed would otherwise keep them. Carried out when the turn is kept.
+ */
+export const TAKE_DAYS_BACK_TOOL: AgentTool = {
+  name: TAKE_DAYS_BACK_TOOL_NAME,
+  description:
+    "Puts the campaign's date back by whole days, only when the player's correction means days the story told did " +
+    "not pass (\"we never spent three days in the swamp\"). Call it once, with the total. Not for anything the " +
+    "correction leaves standing, and never in the same reply as pass_days.",
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["days"],
+    properties: {
+      days: { type: "integer", minimum: 1, maximum: MAX_DAYS_PASSED, description: "Whole days that did not pass." },
+    },
+  },
+};
+
+export function parseTakeDaysBack(input: Record<string, unknown>): ParsedDays {
+  const days = input.days;
+  if (typeof days !== "number" || !Number.isInteger(days) || days < 1 || days > MAX_DAYS_PASSED) {
+    return { ok: false, error: `days must be a whole number from 1 to ${MAX_DAYS_PASSED}.` };
+  }
+  return { ok: true, days };
+}
+
+export function takenBackText(days: number): string {
+  return `${days} ${days === 1 ? "day is" : "days are"} taken back. The campaign's date moves back with ${days === 1 ? "it" : "them"} when this reply is kept.`;
+}

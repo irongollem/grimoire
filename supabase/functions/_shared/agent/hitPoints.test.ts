@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hitPointsText, parseHitPointChange, unaccountedThing, rollTotal } from "./hitPoints.ts";
+import { hitPointsText, hitPointsWrite, parseHitPointChange, unaccountedThing, rollTotal } from "./hitPoints.ts";
 
 const HONEYCOMB = "f5f67a48-5233-473b-84a3-5eb024491c86";
 const hurt = { current: 15, max: 58 };
@@ -79,5 +79,16 @@ describe("unaccountedThing", () => {
     expect(unaccountedThing("A night's rest", pack)).toBeNull();
     expect(unaccountedThing("The rope bridge gives way", pack)).toBeNull();
     expect(unaccountedThing("Cure Wounds", [])).toBeNull();
+  });
+});
+
+// PHB 2014 / SRD 5.2 "Death Saving Throws": regaining any hit points resets both counts. Bug caught (seen live on the
+// AI table, 24 Nov 2026): a death overruled to 1 hit point kept three failures on the sheet.
+describe("hitPointsWrite", () => {
+  it("clears both death save counts at 1 hit point and above", () => {
+    expect(hitPointsWrite(1)).toEqual({ current_hp: 1, death_save_successes: 0, death_save_failures: 0 });
+  });
+  it("leaves the counts alone at 0, where the fight keeps them", () => {
+    expect(hitPointsWrite(0)).toEqual({ current_hp: 0 });
   });
 });

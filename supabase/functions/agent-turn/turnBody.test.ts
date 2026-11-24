@@ -45,6 +45,7 @@ describe("a correction: that's not what happened", () => {
     expect(text).toContain("She was only knocked out.");
     expect(text).toContain("true from now on");
     expect(text).toContain("Do not argue");
+    expect(text).toContain("take_days_back");
     expect(text).not.toContain("says aloud");
   });
 });

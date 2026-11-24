@@ -152,5 +152,5 @@ export async function readTurnContext(scope: TurnScope, session: SessionRow) {
   if (anyWithheld) emit({ type: "screened" });
   const system = systemWithSummary(result.system, session.summary);
   const state = result.state;
-  return { character, stored, lastSeqLoaded, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere, inventions };
+  return { scene, character, stored, lastSeqLoaded, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere, inventions };
 }

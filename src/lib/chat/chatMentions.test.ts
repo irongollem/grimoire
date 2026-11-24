@@ -103,18 +103,17 @@ describe("addresses", () => {
 });
 
 describe("mightBeAnswered", () => {
-  const toRosie = mentionsIn("@Rosie go", [rosie]);
   const played = [{ ai_stands_in: false }, { ai_stands_in: true }];
 
-  it("asks only for a line that addresses a character, the party, or is a whisper", () => {
-    expect(mightBeAnswered(null, toRosie, played)).toBe(true);
-    expect(mightBeAnswered("user-7", [], played)).toBe(true);
-    expect(mightBeAnswered(null, [], played)).toBe(false);
-    expect(mightBeAnswered(null, mentionsIn("@Dungeon Master?", [dm]), played)).toBe(false);
+  // Row 26, "when it has cause" (24 Nov 2026): a line that addresses nobody may still draw a played character's word,
+  // so the server is asked about every line. Bug caught: the old gate that dropped un-addressed lines.
+  it("asks about every line while someone at the table is played", () => {
+    expect(mightBeAnswered(played)).toBe(true);
   });
 
   it("spares the call when nobody at the table is played, and asks when the reader cannot tell", () => {
-    expect(mightBeAnswered(null, toRosie, [{ ai_stands_in: false }])).toBe(false);
-    expect(mightBeAnswered(null, toRosie, [{}])).toBe(true);
+    expect(mightBeAnswered([{ ai_stands_in: false }])).toBe(false);
+    expect(mightBeAnswered([])).toBe(false);
+    expect(mightBeAnswered([{}])).toBe(true);
   });
 });

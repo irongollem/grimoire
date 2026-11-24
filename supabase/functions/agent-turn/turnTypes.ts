@@ -4,6 +4,8 @@
 // from here; `handler.ts` exports only the two entry points.
 
 import type { CanonStore } from "./canonIo.ts";
+import type { MapPlan } from "../_shared/agent/mapPlan.ts";
+import type { MadeMap } from "./mapMakeIo.ts";
 import type { SiteState } from "../_shared/agent/site.ts";
 import type { InventionRuling, PendingInvention } from "../_shared/agent/invention.ts";
 import type { SceneMemory } from "../_shared/agent/memories.ts";
@@ -268,6 +270,11 @@ export interface AgentTurnDeps {
   ): Promise<{ encounterId: string; name: string }>;
   /** Lets the conversation go of its fight (null), once its aftermath has been told. */
   setFight(sessionId: string, campaignId: string, encounterId: string | null): Promise<void>;
+  /**
+   * Closes a fight's board row without an outcome, as the DM's own Abandon does (rolls cleared, hit points and
+   * conditions left): a correction said the fight never happened. Nothing when the fight has no row or is over.
+   */
+  abandonFight(campaignId: string, encounterId: string): Promise<void>;
   /** The campaign's handouts the played character does not hold yet. */
   loadHandouts(campaignId: string, memberId: string): Promise<HandoutOffer[]>;
   /** The campaign's own picture of a record, with the name it is shown under; null when there is none. */
@@ -365,6 +372,22 @@ export interface AgentTurnDeps {
    * word it). Called only after the turn was saved; throws on any failure.
    */
   advanceDate(campaignId: string, days: number): Promise<{ date: DatePoint; text: string | null }>;
+  /**
+   * Puts the campaign's date back by whole days (`rewind_campaign_date`, as the caller, like `advanceDate`). Same
+   * return. Called only after the turn was saved, in a correction; throws on any failure.
+   */
+  rewindDate(campaignId: string, days: number): Promise<{ date: DatePoint; text: string | null }>;
+  /**
+   * Draws the Narrator's plan as the map of a place that has none (`mapMakeIo.ts`): the drawing, the rooms, the doors
+   * and a plain picture, written as the caller. Null when the place has a map by now (the DM made one meanwhile).
+   * Called only after the turn was saved; throws on any other failure.
+   */
+  makeMap(campaignId: string, placeId: string, plan: MapPlan): Promise<MadeMap | null>;
+  /**
+   * Starts painting a made map in the background, billed as a styled map. Returns at once; whatever stops the painting
+   * (no provider, no credits) leaves the plain picture, which already works, and is logged.
+   */
+  paintMap(campaignId: string, made: MadeMap): void;
   /** Writes a system line into the campaign's chat, as the Calendar page does when the date moves. Throws on failure. */
   announce(campaignId: string, text: string): Promise<void>;
   /**

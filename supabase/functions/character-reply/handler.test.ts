@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { AgentUsage, CallModel } from "../_shared/agent/types";
 import type { StandIn } from "../_shared/agent/standIn";
 import { jsonError } from "../_shared/pipeline/respond";
+import type { JudgeResult } from "../_shared/typesafe";
 import { answerChatLine, type ChatLine, type ReplyDeps, type ReplyHold } from "./handler";
+import { UNPROMPTED_MIN } from "./unprompted";
 
 const LINE = "00000000-0000-4000-8000-0000000000a1";
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
@@ -31,7 +33,17 @@ function harness(over: Partial<ChatLine> = {}) {
     refuseHold: null as Response | null,
     modelText: '{"says": "Aye, I am here.", "remembers": "Sam asked if I was with them."}',
     prompts: [] as { system: string; user: string }[],
-    posted: [] as { character: string; text: string; recipientUserId: string | null }[],
+    posted: [] as { character: string; text: string; recipientUserId: string | null; unprompted: boolean }[],
+    known: { partyNames: ["Sam", "Folio"] } as { partyNames: string[] },
+    namesRead: 0,
+    rateLeft: Infinity,
+    rateChecks: 0,
+    spokenThisHour: 0,
+    cause: 0.95 as number | null,
+    key: true,
+    judged: [] as unknown[],
+    now: Date.parse("2026-11-24T12:00:00Z"),
+    sinceAsked: [] as string[],
     memories: [] as { partyMemberId: string; ownerId: string; body: string }[],
     reservedOn: [] as string[],
     charged: [] as { ownerId: string; credits: number }[],
@@ -71,9 +83,29 @@ function harness(over: Partial<ChatLine> = {}) {
       };
       return work(hold);
     },
-    postReply: async ({ character, text, recipientUserId }) => {
-      h.posted.push({ character: character.id, text, recipientUserId });
+    postReply: async ({ character, text, recipientUserId, unprompted }) => {
+      h.posted.push({ character: character.id, text, recipientUserId, unprompted });
     },
+    // Ids no played character has, so each test's names reach every bystander as it set them.
+    loadPartyNames: async () => {
+      h.namesRead += 1;
+      return h.known.partyNames.map((name) => ({ id: `pm-${name}`, name }));
+    },
+    rateLimit: async () => {
+      h.rateChecks += 1;
+      return h.rateLeft-- > 0;
+    },
+    countUnprompted: async (_c, _m, since) => {
+      h.sinceAsked.push(since);
+      return h.spokenThisHour;
+    },
+    judge: async (request) => {
+      if (!h.key) return null;
+      h.judged.push(request.state);
+      const result: JudgeResult = { model: "jev", inputTokens: 10, answers: h.cause === null ? {} : { cause: { type: "noul", noul: h.cause } } };
+      return result;
+    },
+    now: () => h.now,
     fileMemory: async ({ partyMemberId, ownerId, body }) => {
       h.memories.push({ partyMemberId, ownerId, body });
     },
@@ -91,7 +123,7 @@ describe("answerChatLine", () => {
   it("the addressed character answers in the open, remembers, and the Dungeon Master pays", async () => {
     const h = harness();
     expect(await ask(h)).toEqual({ status: 200, replies: 1 });
-    expect(h.posted).toEqual([{ character: "wren", text: "Aye, I am here.", recipientUserId: null }]);
+    expect(h.posted).toEqual([{ character: "wren", text: "Aye, I am here.", recipientUserId: null, unprompted: false }]);
     expect(h.memories).toEqual([{ partyMemberId: "wren", ownerId: DM, body: "Sam asked if I was with them." }]);
     // "players always play for free": reserved on and charged to the campaign's owner, never the one who typed.
     expect(h.reservedOn).toEqual([DM]);
@@ -146,7 +178,7 @@ describe("answerChatLine", () => {
   it("a whisper is answered in a whisper to its sender, and the open chat is not shown to that call", async () => {
     const h = harness({ recipient_user_id: "user-folio", mentions: [] });
     expect(await ask(h)).toEqual({ status: 200, replies: 1 });
-    expect(h.posted).toEqual([{ character: "folio", text: "Aye, I am here.", recipientUserId: SAM }]);
+    expect(h.posted).toEqual([{ character: "folio", text: "Aye, I am here.", recipientUserId: SAM, unprompted: false }]);
     expect(h.recentAsked).toBe(0);
     expect(h.prompts[0].user).toContain("whispers to you");
   });
@@ -160,9 +192,166 @@ describe("answerChatLine", () => {
     expect(h.reservedOn).toEqual([DM]); // one try, then the rest stay silent too
   });
 
+  // #1271 review: the limit used to be checked inside each reply's hold, after moderation and the judge had already
+  // run, once per character, and a limit met at the third answer turned two posted replies into a 429.
+  it("a spent rate limit refuses an asked line before anything that costs", async () => {
+    const h = harness();
+    h.rateLeft = 0;
+    expect(await ask(h)).toMatchObject({ status: 429 });
+    expect(h.prompts).toEqual([]);
+    expect(h.reservedOn).toEqual([]);
+  });
+
+  it("@party answered by two characters spends one unit of the limit", async () => {
+    const h = harness({ mentions: [{ kind: "party", party_member_id: null, name: "party" }] });
+    h.rateLeft = 1;
+    expect(await ask(h)).toEqual({ status: 200, replies: 2 });
+    expect(h.rateChecks).toBe(1);
+  });
+
   it("a reply the model did not write is not posted or charged", async () => {
     const h = harness();
     h.modelText = "I would rather not.";
+    expect(await ask(h)).toEqual({ status: 200, replies: 0 });
+    expect(h.posted).toEqual([]);
+    expect(h.charged).toEqual([{ ownerId: DM, credits: 0 }]);
+  });
+});
+
+// The maintainer, 24 Nov 2026: "when it has cause" (#1021 row 26).
+describe("answerChatLine, speaking unprompted", () => {
+  const open = (message: string, over: Partial<ChatLine> = {}) => harness({ message, mentions: [], ...over });
+
+  it("a line naming something the character knows, judged a real reason, is answered unasked, marked, and billed to the DM", async () => {
+    const h = open("did anyone hear from Sam or Folio since the ledger went missing?");
+    expect(await ask(h)).toEqual({ status: 200, replies: 2 });
+    expect(h.posted.map((p) => [p.character, p.unprompted, p.recipientUserId])).toEqual([["wren", true, null], ["folio", true, null]]);
+    expect(h.reservedOn).toEqual([DM, DM]);
+    expect(h.charged).toEqual([{ ownerId: DM, credits: 2 }, { ownerId: DM, credits: 2 }]);
+    expect(h.prompts[0].user).toContain("not to you");
+  });
+
+  it("a spent rate limit leaves an unasked line quiet, with no judge call", async () => {
+    const h = open("did anyone hear from Sam or Folio since the ledger went missing?");
+    h.rateLeft = 0;
+    expect(await ask(h)).toEqual({ status: 200, replies: 0 });
+    expect(h.judged).toEqual([]);
+  });
+
+  // #1271 review: the party's names were read again for each bystander.
+  it("reads the party's names once for the line, however many may speak", async () => {
+    const h = open("did anyone hear from Sam or Folio since the ledger went missing?");
+    expect(await ask(h)).toEqual({ status: 200, replies: 2 });
+    expect(h.namesRead).toBe(1);
+  });
+
+  // Its full name is skipped by `namesInLine`; the parts of it (a nickname) only by leaving itself out of the party.
+  it("a character's own nickname is not one it knows of someone else", async () => {
+    const h = open("has anyone seen Inky today?");
+    h.deps.loadPartyNames = async () => [{ id: "wren", name: "Wren" }, { id: "folio", name: 'Folio "Inky" Vane' }];
+    expect(await ask(h)).toEqual({ status: 200, replies: 1 });
+    expect(h.posted.map((p) => p.character)).toEqual(["wren"]);
+  });
+
+  it("no name it knows, no judge call and no model call", async () => {
+    const h = open("shall we go and get breakfast");
+    expect(await ask(h)).toEqual({ status: 200, replies: 0 });
+    expect(h.judged).toEqual([]);
+    expect(h.prompts).toEqual([]);
+  });
+
+  it("a name only as part of a longer word does not count", async () => {
+    const h = open("the ledgerdemain of it all, and wrenches too");
+    h.known = { partyNames: ["Wren", "Ledger"] };
+    expect(await ask(h)).toEqual({ status: 200, replies: 0 });
+    expect(h.judged).toEqual([]);
+  });
+
+  it("a verdict below the threshold says nothing and costs the DM nothing", async () => {
+    const h = open("Sam looked tired today");
+    h.cause = UNPROMPTED_MIN - 0.01;
+    expect(await ask(h)).toEqual({ status: 200, replies: 0 });
+    expect(h.judged.length).toBeGreaterThan(0);
+    expect(h.prompts).toEqual([]);
+    expect(h.reservedOn).toEqual([]);
+  });
+
+  it("a judge that gave no answer, or no platform key, says nothing", async () => {
+    const none = open("Sam looked tired today");
+    none.cause = null;
+    expect(await ask(none)).toEqual({ status: 200, replies: 0 });
+    const nokey = open("Sam looked tired today");
+    nokey.key = false;
+    expect(await ask(nokey)).toEqual({ status: 200, replies: 0 });
+    expect(none.prompts.concat(nokey.prompts)).toEqual([]);
+  });
+
+  it("never the sender's own character", async () => {
+    const h = open("Folio, the Drowned Ledger", { user_id: "user-wren" });
+    h.known = { partyNames: ["Sam", "Folio"] };
+    h.party = [member("wren")];
+    expect(await ask(h, "user-wren")).toEqual({ status: 200, replies: 0 });
+    expect(h.judged).toEqual([]);
+  });
+
+  it("a character that is addressed is answered by the old path only, never also unprompted", async () => {
+    const h = open("@wren what do you make of Sam?", { mentions: [{ kind: "member", party_member_id: "wren", name: "wren" }] });
+    h.party = [member("wren")];
+    expect(await ask(h)).toEqual({ status: 200, replies: 1 });
+    expect(h.posted.map((p) => p.unprompted)).toEqual([false]);
+    expect(h.judged).toEqual([]);
+  });
+
+  it("without both words no character speaks up: the player's and the Dungeon Master's", async () => {
+    const h = open("Sam looked tired today");
+    h.party = [member("wren", { aiSpeaks: false }), member("folio", { standsIn: false })];
+    expect(await ask(h)).toEqual({ status: 200, replies: 0 });
+    expect(h.judged).toEqual([]);
+  });
+
+  it("a whisper is never overheard", async () => {
+    const h = open("Sam looked tired today", { recipient_user_id: "user-wren" });
+    h.party = [member("folio")];
+    expect(await ask(h)).toEqual({ status: 200, replies: 0 });
+    expect(h.judged).toEqual([]);
+  });
+
+  it("at most three an hour per character, counted over the last hour, and the full one is not even judged", async () => {
+    const h = open("Sam looked tired today");
+    h.party = [member("wren")];
+    h.spokenThisHour = 3;
+    expect(await ask(h)).toEqual({ status: 200, replies: 0 });
+    expect(h.judged).toEqual([]);
+    expect(h.sinceAsked).toEqual(["2026-11-24T11:00:00.000Z"]);
+    h.spokenThisHour = 2;
+    expect(await ask(h)).toEqual({ status: 200, replies: 1 });
+  });
+
+  it("asking twice speaks up once: a character that already has a line for this message is left alone", async () => {
+    const h = open("Sam looked tired today");
+    h.answered = ["wren", "folio"];
+    expect(await ask(h)).toEqual({ status: 200, replies: 0 });
+    expect(h.judged).toEqual([]);
+  });
+
+  it("a line the screen refuses draws nothing unasked either", async () => {
+    const h = open("Sam looked tired today");
+    h.flagged = true;
+    expect(await ask(h)).toEqual({ status: 200, replies: 0 });
+    expect(h.judged).toEqual([]);
+  });
+
+  it("a Dungeon Master out of credits is not an error to the one who typed: nobody speaks up", async () => {
+    const h = open("Sam looked tired today");
+    h.party = [member("wren")];
+    h.refuseHold = jsonError(402, "insufficient_credits");
+    expect(await ask(h)).toEqual({ status: 200, replies: 0 });
+  });
+
+  it("when the model has nothing to add, nothing is posted or charged", async () => {
+    const h = open("Sam looked tired today");
+    h.party = [member("wren")];
+    h.modelText = '{"says": "", "remembers": null}';
     expect(await ask(h)).toEqual({ status: 200, replies: 0 });
     expect(h.posted).toEqual([]);
     expect(h.charged).toEqual([{ ownerId: DM, credits: 0 }]);
