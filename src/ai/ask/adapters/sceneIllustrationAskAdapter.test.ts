@@ -29,9 +29,9 @@ const proposal = (over: Partial<AskProposal> = {}): AskProposal => ({ proposalId
 
 let scope: EffectScope | null = null;
 const insertScene = vi.fn();
-function openNote(id: string | null = NOTE) {
+function openNote(id: string | null = NOTE): string {
   scope = effectScope();
-  scope.run(() => provideNoteSurface({ noteId: () => id, title: () => "Session 4", sessionNum: () => null, insertChronicle: vi.fn(), insertScene }));
+  return scope.run(() => provideNoteSurface({ noteId: () => id, title: () => "Session 4", sessionNum: () => null, insertChronicle: vi.fn(), insertScene })) as string;
 }
 
 describe("useSceneIllustrationAskAdapter", () => {
@@ -73,6 +73,22 @@ describe("useSceneIllustrationAskAdapter", () => {
     expect(adapter.quote(proposal()).block?.message).toContain("Open the note");
     expect((await adapter.run(proposal())).parts[0].ok).toBe(false);
     expect(mocks.start).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: a card opened from an unsaved note had no target, so its picture was anchored in whichever note editor
+  // was open when the press came.
+  it("blocks a card opened from an unsaved note once that editor is gone, even with another note open", async () => {
+    scope?.stop();
+    const token = openNote(null);
+    const card = proposal({ target: { type: "note", id: token, name: "This note" } });
+    const adapter = useSceneIllustrationAskAdapter();
+    expect(adapter.quote(card).block).toBeNull();
+    scope?.stop();
+    openNote(null);
+    expect(adapter.quote(card).block?.message).toBe("The note this was written for is closed.");
+    expect((await adapter.run(card)).parts[0].ok).toBe(false);
+    expect(mocks.start).not.toHaveBeenCalled();
+    expect(insertScene).not.toHaveBeenCalled();
   });
 
   it("waits while the people and places a mention names are being read", () => {

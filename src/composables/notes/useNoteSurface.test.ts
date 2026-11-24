@@ -2,7 +2,7 @@ import { effectScope } from "vue";
 import { describe, expect, it, vi } from "vitest";
 import { currentNoteSurface, provideNoteSurface, type NoteSurface } from "./useNoteSurface";
 
-const surface = (id: string | null): NoteSurface => ({ noteId: () => id, title: () => "", sessionNum: () => null, insertChronicle: vi.fn(), insertScene: vi.fn() });
+const surface = (id: string | null): Omit<NoteSurface, "instance"> => ({ noteId: () => id, title: () => "", sessionNum: () => null, insertChronicle: vi.fn(), insertScene: vi.fn() });
 
 describe("provideNoteSurface", () => {
   // Fails on: the Familiar's card inserting into a note editor that has been closed, losing a chronicle the DM paid for.
@@ -10,7 +10,7 @@ describe("provideNoteSurface", () => {
     const scope = effectScope();
     const mine = surface("n1");
     scope.run(() => provideNoteSurface(mine));
-    expect(currentNoteSurface.value).toBe(mine);
+    expect(currentNoteSurface.value).toMatchObject(mine);
     scope.stop();
     expect(currentNoteSurface.value).toBeNull();
   });
@@ -23,7 +23,7 @@ describe("provideNoteSurface", () => {
     const second = surface("n2");
     newer.run(() => provideNoteSurface(second));
     older.stop();
-    expect(currentNoteSurface.value).toBe(second);
+    expect(currentNoteSurface.value).toMatchObject(second);
     newer.stop();
   });
 });

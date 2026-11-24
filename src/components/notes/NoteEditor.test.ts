@@ -74,13 +74,15 @@ describe("NoteEditor and the Familiar's cards (#1270)", () => {
     expect(mocks.open).toHaveBeenCalledWith("chronicle", { target: { type: "note", id: "n1", name: "The Heist, part two" } });
   });
 
-  // Bug caught: a note not saved yet (no id) being given a made-up target, which the card then refuses as another note.
-  it("opens the cards with no target for a note that is not saved yet", async () => {
+  // Bug caught: a card opened from a note not saved yet carried no target, so it wrote into whichever note editor was open later.
+  it("binds the cards of a note that is not saved yet to this editor's instance", async () => {
     const wrapper = mountEditor(null);
+    const token = currentNoteSurface.value?.instance;
+    expect(token).toMatch(/^note-editor:/);
     await press(wrapper, "Write Chronicle")?.trigger("click");
-    expect(mocks.open).toHaveBeenCalledWith("chronicle", {});
+    expect(mocks.open).toHaveBeenCalledWith("chronicle", { target: { type: "note", id: token, name: "This note" } });
     await press(wrapper, "Generate scene illustration")?.trigger("click");
-    expect(mocks.open).toHaveBeenLastCalledWith("scene_illustration", {});
+    expect(mocks.open).toHaveBeenLastCalledWith("scene_illustration", { target: { type: "note", id: token, name: "This note" } });
   });
 
   // Bug caught: the AI switched off but the cards still opening from a stray trigger.

@@ -20,7 +20,7 @@
     @copy-to-campaign="openCopy"
     @customize="customize"
     @scriptorium="sendToScriptorium"
-    @generate="openGenerator('monster_sheet')"
+    @generate="generateSheet()"
     @update:image-url="onPortraitUrlUpdate($event)"
     @update:focal-point="onPortraitFocalUpdate($event)"
     @update:cutout-url="onCutoutUrlUpdate($event)"
@@ -63,7 +63,7 @@
           size="md"
           :icon="IconGenerate"
           label="Generate"
-          @click="openGenerator('monster_sheet')"
+          @click="generateSheet()"
         />
         <!-- Send to Scriptorium + Copy to campaign… fold into one "Send to…"
              menu (#895) — the same shared control the NPC editor already
@@ -493,7 +493,12 @@ function onCutoutUrlUpdate(url: string | null) {
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 // Generate is a card in the Familiar that fills this form (#1270): nothing is saved, the DM reviews the sheet.
 const { open: openGenerator } = useOpenGenerator();
-useAskFormFill<MonsterAiGenerated>("monster_sheet", { context: () => undefined, apply: onAiGenerated });
+const { bind: bindSheet } = useAskFormFill<MonsterAiGenerated>("monster_sheet", { context: () => undefined, apply: onAiGenerated });
+
+/** Opens the card bound to THIS form: its result fills this stat block, never another monster's. */
+function generateSheet() {
+  openGenerator("monster_sheet", { target: bindSheet("monster", form.name.trim() || "New monster") });
+}
 
 function onAiGenerated(result: MonsterAiGenerated) {
   form.name = result.name;

@@ -1,15 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
 
 const mocks = vi.hoisted(() => ({ start: vi.fn(), ack: vi.fn() }));
-const scene = vi.hoisted(() => ({ entities: [] as { label: string; portraitUrl?: string }[], loading: false, text: { value: "" }, wanted: [] as boolean[] }));
+const scene = vi.hoisted(() => ({ entities: [] as { label: string; portraitUrl?: string }[], loading: false, asked: [] as string[] }));
 
 vi.mock("@/ai/ask/askSceneMentions", () => ({
-  useAskSceneMentions: (enabled: () => boolean) => ({
-    text: scene.text,
-    entities: { get value() { scene.wanted.push(enabled()); return scene.entities; } },
-    loading: { get value() { return scene.loading; } },
-    mentionItems: ref([]),
+  useAskSceneResolver: () => ({
+    resolve: (text: string) => {
+      scene.asked.push(text);
+      return text.includes("@") ? { entities: scene.entities, loading: scene.loading } : { entities: [], loading: false };
+    },
   }),
 }));
 vi.mock("@/ai/useChroniclerImageGeneration", () => ({ startChroniclerImage: mocks.start }));
@@ -21,15 +20,13 @@ describe("useAskSceneRender", () => {
   beforeEach(() => {
     mocks.start.mockReset().mockResolvedValue({ jobId: "j1" });
     mocks.ack.mockReset().mockResolvedValue(true);
-    Object.assign(scene, { entities: [], loading: false, wanted: [] });
-    scene.text.value = "";
+    Object.assign(scene, { entities: [], loading: false, asked: [] });
   });
 
   // Bug caught: every card quote reading the whole campaign's people and places, though the scene names none.
   it("reads nothing and says nothing for a scene with no @mention", () => {
     const read = useAskSceneRender().read("a stormy keep");
     expect(read).toEqual({ entities: [], loading: false, line: null });
-    expect(scene.wanted).toEqual([]);
   });
 
   // Bug caught: a mention that matched nobody painting silently from words alone, which the dialog warned about.

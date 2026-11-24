@@ -117,7 +117,7 @@
               size="inline"
               :icon="IconGenerate"
               label="Draft with AI"
-              @click="openGenerator('event_description')"
+              @click="draftWithAi()"
             />
           </div>
           <RichTextEditor
@@ -438,11 +438,17 @@ const dateLabel = computed(() =>
 
 // Draft with AI is a card in the Familiar that writes into this form while it is open (#1270).
 const { open: openGenerator } = useOpenGenerator();
-useAskFormFill<CalendarEventDraft, EventFormContext>(
+const { bind: bindDraft } = useAskFormFill<CalendarEventDraft, EventFormContext>(
   "event_description",
   { context: () => ({ dateLabel: dateLabel.value, eventType: form.event_type }), apply: applyDraft },
   () => open.value,
 );
+
+/** Opens the card bound to THIS form instance: its draft fills this event, never one opened later. */
+function draftWithAi() {
+  // An event is not one of the card's record types; the card reads only the token in `id` and the name.
+  openGenerator("event_description", { target: bindDraft("note", form.title.trim() || "This event") });
+}
 
 function applyDraft(result: CalendarEventDraft) {
   // Only an empty title is filled, and the type only moves off the untouched

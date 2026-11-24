@@ -76,7 +76,7 @@ import { takeModalOrigin } from "@/lib/modalOrigin";
 import { canAnimate, originTransform, REST_TRANSFORM, whenSettled } from "@/lib/motion";
 import { trapTab } from "./focusTrap";
 import { provideModalAria } from "./modalAria";
-import { useModalStack } from "./modalStack";
+import { isTopModal, useModalStack } from "./modalStack";
 
 /**
  * Where the panel sits in the viewport.
@@ -287,6 +287,8 @@ function onTab(event: KeyboardEvent) {
 /** Tab inside the dock leads back into this sheet at its ends, so the pair is one ring the keyboard can walk. */
 function onDockTab(event: KeyboardEvent) {
   if (event.key !== "Tab" || !inDock(event.target as Element | null)) return;
+  // Stacked modals each listen; only the one painted on top may take the key, or focus lands in a panel hidden beneath it.
+  if (!isTopModal(zIndex.value)) return;
   trapTab(event, dockEl(), panelRef.value);
 }
 watch(

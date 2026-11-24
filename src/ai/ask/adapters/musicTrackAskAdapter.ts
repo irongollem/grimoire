@@ -14,13 +14,12 @@
  * does for any run. The track lands on the board by itself (the sound row is made with the charge); the result opens
  * the soundboard.
  */
-import { ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskQuoteLine, AskRunResult } from "@/lib/ask/askAdapter";
 import { failedRun } from "@/ai/ask/adapters/askAdapterKit";
 import { askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
-import { useAskSceneMentions } from "@/ai/ask/askSceneMentions";
+import { useAskSceneResolver } from "@/ai/ask/askSceneMentions";
 import { stripMentionTokens } from "@/ai/sceneEntities";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { useMusicGeneration } from "@/ai/useMusicGeneration";
@@ -47,17 +46,16 @@ export function useMusicTrackAskAdapter(): AskAdapter {
   const { blockFor } = useAskGate(null, "track");
   const music = useMusicGeneration();
 
-  // The people and places are read only once a description names one: this adapter lives as long as the panel.
-  const mentionsWanted = ref(false);
-  const scene = useAskSceneMentions(() => mentionsWanted.value);
+  // Each card's description is resolved on its own (two cards never rewrite each other's text), and the people and
+  // places are read only once a description names one: this adapter lives as long as the panel.
+  const scene = useAskSceneResolver();
 
   function understand(proposal: AskProposal) {
     const inputs = readAskInputs("music_track", proposal.inputs);
     const concept = proposal.concept.trim();
-    mentionsWanted.value = concept.includes("@");
-    if (scene.text.value !== concept) scene.text.value = concept;
+    const mentions = scene.resolve(concept);
     const vocals = VOCALS.find((v) => v === askString(inputs, "vocals")) ?? "instrumental";
-    const entities = mentionsWanted.value ? scene.entities.value : [];
+    const entities = mentions.entities;
     const description = stripMentionTokens(concept);
     return {
       name: askString(inputs, "name"),
@@ -67,6 +65,7 @@ export function useMusicTrackAskAdapter(): AskAdapter {
       // Lyrics only mean something once the track sings.
       lyrics: vocals === "vocals" ? askString(inputs, "lyrics") : null,
       concept,
+      loadingMentions: mentions.loading,
       description,
       entities,
       imageUrls: [...new Set(entities.flatMap((e) => (e.portraitUrl ? [e.portraitUrl] : [])))],
@@ -98,7 +97,7 @@ export function useMusicTrackAskAdapter(): AskAdapter {
       block = { reason: "missing", message: `Shorten the lyrics to ${LYRICS_MAX_CHARS} characters.` };
     } else if (!block && read.imageUrls.length > MUSIC_MAX_IMAGES) {
       block = { reason: "missing", message: `Mention at most ${MUSIC_MAX_IMAGES} characters or places with pictures.` };
-    } else if (!block && scene.loading.value) {
+    } else if (!block && read.loadingMentions) {
       block = { reason: "missing", message: "Still reading the people and places it names." };
     }
     return { lines, total: priced.total, block };

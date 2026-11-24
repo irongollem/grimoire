@@ -473,10 +473,16 @@ describe("NpcDetail — the Familiar's Generate card fills this form (#1270)", (
     tags: ["guild"], true_portrait_prompt: "", portrait_url: null,
   };
 
+  const sheetFiller = () => {
+    const store = useAskFormFillStore();
+    const instance = Object.entries(store.forms).find(([, form]) => form.generatorId === "npc_sheet")?.[0] ?? null;
+    return store.fillerFor<NpcAiGenerated, undefined>("npc_sheet", instance);
+  };
+
   // Bug caught: the card's result was dropped on the floor because nothing was listening for it on the open sheet.
   it("takes the generated person into the open sheet, saving nothing", () => {
     const wrapper = mountDetail(null);
-    const filler = useAskFormFillStore().fillerFor<NpcAiGenerated, undefined>("npc_sheet");
+    const filler = sheetFiller();
     expect(filler).not.toBeNull();
     filler?.apply(generated);
     const vm = wrapper.vm as unknown as { form: { name: string; occupation: string | null } };
@@ -488,7 +494,7 @@ describe("NpcDetail — the Familiar's Generate card fills this form (#1270)", (
   it("stops offering the sheet once the editor is gone", () => {
     const wrapper = mountDetail(null);
     wrapper.unmount();
-    expect(useAskFormFillStore().fillerFor("npc_sheet")).toBeNull();
+    expect(sheetFiller()).toBeNull();
   });
 
   // Bug caught: the header's Generate opened nothing now that the dialog is gone.
@@ -500,5 +506,17 @@ describe("NpcDetail — the Familiar's Generate card fills this form (#1270)", (
     });
     await wrapper.find(".gen").trigger("click");
     expect(useAskUiStore().pendingGenerator?.generatorId).toBe("npc_sheet");
+  });
+
+  // Bug caught: the card opened from one NPC form carried nothing naming it, so any NPC form could take its result.
+  it("binds the card to the form it was opened from", async () => {
+    mobileMode = true;
+    const wrapper = mount(NpcDetail, {
+      props: { npc: null },
+      global: { stubs: { NpcEditMobile: { template: '<button class="gen" @click="$emit(\'generate\')" />' }, FamilyBlock: true, PaywallModal: true } },
+    });
+    await wrapper.find(".gen").trigger("click");
+    const [instance] = Object.keys(useAskFormFillStore().forms);
+    expect(useAskUiStore().pendingGenerator?.target?.id).toBe(instance);
   });
 });

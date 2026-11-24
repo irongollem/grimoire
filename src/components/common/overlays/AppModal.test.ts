@@ -462,6 +462,19 @@ describe("AppModal beside the right-hand dock", () => {
     expect(document.activeElement).toBe(last);
   });
 
+  // Bug caught: every open modal listens for the dock's Tab, so with two stacked the bottom one took it and focus
+  // landed in a panel hidden under the top modal.
+  it("with two modals stacked, Tab from the dock returns to the top modal only", () => {
+    const [, d2] = withDock();
+    open({}, "<button>Under</button>");
+    open({}, "<button>Over</button>");
+    const [under, over] = [...document.body.querySelectorAll<HTMLElement>("[data-modal-panel]")].map((p) => p.querySelector("button")!);
+    d2.focus();
+    tab(d2);
+    expect(document.activeElement).toBe(over);
+    expect(document.activeElement).not.toBe(under);
+  });
+
   // Bug caught: Escape pressed in the Familiar closing the sheet it was opened from.
   it("Escape inside the dock does not close the sheet, and still does from the sheet", () => {
     const [d1] = withDock();

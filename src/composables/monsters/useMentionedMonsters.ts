@@ -50,11 +50,13 @@ export async function fetchMentionedMonsters(ids: readonly string[]): Promise<Ma
 }
 
 /** The mentioned monsters in index order (the order `parseSceneEntities` has
- *  always resolved a fuzzy @name in), read by id only once the text names one. */
-export function useMentionedMonsters(
+ *  always resolved a fuzzy @name in), read by id only once the text names one.
+ *  `loading` is true while that by-id read is on its way, so a caller that must
+ *  not resolve against nothing (an Ask quote) can wait for it. */
+export function useMentionedMonstersState(
   text: () => string,
   monsterIndex: () => readonly { id: string; name: string }[] | undefined,
-): ComputedRef<SceneMonster[]> {
+): { monsters: ComputedRef<SceneMonster[]>; loading: ComputedRef<boolean> } {
   const ids = computed(() => {
     const index = monsterIndex();
     return index ? mentionedMonsterIds(text(), index) : [];
@@ -65,7 +67,7 @@ export function useMentionedMonsters(
     queryFn: ({ queryKey: [, , wanted] }) => fetchMentionedMonsters(wanted),
     enabled: () => sortedIds.value.length > 0,
   });
-  return computed(() => {
+  const monsters = computed(() => {
     const rows = query.data.value;
     if (!rows) return [];
     return ids.value.flatMap((id) => {
@@ -73,4 +75,13 @@ export function useMentionedMonsters(
       return row ? [row] : [];
     });
   });
+  const loading = computed(() => sortedIds.value.length > 0 && query.data.value === undefined && !query.isError.value);
+  return { monsters, loading };
+}
+
+export function useMentionedMonsters(
+  text: () => string,
+  monsterIndex: () => readonly { id: string; name: string }[] | undefined,
+): ComputedRef<SceneMonster[]> {
+  return useMentionedMonstersState(text, monsterIndex).monsters;
 }

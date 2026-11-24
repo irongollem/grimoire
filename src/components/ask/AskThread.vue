@@ -25,6 +25,8 @@
         :asked="item.proposal.concept"
         :credits="item.credits"
         :editable="isHeldKind(item.proposal.generator)"
+        :kept="item.kept"
+        :noun="askGenerator(item.proposal.generator)?.noun"
         :landed-at="item.landedAt"
         :landed-name="landedName(item.landedAt)"
         @jump="jumpTo"
@@ -66,6 +68,7 @@
         v-else-if="item.kind === 'preview'"
         :item="item"
         :action="proposalAction(item.proposalItemId)"
+        :noun="proposalNoun(item.proposalItemId)"
         :again="againFor(item.proposalItemId)"
         @create="emit('create', item.id)"
         @again="emit('again', item.id)"
@@ -158,6 +161,12 @@ function proposalAction(id: number): string {
   const proposal = proposalOf(id);
   const generator = proposal ? askGenerator(proposal.proposal.generator) : undefined;
   return generator?.createAction ?? generator?.action ?? "Create";
+}
+
+/** What the held generation's generator calls one thing it makes ("quest"). */
+function proposalNoun(id: number): string | undefined {
+  const proposal = proposalOf(id);
+  return proposal ? askGenerator(proposal.proposal.generator)?.noun : undefined;
 }
 
 /** What another generation would cost now, from the adapter's own quote of the inputs as they stand. */

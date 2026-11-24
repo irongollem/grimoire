@@ -288,10 +288,16 @@ const showGenerateScene = computed(() => campaignStore.isAiEnabled && imageProvi
 // Write Chronicle and Scene illustration are cards in the Familiar (#1270), opened with this note as their target; a
 // note not saved yet has none, and the card fills the open editor all the same (`provideNoteSurface` below).
 const { open: openGenerator } = useOpenGenerator();
+// This editor's instance token (`provideNoteSurface`, set below): a function body reads it only after setup has run.
+let noteInstance = "";
 
-function noteTarget(): { target: AskRecordRef } | Record<string, never> {
+/**
+ * The card's target: the saved note, or, for a note not saved yet, this editor's instance token. Either way the card
+ * writes into this note only, never into whichever note editor happens to be open when it finishes.
+ */
+function noteTarget(): { target: AskRecordRef } {
   const note = props.note;
-  return note ? { target: { type: "note", id: note.id, name: draft.title.trim() || note.title } } : {};
+  return { target: { type: "note", id: note?.id ?? noteInstance, name: draft.title.trim() || note?.title || "This note" } };
 }
 
 function openChroniclerGenerate() {
@@ -360,7 +366,7 @@ function onIllustrationClick(target: IllustrationTarget) {
 }
 
 // What the Familiar's cards fill: this editor's text, title, session and tags (see `useNoteSurface`).
-provideNoteSurface({
+noteInstance = provideNoteSurface({
   noteId: () => props.note?.id ?? null,
   title: () => draft.title,
   sessionNum: () => linkedSession.value?.number ?? null,

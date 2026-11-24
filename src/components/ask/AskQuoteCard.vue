@@ -106,6 +106,7 @@
           class="self-start"
           :class="{ 'min-h-11': pinned }"
           label="Quick create · no AI"
+          :disabled="quickWaiting"
           data-testid="ask-quick"
           @click="emit('quick')"
         />
@@ -127,6 +128,7 @@ import { askGenerator, type AskGenerator } from "@edge-shared/agent/askContract"
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
 import { askGeneratorPage } from "@/composables/ask/askRecordRoute";
 import type { AskItem } from "@/composables/ask/useAskConversation";
+import { isWaitingForWords, quickWaitsOnLoad } from "@/composables/ask/askItems";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AskConceptBox from "@/components/ask/AskConceptBox.vue";
 import AskForm from "@/components/ask/AskForm.vue";
@@ -161,7 +163,9 @@ const quote = computed(() => adapter.value?.quote(item.proposal, item.choices) ?
 /** The concept box, for a card a button opened and a generator that describes one. */
 const conceptField = computed(() => (item.origin === "button" ? generator.value?.concept ?? null : null));
 /** A required concept still empty: the gilt button is disabled, and says nothing more than the empty box does. */
-const waitingForWords = computed(() => conceptField.value?.required === true && item.proposal.concept.trim() === "" && quote.value?.block?.reason === "missing");
+const waitingForWords = computed(() => isWaitingForWords(item, quote.value));
+/** The lists the quote reads (places, people, ties) have not arrived: Quick create would drop what they resolve. */
+const quickWaiting = computed(() => quickWaitsOnLoad(item, quote.value));
 /** What the quote says; a card a button opened drops the line that only repeats the concept box above it. */
 const ledgerLines = computed(() => (quote.value?.lines ?? []).filter((l) => !(item.origin === "button" && l.repeatsConcept)));
 /** On a phone the total and the button stay at the foot of the sheet while the form scrolls. */

@@ -249,7 +249,7 @@ Shown on the read-only encounter sheet, computed live in the editor, and used fo
 
 ### AI Encounter Generator
 
-The "Generate" button on the Encounters list (`EncountersView.vue`) opens the encounter's card in the Familiar (#1270; the right-side panel, `EncounterGeneratorPanel`, is gone). The card sets the generator's inputs; the gilt button generates and charges, and the card folds to one line under a result card that shows the encounter before anything is saved: **Create encounter** saves it and opens the editor, **Again · N credits** generates again from the same options, **Discard** ends with nothing saved (see `ask-grimoire.md`, "A preview becomes the card's result"). The DM provides:
+The "Generate" button on the Encounters list (`EncountersView.vue`) opens the encounter's card in the Familiar (#1270; the right-side panel, `EncounterGeneratorPanel`, is gone). The card sets the generator's inputs; when it names a Where, the quote blocks ("Still reading the place…") until the place's habitat, placed tables and tree have loaded (`useEncounterWhere().ready`), so the first generation never goes out without its habitat constraints (`habitatFor(placeId)` answers per proposal); the gilt button generates and charges, and the card folds to one line under a result card that shows the encounter before anything is saved: **Create encounter** saves it and opens the editor, **Again · N credits** generates again from the same options, **Discard** ends with nothing saved (see `ask-grimoire.md`, "A preview becomes the card's result"). The DM provides:
 
 - **Concept** — a free-text prompt (e.g. "Goblin ambush on the forest road, levels 3–5, a betrayal mid-fight")
 - **Difficulty** — Auto / Easy / Medium / Hard / Deadly

@@ -33,17 +33,24 @@ const { useMonsterSheetAskAdapter } = await import("./monsterSheetAskAdapter");
 const { useSpellSheetAskAdapter } = await import("./spellSheetAskAdapter");
 const { useEventDescriptionAskAdapter } = await import("./eventDescriptionAskAdapter");
 
-const proposal = (generator: string, inputs: Record<string, unknown> = {}, concept = "A baker who lies"): AskProposal => ({ proposalId: "p1", generator, concept, inputs });
+// The card is bound to the form instance that opened it: `opened` holds the token of the form each generator's button was
+// pressed in, which is what a page's `useAskFormFill().bind` puts in `target.id`.
+const opened: Record<string, string> = {};
+const proposal = (generator: string, inputs: Record<string, unknown> = {}, concept = "A baker who lies"): AskProposal => ({
+  proposalId: "p1", generator, concept, inputs,
+  ...(opened[generator] ? { target: { type: "npc" as const, id: opened[generator], name: "The form" } } : {}),
+});
 
 function openForm(id: string, context: unknown = undefined) {
   const apply = vi.fn();
-  useAskFormFillStore().register(id, { context: () => context, apply });
+  opened[id] = useAskFormFillStore().register(id, { context: () => context, apply });
   return apply;
 }
 
 describe("the sheet adapters", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    for (const key of Object.keys(opened)) delete opened[key];
     Object.values(mocks).forEach((m) => "mockReset" in m && m.mockReset());
     mocks.error.value = null;
     Object.assign(state, { aiEnabled: true, affordable: true, busy: false });
@@ -69,18 +76,47 @@ describe("the sheet adapters", () => {
   });
 
   // Bug caught: the DM closed the editor while the model was writing, and the paid text was lost.
-  it("keeps the person for the next open when the editor closed during the run", async () => {
+  it("lists the person on the card when the editor closed during the run, and fills nothing", async () => {
     const store = useAskFormFillStore();
     const apply = openForm("npc_sheet");
     mocks.npc.mockImplementation(async () => {
       // The DM closes the editor while the model writes.
-      store.fillers = {};
-      return { name: "Mira" };
+      store.forms = {};
+      return { name: "Mira", occupation: "Smith" };
     });
     const ended = await useNpcSheetAskAdapter().run(proposal("npc_sheet"));
     expect(apply).not.toHaveBeenCalled();
-    expect(ended.parts[0].label).toContain("kept");
-    expect(store.takeKept("npc_sheet")).toEqual({ name: "Mira" });
+    expect(ended.parts[0]).toMatchObject({ ok: true, credits: 1 });
+    expect(ended.parts.map((p) => p.label)).toEqual(expect.arrayContaining(["Name: Mira", "Occupation: Smith"]));
+  });
+
+  // Bug caught: a cancelled new-NPC run overwrote an EXISTING NPC's form: the result went to whichever NPC form was
+  // open when the run ended, and a kept result went to the next one that mounted.
+  it("never fills another form of the same kind, open at the end of the run or opened afterwards", async () => {
+    const store = useAskFormFillStore();
+    const newForm = openForm("npc_sheet");
+    const otherForm = vi.fn();
+    mocks.npc.mockImplementation(async () => {
+      // The new-NPC editor is cancelled and an existing NPC's opens before the paid run finishes.
+      store.forms = {};
+      store.register("npc_sheet", { context: () => undefined, apply: otherForm });
+      return { name: "Mira" };
+    });
+    const ended = await useNpcSheetAskAdapter().run(proposal("npc_sheet"));
+    store.register("npc_sheet", { context: () => undefined, apply: otherForm });
+    expect(newForm).not.toHaveBeenCalled();
+    expect(otherForm).not.toHaveBeenCalled();
+    expect(ended.parts[0].label).toContain("is closed");
+  });
+
+  // Bug caught: a card whose form was closed before the press still offered to spend credits.
+  it("blocks the quote once the form it was opened from is gone, even with another form of the kind open", () => {
+    const store = useAskFormFillStore();
+    openForm("npc_sheet");
+    const card = proposal("npc_sheet");
+    store.forms = {};
+    store.register("npc_sheet", { context: () => undefined, apply: vi.fn() });
+    expect(useNpcSheetAskAdapter().quote(card).block?.message).toContain("is closed");
   });
 
   // Bug caught: a failed generation reported success and filled the form with nothing.

@@ -211,5 +211,13 @@ describe("AskQuoteCard", () => {
       await w.get('[data-testid="ask-quick"]').trigger("click");
       expect(w.emitted("quick")).toHaveLength(1);
     });
+
+    // Bug caught: Quick create pressed while the people and places the card names were still loading, which dropped them.
+    it("holds Quick create while the quote is still reading, but not for a credit block, and not for an empty concept", async () => {
+      const loading = card({ ...ready, block: { reason: "missing", message: "Still reading this campaign's people." } }, { button: true, quick: true, concept: "a baker" });
+      expect(loading.get('[data-testid="ask-quick"]').attributes("disabled")).toBeDefined();
+      const broke = card({ ...ready, block: { reason: "credits", message: "Short." } }, { button: true, quick: true, concept: "a baker" });
+      expect(broke.get('[data-testid="ask-quick"]').attributes("disabled")).toBeUndefined();
+    });
   });
 });

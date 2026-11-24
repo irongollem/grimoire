@@ -23,7 +23,7 @@
       :is-deleting="isDeleting"
       :is-sending-to-scriptorium="isSendingToScriptorium"
       :can-save="!!name.trim()"
-      @generate="openGenerator('spell_sheet')"
+      @generate="generateSheet()"
       @send-to-scriptorium="sendToScriptorium"
       @copy-to-campaign="openCopy"
       @delete="confirmDelete"
@@ -701,7 +701,12 @@ async function confirmDelete() {
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 // Generate is a card in the Familiar that fills this form (#1270): nothing is saved, the DM reviews the sheet.
 const { open: openGenerator } = useOpenGenerator();
-useAskFormFill<SpellAiGenerated>("spell_sheet", { context: () => undefined, apply: onAiGenerated });
+const { bind: bindSheet } = useAskFormFill<SpellAiGenerated>("spell_sheet", { context: () => undefined, apply: onAiGenerated });
+
+/** Opens the card bound to THIS form: its result fills this spell, never another's. */
+function generateSheet() {
+  openGenerator("spell_sheet", { target: bindSheet("spell", name.value.trim() || "New spell") });
+}
 
 function onAiGenerated(result: SpellAiGenerated) {
   // Reuse the adapter so dialog-fill matches what the side-panel "Generate

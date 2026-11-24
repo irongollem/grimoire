@@ -20,7 +20,7 @@
     @save="save"
     @cancel="onMobileCancel"
     @delete="confirmDelete"
-    @generate="openGenerator('npc_sheet')"
+    @generate="generateSheet()"
     @scriptorium="sendToScriptorium"
     @copy-to-campaign="openCopy"
     @apply-template="applyTemplate"
@@ -339,7 +339,12 @@ const isAiEnabled = computed(() => campaign.isAiEnabled)
 
 // Generate is a card in the Familiar that fills this form (#1270): nothing is saved, the DM reviews the sheet.
 const { open: openGenerator } = useOpenGenerator()
-useAskFormFill<NpcAiGenerated>('npc_sheet', { context: () => undefined, apply: onAiGenerated })
+const { bind: bindSheet } = useAskFormFill<NpcAiGenerated>('npc_sheet', { context: () => undefined, apply: onAiGenerated })
+
+/** Opens the card bound to THIS form: its result fills this sheet, never another NPC's. */
+function generateSheet() {
+  openGenerator('npc_sheet', { target: bindSheet('npc', form.name.trim() || 'New NPC') })
+}
 
 function onAiGenerated(result: NpcAiGenerated) {
   form.name        = result.name
@@ -795,6 +800,7 @@ defineExpose({
   sendToScriptorium,
   confirmDelete,
   openCopy,
+  generateSheet,
 })
 </script>
 

@@ -43,6 +43,11 @@ export interface AskQuote {
   /** Null while the provider (and so the price) is not known yet: the button waits, it never guesses. */
   total: number | null;
   block: AskQuoteBlock | null;
+  /**
+   * True while the quote is still reading lists its inputs name (places, people, ties), whatever the block says: an
+   * empty concept can hold the block while the lists load. Quick create waits on this and on nothing else.
+   */
+  reading?: true;
 }
 
 /** One part of a run (the record, its picture...), so a failure can say what worked and retry only what failed. */

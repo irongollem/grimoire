@@ -39,7 +39,7 @@ export function useNpcSheetAskAdapter(): AskAdapter {
     const lines: AskQuoteLine[] = [{ label: "Fills", value: "The NPC sheet on screen", credits: null }, { label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null }];
     lines.push(...priced.lines);
     if (!read.portrait) lines.push({ label: "Portrait", value: "None", credits: null });
-    const block = blockFor({ total: priced.total }) ?? formClosedBlock(ID, FORM) ?? conceptBlock(read.concept, "NPC", { empty: "Say who this NPC is first.", shorten: "concept" });
+    const block = blockFor({ total: priced.total }) ?? formClosedBlock(ID, FORM, proposal) ?? conceptBlock(read.concept, "NPC", { empty: "Say who this NPC is first.", shorten: "concept" });
     return { lines, total: priced.total, block };
   }
 
@@ -51,7 +51,7 @@ export function useNpcSheetAskAdapter(): AskAdapter {
     const result: NpcAiGenerated | null = await generate(read.concept, { generateImage: read.portrait, generateAlterEgo: read.alterEgo });
     if (result === null) return failedRun("Sheet", error.value ?? "The NPC could not be written. Nothing was charged.");
     const credits = current.total === null ? 0 : current.total;
-    return landInForm({ generatorId: ID, label: "Sheet", form: FORM, name: result.name, result, credits });
+    return landInForm({ generatorId: ID, proposal, label: "Sheet", form: FORM, name: result.name, result, credits });
   }
 
   return { id: ID, quote, run };

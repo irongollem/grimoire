@@ -53,7 +53,7 @@ export function useMonsterSheetAskAdapter(): AskAdapter {
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
-    const block = blockFor({ total: priced.total, fiveE: true }) ?? formClosedBlock(ID, FORM) ?? conceptBlock(read.concept, "monster", { empty: "Say what this monster is like first.", shorten: "concept" });
+    const block = blockFor({ total: priced.total, fiveE: true }) ?? formClosedBlock(ID, FORM, proposal) ?? conceptBlock(read.concept, "monster", { empty: "Say what this monster is like first.", shorten: "concept" });
     return { lines, total: priced.total, block };
   }
 
@@ -70,7 +70,7 @@ export function useMonsterSheetAskAdapter(): AskAdapter {
     });
     if (result === null) return failedRun("Stat block", error.value ?? "The monster could not be written. Nothing was charged.");
     const credits = current.total === null ? 0 : current.total;
-    return landInForm({ generatorId: ID, label: "Stat block", form: FORM, name: result.name, result, credits });
+    return landInForm({ generatorId: ID, proposal, label: "Stat block", form: FORM, name: result.name, result, credits });
   }
 
   return { id: ID, quote, run };

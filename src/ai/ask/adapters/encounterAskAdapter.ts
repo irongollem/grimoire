@@ -83,9 +83,8 @@ export function useEncounterAskAdapter(): AskPreviewAdapter {
 
   const lookupsWanted = ref(false);
   const { data: locations } = useAllLocations(() => lookupsWanted.value);
-  // The place a run is set in, for what lives there (read only once a place is named).
-  const whereId = ref<string | null>(null);
-  const { habitat } = useEncounterWhere(() => whereId.value, () => lookupsWanted.value);
+  // What lives in a place, asked per proposal (`habitatFor`) so two cards never share a place; read only once a place is named.
+  const where = useEncounterWhere(() => null, () => lookupsWanted.value);
   const lookupsLoading = computed(() => lookupsWanted.value && locations.value === undefined);
 
   function understand(proposal: AskProposal) {
@@ -112,6 +111,9 @@ export function useEncounterAskAdapter(): AskPreviewAdapter {
     let block = blockFor({ total: priced.total, fiveE: true });
     block = block ?? conceptBlock(read.concept, "encounter", { empty: "Say what this encounter is first.", limit: AI_PROMPT_LIMIT_SHORT });
     if (!block && lookupsLoading.value) block = { reason: "missing", message: "Still reading this campaign's places." };
+    // The place's habitat and tables load after the Atlas does: a run that went out before they arrived would roll with no habitat.
+    const placeKept = read.location !== null && askChoice(choices, "location_id", true).on;
+    if (!block && placeKept && !where.ready.value) block = { reason: "missing", message: "Still reading the place…" };
     return { lines, total: priced.total, block };
   }
 
@@ -127,9 +129,9 @@ export function useEncounterAskAdapter(): AskPreviewAdapter {
     const read = understand(proposal);
     // A place at no leaves the encounter unanchored, as if the proposal had not named one.
     const location = askChoice(choices, "location_id", true).on ? read.location : null;
-    whereId.value = location?.id ?? null;
     // What lives where the encounter is set, rolled once in code and sent beside the concept, as the panel did.
-    const constraints = habitat.value === null ? [] : lifeConstraints(habitat.value.name, habitat.value.life);
+    const habitat = location === null ? null : where.habitatFor(location.id);
+    const constraints = habitat === null ? [] : lifeConstraints(habitat.name, habitat.life);
 
     let outcome;
     try {

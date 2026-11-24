@@ -51,7 +51,7 @@ export function useSpellSheetAskAdapter(): AskAdapter {
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
-    const block = blockFor({ total: priced.total, fiveE: true }) ?? formClosedBlock(ID, FORM) ?? conceptBlock(read.concept, "spell", { empty: "Say what this spell is like first.", shorten: "concept" });
+    const block = blockFor({ total: priced.total, fiveE: true }) ?? formClosedBlock(ID, FORM, proposal) ?? conceptBlock(read.concept, "spell", { empty: "Say what this spell is like first.", shorten: "concept" });
     return { lines, total: priced.total, block };
   }
 
@@ -67,7 +67,7 @@ export function useSpellSheetAskAdapter(): AskAdapter {
     });
     if (result === null) return failedRun("Spell", error.value ?? "The spell could not be written. Nothing was charged.");
     const credits = current.total === null ? 0 : current.total;
-    return landInForm({ generatorId: ID, label: "Spell", form: FORM, name: result.name, result, credits });
+    return landInForm({ generatorId: ID, proposal, label: "Spell", form: FORM, name: result.name, result, credits });
   }
 
   return { id: ID, quote, run };

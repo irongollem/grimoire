@@ -70,7 +70,7 @@
           v-if="npcDetail.isAiEnabled"
           label="Generate"
           :icon="IconGenerate"
-          @click="openGenerator('npc_sheet')"
+          @click="npcDetail.generateSheet()"
         />
         <!--
           Draft-bound: this editor owns its Save, so the reveal edits the form
@@ -139,7 +139,6 @@
 </template>
 
 <script setup lang="ts">
-import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { ref, computed, watch, defineAsyncComponent } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
@@ -214,7 +213,6 @@ const NpcDetail = defineAsyncComponent(() => import("@/components/npcs/NpcDetail
 
 // Template ref to NpcDetail — gives access to its exposed state/methods
 const npcDetail = ref<InstanceType<typeof NpcDetailComponent> | null>(null);
-const { open: openGenerator } = useOpenGenerator();
 
 const subtitle = computed(() => {
   if (!npc.value) return "";

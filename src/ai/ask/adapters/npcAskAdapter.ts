@@ -262,7 +262,8 @@ export function useNpcAskAdapter(): AskAdapter {
     if (!block && peopleLoading.value) {
       block = { reason: "missing", message: "Still reading this campaign's people." };
     }
-    return { lines, total: priced.total, block };
+    const reading = lookupsLoading.value || linkRecords.loading.value || read.itemsLoading || peopleLoading.value;
+    return { lines, total: priced.total, block, ...(reading ? { reading: true as const } : {}) };
   }
 
   async function run(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult> {

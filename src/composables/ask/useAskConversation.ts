@@ -6,7 +6,7 @@
  * cannot make a second record). Lives in the panel's scope, which stays mounted while the panel is merely hidden,
  * so a running turn or generation carries on.
  */
-import { ref, watch } from "vue";
+import { reactive, ref, watch } from "vue";
 import { creditsText } from "@/lib/ask/askCredits";
 import {
   ASK_OFF_TOPIC_MESSAGE,
@@ -23,7 +23,7 @@ import { isPreviewAdapter, type AskRunResult } from "@/lib/ask/askAdapter";
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
 import type { PendingGenerator } from "@/stores/ui/ask";
 import { sendToAskTurn, type AskTransport } from "./askTransport";
-import { partsCredits, type AskItem, type NewItem, type ReplyItem } from "./askItems";
+import { findItem, partsCredits, quickWaitsOnLoad, type AskItem, type AskThreadState, type NewItem, type ReplyItem } from "./askItems";
 import { useAskPreviews } from "./useAskPreviews";
 
 export { previewRowKey, type AskItem, type ResultPart } from "./askItems";
@@ -111,7 +111,21 @@ export function speakingUntil(until: number, now: number, chars: number): number
 
 export function useAskConversation(deps: AskConversationDeps) {
   const transport = deps.transport ?? sendToAskTurn;
-  const items = ref<AskItem[]>([]);
+  /**
+   * One thread per campaign, kept for the session: a conversation belongs to its campaign, so switching away parks it
+   * (its held previews with it) and switching back restores it. `items` is always the one on screen.
+   */
+  const threads = new Map<string, AskThreadState>();
+  const keyOf = (): string => deps.campaignId() ?? "";
+  function freshThread(): AskThreadState {
+    const thread: AskThreadState = { campaignId: keyOf(), items: reactive<AskItem[]>([]) as AskItem[], held: new Map(), sessionId: undefined };
+    threads.set(thread.campaignId, thread);
+    return thread;
+  }
+  let current = freshThread();
+  const items = ref<AskItem[]>(current.items);
+  /** A thread is live while it is still its campaign's: starting over replaces it, and a late result then writes nothing into it. */
+  const alive = (thread: AskThreadState) => threads.get(thread.campaignId) === thread;
   const running = ref(false);
   /**
    * The Familiar is saying words right now: true from the first text it writes for as long as that text takes to say
@@ -136,30 +150,28 @@ export function useAskConversation(deps: AskConversationDeps) {
   }
   /** What the server last said is left of today's free questions; null until a turn has said. */
   const freeLeft = ref<number | null>(null);
-  let sessionId: string | undefined;
   let controller: AbortController | null = null;
   let nextId = 1;
-  /** Bumped by a new conversation, so a run that finishes after it does not write into the new thread. */
-  let epoch = 0;
   const ran = new Set<string>();
   const retrying = new Set<string>();
   const previews = useAskPreviews({
     items,
-    find: (id, kind) => find(id, kind),
+    thread: () => current,
+    alive,
     adapters: deps.adapters,
-    epoch: () => epoch,
-    land: (item, result, from) => land(item, result, from),
+    land: (thread, item, result, from) => land(thread, item, result, from),
   });
   const { generating, holding } = previews;
 
-  function push(item: NewItem): AskItem {
-    items.value.push({ ...item, id: nextId++ } as AskItem);
+  /** Adds to a thread (the one on screen unless a run that started in another says so). */
+  function push(item: NewItem, thread: AskThreadState = current): AskItem {
+    thread.items.push({ ...item, id: nextId++ } as AskItem);
     // Return the reactive proxy, so a later mutation of it reaches the screen.
-    return items.value[items.value.length - 1] as AskItem;
+    return thread.items[thread.items.length - 1] as AskItem;
   }
 
   function find<K extends AskItem["kind"]>(id: number, kind: K): Extract<AskItem, { kind: K }> | undefined {
-    return items.value.find((i): i is Extract<AskItem, { kind: K }> => i.id === id && i.kind === kind);
+    return findItem(current.items, id, kind);
   }
 
   async function streamTurn(message: string) {
@@ -168,7 +180,7 @@ export function useAskConversation(deps: AskConversationDeps) {
       push({ kind: "error", message: "Pick a campaign first, then ask." });
       return;
     }
-    const body: AskTurnBody = { campaignId, message, context: deps.context(), ...(sessionId ? { sessionId } : {}) };
+    const body: AskTurnBody = { campaignId, message, context: deps.context(), ...(current.sessionId ? { sessionId: current.sessionId } : {}) };
     controller = new AbortController();
     const mine = controller;
     running.value = true;
@@ -211,7 +223,7 @@ export function useAskConversation(deps: AskConversationDeps) {
         // Anything that is not words ends the paragraph being written.
         switch (event.type) {
           case "session":
-            sessionId = event.sessionId;
+            current.sessionId = event.sessionId;
             break;
           case "ask":
             reply = null;
@@ -254,7 +266,7 @@ export function useAskConversation(deps: AskConversationDeps) {
             // A withheld answer was already streamed: what it showed is taken back, so the sentence stands alone.
             if (event.withheld === true) {
               withheld = true;
-              items.value = items.value.filter((i) => !written.has(i.id));
+              current.items.splice(0, current.items.length, ...current.items.filter((i) => !written.has(i.id)));
               hush();
             }
             reply = null;
@@ -265,9 +277,10 @@ export function useAskConversation(deps: AskConversationDeps) {
             break;
         }
       }
-      if (ended && !withheld && !mine.signal.aborted && sessionId !== undefined) {
+      const spoken = current.sessionId;
+      if (ended && !withheld && !mine.signal.aborted && spoken !== undefined) {
         const texts = items.value.filter((i): i is ReplyItem => i.kind === "reply" && written.has(i.id) && i.text.trim() !== "").map((i) => i.text);
-        if (texts.length > 0) deps.onReplied?.({ sessionId, texts });
+        if (texts.length > 0) deps.onReplied?.({ sessionId: spoken, texts });
       }
     } catch (e) {
       if (!(e instanceof DOMException && e.name === "AbortError")) push({ kind: "error", message: NOT_ANSWERED });
@@ -297,22 +310,31 @@ export function useAskConversation(deps: AskConversationDeps) {
     void send(choice.reply);
   }
 
-  function newConversation() {
-    epoch += 1;
+  /** Stops what is streaming and speaking: a turn belongs to the thread it was asked in and does not follow a switch. */
+  function stopTurn() {
     controller?.abort();
     controller = null;
     running.value = false;
     hush();
-    sessionId = undefined;
-    items.value = [];
-    previews.held.clear();
     // The allowance line goes back to the server's row: an own-key turn had streamed 0.
     freeLeft.value = null;
   }
 
+  /** Starts over in this campaign: the thread is replaced, so anything still running for the old one lands nowhere. */
+  function newConversation() {
+    stopTurn();
+    current = freshThread();
+    items.value = current.items;
+  }
+
   // A conversation belongs to one campaign: its session is that campaign's, and a quote confirmed after a switch
-  // would run in the new one. A run already under way keeps going; the epoch keeps its result out of the new thread.
-  watch(() => deps.campaignId(), () => newConversation());
+  // would run in the other. The thread is parked, held previews and all, and comes back when the DM does. A run or an
+  // "Again" already under way keeps going and lands in the thread it started in.
+  watch(() => deps.campaignId(), () => {
+    stopTurn();
+    current = threads.get(keyOf()) ?? freshThread();
+    items.value = current.items;
+  });
 
   // ── what the DM does with a proposal ──────────────────────────────────────────────────────────────────────────
 
@@ -402,8 +424,10 @@ export function useAskConversation(deps: AskConversationDeps) {
     if (!generator || !adapter) return;
     let confirmed: string;
     if (how === "quick") {
-      // No quote to wait for: nothing is priced, so a credit or quota block on the AI route does not apply.
+      // Nothing is priced, so a credit or quota block on the AI route does not apply. What the quote is still reading
+      // does: a press before the people and places have loaded would drop the ids they resolve.
       if (!adapter.quick) return;
+      if (quickWaitsOnLoad(item, adapter.quote(proposal, choices))) return;
       confirmed = `You chose: Quick create, no AI`;
     } else {
       const quote = adapter.quote(proposal, choices);
@@ -419,7 +443,7 @@ export function useAskConversation(deps: AskConversationDeps) {
     push({ kind: "confirmed", text: confirmed });
     const startedAt = deps.routePath();
     const campaignName = deps.campaignName();
-    const mine = epoch;
+    const thread = current;
     let result: AskRunResult;
     try {
       if (how === "run" && isPreviewAdapter(adapter)) {
@@ -427,10 +451,11 @@ export function useAskConversation(deps: AskConversationDeps) {
         if (outcome.ok) {
           item.credits = partsCredits(outcome.preview.parts);
           item.state = "previewing";
-          // A new conversation while it generated leaves no thread to show it in: nothing is kept for it.
-          if (mine === epoch) {
-            const card = push({ kind: "preview", proposalItemId: item.id, phase: "ready", shown: outcome.preview.shown, rows: {} });
-            previews.held.set(card.id, { preview: outcome.preview, proposalItemId: item.id, startedAt, campaignName });
+          // A new conversation while it generated leaves no thread to show it in: nothing is kept for it. A campaign
+          // switch does not: the preview waits in its own thread.
+          if (alive(thread)) {
+            const card = push({ kind: "preview", proposalItemId: item.id, phase: "ready", shown: outcome.preview.shown, rows: {} }, thread);
+            thread.held.set(card.id, { preview: outcome.preview, proposalItemId: item.id, startedAt, campaignName });
           }
           return;
         }
@@ -445,26 +470,27 @@ export function useAskConversation(deps: AskConversationDeps) {
     } catch {
       item.state = "failed";
       // Whether it ran is unknown, so the id stays in `ran`: it is never run a second time on a guess.
-      if (mine === epoch) item.landedAt = push({ kind: "error", message: "That did not finish. Check the list before asking again." }).id;
+      if (alive(thread)) item.landedAt = push({ kind: "error", message: "That did not finish. Check the list before asking again." }, thread).id;
       return;
     }
     item.credits = partsCredits(result.parts);
-    land(item, result, { mine, startedAt, campaignName, credits: item.credits });
+    land(thread, item, result, { startedAt, campaignName, credits: item.credits });
   }
 
   /** A finished run's end: its result lands at the bottom of the thread (unless the thread was started over) and the panel is told. */
   function land(
+    thread: AskThreadState,
     item: Extract<AskItem, { kind: "proposal" }>,
     result: AskRunResult,
-    from: { mine: number; startedAt: string; campaignName: string; credits: number },
+    from: { startedAt: string; campaignName: string; credits: number },
   ) {
     const generator = askGenerator(item.proposal.generator);
     if (!generator) return;
     item.state = "done";
     const name = result.record?.name ?? generator.action;
     const review = generator.ending === "review";
-    if (from.mine === epoch) {
-      item.landedAt = push({ kind: "result", name, noun: generator.noun, review, record: result.record, route: result.route, ...(result.links ? { links: result.links } : {}), ...(result.open ? { open: result.open } : {}), ...(result.picture ? { picture: result.picture } : {}), parts: result.parts.map((p) => ({ ...p })) }).id;
+    if (alive(thread)) {
+      item.landedAt = push({ kind: "result", name, noun: generator.noun, review, record: result.record, route: result.route, ...(result.links ? { links: result.links } : {}), ...(result.open ? { open: result.open } : {}), ...(result.picture ? { picture: result.picture } : {}), parts: result.parts.map((p) => ({ ...p })) }, thread).id;
     }
     deps.onFinished?.({ name, noun: generator.noun, review, route: result.route, ...(result.open ? { open: result.open } : {}), credits: from.credits, campaign: from.campaignName, startedAt: from.startedAt });
   }

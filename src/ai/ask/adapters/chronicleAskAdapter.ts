@@ -30,6 +30,7 @@ import { useChronicleQuote } from "@/composables/ai/quotes/chronicleQuote";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import { useNotes } from "@/composables/notes/useNotes";
 import { currentNoteSurface } from "@/composables/notes/useNoteSurface";
+import { noteSurfaceBlock } from "@/ai/ask/adapters/noteSurfaceKit";
 
 /** What a fact-dump may run to: a full session's raw notes are longer than the other generators' prompts. */
 const FACTS_MAX = 3000;
@@ -72,12 +73,14 @@ export function useChronicleAskAdapter(): AskPreviewAdapter {
     };
   }
 
+  /** The open note's editor when it is the card's own, else null: another note's title and session are never the card's. */
+  function boundSurface(proposal: AskProposal) {
+    return noteBlock(proposal) === null ? currentNoteSurface.value : null;
+  }
+
   /** Why the open note cannot take a chronicle, or null: none open, or another note than the one the card is for. */
   function noteBlock(proposal: AskProposal): string | null {
-    const surface = currentNoteSurface.value;
-    if (surface === null) return "Open the note to write into first: the chronicle goes into the open note.";
-    if (proposal.target && proposal.target.id !== surface.noteId()) return `"${proposal.target.name}" is not the note that is open. Open it first.`;
-    return null;
+    return noteSurfaceBlock(proposal, "write into");
   }
 
   function quote(proposal: AskProposal): AskQuote {
@@ -100,8 +103,8 @@ export function useChronicleAskAdapter(): AskPreviewAdapter {
   }
 
   /** The draft as the card shows it, with the DM's choice between their own title and the suggestion applied. */
-  function applied(draft: Draft, useSuggestion: boolean) {
-    const surface = currentNoteSurface.value;
+  function applied(proposal: AskProposal, draft: Draft, useSuggestion: boolean) {
+    const surface = boundSurface(proposal);
     const ownTitle = surface?.title().trim() || null;
     const ownSession = surface?.sessionNum() ?? null;
     const title = useSuggestion ? (draft.suggestedTitle ?? ownTitle) : (ownTitle ?? draft.suggestedTitle);
@@ -112,10 +115,10 @@ export function useChronicleAskAdapter(): AskPreviewAdapter {
     return { title, sessionNum, hasSuggestion, ownTitle, ownSession };
   }
 
-  function shown(draft: Draft, useSuggestion: boolean): AskPreviewShown {
-    const { title, sessionNum, hasSuggestion } = applied(draft, useSuggestion);
+  function shown(proposal: AskProposal, draft: Draft, useSuggestion: boolean): AskPreviewShown {
+    const { title, sessionNum, hasSuggestion } = applied(proposal, draft, useSuggestion);
     const suggestion = [draft.suggestedSession !== null ? `Session ${draft.suggestedSession}` : null, draft.suggestedTitle].filter((p) => p !== null).join(": ");
-    const note = currentNoteSurface.value;
+    const note = boundSurface(proposal);
     const rows = [
       { label: "Note title", detail: title ?? "Unchanged", ...(hasSuggestion ? { choice: { key: "suggestion", label: "Suggested", options: [{ id: "own", name: "Keep what the note has" }, { id: "suggested", name: `Use: ${suggestion}` }], value: useSuggestion ? "suggested" : "own" } } : {}) },
       { label: "Session", detail: sessionNum === null ? "Unchanged" : `Session ${sessionNum}` },
@@ -168,18 +171,18 @@ export function useChronicleAskAdapter(): AskPreviewAdapter {
     async function create(): Promise<AskRunResult> {
       const surface = currentNoteSurface.value;
       const closed = noteBlock(proposal);
-      if (surface === null || closed !== null) return failedRun("Chronicle", `${closed ?? "Open the note first."} The chronicle is kept here until then.`);
-      const { title, sessionNum } = applied(draft, useSuggestion);
+      if (surface === null || closed !== null) return failedRun("Chronicle", `${closed ?? "Open the note first."} The chronicle stays here: copy it, or open that note and press Create again.`);
+      const { title, sessionNum } = applied(proposal, draft, useSuggestion);
       surface.insertChronicle({ markdown: draft.markdown, title, sessionNum, tags: draft.tags, aiProvenance: draft.provenance });
       return { record: { type: "note", id: surface.noteId() ?? "unsaved", name: title ?? "Chronicle" }, route: null, parts: [{ ...parts[0], label: "Inserted into the note. Save the note to keep it." }] };
     }
 
     function choose(key: string, value: string): AskPreviewShown {
       if (key === "suggestion") useSuggestion = value === "suggested";
-      return shown(draft, useSuggestion);
+      return shown(proposal, draft, useSuggestion);
     }
 
-    return { ok: true, preview: { shown: shown(draft, useSuggestion), parts, create, choose } };
+    return { ok: true, preview: { shown: shown(proposal, draft, useSuggestion), parts, create, choose } };
   }
 
   return { id: "chronicle", quote, preview };

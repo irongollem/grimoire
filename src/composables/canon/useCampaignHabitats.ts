@@ -207,6 +207,8 @@ export function useCampaignHabitats(wanted: () => boolean = () => true) {
     habitats: computed<Habitat[]>(() => habitats.data.value ?? []),
     places: computed<HabitatPlace[]>(() => places.data.value ?? []),
     life: computed<HabitatLife[]>(() => life.data.value ?? []),
+    /** True once all three reads have answered (or failed): an empty list is then an answer, not a read still on its way. */
+    ready: computed(() => [habitats, places, life].every((q) => q.data.value !== undefined || q.isError.value)),
     isLoading: computed(() => habitats.isLoading.value || places.isLoading.value || life.isLoading.value),
     isError: computed(() => habitats.isError.value || places.isError.value || life.isError.value),
   };

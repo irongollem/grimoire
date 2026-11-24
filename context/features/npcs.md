@@ -418,7 +418,7 @@ AI generation defaults to a starter stat profile selected from generated occupat
 
 The edit form mounts `FamilyBlock` beside the general Connections block so kin is visible and editable in both edit and read modes.
 
-A **Generate** button is also available in the NPC editor's header (a new NPC or an existing one). It opens the **Fill the sheet** card in the Familiar (`npc_sheet`, #1270: the concept, a portrait switch, an alter ego switch, the price) and writes the generated person into the open form (`onAiGenerated`, registered with `useAskFormFill`); no record is saved and the DM reviews and saves as always. The generation is `useNpcGeneration`'s and the price `useNpcQuote`'s, the same as the NPC card that creates a record. See [ask-grimoire.md](ask-grimoire.md), "A card that fills the open form". `NpcGenerateDialog` is gone.
+A **Generate** button is also available in the NPC editor's header (a new NPC or an existing one). It opens the **Fill the sheet** card in the Familiar (`npc_sheet`, #1270: the concept, a portrait switch, an alter ego switch, the price) and writes the generated person into the open form (`onAiGenerated`, registered with `useAskFormFill`); the card is bound to THIS form instance (`generateSheet()` passes `bind(...)` as its target), so a result never lands in another NPC's form, and if the form is closed when the run ends the card lists the values to copy; no record is saved and the DM reviews and saves as always. The generation is `useNpcGeneration`'s and the price `useNpcQuote`'s, the same as the NPC card that creates a record. See [ask-grimoire.md](ask-grimoire.md), "A card that fills the open form". `NpcGenerateDialog` is gone.
 
 ---
 

@@ -19,6 +19,7 @@ import type { SceneShape } from "@/types/chronicler.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { useSceneIllustrationQuote } from "@/composables/ai/quotes/sceneIllustrationQuote";
 import { currentNoteSurface } from "@/composables/notes/useNoteSurface";
+import { noteSurfaceBlock } from "@/ai/ask/adapters/noteSurfaceKit";
 
 /** The notes' shapes: the oblong painted, which is what the price follows. */
 const NOTE_SHAPES: readonly SceneShape[] = [
@@ -41,10 +42,7 @@ export function useSceneIllustrationAskAdapter(): AskAdapter {
 
   /** Why the open note cannot take a picture, or null: none open, or another note than the one the card is for. */
   function noteBlock(proposal: AskProposal): string | null {
-    const surface = currentNoteSurface.value;
-    if (surface === null) return "Open the note to paint into first: the picture goes into the open note.";
-    if (proposal.target && proposal.target.id !== surface.noteId()) return `"${proposal.target.name}" is not the note that is open. Open it first.`;
-    return null;
+    return noteSurfaceBlock(proposal, "paint into");
   }
 
   function quote(proposal: AskProposal): AskQuote {
@@ -81,6 +79,10 @@ export function useSceneIllustrationAskAdapter(): AskAdapter {
     }
     if (job === null) return failedRun("Picture", "The likeness notice was not accepted, so nothing was painted and nothing was charged.");
 
+    // The editor closed while the render was being queued: the job is paid for and runs, but there is no note to anchor it in.
+    if (currentNoteSurface.value !== surface) {
+      return { record: null, route: null, parts: [{ label: "Queued, but the note was closed before the picture could be placed in it", ok: true, credits: spent(current.lines.find((l) => l.label === "Picture")) }] };
+    }
     surface.insertScene({ jobId: job.jobId, prompt: read.concept, size: read.shape.size });
     return {
       record: { type: "note", id: surface.noteId() ?? "unsaved", name: "Scene illustration" },

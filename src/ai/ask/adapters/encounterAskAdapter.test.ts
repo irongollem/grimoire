@@ -4,7 +4,7 @@ import type { AskProposal } from "@edge-shared/agent/askContract";
 
 const mocks = vi.hoisted(() => ({ draft: vi.fn(), save: vi.fn() }));
 const habitatState = vi.hoisted(() => ({ value: null as { name: string; life: { id: string; habitatId: string; recordId: string; fromLibrary: boolean; name: string; readable: boolean; percent: number }[] } | null }));
-const state = vi.hoisted(() => ({ aiEnabled: true, canCreate: true, affordable: true, offersStatBlocks: true, places: undefined as { id: string; name: string }[] | undefined }));
+const state = vi.hoisted(() => ({ aiEnabled: true, canCreate: true, affordable: true, offersStatBlocks: true, whereReady: true, places: undefined as { id: string; name: string }[] | undefined }));
 
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({ get isAiEnabled() { return state.aiEnabled; }, activeCampaign: { name: "Sugarwell" } }),
@@ -29,7 +29,11 @@ vi.mock("@/composables/encounters/useGenerateEncounter", async (importOriginal) 
 }));
 vi.mock("@/composables/library/useSourceTitles", () => ({ useSourceTitles: () => ({ labelFor: (s: string | null) => s ?? "" }) }));
 vi.mock("@/composables/encounters/useEncounterWhere", () => ({
-  useEncounterWhere: () => ({ habitat: { get value() { return habitatState.value; } } }),
+  // The habitat answers only once the place's reads have: before that it is null, as the real lists are empty.
+  useEncounterWhere: () => ({
+    habitatFor: () => (state.whereReady ? habitatState.value : null),
+    ready: { get value() { return state.whereReady; } },
+  }),
 }));
 
 const { useEncounterAskAdapter } = await import("./encounterAskAdapter");
@@ -60,7 +64,7 @@ describe("useEncounterAskAdapter", () => {
     mocks.draft.mockReset().mockResolvedValue(drafted());
     mocks.save.mockReset().mockResolvedValue({ id: "r1", name: "Road Ambush" });
     habitatState.value = null;
-    Object.assign(state, { aiEnabled: true, canCreate: true, affordable: true, offersStatBlocks: true, places: [{ id: PLACE, name: "Whispering Caves" }] });
+    Object.assign(state, { aiEnabled: true, canCreate: true, affordable: true, offersStatBlocks: true, whereReady: true, places: [{ id: PLACE, name: "Whispering Caves" }] });
   });
 
   it("quotes the same price the page shows", () => {
@@ -157,6 +161,29 @@ describe("useEncounterAskAdapter", () => {
     expect(mocks.draft.mock.calls[0]).toEqual(["Goblins on the forest road", { difficulty: "deadly" }]);
     await useEncounterAskAdapter().preview(proposal());
     expect(mocks.draft.mock.calls[1][1]).toEqual({ difficulty: "auto" });
+  });
+
+  // Bug caught: the habitats, placed tables and place tree load after the Atlas, so the first generation went out with
+  // no habitat constraints (a marsh rolled a desert) while the quote already read ready.
+  it("blocks until the place's habitat reads have arrived, then sends what lives there", async () => {
+    habitatState.value = { name: "Salt marsh", life: [{ id: "l", habitatId: "h", recordId: "eel", fromLibrary: true, name: "Marsh eel", readable: true, percent: 100 }] };
+    state.whereReady = false;
+    const adapter = useEncounterAskAdapter();
+    expect(adapter.quote(proposal({ location_id: PLACE })).block).toMatchObject({ reason: "missing", message: "Still reading the place…" });
+    expect((await adapter.preview(proposal({ location_id: PLACE }))).ok).toBe(false);
+    expect(mocks.draft).not.toHaveBeenCalled();
+    state.whereReady = true;
+    expect(adapter.quote(proposal({ location_id: PLACE })).block).toBeNull();
+    await adapter.preview(proposal({ location_id: PLACE }));
+    expect(mocks.draft.mock.calls[0][1].constraints).toBeDefined();
+  });
+
+  // Bug caught: a card with no place, or with the place switched off, waiting on reads it will not use.
+  it("does not wait for the place's reads when no place is used", () => {
+    state.whereReady = false;
+    const adapter = useEncounterAskAdapter();
+    expect(adapter.quote(proposal()).block).toBeNull();
+    expect(adapter.quote(proposal({ location_id: PLACE }), { location_id: false }).block).toBeNull();
   });
 
   // Bug caught: the place's habitat never reached the generator, so a card set in a marsh rolled a desert.

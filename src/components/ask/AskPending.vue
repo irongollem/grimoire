@@ -50,10 +50,11 @@
 import { computed, ref } from "vue";
 import { IconChevronDown, IconChevronUp } from "@/lib/icons";
 import { creditsText } from "@/lib/ask/askCredits";
+import { keptLine } from "@/composables/ask/askItems";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 
-const { state, action, asked = "", credits, landedAt, landedName = null, editable = false } = defineProps<{
+const { state, action, asked = "", credits, landedAt, landedName = null, editable = false, kept = 0, noun = "record" } = defineProps<{
   state: "running" | "previewing" | "discarded" | "done" | "failed";
   action: string;
   /** What the DM asked for, in their words. */
@@ -62,6 +63,9 @@ const { state, action, asked = "", credits, landedAt, landedName = null, editabl
   credits?: number;
   landedAt?: number;
   landedName?: string | null;
+  /** On a discarded generation: how many records its row presses had already made, and what the generator calls one. */
+  kept?: number;
+  noun?: string;
   /** A held generation whose options can be opened again (the card gives them in the `options` slot). */
   editable?: boolean;
 }>();
@@ -74,7 +78,7 @@ const line = computed(() => {
   const cost = credits !== undefined && credits > 0 ? ` · ${creditsText(credits)}` : "";
   if (state === "done") return `${landedName ?? action} is ready.${cost}`;
   if (state === "failed") return `${action} did not finish.${cost}`;
-  if (state === "discarded") return `${action}, discarded. Nothing was saved.${cost}`;
+  if (state === "discarded") return `${action}, discarded. ${kept > 0 ? keptLine(kept, noun) : "Nothing was saved."}${cost}`;
   return `${action}${asked !== "" ? `: ${asked}` : ""}${cost}`;
 });
 </script>

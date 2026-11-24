@@ -30,13 +30,12 @@ vi.mock("@/ai/useMusicGeneration", () => ({
 }));
 
 // The people and places a description names: what the card's @ resolves to (read by `parseSceneEntities`, tested there).
-const scene = vi.hoisted(() => ({ entities: [] as { label: string; portraitUrl: string | null; textDescription: string | null }[], loading: false, text: { value: "" } }));
+// `byText` answers per description, as the real resolver does; `entities` and `loading` are the default for any other.
+type Mentioned = { label: string; portraitUrl: string | null; textDescription: string | null };
+const scene = vi.hoisted(() => ({ entities: [] as Mentioned[], loading: false, byText: {} as Record<string, { entities: Mentioned[]; loading: boolean }> }));
 vi.mock("@/ai/ask/askSceneMentions", () => ({
-  useAskSceneMentions: () => ({
-    text: scene.text,
-    entities: { get value() { return scene.entities; } },
-    loading: { get value() { return scene.loading; } },
-    mentionItems: { value: [] },
+  useAskSceneResolver: () => ({
+    resolve: (text: string) => scene.byText[text] ?? { entities: text.includes("@") ? scene.entities : [], loading: text.includes("@") && scene.loading },
   }),
 }));
 
@@ -54,6 +53,7 @@ describe("useMusicTrackAskAdapter", () => {
     music.completedEntityId.value = "s9";
     scene.entities = [];
     scene.loading = false;
+    scene.byText = {};
     Object.assign(state, { aiEnabled: true, affordable: true, busy: false, multiplier: 1.5 });
   });
 
@@ -123,6 +123,34 @@ describe("useMusicTrackAskAdapter", () => {
     expect(adapter.quote(proposal({ vocals: "vocals", lyrics: "la ".repeat(1000) })).block?.reason).toBe("missing");
     scene.loading = true;
     expect(adapter.quote(proposal({}, "@Vesper")).block?.reason).toBe("missing");
+  });
+
+  // Bug caught: the adapter held one text for every card, so two music cards with different @-mentions rewrote each
+  // other's text, quoted each other's pictures, and a run resolved against whichever text was set last.
+  it("quotes and runs each card's own @-mentions when two cards are on screen", async () => {
+    scene.byText = {
+      "@Vesper at the weir": { entities: [{ label: "Vesper", portraitUrl: "https://cdn/v.png", textDescription: "Vesper" }], loading: false },
+      "@Orrin in the keep": { entities: [{ label: "Orrin", portraitUrl: "https://cdn/o.png", textDescription: "Orrin" }], loading: false },
+    };
+    const adapter = useMusicTrackAskAdapter();
+    const first = { ...proposal({}, "@Vesper at the weir"), proposalId: "p1" };
+    const second = { ...proposal({}, "@Orrin in the keep"), proposalId: "p2" };
+    expect(adapter.quote(first).lines.find((l) => l.label === "Lyria will read")?.value).toBe("1 picture: Vesper");
+    expect(adapter.quote(second).lines.find((l) => l.label === "Lyria will read")?.value).toBe("1 picture: Orrin");
+    expect(adapter.quote(first).lines.find((l) => l.label === "Lyria will read")?.value).toBe("1 picture: Vesper");
+    await adapter.run(first);
+    expect(mocks.generate.mock.calls[0][0].imageUrls).toEqual(["https://cdn/v.png"]);
+  });
+
+  // Bug caught: the card quoted ready while the lore its own text names was still being read.
+  it("blocks only the card whose own mentions are still loading", () => {
+    scene.byText = {
+      "@Vesper at the weir": { entities: [], loading: true },
+      "@Orrin in the keep": { entities: [], loading: false },
+    };
+    const adapter = useMusicTrackAskAdapter();
+    expect(adapter.quote(proposal({}, "@Vesper at the weir")).block?.reason).toBe("missing");
+    expect(adapter.quote(proposal({}, "@Orrin in the keep")).block).toBeNull();
   });
 
   it("waits for the track and opens the soundboard", async () => {

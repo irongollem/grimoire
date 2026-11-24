@@ -291,7 +291,11 @@ describe("EventModal day clamp", () => {
 
 describe("EventModal Draft with AI card (#1270)", () => {
   const draft: CalendarEventDraft = { title: "Harvest Moot", event_type: "festival", description: "Reapers sing at dusk.", ai_provenance: null };
-  const filler = () => useAskFormFillStore().fillerFor<CalendarEventDraft, { dateLabel: string; eventType: string }>("event_description");
+  const filler = () => {
+    const store = useAskFormFillStore();
+    const instance = Object.entries(store.forms).find(([, form]) => form.generatorId === "event_description")?.[0] ?? null;
+    return store.fillerFor<CalendarEventDraft, { dateLabel: string; eventType: string }>("event_description", instance);
+  };
 
   // Bug caught: the modal stays mounted while shut, so a card could be offered a form nobody could see.
   it("offers its form to the card only while it is open", async () => {

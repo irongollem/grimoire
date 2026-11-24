@@ -40,9 +40,10 @@ const written = (chronicle = "# Session 4: The Duke's Blood\n\nKira struck.\n\nT
 
 let scope: EffectScope | null = null;
 const surface = { id: NOTE as string | null, title: "", session: null as number | null, insertChronicle: vi.fn(), insertScene: vi.fn() };
-function openNote() {
+/** Opens a note editor and returns its instance token, which a card opened from an unsaved note carries as its target. */
+function openNote(): string {
   scope = effectScope();
-  scope.run(() => provideNoteSurface({ noteId: () => surface.id, title: () => surface.title, sessionNum: () => surface.session, insertChronicle: surface.insertChronicle, insertScene: surface.insertScene }));
+  return scope.run(() => provideNoteSurface({ noteId: () => surface.id, title: () => surface.title, sessionNum: () => surface.session, insertChronicle: surface.insertChronicle, insertScene: surface.insertScene })) as string;
 }
 
 async function previewed(adapter: ReturnType<typeof useChronicleAskAdapter>, p: AskProposal) {
@@ -192,6 +193,35 @@ describe("useChronicleAskAdapter", () => {
     expect(refused.record).toBeNull();
     expect(refused.parts[0].error).toContain("is not the note that is open");
     expect(surface.insertChronicle).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: a card opened from an unsaved note had no target, so Insert wrote into whichever note editor was open
+  // later: another note's title and session were replaced and the recap added to it.
+  it("never inserts a card opened from an unsaved note into a different note's editor", async () => {
+    surface.id = null;
+    const first: EffectScope | null = scope;
+    const token = openNote();
+    const card = proposal({ target: { type: "note", id: token, name: "This note" } });
+    const preview = await previewed(useChronicleAskAdapter(), card);
+    // The DM closes that editor and opens another new note (a new editor instance) before pressing Insert.
+    (scope as EffectScope | null)?.stop();
+    first?.stop();
+    openNote();
+    const refused = await preview.create();
+    expect(refused.record).toBeNull();
+    expect(refused.parts[0].error).toContain("The note this was written for is closed.");
+    expect(useChronicleAskAdapter().quote(card).block?.message).toBe("The note this was written for is closed.");
+    expect(surface.insertChronicle).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: the binding refusing the editor it came from once the note was saved, which keeps its instance.
+  it("still inserts into the very editor the card came from after the note is saved", async () => {
+    surface.id = null;
+    const token = openNote();
+    const preview = await previewed(useChronicleAskAdapter(), proposal({ target: { type: "note", id: token, name: "This note" } }));
+    surface.id = "33333333-3333-4333-8333-333333333333";
+    expect((await preview.create()).record).not.toBeNull();
+    expect(surface.insertChronicle).toHaveBeenCalledTimes(1);
   });
 
   // Bug caught: a failed generation spending the DM's credits, or throwing out of the panel.

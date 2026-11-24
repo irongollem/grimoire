@@ -10,7 +10,17 @@
 import { computed, onScopeDispose, shallowRef } from "vue";
 import type { ChronicleInsert } from "@/types/chronicler.types";
 
+/** A token starts with this, so a card's `target.id` is recognisably an editor instance and never a note's id. */
+export const NOTE_INSTANCE_PREFIX = "note-editor:";
+
+let sequence = 0;
+
 export interface NoteSurface {
+  /**
+   * This one editor, for as long as it lives (`provideNoteSurface` makes it): a card opened from a note not saved yet
+   * has no note id to name its note by, and without one it would write into whichever note editor is open later.
+   */
+  readonly instance: string;
   /** The saved note's id; null for a note not saved yet (a new one, whose chronicle may still be written). */
   noteId(): string | null;
   /** The note's own title and linked session number, so a suggestion is offered rather than written over them. */
@@ -27,11 +37,25 @@ const surface = shallowRef<NoteSurface | null>(null);
 /** The open note editor, or null. Read-only: only the editor registers. */
 export const currentNoteSurface = computed(() => surface.value);
 
-/** Registers the editor's note for as long as the calling scope lives. A later editor replaces an earlier one. */
-export function provideNoteSurface(next: NoteSurface): void {
-  surface.value = next;
+/**
+ * Whether the card that names `targetId` is for this editor: it opened from this very instance (a note not saved yet,
+ * which stays this editor's after it is saved), or it names the saved note this editor has open.
+ */
+export function surfaceIsTarget(open: NoteSurface, targetId: string): boolean {
+  return targetId === open.instance || targetId === open.noteId();
+}
+
+/**
+ * Registers the editor's note for as long as the calling scope lives. A later editor replaces an earlier one. Returns
+ * the editor's instance token, which the editor puts in the `target` of the cards it opens.
+ */
+export function provideNoteSurface(next: Omit<NoteSurface, "instance">): string {
+  sequence += 1;
+  const registered: NoteSurface = { ...next, instance: `${NOTE_INSTANCE_PREFIX}${sequence}` };
+  surface.value = registered;
   onScopeDispose(() => {
     // A newer editor may have registered meanwhile: only take away what is still ours.
-    if (surface.value === next) surface.value = null;
+    if (surface.value === registered) surface.value = null;
   });
+  return registered.instance;
 }

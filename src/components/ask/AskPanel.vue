@@ -8,11 +8,12 @@
 
   <!-- Phones: a sheet above the bottom nav. -->
   <template v-if="isMobile">
-    <!-- Above the modal layer (`modalStack` starts at 200): a sheet opened from inside an open sheet must not sit behind its backdrop. -->
-    <div v-if="ui.open" class="fixed inset-0 z-[900] bg-black/40" @click="ui.closePanel()" />
+    <!-- The sheet takes its place in the modal stack: above a modal it was opened from, below anything opened from inside it (a confirm, the paywalls, the report form). -->
+    <div v-if="ui.open" class="fixed inset-0 bg-black/40" :style="{ zIndex: sheetZ ?? undefined }" @click="ui.closePanel()" />
     <div
       v-if="ui.open"
-      :class="['fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))] inset-x-0 z-[910] flex flex-col rounded-t-2xl border-t border-border bg-card', fullSheet ? 'top-[calc(env(safe-area-inset-top)+0.5rem)]' : 'h-[65vh]']"
+      :class="['fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))] inset-x-0 flex flex-col rounded-t-2xl border-t border-border bg-card', fullSheet ? 'top-[calc(env(safe-area-inset-top)+0.5rem)]' : 'h-[65vh]']"
+      :style="{ zIndex: sheetZ ?? undefined }"
       role="dialog"
       aria-label="Familiar"
       data-testid="ask-panel"
@@ -50,6 +51,7 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useAskUiStore } from "@/stores/ui/ask";
+import { useModalStack } from "@/components/common/overlays/modalStack";
 import AskSurface from "@/components/ask/AskSurface.vue";
 import AskResultNotice from "@/components/ask/AskResultNotice.vue";
 
@@ -60,6 +62,7 @@ const router = useRouter();
 const campaign = useCampaignStore();
 const isMobile = useIsMobile();
 const appUi = useAppUiStore();
+const sheetZ = useModalStack(() => isMobile.value && ui.open);
 const docked = computed(() => !isMobile.value && (ui.open || appUi.chatOpen));
 const { openOutOfCredits } = useOutOfCredits();
 const usage = useAskUsage();

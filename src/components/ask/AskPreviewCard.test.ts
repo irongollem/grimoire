@@ -135,4 +135,14 @@ describe("AskPreviewCard", () => {
   it("offers no buttons after a save of unknown outcome", () => {
     expect(card({ phase: "failed", error: "Check the list." }).find('[data-testid="ask-preview-foot"]').exists()).toBe(false);
   });
+
+  // Bug caught: Again offered after Create quest, so a second generation orphaned the quests already made.
+  it("offers no Again once a row press has made a record, and a discard says how many were kept", () => {
+    const run = async () => ({ label: "Q", ok: true as const, credits: 0 });
+    const shown = { title: "T", sections: [{ rows: [{ label: "A", detail: "", action: { label: "Create quest", doneLabel: "Created", run } }] }] };
+    expect(card({ shown, rows: { "0:0": { phase: "failed", error: "x" } } }).find('[data-testid="ask-preview-again"]').exists()).toBe(true);
+    expect(card({ shown, rows: { "0:0": { phase: "done", doneLabel: "Created" } } }).find('[data-testid="ask-preview-again"]').exists()).toBe(false);
+    const w = mount(AskPreviewCard, { props: { item: item({ phase: "discarded", kept: 2 }), action: "Done", noun: "quest", again } });
+    expect(w.get('[data-testid="ask-preview-discarded"]').text()).toBe("Discarded. 2 quests were made and kept.");
+  });
 });

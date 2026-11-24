@@ -1,5 +1,5 @@
 <template>
-  <p v-if="item.phase === 'discarded'" class="text-caption text-muted-foreground" data-testid="ask-preview-discarded">Discarded. Nothing was saved.</p>
+  <p v-if="item.phase === 'discarded'" class="text-caption text-muted-foreground" data-testid="ask-preview-discarded">{{ item.kept ? `Discarded. ${keptLine(item.kept, noun)}` : "Discarded. Nothing was saved." }}</p>
 
   <section
     v-else-if="item.phase !== 'saved'"
@@ -81,7 +81,7 @@
         @click="emit('create')"
       />
       <AppButton
-        v-if="again.price !== null"
+        v-if="again.price !== null && !acted"
         variant="subtle"
         size="sm"
         :class="{ 'min-h-11': isMobile }"
@@ -108,14 +108,17 @@ import { IconCheck, IconWarning } from "@/lib/icons";
 import { creditsText } from "@/lib/ask/askCredits";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { previewRowKey, type AskItem } from "@/composables/ask/useAskConversation";
+import { keptLine } from "@/composables/ask/askItems";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 
-const { item, action, again } = defineProps<{
+const { item, action, again, noun = "record" } = defineProps<{
   item: Extract<AskItem, { kind: "preview" }>;
   /** The generator's own action ("Create encounter"): what the primary button says. */
   action: string;
+  /** What the generator makes ("quest"), for a discard that says how many were made already. */
+  noun?: string;
   /** What another generation would cost now (null while the provider is not known), and whether a gate says no. */
   again: { price: number | null; blocked: boolean };
 }>();
@@ -124,6 +127,9 @@ const emit = defineEmits<{ create: []; again: []; discard: []; pick: [key: strin
 const isMobile = useIsMobile();
 /** A press is under way: nothing else on the card may be pressed. */
 const busy = computed(() => item.phase === 'saving' || item.phase === 'again' || Object.values(item.rows).some((r) => r.phase === 'running'));
+
+/** A row press made a record from this generation: another generation would orphan it, so Again is not offered. */
+const acted = computed(() => Object.values(item.rows).some((r) => r.phase === "done"));
 
 const stateOf = (section: number, row: number) => item.rows[previewRowKey(section, row)];
 </script>
