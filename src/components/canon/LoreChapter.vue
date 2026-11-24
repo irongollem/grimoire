@@ -1,6 +1,7 @@
 <template>
   <CanonChapter chapter="lore" :title="chapter.label" :why="chapter.why" :open="selected !== null" :back-label="chapter.label" @close="emit('close')">
     <template #toolbar>
+      <CanonReview mode="lore" :entries="lore" :lore="NEW_LORE" @accepted="(id) => emit('select', id)" />
       <p v-if="arcLabel !== null" class="m-0 text-caption text-muted-foreground" data-testid="arc-note">Showing {{ arcLabel }} only.</p>
     </template>
 
@@ -42,6 +43,7 @@
 import { computed, ref } from "vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import CanonAddRow from "./CanonAddRow.vue";
+import CanonReview from "./CanonReview.vue";
 import CanonChapter from "./kit/CanonChapter.vue";
 import CanonEmpty from "./kit/CanonEmpty.vue";
 import LoreDetail from "./LoreDetail.vue";
@@ -53,6 +55,8 @@ import { passagesOf, toldTally, useCanonPassages } from "@/composables/canon/use
 import { useCalendarStore } from "@/stores/calendar";
 import type { CanonEntry, LoreKind } from "@/types/canon.types";
 
+// The review of a lore draft that is not yet an entry: the Familiar keeps it under the `lore:new` key.
+const NEW_LORE = { title: "", kind: null, entryId: null, text: "" };
 const EMPTY_TEXT = "Lore is what the world remembers: its history, legends, faiths and ways. Tell it in passages, and the party hears each one when you say so.";
 
 const { lore, selected = null, arcLabel = null } = defineProps<{

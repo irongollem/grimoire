@@ -7,6 +7,7 @@
       </div>
       <CanonSuggest request="Suggest open questions for my canon." label="Suggest questions" />
     </div>
+    <CanonReview mode="questions" :entries="questions" />
     <WonderInbox :sort-order="questions.length" />
     <ul v-if="shown.length > 0" class="flex flex-col rounded-lg border border-border bg-card">
       <QuestionRow
@@ -54,6 +55,7 @@
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import CanonAddRow from "./CanonAddRow.vue";
+import CanonReview from "./CanonReview.vue";
 import CanonSuggest from "./kit/CanonSuggest.vue";
 import QuestionAnsweredRow from "./QuestionAnsweredRow.vue";
 import QuestionRow from "./QuestionRow.vue";

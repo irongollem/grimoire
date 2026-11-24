@@ -20,7 +20,7 @@ import LoreChapter from "./LoreChapter.vue";
 const lore = (id: string, title: string, year: number | null) => canonEntry({ id, part: "lore", title, world_year: year, lore_kind: "history" });
 const SuggestStub = { name: "CanonSuggest", props: ["request"], template: "<i data-testid='suggest' :data-request='request' />" };
 const mountIt = (entries = [lore("a", "Undated tale", null), lore("b", "Late", 412), lore("c", "Early", 7)], props: Record<string, unknown> = {}) =>
-  mount(LoreChapter, { props: { lore: entries, ...props }, global: { stubs: { LoreDetail: true, CanonSuggest: SuggestStub, FocalImage: true } } });
+  mount(LoreChapter, { props: { lore: entries, ...props }, global: { stubs: { CanonReview: true, LoreDetail: true, CanonSuggest: SuggestStub, FocalImage: true } } });
 
 describe("LoreChapter", () => {
   beforeEach(() => setActivePinia(createPinia()));
@@ -91,9 +91,17 @@ describe("LoreChapter", () => {
     expect(w.emitted("select")).toBeUndefined();
   });
 
-  it("offers no manual order (lore reads by its date) and no Suggest fold of its own", () => {
+  it("offers no manual order, since lore reads by its date", () => {
     const w = mountIt([lore("a", "Flood", 1), lore("b", "Mill", 2)]);
     expect(w.find("[data-testid=move-buttons]").exists()).toBe(false);
-    expect(w.findComponent({ name: "CanonSuggestFold" }).exists()).toBe(false);
+  });
+
+  // Bug caught: a lore draft from the Familiar landed under a key no chapter reads, so it never showed up to accept.
+  it("reviews the Familiar's new-lore drafts in its own toolbar, and opens one that is accepted", () => {
+    const w = mountIt([lore("a", "Flood", 1)]);
+    const review = w.findComponent({ name: "CanonReview" });
+    expect(review.props()).toMatchObject({ mode: "lore", lore: { entryId: null } });
+    review.vm.$emit("accepted", "l9");
+    expect(w.emitted("select")?.[0]).toEqual(["l9"]);
   });
 });

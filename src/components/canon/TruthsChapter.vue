@@ -1,6 +1,7 @@
 <template>
   <CanonChapter chapter="truths" :title="chapter.label" :why="chapter.why" :open="selected !== null" :back-label="chapter.label" @close="emit('close')">
     <template #toolbar>
+      <CanonReview mode="truths" :entries="allTruths" />
       <p v-if="arcLabel !== null" class="m-0 text-caption text-muted-foreground" data-testid="arc-note">Showing {{ arcLabel }} only.</p>
 
       <div v-if="unreviewed > 0" class="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2" data-testid="table-inbox">
@@ -76,6 +77,7 @@ import SegmentedControl from "@/components/common/controls/SegmentedControl.vue"
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import CanonAddRow from "./CanonAddRow.vue";
+import CanonReview from "./CanonReview.vue";
 import CanonChapter from "./kit/CanonChapter.vue";
 import CanonEmpty from "./kit/CanonEmpty.vue";
 import TableAddedSection from "./TableAddedSection.vue";

@@ -1,6 +1,7 @@
 <template>
   <CanonChapter chapter="moving" :title="chapter.label" :why="chapter.why" :open="selected !== null" :back-label="chapter.label" @close="emit('close')">
     <template #toolbar>
+      <CanonReview mode="forces" :entries="forces" />
       <p v-if="arcLabel !== null" class="m-0 text-caption text-muted-foreground" data-testid="arc-note">Showing {{ arcLabel }} only.</p>
     </template>
 
@@ -67,6 +68,7 @@ import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import CanonChapter from "./kit/CanonChapter.vue";
 import CanonEmpty from "./kit/CanonEmpty.vue";
+import CanonReview from "./CanonReview.vue";
 import ForceAddForm from "./ForceAddForm.vue";
 import ForceDetail from "./ForceDetail.vue";
 import ForceRow from "./ForceRow.vue";

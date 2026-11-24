@@ -26,7 +26,7 @@ import ForcesChapter from "./ForcesChapter.vue";
 const forces = [canonEntry({ id: "f1", part: "force", title: "The Stain spreads", clock_size: 6 }), canonEntry({ id: "f2", part: "force", title: "The Brewlings" })];
 const DetailStub = { name: "ForceDetail", props: ["entry"], emits: ["close", "delete"], template: "<div data-testid='detail'><button data-testid='detail-delete' @click=\"$emit('delete')\" /></div>" };
 const mountIt = (props: { forces?: typeof forces; selectedId?: string | null; arcLabel?: string | null } = {}) =>
-  mount(ForcesChapter, { props: { forces, ...props }, global: { stubs: { ForceDetail: DetailStub, ForceAddForm: true, CanonSuggest: true } } });
+  mount(ForcesChapter, { props: { forces, ...props }, global: { stubs: { CanonReview: true, ForceDetail: DetailStub, ForceAddForm: true, CanonSuggest: true } } });
 
 describe("ForcesChapter", () => {
   beforeEach(() => setActivePinia(createPinia()));

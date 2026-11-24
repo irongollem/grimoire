@@ -7,7 +7,7 @@ import type { Note } from "@/types/notes.types";
 import type { CampaignSession } from "@/types/session.types";
 
 const items = ref<ChronicleItem[]>([]);
-vi.mock("@/composables/canon/useChronicle", () => ({ useChronicle: () => ({ items, isLoading: computed(() => false), isError: computed(() => false), written: computed(() => 0) }) }));
+vi.mock("@/composables/sessions/useChronicle", () => ({ useChronicle: () => ({ items, isLoading: computed(() => false), isError: computed(() => false), written: computed(() => 0) }) }));
 const canonBySession = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 vi.mock("@/composables/canon/useSessionCanon", () => ({
   useSessionCanon: () => ({ value: (session: { id: string }) => canonBySession.current[session.id] ?? { groups: [], total: 0 } }),
@@ -20,7 +20,7 @@ vi.mock("@/composables/useLowArt", () => ({ useLowArt: () => ({ lowArt: ref(true
 vi.mock("@/stores/calendar", () => ({ useCalendarStore: () => ({ adapter: { formatDate: (y: number) => `year ${y}` } }) }));
 vi.mock("vue-router", () => ({ RouterLink: { props: ["to"], template: "<a><slot /></a>" } }));
 
-import { useCanonUiStore } from "@/stores/ui/canon";
+import { useSessionsUiStore } from "@/stores/ui/sessions";
 import ChronicleSection from "./ChronicleSection.vue";
 
 const session = (id: string, over: Partial<CampaignSession> = {}): CampaignSession => ({
@@ -35,7 +35,7 @@ const note = (over: Partial<Note> = {}): Note => ({
 });
 
 const mountIt = () =>
-  mount(ChronicleSection, { props: { lore: [], forces: [] }, global: { stubs: { CanonRubric: true, FocalImage: true, ChronicleAlmanac: true } } });
+  mount(ChronicleSection, { props: { lore: [], forces: [] }, global: { stubs: { FocalImage: true, ChronicleAlmanac: true } } });
 
 describe("ChronicleSection", () => {
   beforeEach(() => {
@@ -77,7 +77,7 @@ describe("ChronicleSection", () => {
   it("lists from the start when asked", async () => {
     const w = mountIt();
     expect(w.findAll("[data-testid=chronicle-entry]")[0]!.text()).toContain("Session 15");
-    useCanonUiStore().chronicleOrder = "start";
+    useSessionsUiStore().chronicleOrder = "start";
     await w.vm.$nextTick();
     expect(w.findAll("[data-testid=chronicle-entry]")[0]!.text()).toContain("Session 14");
   });

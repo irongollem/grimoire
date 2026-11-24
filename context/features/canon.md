@@ -19,7 +19,7 @@ Design: the canvas *Campaign Canon* (claude.ai artifact `MAukzQW1bDDG832DT4ZepT`
 | Secrets and open questions | `secret`, `question` | story 3 | a secret once the DM reveals it; never a question |
 | Lore, told in passages | `lore` | story 5 | the passages told |
 | Backstories | `backstory`, one per character (`party_member_id`) | story 10 | their own character's, always; another's when the DM shares it or any passage was told to them; only the passages told to them |
-| The Chronicle | none: the session's note (`notes.session_id`) | story 6 | what the DM shared |
+| The Chronicle | none: the session's note (`notes.session_id`); no longer a Canon chapter, it lives on the Sessions page (`components/sessions/Chronicle*`) | story 6 | what the DM shared |
 | What the table added | none: `story_facts` the AI table filed | story 9 | what the party knows and the DM has not struck |
 
 The player's journal draws every row `get_player_canon` returns (`groupPlayerWorld`): the shared premise under "The
@@ -667,7 +667,9 @@ The Narrator (`agent-turn`, see agent-runtime.md "The canon at the table") carri
 
 Session notes are canon, because they are what happened. A note linked to a session (`notes.session_id`) **is** that session's chronicle entry, kept as a note row so the Chronicler, the read-aloud, the pictures that land in a note and the players' reads keep working on one row; it is read on the Canon page's Chronicle and left out of the DM's `/notes` list. `notes.category` is gone (production held 50 notes, session 21, general 13, lore 12, a few others). Lore moves to the canon as lore entries, but nothing moves by itself: the maintainer used lore and session notes for player characters' backgrounds, so every lore note and every session note not linked to a session sits on a one-time list (`note_sorting`, "Sort your notes" on the Notes page, see campaign-notes-calendar.md) that the DM works through, sending each to a lore entry, a session, a character's backstory, their own note on a character, or keeping it a note.
 
-### The Chronicle page (Part IX, frame 12)
+### The Chronicle (Part IX, frame 12; now on the Sessions page)
+
+Since the 24 Nov rebuild the Chronicle is no longer a Canon chapter: `ChronicleSection` and its parts live in `src/components/sessions/` and `SessionsView` shows it under the log. The paragraphs below describe its content.
 
 `ChronicleSection` lists the campaign's **sessions**, newest first or from the start (`SegmentedControl`, state in
 `useCanonUiStore`), each with the note linked to it (`chronicleItems` in `canonChronicle.ts`; its newest when several are

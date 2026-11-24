@@ -29,6 +29,7 @@
     />
 
     <CanonBlock title="Clues" :suggest="clueRequest">
+      <CanonReview mode="clues" :secret-id="entry.id" />
       <span class="text-label text-muted-foreground" data-testid="clue-tally">{{ clueTally(clues) }}</span>
       <ul v-if="clues.length > 0" class="flex flex-col gap-1.5">
         <ClueRow
@@ -75,6 +76,7 @@ import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
+import CanonReview from "./CanonReview.vue";
 import CanonBlock from "./kit/CanonBlock.vue";
 import CanonEntryPane from "./kit/CanonEntryPane.vue";
 import EntryArcPicker from "./EntryArcPicker.vue";

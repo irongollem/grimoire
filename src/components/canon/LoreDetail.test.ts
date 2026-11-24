@@ -42,7 +42,7 @@ const p = (id: string, sort: number): CanonLorePassage => ({
 const mountIt = (over = {}) =>
   mount(LoreDetail, {
     props: { entry: canonEntry({ id: "l1", part: "lore", title: "The Fall", ...over }) },
-    global: { stubs: { EntryQuests: EntryQuestsStub, EntryStoryLinks: { props: ["entry"], template: "<div data-testid='story-links' :data-id='entry.id' />" }, EntityImageBlock: true, AudienceRevealControl: true, ConnectionsSection: true, CanonSuggest: { name: 'CanonSuggest', props: ['request'], template: "<i data-testid='suggest' :data-request='request' />" }, LorePassageRow: { props: ["passage"], emits: ["move", "remove"], template: "<li data-testid='row'>{{ passage.id }}<button data-testid='up' @click=\"$emit('move', -1)\" /><button data-testid='rm' @click=\"$emit('remove')\" /></li>" } } },
+    global: { stubs: { CanonReview: true, EntryQuests: EntryQuestsStub, EntryStoryLinks: { props: ["entry"], template: "<div data-testid='story-links' :data-id='entry.id' />" }, EntityImageBlock: true, AudienceRevealControl: true, ConnectionsSection: true, CanonSuggest: { name: 'CanonSuggest', props: ['request'], template: "<i data-testid='suggest' :data-request='request' />" }, LorePassageRow: { props: ["passage"], emits: ["move", "remove"], template: "<li data-testid='row'>{{ passage.id }}<button data-testid='up' @click=\"$emit('move', -1)\" /><button data-testid='rm' @click=\"$emit('remove')\" /></li>" } } },
   });
 
 describe("LoreDetail", () => {
@@ -105,7 +105,8 @@ describe("LoreDetail", () => {
   it("asks the Familiar for a passage for this lore, by its title", () => {
     const w = mountIt();
     expect(w.get("[data-testid=suggest]").attributes("data-request")).toBe('Suggest a passage for the lore "The Fall".');
-    expect(w.findComponent({ name: "CanonSuggestions" }).exists()).toBe(false);
+    // The result of that request is reviewed here, on this entry's own key.
+    expect(w.findComponent({ name: "CanonReview" }).props()).toMatchObject({ mode: "lore", lore: { entryId: "l1", title: "The Fall" } });
   });
 
   // Bug caught: the kind word missing from the pane head, so two lore entries open the same.

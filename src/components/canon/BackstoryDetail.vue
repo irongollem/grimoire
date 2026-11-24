@@ -14,7 +14,7 @@
 
     <ListSkeleton v-if="entry === null" variant="rows" :count="2" />
     <template v-else>
-      <CanonBlock title="Told in passages" :suggest="`Suggest a passage for ${member.name}'s backstory.`">
+      <CanonBlock title="Told in passages">
         <p class="m-0 text-caption text-muted-foreground">{{ member.name }}'s player always reads their own backstory. Sharing it lets the characters you choose read the entry. Each passage reaches only whom it was told to, and a character told any passage reads the entry too, so a player's "Share with the party" reaches the others without your sharing it.</p>
         <ul v-if="passages.length > 0" class="flex flex-col" data-testid="backstory-passages">
           <LorePassageRow

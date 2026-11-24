@@ -47,7 +47,7 @@ function mountSection(props: { truths?: CanonEntry[]; allTruths?: CanonEntry[]; 
   return mount(TruthsChapter, {
     attachTo: document.body,
     props: { allTruths: truths, ...props, truths },
-    global: { plugins: [pinia, VueQueryPlugin], stubs: { TruthDetail: TruthDetailStub, TableAddedSection: TableAddedStub } },
+    global: { plugins: [pinia, VueQueryPlugin], stubs: { CanonReview: true, TruthDetail: TruthDetailStub, TableAddedSection: TableAddedStub } },
   });
 }
 

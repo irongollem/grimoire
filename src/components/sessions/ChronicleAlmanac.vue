@@ -1,6 +1,6 @@
 <template>
-  <aside class="flex flex-col gap-2 border border-border bg-card p-4" aria-labelledby="canon-almanac-heading" data-testid="almanac">
-    <h3 id="canon-almanac-heading" class="m-0 text-heading-xs font-semibold text-foreground">The almanac</h3>
+  <aside class="flex flex-col gap-2 border border-border bg-card p-4" aria-labelledby="sessions-almanac-heading" data-testid="almanac">
+    <h3 id="sessions-almanac-heading" class="m-0 text-heading-xs font-semibold text-foreground">The almanac</h3>
     <p class="m-0 text-caption text-muted-foreground">One timeline of the world: lore, moving forces and the steps still due, with a date in the world, the events on the Calendar, and every session, in the world's own calendar. The Calendar's events are edited there; follow one to its month.</p>
     <ol v-if="events.length > 0" class="relative m-0 mt-1 flex list-none flex-col gap-2.5 p-0 pl-4 before:absolute before:top-1 before:bottom-1 before:left-1 before:w-px before:bg-border">
       <li v-for="event in events" :key="event.key" class="relative text-body" :data-kind="event.kind">

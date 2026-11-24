@@ -48,7 +48,7 @@ const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
   quest_beat_id: null, found_at: null, item_id: null, document_id: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
 });
 
-const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { EntryStoryLinks: true, ConnectionsSection: true, SecretOutlets: true, CanonEntryNotes: true, ClueForm: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
+const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { CanonReview: true, EntryStoryLinks: true, ConnectionsSection: true, SecretOutlets: true, CanonEntryNotes: true, ClueForm: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
 
 describe("SecretDetail", () => {
   beforeEach(() => {

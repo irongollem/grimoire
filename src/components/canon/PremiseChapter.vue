@@ -10,6 +10,7 @@
         <CanonSuggest request="Suggest a premise for my campaign: a pitch, themes and how it plays." />
       </header>
 
+      <CanonReview mode="premise" :entries="entries" />
       <PremiseWorld :campaign="campaign" />
       <PremisePitch :pitches="ofKind('pitch')" :calendar-id="campaign.calendar_id" />
 
@@ -62,6 +63,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import { useTableAccess } from "@/composables/campaign/useTableAccess";
 import { tableViolenceLabel } from "@/lib/campaign/tableViolence";
 import { chapterOf } from "@/lib/canon/canonParts";
+import CanonReview from "./CanonReview.vue";
 import CanonBlock from "./kit/CanonBlock.vue";
 import CanonSuggest from "./kit/CanonSuggest.vue";
 import PremiseBookPreview from "./PremiseBookPreview.vue";

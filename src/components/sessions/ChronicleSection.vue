@@ -1,7 +1,7 @@
 <template>
-  <section id="canon-chronicle" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="canon-chronicle-heading">
+  <section id="sessions-chronicle" class="flex scroll-mt-4 flex-col gap-3" aria-labelledby="sessions-chronicle-heading">
     <div class="flex flex-wrap items-center gap-3">
-      <CanonRubric id="canon-chronicle-heading" class="min-w-0 flex-1" numeral="IX" title="Chronicle" />
+      <h2 id="sessions-chronicle-heading" class="m-0 min-w-0 flex-1 text-heading-sm font-semibold text-foreground">Chronicle</h2>
       <SegmentedControl v-model="ui.chronicleOrder" :options="ORDER_OPTIONS" size="sm" aria-label="Order" />
     </div>
     <p class="m-0 text-caption text-muted-foreground">What has happened, session by session. A session's notes are its chronicle entry; nothing is written twice.</p>
@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 /**
- * Part IX (frame 12): what has happened, session by session. Each entry is the note linked to a session; a session with
+ * What has happened, session by session. Each entry is the note linked to a session; a session with
  * none offers to write it. The almanac beside it puts lore, moving forces and sessions on one timeline.
  *
  * Sessions are shown ten at a time: each entry reads what the party learned in its own session, one read per entry, so
@@ -40,10 +40,9 @@ import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import { useCanonForceData } from "@/composables/canon/useCanonForces";
 import { useCampaignCalendarEvents } from "@/composables/calendar/useCampaignCalendarEvents";
-import { useChronicle } from "@/composables/canon/useChronicle";
+import { useChronicle } from "@/composables/sessions/useChronicle";
 import { useSessionCanon } from "@/composables/canon/useSessionCanon";
-import { useCanonUiStore } from "@/stores/ui/canon";
-import CanonRubric from "./CanonRubric.vue";
+import { useSessionsUiStore } from "@/stores/ui/sessions";
 import ChronicleAlmanac from "./ChronicleAlmanac.vue";
 import ChronicleEntry from "./ChronicleEntry.vue";
 import { orderChronicle, type ChronicleOrder } from "@/lib/canon/canonChronicle";
@@ -58,7 +57,7 @@ const ORDER_OPTIONS: ReadonlyArray<{ value: ChronicleOrder; label: string }> = [
   { value: "start", label: "From the start" },
 ];
 
-const ui = useCanonUiStore();
+const ui = useSessionsUiStore();
 const { items, isLoading, isError } = useChronicle();
 const canonBySession = useSessionCanon();
 const canonOf = (session: CampaignSession) => canonBySession.value(session);

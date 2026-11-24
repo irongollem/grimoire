@@ -1,52 +1,5 @@
 <template>
-  <div v-if="isAiEnabled" class="flex flex-col gap-2" :data-testid="`canon-suggest-${mode}`">
-    <div class="flex justify-end">
-      <AppButton
-        variant="outline"
-        fill="muted"
-        size="sm"
-        :icon="IconGenerate"
-        icon-size="xs"
-        :loading="isGenerating"
-        :disabled="isAnyAiGenerating"
-        :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-        :label="copy.open"
-        @click="toggleSteer"
-      />
-    </div>
-
-    <div v-if="showSteer" class="flex flex-col gap-3 border border-border bg-muted/30 p-3">
-      <div>
-        <label class="mb-1 block text-label-lg font-semibold text-muted-foreground" :for="steerId">
-          {{ copy.steerLabel }}
-          <span v-if="mode !== 'premise'" class="font-fell font-normal normal-case text-muted-foreground">(optional)</span>
-        </label>
-        <!-- An AI-prompt field: native on purpose (CLAUDE.md, Sanctioned Exceptions), the model receives it as written. -->
-        <textarea
-          :id="steerId"
-          v-model="steer"
-          rows="3"
-          :maxlength="AI_PROMPT_LIMIT"
-          class="w-full resize-y border border-border bg-card p-2 text-body text-foreground placeholder:text-muted-foreground"
-          :placeholder="copy.placeholder"
-        />
-      </div>
-      <div class="flex items-center justify-end gap-2">
-        <GenerationCostBadge :credits="cost" :byok="textIsByok" />
-        <AppButton variant="subtle" size="sm" label="Cancel" @click="showSteer = false" />
-        <AppButton
-          variant="primary"
-          size="sm"
-          :icon="IconGenerate"
-          icon-size="xs"
-          :loading="isGenerating"
-          :disabled="isAnyAiGenerating || (mode === 'premise' && steer.trim() === '') || (mode === 'lore' && (lore?.title.trim() ?? '') === '')"
-          :label="copy.run"
-          @click="run"
-        />
-      </div>
-    </div>
-
+  <div v-if="visible" class="flex flex-col gap-2" :data-testid="`canon-review-${mode}`">
     <p v-if="error" class="text-caption text-destructive">{{ error }}</p>
     <div v-if="isGenerating" class="space-y-2" role="status" aria-live="polite">
       <p class="flex items-center gap-2 text-caption italic text-muted-foreground">
@@ -56,14 +9,41 @@
       <ListSkeleton variant="text" :count="3" />
     </div>
 
-    <div v-if="proposals.length > 0 || setAside.length > 0" class="flex flex-col gap-2 border border-border bg-muted/30 p-3">
+    <!-- The read's findings: a list to read, never to accept. Nothing in it is written. -->
+    <div v-if="mode === 'read' && hasResult" class="flex flex-col gap-2 rounded-lg border border-border bg-card p-3" data-testid="read-through-findings">
+      <div class="flex items-center justify-between">
+        <div class="text-label-lg font-semibold text-muted-foreground">{{ copy.heading }}</div>
+        <AppButton variant="subtle" size="sm" label="Close" @click="dismissAll" />
+      </div>
+      <p class="text-caption text-muted-foreground">Nothing is saved or changed. Open an entry to fix what you agree with.</p>
+      <p v-if="findings.length === 0" class="text-body italic text-muted-foreground" data-testid="read-through-clear">
+        Nothing contradicts and nothing is loose.
+      </p>
+      <div v-for="(f, i) in findings" :key="`${i}:${f.text}`" class="flex flex-col gap-1.5 rounded-md border border-border bg-muted/30 p-3" data-testid="read-through-finding">
+        <span class="text-eyebrow text-muted-foreground">{{ FINDING_TAG[f.kind] }}</span>
+        <p class="text-body text-foreground">{{ f.text }}</p>
+        <ul class="flex flex-wrap gap-1.5">
+          <li v-for="id in f.entry_ids" :key="id">
+            <RouterLink
+              :to="`/canon?entry=${id}`"
+              class="inline-flex items-center border border-border bg-muted/40 px-2 py-px text-label text-foreground hover:underline"
+            >{{ titleOf(id) }}</RouterLink>
+          </li>
+        </ul>
+      </div>
+      <p v-for="a in setAside" :key="`aside:${a.claim}`" class="text-caption italic text-muted-foreground">
+        Set aside: "{{ a.claim }}". {{ capitalised(a.reason) }}.
+      </p>
+    </div>
+
+    <div v-else-if="proposals.length > 0 || setAside.length > 0" class="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
       <div class="flex items-center justify-between">
         <div class="text-label-lg font-semibold text-muted-foreground">{{ copy.heading }}</div>
         <AppButton variant="subtle" size="sm" label="Dismiss all" @click="dismissAll" />
       </div>
       <p class="text-caption text-muted-foreground">Nothing is saved until you accept one. An accepted entry carries the AI label until you change it.</p>
       <p v-if="hasBoundarySuggestions" class="text-caption text-muted-foreground">Accepting a line or veil makes it an active rule for AI generations immediately. It stays private until you share it; review it with your players before accepting.</p>
-      <div v-for="p in proposals" :key="p.key" class="flex flex-col gap-2 border border-border bg-card p-3" data-testid="canon-proposal">
+      <div v-for="p in proposals" :key="p.key" class="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-3" data-testid="canon-proposal">
         <div class="flex flex-wrap items-center gap-1.5">
           <span class="text-eyebrow text-muted-foreground">{{ p.tag }}</span>
           <span v-if="p.knowers" class="text-caption text-muted-foreground">
@@ -88,123 +68,64 @@
 
 <script setup lang="ts">
 /**
- * The canon helpers (#1226, frame 13): "Draft from a pitch" for the premise, "Suggest truths" for the truths, "Place
- * clues" for one secret and "Suggest questions" for the open questions and "Suggest forces" for what is moving. A steer box, a cost badge, then proposals one by one with Accept and Dismiss. Nothing is written until the
- * DM accepts; an accepted entry carries the run's `ai_provenance`. Mounted by the sections, for the DM only.
+ * Where the Familiar's canon suggestions land (#1267). The Canon has no AI of its own: a Suggest button opens Ask
+ * Grimoire, which runs the helper and keeps its result in `useCanonSuggestions`' module state, keyed by mode (and scope).
+ * This is the review of that state, mounted by the chapter or entry the suggestions belong to: proposals one by one with
+ * Accept and Dismiss, and, for `read`, the findings to read. Nothing is written until the DM accepts; an accepted entry
+ * carries the run's `ai_provenance`. Renders nothing when its key holds no result, no error and no run in flight.
  */
-import { computed, ref, useId } from "vue";
-import { IconCheck, IconGenerate } from "@/lib/icons";
+import { computed, ref } from "vue";
+import { IconCheck } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import CanonRef from "./CanonRef.vue";
 import { plainTextToTiptap } from "@/lib/canon/canonParts";
 import { useCanonClues, useCreateCanonClue, type NewCanonClue } from "@/composables/canon/useCanonClues";
-import { useCreateCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useCanonEntries, useCreateCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useAcceptForce } from "@/composables/canon/useCanonForces";
 import { splitReplacement, useAcceptLore } from "@/composables/canon/useAcceptLore";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useKnownTo } from "@/composables/canon/useKnownTo";
-import { useCanonSuggestionsQuote } from "@/composables/ai/quotes/canonSuggestionsQuote";
-import { useGenerationGate } from "@/composables/ai/useGenerationGate";
-import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
-import { useCampaignStore } from "@/stores/campaign";
-import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
-import { useCanonSuggestions, type ClueSuggestion, type ForceSuggestion, type LoreSuggestion, type PremiseSuggestion, type QuestionSuggestion, type SecretSuggestion, type TruthSuggestion } from "@/ai/useCanonSuggestions";
+import { useCanonSuggestions, type CanonSuggestionMode, type ClueSuggestion, type ForceSuggestion, type LoreSuggestion, type PremiseSuggestion, type QuestionSuggestion, type ReadFinding, type SecretSuggestion, type TruthSuggestion } from "@/ai/useCanonSuggestions";
 import type { AiProvenance } from "@/ai/provenance";
-import { AI_PROMPT_LIMIT } from "@/ai/utils";
 import { premiseEntryText } from "@edge-shared/worldBlock.ts";
 import type { CanonEntry, LoreKind, PremiseKind } from "@/types/canon.types";
 
 type Suggestion = PremiseSuggestion | TruthSuggestion | ClueSuggestion | QuestionSuggestion | ForceSuggestion | LoreSuggestion | SecretSuggestion;
 
-const { mode, entries, secretId = null, lore = null, scope = undefined } = defineProps<{
-  mode: "premise" | "truths" | "clues" | "questions" | "forces" | "lore" | "secrets";
-  /** The entries the mode adds to: premise entries, truths or questions. Unused by `clues`, which counts the secret's own. */
-  entries: readonly CanonEntry[];
+const { mode, entries = [], secretId = null, lore = null, scope = undefined } = defineProps<{
+  mode: CanonSuggestionMode;
+  /** The entries the mode adds to: premise entries, truths, forces, secrets, questions or lore. Not needed by `clues` or `read`. */
+  entries?: readonly CanonEntry[];
   /** Required by `clues`: the secret the clues are for. */
   secretId?: string | null;
   /**
-   * Required by `lore`: the title and kind the DM gave. With an `entryId` the helper splits that entry's own `text`
-   * into passages and replaces its passages; without one it drafts a whole new entry.
+   * Required by `lore`: the title and kind of the entry. With an `entryId` the proposals are that entry's text split
+   * into passages, which replace its passages; without one they are whole new lore entries.
    */
   lore?: { title: string; kind: LoreKind | null; entryId: string | null; text: string } | null;
-  /** Keeps this mount's proposals apart from another mount of the same mode (the Shape the world walk beside its part). */
+  /** Overrides the key the proposals are held under; the default is the secret's or lore entry's id, or none. */
   scope?: string;
 }>();
 // Emitted with the entry an accept created and the page may open: a lore draft, or a secret.
 const emit = defineEmits<{ accepted: [entryId: string] }>();
 
 const COPY = {
-  premise: {
-    open: "Draft from a pitch",
-    run: "Draft",
-    steerLabel: "Your pitch, in a few lines",
-    placeholder: "A drowned kingdom, a gentle tone, a party of lamplighters…",
-    waiting: "Reading your campaign and your pitch. This takes a little while.",
-    heading: "Suggested premise entries",
-  },
-  truths: {
-    open: "Suggest truths",
-    run: "Suggest truths",
-    steerLabel: "Steer the truths",
-    placeholder: "e.g. something about the river, and one the guild keeps quiet",
-    waiting: "Reading your campaign for truths. This takes a little while.",
-    heading: "Suggested truths",
-  },
-  clues: {
-    open: "Place clues",
-    run: "Place clues",
-    steerLabel: "Steer the clues",
-    placeholder: "e.g. keep one clue in the Mint Fields, make one a song",
-    waiting: "Reading your campaign for places to put clues. This takes a little while.",
-    heading: "Suggested clues",
-  },
-  questions: {
-    open: "Suggest questions",
-    run: "Suggest questions",
-    steerLabel: "Steer the questions",
-    placeholder: "e.g. something about the guild, and one about the river",
-    waiting: "Reading your campaign for questions to keep open. This takes a little while.",
-    heading: "Suggested questions",
-  },
-  forces: {
-    open: "Suggest forces",
-    run: "Suggest forces",
-    steerLabel: "Steer the forces",
-    placeholder: "e.g. one faction with a slow plan, and a power the party has not met",
-    waiting: "Reading your campaign for what could be moving. This takes a little while.",
-    heading: "Suggested forces",
-  },
-  lore: {
-    open: "Draft a lore entry",
-    run: "Draft",
-    steerLabel: "Steer the draft",
-    placeholder: "e.g. told in four passages, the last one a secret",
-    waiting: "Reading your campaign to draft this lore. This takes a little while.",
-    heading: "Suggested lore",
-  },
-  secrets: {
-    open: "Suggest secrets",
-    run: "Suggest secrets",
-    steerLabel: "Steer the secrets",
-    placeholder: "e.g. something the guild hides, and one about the old bridge",
-    waiting: "Reading your campaign for secrets and places to hide clues. This takes a little while.",
-    heading: "Suggested secrets",
-  },
-  split: {
-    open: "Split into passages",
-    run: "Split",
-    steerLabel: "Steer the split",
-    placeholder: "e.g. keep the ending for last",
-    waiting: "Reading the entry to split it into passages. This takes a little while.",
-    heading: "Suggested passages",
-  },
+  premise: { heading: "Suggested premise entries", waiting: "Reading your campaign and your pitch. This takes a little while." },
+  truths: { heading: "Suggested truths", waiting: "Reading your campaign for truths. This takes a little while." },
+  clues: { heading: "Suggested clues", waiting: "Reading your campaign for places to put clues. This takes a little while." },
+  questions: { heading: "Suggested questions", waiting: "Reading your campaign for questions to keep open. This takes a little while." },
+  forces: { heading: "Suggested forces", waiting: "Reading your campaign for what could be moving. This takes a little while." },
+  lore: { heading: "Suggested lore", waiting: "Reading your campaign to draft this lore. This takes a little while." },
+  secrets: { heading: "Suggested secrets", waiting: "Reading your campaign for secrets and places to hide clues. This takes a little while." },
+  split: { heading: "Suggested passages", waiting: "Reading the entry to split it into passages. This takes a little while." },
+  read: { heading: "What the read found", waiting: "Reading the whole canon for what does not hold together. This takes a little while." },
 } as const;
 const copy = computed(() => (mode === "lore" && lore?.entryId ? COPY.split : COPY[mode]));
+const FINDING_TAG = { contradiction: "Contradiction", loose_end: "Loose end" } as const;
 
 const SPOT_TAG = { location: "A place you have", npc: "A person you have", quest_beat: "A beat you have" } as const;
 const KIND_TAG: Record<PremiseKind, string> = {
@@ -219,18 +140,11 @@ const KIND_TAG: Record<PremiseKind, string> = {
 const BOUNDARY_KINDS: readonly PremiseKind[] = ["line", "veil"];
 const MARK_TAG = { all: "Known to all", some: "Known to some", secret: "Secret" } as const;
 
-const campaign = useCampaignStore();
 const toast = useToast();
 const { confirm } = useConfirm();
-const isAiEnabled = computed(() => campaign.isAiEnabled);
-const steerId = useId();
 
-const { suggest, suggestions, setAside, provenance, isGenerating, error, dismiss, dismissAll } = useCanonSuggestions(mode, scope ?? (mode === "lore" ? (lore?.entryId ?? "new") : undefined));
-const { canSpend } = useGenerationGate();
-const quoteFor = useCanonSuggestionsQuote();
-const { textIsByok } = useCampaignProviders();
-// The split of one entry is priced as lore, as the server does: the mode, not the button's wording, is what is charged.
-const cost = computed(() => quoteFor(mode).total);
+// The key the adapter writes under: the Familiar stores a clue run under its secret and a split under its entry.
+const { suggestions, setAside, provenance, isGenerating, hasResult, error, dismiss, dismissAll } = useCanonSuggestions(mode, scope ?? (mode === "clues" ? (secretId ?? undefined) : mode === "lore" ? (lore?.entryId ?? "new") : undefined));
 
 const { mutateAsync: createEntry } = useCreateCanonEntry();
 const { mutateAsync: createClue } = useCreateCanonClue();
@@ -242,38 +156,19 @@ const { data: allPassages } = useCanonPassages(() => mode === "lore");
 // No entry yet: only `nameKnower`, which takes the new truth's id, is used.
 const { nameKnower } = useKnownTo(() => null);
 
-const showSteer = ref(false);
-const steer = ref("");
 const isAccepting = ref(false);
 const hasBoundarySuggestions = computed(() => mode === "premise" && (suggestions.value as Suggestion[]).some(
   (proposal) => "text" in proposal && "kind" in proposal && BOUNDARY_KINDS.includes(proposal.kind),
 ));
 
-function toggleSteer() {
-  if (!showSteer.value && mode === "premise" && steer.value.trim() === "") {
-    const pitch = entries.find((entry) => entry.part === "premise" && entry.premise_kind === "pitch");
-    if (pitch) steer.value = premiseEntryText(pitch.premise_kind, pitch.title, pitch.body).slice(0, AI_PROMPT_LIMIT).trimEnd();
-  }
-  showSteer.value = !showSteer.value;
-}
-
-async function run() {
-  if (!canSpend(cost.value, textIsByok.value)) return;
-  // The clues mode is the one that sends more than the steer: the secret they are for.
-  const secret = secretId;
-  if (mode === "clues" && secret === null) return;
-  if (mode === "lore" && (lore === null || lore.title.trim() === "")) return;
-  const input = mode === "clues" && secret !== null
-    ? { secret_id: secret }
-    : mode === "lore" && lore !== null
-      ? { title: lore.title.trim(), lore_kind: lore.kind, ...(lore.entryId && lore.text.trim() !== "" ? { text: lore.text } : {}) }
-      : undefined;
-  const ok = await (suggest as (steer: string, input?: object) => Promise<boolean>)(steer.value, input);
-  if (ok) {
-    showSteer.value = false;
-    steer.value = "";
-  }
-}
+// The read's findings name entries by id; their titles come from the whole canon.
+const { data: canon } = useCanonEntries({ enabled: () => mode === "read" });
+const findings = computed(() => (mode === "read" ? (suggestions.value as ReadFinding[]) : []));
+const titles = computed(() => new Map((canon.value ?? []).map((e) => [e.id, e.title.trim()])));
+const titleOf = (id: string) => {
+  const title = titles.value.get(id);
+  return title === undefined || title === "" ? "An entry" : title;
+};
 
 function capitalised(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
@@ -310,7 +205,7 @@ interface Proposal {
 }
 
 const proposals = computed<Proposal[]>(() =>
-  (suggestions.value as Suggestion[]).map((source, i) => {
+  (mode === "read" ? [] : (suggestions.value as Suggestion[])).map((source, i) => {
     if (isSecret(source)) return { key: `${i}:${source.title}`, source, tag: "A secret", text: source.title, knowers: null, spot: null, detail: secretDetail(source) };
     if (isLore(source)) return { key: `${i}:${source.title}`, source, tag: lore?.entryId ? "Passages" : "A lore entry", text: source.title, knowers: null, spot: null, detail: loreDetail(source) };
     if (isForce(source)) return { key: `${i}:${source.title}`, source, tag: "A force", text: `${source.title} wants ${source.wants}`, knowers: null, spot: null, who: source.who, detail: forceDetail(source) };
@@ -320,6 +215,8 @@ const proposals = computed<Proposal[]>(() =>
     return { key: `${i}:${source.kind}:${source.text}`, source, tag: KIND_TAG[source.kind], text: source.text, knowers: null, spot: null };
   }),
 );
+
+const visible = computed(() => error.value !== null || isGenerating.value || (mode === "read" ? hasResult.value : proposals.value.length > 0 || setAside.value.length > 0));
 
 function secretDetail(s: SecretSuggestion): string {
   return `${s.clues.length === 1 ? "A clue" : `${s.clues.length} clues`}: ${s.clues.map((c) => (c.spot ? `${c.title} (at ${c.spot.name})` : c.title)).join("; ")}.`;

@@ -33,6 +33,7 @@
     </div>
 
     <CanonBlock title="Passages" :suggest="suggestPassage">
+      <CanonReview mode="lore" :lore="splitTarget" />
       <p class="m-0 text-caption text-muted-foreground">Sharing the entry tells its first passage. Every other passage is told on its own.</p>
       <!-- One rule, in the database: the first passage is told with the entry and is never offered at a place or to Tell. -->
       <p v-if="passages.length > 0" class="m-0 flex flex-col gap-0.5" data-testid="lore-opening">
@@ -78,6 +79,7 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EntityImageBlock from "@/components/common/entity/EntityImageBlock.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
+import CanonReview from "./CanonReview.vue";
 import CanonBlock from "./kit/CanonBlock.vue";
 import CanonEntryPane from "./kit/CanonEntryPane.vue";
 import EntryArcPicker from "./EntryArcPicker.vue";
@@ -100,6 +102,8 @@ const { entry } = defineProps<{ entry: CanonEntry }>();
 const emit = defineEmits<{ delete: []; close: [] }>();
 
 const kindWord = computed(() => (entry.lore_kind ? `Lore · ${LORE_KIND_LABEL[entry.lore_kind]}` : "Lore"));
+// What the Familiar splits into passages: this entry's own words, kept under its id.
+const splitTarget = computed(() => ({ title: entry.title, kind: entry.lore_kind, entryId: entry.id, text: tiptapToPlainText(entry.body) }));
 const suggestPassage = computed(() => `Suggest a passage for the lore "${entry.title}".`);
 const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
 const questLinks = useEntryQuestLinks(() => entry.id);

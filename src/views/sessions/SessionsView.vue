@@ -79,6 +79,8 @@
           />
         </template>
       </EntityCollection>
+
+      <ChronicleSection :lore="lore" :forces="forces" />
     </div>
   </PageHeader>
 
@@ -105,6 +107,8 @@ import SessionLogCard from "@/components/sessions/SessionLogCard.vue";
 import SessionLogRow from "@/components/sessions/SessionLogRow.vue";
 import SessionRunningCard from "@/components/sessions/SessionRunningCard.vue";
 import PastSessionDialog from "@/components/sessions/PastSessionDialog.vue";
+import ChronicleSection from "@/components/sessions/ChronicleSection.vue";
+import { useCanonEntries } from "@/composables/canon/useCanonEntries";
 import {
   useCampaignSessions,
   useCreatePastSession,
@@ -144,6 +148,10 @@ const update = useUpdateCampaignSession();
 const remove_ = useDeleteCampaignSession();
 const adding = useCreatePastSession();
 const merging = useMergeCampaignSessions();
+
+const { data: canonEntries } = useCanonEntries();
+const lore = computed(() => (canonEntries.value ?? []).filter((e) => e.part === "lore"));
+const forces = computed(() => (canonEntries.value ?? []).filter((e) => e.part === "force"));
 
 const pastOpen = ref(false);
 

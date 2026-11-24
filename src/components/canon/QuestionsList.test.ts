@@ -25,7 +25,7 @@ import QuestionsList from "./QuestionsList.vue";
 const q = (id: string, title: string): CanonEntry => canonEntry({ id, part: "question", title });
 const answered = (): CanonEntry => canonEntry({ id: "q9", part: "question", title: "Who built the mill?", closed_as: "answered", closed_at: "t", closed_note: "The guild did.", became_entry_id: "t9" });
 const mountList = (rows: CanonEntry[] = [q("q1", "Who made the Stain?")]) =>
-  mount(QuestionsList, { props: { questions: rows }, global: { stubs: { RouterLink: { props: ["to"], template: "<a :data-to=\"JSON.stringify(to)\"><slot /></a>" } } } });
+  mount(QuestionsList, { props: { questions: rows }, global: { stubs: { CanonReview: true, RouterLink: { props: ["to"], template: "<a :data-to=\"JSON.stringify(to)\"><slot /></a>" } } } });
 const submitButton = (w: ReturnType<typeof mountList>) => w.find("button[type=submit]");
 
 describe("QuestionsList", () => {
@@ -180,7 +180,7 @@ describe("QuestionsList", () => {
 describe("QuestionsList find and order (#1255 item 11)", () => {
   beforeEach(() => { setActivePinia(createPinia()); Object.values(mocks).forEach((m) => m.mockReset()); mocks.updateAsync.mockResolvedValue(undefined); });
   const many = () => ["a", "b", "c", "d", "e", "f"].map((t, i) => canonEntry({ id: `q${i}`, part: "question", title: `Why ${t}?`, sort_order: i }));
-  const mountMany = (props: Record<string, unknown> = {}) => mount(QuestionsList, { props: { questions: many(), ...props }, global: { stubs: {} } });
+  const mountMany = (props: Record<string, unknown> = {}) => mount(QuestionsList, { props: { questions: many(), ...props }, global: { stubs: { CanonReview: true } } });
 
   it("moves an open question up by swapping its place with the one before it", async () => {
     await mountMany().find("button[aria-label='Move Why c? up']").trigger("click");

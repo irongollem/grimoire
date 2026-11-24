@@ -116,9 +116,10 @@ describe("ForceDetail", () => {
     expect(w.emitted("close")).toHaveLength(1);
   });
 
-  // Bug caught: the Suggest asking the Familiar for steps of no force in particular, or for another force's.
-  it("asks the Familiar for the next steps of this force by name, on the clock and steps block", () => {
-    expect(mountIt().getComponent(CanonSuggestStub).props("request")).toBe('Suggest the next steps for the force "The Stain spreads".');
+  // Bug caught: a Suggest on the clock and steps block. The server has no helper for a force's steps, so the request ran
+  // the forces helper and proposed new forces where the DM asked for steps.
+  it("offers no Suggest for a force's steps", () => {
+    expect(mountIt().findComponent(CanonSuggestStub).exists()).toBe(false);
   });
 
   // Bug caught: the log showing every move at once (burying the clock), or "All N moves" opening nothing.

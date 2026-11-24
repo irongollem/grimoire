@@ -31,7 +31,7 @@ function mountChapter(props: { secrets?: CanonEntry[]; questions?: CanonEntry[];
   setActivePinia(pinia);
   return mount(SecretsChapter, {
     props: { secrets: [], questions: [], ...props },
-    global: { plugins: [pinia], stubs: { SecretDetail: SecretDetailStub, QuestionsList: QuestionsStub } },
+    global: { plugins: [pinia], stubs: { CanonReview: true, SecretDetail: SecretDetailStub, QuestionsList: QuestionsStub } },
   });
 }
 

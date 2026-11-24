@@ -3,11 +3,16 @@
     <template #actions>
       <CanonSearchField class="w-72" />
       <AppButton to="/canon/import" variant="outline" size="md" :icon="IconUpload" label="Bring in a book" />
+      <CanonOpenAsBook />
+      <AppButton to="/canon/tonight" variant="ghost" size="md" :icon="IconMoon" label="Prepare the next session" class="min-[90rem]:hidden" />
     </template>
     <!-- The header holds these from a tablet up; a phone's header is the page's own bar, so they sit under the title where a thumb finds them. -->
     <div class="mb-4 flex flex-col gap-2 md:hidden" data-testid="canon-phone-actions">
       <CanonSearchField />
-      <AppButton to="/canon/import" variant="outline" size="sm" :icon="IconUpload" label="Bring in a book" class="self-start" />
+      <div class="flex flex-wrap gap-2">
+        <AppButton to="/canon/import" variant="outline" size="sm" :icon="IconUpload" label="Bring in a book" />
+        <AppButton to="/canon/tonight" variant="outline" size="sm" :icon="IconMoon" label="Prepare the next session" />
+      </div>
     </div>
 
     <div id="canon-page-top" class="flex flex-col gap-4 min-[90rem]:flex-row min-[90rem]:items-start min-[90rem]:gap-6">
@@ -15,12 +20,16 @@
       <div class="flex min-w-0 flex-col gap-3 min-[90rem]:sticky min-[90rem]:top-0 min-[90rem]:w-56 min-[90rem]:shrink-0 min-[90rem]:self-start">
         <CanonContents :active="active" :counts="counts" @select="goTo" />
         <CanonArcs v-if="ready && (searching || ARC_NARROWED_SECTIONS.includes(active))" />
+        <!-- The next session under the contents; below 90rem the header has the button instead. -->
+        <div class="hidden min-[90rem]:block"><CanonNextSession /></div>
       </div>
 
       <div class="flex min-w-0 flex-1 flex-col gap-8">
         <ListSkeleton v-if="isLoading || campaign === null" variant="rows" :count="4" />
         <p v-else-if="isError" role="alert" class="text-body text-destructive">Could not load the canon.</p>
         <template v-else>
+          <!-- What the Familiar's whole-canon read found (asked for in Ask Grimoire), above whichever chapter is open. -->
+          <CanonReview mode="read" />
           <CanonSearchResults v-if="searching" class="max-w-3xl" :groups="hitGroups" :query="ui.query" @open="ui.query = ''" />
           <template v-else>
             <TruthsChapter
@@ -67,6 +76,9 @@ import CanonArcs from "@/components/canon/CanonArcs.vue";
 import CanonSearchResults from "@/components/canon/CanonSearchResults.vue";
 import CanonSearchField from "@/components/canon/CanonSearchField.vue";
 import CanonDeleted from "@/components/canon/CanonDeleted.vue";
+import CanonNextSession from "@/components/canon/CanonNextSession.vue";
+import CanonOpenAsBook from "@/components/canon/CanonOpenAsBook.vue";
+import CanonReview from "@/components/canon/CanonReview.vue";
 import CanonContents from "@/components/canon/CanonContents.vue";
 import BackstoriesChapter from "@/components/canon/BackstoriesChapter.vue";
 import ForcesChapter from "@/components/canon/ForcesChapter.vue";
@@ -87,7 +99,7 @@ import { useCanonEntries, useTrashCanonEntry } from "@/composables/canon/useCano
 import { useCanonForceData } from "@/composables/canon/useCanonForces";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useParty } from "@/composables/party/useParty";
-import { IconUpload } from "@/lib/icons";
+import { IconMoon, IconUpload } from "@/lib/icons";
 import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
 import { prefersReducedMotion } from "@/lib/motion";

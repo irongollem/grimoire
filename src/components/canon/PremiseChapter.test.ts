@@ -17,7 +17,7 @@ vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ isAiEnabled: fa
 vi.mock("@/composables/ai/useLikenessGate", () => ({ useLikenessGate: () => ({ ensureLikenessAck: async () => true }) }));
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
 vi.mock("@/composables/ai/useGenerationGate", () => ({ useGenerationGate: () => ({ canSpend: () => true }) }));
-vi.mock("@/composables/ai/useCampaignProviders", () => ({ useCampaignProviders: () => ({ textCredits: (n: number) => n, textIsByok: { value: false } }) }));
+vi.mock("@/composables/ai/useCampaignProviders", () => ({ useCampaignProviders: () => ({ textCredits: (n: number) => n }) }));
 vi.mock("@tanstack/vue-query", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/vue-query")>()),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
@@ -38,7 +38,7 @@ const RevealStub = { name: "AudienceRevealControl", template: "<i data-testid='r
 function mountChapter(entries: CanonEntry[], table_violence: Campaign["table_violence"] = "standard") {
   return mount(PremiseChapter, {
     props: { campaign: { id: "c1", setting: "Eberron", calendar_id: null, table_violence } as Campaign, entries },
-    global: { stubs: { RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" }, AudienceRevealControl: RevealStub, ThemeCarriedBy: true, PremiseWorld: true, PremisePitch: true, CanonSuggest: { name: "CanonSuggest", props: ["request"], template: "<i data-testid='suggest' />" } } },
+    global: { stubs: { CanonReview: true, RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" }, AudienceRevealControl: RevealStub, ThemeCarriedBy: true, PremiseWorld: true, PremisePitch: true, CanonSuggest: { name: "CanonSuggest", props: ["request"], template: "<i data-testid='suggest' />" } } },
   });
 }
 

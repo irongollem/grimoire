@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
-import type { ClueSuggestion, ForceSuggestion, LoreSuggestion, PremiseSuggestion, QuestionSuggestion, SecretSuggestion, TruthSuggestion } from "@/ai/useCanonSuggestions";
+import type { ClueSuggestion, ForceSuggestion, LoreSuggestion, PremiseSuggestion, QuestionSuggestion, ReadFinding, SecretSuggestion, TruthSuggestion } from "@/ai/useCanonSuggestions";
 import type { CanonEntry } from "@/types/canon.types";
+import type { CanonSuggestionMode } from "@/ai/useCanonSuggestions";
 import { canonEntry } from "@/test/canonEntry";
 
 const mocks = vi.hoisted(() => ({
@@ -13,19 +14,21 @@ const mocks = vi.hoisted(() => ({
   acceptForce: vi.fn(),
   loreDraft: vi.fn(),
   loreSplit: vi.fn(),
-  suggest: vi.fn(),
+  keyed: vi.fn(),
   dismiss: vi.fn(),
   dismissAll: vi.fn(),
   confirm: vi.fn(),
   toastError: vi.fn(),
-  aiEnabled: { value: true },
 }));
-const suggestions = ref<(PremiseSuggestion | TruthSuggestion | ClueSuggestion | QuestionSuggestion | ForceSuggestion | LoreSuggestion | SecretSuggestion)[]>([]);
+const suggestions = ref<(PremiseSuggestion | TruthSuggestion | ClueSuggestion | QuestionSuggestion | ForceSuggestion | LoreSuggestion | SecretSuggestion | ReadFinding)[]>([]);
 const setAside = ref<{ claim: string; reason: string }[]>([]);
 const provenance = ref<{ generatorType: string } | null>({ generatorType: "canon_premise_suggestion" });
+const hasResult = ref(false);
+const generating = ref(false);
+const failure = ref<string | null>(null);
 
-vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ get isAiEnabled() { return mocks.aiEnabled.value; } }) }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({
+  useCanonEntries: () => ({ data: ref([canonEntry({ id: "a", title: "The king is dead" }), canonEntry({ id: "b", title: "The king signs a decree" })]) }),
   useCreateCanonEntry: () => ({ mutateAsync: mocks.create }),
   useUpdateCanonEntry: () => ({ mutateAsync: mocks.update }),
 }));
@@ -42,31 +45,31 @@ vi.mock("@/composables/canon/useAcceptLore", async (importOriginal) => ({
 }));
 vi.mock("@/composables/canon/useCanonForces", () => ({ useAcceptForce: () => mocks.acceptForce }));
 vi.mock("@/composables/canon/useKnownTo", () => ({ useKnownTo: () => ({ nameKnower: mocks.nameKnower }) }));
-vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
-vi.mock("@/composables/ai/useGenerationGate", () => ({ useGenerationGate: () => ({ canSpend: () => true }) }));
-vi.mock("@/composables/ai/useCampaignProviders", () => ({ useCampaignProviders: () => ({ textCredits: (n: number) => n, textIsByok: ref(false) }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: mocks.toastError }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/ai/useCanonSuggestions", () => ({
-  useCanonSuggestions: () => ({
-    suggest: mocks.suggest,
+  useCanonSuggestions: (mode: string, scope?: string) => {
+    mocks.keyed(mode, scope);
+    return {
     suggestions,
     setAside,
     provenance,
-    isGenerating: ref(false),
-    error: ref(null),
+    hasResult,
+    isGenerating: generating,
+    error: failure,
     dismiss: mocks.dismiss,
     dismissAll: mocks.dismissAll,
-  }),
+    };
+  },
 }));
 
-import CanonSuggestions from "./CanonSuggestions.vue";
+import CanonReview from "./CanonReview.vue";
 
 const entry = (over: Partial<CanonEntry>): CanonEntry => canonEntry({ campaign_id: "c1", part: "premise", premise_kind: "theme", ...over });
 
 type Lore = { title: string; kind: null; entryId: string | null; text: string };
-function mountIt(mode: "premise" | "truths" | "clues" | "questions" | "forces" | "lore" | "secrets", entries: CanonEntry[] = [], secretId: string | null = null, lore: Lore | null = null) {
-  return mount(CanonSuggestions, { props: { mode, entries, secretId, lore }, global: { stubs: { CanonRef: true, GenerationCostBadge: true } } });
+function mountIt(mode: CanonSuggestionMode, entries: CanonEntry[] = [], secretId: string | null = null, lore: Lore | null = null) {
+  return mount(CanonReview, { props: { mode, entries, secretId, lore }, global: { stubs: { CanonRef: true, RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" } } } });
 }
 const click = async (w: ReturnType<typeof mountIt>, label: string) => {
   await w.findAll("button").find((b) => b.text() === label)!.trigger("click");
@@ -74,8 +77,10 @@ const click = async (w: ReturnType<typeof mountIt>, label: string) => {
 };
 
 beforeEach(() => {
-  for (const m of [mocks.create, mocks.createClue, mocks.update, mocks.nameKnower, mocks.acceptForce, mocks.loreDraft, mocks.loreSplit, mocks.suggest, mocks.dismiss, mocks.dismissAll, mocks.confirm, mocks.toastError]) m.mockReset();
-  mocks.aiEnabled.value = true;
+  for (const m of [mocks.create, mocks.createClue, mocks.update, mocks.nameKnower, mocks.acceptForce, mocks.loreDraft, mocks.loreSplit, mocks.keyed, mocks.dismiss, mocks.dismissAll, mocks.confirm, mocks.toastError]) m.mockReset();
+  hasResult.value = false;
+  generating.value = false;
+  failure.value = null;
   mocks.create.mockResolvedValue({ id: "new1" });
   mocks.confirm.mockResolvedValue(true);
   mocks.acceptForce.mockResolvedValue(undefined);
@@ -86,7 +91,7 @@ beforeEach(() => {
   setAside.value = [];
 });
 
-describe("CanonSuggestions", () => {
+describe("CanonReview", () => {
   // Bug caught: accepting a suggested secret wrote only the secret (its clues lost), or put a clue on two places, or
   // placed an unplaced clue somewhere (a stale id carried over); the clues are the point of the suggestion.
   it("accepts a secret as the secret and its three clues, each on its own place, and opens the secret", async () => {
@@ -122,11 +127,6 @@ describe("CanonSuggestions", () => {
     await click(w, "Accept");
     expect(mocks.toastError).toHaveBeenCalledWith("clue refused");
     expect(mocks.dismiss).not.toHaveBeenCalled();
-  });
-
-  it("renders nothing when AI is off for the campaign, so no spend can start", () => {
-    mocks.aiEnabled.value = false;
-    expect(mountIt("premise").find("button").exists()).toBe(false);
   });
 
   it("writes nothing when the proposals arrive; only Accept writes", () => {
@@ -246,15 +246,6 @@ describe("CanonSuggestions", () => {
       expect(mocks.createClue).not.toHaveBeenCalled();
     });
 
-    it("asks the model about the secret it is mounted on", async () => {
-      mocks.suggest.mockResolvedValue(true);
-      const w = mountIt("clues", [], "s1");
-      await click(w, "Place clues");
-      // The steer box is open now: the button that runs it shares the opener's label and comes after it.
-      await w.findAll("button").filter((b) => b.text() === "Place clues").at(-1)!.trigger("click");
-      await flushPromises();
-      expect(mocks.suggest).toHaveBeenCalledWith("", { secret_id: "s1" });
-    });
   });
 
   describe("open questions", () => {
@@ -319,7 +310,7 @@ describe("CanonSuggestions", () => {
   });
 });
 
-describe("CanonSuggestions lore", () => {
+describe("CanonReview lore", () => {
   const lore: LoreSuggestion = { title: "The Fall", kind: "history", passages: [{ title: "What everyone says", body: "A hundred years ago.", spot: null }, { title: "What was lost", body: "The recipes.", spot: { kind: "npc", id: "n1", name: "Miss Pellam" } }] };
   const draftTarget: Lore = { title: "The Fall", kind: null, entryId: null, text: "" };
   const splitTarget: Lore = { title: "The Fall", kind: null, entryId: "l1", text: "Some words." };
@@ -377,21 +368,64 @@ describe("CanonSuggestions lore", () => {
     expect(mocks.loreSplit).toHaveBeenCalled();
   });
 
-  it("a draft needs a title: the Draft button waits for one", async () => {
-    const w = mountIt("lore", [], null, { ...draftTarget, title: "  " });
-    await click(w, "Draft a lore entry");
-    expect(w.findAll("button").find((b) => b.text() === "Draft")!.attributes("disabled")).toBeDefined();
+  // Bug caught: the split's proposals were read under the draft's key (or the reverse), so the Familiar's result for an
+  // entry never showed on that entry.
+  it("reads a draft under the new-entry key and a split under the entry's own key", () => {
+    mountIt("lore", [], null, draftTarget);
+    mountIt("lore", [], null, splitTarget);
+    expect(mocks.keyed.mock.calls).toEqual([["lore", "new"], ["lore", "l1"]]);
+  });
+});
+
+describe("CanonReview, what it shows", () => {
+  // Bug caught: the review drew an empty frame (or a stray heading) before the Familiar had run, on every chapter.
+  it("renders nothing when its key holds no result, no error and no run", () => {
+    expect(mountIt("truths").html()).toBe("<!--v-if-->");
+    expect(mountIt("read").html()).toBe("<!--v-if-->");
   });
 
-  it("sends the entry's own text with a split, and no text with a draft", async () => {
-    mocks.suggest.mockResolvedValue(true);
-    const split = mountIt("lore", [], null, splitTarget);
-    await click(split, "Split into passages");
-    await click(split, "Split");
-    expect(mocks.suggest).toHaveBeenLastCalledWith("", { title: "The Fall", lore_kind: null, text: "Some words." });
-    const draft = mountIt("lore", [], null, draftTarget);
-    await click(draft, "Draft a lore entry");
-    await click(draft, "Draft");
-    expect(mocks.suggest).toHaveBeenLastCalledWith("", { title: "The Fall", lore_kind: null });
+  // Bug caught: a failed run left the DM looking at an unchanged chapter, with the reason only in the Familiar.
+  it("shows a run in flight and its error, with no proposals", () => {
+    generating.value = true;
+    expect(mountIt("truths").get("[role=status]").text()).toContain("Reading your campaign for truths");
+    generating.value = false;
+    failure.value = "Needs the server";
+    expect(mountIt("truths").text()).toContain("Needs the server");
+  });
+
+  // Bug caught: the clues review was keyed by mode alone, so one secret's clues were offered on every secret.
+  it("keeps a secret's clues under that secret", () => {
+    mountIt("clues", [], "s1");
+    expect(mocks.keyed).toHaveBeenCalledWith("clues", "s1");
+  });
+
+  describe("the read", () => {
+    // Bug caught: a finding without its links (the DM must hunt for the entries), or a link to the wrong URL shape.
+    it("lists each finding with a link to every entry it names, by title", () => {
+      hasResult.value = true;
+      suggestions.value = [
+        { kind: "contradiction", text: "He cannot be dead and sign.", entry_ids: ["a", "b"] },
+        { kind: "loose_end", text: "A secret with no clue.", entry_ids: ["a"] },
+      ] satisfies ReadFinding[];
+      const w = mountIt("read");
+      const rows = w.findAll("[data-testid=read-through-finding]");
+      expect(rows).toHaveLength(2);
+      expect(rows[0]!.text()).toContain("Contradiction");
+      expect(rows[1]!.text()).toContain("Loose end");
+      expect(rows[0]!.findAll("a").map((a) => [a.attributes("href"), a.text()])).toEqual([
+        ["/canon?entry=a", "The king is dead"],
+        ["/canon?entry=b", "The king signs a decree"],
+      ]);
+      expect(w.find("[data-testid=canon-proposal]").exists()).toBe(false);
+    });
+
+    // Bug caught: a clean read showed nothing at all, which reads as "never ran" or "broken".
+    it("says so when a run found nothing, and Close clears the result", async () => {
+      hasResult.value = true;
+      const w = mountIt("read");
+      expect(w.get("[data-testid=read-through-clear]").text()).toContain("Nothing contradicts");
+      await click(w, "Close");
+      expect(mocks.dismissAll).toHaveBeenCalled();
+    });
   });
 });

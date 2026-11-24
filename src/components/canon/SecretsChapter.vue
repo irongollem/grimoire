@@ -3,6 +3,7 @@
     <template #toolbar>
       <p v-if="arcLabel !== null" class="m-0 text-caption text-muted-foreground" data-testid="arc-note">Showing {{ arcLabel }} only.</p>
       <SegmentedControl v-model="store.secretsView" :options="VIEW_OPTIONS" class="self-start" aria-label="Show secrets or questions" data-testid="secrets-view" />
+      <CanonReview v-if="store.secretsView === 'secrets'" mode="secrets" :entries="secrets" @accepted="(id) => emit('select', id)" />
     </template>
 
     <template v-if="store.secretsView === 'secrets'">
@@ -43,6 +44,7 @@
 import { computed, watch } from "vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import CanonAddRow from "./CanonAddRow.vue";
+import CanonReview from "./CanonReview.vue";
 import CanonChapter from "./kit/CanonChapter.vue";
 import CanonEmpty from "./kit/CanonEmpty.vue";
 import QuestionsList from "./QuestionsList.vue";

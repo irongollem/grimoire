@@ -29,7 +29,7 @@
 
     <CanonEntryNotes :key="entry.id" :entry="entry" label="Notes" help="Never shown to players." placeholder="How it plays, what it will do next…" />
 
-    <CanonBlock title="Its clock and its steps" :suggest="suggestSteps">
+    <CanonBlock title="Its clock and its steps">
       <div class="flex flex-col gap-2">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <span class="text-eyebrow text-muted-foreground">Clock</span>
@@ -122,7 +122,6 @@ const steps = computed(() => (data.value?.steps ?? []).filter((s) => s.force_id 
 const ticks = computed(() => (data.value?.ticks ?? []).filter((t) => t.force_id === entry.id));
 const links = computed(() => (data.value?.quests ?? []).filter((q) => q.entry_id === entry.id));
 
-const suggestSteps = computed(() => `Suggest the next steps for the force "${entry.title}".`);
 const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
 const filled = computed(() => (entry.clock_size === null ? 0 : clockFilled(ticks.value, entry.clock_size)));
 

@@ -1,11 +1,10 @@
-// The Canon page's list state (#1226, #1255, #1258): the Chronicle's order, the filter on what the table added, the arc the
+// The Canon page's list state (#1226, #1255, #1258): the filter on what the table added, the arc the
 // page is narrowed to, the page's one search, the truths' mark filter and grouping, and which part the page is on.
 // Session-scoped, so they survive navigation but are not kept for weeks; the part the DM was last on is the one
 // per-viewer convenience kept across sessions.
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { useStorage } from "@vueuse/core";
-import type { ChronicleOrder } from "@/lib/canon/canonChronicle";
 import type { FactFilter } from "@/lib/canon/canonTableFacts";
 import { DEFAULT_TRUTH_FILTER, type TruthFilter } from "@/lib/canon/canonTruthView";
 import { CANON_SECTIONS, isSectionId, type CanonSectionId } from "@/lib/canon/canonParts";
@@ -16,7 +15,6 @@ export const DEFAULT_FACT_FILTER: FactFilter = "new";
 export const DEFAULT_CANON_PART: CanonSectionId = CANON_SECTIONS[0].id;
 
 export const useCanonUiStore = defineStore("ui:canon", () => {
-  const chronicleOrder = ref<ChronicleOrder>("newest");
   const tableFactFilter = ref<FactFilter>(DEFAULT_FACT_FILTER);
 
   const tableFactsHasActiveFilters = computed(() => tableFactFilter.value !== DEFAULT_FACT_FILTER);
@@ -45,9 +43,6 @@ export const useCanonUiStore = defineStore("ui:canon", () => {
   /** Which list the Secrets and questions chapter shows. A view, not a filter: it is not part of `hasActiveFilters`. */
   const secretsView = ref<"secrets" | "questions">("secrets");
 
-  /** Whether a part's "Suggest…" fold is open, by the part's helper (`truths`, `premise`, `lore`, `secrets`, ...). Closed until opened. */
-  const suggestOpen = ref<Record<string, boolean>>({});
-
   /** What Tonight is narrowed to (#1258 item 1); the default is where the party is. */
   const tonightScope = ref<TonightScope>(DEFAULT_TONIGHT_SCOPE);
 
@@ -67,8 +62,8 @@ export const useCanonUiStore = defineStore("ui:canon", () => {
   }
 
   return {
-    chronicleOrder, tableFactFilter, tableFactsHasActiveFilters, resetTableFactFilters,
+    tableFactFilter, tableFactsHasActiveFilters, resetTableFactFilters,
     lastPart, arcFilter, query, tonightScope, hasActiveFilters, resetFilters,
-    truthFilter, truthsGrouped, truthsHaveActiveFilters, resetTruthFilters, suggestOpen, secretsView,
+    truthFilter, truthsGrouped, truthsHaveActiveFilters, resetTruthFilters, secretsView,
   };
 });
