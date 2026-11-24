@@ -81,6 +81,13 @@ describe("SoloScene", () => {
     expect(w.text()).toContain("No one else is here.");
   });
 
+  // Bug caught (seen on a phone, 24 Nov 2026): a place with a name and no summary also read "Nowhere in particular yet",
+  // under its own name. Only a scene with no place says that.
+  it("says nowhere in particular only when there is no place", () => {
+    expect(mount(SoloScene, { props: { placeName: "The Working Kitchen", here: [] } }).text()).not.toContain("Nowhere in particular");
+    expect(mount(SoloScene, { props: { placeName: null, here: [] } }).text()).toContain("Nowhere in particular");
+  });
+
   // Bug caught: what went on record spread across the column (it was taking over the story before), or the newest
   // fact buried at the bottom of the list.
   it("keeps what is on record folded shut behind its count, and lists the newest first when opened", async () => {

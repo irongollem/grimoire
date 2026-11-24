@@ -20,7 +20,7 @@
       </div>
       <p v-if="ambienceUnanswered" class="text-caption text-muted-foreground" data-testid="solo-ambience-unanswered">No ambient scene is tagged “{{ ambienceUnanswered }}” yet, so nothing plays.</p>
       <p v-if="placeName && placeSummary" class="text-body text-muted-foreground" data-testid="solo-place-summary">{{ placeSummary }}</p>
-      <p v-else class="text-body italic text-muted-foreground">Nowhere in particular yet. The Narrator will say.</p>
+      <p v-else-if="!placeName" class="text-body italic text-muted-foreground">Nowhere in particular yet. The Narrator will say.</p>
     </section>
     <template v-if="pressure">
       <hr class="border-border" />
