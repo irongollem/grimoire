@@ -114,7 +114,7 @@ export function askOwnTools(fiveE: boolean): AgentTool[] {
     },
     {
       name: "offer_ideas",
-      description: "Lay out brainstormed ideas. Each idea has lines; mark a line canon only when it rests on records you read (give them in refs), otherwise it is new. An idea may hand off to a generator.",
+      description: "Lay out brainstormed ideas. Each idea has lines; mark a line canon only when it rests on records you read (give them in refs), otherwise it is new. An idea that is a new record a generator can make (a faction, an NPC, a place, an item...) must hand off to that generator, so the DM gets a button to make it.",
       inputSchema: {
         type: "object",
         properties: {
@@ -148,7 +148,7 @@ export function askOwnTools(fiveE: boolean): AgentTool[] {
                 },
                 handoff: {
                   type: "object",
-                  description: "Optional: the generator that would make this idea real.",
+                  description: "The generator that would make this idea real. Required whenever the idea is a new record of a kind a generator makes; left out only for an idea that is no one record (a twist, a theme, a change to something that exists). The concept is the idea in a sentence, as the generator's brief.",
                   properties: {
                     generator: { type: "string", enum: generatorsFor(fiveE).map((g) => g.id) },
                     concept: { type: "string" },
