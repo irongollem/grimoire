@@ -168,6 +168,7 @@
             :rendered-message="renderMessage(msg.message)"
             :addressed="mentionsMe(msg)"
             :ai="writtenByAi(msg)"
+            :npc-speech="readNpcSpeech(msg.metadata, dmUserIds.has(msg.user_id))"
             :time-label="timeLabel(msg.created_at)"
             :entity-link="entityLinkFor(msg)"
           />
@@ -354,6 +355,7 @@ import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import ChatItemDropMessage from "@/components/chat/ChatItemDropMessage.vue";
 import ChatCurrencyDropMessage from "@/components/chat/ChatCurrencyDropMessage.vue";
 import ChatRollMessage from "@/components/chat/ChatRollMessage.vue";
+import { readNpcSpeech, type NpcSpeechFace } from "@/lib/chat/npcSpeech";
 import ChatTextMessage from "@/components/chat/ChatTextMessage.vue";
 import ChatDiceRoller from "@/components/chat/ChatDiceRoller.vue";
 import ChatVendorOfferMessage from "@/components/chat/ChatVendorOfferMessage.vue";
@@ -383,12 +385,23 @@ import { canAfford, hasCoins, type Coins } from "@/lib/currency/currency";
 import { useAuthStore } from "@/stores/auth";
 import { useWhisperTarget } from "@/composables/campaign/useWhisperRecipients";
 import { useAppUiStore } from "@/stores/ui/app";
+import { useCampaignStore } from "@/stores/campaign";
 
 const appUi = useAppUiStore();
 
+// Who may speak for an NPC (#1270): the campaign's owner and every seated co-DM (`campaign_members.role = 'dm'`).
+const campaignStore = useCampaignStore();
+const dmUserIds = computed(() => {
+  const ids = new Set<string>();
+  const ownerId = campaignStore.activeCampaign?.user_id;
+  if (ownerId) ids.add(ownerId);
+  for (const m of props.members ?? []) if (m.role === "dm") ids.add(m.user_id);
+  return ids;
+});
+
 function onTalkAsChange(id: string) {
   const npc = id ? props.npcs.find(n => n.id === id) : null;
-  appUi.setDmTalkAsNpc(id, npc?.name ?? null);
+  appUi.setDmTalkAsNpc(id, npc?.speakerName ?? npc?.name ?? null, npc?.face ?? null);
 }
 
 const props = defineProps<{
@@ -401,7 +414,9 @@ const props = defineProps<{
   myUserId: string;
   members: CampaignMember[] | undefined;
   party: PartyMember[] | undefined;
-  npcs: { id: string; name: string }[];
+  /** `face` is the portrait a line said as this NPC carries into the chat (#1270). */
+  /** `speakerName` is the name players may see for it (the line's `sender_name`); `name` is the DM's label for the picker. */
+  npcs: { id: string; name: string; speakerName?: string; face?: NpcSpeechFace }[];
   focusMessageId?: string | null;
   focusRequest?: number;
   /** Posts the message; resolves false when it failed, so the draft can be restored. */

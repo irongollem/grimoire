@@ -55,7 +55,7 @@ Ability Score Improvement is itself an ability: the official one is granted at t
 
 ## Generating an ability with AI
 
-If AI is switched on for your campaign, **Character Codex → Abilities** has a **Generate** button next to **New Ability**. Describe what the ability does in a sentence or two. You can also pick how it is used, and say which class or species it is for. Grimoire writes the name, rules text, prerequisite and tags, balanced against the published abilities of your campaign's edition, fills in the mechanics it can be sure of, and opens the new ability so you can adjust it. It reads your campaign setting, and each generation costs credits (the cost is shown on the button). Once you edit a generated ability, it is marked as edited.
+If AI is switched on for your campaign, **Character Codex → Abilities** has a **Generate** button next to **New Ability**. It opens the Familiar on the right with an ability card. Describe what the ability does in a sentence or two. You can also pick how it is used, and say which class or species it is for. Grimoire writes the name, rules text, prerequisite and tags, balanced against the published abilities of your campaign's edition, fills in the mechanics it can be sure of, and opens the new ability so you can adjust it. It reads your campaign setting, and each generation costs credits (the card shows the cost). Once you edit a generated ability, it is marked as edited.
 
 ## How abilities flow to players
 

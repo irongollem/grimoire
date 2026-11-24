@@ -79,12 +79,12 @@ The advisor shows a **Suggested CR** with the contributing factors and reference
 
 ## AI trap generator
 
-Click **Generate** to open the Trap Generator panel. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost, and if AI is off, the panel points you at the toggle instead of the form; click **New Blank Trap** to skip AI entirely.
+Click **Generate** to open the Familiar on the right with a trap card. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost. If AI is off, the card points you at the toggle. Click **New Blank Trap** to skip AI entirely.
 
-1. Write the concept: what the trap is and does, in plain language (e.g. "a pressure plate in a dungeon corridor that triggers a volley of poisoned darts from hidden alcoves in the walls…").
-2. Optionally narrow **Type** and **CR** under Constraints.
-3. Toggle **Generate trap illustration**; if your campaign has an OpenAI key and a group portrait, an **Add party to scene** toggle also appears.
-4. The credit cost (or **Balance** if you're short) shows above the button. Click **Generate with AI**.
+1. Write what to make: what the trap is and does, in plain language (e.g. "a pressure plate in a dungeon corridor that triggers a volley of poisoned darts from hidden alcoves in the walls…").
+2. Optionally narrow **Type** and **CR**.
+3. Toggle the trap illustration. If your campaign has an image provider and a group portrait, an **Add party to scene** switch also appears.
+4. The card shows the credit cost (or that your balance is short). Click the gilt button to generate.
 
 The generator fills in type, DCs, damage, save, effect description, and (if requested) an illustration, then opens the new trap's page. It doesn't suggest a map glyph: pick one yourself in the editor afterward, or leave it as the generic marker.
 

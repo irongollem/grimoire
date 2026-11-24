@@ -554,6 +554,10 @@ In **Add a connection**, faction membership starts with role buttons (all offere
 
 Route: `/play/factions` (embedded in player portal via `PlayerFactionsView.vue`)
 
+#### Generating a faction or a place (#1270)
+
+The Factions and Atlas "Generate" buttons open the generator's card in the Familiar (`useOpenGenerator().open("faction" | "location")`); the panels are gone. A faction card folds "Who leads it, where": the leader as a pick from this campaign's NPCs and the headquarters as a pick from its places, each beside "Or a new leader" / "Or a new place", a name typed for someone or somewhere that does not exist yet. A picked record wins over a typed name (it is linked), a name alone only shapes the description and links nothing. A place card folds "Where it sits": inside (a place), kept by (an NPC) and its ties; "Map sketch" is a switch, off, priced as a second picture, and a request typed to the model never turns it on. Both open with the picture on, as the panels did.
+
 #### Faction list
 
 - Shows factions the player can see: factions where they are a member (`faction_party_members` row exists) OR where their `party_member_id` is in the faction's `player_visible_to[]` array
@@ -654,9 +658,9 @@ catches it; `20260818081308` had to rebuild the function for exactly this reason
 
 ### AI deity generator and portrait (#910)
 
-**Entry point:** the Pantheon list (`DeityListView.vue`, `ui.deityGeneratorOpen`), panel `DeityGeneratorPanel.vue` on `GeneratorPanelShell`, state in `src/ai/useDeityGeneration.ts` (label "Deity"). Constraints: pantheon, alignment, primary domain.
+**Entry point:** the Pantheon list (`DeityListView.vue`, `useOpenGenerator().open("deity")`, #1270), which opens the deity's card in the Familiar; state in `src/ai/useDeityGeneration.ts` (label "Deity"). Inputs: pantheon (a pick from this campaign's pantheons), alignment, primary domain, ties and the portrait (on). The price quotes the portrait when it is on; the old panel showed the text only.
 
-**Grounding:** `generate-entity-text` with `generator: "deity"`; ledger reason `deity_generation`. When a pantheon is chosen, `buildDeityConstraints` (`src/lib/deities/deityAi.ts`) sends its name and the deities it already holds with their portfolios ("do not duplicate"), so the new god fits the pantheon's tone and naming. The deities line is clipped to the server's 400 character cap by dropping whole entries from the end, never mid-name. The panel only fetches pantheons and deities once it opens, because it is mounted on every DM page.
+**Grounding:** `generate-entity-text` with `generator: "deity"`; ledger reason `deity_generation`. When a pantheon is chosen, `buildDeityConstraints` (`src/lib/deities/deityAi.ts`) sends its name and the deities it already holds with their portfolios ("do not duplicate"), so the new god fits the pantheon's tone and naming. The deities line is clipped to the server's 400 character cap by dropping whole entries from the end, never mid-name. The card reads pantheons and deities only once it is open, because the Familiar's pane is mounted on every DM page.
 
 **Decision: every edition uses the full domain list.** `normalizeDeityResult` matches domains (at most three) against `CLERIC_DOMAINS` for 2014 and 2024 alike. A god's domains are its portfolio, not the cleric subclasses a handbook prints: the 2024 Player's Handbook gives clerics four domains, but its gods still carry Knowledge, Nature, Tempest and the rest, so narrowing a 2024 god to four would be a house rule. Unknown alignments become null and unknown domains are dropped, because a value outside the enums would show in no filter or chip.
 

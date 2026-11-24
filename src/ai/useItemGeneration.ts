@@ -8,7 +8,6 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useItemsUiStore } from "@/stores/ui/items";
 import { captureFailureMessage, captureImageGenerationContext, generateImage } from "./useImageGeneration";
 
 export interface ItemGenerationOptions {
@@ -25,9 +24,7 @@ registerAiGenerator({
   ..._state,
   label: "Item",
   entityRoute: (id) => `/vault/${id}`,
-  openPanel: () => {
-    useItemsUiStore().itemGeneratorOpen = true;
-  },
+  // The generator is a card in the Familiar now: the badge brings the DM back to it.
 });
 
 // ────────────────────────────────────────────────────────────────────────────

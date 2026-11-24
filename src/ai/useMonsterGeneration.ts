@@ -7,7 +7,6 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useMonstersUiStore } from "@/stores/ui/monsters";
 import { captureFailureMessage, captureImageGenerationContext, generateImage } from "./useImageGeneration";
 
 export interface MonsterGenerationOptions {
@@ -24,9 +23,7 @@ registerAiGenerator({
   ..._state,
   label: "Monster",
   entityRoute: (id) => `/monsters/${id}`,
-  openPanel: () => {
-    useMonstersUiStore().monsterGeneratorOpen = true;
-  },
+  // The generator is a card in the Familiar now: the badge brings the DM back to it.
 });
 
 // ────────────────────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ASK_GENERATORS } from "./askContract.ts";
+import { BUTTON_ONLY_GENERATORS } from "./askGenerators/editors.ts";
 import { checkProposal, generatorsFor } from "./askPropose.ts";
 
 const ID = "00000000-0000-4000-8000-0000000000f1";
@@ -23,7 +24,14 @@ describe("checkProposal", () => {
     expect(await checkProposal({ generator: "monster", concept: "a bog thing" }, { fiveE: false, loadTarget: found })).toMatchObject({ ok: false });
     expect(await checkProposal({ generator: "monster", concept: "a bog thing" }, five)).toMatchObject({ ok: true });
     expect(generatorsFor(false).some((g) => g.fiveE === true)).toBe(false);
-    expect(generatorsFor(true)).toHaveLength(ASK_GENERATORS.length);
+    expect(generatorsFor(true)).toHaveLength(ASK_GENERATORS.length - BUTTON_ONLY_GENERATORS.size);
+  });
+
+  // Bug caught: a proposal of a form-filling generator was accepted from words, and the card had no open form to fill.
+  it("refuses a generator that only a page's button opens, and does not list it among the choices", async () => {
+    const out = await checkProposal({ generator: "npc_sheet", concept: "a baker" }, five);
+    expect(out).toMatchObject({ ok: false });
+    expect((out as { error: string }).error).not.toContain("npc_sheet");
   });
 
   it("needs a concept", async () => {
@@ -131,8 +139,13 @@ describe("checkProposal", () => {
   });
 
   it("drops an integer out of the generator's range", async () => {
-    const out = await checkProposal({ generator: "spell", concept: "x", inputs: { level: 12 } }, five);
+    const out = await checkProposal({ generator: "npc", concept: "x", inputs: { age: 20000 } }, five);
     expect((out as { proposal: { inputs: object } }).proposal.inputs).toEqual({});
+  });
+
+  // Bug caught: a hit die outside d6 to d12 kept as a constraint, making a class the DM never offered.
+  it("answers a hit die the class does not have with the dice it may use", async () => {
+    expect(await checkProposal({ generator: "class", concept: "x", inputs: { hit_die: "20" } }, five)).toMatchObject({ ok: false, error: expect.stringContaining("must be one of: 6, 8, 10, 12") });
   });
 
   it("needs a target for a generator that works on an existing record", async () => {
@@ -161,5 +174,39 @@ describe("checkProposal", () => {
     const out = await checkProposal({ generator: "npc", concept: "x", target: { type: "npc", id: ID } }, { fiveE: true, loadTarget });
     expect(loadTarget).not.toHaveBeenCalled();
     expect((out as { proposal: object }).proposal).not.toHaveProperty("target");
+  });
+});
+
+describe("the notes generators (#1270 story 7)", () => {
+  // Bug caught: "what would Johnny say" routed from words with no NPC, so the card opened with nobody to speak for.
+  it("takes an NPC's voice lines only with the NPC as target, and keeps the target's own name", async () => {
+    expect(await checkProposal({ generator: "npc_voice", concept: "the guard stops him at the gate" }, five)).toMatchObject({ ok: false });
+    const out = await checkProposal({ generator: "npc_voice", concept: "the guard stops him at the gate", target: { type: "npc", id: ID, name: "Impostor" } }, five);
+    expect(out).toMatchObject({ ok: true, proposal: { generator: "npc_voice", target: { type: "npc", id: ID, name: "Harl" } } });
+  });
+
+  // Bug caught: voice lines for a quest or an item, which have no voice.
+  it("refuses a voice target that is not an NPC, and an NPC that is not the campaign's", async () => {
+    expect(await checkProposal({ generator: "npc_voice", concept: "x", target: { type: "item", id: ID } }, five)).toMatchObject({ ok: false });
+    expect(await checkProposal({ generator: "npc_voice", concept: "x", target: { type: "npc", id: ID } }, { fiveE: true, loadTarget: none })).toMatchObject({ ok: false });
+  });
+
+  it("needs a note as target for a chronicle and a scene, and keeps their tone and shape words", async () => {
+    for (const generator of ["chronicle", "scene_illustration"]) {
+      expect(await checkProposal({ generator, concept: "x" }, five), generator).toMatchObject({ ok: false });
+      expect(await checkProposal({ generator, concept: "x", target: { type: "npc", id: ID } }, five), generator).toMatchObject({ ok: false });
+    }
+    expect(await checkProposal({ generator: "chronicle", concept: "x", target: { type: "note", id: ID }, inputs: { tone: "epic" } }, five))
+      .toMatchObject({ ok: true, proposal: { inputs: { tone: "epic" } } });
+    // A tone outside the list is answered with the words that are allowed, not dropped to the default.
+    expect((await checkProposal({ generator: "chronicle", concept: "x", target: { type: "note", id: ID }, inputs: { tone: "sad" } }, five) as { error: string }).error).toContain("dramatic");
+    expect(await checkProposal({ generator: "scene_illustration", concept: "x", target: { type: "note", id: ID }, inputs: { shape: "landscape" } }, five))
+      .toMatchObject({ ok: true, proposal: { inputs: { shape: "landscape" } } });
+  });
+
+  // Bug caught: the model proposing a picture for a book it cannot see, a card with no picture chosen.
+  it("never offers the book's picture description to the model, and refuses it from words", async () => {
+    expect(generatorsFor(true).some((g) => g.id === "picture_description")).toBe(false);
+    expect(await checkProposal({ generator: "picture_description", concept: "a keep" }, five)).toMatchObject({ ok: false });
   });
 });

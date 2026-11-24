@@ -56,14 +56,14 @@ async function deleteRollTable(id: string): Promise<void> {
 // ── Composables ─────────────────────────────────────────────────────────────
 
 /** All roll tables visible in the active campaign (campaign-scoped + global). */
-export function useRollTables() {
+export function useRollTables(wanted: () => boolean = () => true) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, campaignId.value, campaign.activeCampaign?.user_id ?? null] as const),
     queryFn: ({ queryKey: [, cid, ownerId] }) => fetchRollTables(cid, ownerId),
     // The owner is in the key: wait for the campaign row rather than read twice.
-    enabled: () => ownerKnownFor(campaign.activeCampaign, campaignId.value),
+    enabled: () => wanted() && ownerKnownFor(campaign.activeCampaign, campaignId.value),
     staleTime: 30_000,
   });
 }

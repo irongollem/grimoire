@@ -1,5 +1,5 @@
 /**
- * "Generate an NPC with AI and save it" — the workflow `NpcGeneratorPanel.vue` used to own inline, extracted so Ask
+ * "Generate an NPC with AI and save it" — the workflow the NPC generator panel used to own inline, extracted so Ask
  * Grimoire (#1253) runs the exact same pipeline the page does instead of a second copy, as `useGenerateMonster` does
  * for monsters.
  *

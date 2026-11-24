@@ -204,7 +204,7 @@ import { safeSessionStorage } from "@/lib/safeLocalStorage";
 /**
  * The "paste a page" entry point in the create-quest flow (#839) — a third
  * way to start a quest, beside typing one (`QuestFlowStarter.vue`'s own
- * form) and generating one (`QuestGeneratorPanel.vue`). Mounted by
+ * form) and generating hooks in the Familiar (`questHooksAskAdapter`). Mounted by
  * `QuestFlowStarter.vue` when the DM picks that mode.
  *
  * ── Same extraction, a different, smaller review ────────────────────────────

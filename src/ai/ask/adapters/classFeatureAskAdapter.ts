@@ -1,10 +1,10 @@
 /**
  * Ask Grimoire (#1253): the Ability Generator (class feature), as a quote and a run.
  *
- * The price is `useClassFeatureQuote`'s (the one `ClassFeatureGeneratorPanel` shows), the gates are the page's
+ * The price is `useClassFeatureQuote`'s (the one the card shows), the gates are the page's
  * (`useAskGate`, which also refuses a campaign whose game system has no 5e rules), and the run is
  * `useGenerateClassFeature`. "How it is used" is matched against the page's own activations; a word it does not
- * offer is not understood. An ability has no picture.
+ * offer is not understood. "For which class or species" is passed on as the page's own field is. An ability has no picture.
  */
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskQuoteLine, AskRunResult } from "@/lib/ask/askAdapter";
@@ -29,6 +29,7 @@ export function useClassFeatureAskAdapter(): AskAdapter {
     const inputs = readAskInputs("class_feature", proposal.inputs);
     return {
       activation: matchOption(askString(inputs, "activation"), ACTIVATION_OPTIONS),
+      forWhom: askString(inputs, "for_whom"),
       concept: proposal.concept.trim(),
     };
   }
@@ -39,6 +40,7 @@ export function useClassFeatureAskAdapter(): AskAdapter {
 
     const lines: AskQuoteLine[] = [];
     if (read.activation) lines.push({ label: "How it is used", value: ACTIVATION_LABELS[read.activation], credits: null });
+    if (read.forWhom) lines.push({ label: "For", value: read.forWhom, credits: null });
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
 
@@ -54,7 +56,7 @@ export function useClassFeatureAskAdapter(): AskAdapter {
 
     let outcome;
     try {
-      outcome = await generateAndCreateClassFeature(read.concept, { activation: read.activation ?? undefined });
+      outcome = await generateAndCreateClassFeature(read.concept, { activation: read.activation ?? undefined, forWhom: read.forWhom ?? undefined });
     } catch (e) {
       return failedRun("Ability text", saveFailure(e, "abilities", "The ability could not be saved."));
     }

@@ -179,10 +179,11 @@ export function habitatWriteMessage(e: unknown, onUnique: string): string {
 }
 
 /** The active campaign's habitats in the DM's order. Refreshed by the doorbell (the three tables ring under the canon root). */
-export function useCampaignHabitats() {
+export function useCampaignHabitats(wanted: () => boolean = () => true) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
-  const enabled = computed(() => !!campaignId.value);
+  // `wanted` lets a caller that lives as long as a panel (the Familiar's encounter card) read nothing until it needs it.
+  const enabled = computed(() => !!campaignId.value && wanted());
   const need = (cid: string | null): string => {
     if (cid === null) throw new Error("useCampaignHabitats fetched without a campaign");
     return cid;
@@ -206,6 +207,8 @@ export function useCampaignHabitats() {
     habitats: computed<Habitat[]>(() => habitats.data.value ?? []),
     places: computed<HabitatPlace[]>(() => places.data.value ?? []),
     life: computed<HabitatLife[]>(() => life.data.value ?? []),
+    /** True once all three reads have answered (or failed): an empty list is then an answer, not a read still on its way. */
+    ready: computed(() => [habitats, places, life].every((q) => q.data.value !== undefined || q.isError.value)),
     isLoading: computed(() => habitats.isLoading.value || places.isLoading.value || life.isLoading.value),
     isError: computed(() => habitats.isError.value || places.isError.value || life.isError.value),
   };

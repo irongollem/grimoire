@@ -14,7 +14,7 @@
           size="inline"
           class="underline underline-offset-2 shrink-0"
           label="Watch"
-          @click="entry.openPanel()"
+          @click="ask.openPanel()"
         />
       </template>
 
@@ -48,7 +48,7 @@
           size="inline"
           class="underline underline-offset-2 shrink-0"
           label="Reopen"
-          @click="entry.openPanel()"
+          @click="ask.openPanel()"
         />
         <AppButton
           variant="ghost"
@@ -70,8 +70,11 @@ import { IconAlertCircle, IconCheckCircle, IconClose, IconGenerate } from '@/lib
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { getAiGeneratorRegistry } from "@/ai/aiGeneratorRegistry";
+import { useAskUiStore } from "@/stores/ui/ask";
 
 const router = useRouter();
+// Watch and Reopen bring the DM back to the generator's card in the Familiar.
+const ask = useAskUiStore();
 const registry = getAiGeneratorRegistry();
 
 // Show a pill for completed or errored generators (in-progress is shown in the sidebar spinner)

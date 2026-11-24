@@ -28,6 +28,18 @@ describe("ask screens", () => {
     expect(useAskPrefillStore().take("map_style")).toBeNull();
   });
 
+  // Bug caught: the preset the DM named was dropped on the way to the picker.
+  it("hands the named preset and mode over with the wording, and nothing when none was named", () => {
+    const loc = { type: "location" as const, id: "loc1", name: "The Mint" };
+    useMapStyleAskScreen().route(proposal("map_style", { target: loc, inputs: { preset: "woodcut" } }));
+    expect(useAskPrefillStore().takeOffer("map_style")?.inputs).toEqual({ preset: "woodcut" });
+    useMapStyleAskScreen().route(proposal("map_style", { target: loc }));
+    expect(useAskPrefillStore().takeOffer("map_style")?.inputs).toEqual({});
+    const enc = { type: "encounter" as const, id: "e1", name: "Bridge" };
+    useComplicationAskScreen().route(proposal("complication", { target: enc, inputs: { mode: "reinforcements" } }));
+    expect(useAskPrefillStore().takeOffer("complication")?.inputs).toEqual({ mode: "reinforcements" });
+  });
+
   // Bug caught: a complication was aimed at a record that is not a fight.
   it("the complication goes to the fight's Play screen, and to the encounters list when no fight is named", () => {
     const target = { type: "encounter" as const, id: "e1", name: "Bridge ambush" };

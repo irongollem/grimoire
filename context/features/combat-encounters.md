@@ -84,7 +84,7 @@ Saving an existing monster returns to the bare `/monsters` list at every width. 
 
 **Template presets** — `src/data/monsterTemplates.ts` ships 12 SRD stat block presets (e.g. Goblin, Dragon, Lich) that pre-populate the form.
 
-**AI monster generator** — `MonsterGeneratorPanel.vue` is accessible from the Bestiary toolbar ("Generate" button) and creates a stat block from a text prompt.
+**AI monster generator** — the Bestiary toolbar's "Generate" button opens the monster's card in the Familiar (#1270: concept, challenge rating, type and size, portrait on) and creates a stat block from a text prompt. The monster editor's own "Generate" (`MonsterDetail`, a new or an open monster) opens the **Fill the sheet** card (`monster_sheet`) with the same inputs and price, and writes the stat block into the unsaved form instead of creating a record (`useAskFormFill`; `MonsterGenerateDialog` is gone).
 
 **Read-only sheet view** (`MonsterSheet.vue`) is shown by default when navigating to an existing monster; the Edit button switches to the editable form (`MonsterDetail.vue`). The URL query `?edit=true` also activates the editor directly.
 
@@ -191,6 +191,8 @@ Pre-scripted automation that fires automatically or on demand during the run. Ea
 
 ### Mid-fight Complication / Reinforcement Generator (#604)
 
+**Opened from Ask Grimoire (#1270).** The runner's Twist menu is one of the four tools that keep their own screen, because it works on a fight being played. Ask opens `/encounters/:id/run` and the runner opens this dialog with the DM's words as the steer and in the mode the request named (`mode`: a complication or reinforcements; none named is a complication). The DM still presses Generate, which prices it.
+
 Mid-fight, a DM can ask for one of two things without leaving the runner: a **complication** — something that changes the shape of the fight without just adding more HP to grind through — or **reinforcements** — pressure to restore when the party is winning too easily. Both are proposals, never applied automatically: the whole point of this feature is that nothing happens in the fight the DM did not explicitly approve — the model is never asked for a trigger, the client never reads one from it, and a generated proposal only joins the encounter as an unfired event the DM still has to press ▶ on.
 
 **One edge function, two modes.** `supabase/functions/generate-complication/index.ts` picks between the `complication` and `complication_reinforcements` rows in `ai_system_prompts` by the `mode` the client sends. Two rows rather than one prompt with a mode switch, so an admin tuning the reinforcement wording can't break complications by accident (seeded in migration `20260805000004_complication_generator_ai.sql`, alongside the `complication_generation` credit cost — 1 credit for either mode, sharing the `ai_generation` rate-limit bucket rather than a higher per-press price, because a DM pressing the button several times hunting for a complication they like is expected use, not abuse). Server-path only, like `generate-loot` — the candidate blocks below come from service-role reads the browser can't make.
@@ -247,11 +249,13 @@ Shown on the read-only encounter sheet, computed live in the editor, and used fo
 
 ### AI Encounter Generator
 
-The "Generate" button on the Encounters list (`EncountersView.vue`) opens a right-side slide-in panel (`EncounterGeneratorPanel.vue`, mounted in `AiGeneratorPanels.vue`, toggled via `ui.encounterGeneratorOpen`) — the same pattern as every other AI generator panel in the app. The DM provides:
+The "Generate" button on the Encounters list (`EncountersView.vue`) opens the encounter's card in the Familiar (#1270; the right-side panel, `EncounterGeneratorPanel`, is gone). The card sets the generator's inputs; when it names a Where, the quote blocks ("Still reading the place…") until the place's habitat, placed tables and tree have loaded (`useEncounterWhere().ready`), so the first generation never goes out without its habitat constraints (`habitatFor(placeId)` answers per proposal); the gilt button generates and charges, and the card folds to one line under a result card that shows the encounter before anything is saved: **Create encounter** saves it and opens the editor, **Again · N credits** generates again from the same options, **Discard** ends with nothing saved (see `ask-grimoire.md`, "A preview becomes the card's result"). The DM provides:
 
 - **Concept** — a free-text prompt (e.g. "Goblin ambush on the forest road, levels 3–5, a betrayal mid-fight")
 - **Difficulty** — Auto / Easy / Medium / Hard / Deadly
-- **Where** — the party's place unless changed; when it lies in a habitat (Canon, "Who and what lives here"), the panel rolls once at the habitat's shares and tells the model to build around the rolled creature (or away from the listed ones on "anything else"), as a constraint beside the concept (`lifeConstraints`, `EncounterWhere.vue`)
+- **Where** — the party's place unless changed; when it lies in a habitat (Canon, "Who and what lives here"), the generator rolls once at the habitat's shares and tells the model to build around the rolled creature (or away from the listed ones on "anything else"), as a constraint beside the concept (`lifeConstraints`, `useEncounterWhere`); a place with an encounter table of its own says "Uses <table> here" and rolls nothing from a habitat
+
+The preview shows each combatant with its CR, the model's Environment, Tactics and Twist, and the difficulty for the party; creatures the Bestiary lacks are named in a note and listed in the saved description to add by hand. The version picker the panel offered for a creature in several sourcebooks (#601) is not part of the card: the resolver's pick is used and the DM swaps the version in the editor.
 
 Generation (`useEncounterGeneration.ts`) calls the `generate-encounter` edge function.
 

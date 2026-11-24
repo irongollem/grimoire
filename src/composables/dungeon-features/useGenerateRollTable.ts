@@ -1,9 +1,9 @@
 /**
- * "Generate a roll table with AI and save it", the step `RollTableGeneratorPanel` used to own inline, extracted so Ask
- * Grimoire (#1253) runs the very same save: the same entry mapping and campaign scope.
+ * "Generate a roll table with AI, then save it", in two steps so the Familiar can show the rows between them (#1270):
+ * the same entry mapping and campaign scope the old panel's Create Table used.
  *
- * Deliberately narrow, like `useGenerateMonster`: the page keeps its credit gate, the entity chips and its navigation.
- * A failed save throws, so the caller decides how to say so.
+ * Deliberately narrow, like `useGenerateMonster`: the caller keeps its credit gate and its navigation. A failed save
+ * throws, so the caller decides how to say so.
  */
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateRollTable } from "@/composables/dungeon-features/useRollTables";
@@ -15,13 +15,8 @@ import type { RollTable, RollTableDie } from "@/types/rollTable.types";
 /** The dice the generator offers: the panel's picker and what Ask may ask for (`1d<n>`), one list so they agree. */
 export const ROLL_TABLE_GENERATOR_DICE: readonly RollTableDie[] = ["1d6", "1d8", "1d10", "1d12", "1d20"];
 
-export interface GenerateRollTableOutcome {
-  /** The created row's id, or `null` when generation failed. */
-  id: string | null;
-  name: string | null;
-  /** A user-facing reason for a `null` id. */
-  error: string | null;
-}
+/** A generated table held for the DM's yes (the Familiar's preview), or why nothing was made. */
+export type RollTableDraftOutcome = { draft: RollTableAiResult; error: null } | { draft: null; error: string };
 
 export function useGenerateRollTable() {
   const campaign = useCampaignStore();
@@ -49,18 +44,14 @@ export function useGenerateRollTable() {
     });
   }
 
-  async function generateAndCreateRollTable(concept: string, options: RollTableGenerationOptions): Promise<GenerateRollTableOutcome> {
+  /** Generates a table for the DM to look at before it is saved; saving is `saveGeneratedRollTable`. */
+  async function generateRollTableDraft(concept: string, options: RollTableGenerationOptions): Promise<RollTableDraftOutcome> {
     // Checked up front: `generate` returns null on this without touching its error, which would read stale.
-    if (isAnyAiGenerating.value) {
-      return { id: null, name: null, error: "Another AI generation is already in progress." };
-    }
+    if (isAnyAiGenerating.value) return { draft: null, error: "Another AI generation is already in progress." };
     const result = await generate(concept, options);
-    if (!result) {
-      return { id: null, name: null, error: genError.value ?? "Roll table generation failed." };
-    }
-    const table = await saveGeneratedRollTable(result, options.die);
-    return { id: table.id, name: result.name, error: null };
+    if (!result) return { draft: null, error: genError.value ?? "Roll table generation failed." };
+    return { draft: result, error: null };
   }
 
-  return { saveGeneratedRollTable, generateAndCreateRollTable };
+  return { saveGeneratedRollTable, generateRollTableDraft };
 }

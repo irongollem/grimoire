@@ -4,7 +4,7 @@ import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
-import { hasTextToEnhance } from "./enhanceSelection";
+import { enhanceLabel, hasTextToEnhance } from "./enhanceSelection";
 
 let editor: Editor | null = null;
 afterEach(() => {
@@ -37,5 +37,14 @@ describe("hasTextToEnhance", () => {
     expect(hasTextToEnhance({ editor: ed, from: 3, to: 3 })).toBe(false);
     ed.setEditable(false);
     expect(hasTextToEnhance({ editor: ed, from: 1, to: 8 })).toBe(false);
+  });
+});
+
+describe("enhanceLabel", () => {
+  // Bug caught: the price lived only in a tooltip, so the one button without its price on it was Enhance.
+  it("puts the price on the button, singular for one, and says nothing while it is unknown", () => {
+    expect(enhanceLabel(3)).toBe("Enhance \u00b7 3 credits");
+    expect(enhanceLabel(1)).toBe("Enhance \u00b7 1 credit");
+    expect(enhanceLabel(null)).toBe("Enhance");
   });
 });

@@ -4,6 +4,7 @@ import { mount } from "@vue/test-utils";
 import { ref, defineComponent, h } from "vue";
 import MonsterDetail from "./MonsterDetail.vue";
 import type { Monster } from "@/types/monster.types";
+import { createPinia, setActivePinia } from "pinia";
 
 /**
  * Covers the Copy to campaign wiring (#598, wave 2) only. MonsterDetail's own
@@ -156,7 +157,6 @@ function mountDetail(monsterProp: Monster | null) {
       stubs: {
         DmNoteBox: true,
         MonsterEditMobile: true,
-        MonsterGenerateDialog: true,
         EntityImageBlock: true,
         StatBlockEditor: true,
         CampaignScopeField: true,
@@ -169,6 +169,9 @@ function mountDetail(monsterProp: Monster | null) {
     },
   });
 }
+
+// The Generate button and the form it fills meet in the Ask store (#1270).
+beforeEach(() => setActivePinia(createPinia()));
 
 describe("MonsterDetail — copy to campaign (#598)", () => {
   beforeEach(() => {

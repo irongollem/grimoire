@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   /** When set, the next windowed read starts now but answers only when this resolves. */
   hold: null as Promise<void> | null,
   sent: 0,
+  ui: { dmPreviewMode: false, dmTalkAsNpcId: "", dmTalkAsNpcName: null as string | null, dmTalkAsNpcFace: null as { portrait: string | null; focal: { x: number; y: number } | null } | null },
 }));
 
 type Chain = { [key: string]: unknown };
@@ -54,7 +55,7 @@ vi.mock("@/stores/auth", () => ({
   useAuthStore: () => ({ user: { id: "u1" }, isDM: false, profile: null }),
 }));
 vi.mock("@/stores/ui/app", () => ({
-  useAppUiStore: () => ({ dmPreviewMode: false }),
+  useAppUiStore: () => mocks.ui,
 }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: { value: [] } }) }));
 vi.mock("@/composables/party/useSpeaker", () => ({
@@ -113,6 +114,32 @@ describe("useCampaignMessages write errors", () => {
     expect(fake.rows("campaign_messages")).toMatchObject([
       { campaign_id: "c1", user_id: "u1", recipient_user_id: "u2", message: "hello", type: "chat" },
     ]);
+  });
+});
+
+describe("a line the DM says as an NPC (#1270)", () => {
+  beforeEach(() => {
+    mocks.campaignStore.activeCampaignId = "c1";
+    Object.assign(mocks.ui, { dmTalkAsNpcId: "", dmTalkAsNpcName: null, dmTalkAsNpcFace: null });
+  });
+
+  // Bug caught: a talk-as-NPC line stored as plain text, so players see a bare bubble with no face.
+  it("names the NPC and carries their face, beside any mentions", async () => {
+    Object.assign(mocks.ui, { dmTalkAsNpcId: "n1", dmTalkAsNpcName: "Old Tam", dmTalkAsNpcFace: { portrait: "http://localhost:54321/storage/tam.webp", focal: { x: 40, y: 10 } } });
+    const { sendMessage } = useCampaignMessages();
+    await sendMessage("Move along.");
+    await sendMessage("Move along, @Mira.", null, [{ kind: "dm" } as never]);
+    expect(fake.rows("campaign_messages")).toMatchObject([
+      { sender_name: "Old Tam", metadata: { for_npc_id: "n1", speaker_portrait_url: "http://localhost:54321/storage/tam.webp", speaker_portrait_focal: { x: 40, y: 10 } } },
+      { metadata: { for_npc_id: "n1", mentions: [{ kind: "dm" }] } },
+    ]);
+  });
+
+  // Bug caught: the NPC's id stuck on the DM's own lines after they switch back to speaking as themselves.
+  it("carries no NPC once the DM speaks as themselves", async () => {
+    const { sendMessage } = useCampaignMessages();
+    await sendMessage("Right, roll initiative.");
+    expect(fake.rows("campaign_messages")[0]).toMatchObject({ metadata: null });
   });
 });
 

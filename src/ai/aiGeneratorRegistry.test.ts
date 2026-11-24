@@ -11,7 +11,6 @@ function makeEntry(label: string): AiGeneratorRegistration {
   return {
     label,
     entityRoute: (id: string) => `/${label}/${id}`,
-    openPanel: () => {},
     isGenerating: ref(false),
     error: ref(null),
     completedEntityId: ref(null),

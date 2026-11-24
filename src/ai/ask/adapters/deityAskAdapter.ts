@@ -1,7 +1,7 @@
 /**
  * Ask Grimoire (#1253): the Deity Generator, as a quote and a run.
  *
- * The price is `useDeityQuote`'s (the one `DeityGeneratorPanel` shows), the gates are the page's (`useAskGate`, with
+ * The price is `useDeityQuote`'s (the one the card shows), the gates are the page's (`useAskGate`, with
  * the plan's deity quota), and the run is `useGenerateDeity`, the generate-then-save step the page calls. The
  * pantheon is given by id (`pantheon_id`, as the page's picker holds it) and looked up in this campaign's own
  * pantheons: an id that matches none is not understood, so the deity joins no pantheon rather than another campaign's. The deity's secrets note can fail on its own; the deity is saved and that is its own part. The

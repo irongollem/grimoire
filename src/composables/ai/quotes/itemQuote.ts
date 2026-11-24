@@ -1,5 +1,5 @@
 /**
- * What one Item Generator run costs (#1253), shared by `ItemGeneratorPanel` and the Ask Grimoire item adapter so the
+ * What one Item Generator run costs (#1253), shared by the generator's card in the Familiar and the Ask Grimoire item adapter so the
  * page and the quote cannot disagree.
  *
  * Verified against the server: `generate-entity-text` charges `item_generation` for the text, and the picture goes

@@ -58,15 +58,13 @@ A rarity-filtered random pick:
 
 ## AI loot generator
 
-Click **Generate** on the Loot Tables tab. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost. If AI is off, the panel points you at the toggle instead of the form. Describe the hoard ("the smugglers' vault beneath the Rusty Anchor"), pick a tier, and optionally tick **Skip items that require attunement**.
+Click **Generate** on the Loot Tables tab. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost. If AI is off, the card points you at the toggle. Click **Generate** to open the Familiar on the right with a loot card. Describe the hoard ("the smugglers' vault beneath the Rusty Anchor"), pick a tier, and optionally tick **Skip items that require attunement**.
 
 What makes this different from a generic AI table: Grimoire searches **your own Item Vault** (your homebrew items plus the library items your campaign's enabled sources make visible) and offers the AI only items that actually exist and fit the tier you picked. The hoard comes back built from real items, not invented names, so every entry drops something the party can actually pick up.
 
 The preview shows each entry with its drop chance. Entries the AI named but Grimoire couldn't match to a real item are listed struck through with the reason: they're left out of the created table rather than saved as broken entries. Add those items to your Vault (or enable the source they come from) and regenerate to include them.
 
 Click **Create Table** to save. The table is tagged as AI-generated, and any library item it references is copied into your Vault automatically, exactly as if you'd picked it by hand.
-
-Searching your Vault for real items to build the hoard from isn't something a browser-only key can do, so loot generation is unavailable if your campaign's AI key is set to **Store keys locally on this device only** (**Campaign Settings → AI Assistant**).
 
 ## Live roll panel
 

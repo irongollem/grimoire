@@ -2,7 +2,6 @@ import { generateEntityText } from "./entityTextGeneration";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { captureImageGenerationContext } from "./useImageGeneration";
 import { featureInsertFromAi, type FeatureAiResult } from "@/lib/codex/featureAi";
 import type { ClassFeatureInsert } from "@/types/feature.types";
@@ -15,9 +14,7 @@ registerAiGenerator({
   ..._state,
   label: "Ability",
   entityRoute: (id) => `/features/${id}`,
-  openPanel: () => {
-    useGeneratorUiStore().classFeatureGeneratorOpen = true;
-  },
+  // The generator is a card in the Familiar now: the badge brings the DM back to it.
 });
 
 // ────────────────────────────────────────────────────────────────────────────

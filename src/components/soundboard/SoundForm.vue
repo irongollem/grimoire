@@ -78,14 +78,14 @@
         />
         <AppButton
           v-if="isAiEnabled && campaignId"
-          :variant="activeSourceTab === 'generate' ? 'tinted' : 'subtle'"
+          variant="subtle"
           tone="arcane"
           emphasis="strong"
           size="sm"
           :icon="IconGenerate"
           label="Generate"
           class="flex-1"
-          @click="activeSourceTab = 'generate'"
+          @click="openMusicCard"
         />
         <AppButton
           :variant="activeSourceTab === 'browse' ? 'tinted' : 'subtle'"
@@ -132,117 +132,6 @@
             Paste a track, playlist, album, or episode link from Spotify.
           </p>
           <SpotifyLocalOnlyInfo />
-        </div>
-      </div>
-
-      <!-- AI Generate -->
-      <div v-else-if="activeSourceTab === 'generate'" class="space-y-3">
-        <!-- Description -->
-        <div class="space-y-1">
-          <label class="text-caption text-muted-foreground">Description</label>
-          <MentionTextarea
-            v-model="generateDescription"
-            :rows="2"
-            placeholder="e.g. the passage-grove at night, @Vesper waiting, soft and serene"
-            :items="mentionItems"
-            input-class="rounded-md border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-tone-arcane resize-none"
-          />
-          <p v-if="mentionedWithImages.length > 0" class="text-caption-sm text-muted-foreground/60">
-            Lyria will read {{ mentionedWithImages.length }} {{ mentionedWithImages.length === 1 ? 'picture' : 'pictures' }}: {{ mentionedWithImages.join(', ') }}
-          </p>
-        </div>
-
-        <!-- Length -->
-        <div class="space-y-1">
-          <label class="text-caption text-muted-foreground">Length</label>
-          <SegmentedControl
-            v-model="generateLengthSeconds"
-            :options="MUSIC_LENGTH_OPTIONS"
-            size="sm"
-            wrap
-          />
-        </div>
-
-        <!-- Vocals -->
-        <div class="space-y-1">
-          <label class="text-caption text-muted-foreground">Vocals</label>
-          <SegmentedControl
-            v-model="generateVocals"
-            :options="VOCALS_OPTIONS"
-            size="sm"
-            wrap
-          />
-        </div>
-
-        <!-- Cost -->
-        <GenerationCostBadge :credits="musicCost" />
-
-        <!-- Lyrics — only meaningful once the track will actually sing. -->
-        <div v-if="generateVocals === 'vocals'" class="space-y-1">
-          <div class="flex items-center justify-between">
-            <label class="text-caption text-muted-foreground">
-              Lyrics <span class="opacity-60">(optional)</span>
-            </label>
-            <span
-              class="text-caption-sm tabular-nums transition-colors"
-              :class="lyricsCharsLeft < 200 ? (lyricsCharsLeft < 0 ? 'text-destructive' : 'text-ink-caution') : 'text-muted-foreground'"
-            >{{ generateLyrics.length }} / {{ LYRICS_MAX_CHARS }}</span>
-          </div>
-          <textarea
-            v-model="generateLyrics"
-            rows="5"
-            :maxlength="LYRICS_MAX_CHARS"
-            placeholder="[Verse 1]&#10;In the depths of shadow and stone…&#10;&#10;[Chorus]&#10;Rise, brave adventurer, rise…"
-            class="w-full rounded-md border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-tone-arcane resize-none"
-          />
-          <p class="text-caption-sm text-muted-foreground/60">
-            Use [Verse], [Chorus], [Bridge] markers. Parentheses for backing vocals.
-          </p>
-        </div>
-
-
-        <!-- Status / error -->
-        <div v-if="isGenerating" class="flex flex-col items-center gap-2 py-2">
-          <IconGenerate class="h-6 w-6 text-primary animate-pulse" />
-          <p class="text-body text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
-          <p class="text-caption-sm text-muted-foreground/60 text-center">A full track can take a few minutes.</p>
-          <AppButton
-            v-if="music.isGenerating.value"
-            variant="ghost"
-            size="inline-caption"
-            class="underline underline-offset-2"
-            label="Continue in background"
-            @click="$emit('cancel')"
-          />
-        </div>
-        <p v-if="isBusy && !isGenerating" class="text-caption text-muted-foreground text-center">
-          {{ statusText }}
-        </p>
-        <p v-if="shownGenerateError" class="text-caption text-destructive">{{ shownGenerateError }}</p>
-
-        <!-- The prompt Lyria refused, handed back to be reworded. Google names
-             no word, only "sensitive words", so the DM has to see the text. -->
-        <div v-if="editedPrompt !== null" class="space-y-1">
-          <div class="flex items-center justify-between">
-            <label for="sound-form-lyria-prompt" class="text-caption text-muted-foreground">Prompt sent to Lyria</label>
-            <span
-              class="text-caption-sm tabular-nums"
-              :class="editedPrompt.length > MUSIC_PROMPT_MAX_CHARS - 200 ? 'text-ink-caution' : 'text-muted-foreground'"
-            >{{ editedPrompt.length }} / {{ MUSIC_PROMPT_MAX_CHARS }}</span>
-          </div>
-          <textarea
-            id="sound-form-lyria-prompt"
-            v-model="editedPrompt"
-            rows="10"
-            :maxlength="MUSIC_PROMPT_MAX_CHARS"
-            class="w-full rounded-md border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-tone-arcane resize-y"
-          />
-          <div class="flex items-start justify-between gap-2">
-            <p class="text-caption-sm text-muted-foreground/60">
-              Reword whatever Google objected to, then generate again. This prompt goes to Lyria exactly as written, so the description, length and vocals above no longer change it.
-            </p>
-            <AppButton variant="ghost" size="inline-xs" label="Discard" class="shrink-0" @click="editedPrompt = null" />
-          </div>
         </div>
       </div>
 
@@ -296,10 +185,9 @@
         v-if="activeSourceTab !== 'browse'"
         type="submit"
         variant="tinted"
-        :tone="activeSourceTab === 'generate' ? 'arcane' : 'primary'"
+        tone="primary"
         emphasis="strong"
         size="sm"
-        :icon="activeSourceTab === 'generate' ? IconGenerate : undefined"
         :label="submitLabel"
         :disabled="submitDisabled"
       />
@@ -310,53 +198,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconGenerate } from "@/lib/icons";
 import ProBadge from "@/components/billing/ProBadge.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
-import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
-import type { SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import type { AppInputHandle } from "@/components/common/controls/fieldVariants";
-import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
-import MentionTextarea from "@/components/common/controls/MentionTextarea.vue";
 import { useCreateSound, useSoundUpload } from "@/composables/soundboard/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
 import { urlToUri } from "@/lib/audio/spotifyAuth";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useCampaignStore } from "@/stores/campaign";
-import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
-import { mentionedLocationIds, mentionedNpcIds, parseSceneEntities, stripMentionTokens } from "@/ai/sceneEntities";
-import { useNpcAppearances } from "@/composables/npcs/useNpcFields";
-import { useLocationDescriptions } from "@/composables/locations/useLocationDescriptions";
-import { useMentionedMonsters } from "@/composables/monsters/useMentionedMonsters";
-import {
-  MUSIC_LENGTHS,
-  MUSIC_MAX_IMAGES,
-  LYRICS_MAX_CHARS,
-  MUSIC_PROMPT_MAX_CHARS,
-  type FallbackPromptRequest,
-  type MusicLengthSeconds,
-  type MusicVocals,
-} from "@/lib/audio/aiMusic";
-import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useMusicGeneration } from "@/ai/useMusicGeneration";
-import { currentLoadingQuote } from "@/ai/aiGenerationState";
-import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import SoundProviderBrowser from "@/components/soundboard/SoundProviderBrowser.vue";
 import SpotifyLocalOnlyInfo from "@/components/soundboard/SpotifyLocalOnlyInfo.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import type { SoundCategory } from "@/types/sound.types";
-import { useMusicTrackQuote } from "@/composables/ai/quotes/musicTrackQuote";
 
 const spotifyStore = useSpotifyStore();
-// The server multiplies the song's price by Gemini's audio multiplier (generate-music); the quote carries that, and
-// Ask Grimoire reads the same one.
-const musicQuote = useMusicTrackQuote();
-const musicCost = computed(() => musicQuote().total);
-const { requireCredits } = useOutOfCredits();
 const { isPro } = useSubscription();
 // Upload (own audio, not AI) stays Pro-only; Generate reads the campaign's
 // own AI Assistant toggle instead — the same gate generate-music enforces
@@ -377,28 +239,21 @@ const { mutateAsync, isPending } = useCreateSound();
 const { isBusy, statusText, upload } = useSoundUpload();
 const showPaywall = ref(false);
 
-type SourceTab = "url" | "upload" | "spotify" | "generate" | "browse";
+type SourceTab = "url" | "upload" | "spotify" | "browse";
 
+// Generate is not a tab: the track's card is in the Familiar (#1270), so the button opens it and leaves the dialog.
 const music = useMusicGeneration();
+const { open: openGenerator } = useOpenGenerator();
+function openMusicCard() {
+  openGenerator("music_track");
+  emit("cancel");
+}
 
-// A music draft that is running, failed, or holds a refused prompt reopens on
-// the Generate tab, since that is what the badge's "Reopen" is for.
-const activeSourceTab = ref<SourceTab>(
-  isAiEnabled.value && (music.isGenerating.value || music.error.value || music.draft.editedPrompt.value !== null)
-    ? "generate"
-    : "url",
-);
-// The Generate tab is hidden while the campaign's AI is off; if the toggle
-// flips with the dialog open on that tab, fall back rather than strand a form
-// whose tab no longer exists.
-watch(isAiEnabled, (enabled) => {
-  if (!enabled && activeSourceTab.value === "generate") activeSourceTab.value = "url";
-});
+const activeSourceTab = ref<SourceTab>("url");
 
 const form = ref<{ name: string; category: SoundCategory; external_url: string }>({
-  // Reopened on a running or failed track: show the name and section it was started with.
-  name: activeSourceTab.value === "generate" ? music.concept.value : "",
-  category: activeSourceTab.value === "generate" ? music.draft.category.value : "ambient",
+  name: "",
+  category: "ambient",
   external_url: "",
 });
 // Tracks that finished while nothing was waiting on them (a reload mid-run)
@@ -408,7 +263,7 @@ async function recoverReadyMusicJobs(): Promise<void> {
   try {
     await music.recoverReadyJobs(campaignId);
   } catch (error) {
-    generateError.value = error instanceof Error ? error.message : "Could not recover completed music.";
+    uploadError.value = error instanceof Error ? error.message : "Could not recover completed music.";
   }
 }
 
@@ -523,86 +378,19 @@ onUnmounted(() => {
 
 const isValidSpotifyUrl = computed(() => urlToUri(form.value.external_url) !== null);
 
-// ── Generate tab ──────────────────────────────────────────────────────────
-
-// The draft lives in useMusicGeneration so it outlives this dialog.
-const {
-  description: generateDescription,
-  lyrics: generateLyrics,
-  lengthSeconds: generateLengthSeconds,
-  vocals: generateVocals,
-  editedPrompt,
-} = music.draft;
-// Progress is the module-level music.isGenerating, so it outlives this dialog.
-const isGenerating = computed(() => music.isGenerating.value);
-const generateError = ref("");
-const shownGenerateError = computed(() => generateError.value || music.error.value);
-
-// @-mentions in the description resolve against the same campaign entities
-// the Chronicler reads — their images go to Lyria, their descriptions go to
-// the structuring step (see aiMusic.ts's "Mentioned characters and places").
-const { mentionItems, partyMembers, npcs, monsterIndex, locations, factions } = useEntityMentionItems();
-
-// The location list is slim (#972); a mentioned place's description is read
-// by id, only for the places the description actually names.
-const mentionedLocations = computed(() => mentionedLocationIds(generateDescription.value, locations.value ?? []));
-const { data: locationDescriptions } = useLocationDescriptions(mentionedLocations);
-// The NPC list carries no prose (#999): the looks of the mentioned NPCs are read by id.
-const mentionedNpcs = computed(() => mentionedNpcIds(generateDescription.value, npcs.value ?? []));
-const { data: npcAppearances } = useNpcAppearances(mentionedNpcs);
-// Likewise the monsters: the index has names only, so the mentioned ones are read by id.
-const mentionedMonsters = useMentionedMonsters(() => generateDescription.value, () => monsterIndex.value);
-
-const mentionedEntities = computed(() =>
-  parseSceneEntities(generateDescription.value, {
-    partyMembers: partyMembers.value,
-    npcs: npcs.value,
-    monsters: mentionedMonsters.value,
-    locations: locations.value,
-    locationDescriptions: locationDescriptions.value,
-    npcAppearances: npcAppearances.value,
-    factions: factions.value,
-    groupPortraitUrl: campaignStore.activeCampaign?.group_portrait_url,
-  }),
-);
-
-const mentionedWithImages = computed(() =>
-  mentionedEntities.value.filter((e) => e.portraitUrl).map((e) => e.label),
-);
-
-const MUSIC_LENGTH_OPTIONS: SegmentedOption<MusicLengthSeconds>[] = MUSIC_LENGTHS.map((l) => ({
-  value: l.seconds,
-  label: l.label,
-}));
-
-const VOCALS_OPTIONS: SegmentedOption<MusicVocals>[] = [
-  { value: "instrumental", label: "Instrumental" },
-  { value: "choir", label: "Choir" },
-  { value: "vocals", label: "Vocals" },
-];
-
-const lyricsCharsLeft = computed(() => LYRICS_MAX_CHARS - generateLyrics.value.length);
-
 // ── Submit state ──────────────────────────────────────────────────────────
 
-const anyBusy = computed(() => isBusy.value || isPending.value || isGenerating.value);
+const anyBusy = computed(() => isBusy.value || isPending.value);
 
 const submitDisabled = computed(() => {
   if (anyBusy.value) return true;
   if (activeSourceTab.value === "spotify") return !isValidSpotifyUrl.value;
-  if (activeSourceTab.value === "generate") {
-    // Every generator waits for the others, as the NPC and roll-table panels do.
-    return isAnyAiGenerating.value || !generateDescription.value.trim() ||
-      (editedPrompt.value !== null && !editedPrompt.value.trim());
-  }
   return false;
 });
 
 const submitLabel = computed(() => {
   if (isPending.value) return "Saving…";
-  if (isGenerating.value) return "Generating…";
   if (isBusy.value) return statusText.value || "Uploading…";
-  if (activeSourceTab.value === "generate") return "Generate & Add";
   return "Add Sound";
 });
 
@@ -610,8 +398,6 @@ const submitLabel = computed(() => {
 
 async function handleSubmit() {
   uploadError.value = "";
-  generateError.value = "";
-  music.clearError();
 
   // Browse tab has its own per-row add flow; nothing for the form to do.
   if (activeSourceTab.value === "browse") return;
@@ -620,8 +406,7 @@ async function handleSubmit() {
   // (url, spotify, plain upload) had a catch of
   // their own, so a quota rejection — or any other failure — on the actual
   // create wrote nothing to the screen at all, not even the per-branch
-  // `uploadError`/`generateError` those branches already show for their own
-  // (upload/generation) steps.
+  // `uploadError` the upload branch already shows for its own step.
   try {
   if (activeSourceTab.value === "url") {
     await mutateAsync({
@@ -659,65 +444,6 @@ async function handleSubmit() {
     return;
   }
 
-  if (activeSourceTab.value === "generate") {
-    // Defensive: the Generate tab is hidden while the toggle is off, so this
-    // only guards a stray trigger.
-    if (!isAiEnabled.value) return;
-    if (!campaignId) return;
-
-    // Unique portrait/image URLs from resolved @mentions — Lyria reads at
-    // most MUSIC_MAX_IMAGES; over that, the DM trims mentions rather than
-    // some of them silently going unread.
-    const imageUrls = [...new Set(
-      mentionedEntities.value.flatMap((e) => (e.portraitUrl ? [e.portraitUrl] : [])),
-    )];
-    if (imageUrls.length > MUSIC_MAX_IMAGES) {
-      generateError.value = `Mention at most ${MUSIC_MAX_IMAGES} characters or places with pictures.`;
-      return;
-    }
-
-    if (!requireCredits(musicCost.value)) return;
-
-    const musicRequest: FallbackPromptRequest = {
-      description: stripMentionTokens(generateDescription.value.trim()),
-      lengthSeconds: generateLengthSeconds.value,
-      vocals: generateVocals.value,
-      lyrics: generateVocals.value === "vocals" ? (generateLyrics.value.trim() || undefined) : undefined,
-      mentions: mentionedEntities.value.map((e) => ({ label: e.label, description: e.textDescription })),
-      imageCount: imageUrls.length,
-    };
-
-    // Capture sound metadata before the async work begins. The server stores
-    // the same snapshot on its durable job, so switching campaigns or pages
-    // while Lyria runs can never attach the finished audio to the wrong board.
-    const soundName = form.value.name.trim() || musicRequest.description.slice(0, 60);
-    const soundCategory = form.value.category;
-    const originatingCampaignId = campaignId;
-
-    const promptOverride = editedPrompt.value?.trim() || null;
-
-    // Structuring and Lyria both run in generate-music's worker, and
-    // useMusicGeneration waits on the job at module level, so the DM can close
-    // this dialog ("Continue in background") and the badge takes over.
-    if (!originatingCampaignId) {
-      generateError.value = "No campaign selected for music generation.";
-      return;
-    }
-    const done = await music.generate({
-      campaignId: originatingCampaignId,
-      soundName,
-      category: soundCategory,
-      request: musicRequest,
-      imageUrls,
-      prompt: promptOverride,
-    });
-    if (done) {
-      emit("saved");
-      resetForm();
-    }
-    return;
-  }
-
   // Upload flow
   if (!selectedFile.value) {
     uploadError.value = "Please select a file.";
@@ -745,8 +471,7 @@ async function handleSubmit() {
   } catch (e) {
     if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
     const msg = e instanceof Error ? e.message : "Something went wrong";
-    if (activeSourceTab.value === "generate") generateError.value = msg;
-    else uploadError.value = msg;
+    uploadError.value = msg;
   }
 }
 
@@ -754,8 +479,5 @@ function resetForm() {
   form.value = { name: "", category: "ambient", external_url: "" };
   selectedFile.value = null;
   uploadError.value = "";
-  music.resetDraft();
-  music.clearError();
-  generateError.value = "";
 }
 </script>

@@ -66,13 +66,8 @@
          is still broadcasting reveals at players who are not at the table. -->
     <StaleSessionPrompt v-if="isDm" />
 
-    <!--
-      Generator panels are always mounted (see AiGeneratorPanels.vue) so that
-      background generation (started when the panel is open then dismissed)
-      survives navigation. Each renders nothing visually when its open flag
-      is false. To add a new generator, edit AiGeneratorPanels.vue.
-    -->
-    <AiGeneratorPanels />
+    <!-- Add Sound hosts music generation; mounted the first time it opens, then kept, so a dismissed generation outlives it. -->
+    <AddSoundDialog v-if="mountedAddSoundDialog" />
 
     <!-- Shows a pill for every active/completed/errored AI generation -->
     <AiGenerationBadge />
@@ -152,21 +147,17 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import { useBackgroundIndexing } from "@/composables/ai/useBackgroundIndexing";
 import { provideSecretDisclosures } from "@/composables/npcs/useCampaignSecrets";
 import { useCanAsk } from "@/composables/ask/useCanAsk";
+import { useSoundboardUiStore } from "@/stores/ui/soundboard";
+import { useLazyMount } from "@/composables/useLazyMount";
 
-// Async, and it must stay async: statically importing the generator panels
-// dragged them — plus their forms, template data and PaywallModal — into the
-// entry chunk, which no cold page load can use. They still mount permanently
-// (the wrapper resolves moments after boot, long before a generation can be
-// started), so the always-mounted invariant that keeps a dismissed generation
-// alive across navigation is unchanged. Do NOT convert this to a `v-if` on the
-// open flag: generateAndCreate() lives in the panel component, so unmounting a
-// dismissed panel would strand an in-flight generation before it creates the
-// entity. (Inside the wrapper each panel mounts on its first open and then
-// stays: a latch, never a mirror, so the guarantee holds and a closed panel's
-// credit, provider and party reads stay off the boot.)
-const AiGeneratorPanels = defineAsyncComponent(
-  () => import("@/ai/AiGeneratorPanels.vue"),
+// Async, and it must stay async: the dialog's closure (the sound forms, the generation composables) would
+// otherwise ride in the entry chunk, which no cold page load can use. It mounts on its first open and then
+// stays (a latch, never a mirror), so its credit and provider reads stay off the boot.
+const AddSoundDialog = defineAsyncComponent(
+  () => import("@/components/soundboard/AddSoundDialog.vue"),
 );
+const { addSoundDialogOpen } = storeToRefs(useSoundboardUiStore());
+const mountedAddSoundDialog = useLazyMount(addSoundDialogOpen);
 
 // Background work starts after first paint and an idle moment (#999): the
 // admin-configured placeholder focal points (only a fallback for FocalImage's

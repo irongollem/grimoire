@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { KinLink } from "@/types/kinship.types";
-import { kinPromptLine, onlySpouseOf, parseKinQueryKey } from "./kinPrompt";
+import { kinCardInputs, kinPromptLine, onlySpouseOf, parseKinQueryKey } from "./kinPrompt";
 
 const id = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
 
@@ -65,5 +65,25 @@ describe("parseKinQueryKey", () => {
     expect(parseKinQueryKey("faction:x")).toBeNull();
     expect(parseKinQueryKey("npc:abc")).toBeNull();
     expect(parseKinQueryKey(undefined)).toBeNull();
+  });
+});
+
+describe("kinCardInputs", () => {
+  // Bug caught: the "Add relative" link opening the card with the relative on the wrong side (an NPC read as a character) or with no word.
+  it("names the relative, the word, and for a child the other parent", () => {
+    expect(kinCardInputs({ kin: "child", of: `npc:${id(1)}`, also: `pc:${id(2)}` })).toEqual({ related_npc_id: id(1), relation: "child", second_parent_id: id(2) });
+    expect(kinCardInputs({ kin: "sibling", of: `pc:${id(1)}` })).toEqual({ related_pc_id: id(1), relation: "sibling" });
+  });
+
+  // Bug caught: a second parent filled in for a spouse, who has none.
+  it("ignores `also` unless the new person is a child", () => {
+    expect(kinCardInputs({ kin: "spouse", of: `npc:${id(1)}`, also: `npc:${id(2)}` })).toEqual({ related_npc_id: id(1), relation: "spouse" });
+  });
+
+  // Bug caught: a stray or hand-edited link opening a card tied to nobody.
+  it("is null for a link that does not name a relative", () => {
+    expect(kinCardInputs({ kin: "child" })).toBeNull();
+    expect(kinCardInputs({ kin: "cousin", of: `npc:${id(1)}` })).toBeNull();
+    expect(kinCardInputs({ kin: "child", of: "npc:abc" })).toBeNull();
   });
 });

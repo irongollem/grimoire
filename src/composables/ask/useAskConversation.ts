@@ -6,7 +6,7 @@
  * cannot make a second record). Lives in the panel's scope, which stays mounted while the panel is merely hidden,
  * so a running turn or generation carries on.
  */
-import { ref, watch } from "vue";
+import { reactive, ref, watch } from "vue";
 import { creditsText } from "@/lib/ask/askCredits";
 import {
   ASK_OFF_TOPIC_MESSAGE,
@@ -14,58 +14,19 @@ import {
   askGenerator,
   type AskChoice,
   type AskContext,
-  type AskReportDraft,
-  type AskIdea,
-  type AskProposal,
   type AskRecordRef,
   type AskTurnBody,
 } from "@edge-shared/agent/askContract";
 import { readEventStream } from "@/lib/agentStream/readEventStream";
 import { parseAskEvent } from "@/lib/agentStream/parseAskEvent";
-import type { AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
+import { isPreviewAdapter, type AskRunResult } from "@/lib/ask/askAdapter";
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
+import type { PendingGenerator } from "@/stores/ui/ask";
 import { sendToAskTurn, type AskTransport } from "./askTransport";
+import { findItem, partsCredits, quickWaitsOnLoad, type AskItem, type AskThreadState, type NewItem, type ReplyItem } from "./askItems";
+import { useAskPreviews } from "./useAskPreviews";
 
-export type ResultPart = AskRunPart & { left?: boolean; retrying?: boolean };
-
-export type AskItem =
-  | { kind: "user"; id: number; text: string }
-  | { kind: "reply"; id: number; text: string; who: string | null }
-  | { kind: "ask"; id: number; question: string; choices: AskChoice[]; answered: boolean }
-  | { kind: "read"; id: number; records: AskRecordRef[] }
-  | { kind: "ideas"; id: number; ideas: AskIdea[]; handedOff: number[] }
-  | {
-      kind: "proposal";
-      id: number;
-      proposal: AskProposal;
-      state: "quote" | "cancelled" | "running" | "done" | "failed";
-      /** The DM's yes or no to each line that would change an existing record; read by the quote and the run. */
-      choices: Record<string, boolean>;
-      /**
-       * Where the finished run landed: a run never holds up the conversation, so its result (or its failure) is added
-       * at the bottom when it ends, and the proposal's own place links to it.
-       */
-      landedAt?: number;
-    }
-  /** A report Ask drafted. Nothing is sent: the DM reviews it in the report form and presses Send there. */
-  | { kind: "report"; id: number; report: AskReportDraft }
-  | { kind: "confirmed"; id: number; text: string }
-  | {
-      kind: "result";
-      id: number;
-      name: string;
-      noun: string;
-      review: boolean;
-      record: AskRunResult["record"];
-      route: string | null;
-      /** A result that lives in the page's own panel: opened there after navigating to `route`. */
-      open?: () => void;
-      /** The picture the run made, shown on the card. */
-      picture?: string;
-      parts: ResultPart[];
-    }
-  | { kind: "upsell"; id: number }
-  | { kind: "error"; id: number; message: string };
+export { previewRowKey, type AskItem, type ResultPart } from "./askItems";
 
 function dedupeRecords(records: AskRecordRef[]): AskRecordRef[] {
   const seen = new Set<string>();
@@ -76,9 +37,6 @@ function dedupeRecords(records: AskRecordRef[]): AskRecordRef[] {
     return true;
   });
 }
-
-type ReplyItem = Extract<AskItem, { kind: "reply" }>;
-type NewItem = AskItem extends infer T ? (T extends { id: number } ? Omit<T, "id"> : never) : never;
 
 /** What the panel needs to know when a run ends: the notice and the unread dot hang off it. */
 export interface AskRunFinished {
@@ -133,9 +91,6 @@ export function refusalMessage(body: unknown): string {
   return NOT_ANSWERED;
 }
 
-export function partsCredits(parts: readonly AskRunPart[]): number {
-  return parts.reduce((sum, p) => sum + p.credits, 0);
-}
 
 /** How long after the last words the Familiar keeps moving at least: text arrives in bursts, and a still-move-still flicker reads as a glitch. */
 export const SPEAKING_TAIL_MS = 700;
@@ -156,7 +111,21 @@ export function speakingUntil(until: number, now: number, chars: number): number
 
 export function useAskConversation(deps: AskConversationDeps) {
   const transport = deps.transport ?? sendToAskTurn;
-  const items = ref<AskItem[]>([]);
+  /**
+   * One thread per campaign, kept for the session: a conversation belongs to its campaign, so switching away parks it
+   * (its held previews with it) and switching back restores it. `items` is always the one on screen.
+   */
+  const threads = new Map<string, AskThreadState>();
+  const keyOf = (): string => deps.campaignId() ?? "";
+  function freshThread(): AskThreadState {
+    const thread: AskThreadState = { campaignId: keyOf(), items: reactive<AskItem[]>([]) as AskItem[], held: new Map(), sessionId: undefined };
+    threads.set(thread.campaignId, thread);
+    return thread;
+  }
+  let current = freshThread();
+  const items = ref<AskItem[]>(current.items);
+  /** A thread is live while it is still its campaign's: starting over replaces it, and a late result then writes nothing into it. */
+  const alive = (thread: AskThreadState) => threads.get(thread.campaignId) === thread;
   const running = ref(false);
   /**
    * The Familiar is saying words right now: true from the first text it writes for as long as that text takes to say
@@ -181,31 +150,42 @@ export function useAskConversation(deps: AskConversationDeps) {
   }
   /** What the server last said is left of today's free questions; null until a turn has said. */
   const freeLeft = ref<number | null>(null);
-  let sessionId: string | undefined;
   let controller: AbortController | null = null;
   let nextId = 1;
-  /** Bumped by a new conversation, so a run that finishes after it does not write into the new thread. */
-  let epoch = 0;
   const ran = new Set<string>();
   const retrying = new Set<string>();
+  const previews = useAskPreviews({
+    items,
+    thread: () => current,
+    alive,
+    adapters: deps.adapters,
+    land: (thread, item, result, from) => land(thread, item, result, from),
+  });
+  const { generating, holding } = previews;
 
-  function push(item: NewItem): AskItem {
-    items.value.push({ ...item, id: nextId++ } as AskItem);
+  /** Adds to a thread (the one on screen unless a run that started in another says so). */
+  function pushTo(item: NewItem, thread: AskThreadState = current): AskItem {
+    thread.items.push({ ...item, id: nextId++ } as AskItem);
     // Return the reactive proxy, so a later mutation of it reaches the screen.
-    return items.value[items.value.length - 1] as AskItem;
+    return thread.items[thread.items.length - 1] as AskItem;
   }
 
+  const push = pushTo;
+
   function find<K extends AskItem["kind"]>(id: number, kind: K): Extract<AskItem, { kind: K }> | undefined {
-    return items.value.find((i): i is Extract<AskItem, { kind: K }> => i.id === id && i.kind === kind);
+    return findItem(current.items, id, kind);
   }
 
   async function streamTurn(message: string) {
     const campaignId = deps.campaignId();
+    // The thread this turn was asked in: every write goes here, never to whichever thread is on screen later.
+    const thread = current;
+    const push = (item: NewItem): AskItem => pushTo(item, thread);
     if (campaignId === null) {
       push({ kind: "error", message: "Pick a campaign first, then ask." });
       return;
     }
-    const body: AskTurnBody = { campaignId, message, context: deps.context(), ...(sessionId ? { sessionId } : {}) };
+    const body: AskTurnBody = { campaignId, message, context: deps.context(), ...(thread.sessionId ? { sessionId: thread.sessionId } : {}) };
     controller = new AbortController();
     const mine = controller;
     running.value = true;
@@ -218,6 +198,7 @@ export function useAskConversation(deps: AskConversationDeps) {
     let withheld = false;
     try {
       const response = await transport(body, mine.signal);
+      if (mine.signal.aborted) return;
       if (!response.ok) {
         let parsed: unknown = null;
         try {
@@ -225,6 +206,7 @@ export function useAskConversation(deps: AskConversationDeps) {
         } catch {
           // A refusal that is not JSON (a gateway's page) still says no.
         }
+        if (mine.signal.aborted) return;
         if (typeof parsed === "object" && parsed !== null && "error" in parsed && parsed.error === ASK_REFUSALS.allowanceSpent) {
           push({ kind: "upsell" });
         } else if (typeof parsed === "object" && parsed !== null && "error" in parsed && parsed.error === ASK_REFUSALS.offTopic) {
@@ -236,6 +218,8 @@ export function useAskConversation(deps: AskConversationDeps) {
         return;
       }
       for await (const event of readEventStream(response, parseAskEvent)) {
+        // A cancel or a campaign switch ends the turn: events already buffered write nothing.
+        if (mine.signal.aborted) return;
         if (event.type === "text") {
           if (reply === null) {
             reply = push({ kind: "reply", text: "", who: null }) as ReplyItem;
@@ -248,7 +232,7 @@ export function useAskConversation(deps: AskConversationDeps) {
         // Anything that is not words ends the paragraph being written.
         switch (event.type) {
           case "session":
-            sessionId = event.sessionId;
+            thread.sessionId = event.sessionId;
             break;
           case "ask":
             reply = null;
@@ -258,7 +242,7 @@ export function useAskConversation(deps: AskConversationDeps) {
             if (event.records.length > 0) {
               // The server reports each tool call on its own, so one answer arrives as "Read 1", "Read 1", "Read 5".
               // A read straight after another of this turn joins it: the DM sees one line per answer.
-              const last = items.value.at(-1);
+              const last = thread.items.at(-1);
               if (last && last.kind === "read" && readLines.has(last.id)) {
                 const known = new Set(last.records.map((r) => `${r.type}:${r.id}`));
                 for (const r of event.records) if (!known.has(`${r.type}:${r.id}`)) last.records.push(r);
@@ -291,7 +275,7 @@ export function useAskConversation(deps: AskConversationDeps) {
             // A withheld answer was already streamed: what it showed is taken back, so the sentence stands alone.
             if (event.withheld === true) {
               withheld = true;
-              items.value = items.value.filter((i) => !written.has(i.id));
+              thread.items.splice(0, thread.items.length, ...thread.items.filter((i) => !written.has(i.id)));
               hush();
             }
             reply = null;
@@ -302,12 +286,13 @@ export function useAskConversation(deps: AskConversationDeps) {
             break;
         }
       }
-      if (ended && !withheld && !mine.signal.aborted && sessionId !== undefined) {
-        const texts = items.value.filter((i): i is ReplyItem => i.kind === "reply" && written.has(i.id) && i.text.trim() !== "").map((i) => i.text);
-        if (texts.length > 0) deps.onReplied?.({ sessionId, texts });
+      const spoken = thread.sessionId;
+      if (ended && !withheld && !mine.signal.aborted && spoken !== undefined) {
+        const texts = thread.items.filter((i): i is ReplyItem => i.kind === "reply" && written.has(i.id) && i.text.trim() !== "").map((i) => i.text);
+        if (texts.length > 0) deps.onReplied?.({ sessionId: spoken, texts });
       }
     } catch (e) {
-      if (!(e instanceof DOMException && e.name === "AbortError")) push({ kind: "error", message: NOT_ANSWERED });
+      if (!mine.signal.aborted && !(e instanceof DOMException && e.name === "AbortError")) push({ kind: "error", message: NOT_ANSWERED });
     } finally {
       if (controller === mine) {
         running.value = false;
@@ -334,21 +319,31 @@ export function useAskConversation(deps: AskConversationDeps) {
     void send(choice.reply);
   }
 
-  function newConversation() {
-    epoch += 1;
+  /** Stops what is streaming and speaking: a turn belongs to the thread it was asked in and does not follow a switch. */
+  function stopTurn() {
     controller?.abort();
     controller = null;
     running.value = false;
     hush();
-    sessionId = undefined;
-    items.value = [];
     // The allowance line goes back to the server's row: an own-key turn had streamed 0.
     freeLeft.value = null;
   }
 
+  /** Starts over in this campaign: the thread is replaced, so anything still running for the old one lands nowhere. */
+  function newConversation() {
+    stopTurn();
+    current = freshThread();
+    items.value = current.items;
+  }
+
   // A conversation belongs to one campaign: its session is that campaign's, and a quote confirmed after a switch
-  // would run in the new one. A run already under way keeps going; the epoch keeps its result out of the new thread.
-  watch(() => deps.campaignId(), () => newConversation());
+  // would run in the other. The thread is parked, held previews and all, and comes back when the DM does. A run or an
+  // "Again" already under way keeps going and lands in the thread it started in.
+  watch(() => deps.campaignId(), () => {
+    stopTurn();
+    current = threads.get(keyOf()) ?? freshThread();
+    items.value = current.items;
+  });
 
   // ── what the DM does with a proposal ──────────────────────────────────────────────────────────────────────────
 
@@ -366,16 +361,50 @@ export function useAskConversation(deps: AskConversationDeps) {
     });
   }
 
+  /**
+   * A page's Generate button: the generator's card, opened with its starting inputs and no model call. Unlike a
+   * proposal from the model, the DM writes the concept into the card themselves.
+   */
+  function openGenerator({ generatorId, inputs, target, concept }: PendingGenerator) {
+    const generator = askGenerator(generatorId);
+    if (!generator) return;
+    push({
+      kind: "proposal",
+      state: "quote",
+      choices: {},
+      origin: "button",
+      proposal: {
+        proposalId: crypto.randomUUID(),
+        generator: generatorId,
+        concept: concept ?? "",
+        inputs: { ...generator.opened, ...inputs },
+        ...(target ? { target } : {}),
+      },
+    });
+  }
+
+  /** A quote is edited freely; a generation held for a yes may be opened again to change an option before "Again". */
+  function isEditable(item: Extract<AskItem, { kind: "proposal" }>): boolean {
+    return item.state === "quote" || item.state === "previewing";
+  }
+
+  /** The DM's words in the card's concept box. */
+  function setConcept(itemId: number, concept: string) {
+    const item = find(itemId, "proposal");
+    if (!item || !isEditable(item)) return;
+    item.proposal = { ...item.proposal, concept };
+  }
+
   function adjust(itemId: number, inputs: Record<string, unknown>) {
     const item = find(itemId, "proposal");
-    if (item?.state !== "quote") return;
+    if (!item || !isEditable(item)) return;
     item.proposal = { ...item.proposal, inputs };
   }
 
   /** A yes or no on a line of the quote. Only while it is a quote: a running or finished one has already been decided. */
   function decide(itemId: number, key: string, on: boolean) {
     const item = find(itemId, "proposal");
-    if (item?.state !== "quote") return;
+    if (!item || !isEditable(item)) return;
     item.choices = { ...item.choices, [key]: on };
   }
 
@@ -385,42 +414,101 @@ export function useAskConversation(deps: AskConversationDeps) {
   }
 
   async function confirm(itemId: number) {
+    await launch(itemId, "run");
+  }
+
+  /** The card's "Quick create": the generator's no-AI route, which asks no model and spends nothing. */
+  async function quick(itemId: number) {
+    await launch(itemId, "quick");
+  }
+
+  async function launch(itemId: number, how: "run" | "quick") {
+    const first = find(itemId, "proposal");
+    if (first?.state !== "quote") return;
+    // The card is drawn only once its adapter is here, so this is a plain read; the wait is for a press that beats the load.
+    let adapter = deps.adapters.adapterFor(first.proposal.generator);
+    if (!adapter) {
+      adapter = await deps.adapters.loadAdapter(first.proposal.generator);
+      // Look again after the wait: a second press, a cancel or a new conversation may have got in first.
+    }
     const item = find(itemId, "proposal");
     if (item?.state !== "quote") return;
     const { proposal } = item;
     // The answers as they stand at the press: a change after it cannot reach a run already under way.
     const choices = { ...item.choices };
     const generator = askGenerator(proposal.generator);
-    const adapter = deps.adapters.adapterFor(proposal.generator);
     if (!generator || !adapter) return;
-    const quote = adapter.quote(proposal, choices);
-    // The button is disabled in these states; the guard is for a press that races a re-quote.
-    if (quote.block !== null) return;
-    const price = quote.total === null ? null : creditsText(quote.total);
-    if (price === null) return;
+    let confirmed: string;
+    if (how === "quick") {
+      // Nothing is priced, so a credit or quota block on the AI route does not apply. What the quote is still reading
+      // does: a press before the people and places have loaded would drop the ids they resolve.
+      if (!adapter.quick) return;
+      if (quickWaitsOnLoad(adapter.quote(proposal, choices))) return;
+      confirmed = `You chose: Quick create, no AI`;
+    } else {
+      const quote = adapter.quote(proposal, choices);
+      // The button is disabled in these states; the guard is for a press that races a re-quote.
+      if (quote.block !== null) return;
+      const price = quote.total === null ? null : creditsText(quote.total);
+      if (price === null) return;
+      confirmed = `You confirmed: ${generator.action} · ${price}`;
+    }
     if (ran.has(proposal.proposalId)) return;
     ran.add(proposal.proposalId);
     item.state = "running";
-    push({ kind: "confirmed", text: `You confirmed: ${generator.action} · ${price}` });
+    push({ kind: "confirmed", text: confirmed });
     const startedAt = deps.routePath();
     const campaignName = deps.campaignName();
-    const mine = epoch;
+    const thread = current;
     let result: AskRunResult;
     try {
-      result = await adapter.run(proposal, choices);
+      if (how === "run" && isPreviewAdapter(adapter)) {
+        const outcome = await adapter.preview(proposal, choices);
+        if (outcome.ok) {
+          item.credits = partsCredits(outcome.preview.parts);
+          item.state = "previewing";
+          // A new conversation while it generated leaves no thread to show it in: nothing is kept for it. A campaign
+          // switch does not: the preview waits in its own thread.
+          if (alive(thread)) {
+            const card = push({ kind: "preview", proposalItemId: item.id, phase: "ready", shown: outcome.preview.shown, rows: {} }, thread);
+            thread.held.set(card.id, { preview: outcome.preview, proposalItemId: item.id, startedAt, campaignName });
+          }
+          return;
+        }
+        result = outcome.result;
+      } else if (how === "quick" && adapter.quick) {
+        result = await adapter.quick(proposal, choices);
+      } else if (!isPreviewAdapter(adapter)) {
+        result = await adapter.run(proposal, choices);
+      } else {
+        return;
+      }
     } catch {
       item.state = "failed";
       // Whether it ran is unknown, so the id stays in `ran`: it is never run a second time on a guess.
-      if (mine === epoch) item.landedAt = push({ kind: "error", message: "That did not finish. Check the list before asking again." }).id;
+      if (alive(thread)) item.landedAt = push({ kind: "error", message: "That did not finish. Check the list before asking again." }, thread).id;
       return;
     }
+    item.credits = partsCredits(result.parts);
+    land(thread, item, result, { startedAt, campaignName, credits: item.credits });
+  }
+
+  /** A finished run's end: its result lands at the bottom of the thread (unless the thread was started over) and the panel is told. */
+  function land(
+    thread: AskThreadState,
+    item: Extract<AskItem, { kind: "proposal" }>,
+    result: AskRunResult,
+    from: { startedAt: string; campaignName: string; credits: number },
+  ) {
+    const generator = askGenerator(item.proposal.generator);
+    if (!generator) return;
     item.state = "done";
     const name = result.record?.name ?? generator.action;
     const review = generator.ending === "review";
-    if (mine === epoch) {
-      item.landedAt = push({ kind: "result", name, noun: generator.noun, review, record: result.record, route: result.route, ...(result.open ? { open: result.open } : {}), ...(result.picture ? { picture: result.picture } : {}), parts: result.parts.map((p) => ({ ...p })) }).id;
+    if (alive(thread)) {
+      item.landedAt = push({ kind: "result", name, noun: generator.noun, review, record: result.record, route: result.route, ...(result.links ? { links: result.links } : {}), ...(result.open ? { open: result.open } : {}), ...(result.picture ? { picture: result.picture } : {}), parts: result.parts.map((p) => ({ ...p })) }, thread).id;
     }
-    deps.onFinished?.({ name, noun: generator.noun, review, route: result.route, ...(result.open ? { open: result.open } : {}), credits: partsCredits(result.parts), campaign: campaignName, startedAt });
+    deps.onFinished?.({ name, noun: generator.noun, review, route: result.route, ...(result.open ? { open: result.open } : {}), credits: from.credits, campaign: from.campaignName, startedAt: from.startedAt });
   }
 
   async function retryPart(resultId: number, index: number) {
@@ -446,5 +534,5 @@ export function useAskConversation(deps: AskConversationDeps) {
     if (part) part.left = true;
   }
 
-  return { items, running, speaking, freeLeft, send, choose, newConversation, handOff, adjust, decide, cancel, confirm, retryPart, leavePart };
+  return { items, running, generating, holding, speaking, freeLeft, send, choose, newConversation, handOff, openGenerator, setConcept, adjust, decide, cancel, confirm, quick, createPreview: previews.createPreview, actOnRow: previews.actOnRow, againPreview: previews.againPreview, discardPreview: previews.discardPreview, choosePreview: previews.choosePreview, retryPart, leavePart };
 }

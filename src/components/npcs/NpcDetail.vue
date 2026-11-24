@@ -20,7 +20,7 @@
     @save="save"
     @cancel="onMobileCancel"
     @delete="confirmDelete"
-    @generate="showGenerateDialog = true"
+    @generate="generateSheet()"
     @scriptorium="sendToScriptorium"
     @copy-to-campaign="openCopy"
     @apply-template="applyTemplate"
@@ -206,12 +206,6 @@
     </div>
   </form>
 
-  <NpcGenerateDialog
-    :visible="showGenerateDialog"
-    @close="showGenerateDialog = false"
-    @generated="onAiGenerated"
-  />
-
   <PaywallModal v-model="showPaywall" resource="npcs" />
   <PaywallModal v-model="showScriptoriumPaywall" resource="scriptorium_documents" />
   <PaywallModal v-model="showMonsterPaywall" resource="monsters" />
@@ -235,7 +229,8 @@ import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useIsMobile } from '@/composables/useBreakpoint'
-import NpcGenerateDialog from '@/ai/NpcGenerateDialog.vue'
+import { useOpenGenerator } from '@/composables/ask/useOpenGenerator'
+import { useAskFormFill } from '@/ai/ask/useAskFormFill'
 import { toTiptapJson } from '@/ai/useNpcGeneration'
 import { markEdited } from '@/ai/provenance'
 import { deepEqual } from '@/lib/utils'
@@ -336,15 +331,22 @@ const isSendingToScriptorium = ref(false)
 
 const activeTab = ref<TabKey>('lore')
 const loreEditorRevision = ref(0)
-const showGenerateDialog = ref(false)
 const artTab = ref<NpcArtTab>(
   props.npc?.disguise_name || props.npc?.disguise_portrait_url ? 'alter-ego' : 'true-form'
 )
 
 const isAiEnabled = computed(() => campaign.isAiEnabled)
 
+// Generate is a card in the Familiar that fills this form (#1270): nothing is saved, the DM reviews the sheet.
+const { open: openGenerator } = useOpenGenerator()
+const { bind: bindSheet } = useAskFormFill<NpcAiGenerated>('npc_sheet', { context: () => undefined, apply: onAiGenerated })
+
+/** Opens the card bound to THIS form: its result fills this sheet, never another NPC's. */
+function generateSheet() {
+  openGenerator('npc_sheet', { target: bindSheet('npc', form.name.trim() || 'New NPC') })
+}
+
 function onAiGenerated(result: NpcAiGenerated) {
-  showGenerateDialog.value = false
   form.name        = result.name
   form.race        = result.race || null
   form.alignment   = result.alignment || null
@@ -794,11 +796,11 @@ defineExpose({
   isSaving,
   isSendingToScriptorium,
   isAiEnabled,
-  showGenerateDialog,
   form,
   sendToScriptorium,
   confirmDelete,
   openCopy,
+  generateSheet,
 })
 </script>
 

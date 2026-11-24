@@ -1,7 +1,7 @@
 /**
  * Ask Grimoire (#1253): the Monster Generator, as a quote and a run.
  *
- * The same seam as the NPC adapter: the price is `useMonsterQuote`'s (the one `MonsterGeneratorPanel` shows), the
+ * The same seam as the NPC adapter: the price is `useMonsterQuote`'s (the one the card shows), the
  * gates are the page's (`useAskGate`, which also refuses a campaign whose game system has no stat blocks), and the run
  * is `useGenerateMonster`, the step the page and the document importer share. A failed picture leaves the monster
  * saved, and its part carries `retry`, which paints the saved row once with the page's own paint flow.

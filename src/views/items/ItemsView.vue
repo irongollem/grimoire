@@ -38,7 +38,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="itemsUi.itemGeneratorOpen = true"
+        @click="openGenerator('item')"
       />
       <ListCreateButton
         label="New Item"
@@ -130,6 +130,7 @@ import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDia
 import SourcesPickerPanel from "@/components/common/settings/SourcesPickerPanel.vue";
 import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS } from "@/types/item.types";
 import { useItemsUiStore } from "@/stores/ui/items";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { useAvailableLibraryItemSources } from "@/composables/library/useEnabledSources";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
@@ -137,6 +138,7 @@ import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignF
 import { useCampaignStore } from "@/stores/campaign";
 
 const itemsUi = useItemsUiStore();
+const { open: openGenerator } = useOpenGenerator();
 const layout = useListLayout("items", "grid");
 const search = computed({
   get: () => itemsUi.vaultSearch,

@@ -52,11 +52,7 @@ const admin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-// Local copy of src/types/lootTable.types.ts's LOOT_CR_TIERS / RARITIES_BY_TIER
-// — edge functions don't import from src/, so the tiers and their rarity bands
-// are duplicated here (same arrangement as generate-roll-table's DIE_MAX).
-// Keep both sides in step: the client shows the DM which rarities a tier
-// covers, this copy is what actually filters retrieval.
+// The rarity band each CR tier draws from lives only here, since it is what filters retrieval.
 //
 // The bands overlap on purpose. A tier is "what this hoard should mostly be
 // made of", not a hard level gate — an uncommon item is still a fine find at

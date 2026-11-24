@@ -1,5 +1,5 @@
 /**
- * "Generate a puzzle with AI and save it", the step `PuzzleGeneratorPanel` used to own inline, extracted so Ask
+ * "Generate a puzzle with AI and save it", the step its generator panel used to own inline, extracted so Ask
  * Grimoire (#1253) runs the very same save: private to the active campaign, the same field mapping.
  *
  * Deliberately narrow, like `useGenerateMonster`: the page keeps its quota and credit gate, the quota paywall and its

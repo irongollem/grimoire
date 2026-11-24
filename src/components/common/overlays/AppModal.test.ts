@@ -401,3 +401,90 @@ describe("AppModal", () => {
     wrapper.unmount();
   });
 });
+
+describe("AppModal beside the right-hand dock", () => {
+  afterEach(() => document.documentElement.style.removeProperty("--dock-right"));
+
+  // Bug caught: the backdrop covering the dock, so a card opened from inside a sheet was dimmed and unclickable.
+  it("stops its backdrop at the dock's edge, and a click in the dock does not close it", async () => {
+    document.documentElement.style.setProperty("--dock-right", "26rem");
+    const closed: string[] = [];
+    mount(AppModal, {
+      props: { open: true, onClose: () => closed.push("close") },
+      slots: { default: "<button>Inside</button>" },
+      attachTo: document.body,
+      global: { stubs: { transition: false } },
+    });
+    await flushPromises();
+    const container = panel()?.parentElement;
+    expect(container?.style.right).toBe("var(--dock-right, 0px)");
+    // A click in the dock is not on the modal's element at all; a click on its backdrop still closes it.
+    const dock = document.createElement("aside");
+    document.body.appendChild(dock);
+    dock.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    expect(closed).toEqual([]);
+    container?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    expect(closed).toEqual(["close"]);
+  });
+
+  function withDock() {
+    const dock = document.createElement("aside");
+    dock.setAttribute("data-side-dock", "");
+    dock.innerHTML = "<button>D1</button><button>D2</button>";
+    document.body.appendChild(dock);
+    return [...dock.querySelectorAll("button")];
+  }
+  const tab = (target: Element, shiftKey = false) => target.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", shiftKey, bubbles: true, cancelable: true }));
+
+  // Bug caught: Tab wrapping inside the sheet, so a keyboard user who opened a card in the dock could never reach it.
+  it("Tab past the sheet's last control goes to the dock's first, and Shift+Tab before its first to the dock's last", () => {
+    const [d1, d2] = withDock();
+    open({}, "<button>First</button><button>Last</button>");
+    const [first, last] = [...panel()!.querySelectorAll("button")];
+    last.focus();
+    tab(last);
+    expect(document.activeElement).toBe(d1);
+    first.focus();
+    tab(first, true);
+    expect(document.activeElement).toBe(d2);
+  });
+
+  // Bug caught: the dock a dead end, with Tab from its last control leaving the page (or the modal) unreachable.
+  it("Tab from the dock's last control returns to the sheet's first, and Shift+Tab from its first to the sheet's last", () => {
+    const [d1, d2] = withDock();
+    open({}, "<button>First</button><button>Last</button>");
+    const [first, last] = [...panel()!.querySelectorAll("button")];
+    d2.focus();
+    tab(d2);
+    expect(document.activeElement).toBe(first);
+    d1.focus();
+    tab(d1, true);
+    expect(document.activeElement).toBe(last);
+  });
+
+  // Bug caught: every open modal listens for the dock's Tab, so with two stacked the bottom one took it and focus
+  // landed in a panel hidden under the top modal.
+  it("with two modals stacked, Tab from the dock returns to the top modal only", () => {
+    const [, d2] = withDock();
+    open({}, "<button>Under</button>");
+    open({}, "<button>Over</button>");
+    const [under, over] = [...document.body.querySelectorAll<HTMLElement>("[data-modal-panel]")].map((p) => p.querySelector("button")!);
+    d2.focus();
+    tab(d2);
+    expect(document.activeElement).toBe(over);
+    expect(document.activeElement).not.toBe(under);
+  });
+
+  // Bug caught: Escape pressed in the Familiar closing the sheet it was opened from.
+  it("Escape inside the dock does not close the sheet, and still does from the sheet", () => {
+    const [d1] = withDock();
+    const closed: string[] = [];
+    mount(AppModal, { props: { open: true, onClose: () => closed.push("x") }, slots: { default: "<button>In</button>" }, attachTo: document.body, global: { stubs: { transition: false } } });
+    d1.focus();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(closed).toEqual([]);
+    panel()!.querySelector("button")!.focus();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(closed).toEqual(["x"]);
+  });
+});

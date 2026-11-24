@@ -1,13 +1,13 @@
 /**
- * "Generate a loot table with AI and save it", the step `LootTableGeneratorPanel` used to own inline, extracted so Ask
- * Grimoire (#1253) runs the very same resolve, validate and save.
+ * "Generate a loot table with AI, then save it", in two steps so the Familiar can show the entries between them
+ * (#1270): the same resolve, validate and save the old panel's Create Table used.
  *
  * The model returns item *names*; they are resolved against the merged catalogue (the DM's own items plus the library
  * items their enabled sources show, the pool the server offered the model), an entry that does not resolve is dropped,
  * and what remains passes `validateEntries`, the manual editor's own validator, before anything is written.
  *
- * Deliberately narrow, like `useGenerateMonster`: the page keeps its credit gate, the list of unresolved entries and its
- * navigation. A failed save throws; an invalid table is an `error` the page shows.
+ * Deliberately narrow, like `useGenerateMonster`: the caller keeps its credit gate and its navigation. A failed save
+ * throws; an invalid table is an `error` the caller shows.
  */
 import { ref } from "vue";
 import { until } from "@vueuse/core";
@@ -21,15 +21,14 @@ import { resolveGeneratedLoot, type LootItemPoolRow, type ResolvedLootEntry } fr
 import type { LootTableAiResult } from "@/ai/types";
 import { validateEntries, type LootCrTier, type LootEntry, type LootTable } from "@/types/lootTable.types";
 
-export interface GenerateLootTableOutcome {
-  /** The created row's id, or `null` when nothing was saved. */
-  id: string | null;
-  name: string | null;
-  /** A user-facing reason for a `null` id. */
-  error: string | null;
+/** A generated hoard with its names resolved against the catalogue, held for the DM's yes, or why nothing was made. */
+export interface LootDraft {
+  result: LootTableAiResult;
+  resolved: ResolvedLootEntry[];
   /** Entries the model named that the catalogue does not have: they are not written. */
   unresolved: number;
 }
+export type LootDraftOutcome = { draft: LootDraft; error: null } | { draft: null; error: string };
 
 /** The catalogue as the resolver reads it: id, name, rarity and type. The page resolves with the same rows. */
 export function toLootPool(items: readonly LootItemPoolRow[]): LootItemPoolRow[] {
@@ -116,31 +115,25 @@ export function useGenerateLootTable() {
     return { table };
   }
 
-  async function generateAndCreateLootTable(concept: string, options: LootGenerationOptions): Promise<GenerateLootTableOutcome> {
+  /** Generates a hoard and resolves it, for the DM to look at before it is saved; saving is `saveGeneratedLootTable`. */
+  async function generateLootDraft(concept: string, options: LootGenerationOptions): Promise<LootDraftOutcome> {
     // Checked up front: `generate` returns null on this without touching its error, which would read stale.
-    if (isAnyAiGenerating.value) {
-      return { id: null, name: null, error: "Another AI generation is already in progress.", unresolved: 0 };
-    }
+    if (isAnyAiGenerating.value) return { draft: null, error: "Another AI generation is already in progress." };
     wanted.value = true;
     const result = await generate(concept, options);
-    if (!result) {
-      return { id: null, name: null, error: genError.value ?? "Loot generation failed.", unresolved: 0 };
-    }
+    if (!result) return { draft: null, error: genError.value ?? "Loot generation failed." };
     // Resolving against a catalogue that has not arrived would read every item as missing and save an empty table.
     await until(() => catalogue.value !== undefined).toBe(true, { timeout: CATALOGUE_WAIT_MS, throwOnTimeout: true });
     const items = catalogue.value;
     if (items === undefined) throw new Error("The item catalogue did not load.");
-    const pool = toLootPool(items);
-    const resolved = resolveGeneratedLoot(result.entries, pool, currency.value);
+    const resolved = resolveGeneratedLoot(result.entries, toLootPool(items), currency.value);
     const unresolved = resolved.filter((e) => e.kind === "unresolved").length;
-    // The page disables Create when nothing resolved; an empty table is not worth the DM opening.
+    // An empty table is not worth the DM opening.
     if (unresolved === resolved.length) {
-      return { id: null, name: null, error: "None of the items it named are in your Vault or enabled sources. Try again.", unresolved };
+      return { draft: null, error: "None of the items it named are in your Vault or enabled sources. Try again." };
     }
-    const saved = await saveGeneratedLootTable(result, resolved, options.crTier);
-    if ("error" in saved) return { id: null, name: null, error: saved.error, unresolved };
-    return { id: saved.table.id, name: result.name, error: null, unresolved };
+    return { draft: { result, resolved, unresolved }, error: null };
   }
 
-  return { saveGeneratedLootTable, generateAndCreateLootTable };
+  return { saveGeneratedLootTable, generateLootDraft };
 }

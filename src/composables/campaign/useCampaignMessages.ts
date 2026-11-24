@@ -14,6 +14,7 @@ import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, LootRoll
 import { useCurrency } from "@/composables/currency/useCurrency";
 import type { Coins } from "@/lib/currency/currency";
 import type { RollResult } from "@/lib/dice/dice";
+import { npcSpeechMetadata } from "@/lib/chat/npcSpeech";
 import type { StoredMention } from "@/lib/chat/chatMentions";
 
 const LIMIT = 100;
@@ -458,6 +459,8 @@ export function useCampaignMessages() {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id || !text.trim()) return;
     const speaker = currentSpeaker();
+    // A line said as an NPC names the NPC and carries their face, so it is drawn as their speech bubble (#1270).
+    const asNpc = appUi.dmTalkAsNpcId && appUi.dmTalkAsNpcName ? npcSpeechMetadata(appUi.dmTalkAsNpcId, appUi.dmTalkAsNpcFace ?? { portrait: null, focal: null }) : null;
     const insert: CampaignMessageInsert = {
       campaign_id: cid,
       user_id: auth.user.id,
@@ -466,7 +469,7 @@ export function useCampaignMessages() {
       message: text.trim(),
       type: "chat",
       // Whom the line addresses rides beside who it speaks for; a line with neither carries nothing.
-      metadata: mentions.length > 0 ? { ...forTag(speaker), mentions: [...mentions] } : speakerMetadata(speaker),
+      metadata: mentions.length > 0 ? { ...forTag(speaker), ...asNpc, mentions: [...mentions] } : (asNpc ?? speakerMetadata(speaker)),
     };
     const { data, error } = await supabase.from("campaign_messages").insert(insert).select().single();
     if (error) throw error;

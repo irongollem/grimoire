@@ -1,13 +1,14 @@
 /**
- * "Generate an encounter with AI and save it", the steps `EncounterGeneratorPanel` used to own inline, extracted so
- * Ask Grimoire (#1253) runs the very same resolve and create.
+ * "Generate an encounter with AI, look at it, and save it": the steps the encounter panel used to own inline, now
+ * the Familiar's encounter card (#1270). The generation is one step (`generateEncounterDraft`, charged) and the save
+ * another (`saveEncounterDraft`, free), so the DM sees the line-up before anything is kept.
  *
  * The model returns monster *names*; they are resolved against the Bestiary into combatants (#337), a name that is not
  * in it is kept as an "Add manually" line in the description instead of a stat-block-less stub, and the encounter
  * starts with the whole active party and the companions who fight.
  *
- * Deliberately narrow, like `useGenerateMonster`: the page keeps its version picker (#601), its quota paywall and its
- * navigation. A failed save throws.
+ * Deliberately narrow, like `useGenerateMonster`: the card owns its quota paywall and its navigation. A failed save
+ * throws.
  */
 import { ref } from "vue";
 import { until } from "@vueuse/core";
@@ -18,20 +19,21 @@ import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useEncounterGeneration, type EncounterGenerationOptions } from "@/ai/useEncounterGeneration";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import type { EncounterAiResult, EncounterCombatantAiResult } from "@/ai/types";
-import { resolveGeneratedCombatants } from "@/lib/encounters/resolveGeneratedCombatants";
+import { resolveGeneratedCombatants, type GeneratedCombatantMatch } from "@/lib/encounters/resolveGeneratedCombatants";
 import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { DEFAULT_FACTIONS, type CombatantDef, type Encounter } from "@/types/encounter.types";
 
-export interface GenerateEncounterOutcome {
-  /** The created row's id, or `null` when generation failed. */
-  id: string | null;
-  name: string | null;
-  /** A user-facing reason for a `null` id. */
-  error: string | null;
+/** What the model made and the Bestiary resolved, held for the DM's yes before anything is saved. */
+export interface EncounterDraft {
+  result: EncounterAiResult;
+  matched: GeneratedCombatantMatch[];
   /** Creatures the model named that the Bestiary does not have, listed in the description to add by hand. */
-  unmatched: number;
+  unmatched: EncounterCombatantAiResult[];
 }
+
+/** A draft, or a user-facing reason there is none. */
+export type EncounterDraftOutcome = { draft: EncounterDraft; error: null } | { draft: null; error: string };
 
 /** How long a run waits for the Bestiary and the party before it gives up rather than build an empty encounter. */
 const DATA_WAIT_MS = 20_000;
@@ -101,29 +103,26 @@ export function useGenerateEncounter() {
     });
   }
 
-  async function generateAndCreateEncounter(
-    concept: string,
-    options: EncounterGenerationOptions & { locationId?: string | null },
-  ): Promise<GenerateEncounterOutcome> {
-    const { locationId = null, ...generationOptions } = options;
+  /** Generates an encounter and resolves its creatures against the Bestiary, and saves nothing. */
+  async function generateEncounterDraft(concept: string, options: EncounterGenerationOptions): Promise<EncounterDraftOutcome> {
     // Checked up front: `generate` returns null on this without touching its error, which would read stale.
-    if (isAnyAiGenerating.value) {
-      return { id: null, name: null, error: "Another AI generation is already in progress.", unmatched: 0 };
-    }
+    if (isAnyAiGenerating.value) return { draft: null, error: "Another AI generation is already in progress." };
     wanted.value = true;
-    const result = await generate(concept, generationOptions);
-    if (!result) {
-      return { id: null, name: null, error: genError.value ?? "Encounter generation failed.", unmatched: 0 };
-    }
+    const result = await generate(concept, options);
+    if (!result) return { draft: null, error: genError.value ?? "Encounter generation failed." };
     // Resolving against a Bestiary that has not arrived would read every name as missing and save an empty encounter.
     await until(() => monsters.value !== undefined && party.value !== undefined && companions.value !== undefined)
       .toBe(true, { timeout: DATA_WAIT_MS, throwOnTimeout: true });
     const bestiary = monsters.value;
     if (bestiary === undefined) throw new Error("The Bestiary did not load.");
     const resolved = resolveGeneratedCombatants(result.combatants, bestiary);
-    const encounter = await saveGeneratedEncounter(result, resolved.matched.map((m) => m.def), resolved.unmatched, locationId);
-    return { id: encounter.id, name: result.name, error: null, unmatched: resolved.unmatched.length };
+    return { draft: { result, matched: resolved.matched, unmatched: resolved.unmatched }, error: null };
   }
 
-  return { saveGeneratedEncounter, generateAndCreateEncounter };
+  /** Saves a draft as the encounter it shows, set in `locationId`. Throws when the save fails. */
+  function saveEncounterDraft(draft: EncounterDraft, locationId: string | null): Promise<Encounter> {
+    return saveGeneratedEncounter(draft.result, draft.matched.map((m) => m.def), draft.unmatched, locationId);
+  }
+
+  return { saveGeneratedEncounter, generateEncounterDraft, saveEncounterDraft };
 }

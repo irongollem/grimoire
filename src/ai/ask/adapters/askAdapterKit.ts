@@ -165,6 +165,15 @@ export function resolveAskLinks(generatorId: string, links: readonly AskLink[], 
   return resolved;
 }
 
+/**
+ * The form's pending ties (`GeneratorLinksField`'s value) as the contract's `{kind, id, relation}`, the shape
+ * `readAskLinks` reads: the word is the catalogue choice's, so reading it again finds the same choice. The other way
+ * round is `resolveAskLinks`, which also needs the records' names.
+ */
+export function toAskLinks(links: readonly GeneratorLink[]): AskLink[] {
+  return links.map((link) => ({ kind: link.kind, id: link.id, relation: relationWord(link.choice) }));
+}
+
 /** The yes or no in effect for a line: the DM's answer, else `byDefault`. */
 export function askChoice(choices: AskChoices | undefined, key: string, byDefault: boolean): { key: string; on: boolean } {
   const given = choices?.[key];

@@ -27,6 +27,14 @@ const held = ref<number[]>([]);
 export const anyModalOpen = computed(() => held.value.length > 0);
 
 /**
+ * Whether `zIndex` (the value `useModalStack` handed out) is the layer painted on top right now. Anything that listens
+ * on the document for a modal (the dock's Tab) asks this, so with stacked modals only the top one answers.
+ */
+export function isTopModal(zIndex: number | null): boolean {
+  return zIndex !== null && held.value.length > 0 && zIndex === BASE_Z + Math.max(...held.value);
+}
+
+/**
  * The z-index for one modal, or `null` while it is closed — nothing is painted
  * then, and holding a level would push the next modal needlessly high.
  *

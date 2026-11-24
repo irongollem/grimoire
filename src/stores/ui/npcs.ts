@@ -15,7 +15,6 @@ export const useNpcsUiStore = defineStore("ui:npcs", () => {
   /** Only a name sort runs both ways; location keeps the Atlas's own order. */
   const npcsFilterSortDir = ref<SortDir>("asc");
   const activeNpcId = ref<string | null>(null);
-  const npcGeneratorOpen = ref(false);
 
   const npcsHasActiveFilters = computed(() =>
     npcsSearchQuery.value !== "" ||
@@ -47,7 +46,6 @@ export const useNpcsUiStore = defineStore("ui:npcs", () => {
     npcsFilterSortDir,
     npcsHasActiveFilters,
     activeNpcId,
-    npcGeneratorOpen,
     resetNpcsFilters,
   };
 });

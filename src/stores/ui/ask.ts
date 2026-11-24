@@ -3,6 +3,17 @@
 // the DM has not seen, and a question waiting for the panel to send it (from the search box).
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import type { AskRecordRef } from "@edge-shared/agent/askContract";
+
+/** A generator its button asked the Familiar to open: its card waits here until the conversation takes it. */
+export interface PendingGenerator {
+  generatorId: string;
+  /** Over the generator's own `opened` inputs. */
+  inputs?: Record<string, unknown>;
+  /** The record a `fill` generator works on. */
+  target?: AskRecordRef;
+  concept?: string;
+}
 
 export const useAskUiStore = defineStore("ask-ui", () => {
   const open = ref(false);
@@ -13,6 +24,8 @@ export const useAskUiStore = defineStore("ask-ui", () => {
   const pendingQuery = ref<string | null>(null);
   /** A request to write into the box unsent (the Canon's Suggest): the DM may change it, then sends. */
   const prefill = ref<string | null>(null);
+  /** A generator's card to open in the thread (a page's Generate button); no question is sent and nothing is charged. */
+  const pendingGenerator = ref<PendingGenerator | null>(null);
   /** Rises each time the input should take focus (the hotkey, the button). */
   const focusRequest = ref(0);
 
@@ -25,6 +38,12 @@ export const useAskUiStore = defineStore("ask-ui", () => {
     if (!q) return;
     if (send) pendingQuery.value = q;
     else prefill.value = q;
+  }
+
+  /** Opens the Familiar on the generator's own card, ready for the DM to fill in. */
+  function openGenerator(generatorId: string, options: Omit<PendingGenerator, "generatorId"> = {}) {
+    openPanel();
+    pendingGenerator.value = { generatorId, ...options };
   }
 
   function closePanel() {
@@ -54,5 +73,12 @@ export const useAskUiStore = defineStore("ask-ui", () => {
     return q;
   }
 
-  return { open, everOpened, hasUnread, pendingQuery, prefill, takePrefill, focusRequest, openPanel, closePanel, togglePanel, markUnread, takePendingQuery };
+  /** Takes the waiting generator once: a second call, or a remount, gets nothing, so the card is never opened twice. */
+  function takePendingGenerator(): PendingGenerator | null {
+    const pending = pendingGenerator.value;
+    pendingGenerator.value = null;
+    return pending;
+  }
+
+  return { open, everOpened, hasUnread, pendingQuery, prefill, takePrefill, pendingGenerator, takePendingGenerator, openGenerator, focusRequest, openPanel, closePanel, togglePanel, markUnread, takePendingQuery };
 });

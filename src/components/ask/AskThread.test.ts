@@ -8,7 +8,7 @@ import AskThread from "./AskThread.vue";
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 const proposal: AskProposal = { proposalId: "p1", generator: "npc", concept: "a ferryman", inputs: {} };
-const adapters = { adapterFor: () => undefined, screenFor: () => undefined };
+const adapters = { adapterFor: () => undefined, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined };
 const stubs = { AskQuoteCard: { template: '<section data-testid="ask-quote" />' }, AskResultCard: { template: '<section data-testid="ask-result" />' } };
 
 function thread(items: AskItem[]) {
@@ -42,6 +42,62 @@ describe("AskThread", () => {
     expect(w.get('[data-testid="ask-landed"]').text()).toContain("Bram Perf is ready.");
     await w.get('[data-testid="ask-landed-jump"]').trigger("click");
     expect(scrolled).toEqual(["3"]);
+  });
+
+  // Bug caught: Again's price read from the wrong place (or never), so the button named a stale or empty cost.
+  it("draws a held generation as its preview card, with Again priced by the adapter's quote of the inputs now", async () => {
+    const held = {
+      id: "encounter", quote: () => ({ lines: [], total: 3, block: null }), preview: async () => { throw new Error("not called"); },
+    };
+    const w = mount(AskThread, {
+      props: {
+        items: [
+          { kind: "proposal", id: 1, proposal: { ...proposal, generator: "encounter" }, state: "previewing", choices: {}, credits: 3 },
+          { kind: "preview", id: 2, proposalItemId: 1, phase: "ready", shown: { title: "Road Ambush", sections: [] }, rows: {} },
+        ] satisfies AskItem[],
+        adapters: { adapterFor: () => held, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined },
+      },
+      global: { stubs },
+    });
+    expect(w.get('[data-testid="ask-fold"]').text()).toContain("Create encounter");
+    expect(w.get('[data-testid="ask-preview-again"]').text()).toBe("Again · 3 credits");
+    await w.get('[data-testid="ask-preview-create"]').trigger("click");
+    await w.get('[data-testid="ask-preview-again"]').trigger("click");
+    await w.get('[data-testid="ask-preview-discard"]').trigger("click");
+    expect(w.emitted("create")).toEqual([[2]]);
+    expect(w.emitted("again")).toEqual([[2]]);
+    expect(w.emitted("discard")).toEqual([[2]]);
+  });
+
+  // Bug caught: the main button of a hooks or lines preview reading "Suggest quest hooks", an action that is already done.
+  it("words the held generation's main button with the generator's own createAction when it has one", () => {
+    const held = { id: "quest_hooks", quote: () => ({ lines: [], total: 3, block: null }), preview: async () => { throw new Error("not called"); } };
+    const w = mount(AskThread, {
+      props: {
+        items: [
+          { kind: "proposal", id: 1, proposal: { ...proposal, generator: "quest_hooks" }, state: "previewing", choices: {}, credits: 3 },
+          { kind: "preview", id: 2, proposalItemId: 1, phase: "ready", shown: { title: "Hooks", sections: [] }, rows: {} },
+        ] satisfies AskItem[],
+        adapters: { adapterFor: () => held, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined },
+      },
+      global: { stubs },
+    });
+    expect(w.get('[data-testid="ask-preview-create"]').text()).toBe("Done");
+  });
+
+  // Bug caught: a card a button opened leaving focus on the button, so a keyboard user had to hunt for the dock.
+  it("moves focus into a card a button opened, to its concept box first", async () => {
+    const w = mount(AskThread, {
+      props: { items: [] as AskItem[], adapters },
+      global: { stubs: { AskQuoteCard: { template: '<section><h3>Create</h3><textarea data-testid="concept" /><button>Cancel</button></section>' }, AskResultCard: true } },
+      attachTo: document.body,
+    });
+    // Cards open at the top, so scrolling is not under test here.
+    Element.prototype.scrollIntoView = () => undefined;
+    await w.setProps({ items: [{ kind: "proposal", id: 1, proposal, state: "quote", choices: {}, origin: "button" }] });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.activeElement?.getAttribute("data-testid")).toBe("concept");
+    w.unmount();
   });
 
   // Bug caught: the report card's press not reaching the panel with the draft, so the form opens empty.

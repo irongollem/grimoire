@@ -1,6 +1,7 @@
 // Shell-level UI state: chat panel, DM persona and preview, the DM/Player lens, the live-session mirror.
 import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
+import type { NpcSpeechFace } from "@/lib/chat/npcSpeech";
 import { useStorage } from "@vueuse/core";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeLocalStorage";
 
@@ -84,11 +85,16 @@ export const useAppUiStore = defineStore("ui:app", () => {
   const dmTalkAsNpcId   = ref("");
   const dmTalkAsNpcName = ref<string | null>(null);
 
-  function setDmTalkAsNpc(id: string, name: string | null) {
+  /** The portrait a line said as this NPC carries into the chat (#1270). */
+  const dmTalkAsNpcFace = ref<NpcSpeechFace | null>(null);
+
+  function setDmTalkAsNpc(id: string, name: string | null, face: NpcSpeechFace | null = null) {
     const cleanName = name || null;
-    if (dmTalkAsNpcId.value === id && dmTalkAsNpcName.value === cleanName) return;
+    const sameFace = dmTalkAsNpcFace.value?.portrait === face?.portrait && dmTalkAsNpcFace.value?.focal?.x === face?.focal?.x && dmTalkAsNpcFace.value?.focal?.y === face?.focal?.y;
+    if (dmTalkAsNpcId.value === id && dmTalkAsNpcName.value === cleanName && sameFace) return;
     dmTalkAsNpcId.value   = id;
     dmTalkAsNpcName.value = cleanName;
+    dmTalkAsNpcFace.value = face;
   }
 
   // DM preview mode — lets DM browse the player portal without a second account
@@ -189,6 +195,7 @@ export const useAppUiStore = defineStore("ui:app", () => {
     openChatAt,
     dmTalkAsNpcId,
     dmTalkAsNpcName,
+    dmTalkAsNpcFace,
     setDmTalkAsNpc,
     dmPreviewMode,
     dmPreviewPartyMemberId,

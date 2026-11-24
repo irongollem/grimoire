@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { useTrapGeneration } from "./useTrapGeneration";
 
-const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
+const mocks = vi.hoisted(() => ({ invoke: vi.fn(), ack: true }));
 
 vi.mock("@/lib/supabase", () => ({ supabase: { functions: { invoke: mocks.invoke } } }));
 vi.mock("@/composables/ai/useLikenessGate", () => ({
-  useLikenessGate: () => ({ ensureLikenessAck: async () => true }),
+  useLikenessGate: () => ({ ensureLikenessAck: async () => mocks.ack }),
 }));
 vi.mock("@/ai/useImageGeneration", () => ({
   captureFailureMessage: () => "capture failed",
@@ -24,5 +24,16 @@ describe("useTrapGeneration server call", () => {
     expect(fn).toBe("generate-trap");
     expect(call.body).not.toHaveProperty("generate_image");
     expect(call.body).not.toHaveProperty("group_portrait_url");
+  });
+
+  // Bug caught: a declined likeness notice ended the run with no error at all, so the card said "generation failed" or, worse, a stale error from an earlier run.
+  it("says the likeness notice was not accepted, and calls nothing, when the party picture is declined", async () => {
+    mocks.invoke.mockReset();
+    mocks.ack = false;
+    const trap = useTrapGeneration();
+    expect(await trap.generate("a pit trap", { groupPortraitUrl: "party.png" })).toBeNull();
+    expect(trap.error.value).toMatch(/likeness notice was not accepted/);
+    expect(mocks.invoke).not.toHaveBeenCalled();
+    mocks.ack = true;
   });
 });

@@ -11,12 +11,12 @@ export const PARTY_MENTION_ID = "party-group";
 
 /** The monster index it returns is for `useMentionedMonsters`, which reads the
  *  lore and picture of just the monsters a text names. */
-export function useEntityMentionItems() {
-  const { data: partyMembers } = useParty();
-  const { data: npcs }         = useNpcs();
-  const { data: monsterIndex } = useMonsterIndex();
-  const { data: locations }    = useAllLocations();
-  const { data: factions }     = useAllFactions();
+export function useEntityMentionItems(enabled?: () => boolean) {
+  const { data: partyMembers } = useParty(enabled);
+  const { data: npcs }         = useNpcs(enabled);
+  const { data: monsterIndex } = useMonsterIndex(enabled ? () => ({ enabled: enabled() }) : undefined);
+  const { data: locations }    = useAllLocations(enabled);
+  const { data: factions }     = useAllFactions(enabled);
   const campaignStore          = useCampaignStore();
 
   const mentionItems = computed<EntityMentionItem[]>(() => {

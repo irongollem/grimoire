@@ -6,7 +6,6 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { captureFailureMessage, captureImageGenerationContext, generateImage } from "./useImageGeneration";
 
 // ── Module-level singleton state ────────────────────────────────────────────
@@ -16,9 +15,7 @@ registerAiGenerator({
   ..._state,
   label: "Faction",
   entityRoute: (id) => `/factions/${id}`,
-  openPanel: () => {
-    useGeneratorUiStore().factionGeneratorOpen = true;
-  },
+  // The generator is a card in the Familiar now: the badge brings the DM back to it.
 });
 
 // ────────────────────────────────────────────────────────────────────────────

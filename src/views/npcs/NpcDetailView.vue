@@ -70,7 +70,7 @@
           v-if="npcDetail.isAiEnabled"
           label="Generate"
           :icon="IconGenerate"
-          @click="npcDetail.showGenerateDialog = true"
+          @click="npcDetail.generateSheet()"
         />
         <!--
           Draft-bound: this editor owns its Save, so the reveal edits the form

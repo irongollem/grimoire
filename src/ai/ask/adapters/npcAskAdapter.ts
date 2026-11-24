@@ -1,7 +1,7 @@
 /**
  * Ask Grimoire (#1253): the NPC generator, as a quote and a run.
  *
- * A seam over the page's own workflow: the price is `useNpcQuote`'s (the one `NpcGeneratorPanel` shows), the
+ * A seam over the page's own workflow: the price is `useNpcQuote`'s (the one the NPC card shows), the
  * gates are the page's (`useAskGate`), and the run is `useGenerateNpc`, the generate-and-create step the page calls.
  * What it adds is reading the proposal: `proposal.inputs` through the schema (`readAskInputs`), so only what the
  * contract lists reaches the generator.
@@ -41,7 +41,7 @@ import { useMissingPortrait } from "@/ai/useMissingPortrait";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
-import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useCreateNpcInCampaign, useNpcs } from "@/composables/npcs/useNpcs";
 import { useParty } from "@/composables/party/useParty";
 import { DEFAULT_RELATION, npcRelation } from "@/ai/ask/adapters/npcRelations";
 import { parsePersonKey, personKey } from "@/lib/kinship/keys";
@@ -49,8 +49,39 @@ import { useNpcQuote } from "@/composables/ai/quotes/npcQuote";
 import { useCampaignPeoples } from "@/composables/canon/useCampaignPeoples";
 import { npcSpecies } from "@/lib/canon/npcSpecies";
 import { buildNpcAiContext, useGenerateNpc, type NpcGenerateForm } from "@/composables/npcs/useGenerateNpc";
+import type { NpcInsert, NpcRelationship } from "@/types/npc.types";
+import { getNpcTemplate } from "@/data/npcTemplates";
+import { STAT_TEMPLATE_AUTO, STAT_TEMPLATE_NONE } from "@/ai/ask/askOptions";
+import { useItemIndex } from "@/composables/items/useItemIndex";
+import { mentionToken, mentionTokenPattern } from "@/lib/mentionToken";
+import type { ItemIndexEntry } from "@/types/item.types";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { DEFAULT_ASSOCIATE } from "@/lib/npcGenerator/associate";
+
+/** The attitudes the schema lists, as the NPC page's `relationship`; `readAskInputs` already held the word to the enum. */
+const ATTITUDES: readonly NpcRelationship[] = ["unknown", "hostile", "unfriendly", "indifferent", "friendly", "helpful"];
+
+/** The page's starter stat block choice: "auto" (matched to the occupation), "none", or one of its templates; anything else is auto. */
+function templateChoice(word: string | null): { id: string; name: string | null } {
+  if (word === STAT_TEMPLATE_NONE) return { id: "", name: "None" };
+  const template = word === null || word === STAT_TEMPLATE_AUTO ? undefined : getNpcTemplate(word);
+  return template ? { id: template.id, name: template.name } : { id: STAT_TEMPLATE_AUTO, name: null };
+}
+
+const FIRST_NAMES = [
+  "Aldric", "Mira", "Theron", "Selja", "Corvus", "Lysa",
+  "Dain", "Vex", "Orin", "Nessa", "Balthus", "Kira", "Fenris", "Yara", "Cael",
+];
+const LAST_NAMES = [
+  "Stone", "Ashvale", "Brightwater", "Darkwood", "Ironside",
+  "Swiftarrow", "Flamecrest", "Coldbrook", "Thornwall", "Duskmantle",
+];
+
+function randomName(): string {
+  const first = FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
+  const last = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
+  return `${first} ${last}`;
+}
 
 /** The form's way to say "not given" is an empty string. */
 function blankIfUnsaid(value: string | null): string {
@@ -61,7 +92,8 @@ export function useNpcAskAdapter(): AskAdapter {
   const campaign = useCampaignStore();
   const quoteFor = useNpcQuote();
   const { blockFor } = useAskGate("npcs", "NPC");
-  const { generateAndCreateNpc } = useGenerateNpc();
+  const { generateAndCreateNpc, applyNpcLinks, applyGeneratorLinks } = useGenerateNpc();
+  const { mutateAsync: createNpc } = useCreateNpcInCampaign();
   const { peoples } = useCampaignPeoples();
   const missing = useMissingPortrait("npc");
 
@@ -78,6 +110,10 @@ export function useNpcAskAdapter(): AskAdapter {
   // The family, to offer the rest of it (a new parent's other children); read with the people, for the same reason.
   const { data: kinLinks } = useKinLinks(() => peopleWanted.value);
   const peopleLoading = computed(() => peopleWanted.value && (npcs.value === undefined || party.value === undefined || kinLinks.value === undefined));
+
+  // The catalogue's items, read only once the concept has an @ in it (the card's concept box offers them by mention).
+  const itemsWanted = ref(false);
+  const { data: itemIndex } = useItemIndex(() => ({ enabled: itemsWanted.value }));
 
   // The records the ties name, read only once a proposal has some.
   const wantedLinks = ref<AskLink[]>([]);
@@ -140,10 +176,30 @@ export function useNpcAskAdapter(): AskAdapter {
       location,
       faction,
       factionRole: askString(inputs, "faction_role"),
+      attitude: ATTITUDES.find((a) => a === askString(inputs, "attitude")) ?? "unknown",
+      template: templateChoice(askString(inputs, "stat_block_template")),
       portrait: askFlag(inputs, "portrait"),
       alterEgo: askFlag(inputs, "alter_ego"),
       concept: proposal.concept.trim(),
+      items: mentionedItems(proposal.concept),
+      itemsLoading: itemsWanted.value && itemIndex.value === undefined,
     };
+  }
+
+  /**
+   * The catalogue items the concept names with an @ mention (`@Healing_Potion`), which the new NPC is given in its
+   * inventory and which the model is told as constraints. Read from the words, so a mention the DM typed by hand counts
+   * as one they picked, and one they deleted does not.
+   */
+  function mentionedItems(concept: string): ItemIndexEntry[] {
+    if (!concept.includes("@")) return [];
+    itemsWanted.value = true;
+    return (itemIndex.value ?? []).filter((item) => concept.includes(mentionToken(item.name)) && mentionTokenPattern(item.name).test(concept));
+  }
+
+  /** The prompt the model reads: each mention as the item's plain name. */
+  function withoutTokens(text: string, items: readonly ItemIndexEntry[]): string {
+    return items.reduce((result, item) => result.replace(mentionTokenPattern(item.name), (_match, prefix: string) => `${prefix}${item.name}`), text);
   }
 
   /**
@@ -170,7 +226,7 @@ export function useNpcAskAdapter(): AskAdapter {
     const who = [read.race, read.age === null ? null : `about ${read.age}`].filter((part) => part !== null).join(", ");
     const lines: AskQuoteLine[] = [];
     if (read.name) lines.push({ label: "Name", value: read.name, credits: null });
-    lines.push({ label: "Who", value: who || "As the description says", credits: null });
+    lines.push({ label: "Who", value: who || "As the description says", credits: null, ...(who ? {} : { repeatsConcept: true as const }) });
     if (read.role) lines.push({ label: "Role", value: read.role, credits: null });
     if (read.location) lines.push({ label: "Lives in", value: read.location.name, credits: null, choice: askChoice(choices, "location", true) });
     if (read.faction) {
@@ -186,6 +242,8 @@ export function useNpcAskAdapter(): AskAdapter {
       }
     }
     lines.push(...askLinkLines(read.links, choices));
+    if (read.attitude !== "unknown") lines.push({ label: "Attitude", value: read.attitude, credits: null });
+    if (read.template.name !== null) lines.push({ label: "Stat block", value: read.template.name, credits: null });
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.portrait) lines.push({ label: "Portrait", value: "None", credits: null });
@@ -198,10 +256,14 @@ export function useNpcAskAdapter(): AskAdapter {
     if (!block && linkRecords.loading.value) {
       block = { reason: "missing", message: "Still reading the records it is tied to." };
     }
+    if (!block && read.itemsLoading) {
+      block = { reason: "missing", message: "Still reading the items it names." };
+    }
     if (!block && peopleLoading.value) {
       block = { reason: "missing", message: "Still reading this campaign's people." };
     }
-    return { lines, total: priced.total, block };
+    const reading = lookupsLoading.value || linkRecords.loading.value || read.itemsLoading || peopleLoading.value;
+    return { lines, total: priced.total, block, ...(reading ? { reading: true as const } : {}) };
   }
 
   async function run(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult> {
@@ -215,22 +277,7 @@ export function useNpcAskAdapter(): AskAdapter {
 
     // The species asked for, else one rolled at the world's shares, as the page does (#1255 item 30).
     const species = npcSpecies(blankIfUnsaid(read.race), peoples.value);
-    const form: NpcGenerateForm = {
-      name: blankIfUnsaid(read.name),
-      race: species.race,
-      alignment: blankIfUnsaid(read.alignment),
-      relationship: "unknown",
-      templateId: "auto",
-      location_id: chosen.location?.id ?? null,
-      faction_id: chosen.faction?.id ?? null,
-      faction_role: blankIfUnsaid(read.factionRole) || "Member",
-      related_npc_id: chosen.related?.kind === "npc" ? chosen.related.row.id : null,
-      related_npc_tie: chosen.related && read.relation?.kind === "tie" ? read.relation.choice : DEFAULT_ASSOCIATE,
-      related_npc_kin: chosen.related && read.relation?.kind === "kin" ? read.relation.kin : null,
-      related_pc_id: chosen.related?.kind === "pc" ? chosen.related.row.id : null,
-      second_parent: chosen.secondParent ? personKey(chosen.secondParent.kind, chosen.secondParent.row.id) : null,
-      also_kin: chosen.alsoKin,
-    };
+    const form = formFor(read, chosen, species.race);
     // The schema's age and role have no field on the page's form; the model reads them as constraint lines.
     const extra = [
       read.age === null ? null : `Age: about ${read.age}`,
@@ -238,7 +285,7 @@ export function useNpcAskAdapter(): AskAdapter {
     ].filter((line) => line !== null);
     const context = [
       ...extra,
-      buildNpcAiContext(form, form.location_id, [], {
+      buildNpcAiContext(form, form.location_id, read.items, {
         locations: chosen.location ? [chosen.location] : [],
         factions: chosen.faction ? [chosen.faction] : [],
         npcs: [
@@ -264,13 +311,13 @@ export function useNpcAskAdapter(): AskAdapter {
     try {
       outcome = await generateAndCreateNpc({
         concept: read.concept,
-        prompt: read.concept,
+        prompt: withoutTokens(read.concept, read.items),
         context,
         generateAlterEgo: read.alterEgo,
         generateImage: read.portrait,
         form,
         locationId: form.location_id,
-        inventoryItems: [],
+        inventoryItems: read.items,
         // The workflow writes a bond only when it is told who the associate is, in this campaign.
         associate: chosen.related && read.relation?.kind === "tie" ? { id: chosen.related.row.id, name: chosen.related.row.name } : null,
         links: chosen.links,
@@ -297,6 +344,86 @@ export function useNpcAskAdapter(): AskAdapter {
     if (outcome.inventoryError) parts.push({ label: "Starter items", ok: false, credits: 0, error: outcome.inventoryError });
     const picture = outcome.portrait === "saved" && outcome.portraitUrl ? { picture: outcome.portraitUrl } : {};
     return { record: { type: "npc", id, name }, route: `/npcs/${id}`, ...picture, parts };
+  }
+
+  /** The page's form as the card's inputs fill it: what the run and the quick create both write from. */
+  function formFor(read: ReturnType<typeof understand>, chosen: ReturnType<typeof decided>, race: string): NpcGenerateForm {
+    return {
+      name: blankIfUnsaid(read.name),
+      race,
+      alignment: blankIfUnsaid(read.alignment),
+      relationship: read.attitude,
+      templateId: read.template.id,
+      location_id: chosen.location?.id ?? null,
+      faction_id: chosen.faction?.id ?? null,
+      faction_role: blankIfUnsaid(read.factionRole) || "Member",
+      related_npc_id: chosen.related?.kind === "npc" ? chosen.related.row.id : null,
+      related_npc_tie: chosen.related && read.relation?.kind === "tie" ? read.relation.choice : DEFAULT_ASSOCIATE,
+      related_npc_kin: chosen.related && read.relation?.kind === "kin" ? read.relation.kin : null,
+      related_pc_id: chosen.related?.kind === "pc" ? chosen.related.row.id : null,
+      second_parent: chosen.secondParent ? personKey(chosen.secondParent.kind, chosen.secondParent.row.id) : null,
+      also_kin: chosen.alsoKin,
+    };
+  }
+
+  /**
+   * "Quick create" (the old generator panel's button): the NPC from the card's inputs with no model, a name drawn from
+   * a short list when none was given and the chosen starter stat block. It reads the same inputs, ties and yes or no
+   * lines as the run, spends nothing, and ends in the same result card.
+   */
+  async function quick(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult> {
+    const campaignId = campaign.activeCampaignId;
+    if (!campaignId) return failedRun("NPC", "No active campaign selected.");
+    const read = understand(proposal);
+    const chosen = decided(read, choices);
+    const form = formFor(read, chosen, npcSpecies(blankIfUnsaid(read.race), peoples.value).race);
+    const template = form.templateId !== "" && form.templateId !== STAT_TEMPLATE_AUTO ? getNpcTemplate(form.templateId) : null;
+    const name = form.name.trim() || randomName();
+    const payload: NpcInsert = {
+      name,
+      campaign_id: campaignId,
+      race: form.race || null,
+      alignment: form.alignment || null,
+      age: read.age === null ? null : String(read.age),
+      occupation: read.role,
+      appearance: null,
+      personality: null,
+      voice: null,
+      backstory: null,
+      notes: read.concept || null,
+      status: "alive",
+      relationship: form.relationship,
+      portrait_url: null,
+      cutout_url: null,
+      portrait_focal_point: null,
+      tags: [],
+      stat_block: template?.stat_block ?? null,
+      location_id: form.location_id,
+      scriptorium_doc_id: null,
+      disguise_name: null,
+      disguise_portrait_url: null,
+      disguise_portrait_focal_point: null,
+      is_revealed: false,
+      player_visible_to: [],
+      player_visible_fields: [],
+    };
+    let created;
+    try {
+      created = await createNpc(payload);
+    } catch (e) {
+      const message = isQuotaExceeded(e)
+        ? "You have reached your limit of NPCs on this plan."
+        : e instanceof Error ? e.message : "The NPC could not be saved.";
+      return failedRun("NPC", message);
+    }
+    const associate = chosen.related && read.relation?.kind === "tie" ? { id: chosen.related.row.id, name: chosen.related.row.name } : null;
+    const linkErrors = [
+      ...await applyNpcLinks(created.id, form, campaignId, associate),
+      ...await applyGeneratorLinks({ kind: "npc", id: created.id }, chosen.links, campaignId),
+    ];
+    const parts: AskRunPart[] = [{ label: "NPC", ok: true, credits: 0 }];
+    if (linkErrors.length) parts.push({ label: "Connections", ok: false, credits: 0, error: `Some connections could not be added: ${linkErrors.join("; ")}` });
+    return { record: { type: "npc", id: created.id, name }, route: `/npcs/${created.id}`, parts };
   }
 
   /** A ticked relative's row, for the prompt's ages and people. */
@@ -330,7 +457,7 @@ export function useNpcAskAdapter(): AskAdapter {
     });
   }
 
-  return { id: "npc", quote, run };
+  return { id: "npc", quote, run, quick };
 }
 
 export default useNpcAskAdapter;

@@ -10,10 +10,6 @@ export const AI_PROMPT_LIMIT_SHORT = 500;
 // Chronicle input is raw session notes — mirror of the edge function's limit.
 export const AI_PROMPT_LIMIT_CHRONICLE = 10000;
 
-export function wrapUserInput(input: string): string {
-  return `<user_input>\n${input}\n</user_input>`;
-}
-
 interface TiptapNode { text?: string; content?: TiptapNode[] }
 
 /**

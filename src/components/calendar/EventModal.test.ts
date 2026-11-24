@@ -3,6 +3,9 @@ import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import EventModal from "./EventModal.vue";
 import type { CalendarEvent } from "@/types/calendar.types";
+import { createPinia, setActivePinia } from "pinia";
+import { useAskFormFillStore } from "@/stores/ui/askFormFill";
+import type { CalendarEventDraft } from "@/ai/useCalendarEventGeneration";
 
 const mocks = vi.hoisted(() => ({
   createEvent: vi.fn().mockResolvedValue(undefined),
@@ -57,7 +60,6 @@ const stubs = {
   EventModalTypePicker: true,
   EventModalDatePicker: true,
   EventModalTravelFields: true,
-  EventModalAiDraft: true,
   DraftConflictNotice: true,
 };
 
@@ -68,6 +70,9 @@ function mountModal(props: Record<string, unknown> = {}) {
 beforeEach(() => {
   for (const m of Object.values(mocks)) m.mockClear();
 });
+
+// The Generate button and the form it fills meet in the Ask store (#1270).
+beforeEach(() => setActivePinia(createPinia()));
 
 describe("EventModal prefill", () => {
   it("opens a new event on the calendar's own date and type without a prefill", async () => {
@@ -281,5 +286,42 @@ describe("EventModal day clamp", () => {
     datePicker(w).vm.$emit("update:endMonth", 2);
     await flushPromises();
     expect(datePicker(w).props("endDay")).toBe(28);
+  });
+});
+
+describe("EventModal Draft with AI card (#1270)", () => {
+  const draft: CalendarEventDraft = { title: "Harvest Moot", event_type: "festival", description: "Reapers sing at dusk.", ai_provenance: null };
+  const filler = () => {
+    const store = useAskFormFillStore();
+    const instance = Object.entries(store.forms).find(([, form]) => form.generatorId === "event_description")?.[0] ?? null;
+    return store.fillerFor<CalendarEventDraft, { dateLabel: string; eventType: string }>("event_description", instance);
+  };
+
+  // Bug caught: the modal stays mounted while shut, so a card could be offered a form nobody could see.
+  it("offers its form to the card only while it is open", async () => {
+    const wrapper = mountModal();
+    expect(filler()).toBeNull();
+    await wrapper.setProps({ modelValue: true });
+    expect(filler()).not.toBeNull();
+    await wrapper.setProps({ modelValue: false });
+    expect(filler()).toBeNull();
+  });
+
+  // Bug caught: the card drafted about a different day than the one the DM picked in the form.
+  it("tells the card the form's date and type", async () => {
+    const wrapper = mountModal({ prefill: { event_type: "world", year: 1495, month: 2, day: 5 } });
+    await wrapper.setProps({ modelValue: true });
+    expect(filler()?.context()).toEqual({ dateLabel: "5 Two, 1495", eventType: "world" });
+  });
+
+  // Bug caught: a draft overwrote the title the DM had typed, as the inline draft never did.
+  it("writes the description, keeps a title the DM typed, and moves only an untouched type", async () => {
+    const wrapper = mountModal({ prefill: { title: "My own title" } });
+    await wrapper.setProps({ modelValue: true });
+    filler()?.apply(draft);
+    await flushPromises();
+    expect(JSON.stringify(wrapper.findComponent({ name: "RichTextEditor" }).props("modelValue"))).toContain("Reapers sing at dusk.");
+    expect((wrapper.find("input").element as HTMLInputElement).value).toBe("My own title");
+    expect(wrapper.findComponent({ name: "EventModalTypePicker" }).props("eventType")).toBe("festival");
   });
 });

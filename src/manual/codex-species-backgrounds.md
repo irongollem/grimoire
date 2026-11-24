@@ -35,9 +35,9 @@ Click **New Species**. A new species opens as a form with **Create** at the top;
 
 ### Generating with AI
 
-With AI turned on for your campaign, click **Generate** on the Species tab and describe the people you have in mind: where they live, what they are known for, what sets them apart. Optionally pick a size and choose whether to paint a portrait. Grimoire drafts a full species and opens it for you to edit, with size, speed, traits, languages and, for 2014 rules, ability score increases and subraces already filled in.
+With AI turned on for your campaign, click **Generate** on the Species tab to open the Familiar with a species card, and describe the people you have in mind: where they live, what they are known for, what sets them apart. Optionally pick a size and choose whether to paint a portrait. Grimoire drafts a full species and opens it for you to edit, with size, speed, traits, languages and, for 2014 rules, ability score increases and subraces already filled in.
 
-The draft follows your campaign's ruleset. A 2014 species carries its own ability score increases and may have subraces. A 2024 species has neither: its bonuses come from the background, and any lineages appear as traits. It is grounded in your campaign setting, costs credits (the cost is shown on the button), and needs AI enabled in Campaign Settings. Treat it as a starting point: read the traits and adjust anything that does not fit your table.
+The draft follows your campaign's ruleset. A 2014 species carries its own ability score increases and may have subraces. A 2024 species has neither: its bonuses come from the background, and any lineages appear as traits. It is grounded in your campaign setting, costs credits (the card shows the cost), and needs AI enabled in Campaign Settings. Treat it as a starting point: read the traits and adjust anything that does not fit your table.
 
 ### Importing species
 
@@ -73,9 +73,9 @@ Click **New Background**. Fields:
 
 ### Generating with AI
 
-With AI turned on for your campaign, click **Generate** on the Backgrounds tab and describe the background: what the character did before adventuring. You can also pick a skill the background should lean on. Grimoire drafts a complete background and opens it for you to edit.
+With AI turned on for your campaign, click **Generate** on the Backgrounds tab to open the Familiar with a background card, and describe the background: what the character did before adventuring. You can also pick a skill the background should lean on. Grimoire drafts a complete background and opens it for you to edit.
 
-The draft follows your campaign's ruleset. A 2014 background gets two skills, tools or languages, starting equipment and a signature feature. A 2024 background gets two skills, one tool, starting equipment, an origin feat and an ability score trio. Skills, tools and languages are always checked against the standard lists. It is grounded in your campaign setting, costs credits (the cost is shown on the button), and needs AI enabled in Campaign Settings. Backgrounds are text only, so there is no portrait option.
+The draft follows your campaign's ruleset. A 2014 background gets two skills, tools or languages, starting equipment and a signature feature. A 2024 background gets two skills, one tool, starting equipment, an origin feat and an ability score trio. Skills, tools and languages are always checked against the standard lists. It is grounded in your campaign setting, costs credits (the card shows the cost), and needs AI enabled in Campaign Settings. Backgrounds are text only, so there is no portrait option.
 
 ### Choosing background books
 

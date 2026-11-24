@@ -46,3 +46,22 @@ const GENERATOR_PAGE: Record<string, string> = {
 export function askGeneratorPage(generatorId: string): string | null {
   return GENERATOR_PAGE[generatorId] ?? null;
 }
+
+/**
+ * Where a generator's records are listed, for a save whose outcome is unknown ("It may have been saved: check the
+ * list"). Null for one whose result is not a record in a list of its own (a voice line).
+ */
+const GENERATOR_LIST: Record<string, string> = {
+  encounter: "/encounters",
+  loot_table: "/dungeon-craft?tab=loot-tables",
+  roll_table: "/dungeon-craft?tab=roll-tables",
+  quest_hooks: "/quests",
+  chronicle: "/notes",
+  recipe: "/crafting",
+  class: "/codex/classes",
+  subclass: "/codex/archetypes",
+};
+
+export function askGeneratorList(generatorId: string): string | null {
+  return GENERATOR_LIST[generatorId] ?? null;
+}

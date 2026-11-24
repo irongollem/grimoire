@@ -1,9 +1,11 @@
 /**
- * Ask Grimoire (#1253): suggested connections for an NPC, as a quote and a run that ends in the NPC's own review.
+ * Ask Grimoire (#1253, #1270): suggested connections for a record, as a quote and a run that ends in the record's own review.
  *
- * The suggestions are `useConnectionSuggestions`' module state, stored under the subject they were asked for, so the
- * Connections block of that NPC's sheet shows them the moment it mounts: "Review suggestions" only has to open the
- * NPC. Accepting writes the tie through `useCreateConnection`, one at a time, and is the DM's alone.
+ * The Suggest button of a Connections block opens this card with its record as the target (any kind a tie can join:
+ * a person, a faction, a place, a deity, an item, a canon entry) and the steer as the concept. The suggestions are
+ * `useConnectionSuggestions`' module state, stored under the subject they were asked for, so the Connections block of
+ * that record's sheet shows them the moment it mounts: "Review suggestions" only has to open the sheet. Accepting
+ * writes the tie through `useCreateConnection`, one at a time, and is the DM's alone.
  */
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskQuoteLine, AskRunResult } from "@/lib/ask/askAdapter";
@@ -15,6 +17,8 @@ import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { useConnectionSuggestions } from "@/ai/useConnectionSuggestions";
 import { useCampaignStore } from "@/stores/campaign";
 import { useConnectionSuggestionsQuote } from "@/composables/ai/quotes/connectionSuggestionsQuote";
+import { dmSheetPath, kindNoun } from "@/lib/worldWeb/kinds";
+import { LINK_KINDS, type LinkKind } from "@edge-shared/worldLinkCatalogue.ts";
 
 export function useConnectionSuggestionsAskAdapter(): AskAdapter {
   const campaign = useCampaignStore();
@@ -22,10 +26,11 @@ export function useConnectionSuggestionsAskAdapter(): AskAdapter {
   const { blockFor } = useAskGate(null, "connection suggestion");
   const { suggest, forSubject } = useConnectionSuggestions();
 
-  /** The NPC the proposal is about; anything else (or nothing) is no one to suggest for. */
-  function subjectOf(proposal: AskProposal) {
+  /** The record the proposal is about, when it is a kind a tie can join; anything else (a quest, nothing) is no one to suggest for. */
+  function subjectOf(proposal: AskProposal): { kind: LinkKind; id: string; name: string } | null {
     const target = proposal.target;
-    return target && target.type === "npc" ? target : null;
+    const kind = target === undefined ? undefined : LINK_KINDS.find((k) => k === target.type);
+    return target && kind ? { kind, id: target.id, name: target.name } : null;
   }
 
   function quote(proposal: AskProposal): AskQuote {
@@ -34,14 +39,14 @@ export function useConnectionSuggestionsAskAdapter(): AskAdapter {
     const concept = proposal.concept.trim();
 
     const lines: AskQuoteLine[] = [];
-    if (subject) lines.push({ label: "NPC", value: subject.name, credits: null });
+    if (subject) lines.push({ label: kindNoun(subject.kind), value: subject.name, credits: null });
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     if (concept !== "") lines.push({ label: "Steer", value: concept, credits: null });
     lines.push(...priced.lines);
 
     let block = blockFor({ total: priced.total });
     if (!block && subject === null) {
-      block = { reason: "missing", message: "Open the NPC these are for first." };
+      block = { reason: "missing", message: "Open the record these are for first." };
     } else if (!block && concept.length > AI_PROMPT_LIMIT_SHORT) {
       block = { reason: "missing", message: `Shorten the steer to ${AI_PROMPT_LIMIT_SHORT} characters.` };
     }
@@ -54,9 +59,9 @@ export function useConnectionSuggestionsAskAdapter(): AskAdapter {
     if (current.block) return failedRun("Connections", current.block.message);
     if (isAnyAiGenerating.value) return failedRun("Connections", "Another generation is already in progress.");
     const subject = subjectOf(proposal);
-    if (subject === null) return failedRun("Connections", "Open the NPC these are for first.");
+    if (subject === null) return failedRun("Connections", "Open the record these are for first.");
 
-    const ref = { kind: "npc" as const, id: subject.id };
+    const ref = { kind: subject.kind, id: subject.id };
     const mine = forSubject(() => ref);
     try {
       const ok = await suggest(ref, proposal.concept);
@@ -71,7 +76,7 @@ export function useConnectionSuggestionsAskAdapter(): AskAdapter {
     const label = `${countWord(made)} ${made === 1 ? "connection is" : "connections are"} ready.`;
     return {
       record: null,
-      route: `/npcs/${subject.id}`,
+      route: dmSheetPath(ref),
       parts: [{ label, ok: true, credits: current.total === null ? 0 : current.total }],
     };
   }

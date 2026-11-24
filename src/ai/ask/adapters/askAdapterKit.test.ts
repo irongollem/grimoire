@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
-import { askLinkLines, chosenAskLinks, conceptBlock, failedRun, matchKey, matchOption, picturePart, readAskLinks, resolveAskLinks, sameWord, saveFailure, spent } from "./askAdapterKit";
+import { toAskLinks, askLinkLines, chosenAskLinks, conceptBlock, failedRun, matchKey, matchOption, picturePart, readAskLinks, resolveAskLinks, sameWord, saveFailure, spent } from "./askAdapterKit";
 
 const isQuotaExceeded = vi.hoisted(() => vi.fn((e: unknown) => e instanceof Error && e.message === "quota"));
 vi.mock("@/lib/quotaError", () => ({ isQuotaExceeded }));
@@ -123,5 +123,15 @@ describe("links", () => {
     expect(chosenAskLinks(resolved)).toHaveLength(1);
     expect(chosenAskLinks(resolved, { [key]: false })).toEqual([]);
     expect(askLinkLines(resolved, { [key]: false })[0].choice).toEqual({ key, on: false });
+  });
+});
+
+describe("toAskLinks", () => {
+  const A = "00000000-0000-4000-8000-0000000000a1";
+  // Bug caught: the form writing a word the contract reads back as a different tie (or none), so a tie the DM made vanishes on re-quote.
+  it("writes the word readAskLinks reads back to the same choice", () => {
+    const written = toAskLinks(resolveAskLinks("npc", [{ kind: "npc", id: A, relation: "apprentice_of" }], new Map([[`npc:${A}`, "Brenna"]])));
+    expect(written).toEqual([{ kind: "npc", id: A, relation: "apprentice_of" }]);
+    expect(readAskLinks("npc", { links: written })).toEqual(written);
   });
 });

@@ -38,7 +38,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="spellsUi.spellGeneratorOpen = true"
+        @click="openGenerator('spell')"
       />
       <ListCreateButton
         label="New Spell"
@@ -128,6 +128,7 @@ import { RouterView } from "vue-router";
 import { useDetailModal } from "@/composables/useDetailModal";
 import { IconGenerate, IconLibrary, IconListTodo } from '@/lib/icons';
 import { useSpellsUiStore } from "@/stores/ui/spells";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
 import { useListLayout } from "@/composables/useListLayout";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
@@ -152,6 +153,7 @@ import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignF
 import { useCampaignStore } from "@/stores/campaign";
 
 const spellsUi = useSpellsUiStore();
+const { open: openGenerator } = useOpenGenerator();
 const layout = useListLayout("spells", "grid");
 
 // Whether to keep drawing the grid: behind the read modal yes, under a

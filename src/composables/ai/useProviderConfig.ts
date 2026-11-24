@@ -15,12 +15,6 @@ export interface ProviderConfigRow {
   image_enabled: boolean;
 }
 
-export const PROVIDER_DISPLAY: Record<string, string> = {
-  openai:    "OpenAI",
-  anthropic: "Anthropic",
-  gemini:    "Google Gemini",
-};
-
 export function useProviderConfig() {
   const query = useQuery({
     queryKey: ["provider-config"],

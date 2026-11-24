@@ -7,7 +7,6 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
 import {
   captureFailureMessage,
   captureImageGenerationContext,
@@ -27,9 +26,7 @@ registerAiGenerator({
   ..._state,
   label: "Location",
   entityRoute: (id) => placeRoute(id),
-  openPanel: () => {
-    useGeneratorUiStore().locationGeneratorOpen = true;
-  },
+  // The generator is a card in the Familiar now: the badge brings the DM back to it.
 });
 
 // ────────────────────────────────────────────────────────────────────────────

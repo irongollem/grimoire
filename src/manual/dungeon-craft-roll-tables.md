@@ -98,12 +98,12 @@ Once a question is closed, players can change nothing.
 
 ## AI roll table generator
 
-Click **Generate** to open the Roll Table Generator panel. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost, and if AI is off, the panel points you at the toggle instead of the form:
+Click **Generate** to open the Familiar on the right with a roll table card. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost. If AI is off, the card points you at the toggle.
 
-1. Write a **Concept**: a one-line prompt (e.g. "forest road at night, bandits active in the region, levels 3–5").
+1. Write what to make: a one-line prompt (e.g. "forest road at night, bandits active in the region, levels 3–5").
 2. Pick a **Die**: d6, d8, d10, d12, or d20 (the manual editor above also offers d4 and d100, but the generator's choices are limited to these five).
 
-The AI returns a full table (name, tags, a one-line description, and entries whose ranges cover the whole die with no gaps or overlaps), grounded in your campaign's own NPCs, locations, and factions where relevant. Chips under the preview show which campaign entities it recognised; an unmatched name renders dashed and marked "new" rather than being silently dropped, though nothing is saved from those chips automatically. Click **Create Table** to save it (scoped to your active campaign); you'll need to link any encounters by hand afterward.
+The AI returns a full table (name, tags, a one-line description, and entries whose ranges cover the whole die with no gaps or overlaps), grounded in your campaign's own NPCs, locations, and factions where relevant. Chips in the preview show which campaign entities it recognised; an unmatched name renders dashed and marked "new" rather than being silently dropped, though nothing is saved from those chips automatically. Click **Create Table** to save it (scoped to your active campaign); you'll need to link any encounters by hand afterward.
 
 ## Placing a table in your world
 

@@ -8,10 +8,12 @@
 
   <!-- Phones: a sheet above the bottom nav. -->
   <template v-if="isMobile">
-    <div v-if="ui.open" class="fixed inset-0 z-40 bg-black/40" @click="ui.closePanel()" />
+    <!-- The sheet takes its place in the modal stack: above a modal it was opened from, below anything opened from inside it (a confirm, the paywalls, the report form). -->
+    <div v-if="ui.open" class="fixed inset-0 bg-black/40" :style="{ zIndex: sheetZ ?? undefined }" @click="ui.closePanel()" />
     <div
       v-if="ui.open"
-      class="fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))] inset-x-0 z-50 flex h-[65vh] flex-col rounded-t-2xl border-t border-border bg-card"
+      :class="['fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))] inset-x-0 flex flex-col rounded-t-2xl border-t border-border bg-card', fullSheet ? 'top-[calc(env(safe-area-inset-top)+0.5rem)]' : 'h-[65vh]']"
+      :style="{ zIndex: sheetZ ?? undefined }"
       role="dialog"
       aria-label="Familiar"
       data-testid="ask-panel"
@@ -45,18 +47,22 @@ import { useTableVoiceRates } from "@/composables/table/useTableVoice";
 import { askContextFor } from "@/composables/ask/askContext";
 import { useAskUsage } from "@/composables/ask/askUsage";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
+import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useAskUiStore } from "@/stores/ui/ask";
+import { useModalStack } from "@/components/common/overlays/modalStack";
 import AskSurface from "@/components/ask/AskSurface.vue";
 import AskResultNotice from "@/components/ask/AskResultNotice.vue";
 
 const ui = useAskUiStore();
+const { confirm } = useConfirm();
 const route = useRoute();
 const router = useRouter();
 const campaign = useCampaignStore();
 const isMobile = useIsMobile();
 const appUi = useAppUiStore();
+const sheetZ = useModalStack(() => isMobile.value && ui.open);
 const docked = computed(() => !isMobile.value && (ui.open || appUi.chatOpen));
 const { openOutOfCredits } = useOutOfCredits();
 const usage = useAskUsage();
@@ -91,6 +97,9 @@ const convo = useAskConversation({
   },
 });
 
+/** On a phone a card a button opened, still to be filled in, takes the whole sheet: its form is long and its price stays in view. */
+const fullSheet = computed(() => convo.items.value.some((i) => i.kind === "proposal" && i.origin === "button" && i.state === "quote"));
+
 const freeLeft = computed(() => convo.freeLeft.value ?? usage.freeLeft.value);
 // The count stays until it runs out: switching to the cost sentence after the first question read as if the free
 // ones were already gone (maintainer, 23 Nov 2026).
@@ -99,6 +108,20 @@ const allowanceLine = computed(() => {
   if (freeLeft.value === 0) return "No free questions left today. An answer now costs what it uses, charged in whole credits.";
   return `${freeLeft.value} of ${FREE_ASKS_PER_DAY} free questions left today`;
 });
+
+/**
+ * Starts a fresh conversation unless that would lose something paid for: never while a generation is in flight (the
+ * button is disabled, and a search or Suggest waits the same way), and only on a yes while one awaits Create. Starting
+ * over silences the old answer. Resolves whether it started over.
+ */
+async function startOver(): Promise<boolean> {
+  if (convo.generating.value) return false;
+  const waiting = convo.holding.value;
+  if (waiting !== null && !(await confirm(`Discard the ${waiting} you have not saved? What it cost is spent.`, { title: "Start over?", confirmLabel: "Discard it" }))) return false;
+  voice.stop();
+  convo.newConversation();
+  return true;
+}
 
 /** What Oolu's voice costs a minute, when the server speaks with ElevenLabs at all; null hides the switch. */
 const voicePerMinute = computed(() => (rates.data.value?.on === true ? rates.data.value.perMinute.elevenlabs : null));
@@ -114,6 +137,7 @@ const surfaceProps = computed(() => ({
   items: convo.items.value,
   adapters,
   running: convo.running.value,
+  startingOverBlocked: convo.generating.value,
   // While Oolu reads aloud the owl moves with the real audio; otherwise with the words arriving.
   // (Not while it has gone quiet: then the words arriving are all there is.)
   speaking: voice.on.value && voiceNote.value === null ? voice.speaking.value : convo.speaking.value,
@@ -124,10 +148,7 @@ const surfaceProps = computed(() => ({
 }));
 
 const surfaceHandlers = {
-  new: () => {
-    voice.stop();
-    convo.newConversation();
-  },
+  new: () => void startOver(),
   voice: (on: boolean) => voice.setOn(on),
   close: () => ui.closePanel(),
   // A new question silences the old answer.
@@ -140,6 +161,13 @@ const surfaceHandlers = {
   confirm: (id: number) => void convo.confirm(id),
   cancel: convo.cancel,
   adjust: convo.adjust,
+  concept: convo.setConcept,
+  quick: (id: number) => void convo.quick(id),
+  create: (id: number) => void convo.createPreview(id),
+  again: (id: number) => void convo.againPreview(id),
+  act: (id: number, section: number, row: number) => void convo.actOnRow(id, section, row),
+  discard: convo.discardPreview,
+  pick: convo.choosePreview,
   decide: convo.decide,
   retry: (id: number, i: number) => void convo.retryPart(id, i),
   leave: convo.leavePart,
@@ -166,9 +194,23 @@ watch(
     if (pending === null) return;
     const text = ui.takePendingQuery();
     if (text === null) return;
-    voice.stop();
-    convo.newConversation();
-    void convo.send(text);
+    // When a generation is in flight or awaiting a yes, the question joins the thread it is in.
+    void startOver().then(() => {
+      voice.stop();
+      return convo.send(text);
+    });
+  },
+  { immediate: true },
+);
+
+// A page's Generate button leaves a generator's card to open. It joins the thread (the DM may be mid-conversation)
+// and sends nothing: no model is asked and nothing is charged until the card's gilt button is pressed.
+watch(
+  () => ui.pendingGenerator,
+  (pending) => {
+    if (pending === null) return;
+    const taken = ui.takePendingGenerator();
+    if (taken !== null) convo.openGenerator(taken);
   },
   { immediate: true },
 );
@@ -177,10 +219,7 @@ watch(
 watch(
   () => ui.prefill,
   (text) => {
-    if (text !== null) {
-      voice.stop();
-      convo.newConversation();
-    }
+    if (text !== null) void startOver();
   },
   { immediate: true },
 );

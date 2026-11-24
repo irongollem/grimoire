@@ -1,13 +1,14 @@
 /**
  * Ask Grimoire (#1253): the Item Generator, as a quote and a run.
  *
- * A seam over the page's own workflow: the price is `useItemQuote`'s (the one `ItemGeneratorPanel` shows), the gates
+ * A seam over the page's own workflow: the price is `useItemQuote`'s (the one the card shows), the gates
  * are the page's (`useAskGate`, which also refuses a campaign whose game system has no 5e rules), and the run is
  * `useGenerateItem`, the generate-then-create step the page calls. The item is saved before its picture is judged:
  * a failed picture leaves the item and a part that paints the saved row once with the page's own paint flow.
  *
- * The contract's rarity reads "very rare" with a space and the app's key is `very_rare`, so both are matched through
- * `matchKey`; a type or rarity the app has no key for is not understood (the description still carries it).
+ * The contract's rarities are the app's own keys (`very_rare`, and "mundane" too); a typed request may still say
+ * "very rare", so both are matched through `matchKey`. A type or rarity the app has no key for is not understood (the
+ * description still carries it).
  */
 import { ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";

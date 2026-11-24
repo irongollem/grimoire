@@ -23,7 +23,7 @@
               v-if="campaignStore.isAiEnabled"
               :icon="IconGenerate"
               label="Generate"
-              @click="generatorsUi.customRuleGeneratorOpen = true"
+              @click="openGenerator('house_rule')"
             />
             <ListCreateButton
               label="New Rule"
@@ -63,7 +63,7 @@ import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
 import { useListLayout } from "@/composables/useListLayout";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
 import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { useCampaignStore } from "@/stores/campaign";
 import TabBar from "@/components/common/controls/TabBar.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
@@ -86,7 +86,7 @@ type TabId = (typeof TABS)[number]["id"];
 // The Custom Rules tab renders its list through the same key.
 const customRulesLayout = useListLayout("custom-rules", "grid");
 const route = useRoute();
-const generatorsUi = useGeneratorUiStore();
+const { open: openGenerator } = useOpenGenerator();
 const campaignStore = useCampaignStore();
 const router = useRouter();
 

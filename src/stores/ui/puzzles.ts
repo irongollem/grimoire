@@ -21,10 +21,7 @@ export const usePuzzlesUiStore = defineStore("ui:puzzles", () => {
     puzzlesFilterDifficulty.value = "";
   }
 
-  const puzzleGeneratorOpen = ref(false);
-
   return {
-    puzzleGeneratorOpen,
     puzzlesSearch,
     puzzlesFilterType,
     puzzlesFilterDifficulty,

@@ -65,6 +65,15 @@ describe("AskResultCard", () => {
     ...over,
   });
 
+  // Bug caught: the extra ways in (View quest, Build flow) dropped, so a result with several places to go offered only one.
+  it("draws each extra link beside the main Open", () => {
+    const w = mount(AskResultCard, { props: { item: item({ links: [{ label: "View Hook 1", route: "/quests/a" }, { label: "View Hook 2", route: "/quests/b" }] }) }, global: { stubs } });
+    expect(w.findAll('[data-testid="ask-result-link"]').map((l) => l.text())).toEqual(["View Hook 1", "View Hook 2"]);
+    expect(w.text()).toContain("Open NPC");
+    const none = mount(AskResultCard, { props: { item: item({ route: null, links: undefined }) }, global: { stubs } });
+    expect(none.find('[data-testid="ask-result-link"]').exists()).toBe(false);
+  });
+
   // Bug caught: a failed part shown as success, or its retry offered without its price.
   it("marks a failed part with its error and a priced retry", () => {
     const w = mount(AskResultCard, { props: { item: item() }, global: { stubs } });
@@ -120,6 +129,28 @@ describe("AskPending", () => {
     expect(w.text()).toContain("Mara is ready.");
     await w.get('[data-testid="ask-landed-jump"]').trigger("click");
     expect(w.emitted("jump")).toEqual([[7]]);
+  });
+
+  // Bug caught: the folded line not saying what was asked or what it cost, so a run's price is invisible once it folds.
+  it("folds a held generation to one line of what was asked and its cost, and opens the options on request", async () => {
+    const w = mount(AskPending, {
+      props: { state: "previewing", action: "Create encounter", asked: "Goblin ambush", credits: 2, editable: true },
+      slots: { options: '<div data-testid="the-options" />' },
+    });
+    expect(w.get('[data-testid="ask-landed"]').text()).toContain("Create encounter: Goblin ambush · 2 credits");
+    expect(w.find('[data-testid="the-options"]').exists()).toBe(false);
+    await w.get('[data-testid="ask-fold-change"]').trigger("click");
+    expect(w.find('[data-testid="the-options"]').exists()).toBe(true);
+  });
+
+  // Bug caught: a free run (Quick create) saying "0 credits", or a finished run losing its price.
+  it("says what a finished run cost, and nothing for a free one", () => {
+    expect(mount(AskPending, { props: { state: "done", action: "Create NPC", landedName: "Mara", credits: 1 } }).text()).toContain("Mara is ready. · 1 credit");
+    expect(mount(AskPending, { props: { state: "done", action: "Create NPC", landedName: "Mara", credits: 0 } }).text()).not.toContain("credit");
+  });
+
+  it("says a discarded generation saved nothing, with what it cost", () => {
+    expect(mount(AskPending, { props: { state: "discarded", action: "Create encounter", credits: 1 } }).text()).toContain("discarded. Nothing was saved. · 1 credit");
   });
 
   it("says a failed run did not finish", () => {

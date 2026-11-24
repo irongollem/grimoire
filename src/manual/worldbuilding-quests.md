@@ -52,7 +52,7 @@ Click **New Quest** to open the full-page quest editor. Choose how you want to s
 - **Paste a page**: copy a page from an adventure book into the box. Grimoire reads it, proposes a title and premise for the quest (with its story beats and routes already wired from the page's prose, each route named for what the party does and what it costs, and each beat's **Rumor copy** and **Reveal copy** written for you to check before you share it). The page's premise, goals and prep notes come in as the quest's own notes. Tick **This is my own writing** and your prose is kept word for word; leave it off for a published book, whose scenes are put in other words, in full, and, if the page mentions other things worth keeping, offers to link, create, or ignore any NPCs, locations, or monsters it found, the same review each entity kind gets in Document Import. If your campaign already has a same-titled quest, you're warned before you create a duplicate.
 - **Design it**: a back-and-forth conversation with the AI that proposes a full beat tree from your description. See [Quest Designer (AI)](#quest-designer-ai).
 
-There's a fourth way that doesn't require opening New Quest: click **Generate** on the quest list to open the **Quest Generator** drawer (needs the campaign's AI Assistant switched on). Fill in the party level (read from your party), an optional **Quest Giver**, **Location**, and a free-text **Theme**, then **Generate Quest Hooks**: the button shows its credit cost before you confirm. Grimoire proposes exactly five hooks, each with a premise, suggested objectives, and a preview of its story beats and how they connect. Click **Create Quest** on any hook to land it in your campaign with its beats, routes, and objectives already wired; **View Quest →** and **Build flow →** open it once created.
+There's a fourth way that doesn't require opening New Quest: click **Generate** on the quest list to open the Familiar on the right with a quest card (needs the campaign's AI Assistant switched on). The card says the party level it writes for (read from your party). Fill in an optional **Quest giver**, **Location** and a free-text **Theme**, then press the gilt button. The card shows its credit cost first. Grimoire proposes exactly five hooks, each with a premise, suggested objectives, and a preview of its story beats and how they connect. Click **Create Quest** on any hook to land it in your campaign with its beats, routes, and objectives already wired; **View quest** opens it once created.
 
 ## The quest page
 
@@ -132,7 +132,7 @@ Nothing about a quest is visible to players until one of its beats is rumored or
 
 > A quest's premise is capped at one line on purpose: it's what a DM (and a player) reads to remember what the quest is without opening it. Put backstory and lore in the quest's **Notes** or on the beat it belongs to.
 
-- The **Generate** drawer works on every plan, billed to credits, the same as **Type it** and **Paste a page**.
+- The quest card in the Familiar works on every plan, billed to credits, the same as **Type it** and **Paste a page**.
 - Deleting an objective that a consequence targets is safe: the rule that referenced it is cleaned up along with it.
 - A quest can be a sub-quest of another via **Part of quest**, with no depth limit, but a sub-quest doesn't share beats or a live thread with its parent: each is its own story flow.
 - Free plans have a cap on how many quests you can create: see [Billing & Subscription](#billing-subscription).

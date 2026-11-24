@@ -1,7 +1,7 @@
 /**
  * Ask Grimoire (#1253): the Faction Generator, as a quote and a run.
  *
- * A seam over the page's own workflow: the price is `useFactionQuote`'s (the one `FactionGeneratorPanel` shows), the
+ * A seam over the page's own workflow: the price is `useFactionQuote`'s (the one the card shows), the
  * gates are the page's (`useAskGate`, with the plan's faction quota), and the run is `useGenerateFaction`.
  *
  * The page has pickers of existing records, and the contract gives the same as ids: `leader_npc_id` seats an existing
