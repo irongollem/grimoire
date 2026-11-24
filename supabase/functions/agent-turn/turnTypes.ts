@@ -270,6 +270,11 @@ export interface AgentTurnDeps {
   ): Promise<{ encounterId: string; name: string }>;
   /** Lets the conversation go of its fight (null), once its aftermath has been told. */
   setFight(sessionId: string, campaignId: string, encounterId: string | null): Promise<void>;
+  /**
+   * Closes a fight's board row without an outcome, as the DM's own Abandon does (rolls cleared, hit points and
+   * conditions left): a correction said the fight never happened. Nothing when the fight has no row or is over.
+   */
+  abandonFight(campaignId: string, encounterId: string): Promise<void>;
   /** The campaign's handouts the played character does not hold yet. */
   loadHandouts(campaignId: string, memberId: string): Promise<HandoutOffer[]>;
   /** The campaign's own picture of a record, with the name it is shown under; null when there is none. */

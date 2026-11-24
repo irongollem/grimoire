@@ -215,6 +215,31 @@ export async function finishFight(admin: SupabaseClient, campaignId: string, enc
 }
 
 /**
+ * Closes a fight's board row with no outcome, the writes of the encounter command's `abandon`: not running, ended,
+ * a pending reaction cleared (it belonged to this fight), and the party's rolled initiative blanked. Hit points and
+ * conditions stay as they were. A fight with no row (set up, never opened) or one already ended has nothing to close.
+ * Guarded by the row's version: a board that wrote meanwhile wins, and the next read of the sitting sees the truth.
+ */
+export async function abandonFight(admin: SupabaseClient, campaignId: string, encounterId: string): Promise<void> {
+  const row = await admin.from("encounter_state").select("id, version, ended_at, combatants_live").eq("encounter_id", encounterId).eq("campaign_id", campaignId).maybeSingle();
+  if (row.error) throw row.error;
+  if (!row.data || row.data.ended_at !== null) return;
+  const { error } = await admin
+    .from("encounter_state")
+    .update({ is_running: false, ended_at: new Date().toISOString(), pending_reaction: null, version: (row.data.version as number) + 1 })
+    .eq("id", row.data.id as string)
+    .eq("version", row.data.version as number);
+  if (error) throw error;
+  const live: unknown = row.data.combatants_live;
+  const members = (Array.isArray(live) ? live : []).flatMap((c: unknown) =>
+    typeof c === "object" && c !== null && (c as { type?: unknown }).type === "player" && typeof (c as { party_member_id?: unknown }).party_member_id === "string" ? [(c as { party_member_id: string }).party_member_id] : [],
+  );
+  if (members.length === 0) return;
+  const cleared = await admin.from("party_members").update({ current_initiative: null }).in("id", members).eq("campaign_id", campaignId);
+  if (cleared.error) throw cleared.error;
+}
+
+/**
  * Lays a won fight's loot notes where it was fought, as ordinary placed loot (`encounterLoot.ts`). Once per
  * encounter: rows it laid earlier, taken or not, mean there is nothing more to lay. An encounter with no place of
  * its own lies where the party stands; with no place at all there is nowhere to lay it.

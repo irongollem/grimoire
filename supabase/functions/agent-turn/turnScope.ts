@@ -4,6 +4,7 @@
 
 import type { BroughtOut } from "../_shared/agent/canon.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
+import type { CallOffHow } from "../_shared/agent/callOffFight.ts";
 import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
 import type { HazardRules } from "../_shared/agent/hazard.ts";
 import type { HandoutOffer, PlaceShare } from "../_shared/agent/show.ts";
@@ -48,6 +49,8 @@ export interface TurnEffects {
   handed: HandsChange[];
   // What the narrator's ruling does to the fight on the board; carried out by the page once the turn is kept.
   fightChange: FightChange | null;
+  // How a correction ends the fight (the player overruled it); carried out only once the turn is kept.
+  fightCalledOff: CallOffHow | null;
   // What the narrator's roll does to the played character's hit points; written only once the turn is kept.
   hitPointChange: HitPointChange | null;
   // People the narrator gave a record this turn; made only once the turn is kept.
@@ -79,6 +82,7 @@ export function newEffects(): TurnEffects {
     narratorKeeps: false,
     handed: [],
     fightChange: null,
+    fightCalledOff: null,
     hitPointChange: null,
     introduced: [],
     madeHazards: [],

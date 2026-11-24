@@ -13,6 +13,7 @@ import {
 } from "../_shared/agent/hands.ts";
 import type { HandsStore } from "./handsIo.ts";
 import { HIT_POINTS_TOOL, HIT_POINTS_TOOL_NAME, hitPointsText, parseHitPointChange, parseSetRight, rollTotal, SET_RIGHT_TOOL, SET_RIGHT_TOOL_NAME, setRightText, unaccountedThing, type HitPointChange } from "../_shared/agent/hitPoints.ts";
+import { CALL_OFF_FIGHT_TOOL, CALL_OFF_FIGHT_TOOL_NAME, calledOffText, parseCallOff, type CallOffHow } from "../_shared/agent/callOffFight.ts";
 import { cannotAttempt, changedText, FIGHT_CHANGE_TOOL, parseFightChange, type FightChange, type TurnBudget } from "../_shared/agent/fightChange.ts";
 import type { FightState } from "../_shared/agent/fight.ts";
 import { alreadyRecorded, existsText, INTRODUCE_TOOL, INTRODUCE_TOOL_NAME, INTRODUCTIONS_PER_TURN, introducedText, parseIntroduction, type Introduction } from "../_shared/agent/introduce.ts";
@@ -94,6 +95,11 @@ export interface TurnToolsInput {
     rolled: boolean | null;
     onChange(change: FightChange): void;
   } | null;
+  /**
+   * The fight on the sitting, running or only set up, when the player is correcting: the correction may call it off
+   * with no roll (`callOffFight.ts`). Null otherwise, and then the tool is not offered.
+   */
+  callOffFight: { fight: FightState; onCallOff(how: CallOffHow): void } | null;
   /** Takes a person the narrator gives a record; the record is made when the turn is kept. */
   onIntroduce(intro: Introduction): void;
   /** The fights in view and where a started one goes; null when no fight can be started, and then the tool is not offered. */
@@ -464,11 +470,25 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   const changeFight = (toolInput: Record<string, unknown>) => {
     if (input.fightChange === null) return { content: "No fight is being fought, so there is nothing to change.", isError: true };
     if (fightChanged) return { content: "The fight was already changed this turn. Tell what happens and end your reply.", isError: true };
+    if (fightCalledOff) return { content: "The fight was already called off in this reply, so it cannot also be changed.", isError: true };
     const parsed = parseFightChange(input.fightChange.fight, input.fightChange.budget, toolInput, { player: input.fightChange.rolled, byNarrator: narratorRolled });
     if (!parsed.ok) return { content: parsed.error, isError: true };
     fightChanged = true;
     input.fightChange.onChange(parsed.value);
     return { content: parsed.says ?? changedText(parsed.value), isError: false };
+  };
+
+  // Once a reply, only in a correction, and never beside fight_change: the fight cannot be ruled on and also not have happened.
+  let fightCalledOff = false;
+  const callOffFight = (toolInput: Record<string, unknown>) => {
+    if (!input.callOffFight || input.correcting !== true) return { content: "A fight is called off only in a correction, and only while one is set.", isError: true };
+    const parsed = parseCallOff(toolInput);
+    if (!parsed.ok) return { content: parsed.error, isError: true };
+    if (fightCalledOff) return { content: "The fight was already called off in this reply. Tell what happens and end your reply.", isError: true };
+    if (fightChanged) return { content: "The fight was already changed in this reply with fight_change, so it cannot also be called off.", isError: true };
+    fightCalledOff = true;
+    input.callOffFight.onCallOff(parsed.value);
+    return { content: calledOffText(parsed.value, input.callOffFight.fight), isError: false };
   };
 
   // A person the narrator made up gets a record, once the name is known to be new (`introduce.ts`).
@@ -643,7 +663,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, BRING_OUT_TOOL, CANON_LOOKUP_TOOL, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.onHazard === undefined ? [] : [HAZARD_TOOL]), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.makeMap ? [MAKE_MAP_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), ...(input.onDaysTakenBack && input.correcting === true ? [TAKE_DAYS_BACK_TOOL] : []), ...(input.quests !== null && input.fireHeld === true ? [FIRE_CONSEQUENCE_TOOL] : []), ...(input.rulings ? [RULE_INVENTION_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, BRING_OUT_TOOL, CANON_LOOKUP_TOOL, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.callOffFight && input.correcting === true ? [CALL_OFF_FIGHT_TOOL] : []), ...(input.onHazard === undefined ? [] : [HAZARD_TOOL]), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.makeMap ? [MAKE_MAP_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), ...(input.onDaysTakenBack && input.correcting === true ? [TAKE_DAYS_BACK_TOOL] : []), ...(input.quests !== null && input.fireHeld === true ? [FIRE_CONSEQUENCE_TOOL] : []), ...(input.rulings ? [RULE_INVENTION_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
@@ -675,6 +695,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (floorKept && SPEECH_TOOL_NAMES.has(name)) {
         return Promise.resolve({ content: "You already said they go on: the next of them speaks in the next reply, not this one. End your reply now.", isError: true });
       }
+      if (name === CALL_OFF_FIGHT_TOOL_NAME) return Promise.resolve(callOffFight(toolInput));
       if (input.fightChange && name === FIGHT_CHANGE_TOOL.name) return Promise.resolve(changeFight(toolInput));
       if (input.hitPoints && name === HIT_POINTS_TOOL_NAME) return changeHitPoints(toolInput);
       if (name === SET_RIGHT_TOOL_NAME) return Promise.resolve(setRight(toolInput));

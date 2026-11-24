@@ -248,6 +248,7 @@ interface Harness {
   fightSets: Array<{ sessionId: string; campaignId: string; encounterId: string | null }>;
   /** Prepared fights marked as fought. */
   finished: string[];
+  abandoned: string[];
   /** The fights whose loot was laid where they were fought. */
   laidLoot: { encounterId: string; placeId: string | null; held: string }[];
   /** Handouts given for real, once their turn was kept. */
@@ -399,6 +400,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     startedFights: [],
     fightSets: [],
     finished: [],
+    abandoned: [],
     laidLoot: [],
     pursuits: [],
     screenedOutput: [],
@@ -566,6 +568,9 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     },
     finishFight: async (_campaignId, encounterId) => {
       h.finished.push(encounterId);
+    },
+    abandonFight: async (_campaignId, encounterId) => {
+      h.abandoned.push(encounterId);
     },
     loadPrologue: async (campaignId) => {
       if (h.state.prologueThrows) throw new Error("db down");
@@ -4083,6 +4088,111 @@ describe("the story turns into a fight", () => {
       h.state.saveThrows = true;
       await play(h, { body: rolling(13) });
       expect(h.events.some((e) => e.type === "fight_change")).toBe(false);
+    });
+  });
+
+  // #1021 row 23: "The Sentry never noticed me; I slipped past it" reached the story and the record but left the fight
+  // set on the sitting, because fight_change needs the player's roll and a running board.
+  describe("a correction calling off the fight", () => {
+    const standing = (phase: "running" | "waiting"): FightsInView => ({
+      prepared: [],
+      fight: { encounterId: FIGHT, name: "The Watching Pack", phase, round: phase === "running" ? 2 : null, fighters: [
+        { name: "Wren Ashfield", side: "party", hp: 20, maxHp: 24 },
+        { name: "Giant Rat 1", side: "enemy", hp: 5, maxHp: 7 },
+      ] },
+    });
+    const callOff = (how: string): ModelStep => step(10, { blocks: [{ type: "tool_call", id: "c1", name: "call_off_fight", input: { how } }], stop: "tool_calls" });
+    const CORRECTION = { campaignId: CAMPAIGN, sessionId: SESSION, message: "The rats never noticed me; I slipped past into the storeroom.", mode: "correct" };
+    const fighting = (script: Script, phase: "running" | "waiting" = "running", over: Partial<SessionRow> = {}): Harness => {
+      const h = played(script, { fight_encounter_id: FIGHT, ...over });
+      h.state.fights = standing(phase);
+      return h;
+    };
+    const names = (h: Harness) => h.requests[0].tools.map((t) => t.name);
+
+    // Bug caught: the tool offered to a player who was not correcting (a way to end any fight with no roll), or to a
+    // correction in a story with no fight set; and a fight only set up, not yet running, left out of reach.
+    it("is offered in a correction while a fight is set, running or not, and nowhere else", async () => {
+      for (const phase of ["running", "waiting"] as const) {
+        const h = fighting([step(10)], phase);
+        await play(h, { body: CORRECTION });
+        expect(names(h)).toContain("call_off_fight");
+      }
+      const notCorrecting = fighting([step(10)]);
+      await play(notCorrecting, { body: BODY });
+      expect(names(notCorrecting)).not.toContain("call_off_fight");
+      const noFight = played([step(10)]);
+      await play(noFight, { body: CORRECTION });
+      expect(names(noFight)).not.toContain("call_off_fight");
+    });
+
+    // Bug caught: a fight that never happened recorded as fought, finished (so never offered again), looted or
+    // rewarded; or left set on the sitting; or the page not told to drop the board.
+    it("lets go of a fight that never happened without recording, finishing or laying anything", async () => {
+      const h = fighting([callOff("never_happened"), step(10)]);
+      await play(h, { body: CORRECTION });
+      expect(h.fightSets).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN, encounterId: null }]);
+      expect(h.abandoned).toEqual([FIGHT]);
+      expect(h.facts.filter((f) => f.body.includes("fought"))).toEqual([]);
+      expect(h.finished).toEqual([]);
+      expect(h.laidLoot).toEqual([]);
+      expect(h.pursuits).toEqual([]);
+      expect(fightEvents(h)).toEqual([{ type: "fight", fight: null, calledOff: true }]);
+      expect(h.events.some((e) => e.type === "fight_change")).toBe(false);
+    });
+
+    // Bug caught: a fight only set up has no board row; a call-off that wrote anyway would throw, or one that
+    // skipped the sitting would leave the fight set. The sitting is cleared either way.
+    it("lets go of a fight that was only set up", async () => {
+      const h = fighting([callOff("never_happened"), step(10)], "waiting");
+      await play(h, { body: CORRECTION });
+      expect(h.fightSets).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN, encounterId: null }]);
+      expect(fightEvents(h)).toEqual([{ type: "fight", fight: null, calledOff: true }]);
+    });
+
+    // Bug caught: the three endings doing less (or more) than fight_change's: no record, a fight finished that the
+    // party ran from, no pursuit, no yielded loot, or the page never told to close the board.
+    it("ends a fight the way fight_change ends it, with no roll and no cost", async () => {
+      const gave = fighting([callOff("they_give_in"), step(10)]);
+      await play(gave, { body: CORRECTION });
+      expect(gave.fightSets).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN, encounterId: null }]);
+      expect(gave.facts.map((f) => f.body)).toContain('Wren Ashfield fought "The Watching Pack": Giant Rat 1 gave in and is still there, alive.');
+      expect(gave.finished).toEqual([FIGHT]);
+      expect(gave.laidLoot.map((l) => l.held)).toEqual(["yielded"]);
+      expect(gave.abandoned).toEqual([]);
+      expect(gave.events.filter((e) => e.type === "fight_change")).toEqual([
+        { type: "fight_change", change: { costs: "nothing", condition: null, damage: null, ends: "they_give_in" } },
+      ]);
+      const ran = fighting([callOff("you_get_away"), step(10)]);
+      await play(ran, { body: CORRECTION });
+      expect(ran.finished).toEqual([]);
+      expect(ran.laidLoot).toEqual([]);
+      expect(ran.pursuits).toEqual([FIGHT]);
+      const fled = fighting([callOff("they_flee"), step(10)]);
+      await play(fled, { body: CORRECTION });
+      expect(fled.finished).toEqual([FIGHT]);
+      expect(fled.laidLoot).toEqual([]);
+    });
+
+    // Bug caught: two endings in one reply, so the page ends the board twice and the record tells two outcomes.
+    // (Never beside fight_change: turnTools.test.ts, since a correction carries no roll of the player's.)
+    it("takes one call-off a reply", async () => {
+      const twice = fighting([callOff("they_flee"), callOff("never_happened"), step(10)]);
+      await play(twice, { body: CORRECTION });
+      expect(JSON.stringify(twice.requests[2])).toContain("already called off");
+      expect(twice.abandoned).toEqual([]);
+      expect(twice.finished).toEqual([FIGHT]);
+    });
+
+    // Bug caught: a call-off for a turn that was never kept, so the fight vanished and the player's message still
+    // stood unanswered.
+    it("calls nothing off when the turn is not kept", async () => {
+      const h = fighting([callOff("never_happened"), step(10)]);
+      h.state.saveThrows = true;
+      await play(h, { body: CORRECTION });
+      expect(h.fightSets).toEqual([]);
+      expect(h.abandoned).toEqual([]);
+      expect(fightEvents(h)).toEqual([]);
     });
   });
 

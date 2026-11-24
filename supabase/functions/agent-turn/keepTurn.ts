@@ -13,7 +13,8 @@ import { round6, saveTurn } from "../_shared/agent/conversation/turnStore.ts";
 import { pressureShown } from "../_shared/agent/quests.ts";
 import { fightIsTold, fightRecordText, type FightState } from "../_shared/agent/fight.ts";
 import { askOf } from "../_shared/agent/playerRoll.ts";
-import type { FightChange } from "../_shared/agent/fightChange.ts";
+import type { FightChange, FightEnd } from "../_shared/agent/fightChange.ts";
+import { boardEndOf, endingChange } from "../_shared/agent/callOffFight.ts";
 import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
 import { totalTokens, type runTurn } from "../_shared/agent/turn.ts";
@@ -349,6 +350,19 @@ async function settleFight(scope: TurnScope, fx: TurnEffects, session: SessionRo
       console.error("agent-turn: putting the fight on record failed:", error);
     }
   };
+  // A fight the narrator has told the end of (a ruling's ending, or a correction's): the conversation lets go of it.
+  const endTold = async (how: FightEnd): Promise<void> => {
+    await safely(() => deps.setFight(session.id, campaign.id, null));
+    const ended = fights !== null ? fights.fight : null;
+    if (ended === null) return;
+    await recordFight(ended, how);
+    // Foes who gave in or ran are done with; one the party ran from is still there to be met again.
+    if (how !== "you_get_away") await safely(() => deps.finishFight(campaign.id, ended.encounterId));
+    // Got away: whoever gives chase is the same fight, to be started again where it catches the party.
+    else if (followersOf(ended).length > 0) await safely(() => deps.setPursuit(session.id, campaign.id, ended.encounterId));
+    // Foes who gave in are alive and still there, with what they carry; ones who fled took it with them.
+    if (how === "they_give_in") await safely(() => deps.layFightLoot(campaign.id, ended.encounterId, session.scene_location_id, "yielded"));
+  };
   // A fight starts with the kept turn, and the page is told only once it exists. The other way round: once the
   // narrator has been told a fight is over, the conversation lets go of it.
   const planned = fx.fightPlan;
@@ -362,22 +376,29 @@ async function settleFight(scope: TurnScope, fx: TurnEffects, session: SessionRo
     } catch (error) {
       console.error("agent-turn: starting the fight failed:", error);
     }
+  } else if (fx.fightCalledOff !== null) {
+    // A correction (#1021 row 23): the player's sentence is the ruling, so no roll was asked and nothing was spent.
+    const how = fx.fightCalledOff;
+    const end = boardEndOf(how);
+    if (end !== null) {
+      // The fight happened and ended so: exactly what fight_change's ending does, and the page's board closes it the same way.
+      await endTold(end);
+      emit({ type: "fight_change", change: endingChange(end) });
+    } else {
+      // It never happened: nothing is recorded, awarded, laid or finished (its foes are where they were, unhurt), and
+      // a board that was running is closed without an outcome, as the DM's own Abandon does.
+      await safely(() => deps.setFight(session.id, campaign.id, null));
+      if (fights !== null && fights.fight !== null) {
+        const encounterId = fights.fight.encounterId;
+        await safely(() => deps.abandonFight(campaign.id, encounterId));
+      }
+      emit({ type: "fight", fight: null, calledOff: true });
+    }
   } else if (fx.fightChange !== null) {
     const change: FightChange = fx.fightChange;
     // The board carries the change out. When it ends the fight the narrator has told its end in this reply,
     // so the conversation lets go of the fight now and no aftermath is asked for.
-    if (change.ends !== null) {
-      await safely(() => deps.setFight(session.id, campaign.id, null));
-      if (fights !== null && fights.fight !== null) {
-        await recordFight(fights.fight, change.ends);
-        // Foes who gave in or ran are done with; one the party ran from is still there to be met again.
-        if (change.ends !== "you_get_away") await safely(() => deps.finishFight(campaign.id, fights.fight!.encounterId));
-        // Got away: whoever gives chase is the same fight, to be started again where it catches the party.
-        else if (followersOf(fights.fight).length > 0) await safely(() => deps.setPursuit(session.id, campaign.id, fights.fight!.encounterId));
-        // Foes who gave in are alive and still there, with what they carry; ones who fled took it with them.
-        if (change.ends === "they_give_in") await safely(() => deps.layFightLoot(campaign.id, fights.fight!.encounterId, session.scene_location_id, "yielded"));
-      }
-    }
+    if (change.ends !== null) await endTold(change.ends);
     emit({ type: "fight_change", change });
   } else if (fights !== null && fights.fight !== null && fightIsTold(fights.fight)) {
     await safely(() => deps.setFight(session.id, campaign.id, null));

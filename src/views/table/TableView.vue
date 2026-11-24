@@ -217,7 +217,7 @@ const fightState = useTableFightState({
   noteBoard: (lines, byServer) => noteBoard(lines, byServer),
   aftermath: () => turn.aftermath(),
 });
-const { fight, fightTurn, inFight, composerFight, onFightOver, onFightLost } = fightState;
+const { fight, fightTurn, inFight, composerFight, onFightOver, onFightLost, onFightSet } = fightState;
 const stage = ref<InstanceType<typeof SoloFightStage> | null>(null);
 
 // The weather where the story stands, from the campaign's own weather system: the Narrator is told it with every turn.
@@ -263,7 +263,7 @@ const turn = useTableTurn({
     scene.refresh();
   },
   onPressure: (now) => (pressure.value = now),
-  onFight: (now) => (fight.value = now),
+  onFight: onFightSet,
   onAskRoll: (ask) => (asked.value = ask),
   onDone: (floor) => {
     watchOn(floor);

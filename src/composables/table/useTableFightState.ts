@@ -1,6 +1,7 @@
 import { computed, ref } from "vue";
 import type { SoloFightEnd } from "@/composables/table/useSoloFightHost";
 import { useToast } from "@/composables/useToast";
+import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { BoardLine } from "@/lib/table/solo/fight/boardLines";
 import { endLine, type FightTurn } from "@/lib/table/solo/fight/fightChange";
 import type { TableFight } from "@/lib/table/solo/soloTypes";
@@ -45,6 +46,21 @@ export function useTableFightState(deps: TableFightDeps) {
     deps.noteBoard([{ kind: "margin", text: endLine(how, deps.characterName()), tone: "end" }], true);
   }
 
+  /**
+   * The server says which fight the sitting holds, or (null) that it holds none. A fight let go of without being
+   * fought (called off by a correction, #1021 row 23) may still sit on this tab's runner store, running or set up:
+   * it is cleared with it, or running the encounter again would show the old fight. The turn's budget goes too.
+   */
+  function onFightSet(now: TableFight | null): void {
+    const before = fight.value;
+    fight.value = now;
+    if (now !== null) return;
+    fightTurn.value = null;
+    if (before === null) return;
+    const run = useEncounterRunStore();
+    if (run.encounterId === before.encounterId) run.reset();
+  }
+
   // The composer in a fight (frame 15): open on your turn, one short line aloud, a deed only while the turn can pay.
   const composerFight = computed(() =>
     inFight.value && fightTurn.value ? { yours: fightTurn.value.yours, words: fightTurn.value.words, canAct: fightTurn.value.action || fightTurn.value.bonus } : null,
@@ -57,5 +73,5 @@ export function useTableFightState(deps: TableFightDeps) {
     toast.error("The fight could not be continued here.");
   }
 
-  return { fight, fightTurn, inFight, composerFight, onFightOver, onFightLost };
+  return { fight, fightTurn, inFight, composerFight, onFightOver, onFightLost, onFightSet };
 }

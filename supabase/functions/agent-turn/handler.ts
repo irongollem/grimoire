@@ -143,6 +143,10 @@ export async function beginTurn(input: {
           fightChange: fightRunning
             ? { fight: fights.fight!, budget: fightTurn, rolled: scored === null ? null : scored.success, onChange: (change) => { fx.fightChange = change; } }
             : null,
+          // A correction may call off the fight on the sitting, running or only set up; the tool is offered only when correcting.
+          callOffFight: fights !== null && fights.fight !== null && fights.fight.phase !== "over"
+            ? { fight: fights.fight, onCallOff: (how) => { fx.fightCalledOff = how; } }
+            : null,
           // Only a played character has a sheet to roll from; without one the narrator rolls as before.
           askRoll: character ? (pending) => { fx.asked = pending; } : null,
           // A fight needs someone to fight it: offered only with a played character and readable fights.

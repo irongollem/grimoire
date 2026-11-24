@@ -45,7 +45,7 @@ import type { RecordedFact } from "../_shared/agent/record.ts";
 import { revealToCharacter, sharePlace } from "./revealIo.ts";
 import { revealRoom, seatParty, setPartyPlace } from "./partyMoveIo.ts";
 import { makeHandsStore } from "./handsIo.ts";
-import { finishFight, layFightLoot, loadFights, setFight, setPursuit, startFight, statlessFighters } from "./fightIo.ts";
+import { abandonFight, finishFight, layFightLoot, loadFights, setFight, setPursuit, startFight, statlessFighters } from "./fightIo.ts";
 import type { Prologue } from "../_shared/agent/prologue.ts";
 import { loadAgentCalibration, loadModelPrice, resolveAgentProvider } from "../_shared/agent/providerIo.ts";
 import { applyQuestMove, loadQuests } from "./questIo.ts";
@@ -610,6 +610,7 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     // Fights: the campaign's own encounters, read and written as the caller; the conversation's row as the server.
     loadFights: (campaignId, locationId, fightEncounterId, pursuitEncounterId) => loadFights(supabase, campaignId, locationId, fightEncounterId, pursuitEncounterId),
     finishFight: (campaignId, encounterId) => finishFight(admin, campaignId, encounterId),
+    abandonFight: (campaignId, encounterId) => abandonFight(admin, campaignId, encounterId),
     setPursuit: (sessionId, campaignId, encounterId) => setPursuit(admin, sessionId, campaignId, encounterId),
     // As the caller: what they may read and share is the database's to decide.
     loadHandouts: (campaignId, memberId) => loadHandouts(supabase, campaignId, memberId),
