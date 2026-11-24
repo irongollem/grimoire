@@ -20,3 +20,18 @@ export function voiceCostLine(rates: VoiceRateView): string | null {
   const rate = least < most ? `up to ${credits(most)} for a minute of speech (some voices cost about ${least})` : `about ${credits(most)} for a minute of speech`;
   return `Voices cost credits on top of the story: ${rate}. Each line is charged once, when it is first read; hearing it again is free.`;
 }
+
+/** About how many characters a minute of speech is: the server's own figure (`voiceCost.ts`), for estimates only. */
+export const CHARS_PER_MINUTE = 900;
+
+/**
+ * About what speaking one line costs, as the server charges a line with no conversation to accrue on: its share of a
+ * minute's price, rounded up to whole credits, at least 1. The dearest rate is used (which service a character's
+ * voice is on is not known until it is cast), so the estimate errs high. Null when nothing is priced.
+ */
+export function lineCredits(text: string, rates: VoiceRateView): number | null {
+  const priced = [rates.perMinute.elevenlabs, rates.perMinute.inworld].filter((n): n is number => n !== null && n > 0);
+  if (!rates.on || priced.length === 0) return null;
+  return Math.max(1, Math.ceil((Math.max(...priced) * text.length) / CHARS_PER_MINUTE));
+}
+

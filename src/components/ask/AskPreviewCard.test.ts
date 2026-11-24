@@ -169,7 +169,7 @@ describe("AskPreviewCard", () => {
   });
 
   const speaking = (over: Partial<import("@/lib/ask/askAdapter").AskLineSpeech> = {}) => ({
-    canSpeak: () => true, phase: () => "idle" as const, isFetched: () => false, toggle: vi.fn(), refusal: () => null, ...over,
+    canSpeak: () => true, phase: () => "idle" as const, isFetched: () => false, toggle: vi.fn(), price: () => 3 as number | null, refusal: () => null, ...over,
   });
   const spokenShown = (speech: ReturnType<typeof speaking> | undefined) => ({
     title: "Tam", speaker: { name: "Old Tam", portrait: null, focal: null }, ...(speech ? { speech } : {}),
@@ -182,7 +182,7 @@ describe("AskPreviewCard", () => {
     const w = card({ shown: spokenShown(speech) });
     const bubble = w.get('[data-testid="ask-preview-speech-0-0"]');
     expect(bubble.find('[data-testid="ask-preview-row-action"]').exists()).toBe(true);
-    expect(bubble.get('[data-testid="ask-preview-speak-price"]').text()).toBe("about 1 credit");
+    expect(bubble.get('[data-testid="ask-preview-speak-price"]').text()).toBe("about 3 credits");
     await bubble.get('[data-testid="ask-preview-speak-button"]').trigger("click");
     expect(speech.toggle).toHaveBeenCalledWith(0);
     expect(w.emitted("act")).toBeUndefined();

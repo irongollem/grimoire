@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { voiceCostLine } from "./voiceCost";
+import { lineCredits, voiceCostLine } from "./voiceCost";
 
 describe("voiceCostLine", () => {
   // Bug caught: the cheaper service's rate quoted as the price, so the player is charged four times what the
@@ -20,3 +20,15 @@ describe("voiceCostLine", () => {
     expect(voiceCostLine({ on: true, perMinute: { elevenlabs: null, inworld: null } })).toBeNull();
   });
 });
+
+describe("lineCredits", () => {
+  // Bug caught (seen live): every voice line priced "about 1 credit" while a 200-character line cost 3.
+  it("prices a line by its length at the dearest rate, rounded up, at least 1", () => {
+    const rates = { on: true, perMinute: { elevenlabs: 10.9, inworld: 3 } };
+    expect(lineCredits("x".repeat(200), rates)).toBe(3);
+    expect(lineCredits("Hi.", rates)).toBe(1);
+    expect(lineCredits("x".repeat(200), { on: false, perMinute: { elevenlabs: 10.9, inworld: null } })).toBeNull();
+    expect(lineCredits("x".repeat(200), { on: true, perMinute: { elevenlabs: null, inworld: null } })).toBeNull();
+  });
+});
+

@@ -23,6 +23,7 @@ import { conceptBlock, failedRun, spent } from "@/ai/ask/adapters/askAdapterKit"
 import { useAskGate } from "@/ai/ask/useAskGate";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 import { stopVoiceLines, useVoiceLineSpeech } from "@/composables/voices/useVoiceLineSpeech";
+import { lineCredits } from "@/lib/table/solo/voiceCost";
 import { useTableVoiceRates } from "@/composables/table/useTableVoice";
 import { useNpcVoiceCoach } from "@/ai/useNpcVoiceCoach";
 import { useCampaignStore } from "@/stores/campaign";
@@ -210,6 +211,10 @@ export function useNpcVoiceAskAdapter(): AskPreviewAdapter {
       phase: speaking.phaseOf,
       isFetched: speaking.isFetched,
       toggle: (line) => void speaking.toggle(line),
+      price: (line) => {
+        const text = held.lines[line];
+        return text === undefined || !rates.data.value ? null : lineCredits(text, rates.data.value);
+      },
       refusal: () => speaking.refusal.value,
     };
 

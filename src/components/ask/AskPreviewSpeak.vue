@@ -13,8 +13,8 @@
       data-testid="ask-preview-speak-button"
       @click="speech.toggle(line)"
     />
-    <!-- Honest about the price: a spoken line is about a credit; one already fetched on this card is free. -->
-    <span class="text-caption-sm text-muted-foreground" data-testid="ask-preview-speak-price">{{ fetched ? "free" : "about 1 credit" }}</span>
+    <!-- Honest about the price: this line's own estimate (its length at the voices' rate); one already fetched is free. -->
+    <span v-if="priceText" class="text-caption-sm text-muted-foreground" data-testid="ask-preview-speak-price">{{ priceText }}</span>
   </div>
 </template>
 
@@ -32,4 +32,9 @@ const { speech, line, disabled = false, mobile = false } = defineProps<{ speech:
 
 const phase = computed(() => speech.phase(line));
 const fetched = computed(() => speech.isFetched(line));
+const priceText = computed(() => {
+  if (fetched.value) return "free";
+  const credits = speech.price(line);
+  return credits === null ? null : `about ${credits} ${credits === 1 ? "credit" : "credits"}`;
+});
 </script>

@@ -126,6 +126,8 @@ export interface AskLineSpeech {
   isFetched(line: number): boolean;
   /** Plays the line, or stops it while it plays. */
   toggle(line: number): void;
+  /** About what speaking the line costs in credits (whole, at least 1); null when it cannot be priced. */
+  price(line: number): number | null;
   /** Why the card stopped offering Speak aloud (out of credits, allowance used up, voices off), or null. */
   refusal(): string | null;
 }
