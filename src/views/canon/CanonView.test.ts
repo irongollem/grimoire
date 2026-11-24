@@ -692,10 +692,21 @@ describe("CanonView, a new canon", () => {
   afterEach(() => mounted.splice(0).forEach((w) => w.unmount()));
 
   // Bug caught: a new canon opened straight on an empty chapter, with nothing saying where to begin.
-  it("leads a new canon in through the way in, in place of the chapter", () => {
+  it("leads a new canon in through the way in, in place of the first chapter", () => {
     data.value = [];
+    route.params = { part: "premise" };
     const w = mountView({ CanonWayIn: { template: "<div data-testid='way-in' />" } }, { wayIn: true });
     expect(w.find("[data-testid=way-in]").exists()).toBe(true);
+  });
+
+  // Bug caught (production, 24 Nov 2026): the way in stood in front of every chapter, so choosing one in the contents or
+  // the chapter picker changed the address and nothing on screen: the DM was trapped on one landing page.
+  it("opens the chapter the DM chose, even for a new canon", () => {
+    data.value = [];
+    route.params = { part: "truths" };
+    const w = mountView({ CanonWayIn: { template: "<div data-testid='way-in' />" }, TruthsChapter: { template: "<div data-testid='truths' />" } }, { wayIn: true });
+    expect(w.find("[data-testid=way-in]").exists()).toBe(false);
+    expect(w.find("[data-testid=truths]").exists()).toBe(true);
   });
 
   // Bug caught: Skip to the chapters wrote its flag but the page kept showing the way in.

@@ -1,5 +1,5 @@
 <template>
-  <div class="flex min-w-0 max-w-3xl flex-col gap-4" data-chapter="world">
+  <div class="mx-auto flex w-full min-w-0 max-w-3xl flex-col gap-4" data-chapter="world">
     <header class="flex flex-col gap-0.5">
       <h2 class="m-0 text-heading-sm font-bold">{{ chapter.label }}</h2>
       <p class="m-0 text-caption italic text-muted-foreground">

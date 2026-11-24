@@ -1,6 +1,8 @@
 <template>
-  <section class="flex flex-col gap-4 rounded-lg border border-border bg-card p-4" data-testid="canon-way-in">
+  <section class="mx-auto flex w-full max-w-3xl flex-col gap-4 rounded-lg border border-border bg-card p-4" data-testid="canon-way-in">
     <header class="flex flex-col gap-1">
+      <!-- At the top, where it is seen: at the bottom of the steps it was missed. -->
+      <AppButton class="self-end" variant="outline" size="sm" label="Skip to the chapters" data-testid="way-in-skip" @click="skip" />
       <h2 class="m-0 font-display text-title">Your campaign's background book</h2>
       <p class="m-0 text-body text-muted-foreground">
         Everything about your world that is not a person, a place, a quest or a faction goes here, and it prints as a book beside the rest. Four short steps give it ground to stand on; the rest grows as you play.
@@ -49,7 +51,6 @@
       </li>
     </ol>
 
-    <AppButton class="self-start" variant="ghost" size="sm" label="Skip to the chapters" data-testid="way-in-skip" @click="skip" />
   </section>
 </template>
 

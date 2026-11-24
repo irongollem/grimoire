@@ -25,13 +25,14 @@
         <div class="hidden min-[90rem]:block"><CanonNextSession /></div>
       </div>
 
-      <div class="flex min-w-0 flex-1 flex-col gap-8">
+      <!-- Centred in the room beside the contents, never hugging the left with an empty right half. -->
+      <div class="mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col gap-8">
         <ListSkeleton v-if="isLoading || campaign === null" variant="rows" :count="4" />
         <p v-else-if="isError" role="alert" class="text-body text-destructive">Could not load the canon.</p>
         <template v-else>
           <!-- What the Familiar's whole-canon read found (asked for in Ask Grimoire), above whichever chapter is open. -->
           <CanonReview mode="read" />
-          <CanonSearchResults v-if="searching" class="max-w-3xl" :groups="hitGroups" :query="ui.query" @open="ui.query = ''" />
+          <CanonSearchResults v-if="searching" class="mx-auto w-full max-w-3xl" :groups="hitGroups" :query="ui.query" @open="ui.query = ''" />
           <!-- A new canon is led in by the page itself, until its four steps are done or the DM skips them. -->
           <CanonWayIn v-else-if="showWayIn" :entries="entries" :clues="allClues ?? []" />
           <template v-else>
@@ -131,6 +132,9 @@ const { data: allClues, isSuccess: cluesLoaded } = useCanonClues();
 const showWayIn = computed(() => {
   const id = campaign.value?.id;
   if (id === undefined || !ready.value || !cluesLoaded.value) return false;
+  // Only in place of the first chapter: choosing any other in the contents must open it. In front of every chapter it
+  // trapped the DM on one landing page that no click could leave (production, 24 Nov 2026).
+  if (active.value !== "premise") return false;
   return isNewCanon(entries.value, wayInSteps(entries.value, allClues.value ?? [])) && ui.wayInDismissed[id] !== true;
 });
 const { data: forceData } = useCanonForceData();
