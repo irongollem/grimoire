@@ -15,7 +15,7 @@ import { serveUser } from "../_shared/pipeline/serveUser.ts";
 import { json, jsonError, readJsonBody } from "../_shared/pipeline/respond.ts";
 import { loadAiCampaign } from "../_shared/pipeline/aiCampaign.ts";
 import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
-import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
+import { screenChatText } from "../_shared/moderation.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { loadSpeechEnv } from "../_shared/speechKeys.ts";
 import { deliveryCue } from "../_shared/agent/characterTurn.ts";
@@ -104,15 +104,10 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
 
     // The same screen the turn's own words go through (`_shared/moderation.ts`), logged under this surface.
     async isFlagged(text) {
-      try {
-        // The moderation endpoint is free, and the platform's own key is the one used for it, as in `agent-turn`.
-        const keys = await fetchPlatformKeys(admin, ["openai"]);
-        await screenImagePrompt(text, { apiKey: keys.openai ?? null, admin, userId: user.id, generationType: "table_voice", imageProvider: "none" });
-        return false;
-      } catch (error) {
-        if (isPromptRejected(error)) return true;
-        throw error;
-      }
+      // The moderation endpoint is free, and the platform's own key is the one used for it, as in `agent-turn`.
+      const keys = await fetchPlatformKeys(admin, ["openai"]);
+      const verdict = await screenChatText(text, { apiKey: keys.openai ?? null, admin, userId: user.id, surface: "table_voice" });
+      return verdict?.flagged === true;
     },
 
     loadRate: (service) => loadSpeechRate(admin, speech, service),

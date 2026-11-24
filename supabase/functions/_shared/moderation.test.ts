@@ -9,6 +9,8 @@ import {
   PromptRejectedError,
   IMAGE_PROMPT_THRESHOLDS,
   PROMPT_TEXT_BAND,
+  screenChatText,
+  CHAT_TEXT_THRESHOLDS,
 } from "./moderation.ts";
 
 /**
@@ -315,5 +317,65 @@ describe("recordScreeningOutcome", () => {
     } as unknown as SupabaseClient;
 
     await expect(recordScreeningOutcome(admin, "row-1", "rendered")).resolves.toBeUndefined();
+  });
+});
+
+describe("screenChatText", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const stub = (body: unknown, ok = true) => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok, status: ok ? 200 : 500, json: () => Promise.resolve(body) });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  };
+  const chat = (admin: SupabaseClient, over: Partial<Parameters<typeof screenChatText>[1]> = {}) => ({
+    apiKey: "sk-test", admin, userId: "user-1", surface: "agent_turn", ...over,
+  });
+
+  // Bug caught: a refused line not kept, so the admin deciding whether to reopen a closed table has nothing to read.
+  it("refuses over the line and keeps the refused line for review", async () => {
+    stub({ results: [{ category_scores: PORN_CONTROL.scores }] });
+    const { admin, inserts } = fakeAdmin();
+    await expect(screenChatText("THE-PLAYERS-WORDS", chat(admin))).resolves.toEqual({ flagged: true, categories: ["sexual"] });
+    expect(inserts[0]).toMatchObject({ generation_type: "agent_turn", image_provider: null, blocked: true, prompt: "THE-PLAYERS-WORDS" });
+  });
+
+  // Bug caught: chat logged like an image prompt, keeping what players said to each other when it passed near the line.
+  it("never keeps a line that passed, however near the line it came", async () => {
+    stub({ results: [{ category_scores: { sexual: CHAT_TEXT_THRESHOLDS.sexual - 0.01 } }] });
+    const { admin, inserts } = fakeAdmin();
+    await expect(screenChatText("NEAR-MISS-WORDS", chat(admin))).resolves.toEqual({ flagged: false, categories: [] });
+    expect(inserts[0]).toMatchObject({ blocked: false, prompt: null });
+    expect(JSON.stringify(inserts)).not.toContain("NEAR-MISS-WORDS");
+  });
+
+  // Bug caught: the game's own violence refused at a table about fighting monsters.
+  it("lets the table's violence through, as the image screen does", async () => {
+    stub({ results: [{ category_scores: MEASURED[2].scores }] });
+    const { admin, inserts } = fakeAdmin();
+    await expect(screenChatText("…", chat(admin))).resolves.toEqual({ flagged: false, categories: [] });
+    expect(inserts[0].thresholds).toEqual(CHAT_TEXT_THRESHOLDS);
+  });
+
+  // Bug caught: a child's turn screened at the ordinary bar, or a caller able to raise the absolute line.
+  it("holds a child's turn to the tighter limit and never lets a caller raise one", async () => {
+    stub({ results: [{ category_scores: { sexual: 0.3, "sexual/minors": 0.5 } }] });
+    const { admin } = fakeAdmin();
+    const verdict = await screenChatText("…", chat(admin, { tighter: { sexual: 0.25, "sexual/minors": 0.99 } }));
+    expect(verdict?.categories.sort()).toEqual(["sexual", "sexual/minors"]);
+  });
+
+  // Bug caught: an outage of the free endpoint stopping every table, or no key read as "refuse".
+  // and a verdict for text that was never judged, which the campaign-text cache would remember as a pass.
+  it("answers \"not screened\" without a key, on an error status and on an answer with no scores", async () => {
+    const { admin, inserts } = fakeAdmin();
+    const fetchMock = stub({});
+    await expect(screenChatText("…", chat(admin, { apiKey: null }))).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+    stub({ error: { message: "down" } }, false);
+    await expect(screenChatText("…", chat(admin))).resolves.toBeNull();
+    stub({ results: [{}] });
+    await expect(screenChatText("…", chat(admin))).resolves.toBeNull();
+    expect(inserts).toHaveLength(0);
   });
 });

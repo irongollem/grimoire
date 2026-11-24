@@ -7,6 +7,7 @@
  * worth 0.01 USD at margin 1, so 600 output tokens are 0.006 USD, which is 0.6 credits.
  */
 import { ROLL_HINT } from "../_shared/agent/rollCheck";
+import { unknownNamesHint } from "../_shared/agent/nameCheck";
 import type { AgentProvider } from "../_shared/agent/providerIo";
 import type { Companion } from "../_shared/agent/companions";
 import type { HazardRules, KeptHazard } from "../_shared/agent/hazard";
@@ -195,6 +196,9 @@ interface Harness {
     /** A sentence the filing answers with instead of a fact id. */
     fileError: string | null;
     discardThrows: boolean;
+    /** The names the campaign has a record of; every other candidate is unknown. `null`: all are known, so the name check asks no judge. */
+    knownNames: Set<string> | null;
+    knownNamesThrow: boolean;
     quests: QuestsInPlay;
     questsThrow: boolean;
     /** What the party's place has had marked on it, what its characters remember, and whether either read fails. */
@@ -223,6 +227,7 @@ interface Harness {
     canonMaterialThrows: boolean;
   };
   /** What the canon store was asked, and every clue or passage it was told to mark. */
+  nameLookups: Array<{ campaignId: string; candidates: string[] }>;
   canonAsked: { previously: Array<string | null>; here: Array<{ locationId: string | null; present: string[] }>; lookups: string[]; brought: BroughtOut[] };
   /** Every quest move the handler applied, in order, and the campaign and conversation it applied it for. */
   applied: Array<{ ctx: { campaignId: string; agentSessionId: string; today?: DatePoint | null }; move: QuestMove }>;
@@ -349,6 +354,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       recordThrows: false,
       fileError: null,
       discardThrows: false,
+      knownNames: null,
+      knownNamesThrow: false,
       quests: NO_QUESTS,
       questsThrow: false,
       site: NO_SITE,
@@ -370,6 +377,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       canonMaterial: NO_CHECK_MATERIAL,
       canonMaterialThrows: false,
     },
+    nameLookups: [],
     canonAsked: { previously: [], here: [], lookups: [], brought: [] },
     applied: [],
     dateMoves: [],
@@ -608,6 +616,12 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       if (h.state.discardThrows) throw new Error("db down");
       h.facts = h.facts.filter((f) => !ids.includes(f.id));
     },
+    knownNames: async (campaignId, candidates) => {
+      h.nameLookups.push({ campaignId, candidates });
+      if (h.state.knownNamesThrow) throw new Error("db down");
+      const known = h.state.knownNames;
+      return known === null ? candidates : candidates.filter((c) => known.has(c.toLowerCase()));
+    },
     findCharacters: async (_campaignId, name) =>
       "apprentice honeycomb".includes(name.toLowerCase()) ? [{ id: HONEYCOMB, shownName: "Apprentice Honeycomb" }] : [],
     moveParty: {
@@ -767,12 +781,12 @@ function existingSession(h: Harness, over: Partial<SessionRow> = {}, accrued = 0
   return row;
 }
 
-async function play(h: Harness, over: { body?: unknown; userId?: string; signal?: AbortSignal; rollCheck?: true } = {}) {
+async function play(h: Harness, over: { body?: unknown; userId?: string; signal?: AbortSignal; rollCheck?: true; nameCheck?: true } = {}) {
   // The roll check (#1021) asks the same judge its own question about a say or a do. The tests of the narration
   // check count and script that judge's requests, so it is answered "no answer" unless a test is about the roll check.
   const narrationJudge = h.deps.judgeNarration;
   const deps: typeof h.deps =
-    over.rollCheck === true || narrationJudge === null
+    (over.rollCheck === true || over.nameCheck === true) || narrationJudge === null
       ? h.deps
       : { ...h.deps, judgeNarration: (request) => ("roll" in request.questions ? Promise.resolve({ model: "jev-1", inputTokens: 0, answers: {} }) : narrationJudge(request)) };
   const refusal = await handleAgentTurn({
@@ -4693,5 +4707,129 @@ describe("the roll check", () => {
     } finally {
       warn.mockRestore();
     }
+  });
+});
+
+describe("the name check", () => {
+  const FLORET_TURN: Array<{ seq: number; role: "user" | "assistant"; blocks: AgentBlock[] }> = [
+    { seq: 1, role: "user", blocks: [{ type: "text", text: "I look around." }] },
+    { seq: 2, role: "assistant", blocks: [{ type: "text", text: "You turn and see Floret by the well." }] },
+  ];
+  const wren = (): PlayerCharacter => ({
+    id: WREN, name: "Wren Ashfield", pronouns: null, species: null, className: "Ranger", subclass: null, level: 3, hitPoints: null,
+  });
+  const MOVE = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I wave.", mode: "do" };
+  const played = (over: Partial<SessionRow> = {}): Harness => {
+    const h = harness([step(10)]);
+    h.state.characters.set(WREN, wren());
+    existingSession(h, { party_member_id: WREN, ...over });
+    h.turns.push(...FLORET_TURN);
+    h.state.knownNames = new Set();
+    return h;
+  };
+  /** Answers the name question (`name_0`) with `noul`, and keeps what it was sent. */
+  const nameJudge = (noul: number | null) => {
+    const requests: JudgeRequest[] = [];
+    const judge = async (request: JudgeRequest): Promise<JudgeResult> => {
+      requests.push(request);
+      if (!("name_0" in request.questions)) return { model: "jev-1", inputTokens: 0, answers: {} };
+      return { model: "jev-1", inputTokens: 1, answers: noul === null ? {} : { name_0: { type: "noul", noul } } };
+    };
+    return { judge, requests };
+  };
+  const told = (h: Harness): string => opening(h.requests[0]);
+  const faults = (warn: ReturnType<typeof vi.spyOn>) => warn.mock.calls.filter((c) => String(c[0]).includes("has no record of"));
+
+  it("tells the narrator to introduce a name last turn's narration used and the campaign does not know", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const h = played();
+      h.deps.judgeNarration = nameJudge(0.9).judge;
+      await play(h, { body: MOVE, nameCheck: true });
+      expect(told(h)).toContain(unknownNamesHint(["Floret"]));
+      expect(h.nameLookups).toEqual([{ campaignId: CAMPAIGN, candidates: ["Floret"] }]);
+      expect(faults(warn)).toHaveLength(1);
+      expect(JSON.stringify(warn.mock.calls)).not.toContain("Floret");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("adds no hint, and logs nothing, for a name the campaign knows, and asks the judge nothing", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const h = played();
+      h.state.knownNames = new Set(["floret"]);
+      const j = nameJudge(0.9);
+      h.deps.judgeNarration = j.judge;
+      await play(h, { body: MOVE, nameCheck: true });
+      expect(told(h)).not.toContain("no record of");
+      expect(j.requests.filter((r) => "name_0" in r.questions)).toHaveLength(0);
+      expect(faults(warn)).toHaveLength(0);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("adds no hint below the threshold, without an answer or without a judge", async () => {
+    const low = played();
+    low.deps.judgeNarration = nameJudge(0.5).judge;
+    await play(low, { body: MOVE, nameCheck: true });
+    const none = played();
+    none.deps.judgeNarration = nameJudge(null).judge;
+    await play(none, { body: MOVE, nameCheck: true });
+    const keyless = played();
+    await play(keyless, { body: MOVE, nameCheck: true });
+    for (const h of [low, none, keyless]) expect(told(h)).not.toContain("no record of");
+  });
+
+  it("plays the turn as before when the lookup or the judge throws", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const lookup = played();
+      lookup.state.knownNamesThrow = true;
+      lookup.deps.judgeNarration = nameJudge(0.9).judge;
+      await play(lookup, { body: MOVE, nameCheck: true });
+      const judged = played();
+      judged.deps.judgeNarration = async () => { throw new Error("typesafe down"); };
+      await play(judged, { body: MOVE, nameCheck: true });
+      for (const h of [lookup, judged]) {
+        expect(told(h)).not.toContain("no record of");
+        expect(last(h)).toMatchObject({ type: "done" });
+      }
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("does not wait past the limit for a judge that never answers", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const h = played();
+      h.deps.judgeNarration = (request) => ("name_0" in request.questions ? new Promise<JudgeResult>(() => {}) : Promise.resolve({ model: "jev-1", inputTokens: 0, answers: {} }));
+      await play(h, { body: MOVE, nameCheck: true });
+      expect(told(h)).not.toContain("no record of");
+      expect(last(h)).toMatchObject({ type: "done" });
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("checks nothing while a fight is running", async () => {
+    const h = played({ fight_encounter_id: FIGHT });
+    h.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "Rats", phase: "running", round: 1, fighters: [] } };
+    const j = nameJudge(0.9);
+    h.deps.judgeNarration = j.judge;
+    await play(h, { body: MOVE, nameCheck: true });
+    expect(h.nameLookups).toHaveLength(0);
+    expect(told(h)).not.toContain("no record of");
+  });
+
+  it("checks narration the player was shown, not text kept from them", async () => {
+    const h = played();
+    h.turns.splice(0, h.turns.length, ...FLORET_TURN.slice(0, 1), { seq: 2, role: "assistant", blocks: [{ type: "text", text: "You see Floret.", unshown: true }] });
+    h.deps.judgeNarration = nameJudge(0.9).judge;
+    await play(h, { body: MOVE, nameCheck: true });
+    expect(h.nameLookups).toHaveLength(0);
   });
 });
