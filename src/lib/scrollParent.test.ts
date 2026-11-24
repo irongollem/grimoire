@@ -100,4 +100,14 @@ describe("scrollWithin", () => {
     scrollWithin(leaf, { block: "nearest" });
     expect(scroller.scrollTo).not.toHaveBeenCalled();
   });
+
+  // Bug (24 Nov 2026): opening a backstory (an entry taller than the page) lined its bottom up with the page's, so the
+  // page leapt to the entry's end and its title and its ledger went off the top.
+  it("never pushes the top of an entry taller than the page out of view", () => {
+    const { leaf, scroller } = shell();
+    // Starts 100px below the scroller's top and runs 1200px, past its bottom: only those 100px may move.
+    leaf.getBoundingClientRect = () => rect(150, 1200);
+    scrollWithin(leaf, { block: "nearest" });
+    expect(scroller.scrollTo).toHaveBeenCalledWith({ top: 200, behavior: "auto" });
+  });
 });

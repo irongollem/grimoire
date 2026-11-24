@@ -48,7 +48,9 @@ export function scrollWithin(el: HTMLElement, { block = "start", smooth = false 
   if (block === "start") top = scroller.scrollTop + offset;
   else if (block === "center") top = scroller.scrollTop + offset - (box.height - rect.height) / 2;
   else if (offset < 0) top = scroller.scrollTop + offset;
-  else if (rect.bottom > box.bottom) top = scroller.scrollTop + (rect.bottom - box.bottom);
+  // Down only as far as its bottom needs, and never past its top: an entry taller than the page (a backstory) would
+  // otherwise be lined up by its end, and its title and the ledger beside it would leave the top of the page.
+  else if (rect.bottom > box.bottom) top = scroller.scrollTop + Math.min(rect.bottom - box.bottom, offset);
   else return;
   scroller.scrollTo({ top: Math.max(0, top), behavior: smooth ? "smooth" : "auto" });
 }
