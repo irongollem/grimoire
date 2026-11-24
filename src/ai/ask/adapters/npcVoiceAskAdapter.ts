@@ -30,7 +30,7 @@ import { useCreateNpcMemory } from "@/composables/npcs/useNpcMemories";
 import { useCampaignSession } from "@/composables/campaign/useCampaignSession";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
 import { useSendNpcSpeech } from "@/composables/campaign/useSendNpcSpeech";
-import { getNpcDisplayFocalPoint, getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
+import { getNpcDisplayFocalPoint, getNpcDisplayName, getNpcDisplayPortrait, getNpcPlayerFace } from "@/lib/npcDisplay";
 import { defaultMemorySessionId } from "@/lib/npcs/npcMemories";
 import type { NpcSpeechFace } from "@/lib/chat/npcSpeech";
 import type { AiProvenance } from "@/ai/provenance";
@@ -162,7 +162,9 @@ export function useNpcVoiceAskAdapter(): AskPreviewAdapter {
           }
         }
         try {
-          await sendNpcSpeech({ id: npc.id, name: getNpcDisplayName(npc) ?? npc.name, face: held.face }, held.lines[i], held.provenance);
+          // The chat is read by players: the name and face they may see, not the DM's view of them.
+          const seen = getNpcPlayerFace(npc);
+          await sendNpcSpeech({ id: npc.id, name: seen.name ?? "???", face: { portrait: seen.portrait, focal: seen.focal } }, held.lines[i], held.provenance);
           posted.add(i);
         } catch (e) {
           return { label, ok: false, credits: 0, error: `Kept in their Memory tab, but the chat post failed${e instanceof Error ? `: ${e.message}` : "."} Press again to retry.` };

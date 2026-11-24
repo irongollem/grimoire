@@ -15,16 +15,16 @@ vi.mock("@/composables/notes/useEntityMentionItems", () => ({
     factions: ref([]),
   }),
 }));
-const appearances = vi.hoisted(() => ({ data: { value: undefined as Map<string, string | null> | undefined } }));
+const appearances = vi.hoisted(() => ({ data: { value: undefined as Map<string, string | null> | undefined }, fetching: { value: false } }));
 vi.mock("@/composables/npcs/useNpcFields", () => ({
-  useNpcAppearances: (ids: { value: string[] }) => ({ data: appearances.data, isError: ref(false), ids }),
+  useNpcAppearances: (ids: { value: string[] }) => ({ data: appearances.data, isError: ref(false), isFetching: appearances.fetching, ids }),
 }));
 vi.mock("@/composables/locations/useLocationDescriptions", () => ({
-  useLocationDescriptions: (ids: { value: string[] }) => { reads.locationIds.push(ids); return { data: ref(undefined), isError: ref(false) }; },
+  useLocationDescriptions: (ids: { value: string[] }) => { reads.locationIds.push(ids); return { data: ref(undefined), isError: ref(false), isFetching: ref(false) }; },
 }));
 vi.mock("@/composables/monsters/useMentionedMonsters", () => ({
   useMentionedMonsters: () => ref([]),
-  useMentionedMonstersState: (text: () => string) => { reads.monsterText.push(text()); return { monsters: ref([]), loading: ref(false) }; },
+  useMentionedMonstersState: (text: () => string) => { reads.monsterText.push(text()); return { monsters: ref([]), loading: ref(false), rows: ref(undefined), fetching: ref(false), failed: ref(false) }; },
 }));
 
 const { useAskSceneResolver } = await import("./askSceneMentions");
@@ -34,12 +34,16 @@ const labels = (entities: ResolvedSceneEntity[]) => entities.map((e) => e.label)
 describe("useAskSceneResolver", () => {
   beforeEach(() => {
     appearances.data.value = new Map([["n1", "pale"], ["n2", "tall"]]);
+    appearances.fetching.value = false;
     reads.enabled = [];
   });
 
   // Bug caught: one shared text for every card, so resolving a second card's description changed the first's entities.
-  it("resolves each description to its own entities, whatever was asked in between", () => {
+  it("resolves each description to its own entities, whatever was asked in between", async () => {
     const { resolve } = useAskSceneResolver();
+    resolve("@Vesper at the weir");
+    resolve("@Orrin in the keep");
+    await Promise.resolve();
     expect(labels(resolve("@Vesper at the weir").entities)).toEqual(["Vesper"]);
     expect(labels(resolve("@Orrin in the keep").entities)).toEqual(["Orrin"]);
     expect(labels(resolve("@Vesper at the weir").entities)).toEqual(["Vesper"]);
@@ -51,12 +55,47 @@ describe("useAskSceneResolver", () => {
   });
 
   // Bug caught: a card quoting ready while the looks of the people its own text names were still on their way.
-  it("is loading only for the description whose own mentions have not arrived", () => {
+  it("is loading only for the description whose own mentions have not arrived", async () => {
     const { resolve } = useAskSceneResolver();
+    resolve("@Vesper at the weir");
+    resolve("no one here @Nobody");
+    await Promise.resolve();
     appearances.data.value = undefined;
     expect(resolve("@Vesper at the weir").loading).toBe(true);
     expect(resolve("no one here @Nobody").loading).toBe(false);
     appearances.data.value = new Map([["n1", "pale"]]);
     expect(resolve("@Vesper at the weir").loading).toBe(false);
+  });
+
+  // Bug caught: resolve() writing the remembered texts while the quote computed was evaluating (Vue's
+  // dirty-after-evaluation warning, a possible loop); the text must register after the getter, not during it.
+  it("does not register a description while it is being asked about, only just after", async () => {
+    const { resolve } = useAskSceneResolver();
+    resolve("@Vesper at the weir");
+    // The people and places are read only once a description is remembered: still off inside the call.
+    expect(reads.enabled.at(-1)).toBe(false);
+    expect(resolve("@Vesper at the weir").loading).toBe(true);
+    await Promise.resolve();
+    resolve("@Vesper at the weir");
+    expect(reads.enabled.at(-1)).toBe(true);
+  });
+
+  // Bug caught: a second card naming a new @NPC growing the by-id read's key, so the FIRST card's quote went back to
+  // "Still reading" until the bigger read landed.
+  it("keeps the first card ready while the read grows to hold a second card's new mention", async () => {
+    const { resolve } = useAskSceneResolver();
+    resolve("@Vesper at the weir");
+    await Promise.resolve();
+    appearances.data.value = new Map([["n1", "pale"]]);
+    expect(resolve("@Vesper at the weir").loading).toBe(false);
+    resolve("@Orrin in the keep");
+    await Promise.resolve();
+    // The union is now being read: n1 is still held (the previous result), n2 is not.
+    appearances.fetching.value = true;
+    expect(resolve("@Vesper at the weir").loading).toBe(false);
+    expect(resolve("@Orrin in the keep").loading).toBe(true);
+    appearances.fetching.value = false;
+    appearances.data.value = new Map([["n1", "pale"], ["n2", "tall"]]);
+    expect(resolve("@Orrin in the keep").loading).toBe(false);
   });
 });

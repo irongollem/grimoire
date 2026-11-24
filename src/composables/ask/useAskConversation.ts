@@ -164,11 +164,13 @@ export function useAskConversation(deps: AskConversationDeps) {
   const { generating, holding } = previews;
 
   /** Adds to a thread (the one on screen unless a run that started in another says so). */
-  function push(item: NewItem, thread: AskThreadState = current): AskItem {
+  function pushTo(item: NewItem, thread: AskThreadState = current): AskItem {
     thread.items.push({ ...item, id: nextId++ } as AskItem);
     // Return the reactive proxy, so a later mutation of it reaches the screen.
     return thread.items[thread.items.length - 1] as AskItem;
   }
+
+  const push = pushTo;
 
   function find<K extends AskItem["kind"]>(id: number, kind: K): Extract<AskItem, { kind: K }> | undefined {
     return findItem(current.items, id, kind);
@@ -176,11 +178,14 @@ export function useAskConversation(deps: AskConversationDeps) {
 
   async function streamTurn(message: string) {
     const campaignId = deps.campaignId();
+    // The thread this turn was asked in: every write goes here, never to whichever thread is on screen later.
+    const thread = current;
+    const push = (item: NewItem): AskItem => pushTo(item, thread);
     if (campaignId === null) {
       push({ kind: "error", message: "Pick a campaign first, then ask." });
       return;
     }
-    const body: AskTurnBody = { campaignId, message, context: deps.context(), ...(current.sessionId ? { sessionId: current.sessionId } : {}) };
+    const body: AskTurnBody = { campaignId, message, context: deps.context(), ...(thread.sessionId ? { sessionId: thread.sessionId } : {}) };
     controller = new AbortController();
     const mine = controller;
     running.value = true;
@@ -193,6 +198,7 @@ export function useAskConversation(deps: AskConversationDeps) {
     let withheld = false;
     try {
       const response = await transport(body, mine.signal);
+      if (mine.signal.aborted) return;
       if (!response.ok) {
         let parsed: unknown = null;
         try {
@@ -200,6 +206,7 @@ export function useAskConversation(deps: AskConversationDeps) {
         } catch {
           // A refusal that is not JSON (a gateway's page) still says no.
         }
+        if (mine.signal.aborted) return;
         if (typeof parsed === "object" && parsed !== null && "error" in parsed && parsed.error === ASK_REFUSALS.allowanceSpent) {
           push({ kind: "upsell" });
         } else if (typeof parsed === "object" && parsed !== null && "error" in parsed && parsed.error === ASK_REFUSALS.offTopic) {
@@ -211,6 +218,8 @@ export function useAskConversation(deps: AskConversationDeps) {
         return;
       }
       for await (const event of readEventStream(response, parseAskEvent)) {
+        // A cancel or a campaign switch ends the turn: events already buffered write nothing.
+        if (mine.signal.aborted) return;
         if (event.type === "text") {
           if (reply === null) {
             reply = push({ kind: "reply", text: "", who: null }) as ReplyItem;
@@ -223,7 +232,7 @@ export function useAskConversation(deps: AskConversationDeps) {
         // Anything that is not words ends the paragraph being written.
         switch (event.type) {
           case "session":
-            current.sessionId = event.sessionId;
+            thread.sessionId = event.sessionId;
             break;
           case "ask":
             reply = null;
@@ -233,7 +242,7 @@ export function useAskConversation(deps: AskConversationDeps) {
             if (event.records.length > 0) {
               // The server reports each tool call on its own, so one answer arrives as "Read 1", "Read 1", "Read 5".
               // A read straight after another of this turn joins it: the DM sees one line per answer.
-              const last = items.value.at(-1);
+              const last = thread.items.at(-1);
               if (last && last.kind === "read" && readLines.has(last.id)) {
                 const known = new Set(last.records.map((r) => `${r.type}:${r.id}`));
                 for (const r of event.records) if (!known.has(`${r.type}:${r.id}`)) last.records.push(r);
@@ -266,7 +275,7 @@ export function useAskConversation(deps: AskConversationDeps) {
             // A withheld answer was already streamed: what it showed is taken back, so the sentence stands alone.
             if (event.withheld === true) {
               withheld = true;
-              current.items.splice(0, current.items.length, ...current.items.filter((i) => !written.has(i.id)));
+              thread.items.splice(0, thread.items.length, ...thread.items.filter((i) => !written.has(i.id)));
               hush();
             }
             reply = null;
@@ -277,13 +286,13 @@ export function useAskConversation(deps: AskConversationDeps) {
             break;
         }
       }
-      const spoken = current.sessionId;
+      const spoken = thread.sessionId;
       if (ended && !withheld && !mine.signal.aborted && spoken !== undefined) {
-        const texts = items.value.filter((i): i is ReplyItem => i.kind === "reply" && written.has(i.id) && i.text.trim() !== "").map((i) => i.text);
+        const texts = thread.items.filter((i): i is ReplyItem => i.kind === "reply" && written.has(i.id) && i.text.trim() !== "").map((i) => i.text);
         if (texts.length > 0) deps.onReplied?.({ sessionId: spoken, texts });
       }
     } catch (e) {
-      if (!(e instanceof DOMException && e.name === "AbortError")) push({ kind: "error", message: NOT_ANSWERED });
+      if (!mine.signal.aborted && !(e instanceof DOMException && e.name === "AbortError")) push({ kind: "error", message: NOT_ANSWERED });
     } finally {
       if (controller === mine) {
         running.value = false;
@@ -427,7 +436,7 @@ export function useAskConversation(deps: AskConversationDeps) {
       // Nothing is priced, so a credit or quota block on the AI route does not apply. What the quote is still reading
       // does: a press before the people and places have loaded would drop the ids they resolve.
       if (!adapter.quick) return;
-      if (quickWaitsOnLoad(item, adapter.quote(proposal, choices))) return;
+      if (quickWaitsOnLoad(adapter.quote(proposal, choices))) return;
       confirmed = `You chose: Quick create, no AI`;
     } else {
       const quote = adapter.quote(proposal, choices);

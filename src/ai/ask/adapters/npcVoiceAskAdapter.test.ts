@@ -39,7 +39,7 @@ const { useNpcVoiceAskAdapter } = await import("./npcVoiceAskAdapter");
 const { useNpcVoiceQuote } = await import("@/composables/ai/quotes/npcVoiceQuote");
 
 const ID = "11111111-1111-4111-8111-111111111111";
-const npc = (over: Partial<Npc> = {}) => ({ id: ID, campaign_id: "camp-1", name: "Johnny Reed", disguise_name: null, disguise_portrait_url: null, is_revealed: true, ...over }) as Npc;
+const npc = (over: Partial<Npc> = {}) => ({ id: ID, campaign_id: "camp-1", name: "Johnny Reed", disguise_name: null, disguise_portrait_url: null, is_revealed: true, player_visible_fields: ["name", "portrait"], ...over }) as Npc;
 const proposal = (over: Partial<AskProposal> = {}): AskProposal => ({
   proposalId: "p1", generator: "npc_voice", concept: "The guard stops him at the gate", inputs: {}, target: { type: "npc", id: ID, name: "Johnny Reed" }, ...over,
 });
@@ -184,6 +184,24 @@ describe("useNpcVoiceAskAdapter", () => {
       "  Move along.  ",
       expect.objectContaining({ generatorType: "npc_voice" }),
     );
+  });
+
+  // Bug caught: Said it storing the DM's view in the shared chat: a portrait the DM hid from players, or the true name of
+  // an NPC still under its cover, drawn on every player's screen.
+  it("posts only the name and face players may see: no hidden portrait, the cover name while disguised", async () => {
+    state.npc = npc({ portrait_url: "https://cdn.example/johnny.webp", player_visible_fields: ["name"] });
+    await said(await previewed(), 0).run();
+    expect(mocks.say.mock.calls[0][0]).toEqual({ id: ID, name: "Johnny Reed", face: { portrait: null, focal: null } });
+
+    mocks.say.mockClear();
+    state.npc = npc({ name: "Johnny Reed", disguise_name: "Old Tam", disguise_portrait_url: "https://cdn.example/tam.webp", is_revealed: false, unmasked_at: "2026-11-01T00:00:00Z", portrait_url: "https://cdn.example/johnny.webp" });
+    await said(await previewed(), 0).run();
+    expect(mocks.say.mock.calls[0][0]).toMatchObject({ name: "Old Tam", face: { portrait: "https://cdn.example/tam.webp" } });
+
+    mocks.say.mockClear();
+    state.npc = npc({ player_visible_fields: ["portrait"] });
+    await said(await previewed(), 0).run();
+    expect(mocks.say.mock.calls[0][0].name).toBe("???");
   });
 
   // Bug caught: pressing a line twice posting it to the table twice; and a failed post losing the filed memory or filing it again.

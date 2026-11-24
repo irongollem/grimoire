@@ -13,7 +13,7 @@ vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: ids.user ? { id: 
 import { useSendNpcSpeech } from "./useSendNpcSpeech";
 
 const prov = { generatorType: "npc_voice", provider: "p", model: "m", generatedAt: "t", edited: false };
-const tam = { id: "n1", name: "Old Tam", face: { portrait: "https://cdn.example/tam.webp", focal: null } };
+const tam = { id: "n1", name: "Old Tam", face: { portrait: "http://localhost:54321/storage/tam.webp", focal: null } };
 
 describe("useSendNpcSpeech", () => {
   beforeEach(() => {
@@ -27,7 +27,7 @@ describe("useSendNpcSpeech", () => {
     await useSendNpcSpeech()(tam, "  Move along.  ", prov);
     expect(fake.rows("campaign_messages")).toEqual([{
       campaign_id: "c1", user_id: "dm-1", recipient_user_id: null, sender_name: "Old Tam", message: "Move along.", type: "chat",
-      metadata: { for_npc_id: "n1", speaker_portrait_url: "https://cdn.example/tam.webp", ai: true, ai_provenance: prov },
+      metadata: { for_npc_id: "n1", speaker_portrait_url: "http://localhost:54321/storage/tam.webp", ai: true, ai_provenance: prov },
     }]);
   });
 

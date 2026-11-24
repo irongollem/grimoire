@@ -214,8 +214,14 @@ describe("AskQuoteCard", () => {
 
     // Bug caught: Quick create pressed while the people and places the card names were still loading, which dropped them.
     it("holds Quick create while the quote is still reading, but not for a credit block, and not for an empty concept", async () => {
-      const loading = card({ ...ready, block: { reason: "missing", message: "Still reading this campaign's people." } }, { button: true, quick: true, concept: "a baker" });
+      const loading = card({ ...ready, block: { reason: "missing", message: "Still reading this campaign's people." }, reading: true }, { button: true, quick: true, concept: "a baker" });
       expect(loading.get('[data-testid="ask-quick"]').attributes("disabled")).toBeDefined();
+      // Bug caught: an over-long concept, or a model-proposed card with an empty one, both "missing" blocks that are not
+      // loads, disabling the free Quick create for good.
+      const tooLong = card({ ...ready, block: { reason: "missing", message: "Shorten the description to 2000 characters." } }, { button: true, quick: true, concept: "a baker" });
+      expect(tooLong.get('[data-testid="ask-quick"]').attributes("disabled")).toBeUndefined();
+      const empty = card({ ...ready, block: { reason: "missing", message: "Say who it is." } }, { quick: true, concept: "" });
+      expect(empty.get('[data-testid="ask-quick"]').attributes("disabled")).toBeUndefined();
       const broke = card({ ...ready, block: { reason: "credits", message: "Short." } }, { button: true, quick: true, concept: "a baker" });
       expect(broke.get('[data-testid="ask-quick"]').attributes("disabled")).toBeUndefined();
     });

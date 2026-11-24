@@ -7,6 +7,7 @@ import { computed } from "vue";
 import { askGenerator } from "@edge-shared/agent/askContract";
 import { isPreviewAdapter, type AskRunResult } from "@/lib/ask/askAdapter";
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
+import { askGeneratorList } from "./askRecordRoute";
 import { findItem, partsCredits, previewRowKey, type AskItem, type AskThreadState } from "./askItems";
 
 type ProposalItem = Extract<AskItem, { kind: "proposal" }>;
@@ -69,11 +70,14 @@ export function useAskPreviews(deps: AskPreviewsDeps) {
     try {
       result = await keep.preview.create();
     } catch {
-      // Whether it saved is unknown, but a generation paid for must not be lost on a dropped connection: the preview
-      // stays held and Create can be pressed again once the DM has looked at the list. The fold says it did not
-      // finish (which also takes "Change options" away), and "Again" is not offered on top of an unknown save.
-      card.phase = "ready";
-      card.error = "That did not finish. Check the list, then press Create again if it is not there.";
+      // Whether it saved is UNKNOWN (the insert may have gone through before the connection dropped), so Create is not
+      // offered again: a second press could make a duplicate. The card says so and links the list; Discard stays, and the
+      // fold says it did not finish (which also takes "Change options" away). Only a create that RESOLVES with no record is
+      // a known non-save, and stays retryable below.
+      card.phase = "failed";
+      card.error = "It may have been saved. Check the list before making it again.";
+      const list = askGeneratorList(item.proposal.generator);
+      if (list) card.listRoute = list;
       item.state = "failed";
       return;
     }
@@ -182,7 +186,9 @@ export function useAskPreviews(deps: AskPreviewsDeps) {
     const thread = deps.thread();
     const card = findItem(thread.items, previewId, "preview");
     const keep = thread.held.get(previewId);
-    if (!card || !keep || card.phase !== "ready") return;
+    if (!card || !keep || (card.phase !== "ready" && card.phase !== "failed")) return;
+    // A row press under way would finish after this and be missing from `kept`: wait for it, as Create and Again do.
+    if (hasRow(card, "running")) return;
     card.phase = "discarded";
     thread.held.delete(previewId);
     // What a row press already made stays made: the card says so instead of "Nothing was saved".

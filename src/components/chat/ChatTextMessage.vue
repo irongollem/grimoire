@@ -27,8 +27,14 @@
   </div>
 
   <!-- An NPC's line (#1270): the NPC's speech bubble, led by the face the message carried. -->
-  <div v-else-if="npcSpeech" class="max-w-[85%]" :data-addressed="addressed ? '' : undefined" data-testid="chat-npc-speech">
-    <NpcSpeechBubble :name="senderName ?? '???'" :portrait="npcSpeech.portrait" :focal="npcSpeech.focal" :ai="npcSpeech.ai">
+  <div
+    v-else-if="npcSpeech"
+    class="max-w-[85%] rounded-lg"
+    :class="addressed ? 'ring-2 ring-primary/50' : ''"
+    :data-addressed="addressed ? '' : undefined"
+    data-testid="chat-npc-speech"
+  >
+    <NpcSpeechBubble :name="senderName ?? '???'" :portrait="npcSpeech.portrait" :focal="npcSpeech.focal" :ai="npcSpeech.ai" :recipient="recipientName">
       <template #line>
         <!-- eslint-disable-next-line vue/no-v-html -->
         <p class="whitespace-pre-line" v-html="renderedMessage" />

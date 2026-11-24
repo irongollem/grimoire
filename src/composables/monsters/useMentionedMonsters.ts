@@ -1,5 +1,5 @@
 import { computed, type ComputedRef } from "vue";
-import { useQuery } from "@tanstack/vue-query";
+import { keepPreviousData, useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { fetchLibraryMonsterArtEntries } from "@/composables/library/useLibraryMonsterArt";
 import { isUuid } from "@/lib/library/contentIdentity";
@@ -52,11 +52,20 @@ export async function fetchMentionedMonsters(ids: readonly string[]): Promise<Ma
 /** The mentioned monsters in index order (the order `parseSceneEntities` has
  *  always resolved a fuzzy @name in), read by id only once the text names one.
  *  `loading` is true while that by-id read is on its way, so a caller that must
- *  not resolve against nothing (an Ask quote) can wait for it. */
+ *  not resolve against nothing (an Ask quote) can wait for it. `rows` and `fetching` are
+ *  for a caller that reads several texts at once: with `keepPrevious` the rows already
+ *  read stay while a grown id set loads, so each text can ask whether ITS ids are in. */
 export function useMentionedMonstersState(
   text: () => string,
   monsterIndex: () => readonly { id: string; name: string }[] | undefined,
-): { monsters: ComputedRef<SceneMonster[]>; loading: ComputedRef<boolean> } {
+  options?: { keepPrevious?: boolean },
+): {
+  monsters: ComputedRef<SceneMonster[]>;
+  loading: ComputedRef<boolean>;
+  rows: ComputedRef<ReadonlyMap<string, SceneMonster> | undefined>;
+  fetching: ComputedRef<boolean>;
+  failed: ComputedRef<boolean>;
+} {
   const ids = computed(() => {
     const index = monsterIndex();
     return index ? mentionedMonsterIds(text(), index) : [];
@@ -66,6 +75,7 @@ export function useMentionedMonstersState(
     queryKey: computed(() => [...MENTIONED_KEY, sortedIds.value] as const),
     queryFn: ({ queryKey: [, , wanted] }) => fetchMentionedMonsters(wanted),
     enabled: () => sortedIds.value.length > 0,
+    ...(options?.keepPrevious ? { placeholderData: keepPreviousData } : {}),
   });
   const monsters = computed(() => {
     const rows = query.data.value;
@@ -76,7 +86,13 @@ export function useMentionedMonstersState(
     });
   });
   const loading = computed(() => sortedIds.value.length > 0 && query.data.value === undefined && !query.isError.value);
-  return { monsters, loading };
+  return {
+    monsters,
+    loading,
+    rows: computed(() => query.data.value),
+    fetching: computed(() => query.isFetching.value),
+    failed: computed(() => query.isError.value),
+  };
 }
 
 export function useMentionedMonsters(

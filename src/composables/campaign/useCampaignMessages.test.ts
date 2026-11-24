@@ -125,12 +125,12 @@ describe("a line the DM says as an NPC (#1270)", () => {
 
   // Bug caught: a talk-as-NPC line stored as plain text, so players see a bare bubble with no face.
   it("names the NPC and carries their face, beside any mentions", async () => {
-    Object.assign(mocks.ui, { dmTalkAsNpcId: "n1", dmTalkAsNpcName: "Old Tam", dmTalkAsNpcFace: { portrait: "https://cdn.example/tam.webp", focal: { x: 40, y: 10 } } });
+    Object.assign(mocks.ui, { dmTalkAsNpcId: "n1", dmTalkAsNpcName: "Old Tam", dmTalkAsNpcFace: { portrait: "http://localhost:54321/storage/tam.webp", focal: { x: 40, y: 10 } } });
     const { sendMessage } = useCampaignMessages();
     await sendMessage("Move along.");
     await sendMessage("Move along, @Mira.", null, [{ kind: "dm" } as never]);
     expect(fake.rows("campaign_messages")).toMatchObject([
-      { sender_name: "Old Tam", metadata: { for_npc_id: "n1", speaker_portrait_url: "https://cdn.example/tam.webp", speaker_portrait_focal: { x: 40, y: 10 } } },
+      { sender_name: "Old Tam", metadata: { for_npc_id: "n1", speaker_portrait_url: "http://localhost:54321/storage/tam.webp", speaker_portrait_focal: { x: 40, y: 10 } } },
       { metadata: { for_npc_id: "n1", mentions: [{ kind: "dm" }] } },
     ]);
   });

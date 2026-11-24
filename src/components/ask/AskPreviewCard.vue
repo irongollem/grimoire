@@ -54,7 +54,12 @@
     </p>
     <p v-if="item.error" class="text-caption text-destructive" role="alert" data-testid="ask-preview-error">{{ item.error }}</p>
 
-    <div v-if="item.phase !== 'failed'" class="flex flex-wrap items-center gap-2" data-testid="ask-preview-foot">
+    <!-- A save of unknown outcome offers no Create (a second press could make a duplicate): the list to check, and Discard. -->
+    <div v-if="item.phase === 'failed'" class="flex flex-wrap items-center gap-2" data-testid="ask-preview-unknown">
+      <AppButton v-if="item.listRoute" variant="subtle" size="sm" :class="{ 'min-h-11': isMobile }" label="Open the list" :to="item.listRoute" data-testid="ask-preview-list" />
+      <AppButton variant="ghost" size="sm" :class="{ 'min-h-11': isMobile }" label="Discard" data-testid="ask-preview-discard" @click="emit('discard')" />
+    </div>
+    <div v-else class="flex flex-wrap items-center gap-2" data-testid="ask-preview-foot">
       <AppButton
         variant="primary"
         size="sm"

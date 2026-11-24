@@ -415,6 +415,30 @@ describe("refusalMessage", () => {
 });
 
 describe("useAskConversation: campaign, allowance and withheld proposals", () => {
+  // Bug caught: a turn still in flight when the DM switched campaign writing its refusal (and, for a buffered session
+  // event, its session id) into the campaign now on screen, so B's next turn sent A's session.
+  it("writes a late refusal and a late session into the thread the turn started in, not the one on screen", async () => {
+    const campaign = ref<string | null>("c1");
+    let release: (r: Response) => void = () => {};
+    const late = new Promise<Response>((resolve) => { release = resolve; });
+    const { convo, transport } = setup({ campaignId: () => campaign.value, responses: [sse([done])] });
+    transport.mockImplementationOnce(() => late);
+    const turn = convo.send("hello");
+    await Promise.resolve();
+    campaign.value = "c2";
+    await Promise.resolve();
+    release(new Response(JSON.stringify({ error: "refused", message: "Nope." }), { status: 403 }));
+    await turn;
+    expect(convo.items.value).toEqual([]);
+    transport.mockImplementationOnce(async () => sse([{ type: "session", sessionId: "s-late" }, done]));
+    await convo.send("in b");
+    campaign.value = "c1";
+    await Promise.resolve();
+    expect(convo.items.value.some((i) => i.kind === "error")).toBe(false);
+    await convo.send("back in a");
+    expect(transport).toHaveBeenLastCalledWith(expect.not.objectContaining({ sessionId: "s-late" }), expect.anything());
+  });
+
   // Bug caught: a switch of campaign keeping the old session and thread on screen, so the next turn sent campaign A's
   // session with campaign B and a quote made in A ran in B.
   it("shows an empty conversation, with no session, in the campaign switched to", async () => {
@@ -835,22 +859,53 @@ describe("useAskConversation: a held generation", () => {
     expect(convo.generating.value).toBe(false);
   });
 
-  // Bug caught: a create that threw left the proposal "previewing" with Change options offered, and the card failed
-  // with no way to save the generation that had been paid for.
-  it("a Create that throws folds the proposal as failed and keeps the preview, so Create can be pressed again", async () => {
+  // Bug caught: a create that THREW (outcome unknown: the insert may have gone through) putting Create back, so a
+  // second press inserted a duplicate. It is not offered again; Discard stays.
+  it("a Create that throws is of unknown outcome: it says so, offers no second Create, and keeps Discard", async () => {
     const first = made();
     first.create = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(okResult);
     const { convo, card, previewItem } = await held({ preview: async () => ({ ok: true, preview: first }) });
     const id = previewItem()?.id ?? -1;
     await convo.createPreview(id);
     expect(card).toMatchObject({ state: "failed" });
-    expect(previewItem()).toMatchObject({ phase: "ready" });
-    expect((previewItem() as Extract<AskItem, { kind: "preview" }>).error).toContain("Check the list");
+    expect(previewItem()).toMatchObject({ phase: "failed" });
+    expect((previewItem() as Extract<AskItem, { kind: "preview" }>).error).toContain("may have been saved");
+    await convo.createPreview(id);
     await convo.againPreview(id);
     expect(first.create).toHaveBeenCalledTimes(1);
+    convo.discardPreview(id);
+    expect(previewItem()).toMatchObject({ phase: "discarded" });
+  });
+
+  // Bug caught: a create that resolved with no record (a known non-save) losing its retry along with the unknown case.
+  it("a Create that resolves with no record is a known non-save and stays retryable", async () => {
+    const first = made();
+    first.create = vi.fn()
+      .mockResolvedValueOnce({ record: null, route: null, parts: [{ label: "NPC", ok: false, credits: 0, error: "db said no" }] })
+      .mockResolvedValueOnce(okResult);
+    const { convo, previewItem } = await held({ preview: async () => ({ ok: true, preview: first }) });
+    const id = previewItem()?.id ?? -1;
     await convo.createPreview(id);
-    expect(card).toMatchObject({ state: "done" });
+    expect(previewItem()).toMatchObject({ phase: "ready", error: "db said no" });
+    await convo.createPreview(id);
     expect(previewItem()).toMatchObject({ phase: "saved" });
+  });
+
+  // Bug caught: Discard pressed while a row's record was still being made, so the row finished after the card was
+  // gone and was missing from "N were made and kept".
+  it("refuses Discard while a row press runs, and then counts that row as kept", async () => {
+    let release: (p: { label: string; ok: true; credits: number }) => void = () => undefined;
+    const first = made();
+    first.shown = { title: "Hooks", sections: [{ rows: [hookRow(() => new Promise((r) => (release = r)))] }] };
+    const { convo, previewItem } = await held({ preview: async () => ({ ok: true, preview: first }) });
+    const id = previewItem()?.id ?? -1;
+    const press = convo.actOnRow(id, 0, 0);
+    convo.discardPreview(id);
+    expect(previewItem()).toMatchObject({ phase: "ready" });
+    release({ label: "Q", ok: true, credits: 0 });
+    await press;
+    convo.discardPreview(id);
+    expect(previewItem()).toMatchObject({ phase: "discarded", kept: 1 });
   });
 
   // Bug caught: starting over losing a generation in flight or awaiting Create, with its credits.

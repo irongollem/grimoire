@@ -132,8 +132,13 @@ describe("AskPreviewCard", () => {
   });
 
   // Bug caught: a save of unknown outcome offering Create again, which could make a second record.
-  it("offers no buttons after a save of unknown outcome", () => {
-    expect(card({ phase: "failed", error: "Check the list." }).find('[data-testid="ask-preview-foot"]').exists()).toBe(false);
+  it("offers no Create or Again after a save of unknown outcome, only the list and Discard", () => {
+    const w = card({ phase: "failed", error: "It may have been saved.", listRoute: "/encounters" });
+    expect(w.find('[data-testid="ask-preview-foot"]').exists()).toBe(false);
+    expect(w.find('[data-testid="ask-preview-create"]').exists()).toBe(false);
+    expect(w.find('[data-testid="ask-preview-again"]').exists()).toBe(false);
+    expect(w.find('[data-testid="ask-preview-list"]').exists()).toBe(true);
+    expect(w.find('[data-testid="ask-preview-discard"]').exists()).toBe(true);
   });
 
   // Bug caught: Again offered after Create quest, so a second generation orphaned the quests already made.

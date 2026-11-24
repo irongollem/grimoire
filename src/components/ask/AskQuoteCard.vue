@@ -165,7 +165,7 @@ const conceptField = computed(() => (item.origin === "button" ? generator.value?
 /** A required concept still empty: the gilt button is disabled, and says nothing more than the empty box does. */
 const waitingForWords = computed(() => isWaitingForWords(item, quote.value));
 /** The lists the quote reads (places, people, ties) have not arrived: Quick create would drop what they resolve. */
-const quickWaiting = computed(() => quickWaitsOnLoad(item, quote.value));
+const quickWaiting = computed(() => quickWaitsOnLoad(quote.value));
 /** What the quote says; a card a button opened drops the line that only repeats the concept box above it. */
 const ledgerLines = computed(() => (quote.value?.lines ?? []).filter((l) => !(item.origin === "button" && l.repeatsConcept)));
 /** On a phone the total and the button stay at the foot of the sheet while the form scrolls. */

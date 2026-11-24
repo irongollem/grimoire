@@ -11,6 +11,7 @@
       <div class="rounded-lg border border-border bg-muted px-3 py-2">
         <div class="mb-0.5 flex items-center gap-1">
           <span class="text-label font-semibold text-primary" data-testid="npc-speech-name">{{ name }}</span>
+          <span v-if="recipient" class="text-caption-sm italic text-ink-caution" data-testid="npc-speech-recipient">→ {{ recipient }}</span>
           <!-- AI Act Art. 50: a line a model wrote says so, for every reader. -->
           <span v-if="ai" class="rounded border border-border px-1 text-caption-sm text-muted-foreground" title="Written by AI" data-testid="npc-speech-ai">AI</span>
         </div>
@@ -37,7 +38,7 @@ import FocalImage from "@/components/common/media/FocalImage.vue";
 import { useLowArt } from "@/composables/useLowArt";
 import { safePortraitUrl } from "@/lib/chat/npcSpeech";
 
-const { name, line = "", portrait = null, focal = null, ai = false } = defineProps<{
+const { name, line = "", portrait = null, focal = null, ai = false, recipient = null } = defineProps<{
   name: string;
   /** Plain text. Leave empty and fill the `line` slot to draw it another way. */
   line?: string;
@@ -45,6 +46,8 @@ const { name, line = "", portrait = null, focal = null, ai = false } = definePro
   focal?: { x: number; y: number } | null;
   /** A model wrote the line: says so in the corner of the bubble. */
   ai?: boolean;
+  /** A whisper: who the line was said to, shown beside the name as in a plain chat bubble. */
+  recipient?: string | null;
 }>();
 
 const { lowArt } = useLowArt();

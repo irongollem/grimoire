@@ -9,6 +9,7 @@ import type { CampaignMessageInsert } from "@/types/chat.types";
  * Says a line aloud in the campaign chat as an NPC (#1270): an open `chat` message from the signed-in DM, named for the
  * NPC, whose metadata draws it as the NPC's speech bubble. It is the DM's own insert through RLS, like any chat line the
  * DM sends, and every tab (this one too) hears it through the campaign doorbell, so nothing is pushed by hand.
+ * The caller passes the NPC's player-facing name and face (`getNpcPlayerFace`), never the DM's view of them.
  * Throws when the insert fails; the caller says so and may try again.
  */
 export function useSendNpcSpeech() {

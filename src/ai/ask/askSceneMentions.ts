@@ -52,10 +52,12 @@ const REMEMBERED_TEXTS = 40;
 /**
  * The mentions of several descriptions at once, for adapters whose quote is asked about more than one card (two music
  * cards, two scene cards). `useAskSceneMentions` holds ONE text, so two cards rewrote each other's; here nothing is
- * shared but the lookups. `resolve(text)` is a pure read of that description: its entities come from the campaign's
- * lists and the by-id reads of what ANY remembered description names (one read serves all), and its `loading` is true
- * only while what THIS description needs has not arrived. Asking about a description new to the resolver remembers it
- * (the only write, and once per description), which makes the by-id reads fetch what it names.
+ * shared but the lookups. `resolve(text)` is a read of that description: its entities come from the campaign's lists
+ * and the by-id reads of what ANY remembered description names (one read serves all), and its `loading` is true only
+ * while what THIS description needs has not arrived. Those reads keep what they had while a second card's new mention
+ * grows the set, so the first card's quote does not flip back to "Still reading". Asking about a description new to the
+ * resolver registers it, but never in the asking computed: the write is queued to a microtask, and until it lands the
+ * description reads as loading.
  */
 export function useAskSceneResolver() {
   const campaign = useCampaignStore();
@@ -63,26 +65,34 @@ export function useAskSceneResolver() {
   // The people and places are read only once a description has named one: the resolver lives as long as the panel.
   const { partyMembers, npcs, monsterIndex, locations, factions } = useEntityMentionItems(() => texts.value.length > 0);
 
-  // A plain set answers "known?" without making the asking computed depend on what it is about to write.
-  const known = new Set<string>();
-  function remember(text: string): void {
-    if (known.has(text)) return;
-    known.add(text);
-    const next = [...texts.value, text].slice(-REMEMBERED_TEXTS);
-    known.clear();
-    for (const t of next) known.add(t);
-    texts.value = next;
+  const pending = new Set<string>();
+  function register(text: string): void {
+    if (pending.has(text)) return;
+    pending.add(text);
+    if (pending.size > 1) return;
+    queueMicrotask(() => {
+      const next = [...texts.value, ...[...pending].filter((t) => !texts.value.includes(t))].slice(-REMEMBERED_TEXTS);
+      pending.clear();
+      texts.value = next;
+    });
   }
 
   const locationIds = computed(() => texts.value.flatMap((t) => mentionedLocationIds(t, locations.value ?? [])));
   const npcIds = computed(() => texts.value.flatMap((t) => mentionedNpcIds(t, npcs.value ?? [])));
-  const locationReads = useLocationDescriptions(locationIds);
-  const npcReads = useNpcAppearances(npcIds);
-  const monsterReads = useMentionedMonstersState(() => texts.value.join("\n"), () => monsterIndex.value);
+  const locationReads = useLocationDescriptions(locationIds, { keepPrevious: true });
+  const npcReads = useNpcAppearances(npcIds, { keepPrevious: true });
+  const monsterReads = useMentionedMonstersState(() => texts.value.join("\n"), () => monsterIndex.value, { keepPrevious: true });
+
+  /** Waiting on a read: nothing has arrived, or it is on its way and does not yet hold every id this description needs. */
+  function waitsOn(ids: readonly string[], rows: ReadonlyMap<string, unknown> | undefined, fetching: boolean, failed: boolean): boolean {
+    if (ids.length === 0 || failed) return false;
+    return rows === undefined || (fetching && ids.some((id) => !rows.has(id)));
+  }
 
   function resolve(text: string): { entities: ResolvedSceneEntity[]; loading: boolean } {
     if (!text.includes("@")) return { entities: [], loading: false };
-    remember(text);
+    const registered = texts.value.includes(text);
+    if (!registered) register(text);
     const entities = parseSceneEntities(text, {
       partyMembers: partyMembers.value,
       npcs: npcs.value,
@@ -94,12 +104,11 @@ export function useAskSceneResolver() {
       groupPortraitUrl: campaign.activeCampaign?.group_portrait_url,
     });
     const listsMissing = partyMembers.value === undefined || npcs.value === undefined || monsterIndex.value === undefined || locations.value === undefined || factions.value === undefined;
-    if (listsMissing) return { entities, loading: true };
-    const waitsOn = (ids: readonly string[], data: unknown, failed: boolean) => ids.length > 0 && data === undefined && !failed;
+    if (!registered || listsMissing) return { entities, loading: true };
     const loading =
-      waitsOn(mentionedLocationIds(text, locations.value ?? []), locationReads.data.value, locationReads.isError.value) ||
-      waitsOn(mentionedNpcIds(text, npcs.value ?? []), npcReads.data.value, npcReads.isError.value) ||
-      (monsterReads.loading.value && mentionedMonsterIds(text, monsterIndex.value ?? []).length > 0);
+      waitsOn(mentionedLocationIds(text, locations.value ?? []), locationReads.data.value, locationReads.isFetching.value, locationReads.isError.value) ||
+      waitsOn(mentionedNpcIds(text, npcs.value ?? []), npcReads.data.value, npcReads.isFetching.value, npcReads.isError.value) ||
+      waitsOn(mentionedMonsterIds(text, monsterIndex.value ?? []), monsterReads.rows.value, monsterReads.fetching.value, monsterReads.failed.value);
     return { entities, loading };
   }
 

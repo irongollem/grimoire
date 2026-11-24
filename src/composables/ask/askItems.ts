@@ -58,6 +58,8 @@ export type AskItem =
       rows: Record<string, PreviewRowState>;
       /** A save or a second generation that did not work, said for the DM; the preview stays as it was. */
       error?: string;
+      /** Set with a save of unknown outcome (`phase: "failed"`): the list the DM checks before making it again. */
+      listRoute?: string;
       /** Once discarded, how many records its row presses had already made: they stay. */
       kept?: number;
     }
@@ -103,12 +105,12 @@ export function isWaitingForWords(item: Extract<AskItem, { kind: "proposal" }>, 
 
 /**
  * Quick create waits while the quote is still reading what its inputs name (places, factions, people, ties): it is free
- * and ignores a credit or plan block, but a press before those lists arrive would drop the ids they resolve. An empty
- * required concept is not a load and does not hold it.
+ * and ignores a credit or plan block, but a press before those lists arrive would drop the ids they resolve. It waits on
+ * `quote.reading` and on nothing else: a "missing" block is also an empty or over-long concept (a limit on the AI's
+ * prompt, which the free route does not send), and those are not loads.
  */
-export function quickWaitsOnLoad(item: Extract<AskItem, { kind: "proposal" }>, quote: AskQuote | null): boolean {
-  if (quote === null) return false;
-  return quote.reading === true || (quote.block?.reason === "missing" && !isWaitingForWords(item, quote));
+export function quickWaitsOnLoad(quote: AskQuote | null): boolean {
+  return quote?.reading === true;
 }
 
 /** A generation held for the DM's yes: the call that saves it, and what the run's finish needs to say. */

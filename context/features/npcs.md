@@ -365,7 +365,7 @@ inventory drop falls back to the DM's own sender name. Never the true name.
 
 ### Speech bubbles (#1270)
 
-`NpcSpeechBubble` is the one way an NPC's word is drawn: portrait (display-aware, so a disguise shows its picture), name, the line, an optional AI mark and a slot for actions. The Familiar's voice lines use it, and "Said it" copies the line into the campaign chat in the same bubble (see collaboration.md, "NPC speech bubbles").
+`NpcSpeechBubble` is the one way an NPC's word is drawn: portrait (display-aware, so a disguise shows its picture), name, the line, an optional AI mark and a slot for actions. The Familiar's voice lines use it, and "Said it" copies the line into the campaign chat in the same bubble (see collaboration.md, "NPC speech bubbles"). In the chat, players see only the name and portrait the player projection would show (`getNpcPlayerFace` in `npcDisplay.ts`): a portrait the DM has not shared is never stored in the message, and a disguised NPC speaks under its cover.
 
 ## World Web
 
