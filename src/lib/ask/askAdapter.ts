@@ -74,15 +74,65 @@ export interface AskRunResult {
   parts: AskRunPart[];
 }
 
+/** One line of a preview: what it is and the detail beside it ("4 x Goblin", "CR 1/4"). */
+export interface AskPreviewRow {
+  label: string;
+  detail: string;
+  /**
+   * A choice the DM may change before Create (which sourcebook's version of a creature): the card draws a picker
+   * under the row and reports a pick as `choose(key, value)`, and the adapter's `create` saves what was picked.
+   */
+  choice?: { key: string; label: string; options: { id: string; name: string }[]; value: string };
+}
+
+/**
+ * What the result card shows of a generation that is not saved yet, as plain data so the card draws every generator's
+ * preview the same way and no generator brings a Vue component of its own.
+ */
+export interface AskPreviewShown {
+  /** The thing's name: the encounter's, the table's. */
+  title: string;
+  /** A short mark beside the title (the encounter's difficulty for the party). */
+  badge?: string;
+  /** Blocks of rows, each with an optional heading ("Combatants"), in the order they are shown. */
+  sections: { heading?: string; /** A quiet line under the heading. */ hint?: string; rows: AskPreviewRow[] }[];
+  /** A warning under the rows (creatures the Bestiary lacks). */
+  note?: string;
+}
+
+/** A generation held for the DM's yes: what to show, what it cost, and the one call that saves it. */
+export interface AskPreview {
+  shown: AskPreviewShown;
+  /**
+   * The generation as parts, with the credits it cost. The conversation adds them up for the folded line; they are
+   * charged by the generation itself and never again by `create`.
+   */
+  parts: AskRunPart[];
+  /**
+   * Saves what is shown and ends in the same result as `run` (the record and where to open it). Called once per
+   * preview shown: the card keeps the DM from pressing twice. A save that fails resolves with `record: null` and a
+   * failed part, so the preview stays and the DM may press Create again; it never throws for that.
+   */
+  create(): Promise<AskRunResult>;
+  /**
+   * The DM changed a row's `choice`: records it (so `create` saves it) and returns what to show now. Present only on
+   * a preview whose rows carry choices.
+   */
+  choose?(key: string, value: string): AskPreviewShown;
+}
+
+/** The generation either made something to show, or ended with nothing (a failed part saying why). */
+export type AskPreviewOutcome = { ok: true; preview: AskPreview } | { ok: false; result: AskRunResult };
+
 export interface AskAdapter {
   /** The `ASK_GENERATORS` id. */
   id: string;
   /** The quote for this proposal. Pure over current state; call again when the proposal changes. */
   quote(proposal: AskProposal, choices?: AskChoices): AskQuote;
   /**
-   * Runs it. Called once per confirmed proposal: the panel keys runs by `proposalId` and never calls twice for one,
-   * so a double press or a retry of the request cannot make a second record. Resolves; never throws for a failed
-   * generation (that is a part with `ok: false`).
+   * Runs it, generating and saving in one step. Called once per confirmed proposal: the panel keys runs by
+   * `proposalId` and never calls twice for one, so a double press or a retry of the request cannot make a second
+   * record. Resolves; never throws for a failed generation (that is a part with `ok: false`).
    */
   run(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult>;
   /**
@@ -90,6 +140,25 @@ export interface AskAdapter {
    * no credits, and ends in the same result card. Offered on the card only when present.
    */
   quick?(proposal: AskProposal, choices?: AskChoices): Promise<AskRunResult>;
+}
+
+/**
+ * The two-phase adapter (#1270), for a generator whose result the DM looks at before it is kept (the encounter's
+ * line-up, a table's rows). Same quote and gates as `AskAdapter`; instead of `run` it has `preview`, which generates
+ * and returns what to show with the `create` that saves it. The gilt button charges at the generation; Create costs
+ * nothing. `preview` is called once per press of the gilt button and once more per press of "Again", a deliberate new
+ * generation at the quote's price.
+ */
+export interface AskPreviewAdapter extends Omit<AskAdapter, "run"> {
+  preview(proposal: AskProposal, choices?: AskChoices): Promise<AskPreviewOutcome>;
+}
+
+/** Either shape: what the registry holds and the card and the conversation read. */
+export type AnyAskAdapter = AskAdapter | AskPreviewAdapter;
+
+/** True for a two-phase adapter. */
+export function isPreviewAdapter(adapter: AnyAskAdapter): adapter is AskPreviewAdapter {
+  return "preview" in adapter;
 }
 
 /** A `screen` generator has no quote and no run: Ask opens its screen with the request filled in. */

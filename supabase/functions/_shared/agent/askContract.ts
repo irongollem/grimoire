@@ -45,6 +45,11 @@ export interface AskInputMeta {
   /** A line under a switch for the DM, when the label alone does not say enough. The model's `description` is never shown. */
   hint?: string;
   placeholder?: string;
+  /**
+   * A key into the browser's aside registry (`askAsides.ts`): one quiet line under the field that reads the card's
+   * current inputs (the encounter's "Uses <table> here"). The model never sees it.
+   */
+  aside?: string;
   /** A fold row's name: inputs sharing a group fold into one row that says what it holds. */
   group?: string;
   /** Shown only while another input is set (or set to one of `is`); with several keys, while any is. Cleared when the condition stops holding. */
@@ -59,7 +64,12 @@ export interface AskStringMeta {
   record?: AskRecordType;
   /** The DM's words for enum values whose plain reading is wrong; any other value reads as itself, capitalised. */
   optionLabels?: Readonly<Record<string, string>>;
+  /** Words that run over several lines (lyrics): drawn as a box that grows, not a one-line field. */
+  multiline?: true;
 }
+
+/** What an @ in the card's concept box offers: the catalogue's items, or the campaign's people, places and factions. */
+export type AskMentions = "items" | "entities";
 
 /** A JSON Schema property, the subset the generators' inputs use. */
 export type AskInputSchema =
@@ -93,7 +103,7 @@ export interface AskGenerator {
    * The card's first field when the generator's button opened it: the box the DM describes what to make in, labelled
    * and worded as the generator's own panel was. A generator without it has no such box.
    */
-  concept?: { label: string; placeholder: string; required?: boolean; max?: number; mentions?: "items" };
+  concept?: { label: string; placeholder: string; required?: boolean; max?: number; mentions?: AskMentions };
   /** A `fill` generator's target kinds. */
   target?: readonly AskRecordType[];
   /** Only offered where the campaign's game system offers stat blocks and 5e rules (`offers("stat-blocks")`). */

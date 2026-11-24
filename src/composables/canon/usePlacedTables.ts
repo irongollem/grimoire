@@ -7,8 +7,8 @@ import type { PlacedTable } from "@/lib/canon/habitats";
  * The campaign's roll tables that are placed on a place in the Atlas, with their names (#1258 item 15). The reads are
  * the ones the journey line makes (`useRollTables`, then their placements in one query); empty while either loads.
  */
-export function usePlacedTables() {
-  const { data: tables } = useRollTables();
+export function usePlacedTables(wanted: () => boolean = () => true) {
+  const { data: tables } = useRollTables(wanted);
   const ids = computed(() => (tables.value ?? []).map((t) => t.id));
   const { data: placements } = useEntityPlacementsFor("roll_table", ids);
   return computed<PlacedTable[]>(() => {

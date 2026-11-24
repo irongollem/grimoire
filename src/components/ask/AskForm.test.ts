@@ -22,8 +22,20 @@ vi.mock("@/ai/ask/askOptions", async (importOriginal) => ({
 }));
 vi.mock("@/ai/ask/adapters/askLinkRecords", () => ({ useAskLinkRecords: () => ({ names: computed(() => undefined), loading: computed(() => false), failed: computed(() => false) }) }));
 
+vi.mock("@/ai/ask/askAsides", () => ({ ASK_ASIDES: { encounter_where: () => computed(() => "Uses Coast road encounters here") } }));
+
+const encounter = ASK_GENERATORS.find((g) => g.id === "encounter")!;
 const npc = ASK_GENERATORS.find((g) => g.id === "npc")!;
 const form = (inputs: Record<string, unknown> = {}) => mount(AskForm, { props: { generator: npc, inputs }, global: { stubs: { GeneratorLinksField: true } } });
+
+describe("AskForm asides", () => {
+  // Bug caught: the encounter's "Uses <table> here" line lost with the panel, so the DM does not learn the place has its own table.
+  it("draws the line an input's aside gives, under that input only", () => {
+    const w = mount(AskForm, { props: { generator: encounter, inputs: { location_id: FACTION } }, global: { stubs: { GeneratorLinksField: true } } });
+    expect(w.get('[data-testid="ask-aside-location_id"]').text()).toBe("Uses Coast road encounters here");
+    expect(w.find('[data-testid="ask-aside-difficulty"]').exists()).toBe(false);
+  });
+});
 
 describe("AskForm", () => {
   // Bug caught: the six extras of the NPC form laid out open, which is the wall of controls the fold rows exist to remove.
@@ -73,5 +85,15 @@ describe("AskForm", () => {
     const w = form();
     const field = w.get('[data-testid="ask-field-race"]');
     expect(field.find('input[data-field="combobox"]').exists()).toBe(true);
+  });
+});
+
+describe("AskForm with a concept box above it", () => {
+  // Bug caught: "Nothing here to set." under a concept box, as if the box were not the thing to set.
+  it("says nothing when the form has no inputs and a concept box is above it, and keeps the line for Adjust", () => {
+    const bare = { ...encounter, id: "bare", inputs: {} };
+    const props = { generator: bare, inputs: {} };
+    expect(mount(AskForm, { props: { ...props, boxed: true }, global: { stubs: { GeneratorLinksField: true } } }).text()).toBe("");
+    expect(mount(AskForm, { props, global: { stubs: { GeneratorLinksField: true } } }).text()).toContain("Nothing here to set.");
   });
 });

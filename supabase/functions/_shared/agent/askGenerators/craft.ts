@@ -8,9 +8,10 @@ export const CRAFT_GENERATORS: readonly AskGenerator[] = [
     id: "encounter", action: "Create encounter", noun: "encounter", ending: "record", fiveE: true,
     describe: "A combat encounter with monsters balanced for the party. It can be set in an existing place (`location_id`), where the Atlas then lists it.",
     inputs: {
-      difficulty: { type: "string", description: "How hard.", enum: ["auto", "easy", "medium", "hard", "deadly"] },
-      location_id: { type: "string", description: "Id of a place in this campaign where the fight happens." },
+      difficulty: { type: "string", description: "How hard.", enum: ["auto", "easy", "medium", "hard", "deadly"], label: "Difficulty" },
+      location_id: { type: "string", description: "Id of a place in this campaign where the fight happens.", label: "Where", record: "location", placeholder: "Nowhere in particular", aside: "encounter_where" },
     },
+    concept: { label: "What to make", placeholder: "Goblin ambush on the forest road, levels 3–5, a betrayal mid-fight…", required: true, max: 500 },
     ask: ["difficulty"],
   },
   { id: "roll_table", action: "Create roll table", noun: "roll table", ending: "record", describe: "A random table to roll on.", inputs: { die: { type: "integer", description: "Faces of the die, e.g. 6, 20, 100.", minimum: 2, maximum: 100 } } },

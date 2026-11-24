@@ -7,7 +7,7 @@
         <AppButton as="span" variant="tinted" size="xs" tone="info" emphasis="outline" label="Beta" data-testid="ask-beta" />
       </div>
       <div class="flex items-center gap-1">
-        <AppButton variant="ghost" size="inline" label="New conversation" data-testid="ask-new" @click="emit('new')" />
+        <AppButton variant="ghost" size="inline" label="New conversation" :disabled="startingOverBlocked" data-testid="ask-new" @click="emit('new')" />
         <AppButton v-if="!docked" variant="ghost" size="icon-xs" :icon="IconClose" icon-size="md" aria-label="Close the Familiar" data-testid="ask-close" @click="emit('close')" />
       </div>
     </header>
@@ -29,6 +29,10 @@
       @adjust="(id, inputs) => emit('adjust', id, inputs)"
       @concept="(id, text) => emit('concept', id, text)"
       @quick="emit('quick', $event)"
+      @create="emit('create', $event)"
+      @again="emit('again', $event)"
+      @discard="emit('discard', $event)"
+      @pick="(id, key, value) => emit('pick', id, key, value)"
       @decide="(id, key, on) => emit('decide', id, key, on)"
       @retry="(id, i) => emit('retry', id, i)"
       @leave="(id, i) => emit('leave', id, i)"
@@ -59,6 +63,8 @@ defineProps<{
   items: AskItem[];
   adapters: AskAdapters;
   running: boolean;
+  /** A generation is in flight: a new conversation would lose its result, so the button waits. */
+  startingOverBlocked?: boolean;
   /** Words are arriving: the avatar moves only then. */
   speaking: boolean;
   campaignName: string;
@@ -76,6 +82,10 @@ const emit = defineEmits<{
   adjust: [itemId: number, inputs: Record<string, unknown>];
   concept: [itemId: number, text: string];
   quick: [itemId: number];
+  create: [previewId: number];
+  again: [previewId: number];
+  discard: [previewId: number];
+  pick: [previewId: number, key: string, value: string];
   decide: [itemId: number, key: string, on: boolean];
   retry: [itemId: number, index: number];
   leave: [itemId: number, index: number];

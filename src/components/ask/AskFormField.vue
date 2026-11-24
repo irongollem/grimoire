@@ -17,7 +17,7 @@
       :model-value="typeof modelValue === 'string' ? modelValue : ''"
       :options="options"
       :selected-label="schema.type === 'string' && schema.record === undefined && typeof modelValue === 'string' ? modelValue : null"
-      placeholder="Search…"
+      :placeholder="schema.placeholder ?? 'Search…'"
       @update:model-value="emit('update:modelValue', $event === '' ? undefined : $event)"
     />
     <div v-else-if="schema.type === 'string' && schema.enum" class="flex flex-wrap gap-1.5">
@@ -39,6 +39,18 @@
       :placeholder="schema.placeholder"
       @update:model-value="emit('update:modelValue', whole($event))"
     />
+    <!-- Words that run over several lines (lyrics): a model-facing words box, so a native textarea (CLAUDE.md, Sanctioned Exceptions), in the DM's hand and growing with what is written. -->
+    <textarea
+      v-else-if="schema.type === 'string' && schema.multiline"
+      :value="typeof modelValue === 'string' ? modelValue : ''"
+      :rows="rowsFor(modelValue)"
+      :placeholder="schema.placeholder"
+      :aria-label="inputLabel(inputKey, schema)"
+      data-hand="text"
+      class="w-full resize-none rounded-md border border-border bg-muted px-3 py-2 text-base leading-6 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      :data-testid="`ask-multiline-${inputKey}`"
+      @input="emit('update:modelValue', textOrUndefined(($event.target as HTMLTextAreaElement).value))"
+    />
     <AppInput
       v-else
       size="sm"
@@ -46,6 +58,7 @@
       :placeholder="schema.placeholder"
       @update:model-value="emit('update:modelValue', typeof $event === 'string' && $event.trim() !== '' ? $event : undefined)"
     />
+    <p v-if="aside" class="text-caption text-muted-foreground" :data-testid="`ask-aside-${inputKey}`">{{ aside }}</p>
   </div>
 </template>
 
@@ -66,13 +79,15 @@ import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import GeneratorLinksField from "@/components/generators/GeneratorLinksField.vue";
 
-const { inputKey, schema, modelValue, options, ties, noun } = defineProps<{
+const { inputKey, schema, modelValue, options, ties, noun, aside = null } = defineProps<{
   inputKey: string;
   schema: AskInputSchema;
   modelValue: unknown;
   options: AskRecordOption[] | null;
   /** The pending ties, for a `links` input. */
   ties: readonly GeneratorLink[];
+  /** A quiet line under the field, read from the card's inputs (`askAsides.ts`). */
+  aside?: string | null;
   /** What the new record is called in the ties dialog ("this NPC"). */
   noun: string;
 }>();
@@ -80,6 +95,16 @@ const emit = defineEmits<{
   "update:modelValue": [value: unknown];
   "update:ties": [ties: GeneratorLink[]];
 }>();
+
+/** A box that grows with its lines, from three to twelve before it scrolls. */
+function rowsFor(value: unknown): number {
+  const lines = typeof value === "string" ? value.split("\n").length : 1;
+  return Math.min(12, Math.max(3, lines + 1));
+}
+
+function textOrUndefined(text: string): string | undefined {
+  return text.trim() !== "" ? text : undefined;
+}
 
 function whole(raw: unknown): number | undefined {
   const n = typeof raw === "number" ? raw : Number(raw);

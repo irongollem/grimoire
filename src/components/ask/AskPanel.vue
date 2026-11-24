@@ -8,10 +8,11 @@
 
   <!-- Phones: a sheet above the bottom nav. -->
   <template v-if="isMobile">
-    <div v-if="ui.open" class="fixed inset-0 z-40 bg-black/40" @click="ui.closePanel()" />
+    <!-- Above the modal layer (`modalStack` starts at 200): a sheet opened from inside an open sheet must not sit behind its backdrop. -->
+    <div v-if="ui.open" class="fixed inset-0 z-[900] bg-black/40" @click="ui.closePanel()" />
     <div
       v-if="ui.open"
-      :class="['fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))] inset-x-0 z-50 flex flex-col rounded-t-2xl border-t border-border bg-card', fullSheet ? 'top-[calc(env(safe-area-inset-top)+0.5rem)]' : 'h-[65vh]']"
+      :class="['fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))] inset-x-0 z-[910] flex flex-col rounded-t-2xl border-t border-border bg-card', fullSheet ? 'top-[calc(env(safe-area-inset-top)+0.5rem)]' : 'h-[65vh]']"
       role="dialog"
       aria-label="Familiar"
       data-testid="ask-panel"
@@ -43,6 +44,7 @@ import { useAskConversation, type AskNotice } from "@/composables/ask/useAskConv
 import { askContextFor } from "@/composables/ask/askContext";
 import { useAskUsage } from "@/composables/ask/askUsage";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
+import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useAskUiStore } from "@/stores/ui/ask";
@@ -50,6 +52,7 @@ import AskSurface from "@/components/ask/AskSurface.vue";
 import AskResultNotice from "@/components/ask/AskResultNotice.vue";
 
 const ui = useAskUiStore();
+const { confirm } = useConfirm();
 const route = useRoute();
 const router = useRouter();
 const campaign = useCampaignStore();
@@ -93,10 +96,24 @@ const allowanceLine = computed(() => {
   return `${freeLeft.value} of ${FREE_ASKS_PER_DAY} free questions left today`;
 });
 
+/**
+ * Starts a fresh conversation unless that would lose something paid for: never while a generation is in flight (the
+ * button is disabled, and a search or Suggest waits the same way), and only on a yes while one awaits Create. Resolves
+ * whether it started over.
+ */
+async function startOver(): Promise<boolean> {
+  if (convo.generating.value) return false;
+  const waiting = convo.holding.value;
+  if (waiting !== null && !(await confirm(`Discard the ${waiting} you have not saved? What it cost is spent.`, { title: "Start over?", confirmLabel: "Discard it" }))) return false;
+  convo.newConversation();
+  return true;
+}
+
 const surfaceProps = computed(() => ({
   items: convo.items.value,
   adapters,
   running: convo.running.value,
+  startingOverBlocked: convo.generating.value,
   speaking: convo.speaking.value,
   campaignName: campaign.activeCampaign?.name ?? "No campaign",
   pageTitle: (route.meta.title as string | undefined) ?? null,
@@ -104,7 +121,7 @@ const surfaceProps = computed(() => ({
 }));
 
 const surfaceHandlers = {
-  new: () => convo.newConversation(),
+  new: () => void startOver(),
   close: () => ui.closePanel(),
   send: (text: string) => void convo.send(text),
   choose: convo.choose,
@@ -114,6 +131,10 @@ const surfaceHandlers = {
   adjust: convo.adjust,
   concept: convo.setConcept,
   quick: (id: number) => void convo.quick(id),
+  create: (id: number) => void convo.createPreview(id),
+  again: (id: number) => void convo.againPreview(id),
+  discard: convo.discardPreview,
+  pick: convo.choosePreview,
   decide: convo.decide,
   retry: (id: number, i: number) => void convo.retryPart(id, i),
   leave: convo.leavePart,
@@ -140,8 +161,8 @@ watch(
     if (pending === null) return;
     const text = ui.takePendingQuery();
     if (text === null) return;
-    convo.newConversation();
-    void convo.send(text);
+    // When a generation is in flight or awaiting a yes, the question joins the thread it is in.
+    void startOver().then(() => convo.send(text));
   },
   { immediate: true },
 );
@@ -162,7 +183,7 @@ watch(
 watch(
   () => ui.prefill,
   (text) => {
-    if (text !== null) convo.newConversation();
+    if (text !== null) void startOver();
   },
   { immediate: true },
 );

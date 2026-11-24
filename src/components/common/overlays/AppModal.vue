@@ -11,7 +11,7 @@
       <div
         v-if="open"
         :class="cn('fixed inset-0 flex justify-center', ALIGN[align].container)"
-        :style="{ zIndex: zIndex ?? undefined }"
+        :style="{ zIndex: zIndex ?? undefined, right: 'var(--dock-right, 0px)' }"
         @mousedown.self="onBackdropClick"
       >
         <!--
@@ -249,7 +249,8 @@ watch(
             hidden: true,
             allowInTextEntry: true,
             handler: () => {
-              if (dismissable) emit("close");
+              // Escape pressed in the dock (a card opened from inside this sheet) is the dock's, not the sheet's.
+              if (dismissable && !inDock(document.activeElement)) emit("close");
             },
           },
         ],
@@ -270,9 +271,33 @@ function onBackdropClick() {
 /** What had focus when the modal opened, so it can be handed back on close. */
 let focusOnClose: HTMLElement | null = null;
 
-function onTab(event: KeyboardEvent) {
-  trapTab(event, panelRef.value);
+/** The right-hand dock's root, or null while it is closed: a card opened from inside a sheet lives there. */
+const DOCK = "[data-side-dock]";
+function dockEl(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(DOCK);
 }
+function inDock(el: Element | null): boolean {
+  return el !== null && el.closest(DOCK) !== null;
+}
+
+function onTab(event: KeyboardEvent) {
+  trapTab(event, panelRef.value, dockEl());
+}
+
+/** Tab inside the dock leads back into this sheet at its ends, so the pair is one ring the keyboard can walk. */
+function onDockTab(event: KeyboardEvent) {
+  if (event.key !== "Tab" || !inDock(event.target as Element | null)) return;
+  trapTab(event, dockEl(), panelRef.value);
+}
+watch(
+  () => open,
+  (isOpen, _was, onCleanup) => {
+    if (!isOpen) return;
+    document.addEventListener("keydown", onDockTab);
+    onCleanup(() => document.removeEventListener("keydown", onDockTab));
+  },
+  { immediate: true },
+);
 
 // ── Animation ────────────────────────────────────────────────────────────────
 

@@ -179,10 +179,11 @@ export function habitatWriteMessage(e: unknown, onUnique: string): string {
 }
 
 /** The active campaign's habitats in the DM's order. Refreshed by the doorbell (the three tables ring under the canon root). */
-export function useCampaignHabitats() {
+export function useCampaignHabitats(wanted: () => boolean = () => true) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
-  const enabled = computed(() => !!campaignId.value);
+  // `wanted` lets a caller that lives as long as a panel (the Familiar's encounter card) read nothing until it needs it.
+  const enabled = computed(() => !!campaignId.value && wanted());
   const need = (cid: string | null): string => {
     if (cid === null) throw new Error("useCampaignHabitats fetched without a campaign");
     return cid;

@@ -122,6 +122,28 @@ describe("AskPending", () => {
     expect(w.emitted("jump")).toEqual([[7]]);
   });
 
+  // Bug caught: the folded line not saying what was asked or what it cost, so a run's price is invisible once it folds.
+  it("folds a held generation to one line of what was asked and its cost, and opens the options on request", async () => {
+    const w = mount(AskPending, {
+      props: { state: "previewing", action: "Create encounter", asked: "Goblin ambush", credits: 2, editable: true },
+      slots: { options: '<div data-testid="the-options" />' },
+    });
+    expect(w.get('[data-testid="ask-landed"]').text()).toContain("Create encounter: Goblin ambush · 2 credits");
+    expect(w.find('[data-testid="the-options"]').exists()).toBe(false);
+    await w.get('[data-testid="ask-fold-change"]').trigger("click");
+    expect(w.find('[data-testid="the-options"]').exists()).toBe(true);
+  });
+
+  // Bug caught: a free run (Quick create) saying "0 credits", or a finished run losing its price.
+  it("says what a finished run cost, and nothing for a free one", () => {
+    expect(mount(AskPending, { props: { state: "done", action: "Create NPC", landedName: "Mara", credits: 1 } }).text()).toContain("Mara is ready. · 1 credit");
+    expect(mount(AskPending, { props: { state: "done", action: "Create NPC", landedName: "Mara", credits: 0 } }).text()).not.toContain("credit");
+  });
+
+  it("says a discarded generation saved nothing, with what it cost", () => {
+    expect(mount(AskPending, { props: { state: "discarded", action: "Create encounter", credits: 1 } }).text()).toContain("discarded. Nothing was saved. · 1 credit");
+  });
+
   it("says a failed run did not finish", () => {
     const w = mount(AskPending, { props: { state: "failed", action: "Create NPC", landedAt: 3 } });
     expect(w.text()).toContain("Create NPC did not finish.");

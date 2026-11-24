@@ -8,6 +8,7 @@ import type { AskAdapters } from "@/ai/ask/useAskAdapters";
 import AskQuoteCard from "./AskQuoteCard.vue";
 
 const push = vi.fn();
+vi.mock("@/ai/ask/askSceneMentions", () => ({ useAskSceneMentions: () => ({ mentionItems: { value: [] } }) }));
 vi.mock("vue-router", () => ({ useRouter: () => ({ push }), RouterLink: { template: "<a><slot /></a>" } }));
 
 const proposal: AskProposal = { proposalId: "p1", generator: "npc", concept: "a baker", inputs: {} };

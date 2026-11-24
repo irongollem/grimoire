@@ -9,7 +9,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="generatorsUi.encounterGeneratorOpen = true"
+        @click="generate"
       />
       <ListCreateButton
         label="New Encounter"
@@ -73,7 +73,7 @@ import { useListLayout } from "@/composables/useListLayout";
 import EncounterList from "@/components/encounters/EncounterList.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useEncountersUiStore } from "@/stores/ui/encounters";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { useCampaignStore } from "@/stores/campaign";
 import { useQuests } from "@/composables/quests/useQuests";
 import { useQuota } from "@/composables/billing/useQuota";
@@ -81,12 +81,18 @@ import { useQuota } from "@/composables/billing/useQuota";
 const router = useRouter();
 const encountersUi = useEncountersUiStore();
 const layout = useListLayout("encounters", "grid");
-const generatorsUi = useGeneratorUiStore();
+const { open: openGenerator } = useOpenGenerator();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { data: quests } = useQuests();
 const { canCreate } = useQuota("encounters");
 const showPaywall = ref(false);
+
+/** The encounter's card in the Familiar, set where the party is (the place the generator rolls its creatures from). */
+function generate() {
+  const place = campaignStore.activeCampaign?.current_location_id ?? null;
+  openGenerator("encounter", place === null ? {} : { inputs: { location_id: place } });
+}
 
 function handleNew() {
   if (!canCreate.value) { showPaywall.value = true; return; }

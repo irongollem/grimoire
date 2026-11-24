@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import { ASK_OFF_TOPIC_MESSAGE, type AskEvent, type AskProposal } from "@edge-shared/agent/askContract";
-import type { AskAdapter, AskQuote, AskRunResult } from "@/lib/ask/askAdapter";
+import type { AskAdapter, AskPreview, AskPreviewAdapter, AskQuote, AskRunResult } from "@/lib/ask/askAdapter";
 import { refusalMessage, SPEAKING_MAX_MS, SPEAKING_MS_PER_CHAR, SPEAKING_TAIL_MS, speakingUntil, useAskConversation, type AskConversationDeps } from "./useAskConversation";
 
 function sse(events: unknown[]): Response {
@@ -537,5 +537,171 @@ describe("useAskConversation: a card a button opened", () => {
       await s.convo.quick(card.id);
       expect(card.state).toBe("quote");
     });
+  });
+});
+
+// ── a generation held for the DM's yes (#1270) ───────────────────────────────────────────────────────────────
+
+describe("useAskConversation: a held generation", () => {
+  const shown = { title: "Road Ambush", sections: [] };
+  const made = (credits = 4): AskPreview => ({
+    shown,
+    parts: [{ label: "NPC", ok: true, credits }],
+    create: vi.fn(async () => okResult),
+  });
+
+  async function held(over: { preview?: AskPreviewAdapter["preview"]; quote?: AskQuote } = {}) {
+    const first = made();
+    const preview = vi.fn(over.preview ?? (async () => ({ ok: true as const, preview: first })));
+    const price = { quote: over.quote ?? readyQuote };
+    const adapter: AskPreviewAdapter = { id: "npc", quote: () => price.quote, preview };
+    const onFinished = vi.fn();
+    const responses = [sse([{ type: "propose", proposal }, done])];
+    const transport = vi.fn(async () => responses.shift() ?? sse([done]));
+    const convo = useAskConversation({
+      campaignId: () => "c1",
+      campaignName: () => "Kind Country",
+      context: () => ({ route: "/dashboard" }),
+      adapters: { adapterFor: () => adapter, screenFor: () => undefined },
+      routePath: () => "/dashboard",
+      transport,
+      onFinished,
+    });
+    await convo.send("make me a baker");
+    const card = convo.items.value.find((i) => i.kind === "proposal");
+    if (!card) throw new Error("no proposal");
+    await convo.confirm(card.id);
+    const previewItem = () => convo.items.value.find((i) => i.kind === "preview");
+    return { convo, card, preview, first, onFinished, previewItem, price };
+  }
+
+  // Bug caught: the encounter saved at the gilt button, so the DM never saw it before it was kept.
+  it("the gilt button shows the generation and saves nothing: the proposal folds, the preview waits", async () => {
+    const { card, first, previewItem, onFinished } = await held();
+    expect(card).toMatchObject({ state: "previewing", credits: 4 });
+    expect(previewItem()).toMatchObject({ phase: "ready", proposalItemId: card.id, shown });
+    expect(first.create).not.toHaveBeenCalled();
+    expect(onFinished).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: Create charging (or notifying) at the generation's price a second time, or a result with no record.
+  it("Create saves it and lands the usual result; the notice carries what the generation cost, once", async () => {
+    const { convo, card, first, previewItem, onFinished } = await held();
+    await convo.createPreview(previewItem()?.id ?? -1);
+    expect(first.create).toHaveBeenCalledTimes(1);
+    expect(card).toMatchObject({ state: "done" });
+    expect(convo.items.value.at(-1)).toMatchObject({ kind: "result", name: "Mara", route: "/npcs/n1" });
+    expect(onFinished).toHaveBeenCalledTimes(1);
+    expect(onFinished.mock.calls[0][0]).toMatchObject({ credits: 4, route: "/npcs/n1" });
+    expect(previewItem()).toMatchObject({ phase: "saved" });
+  });
+
+  // Bug caught: a double press on Create making two records.
+  it("a second press on Create while it saves, or after, saves once", async () => {
+    const { convo, first, previewItem } = await held();
+    const id = previewItem()?.id ?? -1;
+    await Promise.all([convo.createPreview(id), convo.createPreview(id)]);
+    await convo.createPreview(id);
+    expect(first.create).toHaveBeenCalledTimes(1);
+  });
+
+  // Bug caught: a save that failed ending the card, so the generation the DM paid for was lost.
+  it("a save that records nothing keeps the preview and says why, and Create can be pressed again", async () => {
+    const first = made();
+    first.create = vi.fn().mockResolvedValueOnce({ record: null, route: null, parts: [{ label: "NPC", ok: false, credits: 0, error: "limit reached" }] }).mockResolvedValueOnce(okResult);
+    const { convo, previewItem, card } = await held({ preview: async () => ({ ok: true, preview: first }) });
+    const id = previewItem()?.id ?? -1;
+    await convo.createPreview(id);
+    expect(previewItem()).toMatchObject({ phase: "ready", error: "limit reached" });
+    expect(card).toMatchObject({ state: "previewing" });
+    await convo.createPreview(id);
+    expect(card).toMatchObject({ state: "done" });
+  });
+
+  // Bug caught: Again charged without the gates (a balance spent since), or charging twice on a double press.
+  it("Again runs a new generation, replaces what is shown, adds its price to the fold, and a double press is one", async () => {
+    const second: AskPreview = { shown: { title: "Second Try", sections: [] }, parts: [{ label: "NPC", ok: true, credits: 4 }], create: vi.fn(async () => okResult) };
+    const outcomes = [async () => ({ ok: true as const, preview: made() }), async () => ({ ok: true as const, preview: second })];
+    const { convo, card, preview, previewItem } = await held({ preview: () => outcomes.shift()?.() ?? Promise.reject(new Error("too many")) });
+    const id = previewItem()?.id ?? -1;
+    await Promise.all([convo.againPreview(id), convo.againPreview(id)]);
+    expect(preview).toHaveBeenCalledTimes(2);
+    expect(previewItem()).toMatchObject({ phase: "ready", shown: { title: "Second Try" } });
+    expect(card).toMatchObject({ credits: 8 });
+    await convo.createPreview(id);
+    expect(second.create).toHaveBeenCalledTimes(1);
+  });
+
+  // Bug caught: Again going ahead with a gate saying no (a balance the first generation spent).
+  it("Again is refused with the gate's reason when the quote is blocked, and charges nothing", async () => {
+    const { convo, preview, previewItem, price } = await held();
+    price.quote = { lines: [], total: 4, block: { reason: "credits", message: "Not enough credits." } };
+    await convo.againPreview(previewItem()?.id ?? -1);
+    expect(preview).toHaveBeenCalledTimes(1);
+    expect(previewItem()).toMatchObject({ phase: "ready", error: "Not enough credits." });
+  });
+
+  // Bug caught: a pick never reaching the preview, so Create saved the default version.
+  it("a choice on the held generation goes to the preview and updates what is shown", async () => {
+    const first = made();
+    first.choose = vi.fn(() => ({ title: "Picked", sections: [] }));
+    const { convo, previewItem } = await held({ preview: async () => ({ ok: true, preview: first }) });
+    convo.choosePreview(previewItem()?.id ?? -1, "0", "b");
+    expect(first.choose).toHaveBeenCalledWith("0", "b");
+    expect(previewItem()).toMatchObject({ shown: { title: "Picked" } });
+  });
+
+  // Bug caught: starting over losing a generation in flight or awaiting Create, with its credits.
+  it("says a generation is in flight while it runs or saves, and what is held while it awaits Create", async () => {
+    let finish: (v: { ok: true; preview: AskPreview }) => void = () => undefined;
+    const pending = new Promise<{ ok: true; preview: AskPreview }>((r) => (finish = r));
+    const s = setup({ responses: [sse([{ type: "propose", proposal }, done])] });
+    void s;
+    const adapter: AskPreviewAdapter = { id: "npc", quote: () => readyQuote, preview: () => pending };
+    const convo = useAskConversation({
+      campaignId: () => "c1", campaignName: () => "K", context: () => ({ route: "/" }),
+      adapters: { adapterFor: () => adapter, screenFor: () => undefined }, routePath: () => "/",
+      transport: vi.fn(async () => sse([{ type: "propose", proposal }, done])),
+    });
+    await convo.send("x");
+    const card = convo.items.value.find((i) => i.kind === "proposal");
+    const confirming = convo.confirm(card?.id ?? -1);
+    expect(convo.generating.value).toBe(true);
+    expect(convo.holding.value).toBeNull();
+    finish({ ok: true, preview: made() });
+    await confirming;
+    expect(convo.generating.value).toBe(false);
+    expect(convo.holding.value).toBe("NPC");
+    await convo.createPreview(convo.items.value.find((i) => i.kind === "preview")?.id ?? -1);
+    expect(convo.holding.value).toBeNull();
+  });
+
+  // Bug caught: Discard leaving the generation to be saved later, or the card reporting it saved.
+  it("Discard ends it with nothing saved, and Create after it does nothing", async () => {
+    const { convo, card, first, previewItem, onFinished } = await held();
+    const id = previewItem()?.id ?? -1;
+    convo.discardPreview(id);
+    await convo.createPreview(id);
+    expect(first.create).not.toHaveBeenCalled();
+    expect(previewItem()).toMatchObject({ phase: "discarded" });
+    expect(card).toMatchObject({ state: "discarded" });
+    expect(onFinished).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: a failed generation leaving a preview card with nothing in it.
+  it("a generation that makes nothing lands the failed result and no preview", async () => {
+    const failed: AskRunResult = { record: null, route: null, parts: [{ label: "NPC", ok: false, credits: 0, error: "Provider down" }] };
+    const { convo, card } = await held({ preview: async () => ({ ok: false, result: failed }) });
+    expect(card).toMatchObject({ state: "done" });
+    expect(convo.items.value.some((i) => i.kind === "preview")).toBe(false);
+    expect(convo.items.value.at(-1)).toMatchObject({ kind: "result", parts: [{ ok: false, error: "Provider down" }] });
+  });
+
+  // Bug caught: an option changed on the folded card not reaching the second generation.
+  it("options changed after the fold reach the next generation", async () => {
+    const { convo, card, preview, previewItem } = await held();
+    convo.adjust(card.id, { difficulty: "deadly" });
+    await convo.againPreview(previewItem()?.id ?? -1);
+    expect(preview.mock.calls[1][0].inputs).toEqual({ difficulty: "deadly" });
   });
 });

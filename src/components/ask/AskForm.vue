@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-2.5 border-t border-border/60 pt-2" data-testid="ask-form">
+  <div v-if="rows.length > 0 || !boxed" class="flex flex-col gap-2.5 border-t border-border/60 pt-2" data-testid="ask-form">
     <p v-if="rows.length === 0" class="text-caption text-muted-foreground">Nothing here to set.</p>
     <template v-for="row in rows" :key="row.kind === 'input' ? row.key : `group:${row.name}`">
       <AskFormField
@@ -9,6 +9,7 @@
         :model-value="inputs[row.key]"
         :options="optionsFor(row.schema)"
         :ties="ties"
+        :aside="asides.get(row.key)?.value ?? null"
         :noun="`this ${generator.noun}`"
         @update:model-value="set(row.key, $event)"
         @update:ties="setTies"
@@ -36,6 +37,7 @@
             :model-value="inputs[member.key]"
             :options="optionsFor(member.schema)"
             :ties="ties"
+            :aside="asides.get(member.key)?.value ?? null"
             :noun="`this ${generator.noun}`"
             @update:model-value="set(member.key, $event)"
             @update:ties="setTies"
@@ -56,6 +58,7 @@
 import { computed, ref, watch } from "vue";
 import type { AskGenerator, AskInputSchema, AskRecordType } from "@edge-shared/agent/askContract";
 import { formRows, groupSummary, optionLabel, pruneHidden } from "@/ai/ask/askForm";
+import { ASK_ASIDES } from "@/ai/ask/askAsides";
 import { ASK_LISTS, isRecordPicker, useAskRecordOptions, type AskRecordOption } from "@/ai/ask/askOptions";
 import { readAskLinks, resolveAskLinks, toAskLinks } from "@/ai/ask/adapters/askAdapterKit";
 import { useAskLinkRecords } from "@/ai/ask/adapters/askLinkRecords";
@@ -67,7 +70,12 @@ import AskFormField from "@/components/ask/AskFormField.vue";
 /** An enum this short is chips; a longer one is a searchable pick. */
 const CHIP_LIMIT = 6;
 
-const { generator, inputs } = defineProps<{ generator: AskGenerator; inputs: Record<string, unknown> }>();
+const { generator, inputs, boxed = false } = defineProps<{
+  generator: AskGenerator;
+  inputs: Record<string, unknown>;
+  /** The card has a concept box above this form: with no inputs, the box is the thing to set and nothing is said. */
+  boxed?: boolean;
+}>();
 const emit = defineEmits<{ update: [inputs: Record<string, unknown>] }>();
 
 const rows = computed(() => formRows(generator, inputs));
@@ -84,6 +92,9 @@ const schemas = Object.values(generator.inputs);
 const recordTypes = new Set<AskRecordType>(schemas.flatMap((s) => (s.type === "string" && s.record !== undefined ? [s.record] : [])));
 const records = useAskRecordOptions(() => recordTypes);
 const lists = new Map(schemas.flatMap((s) => (s.type === "string" && s.list !== undefined && ASK_LISTS[s.list] ? [[s.list, ASK_LISTS[s.list]()] as const] : [])));
+
+// A line under a field that reads the card's inputs (the encounter's "Uses <table> here"), read only for what is named.
+const asides = new Map(Object.entries(generator.inputs).flatMap(([key, s]) => (s.aside !== undefined && ASK_ASIDES[s.aside] ? [[key, ASK_ASIDES[s.aside](() => inputs)] as const] : [])));
 
 function optionsFor(schema: AskInputSchema): AskRecordOption[] | null {
   if (schema.type !== "string") return null;

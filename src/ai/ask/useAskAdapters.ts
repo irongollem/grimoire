@@ -8,13 +8,13 @@
  * `adapters/<name>AskAdapter.ts` default-exports a composable returning an `AskAdapter`, and
  * `screens/<name>AskScreen.ts` default-exports one returning an `AskScreenAdapter`.
  */
-import type { AskAdapter, AskScreenAdapter } from "@/lib/ask/askAdapter";
+import type { AnyAskAdapter, AskScreenAdapter } from "@/lib/ask/askAdapter";
 
-const adapterModules = import.meta.glob<{ default: () => AskAdapter }>("./adapters/*AskAdapter.ts", { eager: true });
+const adapterModules = import.meta.glob<{ default: () => AnyAskAdapter }>("./adapters/*AskAdapter.ts", { eager: true });
 const screenModules = import.meta.glob<{ default: () => AskScreenAdapter }>("./screens/*AskScreen.ts", { eager: true });
 
 export interface AskAdapters {
-  adapterFor(id: string): AskAdapter | undefined;
+  adapterFor(id: string): AnyAskAdapter | undefined;
   screenFor(id: string): AskScreenAdapter | undefined;
 }
 
@@ -39,7 +39,7 @@ function byId<T extends { id: string }>(modules: Record<string, { default: () =>
  * is only the file system. Calls each module's composable, so call it in the panel's setup.
  */
 export function registryFrom(
-  adapterMods: Record<string, { default: () => AskAdapter }>,
+  adapterMods: Record<string, { default: () => AnyAskAdapter }>,
   screenMods: Record<string, { default: () => AskScreenAdapter }>,
 ): AskAdapters {
   const adapters = byId(adapterMods, "adapter");

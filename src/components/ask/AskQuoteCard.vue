@@ -33,7 +33,7 @@
 
     <template v-else-if="quote">
       <!-- A card a button opened reads concept, form, ledger, total, buttons; one the model proposed keeps ledger, total, Adjust's form, buttons. -->
-      <AskForm v-if="item.origin === 'button' && item.state === 'quote'" :generator="generator" :inputs="item.proposal.inputs" @update="emit('adjust', $event)" />
+      <AskForm v-if="item.origin === 'button' && item.state === 'quote'" :generator="generator" :inputs="item.proposal.inputs" :boxed="conceptField !== null" @update="emit('adjust', $event)" />
       <!-- The ledger: what Ask understood, and what each part costs. -->
       <dl class="flex flex-col gap-1 text-body">
         <div v-for="line in ledgerLines" :key="line.choice?.key ?? line.label" class="flex items-baseline gap-2">

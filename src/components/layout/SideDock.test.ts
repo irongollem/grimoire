@@ -110,4 +110,26 @@ describe("SideDock", () => {
     expect(w.find('[data-testid="side-dock-tab-familiar"]').exists()).toBe(false);
     w.unmount();
   });
+
+  // Bug caught: the dock opened from inside a modal sheet sat behind its backdrop, dimmed and unclickable.
+  it("publishes its width while it is on screen, so a modal keeps clear of it, and takes it back when it closes", async () => {
+    const ask = useAskUiStore();
+    const w = mountDock();
+    expect(document.documentElement.style.getPropertyValue("--dock-right")).toBe("");
+    ask.openPanel();
+    await nextTick();
+    expect(document.documentElement.style.getPropertyValue("--dock-right")).toBe("26rem");
+    ask.closePanel();
+    await nextTick();
+    expect(document.documentElement.style.getPropertyValue("--dock-right")).toBe("");
+    w.unmount();
+  });
+
+  it("a contained dock (the player layout) leaves modals the whole screen", async () => {
+    useAskUiStore().openPanel();
+    const w = mountDock({ contained: true });
+    await nextTick();
+    expect(document.documentElement.style.getPropertyValue("--dock-right")).toBe("");
+    w.unmount();
+  });
 });
