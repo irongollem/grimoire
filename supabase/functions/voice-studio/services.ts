@@ -17,6 +17,17 @@ type Fetch = typeof fetch;
 const obj = (v: unknown): Record<string, unknown> | null => (v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
 const str = (v: unknown): string | null => (typeof v === "string" && v !== "" ? v : null);
 
+/**
+ * What a Voice Library voice costs on top of ordinary speech, or null when it costs nothing extra. ElevenLabs' `rate`
+ * is a multiplier, 1 for an ordinary voice; the surcharge an owner sets is `fiat_rate` (USD per 1,000 credits, null
+ * when default). Reading any `rate` above 0 as paid flagged nearly every voice in the library (seen live, 24 Nov 2026).
+ */
+export function surchargeOf(rate: unknown, fiatRate: unknown): number | null {
+  if (typeof fiatRate === "number" && fiatRate > 0) return fiatRate;
+  if (typeof rate === "number" && rate > 1) return rate;
+  return null;
+}
+
 export function makeServices(env: SpeechEnv, doFetch: Fetch = fetch): StudioServices {
   const headers = (service: SpeechService): Record<string, string> =>
     service === "inworld" ? { Authorization: `Basic ${env.inworldKey ?? ""}`, "Content-Type": "application/json" } : { "xi-api-key": env.elevenKey ?? "", "Content-Type": "application/json" };
@@ -110,8 +121,7 @@ export function makeServices(env: SpeechEnv, doFetch: Fetch = fetch): StudioServ
           age: str(v.age),
           accent: str(v.accent),
           useCase: str(v.use_case),
-          // A voice with no rate, or a rate of nothing, is free.
-          rate: typeof v.rate === "number" && v.rate > 0 ? v.rate : null,
+          rate: surchargeOf(v.rate, v.fiat_rate),
           noticePeriodDays: typeof v.notice_period === "number" ? v.notice_period : null,
         };
       });
@@ -121,6 +131,29 @@ export function makeServices(env: SpeechEnv, doFetch: Fetch = fetch): StudioServ
     async libraryAdd(publicOwnerId, voiceId, name) {
       const out = await call("elevenlabs", `${ELEVEN}/v1/voices/add/${encodeURIComponent(publicOwnerId)}/${encodeURIComponent(voiceId)}`, { method: "POST", body: { new_name: name } });
       return required("elevenlabs", out.voice_id);
+    },
+
+    // Any voice ElevenLabs serves by ID: a ready-made one, one in the account, or one shared in the Voice Library
+    // (which then carries its public owner, needed to add it). An unknown ID answers 404 or 400 there: null here.
+    async lookupVoice(voiceId) {
+      const response = await doFetch(`${ELEVEN}/v1/voices/${encodeURIComponent(voiceId)}`, { method: "GET", headers: headers("elevenlabs"), signal: AbortSignal.timeout(CALL_TIMEOUT_MS) });
+      if (response.status === 404 || response.status === 400 || response.status === 422) return null;
+      if (!response.ok) throw new ServiceError("elevenlabs", response.status);
+      const v = obj(await response.json().catch(() => null)) ?? {};
+      const labels = obj(v.labels) ?? {};
+      const sharing = obj(v.sharing) ?? {};
+      const rate = surchargeOf(sharing.rate ?? v.rate, sharing.fiat_rate ?? v.fiat_rate);
+      return {
+        voiceId: required("elevenlabs", v.voice_id),
+        name: str(v.name) ?? voiceId,
+        description: str(v.description) ?? str(sharing.description) ?? "",
+        gender: str(labels.gender),
+        age: str(labels.age),
+        previewUrl: str(v.preview_url),
+        category: str(v.category) ?? "unknown",
+        publicOwnerId: str(sharing.public_owner_id),
+        rate,
+      };
     },
 
     async accountSlots() {

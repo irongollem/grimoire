@@ -16,7 +16,7 @@ vi.mock("@/composables/voices/useSpeechVoices", () => ({
   },
 }));
 
-import { canDeleteFromService, designProblem, nextSlotName, shouldRetireOld, useVoiceStudio } from "./useVoiceStudio";
+import { ageOfLabel, canDeleteFromService, designProblem, nextSlotName, sexOfLabel, shouldRetireOld, useVoiceStudio } from "./useVoiceStudio";
 
 function slot(overrides: Partial<SpeechVoice> = {}): SpeechVoice {
   return {
@@ -168,7 +168,7 @@ describe("useVoiceStudio slot writes", () => {
   it("imports an account voice as origin imported, bound to its service and voice id", async () => {
     const { result } = run(() => useVoiceStudio());
     await result.importVoice.mutateAsync({
-      voice: { service: "elevenlabs", voiceId: "voice-abcdefgh", name: "Old gaffer", description: "", category: "generated" },
+      voice: { service: "elevenlabs", voiceId: "voice-abcdefgh" },
       slot: { name: "Old gaffer", description: "", design_prompt: null, preview_text: null, sex: null, age: null, kind: "own" },
     });
     expect(fake.rows("speech_voices")).toMatchObject([{ origin: "imported", service: "elevenlabs", voice_id: "voice-abcdefgh", kind: "own" }]);
@@ -188,3 +188,13 @@ describe("useVoiceStudio slot writes", () => {
     expect(sent()).toEqual([{ action: "remove", slotId: "slot-1", fromService: false }]);
   });
 });
+
+describe("a looked-up voice's labels", () => {
+  // Bug caught: ElevenLabs' "middle_aged" falling through to no age, or a gender label it does not use guessed into a
+  // sex, so the prefilled form casts the voice for the wrong characters.
+  it("maps ElevenLabs' gender and age labels, and leaves anything else unset", () => {
+    expect([sexOfLabel("female"), sexOfLabel("male"), sexOfLabel("neutral"), sexOfLabel(null)]).toEqual(["woman", "man", null, null]);
+    expect([ageOfLabel("young"), ageOfLabel("middle_aged"), ageOfLabel("old"), ageOfLabel("child"), ageOfLabel(null)]).toEqual(["young", "adult", "old", null, null]);
+  });
+});
+

@@ -52,6 +52,21 @@ export interface DesignedPreview {
   mediaType: string;
 }
 
+/** An ElevenLabs voice found by its ID (the page's `LookedUpVoice`). */
+export interface LookedUpVoice {
+  voiceId: string;
+  name: string;
+  description: string;
+  gender: string | null;
+  age: string | null;
+  previewUrl: string | null;
+  category: string;
+  inAccount: boolean;
+  publicOwnerId: string | null;
+  rate: number | null;
+  inRegistry: boolean;
+}
+
 export interface LibraryVoice {
   publicOwnerId: string;
   voiceId: string;
@@ -93,6 +108,8 @@ export interface StudioServices {
   /** Adds a Voice Library voice to the account; answers the id it has there. */
   libraryAdd(publicOwnerId: string, voiceId: string, name: string): Promise<string>;
   accountSlots(): Promise<{ used: number; limit: number }>;
+  /** An ElevenLabs voice by its ID, wherever it lives (ready-made, the account, the Voice Library); null when unknown. */
+  lookupVoice(voiceId: string): Promise<Omit<LookedUpVoice, "inAccount" | "inRegistry"> | null>;
   accountVoices(service: SpeechService): Promise<AccountVoice[]>;
   /** The service's own free preview of a voice, or null when it has none: listening then costs nothing. */
   previewRecording(service: SpeechService, voiceId: string): Promise<Uint8Array | null>;
@@ -143,6 +160,8 @@ export const STUDIO_MESSAGES = {
   notFound: "That voice is not there.",
   empty: "That voice has not been made yet, so there is nothing to hear.",
   inRegistry: "That voice already fills a slot.",
+  badVoiceId: "That is not an ElevenLabs voice ID: it is the code of letters and numbers on the voice's page.",
+  unknownVoice: "ElevenLabs does not know a voice with that ID, or it is not shared.",
 };
 
 /** The line a sample says when the slot has no preview text of its own. */
@@ -154,7 +173,7 @@ const SERVICES: readonly string[] = ["elevenlabs", "inworld"];
 const SEXES: readonly string[] = ["woman", "man"];
 const AGES: readonly string[] = ["child", "young", "adult", "old"];
 const KINDS: readonly string[] = ["cast", "own"];
-const ADMIN_ACTIONS: readonly string[] = ["design", "keep", "library-search", "library-add", "account", "remove"];
+const ADMIN_ACTIONS: readonly string[] = ["design", "keep", "library-search", "library-add", "account", "lookup", "remove"];
 
 const isService = (v: unknown): v is SpeechService => typeof v === "string" && SERVICES.includes(v);
 const isText = (v: unknown, max: number): v is string => typeof v === "string" && v.trim() !== "" && v.length <= max;
@@ -213,6 +232,7 @@ export async function handleStudio(input: { userId: string; isAdmin: boolean; bo
       case "library-search": return await librarySearch(body, deps);
       case "library-add": return await libraryAdd(body, deps);
       case "account": return await account(deps);
+      case "lookup": return await lookup(body, deps);
       case "remove": return await remove(body, deps);
       case "sample": return await sample(userId, body, deps);
       default: return jsonError(400, "unknown_action", STUDIO_MESSAGES.invalid);
@@ -353,6 +373,22 @@ async function account(deps: StudioDeps): Promise<Response> {
     for (const v of await deps.services.accountVoices(service)) if (!held.has(`${v.service}:${v.voiceId}`)) unregistered.push(v);
   }
   return json({ slots, unregistered });
+}
+
+/**
+ * A voice found by the ID the admin pasted from ElevenLabs' website, to fill a slot with: whether it is usable as it
+ * is (ready-made, or in the account's My Voices: imported) or must be added from the Voice Library first (no custom
+ * slot), and whether a slot already holds it.
+ */
+async function lookup(body: Record<string, unknown>, deps: StudioDeps): Promise<Response> {
+  const raw = typeof body.voiceId === "string" ? body.voiceId.trim() : null;
+  if (!isId(raw)) return jsonError(400, "invalid_body", STUDIO_MESSAGES.badVoiceId);
+  if (!deps.services.hasService("elevenlabs")) return jsonError(503, "no_key", STUDIO_MESSAGES.noKey("elevenlabs"));
+  const found = await deps.services.lookupVoice(raw);
+  if (found === null) return jsonError(404, "voice_not_found", STUDIO_MESSAGES.unknownVoice);
+  const inAccount = found.category === "premade" || (await deps.services.accountVoices("elevenlabs")).some((v) => v.voiceId === raw);
+  const inRegistry = libraryHeld(await deps.db.listAll()).has(raw);
+  return json({ voice: { ...found, inAccount, inRegistry } });
 }
 
 async function remove(body: Record<string, unknown>, deps: StudioDeps): Promise<Response> {
