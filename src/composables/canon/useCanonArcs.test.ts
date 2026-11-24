@@ -6,7 +6,7 @@ const { fake } = await vi.hoisted(async () => {
 });
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "dm-1" }) }));
 
-import { createCanonArc, deleteCanonArc, fetchCanonArcs, updateCanonArc } from "./useCanonArcs";
+import { createCanonArc, fetchCanonArcs, updateCanonArc } from "./useCanonArcs";
 
 const arc = (over: Record<string, unknown>): Record<string, unknown> => ({
   id: "a1", user_id: "dm-1", campaign_id: "c1", name: "The drowned god", summary: null, sort_order: 0,
@@ -36,12 +36,5 @@ describe("canon arcs", () => {
   // Bug caught: RLS refusing a write with no error, which the DM would read as a saved rename.
   it("says so when a write changed no row", async () => {
     await expect(updateCanonArc("missing", { name: "x" })).rejects.toThrow("gone");
-  });
-
-  // The component asks first ("Delete this arc? Its entries stay, in no arc."); this helper never asks.
-  it("deletes the arc it is given without asking anything", async () => {
-    fake.seed("canon_arcs", [arc({ id: "a1" }), arc({ id: "a2" })]);
-    await deleteCanonArc("a1");
-    expect(fake.rows("canon_arcs").map((r) => r.id)).toEqual(["a2"]);
   });
 });

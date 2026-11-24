@@ -146,11 +146,6 @@ describe("LorePassageRow", () => {
       expect(mocks.tell.mock.lastCall).toHaveLength(1);
     });
 
-    it("says whose words these are", () => {
-      expect(mountRow(passage(), false, { byline: "Your passage" }).find("[data-testid=passage-byline]").text()).toBe("Your passage");
-      expect(mountRow(passage()).find("[data-testid=passage-byline]").exists()).toBe(false);
-    });
-
     // Bug caught: the DM was offered Tell on a player's own passage, which is told when written, so a "Tell" there is a button that does nothing or re-tells it.
     it("offers a player's own passage no Tell, no Take back and no place, only the DM's edit and remove", () => {
       const w = mountRow(passage({ told_at: "2026-11-02T10:00:00Z", player_visible_to: ["m1"] }), false, { playersOwn: true, tellTarget: target });

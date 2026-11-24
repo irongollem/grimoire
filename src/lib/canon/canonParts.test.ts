@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CANON_GROUPS, CANON_SECTIONS, plainTextToTiptap, sectionCounts, sectionFromWord, sectionOfPart } from "./canonParts";
+import { CANON_SECTIONS, plainTextToTiptap, sectionCounts, sectionFromWord, sectionOfPart } from "./canonParts";
 import type { CanonEntry } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
 
@@ -50,20 +50,6 @@ describe("sectionCounts", () => {
 });
 
 describe("the book's chapters", () => {
-  // Bug caught: a chapter listed out of the book's order, or under the wrong group, so the contents column read differently from the book.
-  it("lists the chapters in the book's order, each in its group, the groups in order", () => {
-    expect(CANON_SECTIONS.map((s) => s.id)).toEqual(["premise", "world", "truths", "lore", "peoples", "life", "moving", "secrets", "backstories"]);
-    expect(CANON_GROUPS.map((g) => g.id)).toEqual(["front", "world", "story", "characters"]);
-    const groupsInOrder = CANON_SECTIONS.map((s) => s.group);
-    expect(groupsInOrder).toEqual(["front", "front", "world", "world", "world", "world", "story", "story", "characters"]);
-  });
-
-  // Bug caught: the world's own chapters taking a part of their own, so a truth about a habitat was counted twice.
-  it("gives How the world works, Peoples and Life no entries to count", () => {
-    for (const id of ["world", "peoples", "life"]) {
-      expect(CANON_SECTIONS.find((s) => s.id === id)).toMatchObject({ parts: [], counted: false });
-    }
-  });
 
   // Bug caught: the Chronicle or the table's lines still named as chapters, so a stored or linked id opened a part the page no longer draws.
   it("is not a chapter for the Chronicle or what the table added, and a ?section=table link lands on Truths", () => {

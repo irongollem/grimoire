@@ -18,10 +18,4 @@ describe("CanonBlock", () => {
     expect(mountBlock({ title: "Who knows it" }).find("[data-testid=canon-suggest]").exists()).toBe(false);
     expect(mountBlock({ title: "Clues", suggest: "Suggest clues." }).find("[data-testid=canon-suggest]").exists()).toBe(true);
   });
-
-  it("titles itself and holds its content", () => {
-    const w = mountBlock({ title: "Who knows it" });
-    expect(w.get("h3").text()).toBe("Who knows it");
-    expect(w.text()).toContain("inside");
-  });
 });

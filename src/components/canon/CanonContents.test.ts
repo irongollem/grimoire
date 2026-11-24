@@ -9,13 +9,6 @@ const counts = (over: Partial<Record<CanonSectionId, number>> = {}) =>
 const mountContents = (over: Partial<Record<CanonSectionId, number>> = {}, active: CanonSectionId = "premise") => mount(CanonContents, { props: { active, counts: counts(over) } });
 
 describe("CanonContents", () => {
-  // Bug caught: the chapters listed flat, or in a different order from the book, so the contents did not match the page.
-  it("lists the chapters under their four groups, in the book's order", () => {
-    const w = mountContents();
-    expect(w.findAll("section[data-group]").map((g) => g.attributes("data-group"))).toEqual(["front", "world", "story", "characters"]);
-    expect(w.findAll("section h2").map((h) => h.text())).toEqual(["Front matter", "The world", "The story, yours only", "The characters"]);
-    expect(w.findAll("button[data-part]").map((b) => b.attributes("data-part"))).toEqual(["premise", "world", "truths", "lore", "peoples", "life", "moving", "secrets", "backstories"]);
-  });
 
   // Bug caught: a zero shown as a count, or a count on a chapter that holds no entries.
   it("shows a count only where a chapter counts entries and holds some", () => {

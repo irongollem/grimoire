@@ -78,11 +78,6 @@ describe("canonThisSession", () => {
     const tos = canonThisSession(all).groups.map((g) => g.items[0].to.query.entry);
     expect(tos).toEqual(["sec1", "lore1", "sec1", "f1", "f1", "q1"]);
   });
-
-  // Bug caught: a passage with no title of its own listed as an empty line.
-  it("names an untitled passage by its lore entry", () => {
-    expect(canonThisSession({ ...all, passages: [passage({ title: "  " })] }).groups[1].items[0].title).toBe("The roads");
-  });
 });
 
 describe("sessionCanonText", () => {

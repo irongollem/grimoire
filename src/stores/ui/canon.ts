@@ -46,6 +46,9 @@ export const useCanonUiStore = defineStore("ui:canon", () => {
   /** What Tonight is narrowed to (#1258 item 1); the default is where the party is. */
   const tonightScope = ref<TonightScope>(DEFAULT_TONIGHT_SCOPE);
 
+  /** Campaigns whose DM chose "Skip to the chapters" on the way in; kept, since a skipped way in should stay skipped. */
+  const wayInDismissed = useStorage<Record<string, boolean>>("canon-way-in-dismissed", {}, safeLocalStorage());
+
   const hasActiveFilters = computed(
     () => arcFilter.value !== null || tonightScope.value !== DEFAULT_TONIGHT_SCOPE || query.value.trim() !== "",
   );
@@ -64,6 +67,6 @@ export const useCanonUiStore = defineStore("ui:canon", () => {
   return {
     tableFactFilter, tableFactsHasActiveFilters, resetTableFactFilters,
     lastPart, arcFilter, query, tonightScope, hasActiveFilters, resetFilters,
-    truthFilter, truthsGrouped, truthsHaveActiveFilters, resetTruthFilters, secretsView,
+    truthFilter, truthsGrouped, truthsHaveActiveFilters, resetTruthFilters, secretsView, wayInDismissed,
   };
 });

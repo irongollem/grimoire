@@ -111,36 +111,58 @@ reaches a canon vector only when that entry is next embedded.
 
 ## The page
 
-`/canon/:part?` (`src/views/canon/CanonView.vue`, components in `src/components/canon/`, data in `src/composables/canon/`),
-after Notes in the nav. **One part at a time** (#1258 item 19): the contents column (a row of chips on a phone) is the
-navigation, and the page draws only the part in the address. `:part` is a `CANON_SECTIONS` id (the route's pattern is built
-from them, `CANON_PART_PATTERN`, so `/canon/tonight`, `/canon/arcs/:id` and `/canon/import` are never read as one). A bare
-`/canon` opens the part the DM was last on (`useCanonUiStore().lastPart`, kept in local storage, Premise the first time). The
-old links keep working and are rewritten to the part's own address once the canon has loaded: `?entry=<id>` lands on the part
-that holds the entry with it selected (`sectionOfPart`), `?section=<part>` opens that part (also the words the suggestion
-helpers use, `forces` and `questions`, `sectionFromWord`) and `?backstory=<member>` opens Backstories; search results, the
-world web, Tonight, Ask Grimoire and every "open in the canon" link are such links. An entry link whose part is not the one in
-the address moves to the entry's part. "Where to begin" shows on the premise only; the arc bar shows over the parts an arc
-narrows (truths, what is moving, secrets, lore) and over search results. Choosing a part in the contents clears the search and
-the open entry and scrolls to the top. Premise and tone and the truths autosave; the World field moved here from Campaign settings' Details tab.
+**Rebuilt as the campaign's background book (#1267, 24 Nov 2026).** The design is the page "Rebuild, 24 Nov" of the canvas
+*Campaign Canon* (frames R01 to R09). The Canon holds everything about the campaign that is not a person, a place, a quest or
+a faction, as chapters, and prints into the Scriptorium as one book (**Open as a book**, `CanonOpenAsBook`, draws the DM's
+copy with `startBookFromCampaign`). It had grown part by part with each part its own small page; the rebuild puts every
+chapter on one kit, so learning one chapter teaches them all.
 
-The header holds **Tonight**, **Bring in a book** and the whole-canon AI tools (`CanonAiTools`: Shape the world, Read it
-through); on a phone they sit under the title. Each part's AI helper (`CanonSuggestions`) is folded behind one quiet
-**Suggest…** button (`CanonSuggestFold.vue`, closed until opened, open state remembered per part in `suggestOpen`; the
-helper stays mounted while shut so a draft survives, and the fold is absent when AI is off).
+`/canon/:part?` (`src/views/canon/CanonView.vue`). The chapters, in reading order and grouped (`CANON_SECTIONS` and
+`CANON_GROUPS` in `canonParts.ts`, the only place a chapter is added; `chapterOf(id)` gives its label and its one line of
+why): **Front matter** (Premise and tone, How the world works), **The world** (Truths, Lore, Peoples, Life), **The story,
+yours only** (What is moving, Secrets and questions), **The characters** (Backstories). The Chronicle lives on the Sessions
+page (`src/components/sessions/ChronicleSection.vue`); the AI table's lines arrive as an inbox on Truths ("n lines from the
+table to keep or strike", **Review** opens `TableAddedSection` in a dialog); `?section=table` lands on Truths. A bare `/canon`
+opens the chapter the DM was last on (`useCanonUiStore().lastPart`); `?entry=<id>`, `?section=<chapter>` (and the helpers'
+words `forces`, `questions`) and `?backstory=<member>` resolve to the chapter that holds them and are rewritten to its address.
+
+- **The header**: the search (`CanonSearchField`), **Bring in a book**, **Open as a book**, and below 90rem **Prepare the next
+  session**. On a phone they sit under the title.
+- **The contents** (`CanonContents`): from 90rem a sticky column of the groups and their chapters with counts, the arc
+  control under it (`CanonArcs`: an "Arc" picker, Clear, and **Manage arcs** opening the arcs in a dialog) and the next
+  session's card (`CanonNextSession`: what the canon has waiting, from `useTonight`, the same gathering as the Tonight
+  page, and **Prepare the session**). Below 90rem the contents are a chapter picker above the chapter.
+- **The kit** (`src/components/canon/kit/`): `CanonChapter` (the list, and the open entry beside it from 56rem of the
+  chapter's own width; below that the entry replaces the list, with "Back to <chapter>"; the list takes a reading width
+  while nothing is open), `CanonRow` (the one row: the words, and one mark at the right, always a sign and a word),
+  `CanonEntryPane` (an entry always reads: the kind word and its title, one "who" line, the text, the chapter's own
+  blocks, the connections, delete), `CanonBlock` (a chapter's own block, with its Suggest in its head), `CanonEmpty` and
+  `CanonSuggest`. Each list chapter is one component on it: `TruthsChapter`, `ForcesChapter`, `SecretsChapter` (Secrets and
+  Questions behind one switch, `secretsView`), `LoreChapter`, `BackstoriesChapter`; Peoples and Life are
+  `ecology/PeoplesChapter` and `ecology/LifeChapter` (a habitat opens beside its list). Premise and How the world works
+  are sheets (`PremiseChapter`, `WorldChapter`); the premise shows, in a margin from 80rem of its own width, what of it
+  prints in the players' book (`PremiseBookPreview`: only what is shared; the voice and the look never).
+- **The Canon has no AI of its own.** A Suggest (`CanonSuggest`) opens the Familiar (Ask Grimoire) with a written request
+  for that block ("Suggest clues for the secret \"<title>\"."). The Familiar's `canon_suggestions` adapter reads the
+  request's chapter (`canonModeFor`: truths, premise, forces, secrets, questions, clues for a named secret, a passage for
+  named lore, and the whole-canon read for contradictions), quotes it naming the chapter, runs it and sends the DM to the
+  chapter, where `CanonReview` shows what to accept. An unknown title fails before anything is charged. No Suggest is
+  offered where the server has no helper: a force's steps and a backstory's passages. The read's findings show above any
+  chapter (`CanonReview mode="read"`). There is no BYOK path (#1260).
+- **A new canon is led in** (`CanonWayIn`, `canonWayIn.ts`): until it has a pitch, three truths, a force and a secret with a
+  clue, the page shows four steps in place of the chapter, each writing into its real chapter, with "Bring in a book you
+  have" and "Let the Familiar walk you through it". **Skip to the chapters** is kept per campaign (`wayInDismissed`).
+- **One scroller.** Only the page body scrolls; the app shell and PageHeader are `overflow: clip` (#1266), so no jump moves
+  the header or the sound deck, and every jump goes through `scrollWithin`.
 
 Under "Lines and veils" one quiet line reads the violence and horror dial back (`campaigns.table_violence`, labels in
 `src/lib/campaign/tableViolence.ts`, shared with Campaign settings) and links to Campaign settings, where it stays: it is
-how the AI table plays, not a fact about the world. Settings' dial says in turn that what must never happen is set in the
-canon's lines and veils. The Narrator reads both. The Canon line shows only where the AI table is open (`useTableAccess`).
-The contents column lists the parts I to IX, then, set apart below a rule, "✦ What the table added" with its count of
-unreviewed lines as "n new" and the hint "Filled by the Narrator as it invents. Keep, edit or strike each line." (`canonParts.ts`, the only place a part
-is added). The header's **Bring in a book** (a button under the page on a phone) opens `/canon/import`.
+how the AI table plays, not a fact about the world. The Canon line shows only where the AI table is open (`useTableAccess`).
 
 **Arcs, narrowing, search and order (#1255 item 11).** An arc is the one grouping, so there are no free tags: it stays a
-story tool and not a filing system. At the top of the page body, above "Where to begin", `CanonArcs.vue` holds a quiet
-bar: **Show** (Everything, or one arc; a native select, since the DM made a short list) with a **Clear** button while an
-arc is chosen, and **Arcs…**, which opens an inline panel to add an arc (a name and one line), rename it, edit its line,
+story tool and not a filing system. `CanonArcs.vue` sits under the contents: **Arc** (Everything, or one arc; a native
+select, since the DM made a short list) with a **Clear** button while an arc is chosen, and **Manage arcs**, which opens a
+dialog to add an arc (a name and one line), rename it, edit its line,
 put it in order and delete it ("Delete this arc? Its entries stay, in no arc."). An arc has a shape (#1258 item 7): a status
 (`SegmentedControl`: Planned, Running, Ended), "The question it asks", "What is at stake", a theme (a premise theme line,
 `theme_id`) and, once Ended, "How it ended"; every field saves when it is left and emptying one writes null. Leaving Ended
@@ -156,12 +178,12 @@ premise entry never has it).
 
 - **Narrowing.** The chosen arc (`useCanonUiStore().arcFilter`, part of `hasActiveFilters`, cleared by `resetFilters`)
   narrows truths, forces, secrets, open questions and lore at once (`canonNarrow.ts`). **Backstories are not narrowed**:
-  a character spans arcs, so the part always lists the whole party (#1258 item 29; the entry's own Arc picker stays). The premise, How the world works, Who and what lives
-  here, the Chronicle, What the table added and Deleted are never narrowed. A narrowed part (not Backstories) says "Showing <arc> only." in
+  a character spans arcs, so the part always lists the whole party (#1258 item 29; the entry's own Arc picker stays). The premise, How the world works, Peoples, Life,
+  the table's lines and Deleted are never narrowed. A narrowed part (not Backstories) says "Showing <arc> only." in
   one quiet line, and its empty state "Nothing of this part is in <arc>." **The contents column's counts follow the
-  narrowing** (so they match the lists under it); "Where to begin" keeps reading the whole canon, because it asks whether
+  narrowing** (so they match the lists under it); the way in keeps reading the whole canon, because it asks whether
   the canon holds a thing at all. An entry that is open stays open when the DM moves it to another arc (the selection
-  reads the whole list). The Force log tells only of the forces on screen. A deleted arc lets go of the filter by itself.
+  reads the whole list). A deleted arc lets go of the filter by itself.
 - **Search (#1258 item 21).** One field at the top of the page searches the whole canon: titles and bodies (plain text of
   the rich text) of every entry, plus clue titles, force step titles and lore passage titles and bodies (`searchCanon` in
   `canonSearch.ts`, a pure function; passages, clues and steps are the campaign-wide reads the parts already make). It reads the
@@ -181,29 +203,14 @@ premise entry never has it).
   hidden, not disabled, while an arc narrows the list (and, for truths, while a mark filter or grouping does), and for a list of one. Lore is shown by its date in the
   world, so it has no manual order.
 
-What the review of the beta changed (#1255, 23 Nov 2026):
+What the review of the beta changed (#1255, 23 Nov 2026) and the rebuild kept:
 
-- **The contents column** names the part on screen (it once followed the scroll, `useCanonScrollSpy`, which went when the
-  page became one part at a time). On a phone the row of chips stays on screen and keeps the current chip centred.
 - **A statement wraps.** A truth, a secret, a clue, a question, a theme, a line, a force's wants and its steps are
   `AppInput wrap` (a one-row textarea that grows): still one paragraph, saved when left, Enter finishes it.
-- **A row lays out by its own width**, not the viewport: a force's step and a clue put their text on a line of its own
-  with the tick and buttons beneath, because the detail pane is narrow at any screen size.
 - **A Line is upright text, a Veil italic**; neither is struck through (a struck line read as a deleted one).
-- **`?entry=<id>` lands on every part.** A premise entry or an open question has no detail pane, so its row is scrolled
-  to and ringed for two seconds (`sectionOfPart` in `canonParts.ts` names the part to highlight).
-- **Below a desktop a selected entry's detail opens directly under its ledger** and is scrolled into view; the secret's
-  opens above the open questions (a slot in `SecretsSection`).
-- **Long entries open beside their ledger, not in the side column** (#1255 item 26). A lore entry and a force are
-  edited at two thirds of the page body, next to their own ledger, as a backstory is: `CanonSplit.vue` is the one
-  layout (ledger a third, entry two thirds from a body width of 56rem, the entry under its ledger below that) and
-  the lore, forces and backstories all use it. Only a truth and a secret, a line and a few clues, keep the side column
-  at a desktop. The page body widens while any split is open (`data-split-open`). Each entry has a quiet close button at
-  its top right that clears `?entry` (and `?backstory`). The entry's wrapper is `#canon-inline-detail` at every width, so
-  a tap scrolls to it. A force ledger's "The world moved" log sits beside the list from 42rem of the section's own
-  width and under it below that, so beside an open entry it is under the list. Inside the entry, a passage's margin sits
-  beside its text from 32rem of the passage's own row, and a force runs in two columns from 32rem of its own width.
-- The World field's element id is `canon-world-name`: `canon-world` is part V's, and sharing it sent "How the world
+- **`?entry=<id>` lands on every chapter.** A premise entry or an open question has no entry pane, so its row is scrolled
+  to and ringed for two seconds.
+- The World field's element id is `canon-world-name`: `canon-world` is the chapter's, and sharing it sent "How the world
   works" to the top of the page.
 
 ## Tonight (#1255 item 14)
@@ -317,9 +324,9 @@ quests where the party meets it, once each). Players never read any of it.
 
 - **A force is who doing what** (#1258 item 16). Its title is the plan ("The summoning"), never a copy of its faction's name;
   the faction is the `about` link, read by `useForceFactions` (one read of the campaign's force-to-faction links, joined to
-  the faction list) and shown as **Who** on the row and the detail under the faction's name as it is now. The add form
-  (`ForceAddForm`, on the canon page and as *Add a force* on a faction's page, prefilled with that faction) asks Who (a
-  faction, optional) and What they are doing (required). Forces made before this keep their titles; the row leaves Who out
+  the faction list) and shown as **Who** on the row and the detail under the faction's name as it is now. The add row
+  (`CanonAddRow`, on the canon page and as *Add a force* on a faction's page, which ties the new force `about` that faction)
+  takes What they are doing (required); who and the rest are set in the opened entry. Forces made before this keep their titles; the row leaves Who out
   when it equals the title. The detail shows one quiet line when the clock and the steps disagree (`clockStepsDivergence`):
   a full clock with steps unreached, or every step reached with the clock short.
 
@@ -396,9 +403,9 @@ as each is changed; the custom calendar saves after a pause and not while the ed
 their explicit Save because removing a coin converts what players hold. Settings lost the Currency tab (a
 `?tab=currency` link falls back to Details) and Details lost calendar, year, climate and Populate.
 
-**Who lives in it**, now under Peoples in Part VI, "Who and what lives here" (below). It was a block of this part until
+**Who lives in it**, now the chapter Peoples (below). It was a block of this part until
 #1255 item 31 moved it, so both halves of "who and what lives here" are read together; nothing about it changed.
-(`campaign_peoples`, `WorldPeoples.vue`, `useCampaignPeoples.ts`, #1255 item 30): the peoples of the
+(`campaign_peoples`, `ecology/PeoplesChapter.vue`, `useCampaignPeoples.ts`, #1255 item 30): the peoples of the
 world as shares of its population, so a world where elves are 80% generates elf NPCs 80% of the time. A people is never
 free text: it is a species or a creature the campaign already has (maintainer, 23 Nov 2026), so a goblin country is as
 much a people as an elven one. Each row shows the record's name, the word "species" or "creature", a share field that
@@ -418,11 +425,11 @@ through the world block (`peoplesLine`, shared with the client from `_shared/wor
 ## Who and what lives here (Part VI, #1255 item 31)
 
 After How the world works, before Lore (short label "Life"). Not entries, so it has no count in the contents column;
-`LifeSection.vue` (`src/components/canon/ecology/`) holds two blocks. **Peoples** is `WorldPeoples.vue`, moved here from
-How the world works with no change (see above). **Habitats** is the new half: a short list of the world's kinds of
+Since #1267 these are two chapters, **Peoples** (`ecology/PeoplesChapter.vue`) and **Life**
+(`ecology/LifeChapter.vue`), so the world's peoples are no longer read as part of its ecology. **Life** is the habitats: a short list of the world's kinds of
 country, each with a description, the Atlas places it covers and the creatures that live there.
 
-The list (`HabitatsPanel.vue`) shows each habitat's name, its places as plain words and a one-line summary of what lives
+The list (`LifeChapter.vue`, a habitat opening beside it on the kit) shows each habitat's name, its places as plain words and a one-line summary of what lives
 there ("Marsh eel 40%, Giant frog 20%, anything else 40%", `sharesLine`), with up and down to reorder (the DM's order is
 the world block's) and an add row, "A new kind of country...", which opens the new habitat. The selected habitat's editor
 (`HabitatEditor.vue`) is below: the name (saved when left, never blank), the description (`RichTextEditor`, secrets
@@ -489,9 +496,8 @@ secret…** in the passage's margin (`PassageClues.vue`, #1255) files that clue:
 nowhere of its own, and already found when the passage had been told (`passageClue`, since the database only finds a
 passage's clues at the moment it is told). The × beside a secret deletes the clue and leaves the passage. An entry's
 first passage and a player's own backstory passage cannot be made a clue. Passages are added,
-reordered (renumbered from position) and removed in the entry. Lore detail opens beside the lore ledger in the page body
-(`CanonSplit`), so a passage's margin sits beside its text from 32rem of the row and under it below that; below 56rem of
-page body it opens under the ledger.
+reordered (renumbered from position) and removed in the entry. A lore entry opens beside the lore list (`CanonChapter`); a passage's margin sits beside its text from 32rem of the
+row and under it below that.
 
 At the table `CanonHere.vue` is one block for everything the canon placed at a place, person or beat: the clues lying
 there and the lore passages that come out there and are not yet told (never an entry's first passage), each with
@@ -574,20 +580,20 @@ activates them as rules for future AI generations immediately; sharing them with
 Replacing a saved pitch, voice or look shows the old and new text in a confirmation first. A "known to
 some" truth names only people and factions the campaign has (unknown names are set aside, and a "some" truth with
 nobody left is set aside rather than offered). Nothing is written until the DM accepts
-(`src/components/canon/CanonSuggestions.vue`); an accepted entry and the `known_to` ties it brings carry
+(`src/components/canon/CanonReview.vue`; since #1267 every run is started from the Familiar, see The page); an accepted entry and the `known_to` ties it brings carry
 `ai_provenance`. An AI-written entry is marked edited by the database the first time its words change
 (`private.canon_entries_mark_edited`), whoever changes them.
 
-Two more modes and a walk (#1255 item 7). Every mode is priced on its own `ai_generation_credit_costs` row and has its
+Two more modes (#1255 item 7). Every mode is priced on its own `ai_generation_credit_costs` row and has its
 own `ai_system_prompts` row; the client reads each price through `canonSuggestionsQuote.ts`.
 
-- **Suggest secrets** (`secrets`, `canon_secret_suggestion`, prompt `canon_secrets`, mounted in `SecretsSection`) proposes
+- **Suggest secrets** (`secrets`, `canon_secret_suggestion`, prompt `canon_secrets`, reviewed in `SecretsChapter`) proposes
   up to five secrets, each with up to three clues. A clue lies at a place, person or beat **by id**, from a campaign-scoped
   candidate list the server sends the model; an id that is not in the list (or of the wrong kind) is dropped and the clue
   stays, unplaced, and a second clue at one place is left unplaced too. A secret with no readable clue is set aside.
   Accepting writes the secret, then its clues in order through `useCreateCanonEntry` and `useCreateCanonClue`, and opens
   the secret; a clue that fails stops the rest, tells the DM and leaves the proposal.
-- **Read it through** (`read`, `canon_read_through`, prompt `canon_read_through`, `CanonReadThrough`) is a mode of
+- **Read it through** (`read`, `canon_read_through`, prompt `canon_read_through`, asked of the Familiar and shown by `CanonReview mode="read"`) is a mode of
   `suggest-canon`, not a function of its own, because it needs the same DM gate, prompt row, price, credit hold and id
   grounding. It writes nothing and returns findings `{ kind, text, entry_ids }`. **Loose ends are computed in code**
   (`_shared/canonReadThrough.ts`, `looseEnds`): an unrevealed secret with no clue, an open force with no unreached step,
@@ -596,9 +602,8 @@ own `ai_system_prompts` row; the client reads each price through `canonSuggestio
   may name only those ids: a contradiction naming any other id (another campaign's, an invented one) is set aside whole,
   and one needs two distinct entries. An empty read is an answer and is charged; a canon of fewer than two entries skips
   the model and returns the loose ends free. Each finding links its entries to `/canon?entry=<id>`.
-- **Shape the world** (`ShapeTheWorld`, opened from `CanonAiTools` beside Read it through) is a walk of five steps,
-  Premise, Truths, What is moving, Secrets, Questions, each a sentence of purpose plus that part's own `CanonSuggestions`
-  (scope `walk`, so its proposals are not the part's own). It writes nothing itself.
+- **Shape the world**, the walk of five steps, went in #1267: the way in leads a new canon, and "Walk me through building
+  my campaign's canon" is asked of the Familiar.
 
 None of the three could be run against a model in the test environment (no AI keys): the tests cover everything around
 the model call, and the two new prompt rows need a run against a real key before they are trusted.

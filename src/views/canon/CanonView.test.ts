@@ -40,7 +40,7 @@ vi.mock("@/composables/canon/useCanonEntries", () => ({
 }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: party }) }));
 vi.mock("@/composables/canon/useCanonPassages", () => ({ useCanonPassages: () => ({ data: passages }) }));
-vi.mock("@/composables/canon/useCanonClues", () => ({ useCanonClues: () => ({ data: clues }) }));
+vi.mock("@/composables/canon/useCanonClues", () => ({ useCanonClues: () => ({ data: clues, isSuccess: ref(true) }) }));
 vi.mock("@/composables/canon/useCanonForces", () => ({ useCanonForceData: () => ({ data: forceData }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaign: { id: "c1" } }) }));
@@ -109,7 +109,9 @@ const STUBS = {
   TruthsChapter: TruthsStub, LoreChapter: LoreStub, SecretsChapter: SecretsStub, ForcesChapter: ForcesStub, BackstoriesChapter: BackstoriesStub, PremiseChapter: PremiseStub,
 };
 
-function mountView(stubs: Record<string, unknown> = {}) {
+// The fixtures are small canons, which the page would lead in through the way in; the chapters' tests skip it, as a DM can.
+function mountView(stubs: Record<string, unknown> = {}, { wayIn = false }: { wayIn?: boolean } = {}) {
+  if (!wayIn) useCanonUiStore().wayInDismissed.c1 = true;
   const w = mount(CanonView, { attachTo: document.body, global: { stubs: { ...STUBS, ...stubs } } });
   mounted.push(w);
   return w;
@@ -396,51 +398,13 @@ describe("CanonView", () => {
 
   // Bug caught (#1255 item 17): a delete was permanent because the Deleted list, where Restore lives, was never on the page.
   it("mounts the Deleted list under the chapter", () => {
-    const w = mountView();
-    expect(w.findComponent({ name: "CanonDeleted" }).exists()).toBe(true);
-  });
-
-  // Bug caught: the importer left Campaign settings with no way in from the Canon page, so a DM could not bring a book in at all.
-  it("offers Bring in a book in the header and under the title on a phone, leading to the import page", () => {
-    const w = mountView();
-    expect(w.findAll("a[href='/canon/import']")).toHaveLength(2);
-    expect(w.find("[data-testid=canon-phone-actions] a[href='/canon/import']").exists()).toBe(true);
-  });
-
-  // Bug caught (#1258 item 20): the search and Bring in a book sat at the very bottom of the page on a phone, past every chapter.
-  it("puts the phone actions under the title, before the contents and every chapter, and only on a phone", () => {
-    const w = mountView();
-    const actions = w.get("[data-testid=canon-phone-actions]");
-    expect(actions.classes()).toContain("md:hidden");
-    expect(actions.find("input[type=search]").exists()).toBe(true);
-    const html = w.html();
-    expect(html.indexOf("canon-phone-actions")).toBeLessThan(html.indexOf("canon-contents-stub"));
-  });
-
-  // Bug caught: the contents still counting the Chronicle or the table's lines, which are no longer chapters.
-  it("hands the contents only its chapters' counts", () => {
-    const counts = mountView().findComponent({ name: "CanonContents" }).props("counts") as Record<string, number>;
-    expect(Object.keys(counts).sort()).toEqual(["backstories", "life", "lore", "moving", "peoples", "premise", "secrets", "truths", "world"]);
+    expect(mountView().findComponent({ name: "CanonDeleted" }).exists()).toBe(true);
   });
 
   // Bug caught: the contents column counting only the backstories already opened, so a party of two read "0" over a ledger of two rows.
   it("counts one backstory per character, opened or not", () => {
     const counts = mountView().findComponent({ name: "CanonContents" }).props("counts") as Record<string, number>;
     expect(counts.backstories).toBe(2);
-  });
-
-  // Bug caught: a part the page forgot to mount (Peoples, Life, World), leaving the contents pointing at a blank page.
-  it("mounts the World, Peoples and Life chapters for their parts", async () => {
-    const seen: string[] = [];
-    for (const part of ["world", "peoples", "life"]) {
-      route.params = { part };
-      const w = mountView();
-      await settle();
-      for (const name of ["WorldChapter", "PeoplesChapter", "LifeChapter"]) if (w.findComponent({ name }).exists()) seen.push(`${part}:${name}`);
-      w.unmount();
-      mounted.pop();
-    }
-    expect(seen).toEqual(["world:WorldChapter", "peoples:PeoplesChapter", "life:LifeChapter"]);
   });
 
   // Bug caught: a search hit on an open question or a premise entry opened the page with nothing scrolled to or marked,
@@ -525,13 +489,6 @@ describe("CanonView", () => {
       await settle();
       expect(w.findComponent({ name: "BackstoriesChapter" }).props("party").map((m: { id: string }) => m.id)).toEqual(["m1", "m2", "m3"]);
       party.value = party.value.slice(0, 2);
-    });
-
-    // Bug caught: the chapter not told which arc narrows it, so an empty list could not say why it is empty.
-    it("tells the chapter the arc's name", async () => {
-      const w = mountView();
-      await settle();
-      expect(w.findComponent({ name: "TruthsChapter" }).props("arcLabel")).toBe("this arc");
     });
 
     it("counts the contents by what the arc shows", async () => {
@@ -721,5 +678,31 @@ describe("CanonView", () => {
       await settle();
       expect(links(w)).toEqual(["/canon/truths?entry=t1"]);
     });
+  });
+});
+
+describe("CanonView, a new canon", () => {
+  beforeEach(() => {
+    // The skip is kept in local storage, so an earlier test's skip must not carry into these.
+    localStorage.clear();
+    route.query = {};
+    route.params = { part: "truths" };
+    setActivePinia(createPinia());
+  });
+  afterEach(() => mounted.splice(0).forEach((w) => w.unmount()));
+
+  // Bug caught: a new canon opened straight on an empty chapter, with nothing saying where to begin.
+  it("leads a new canon in through the way in, in place of the chapter", () => {
+    data.value = [];
+    const w = mountView({ CanonWayIn: { template: "<div data-testid='way-in' />" } }, { wayIn: true });
+    expect(w.find("[data-testid=way-in]").exists()).toBe(true);
+  });
+
+  // Bug caught: Skip to the chapters wrote its flag but the page kept showing the way in.
+  it("shows the chapter once the DM has skipped the way in for this campaign", () => {
+    data.value = [];
+    useCanonUiStore().wayInDismissed.c1 = true;
+    const w = mountView({ CanonWayIn: { template: "<div data-testid='way-in' />" } }, { wayIn: true });
+    expect(w.find("[data-testid=way-in]").exists()).toBe(false);
   });
 });

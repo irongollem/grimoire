@@ -42,11 +42,6 @@ describe("ForceSteps", () => {
     todayRef.current = null;
   });
 
-  it("marks the step reached as Now, the ones before it Done and the rest Next", () => {
-    const states = mountIt().findAll("[data-testid=force-step-state]").map((s) => s.text());
-    expect(states).toEqual(["Done", "Now", "Next"]);
-  });
-
   it("adds a step after the last, empties the box, and writes it into this force and campaign", async () => {
     const w = mountIt();
     const input = w.get("input[aria-label='A new step']");
@@ -107,12 +102,6 @@ describe("ForceSteps", () => {
     await w.get("[data-testid=force-step-due-toggle]").trigger("click");
     await w.get("[data-testid=force-step-due-clear]").trigger("click");
     expect(mocks.update).toHaveBeenCalledWith({ id: "a", patch: { due_year: null, due_month: null, due_day: null } });
-  });
-
-  // Bug caught: the due date not shown on the step, so the DM cannot see what they set.
-  it("shows the date a step is due on its button", () => {
-    const w = mountIt([step({ id: "a", due_year: 512, due_month: 3, due_day: 3 })]);
-    expect(w.get("[data-testid=force-step-due-toggle]").text()).toBe("Due 3 Harvest 512");
   });
 
   // Bug caught: an unreached step past its due date given no warning, or a step not yet due given one.

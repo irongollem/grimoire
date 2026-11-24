@@ -12,8 +12,6 @@ export const CANON_GROUPS = [
   { id: "characters", label: "The characters" },
 ] as const;
 
-export type CanonGroupId = (typeof CANON_GROUPS)[number]["id"];
-
 export const CANON_SECTIONS = [
   { id: "premise", label: "Premise and tone", short: "Premise", group: "front", parts: ["premise"], counted: true, why: "What the campaign is, how it plays, and what is off the table. Every suggestion is written from it." },
   // The world's own clock, calendar and coins are campaign columns, not entries: no part, so no count.

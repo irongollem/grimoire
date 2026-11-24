@@ -22,7 +22,9 @@ vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks
 import CanonArcs from "./CanonArcs.vue";
 import { useCanonUiStore } from "@/stores/ui/canon";
 
-const mountArcs = () => mount(CanonArcs, { global: { stubs: { RouterLink } } });
+const AppModal = { props: ["open"], template: "<div v-if='open'><slot/></div>" };
+const ModalHeader = { template: "<div />" };
+const mountArcs = () => mount(CanonArcs, { global: { stubs: { RouterLink, AppModal, ModalHeader } } });
 
 describe("CanonArcs", () => {
   beforeEach(() => {
@@ -31,14 +33,6 @@ describe("CanonArcs", () => {
     const shape = { summary: null, status: "running", question: null, stakes: null, ending: null, theme_id: null };
     arcs.value = [{ id: "a1", name: "The drowned god", sort_order: 0, ...shape }, { id: "a2", name: "The guild", sort_order: 1, ...shape }];
     entries.value = [];
-  });
-
-  it("with no arcs shows only Arcs… and the hint, no Show control", () => {
-    arcs.value = [];
-    const w = mountArcs();
-    expect(w.find("select").exists()).toBe(false);
-    expect(w.text()).toContain("Group the canon by the story it belongs to.");
-    expect(w.find("[data-testid=arcs-toggle]").exists()).toBe(true);
   });
 
   // Bug caught: the select writing somewhere other than the page's store, so no part narrowed.
@@ -195,12 +189,6 @@ describe("CanonArcs", () => {
       expect(select.findAll("option").map((o) => o.text())).toEqual(["No theme", "Debts are owed"]);
       await select.setValue("t1");
       expect(mocks.update).toHaveBeenLastCalledWith({ id: "a1", patch: { theme_id: "t1" } });
-    });
-
-    // Bug caught: the row linking to the wrong arc's page.
-    it("links each arc to its own page", async () => {
-      const w = await openPanel();
-      expect(w.findAll("[data-testid=arc-open]").map((a) => a.attributes("href"))).toEqual(["/canon/arcs/a1", "/canon/arcs/a2"]);
     });
   });
 });

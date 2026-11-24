@@ -49,7 +49,7 @@
     </div>
 
     <template #add>
-      <ForceAddForm :sort-order="forces.length" @added="(id) => emit('select', id)" />
+      <CanonAddRow v-model="draft" placeholder="A new force, by its name…" input-label="A new force" label="Add force" :create="addForce" />
     </template>
 
     <template #entry>
@@ -62,16 +62,17 @@
 /**
  * The What is moving chapter: every force with its next step and its clock. The steps and ticks are read once for the whole list, never one per force.
  * The open force is found among `forces`, so an arc that narrows the list away from it closes it. Adding keeps the
- * force form (a faction, what it wants, a clock) because a force is more than a title.
+ * add row takes a name only and opens the new force beside the list, where who, what it wants and its clock are set.
  */
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import CanonChapter from "./kit/CanonChapter.vue";
 import CanonEmpty from "./kit/CanonEmpty.vue";
+import CanonAddRow from "./CanonAddRow.vue";
 import CanonReview from "./CanonReview.vue";
-import ForceAddForm from "./ForceAddForm.vue";
 import ForceDetail from "./ForceDetail.vue";
 import ForceRow from "./ForceRow.vue";
+import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCanonReorder } from "@/composables/canon/useCanonReorder";
 import { endsOf } from "@/lib/canon/canonOrder";
 import { chapterOf } from "@/lib/canon/canonParts";
@@ -100,8 +101,15 @@ const ended = computed(() => forces.filter((f) => f.closed_as !== null));
 // Moving inside a narrowed list would be ambiguous, so the buttons wait for the whole list.
 const canReorder = computed(() => arcLabel === null);
 const reorder = useCanonReorder();
-// Transient UI state: whether the ended forces are showing.
+// Transient UI state: whether the ended forces are showing, and the name being typed into the add row.
 const showEnded = ref(false);
+const draft = ref("");
+const { mutateAsync: create } = useCreateCanonEntry();
+
+async function addForce(title: string) {
+  const created = await create({ part: "force", title, sort_order: forces.length });
+  emit("select", created.id);
+}
 
 const { data } = useCanonForceData();
 const NO_STEPS: readonly CanonForceStep[] = [];

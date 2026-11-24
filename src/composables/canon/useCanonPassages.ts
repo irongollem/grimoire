@@ -118,29 +118,11 @@ export function passagesOf(all: readonly CanonLorePassage[], entryId: string): C
     .sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at));
 }
 
-/** The ids of every entry's first passage: the one told with the entry itself, never on its own. */
-export function firstPassageIds(all: readonly CanonLorePassage[]): Set<string> {
-  const firsts = new Set<string>();
-  for (const entryId of new Set(all.map((p) => p.entry_id))) {
-    const first = passagesOf(all, entryId)[0];
-    if (first) firsts.add(first.id);
-  }
-  return firsts;
-}
-
 /** How many of an entry's passages are told. The first counts as told with the entry. */
 export function toldTally(passages: readonly CanonLorePassage[]): { told: number; total: number } {
   const first = passages[0];
   const told = passages.filter((p) => p === first || p.told_at !== null).length;
   return { told, total: passages.length };
-}
-
-/** The passages that come out at one place, person or beat and are not yet told. A first passage is told with its entry, so it never waits at a spot. */
-export function untoldPassagesAt(all: readonly CanonLorePassage[], kind: ClueKind, id: string): CanonLorePassage[] {
-  const column = WHERE_COLUMN[kind];
-  if (column === undefined) return [];
-  const firsts = firstPassageIds(all);
-  return all.filter((p) => p[column] === id && p.told_at === null && !firsts.has(p.id));
 }
 
 /** The one place a passage comes out, or none. */

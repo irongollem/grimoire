@@ -1,18 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { computed, ref } from "vue";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { canonEntry } from "@/test/canonEntry";
 import type { Connection } from "@/types/connections.types";
 import type { CanonForceTick } from "@/types/canon.types";
 
-const mocks = vi.hoisted(() => ({ connections: vi.fn(), entries: vi.fn(), forces: vi.fn() }));
+const mocks = vi.hoisted(() => ({ connections: vi.fn(), entries: vi.fn(), forces: vi.fn(), createForce: vi.fn(), connect: vi.fn() }));
 const session = vi.hoisted(() => ({ isDM: true, preview: false }));
 const state = vi.hoisted(() => ({ connections: [] as unknown[], entries: [] as unknown[], ticks: [] as unknown[] }));
 
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ get isDM() { return session.isDM; } }) }));
 vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => ({ get dmPreviewMode() { return session.preview; } }) }));
-vi.mock("@/composables/connections/useConnections", () => ({ useConnections: () => { mocks.connections(); return { data: computed(() => state.connections) }; } }));
-vi.mock("@/composables/canon/useCanonEntries", () => ({ useCanonEntries: () => { mocks.entries(); return { data: computed(() => state.entries) }; } }));
+vi.mock("@/composables/connections/useConnections", () => ({
+  useConnections: () => { mocks.connections(); return { data: computed(() => state.connections) }; },
+  useCreateConnection: () => ({ mutateAsync: mocks.connect }),
+}));
+vi.mock("@/composables/factions/useFactions", () => ({ useAllFactions: () => ({ data: ref([{ id: "fa1", name: "The Ferrymen's Guild" }]) }) }));
+vi.mock("@/composables/canon/useCanonEntries", () => ({
+  useCanonEntries: () => { mocks.entries(); return { data: computed(() => state.entries) }; },
+  useCreateCanonEntry: () => ({ mutateAsync: mocks.createForce }),
+}));
 vi.mock("@/composables/canon/useCanonForces", async (orig) => ({
   ...(await orig<typeof import("@/composables/canon/useCanonForces")>()),
   useCanonForceData: () => { mocks.forces(); return { data: ref({ steps: [], ticks: state.ticks, quests: [] }) }; },
@@ -63,7 +70,7 @@ describe("FactionForces", () => {
     Object.assign(session, { isDM: true, preview: false });
     Object.assign(state, { connections: [about("f1")], entries, ticks: [] });
   });
-  const mountIt = () => mount(FactionForces, { props: { factionId: "fa1" }, global: { stubs: { ForceAddForm: true, RouterLink: { props: ["to"], template: "<a :href=\"typeof to === 'string' ? to : to.query.entry\"><slot /></a>" } } } });
+  const mountIt = () => mount(FactionForces, { props: { factionId: "fa1" }, global: { stubs: { RouterLink: { props: ["to"], template: "<a :href=\"typeof to === 'string' ? to : to.query.entry\"><slot /></a>" } } } });
 
   it("lists the forces with a link to each entry", () => {
     const w = mountIt();
@@ -78,15 +85,16 @@ describe("FactionForces", () => {
     expect(w.find("[data-testid=add-a-force]").exists()).toBe(true);
   });
 
-  // Bug caught (#1258 item 16): a faction's page could only point at the canon, so a force for it was made there and the link to this faction chosen again by hand.
-  it("opens the add form already about this faction, then closes it when the force is added", async () => {
+  // Bug caught (#1258 item 16): a force added from a faction's page made without its `about` tie, so it never showed under that faction.
+  it("adds a force tied about this faction, then closes the add row", async () => {
+    mocks.createForce.mockResolvedValue({ id: "f9" });
     const w = mountIt();
     await w.get("[data-testid=add-a-force]").trigger("click");
-    const form = w.getComponent({ name: "ForceAddForm" });
-    expect(form.props()).toMatchObject({ factionId: "fa1", sortOrder: 3 });
-    expect(w.find("[data-testid=add-a-force]").exists()).toBe(false);
-    form.vm.$emit("added", "f9");
-    await w.vm.$nextTick();
+    await w.get("input").setValue("  The long march ");
+    await w.get("form").trigger("submit");
+    await flushPromises();
+    expect(mocks.createForce).toHaveBeenCalledWith({ part: "force", title: "The long march", sort_order: 3 });
+    expect(mocks.connect).toHaveBeenCalledWith(expect.objectContaining({ subject: { kind: "canon", id: "f9" }, other: expect.objectContaining({ kind: "faction", id: "fa1" }) }));
     expect(w.find("[data-testid=add-a-force]").exists()).toBe(true);
   });
 

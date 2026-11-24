@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { canonEntry } from "@/test/canonEntry";
 
-const mocks = vi.hoisted(() => ({ reorder: vi.fn() }));
+const mocks = vi.hoisted(() => ({ reorder: vi.fn(), create: vi.fn() }));
 vi.mock("@/stores/calendar", () => ({ useCalendarStore: () => ({ adapter: { formatDate: () => "" } }) }));
-vi.mock("@/composables/canon/useCanonEntries", () => ({ useUpdateCanonEntry: () => ({ mutateAsync: mocks.reorder }) }));
+vi.mock("@/composables/canon/useCanonEntries", () => ({ useUpdateCanonEntry: () => ({ mutateAsync: mocks.reorder }), useCreateCanonEntry: () => ({ mutateAsync: mocks.create }) }));
 vi.mock("@/composables/canon/useCanonForces", async (original) => ({
   ...(await original<typeof import("@/composables/canon/useCanonForces")>()),
   useCanonForceData: () => ({
@@ -26,7 +26,7 @@ import ForcesChapter from "./ForcesChapter.vue";
 const forces = [canonEntry({ id: "f1", part: "force", title: "The Stain spreads", clock_size: 6 }), canonEntry({ id: "f2", part: "force", title: "The Brewlings" })];
 const DetailStub = { name: "ForceDetail", props: ["entry"], emits: ["close", "delete"], template: "<div data-testid='detail'><button data-testid='detail-delete' @click=\"$emit('delete')\" /></div>" };
 const mountIt = (props: { forces?: typeof forces; selectedId?: string | null; arcLabel?: string | null } = {}) =>
-  mount(ForcesChapter, { props: { forces, ...props }, global: { stubs: { CanonReview: true, ForceDetail: DetailStub, ForceAddForm: true, CanonSuggest: true } } });
+  mount(ForcesChapter, { props: { forces, ...props }, global: { stubs: { CanonReview: true, ForceDetail: DetailStub, CanonSuggest: true } } });
 
 describe("ForcesChapter", () => {
   beforeEach(() => setActivePinia(createPinia()));
@@ -81,14 +81,14 @@ describe("ForcesChapter", () => {
     expect(w.get("[data-testid=force-ended-ledger]").get("[data-testid=force-outcome]").text()).toBe("Ended: it was stopped");
   });
 
-  it("shows no No longer moving drawer when every force is moving", () => {
-    expect(mountIt().find("[data-testid=force-ended-section]").exists()).toBe(false);
-  });
-
-  // Bug caught: a new force landing without being opened, so the DM had to find it.
-  it("opens the force the add form made", () => {
+  // Bug caught: a new force landing without being opened (the DM had to find it), or made without its part and place in the list.
+  it("makes a force from the add row's name and opens it beside the list", async () => {
+    mocks.create.mockResolvedValue({ id: "f9" });
     const w = mountIt();
-    w.getComponent({ name: "ForceAddForm" }).vm.$emit("added", "f9");
+    await w.get("input[aria-label='A new force']").setValue("  The Winter  ");
+    await w.get("form").trigger("submit");
+    await flushPromises();
+    expect(mocks.create).toHaveBeenCalledWith({ part: "force", title: "The Winter", sort_order: 2 });
     expect(w.emitted("select")?.[0]).toEqual(["f9"]);
   });
 });

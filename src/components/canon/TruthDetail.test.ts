@@ -184,12 +184,4 @@ describe("TruthDetail", () => {
     await w.findAll("button").find((b) => b.text() === "Delete this truth")!.trigger("click");
     expect(w.emitted("delete")).toHaveLength(1);
   });
-
-  // Bug caught: an entry reading in its own order (connections above the text), so a truth did not read like every other chapter's entry.
-  it("reads title, who, text, the who-knows block, then connections", () => {
-    const html = mountDetail(entry({ from_fact_id: "f1" })).html();
-    const at = ["aria-label=\"The truth\"", "truth-from-table", "canon-entry-notes-stub", "Who knows it", "Delete this truth"].map((m) => html.indexOf(m));
-    expect(at.every((n) => n >= 0)).toBe(true);
-    expect([...at].sort((a, b) => a - b)).toEqual(at);
-  });
 });

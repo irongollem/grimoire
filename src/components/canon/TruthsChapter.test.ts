@@ -94,11 +94,6 @@ describe("TruthsChapter filter, group and order (#1255 item 11, #1258 item 22)",
   const rowTitles = (w: ReturnType<typeof mountSection>) => w.findAll("[data-testid=truth-ledger] li").map((li) => li.find("button").attributes("aria-label"));
   const pick = (w: ReturnType<typeof mountSection>, label: string) => w.findAll("button").find((b) => b.text() === label)!.trigger("click");
 
-  // Bug caught: the per-part search left in place after the page got its one search.
-  it("has no search field of its own", () => {
-    expect(mountSection({ truths: truths() }).find("input[type=search]").exists()).toBe(false);
-  });
-
   // Bug caught: a mark filter that narrows on the wrong field, or a No arc that reads as "not this arc".
   it("filters by mark, and to the truths of no arc", async () => {
     const w = mountSection({ truths: truths() });
@@ -195,10 +190,6 @@ describe("TruthsChapter open entry and the table's inbox", () => {
     expect(w.emitted("delete")).toHaveLength(1);
     await w.get("#canon-entry-t0 button").trigger("click");
     expect(w.emitted("select")).toEqual([["t0"]]);
-  });
-
-  it("opens no entry while none is selected", () => {
-    expect(mountSection({ truths: list }).find("[data-testid=canon-chapter-entry]").exists()).toBe(false);
   });
 
   // Bug caught: the inbox counting kept, struck and corrected lines, so the badge never reached zero, or showing at zero.

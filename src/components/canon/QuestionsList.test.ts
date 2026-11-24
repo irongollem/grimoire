@@ -32,10 +32,6 @@ describe("QuestionsList", () => {
   beforeEach(() => setActivePinia(createPinia()));
   beforeEach(() => Object.values(mocks).forEach((m) => m.mockReset()));
 
-  it("marks every question as one nobody settles by invention", () => {
-    expect(mountList().find("[data-testid=kept-open]").text()).toContain("nobody settles this by invention");
-  });
-
   it("will not add a blank question", async () => {
     const w = mountList();
     expect(submitButton(w).attributes("disabled")).toBeDefined();

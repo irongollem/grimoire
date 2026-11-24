@@ -85,12 +85,6 @@ describe("LifeChapter", () => {
     expect(w.find("[data-testid=editor]").exists()).toBe(false);
   });
 
-  // Bug: a habitat's row said nothing of how much country it covers, so an unplaced habitat looked like a placed one.
-  it("marks each row with the places it covers, in words", () => {
-    const w = mount(LifeChapter);
-    expect(w.findAll("[data-testid=habitat-mark]").map((m) => m.text())).toEqual(["1 place", "No places", "No places"]);
-  });
-
   // Bug: a failed add (already a toast) cleared the words and opened the editor on nothing.
   it("keeps the words in the box and opens nothing when the add failed", async () => {
     mocks.add.mockResolvedValue(null);

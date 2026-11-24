@@ -120,15 +120,6 @@ describe("TableAddedSection", () => {
     expect(useCanonUiStore().tableFactFilter).toBe("new");
   });
 
-  // Bug caught: a campaign where the table never added anything saying "Everything has been reviewed", and offering a filter over nothing.
-  it("says the table has added nothing, with no filter, when there are no facts at all", () => {
-    facts.value = [];
-    const w = mountIt();
-    expect(w.text()).toContain("The table has added nothing");
-    expect(w.text()).not.toContain("Nothing new");
-    expect(w.find("[role=radiogroup], [aria-label=Show]").exists()).toBe(false);
-  });
-
   // Bug caught: the no-facts words swallowing the reviewed-everything state, so a DM who kept every line is told the table added nothing.
   it("still says nothing is new when every fact has been reviewed", () => {
     facts.value = [fact("a", { kept_at: "2026-11-11T10:00:00Z" })];

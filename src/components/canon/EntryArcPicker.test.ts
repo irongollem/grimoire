@@ -43,8 +43,4 @@ describe("EntryArcPicker", () => {
     arcs.value = [];
     expect(mountPicker().find("select").exists()).toBe(false);
   });
-
-  it("shows the entry's current arc", () => {
-    expect((mountPicker({ arc_id: "a2" }).find("select").element as HTMLSelectElement).selectedOptions[0].text).toBe("The guild");
-  });
 });

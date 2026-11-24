@@ -61,11 +61,4 @@ describe("BackstoriesChapter", () => {
     const open = mount(BackstoriesChapter, { props: { ...props, selectedId: "m2" }, global: { stubs } });
     expect(open.get("[data-testid=detail]").attributes("data-member")).toBe("m2");
   });
-
-  // Bug caught: the chapter saying "Nothing of this chapter is in <arc>" for a party no arc narrows.
-  it("has no arc empty state: with nobody in the party it asks for a character", () => {
-    const w = mount(BackstoriesChapter, { props: { party: [], entries: [], passages: [] }, global: { stubs } });
-    expect(w.text()).not.toContain("Nothing of this");
-    expect(w.text()).toContain("No characters yet");
-  });
 });

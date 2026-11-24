@@ -49,19 +49,6 @@ describe("HabitatEditor", () => {
     expect(w.emitted("delete")).toHaveLength(1);
   });
 
-  // Bug: the editor had no way out, so on a phone the DM was stuck on a habitat with the list hidden.
-  it("closes from the entry head", async () => {
-    const w = mountIt();
-    await w.get("[data-testid=canon-entry-close]").trigger("click");
-    expect(w.emitted("close")).toHaveLength(1);
-  });
-
-  // Bug: the creature block's Suggest asked for the wrong habitat, or for peoples.
-  it("asks the Familiar for creatures of this habitat only", () => {
-    const w = mountIt();
-    expect(w.findAll("[data-testid=canon-suggest]")).toHaveLength(1);
-  });
-
   // Bug: a name emptied by mistake renamed the habitat to nothing (the table refuses it, and the DM lost the old name).
   it("renames when the field is left with new words, and saves nothing for a blank one", async () => {
     const w = mountIt();

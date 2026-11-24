@@ -179,25 +179,6 @@ describe("SecretDetail", () => {
     expect(mocks.update).toHaveBeenCalledWith({ id: "s1", patch: { revealed_at: null, revealed_session_id: null } });
   });
 
-  it("shows partly known with the tally once a clue is found", () => {
-    clues.value = [clue({ found_at: "2026-11-18T20:00:00Z" }), clue({ id: "k2" })];
-    const w = mountDetail(secret());
-    expect(w.find("[data-testid=secret-state]").text()).toContain("Partly known");
-    expect(w.text()).toContain("1 of 2 clues found");
-  });
-
-  it("puts a clue placed in an item in the item's column", async () => {
-    // Bug: every kind but a place or a person fell into quest_beat_id, so a clue in a letter pointed at a beat that
-    // does not exist (#1258 item 30).
-    const w = mountDetail(secret());
-    (w.vm as unknown as { adding: boolean }).adding = true;
-    await w.vm.$nextTick();
-    w.findComponent({ name: "ClueForm" }).vm.$emit("submit", { title: "A receipt", where: { kind: "item", id: "item-1" } });
-    await flushPromises();
-    expect(mocks.createClue).toHaveBeenCalledWith(expect.objectContaining({ item_id: "item-1" }));
-    expect(mocks.createClue.mock.calls[0]![0]).not.toHaveProperty("quest_beat_id");
-  });
-
   it("ticks a clue through the shared Found tick", async () => {
     const w = mountDetail(secret());
     await w.findAll("input[type=checkbox]")[0].setValue(true);

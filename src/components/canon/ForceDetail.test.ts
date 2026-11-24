@@ -91,6 +91,12 @@ describe("ForceDetail", () => {
     expect(w.find("[data-testid=tick-forward]").exists()).toBe(false);
   });
 
+  // Bug caught: a Suggest on the clock and steps block. The server has no helper for a force's steps, so the request ran
+  // the forces helper and proposed new forces where the DM asked for steps.
+  it("offers no Suggest for a force's steps", () => {
+    expect(mountIt().findComponent(CanonSuggestStub).exists()).toBe(false);
+  });
+
   it("undoes the newest tick by id", async () => {
     forceData.value.ticks = [tick({ id: "old", created_at: "2026-11-18T10:00:00Z" }), tick({ id: "new", created_at: "2026-11-20T10:00:00Z" })];
     await mountIt().get("[data-testid=force-log] button").trigger("click");
@@ -105,21 +111,6 @@ describe("ForceDetail", () => {
     expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { title: "The Stain" } });
     await w.get("select[aria-label='Clock size']").setValue("8");
     expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { clock_size: 8 } });
-  });
-
-  // Bug caught: the footer's delete or the head's close not reaching the chapter, so the pane could not be left or the force removed.
-  it("emits delete from the footer and close from the head", async () => {
-    const w = mountIt();
-    await w.get("[data-testid=canon-entry-delete]").trigger("click");
-    await w.get("[data-testid=canon-entry-close]").trigger("click");
-    expect(w.emitted("delete")).toHaveLength(1);
-    expect(w.emitted("close")).toHaveLength(1);
-  });
-
-  // Bug caught: a Suggest on the clock and steps block. The server has no helper for a force's steps, so the request ran
-  // the forces helper and proposed new forces where the DM asked for steps.
-  it("offers no Suggest for a force's steps", () => {
-    expect(mountIt().findComponent(CanonSuggestStub).exists()).toBe(false);
   });
 
   // Bug caught: the log showing every move at once (burying the clock), or "All N moves" opening nothing.

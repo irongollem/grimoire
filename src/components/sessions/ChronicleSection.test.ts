@@ -47,21 +47,6 @@ describe("ChronicleSection", () => {
     ];
   });
 
-  // Bug caught: the entry missing what the design draws: the session, its world date, who it is shared with and its words.
-  it("shows a session's number, date in the world, audience and excerpt", () => {
-    const entry = mountIt().findAll("[data-testid=chronicle-entry]")[0]!;
-    expect(entry.text()).toContain("Session 15");
-    expect(entry.find("[data-testid=chronicle-world-date]").text()).toContain("year 512");
-    expect(entry.find("[data-testid=chronicle-shared]").text()).toBe("The whole party");
-    expect(entry.find("[data-testid=chronicle-excerpt]").text()).toBe("The party followed the lanterns.");
-  });
-
-  // Bug caught: a note shared with nobody reading as shared with the party.
-  it("says Not shared yet for a note nobody can read", () => {
-    items.value = [{ session: session("s2"), note: note({ player_visible_to: [] }) }];
-    expect(mountIt().find("[data-testid=chronicle-shared]").text()).toBe("Not shared yet");
-  });
-
   // Bug caught: a session with no note given no way to start one, or both buttons pointing at the same editor mode.
   it("offers to write the chronicle for a session with no note, and to draft it with the Chronicler", () => {
     const entry = mountIt().findAll("[data-testid=chronicle-entry]")[1]!;

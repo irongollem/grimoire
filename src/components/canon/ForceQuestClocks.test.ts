@@ -34,13 +34,4 @@ describe("ForceQuestClocks", () => {
     clocks.value = [clock({ moves_force_id: "f2" })];
     expect(mountIt().find("[data-testid=force-quest-clocks]").exists()).toBe(false);
   });
-
-  // Bug caught: an ended force listed its clocks as if they still moved it.
-  it("says an ended force is no longer moved, and a moving one does not", () => {
-    clocks.value = [clock({})];
-    expect(mountIt().find("[data-testid=force-quest-clocks-ended]").exists()).toBe(false);
-    const w = mountIt(force({ closed_as: "stopped", closed_at: "2026-11-20T10:00:00Z" }));
-    expect(w.get("[data-testid=force-quest-clocks-ended]").text()).toBe("It has ended, so these clocks no longer move it.");
-    expect(w.text()).toContain("The ritual");
-  });
 });

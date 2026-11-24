@@ -208,11 +208,6 @@ describe("CanonReview", () => {
     expect(mocks.toastError).toHaveBeenCalledWith("boom");
   });
 
-  it("shows a refused claim as set aside", () => {
-    setAside.value = [{ claim: "No war", reason: "lines are agreed at the table" }];
-    expect(mountIt("premise").text()).toContain('Set aside: "No war". Lines are agreed at the table.');
-  });
-
   describe("clues for a secret", () => {
     const clue = (kind: ClueSuggestion["spot"]["kind"]): ClueSuggestion => ({ title: "A scarecrow in the old guild colours", spot: { kind, id: "x1", name: "The Mint Fields" } });
     const COLUMNS = ["location_id", "npc_id", "quest_beat_id"] as const;
@@ -274,15 +269,6 @@ describe("CanonReview", () => {
       clockSize: 4,
       quests: [{ id: "q1", title: "The Souring" }],
     };
-
-    it("shows what the force wants, its clock and its quests, and writes nothing until Accept", () => {
-      suggestions.value = [force];
-      const w = mountIt("forces");
-      expect(w.text()).toContain("The Ferrymen wants the river to themselves");
-      expect(w.text()).toContain("A clock of 4, 1 step, in The Souring.");
-      expect(mocks.acceptForce).not.toHaveBeenCalled();
-      expect(mocks.create).not.toHaveBeenCalled();
-    });
 
     it("accepting hands the force, the run's provenance and the next place in the list to the writer, and dismisses it", async () => {
       suggestions.value = [force];

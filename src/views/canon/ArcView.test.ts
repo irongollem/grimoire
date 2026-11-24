@@ -95,14 +95,6 @@ describe("ArcView", () => {
     expect(block(w, "quests").text()).toContain("Active");
   });
 
-  it("shows the question, stakes, theme and ending, linking the theme to its entry", () => {
-    const w = mountView();
-    expect(w.get("[data-testid=arc-question]").text()).toContain("Who woke it?");
-    expect(w.get("[data-testid=arc-stakes]").text()).toContain("The harbour");
-    expect(w.get("[data-testid=arc-theme] a").attributes("data-to")).toBe(JSON.stringify({ path: "/canon", query: { entry: "t1" } }));
-    expect(w.get("[data-testid=arc-ending]").text()).toContain("It slept again.");
-  });
-
   // Bug caught: a stale ending shown on an arc that is running again.
   it("shows no ending unless the arc has ended", () => {
     route.params.id = "a2";

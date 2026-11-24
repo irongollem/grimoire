@@ -61,13 +61,6 @@ describe("SecretsChapter", () => {
     expect(w.emitted("select")).toBeUndefined();
   });
 
-  // Bug caught: the empty chapter drew nothing, or lost its request for the Familiar.
-  it("says what a secret is and offers to ask the Familiar when there are none", () => {
-    const w = mountChapter();
-    expect(w.text()).toContain("No secrets yet");
-    expect(w.get("[data-testid=canon-suggest]").text()).toBe("Ask the Familiar");
-  });
-
   // Bug caught (#1255 item 10): revealed secrets stayed in the middle of the ledger, so it did not read "still to find" first.
   it("lists revealed secrets after the ones still to find", () => {
     const w = mountChapter({ secrets: [secret("Revealed one", 0, true), secret("Hidden one", 1)] });

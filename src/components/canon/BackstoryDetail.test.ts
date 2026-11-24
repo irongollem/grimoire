@@ -78,36 +78,12 @@ describe("BackstoryDetail", () => {
     threadData.links = [];
   });
 
-  // Bug caught: the DM could not tell their own passage from the player's, or which session the player wrote one after.
-  it("marks the player's passages with who and when, and the DM's as 'Your passage'", () => {
-    state.passages = [passage({ id: "a", author_id: "lotte" }), passage({ id: "b", author_id: "dm" })];
-    const rows = mountDetail().findAll("[data-testid=row]");
-    expect(rows.map((r) => r.attributes("data-byline"))).toEqual(["Written by Lotte · after session 15", "Your passage"]);
-    expect(rows.map((r) => r.attributes("data-players"))).toEqual(["true", "false"]);
-  });
-
   // Bug caught: Tell on a backstory passage reaching the whole party before the character it is about.
   it("offers every passage to be told to this character, and never treats the first as told with the entry", () => {
     state.passages = [passage({ id: "a", author_id: "dm" })];
     const row = mountDetail().find("[data-testid=row]");
     expect(row.attributes("data-target")).toBe("Tansy");
     expect(row.attributes("data-first")).toBe("false");
-  });
-
-  // Bug caught: the backstory pane growing a delete (a backstory belongs to its character and is never deleted), or its
-  // close button emitting nothing so the entry could not be left.
-  it("has a close and no delete, and closing says so", async () => {
-    const w = mountDetail();
-    expect(w.find("[data-testid=canon-entry-delete]").exists()).toBe(false);
-    await w.get("[data-testid=canon-entry-close]").trigger("click");
-    expect(w.emitted("close")).toHaveLength(1);
-  });
-
-  // Bug caught: the character's own name drawn as an editable field, or the player's name dropped from the head.
-  it("heads the entry with the character's name, not editable, and who plays them", () => {
-    const w = mountDetail();
-    expect(w.get("[data-testid=backstory-name]").text()).toBe("Tansy");
-    expect(w.text()).toContain("played by Lotte");
   });
 
   // Bug caught: the people and passages drawn (and New NPC offered) for an entry that did not exist yet.

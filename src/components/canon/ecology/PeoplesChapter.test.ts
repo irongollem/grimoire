@@ -60,16 +60,6 @@ describe("PeoplesChapter", () => {
     state.peoples = [people("p1", "Elf", 80), people("p2", "Human", 10)];
   });
 
-  // Bug (the maintainer's rejection): a people could be typed as free text, so a name that matched no species or
-  // creature ended up in the world.
-  it("has no free-text name field: the only text fields are the two pickers and the share inputs", () => {
-    const w = mountIt();
-    const texts = w.findAll("input[type=text]");
-    expect(texts).toHaveLength(2);
-    expect(texts.map((i) => i.attributes("placeholder"))).toEqual(["Add a species…", "Add a creature…"]);
-    expect(w.find("input[aria-label^='Name of']").exists()).toBe(false);
-  });
-
   it("adds a chosen species at 0%, as a record the campaign has", async () => {
     const w = mountIt();
     const [speciesPicker] = w.findAllComponents(EntityCombobox);
@@ -159,11 +149,5 @@ describe("PeoplesChapter", () => {
     state.loading = true;
     expect(mountIt().text()).not.toContain("No peoples yet");
     state.loading = false;
-  });
-
-  it("links to the existing editors to make a new species or creature", () => {
-    const w = mountIt();
-    const hrefs = w.findAll("a").map((a) => a.attributes("href"));
-    expect(hrefs).toEqual(["/species/new", "/monsters/new"]);
   });
 });

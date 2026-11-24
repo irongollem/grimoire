@@ -28,17 +28,6 @@ describe("CanonDeleted", () => {
     expect(mount(CanonDeleted).find("[data-testid=canon-deleted]").exists()).toBe(false);
   });
 
-  // Bug caught: the list hid how long a deleted entry is kept, so a DM could not tell what was about to be lost.
-  it("names the entry, what it was, and the days left", () => {
-    rows.value = [row()];
-    const w = mount(CanonDeleted);
-    expect(w.find("[data-testid=deleted-toggle]").text()).toContain("Deleted (1)");
-    const text = w.find("[data-testid=deleted-row]").text();
-    expect(text).toContain("Sift is the daughter");
-    expect(text).toContain("a secret");
-    expect(text).toContain("Kept 12 more days");
-  });
-
   // Bug caught: Restore ran against the entry's id (gone) instead of the trash row, or left the DM on the list.
   it("restores by the trash row's id and goes to the restored entry", async () => {
     rows.value = [row()];

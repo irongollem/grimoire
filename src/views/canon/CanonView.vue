@@ -31,6 +31,8 @@
           <!-- What the Familiar's whole-canon read found (asked for in Ask Grimoire), above whichever chapter is open. -->
           <CanonReview mode="read" />
           <CanonSearchResults v-if="searching" class="max-w-3xl" :groups="hitGroups" :query="ui.query" @open="ui.query = ''" />
+          <!-- A new canon is led in by the page itself, until its four steps are done or the DM skips them. -->
+          <CanonWayIn v-else-if="showWayIn" :entries="entries" :clues="allClues ?? []" />
           <template v-else>
             <TruthsChapter
               v-if="active === 'truths'"
@@ -79,6 +81,7 @@ import CanonDeleted from "@/components/canon/CanonDeleted.vue";
 import CanonNextSession from "@/components/canon/CanonNextSession.vue";
 import CanonOpenAsBook from "@/components/canon/CanonOpenAsBook.vue";
 import CanonReview from "@/components/canon/CanonReview.vue";
+import CanonWayIn from "@/components/canon/CanonWayIn.vue";
 import CanonContents from "@/components/canon/CanonContents.vue";
 import BackstoriesChapter from "@/components/canon/BackstoriesChapter.vue";
 import ForcesChapter from "@/components/canon/ForcesChapter.vue";
@@ -90,6 +93,7 @@ import WorldChapter from "@/components/canon/WorldChapter.vue";
 import LifeChapter from "@/components/canon/ecology/LifeChapter.vue";
 import PeoplesChapter from "@/components/canon/ecology/PeoplesChapter.vue";
 import { narrowToArc } from "@/lib/canon/canonNarrow";
+import { isNewCanon, wayInSteps } from "@/lib/canon/canonWayIn";
 import { searchCanon } from "@/lib/canon/canonSearch";
 import { useCanonArcs } from "@/composables/canon/useCanonArcs";
 import { useCanonUiStore } from "@/stores/ui/canon";
@@ -119,7 +123,13 @@ const backstories = computed(() => entries.value.filter((e) => e.part === "backs
 const { data: partyData } = useParty();
 const party = computed(() => partyData.value ?? []);
 const { data: allPassages } = useCanonPassages();
-const { data: allClues } = useCanonClues();
+const { data: allClues, isSuccess: cluesLoaded } = useCanonClues();
+// Only once the canon and its clues have loaded, or a canon still on its way would flash as new.
+const showWayIn = computed(() => {
+  const id = campaign.value?.id;
+  if (id === undefined || !ready.value || !cluesLoaded.value) return false;
+  return isNewCanon(entries.value, wayInSteps(entries.value, allClues.value ?? [])) && ui.wayInDismissed[id] !== true;
+});
 const { data: forceData } = useCanonForceData();
 
 // The arc the page is narrowed to (CanonArcs holds the control). The selection below reads the whole lists, so an entry

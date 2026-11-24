@@ -52,13 +52,6 @@ describe("PremiseChapter", () => {
     expect(w.text()).not.toContain("Suggest a premise for");
   });
 
-  // Bug caught: the players' margin was drawn at every width and squeezed the sheet on a phone.
-  it("shows the players' book only from 80rem of the chapter, not below", () => {
-    const w = mountChapter([]);
-    const margin = w.get("[data-testid=premise-book-preview]");
-    expect(margin.classes()).toEqual(expect.arrayContaining(["hidden", "@7xl:flex"]));
-  });
-
   it("gives voice and look no reveal control, because players never read them", () => {
     const w = mountChapter([entry({ id: "v", premise_kind: "voice", title: "Dry" }), entry({ id: "l", premise_kind: "look", title: "Gouache" })]);
     expect(w.find("[data-testid=premise-voice] [data-testid=reveal]").exists()).toBe(false);

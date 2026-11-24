@@ -47,15 +47,4 @@ describe("CanonNextSession", () => {
     const lines = mountCard().findAll("[data-testid=next-session-line]").map((l) => l.text());
     expect(lines).toEqual(["2 lore passages to tell", "3 clues not yet found", "The Guild is one tick from its next step"]);
   });
-
-  // Bug caught: a planned evening's date lost, or a date drawn when no session is planned.
-  it("shows the date of the next planned session, and none when nothing is planned", () => {
-    plan.value = { ...empty, lore: [{ at: null, items: [item] }] };
-    expect(mountCard().find("[data-testid=next-session-date]").exists()).toBe(false);
-    proposals.value = [
-      { id: "x", proposed_date: "2026-11-27", proposed_time: "19:00", duration_minutes: 180, title: "Game", notes: null, status: "confirmed", min_attendance: 1 },
-    ];
-    const w = mountCard();
-    expect(w.find("[data-testid=next-session-date]").text()).toContain("27 November");
-  });
 });

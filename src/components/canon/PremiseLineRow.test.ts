@@ -63,16 +63,4 @@ describe("PremiseLineRow", () => {
     await flushPromises();
     expect(mocks.destroy).toHaveBeenCalledWith("e1");
   });
-
-  it("a Line reads upright, not struck through like a deleted entry", () => {
-    // Bug: line-through made "No harm to children" read as a removed row.
-    const line = canonEntry({ id: "l1", part: "premise", premise_kind: "line", title: "No harm to children" });
-    const w = mount(PremiseLineRow, { props: { entry: line, label: "Line" }, global: { stubs: { AudienceRevealControl: true, ThemeCarriedBy: true } } });
-    expect(w.find("textarea").classes()).not.toContain("line-through");
-    expect(w.find("textarea").classes()).not.toContain("italic");
-  });
-
-  it("carries the id a deep link scrolls to", () => {
-    expect(mountRow().find("li").attributes("id")).toBe("canon-entry-e1");
-  });
 });

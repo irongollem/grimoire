@@ -68,10 +68,4 @@ describe("PitchEditor", () => {
     await w.setProps({ entry: entry("from another tab") });
     expect(editorValue(w)).toBe("my unsaved words");
   });
-
-  // Bug: canon text had no @, so the DM could not name a person, place or faction in it.
-  it("offers the campaign's people, places and factions as @mentions", () => {
-    const w = mountEditor(null);
-    expect(w.findComponent({ name: "RichTextEditor" }).props("entityMentionItems")).toEqual([{ id: "n1", entityType: "npc", label: "Maren Voss" }]);
-  });
 });

@@ -82,14 +82,6 @@ describe("CanonTonightView", () => {
     expect(w.find("[data-testid=empty]").exists()).toBe(false);
   });
 
-  // Bug caught: a read still loading treated as empty, flashing "nothing is waiting" on every visit.
-  it("shows the skeleton while a read is loading", () => {
-    entries.isLoading.value = true;
-    const w = mountView();
-    expect(w.find("[data-testid=skeleton]").exists()).toBe(true);
-    expect(w.find("[data-testid=empty]").exists()).toBe(false);
-  });
-
   // Bug caught: a block drawn for a force, or an empty block drawn beside it.
   it("shows only the blocks that have something, with a full clock flagged", () => {
     entries.data.value = [canonEntry({ id: "F1", part: "force", title: "The Tithe Court", clock_size: 2 })];

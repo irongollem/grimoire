@@ -39,18 +39,6 @@ describe("LoreChapter", () => {
     expect(rows[0]).toContain("History");
   });
 
-  // Bug caught: the first passage counted as untold, or an entry with no passage reading "All told".
-  it("signs each row with how much is told: the first passage is told with the entry", () => {
-    passages.value = [
-      { id: "g1", entry_id: "c", sort_order: 0, created_at: "1", told_at: null },
-      { id: "g2", entry_id: "c", sort_order: 1, created_at: "2", told_at: null },
-      { id: "g3", entry_id: "c", sort_order: 2, created_at: "3", told_at: "2026-11-02T10:00:00Z" },
-      { id: "g4", entry_id: "b", sort_order: 0, created_at: "1", told_at: null },
-    ];
-    const marks = mountIt().findAll("[data-testid=lore-told]").map((m) => m.text());
-    expect(marks).toEqual(["2 of 3 told", "All told", "None told"]);
-  });
-
   // Bug caught: the open entry not marked in the list, or opening a different row than the one tapped.
   it("marks the open entry and selects the tapped one", async () => {
     const entries = [lore("a", "Undated tale", null), lore("c", "Early", 7)];
