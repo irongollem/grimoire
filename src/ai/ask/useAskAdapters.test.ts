@@ -3,24 +3,87 @@ import { ASK_GENERATORS } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskScreenAdapter } from "@/lib/ask/askAdapter";
 import { askFileStem, registryFrom } from "./useAskAdapters";
 
-const adapter = (id: string): { default: () => AskAdapter } => ({ default: () => ({ id, quote: () => { throw new Error("unused"); }, run: async () => { throw new Error("unused"); } }) });
-const screen = (id: string): { default: () => AskScreenAdapter } => ({ default: () => ({ id }) as AskScreenAdapter });
+import { createApp, effectScope, h, type App } from "vue";
+import { QueryClient, VueQueryPlugin, useQuery } from "@tanstack/vue-query";
+
+type Loader<T> = () => Promise<{ default: () => T }>;
+const adapter = (id: string, calls?: string[]): Loader<AskAdapter> => async () => {
+  calls?.push(`import ${id}`);
+  return { default: () => ({ id, quote: () => { throw new Error("unused"); }, run: async () => { throw new Error("unused"); } }) };
+};
+const screen = (id: string): Loader<AskScreenAdapter> => async () => ({ default: () => ({ id }) as AskScreenAdapter });
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("registryFrom", () => {
-  it("finds an adapter or a screen by its id, and offers nothing for an id with neither", () => {
+  it("finds an adapter or a screen by its id once it has loaded, and offers nothing for an id with neither", async () => {
     const registry = registryFrom({ "./adapters/npcAskAdapter.ts": adapter("npc") }, { "./screens/mapStyleAskScreen.ts": screen("map_style") });
+    expect((await registry.loadAdapter("npc"))?.id).toBe("npc");
     expect(registry.adapterFor("npc")?.id).toBe("npc");
+    registry.screenFor("map_style");
+    await flush();
     expect(registry.screenFor("map_style")?.id).toBe("map_style");
-    expect(registry.adapterFor("item")).toBeUndefined();
+    expect(await registry.loadAdapter("item")).toBeUndefined();
+    expect(registry.hasAdapter("item")).toBe(false);
     expect(registry.screenFor("npc")).toBeUndefined();
   });
 
-  it("refuses two adapters that claim one id instead of letting the later file win quietly", () => {
-    expect(() => registryFrom({ "./adapters/aAskAdapter.ts": adapter("npc"), "./adapters/bAskAdapter.ts": adapter("npc") }, {})).toThrow(/"npc"/);
+  it("imports nothing until a card asks, then only that card's file, once", async () => {
+    const calls: string[] = [];
+    const registry = registryFrom(
+      { "./adapters/npcAskAdapter.ts": adapter("npc", calls), "./adapters/itemAskAdapter.ts": adapter("item", calls) },
+      {},
+    );
+    expect(calls).toEqual([]);
+    expect(registry.adapterFor("npc")).toBeUndefined();
+    registry.adapterFor("npc");
+    await flush();
+    expect(calls).toEqual(["import npc"]);
+    expect(registry.adapterFor("npc")?.id).toBe("npc");
   });
 
-  it("refuses two screens that claim one id", () => {
-    expect(() => registryFrom({}, { "./screens/aAskScreen.ts": screen("x"), "./screens/bAskScreen.ts": screen("x") })).toThrow(/"x"/);
+  it("says a generator is known while its file is still loading, so the card waits instead of refusing", async () => {
+    const registry = registryFrom({ "./adapters/npcAskAdapter.ts": adapter("npc") }, {});
+    expect(registry.adapterFor("npc")).toBeUndefined();
+    expect(registry.hasAdapter("npc")).toBe(true);
+    await flush();
+    expect(registry.adapterFor("npc")).toBeDefined();
+  });
+
+  it("treats a file that will not load as 'cannot run from here', and does not retry it on every read", async () => {
+    let tries = 0;
+    const registry = registryFrom({ "./adapters/npcAskAdapter.ts": async () => { tries += 1; throw new Error("offline"); } }, {});
+    expect(await registry.loadAdapter("npc")).toBeUndefined();
+    registry.adapterFor("npc");
+    registry.adapterFor("npc");
+    await flush();
+    expect(registry.hasAdapter("npc")).toBe(false);
+    expect(tries).toBe(1);
+  });
+
+  it("refuses a file whose adapter answers to another id instead of serving the wrong one", async () => {
+    const registry = registryFrom({ "./adapters/npcAskAdapter.ts": adapter("item") }, {});
+    expect(await registry.loadAdapter("npc")).toBeUndefined();
+    expect(registry.hasAdapter("npc")).toBe(false);
+  });
+
+  it("makes an adapter through the panel's own context, so its queries work when it is made later", async () => {
+    const client = new QueryClient();
+    const panelScope = effectScope();
+    const queryAdapter: Loader<AskAdapter> = async () => ({
+      default: () => {
+        const q = useQuery({ queryKey: ["ask-lazy"], queryFn: async () => "fetched" });
+        return { id: "npc", quote: () => { throw new Error(String(q.data.value)); }, run: async () => { throw new Error("unused"); }, q } as AskAdapter;
+      },
+    });
+    const app: App = createApp({ render: () => h("div") }).use(VueQueryPlugin, { queryClient: client });
+    // The same capture useAskAdapters makes in setup, with the adapter file swapped for one that calls useQuery.
+    const make = <T,>(factory: () => T): T => app.runWithContext(() => panelScope.run(factory) as T);
+    const registry = registryFrom({ "./adapters/npcAskAdapter.ts": queryAdapter }, {}, make);
+    const made = await registry.loadAdapter("npc");
+    await flush();
+    await flush();
+    expect(made).toBeDefined();
+    expect(client.getQueryData(["ask-lazy"])).toBe("fetched");
   });
 });
 

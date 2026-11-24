@@ -9,7 +9,6 @@ import {
   stopAiQuotes,
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import type { AiProvenance } from "@/ai/provenance";
 
@@ -22,9 +21,7 @@ registerAiGenerator({
   ..._state,
   label: "Encounter",
   entityRoute: (id) => `/encounters/${id}`,
-  openPanel: () => {
-    useGeneratorUiStore().encounterGeneratorOpen = true;
-  },
+  // The generator is a card in the Familiar now: the badge brings the DM back to it.
 });
 
 // ────────────────────────────────────────────────────────────────────────────

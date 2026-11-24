@@ -458,7 +458,7 @@ The world block tells every other generator the result (see "The world block").
 
 **Rolled for an encounter.** `habitatForPlace` (`habitats.ts`) says which habitat a place lies in: its own, else the one
 of the nearest place it lies inside that is covered (the rule `tablesForPlaces` uses for encounter tables), with that
-covered place as `throughPlaceId`. The encounter generator has a **Where** choice (`EncounterWhere.vue`, the party's
+covered place as `throughPlaceId`. The encounter generator has a **Where** choice (`useEncounterWhere`, the party's
 place, `campaigns.current_location_id`, until the DM picks or clears it). When that place lies in a habitat with a
 creature at a share, one quiet line gives the habitat and its shares ("Salt marsh: Marsh eel 40%, Giant frog 20%,
 anything else 40%"), and each generation rolls once with `rollLife` through `lifeConstraints`: a rolled creature becomes

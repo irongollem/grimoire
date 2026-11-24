@@ -1,5 +1,5 @@
 /**
- * Registry of all AI generator panels.
+ * Registry of all AI generators.
  *
  * Each generator calls `registerAiGenerator()` at module level.
  * `AiGenerationBadge.vue` reads `aiGeneratorRegistry` to discover every active
@@ -14,13 +14,11 @@ export interface AiGeneratorRegistration extends AiGenerationState {
   label: string;
   /** Builds the route to navigate to the completed entity — e.g. `/npcs/${id}` */
   entityRoute: (id: string) => string;
-  /** Opens the generator's sidebar panel */
-  openPanel: () => void;
 }
 
 /**
  * Reactive in the array itself, not just in the entries — and it has to be.
- * The generator panels are async-loaded (see DefaultLayout.vue), so these
+ * The generation modules are async-loaded, so these
  * module-level `registerAiGenerator()` calls now run *after* AiGenerationBadge
  * has already rendered. A plain array left the badge's `computed` evaluating
  * against an empty registry, tracking zero reactive dependencies, and therefore

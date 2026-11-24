@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { ref } from "vue";
-import type { AskAdapter, AskRunResult } from "@/lib/ask/askAdapter";
+import type { AnyAskAdapter, AskAdapter, AskRunResult } from "@/lib/ask/askAdapter";
 import type { User } from "@supabase/supabase-js";
 import { useAuthStore } from "@/stores/auth";
 import { useAskUiStore } from "@/stores/ui/ask";
@@ -23,8 +23,11 @@ const adapter: AskAdapter = {
   quote: () => ({ lines: [], total: 4, block: null }),
   run: () => new Promise<AskRunResult>((r) => (finishRun = r)),
 };
+let current: AnyAskAdapter = adapter;
+const confirmStartOver = vi.fn(async (_message: string) => true);
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: confirmStartOver }) }));
 vi.mock("@/ai/ask/useAskAdapters", () => ({
-  useAskAdapters: () => ({ adapterFor: (id: string) => (id === "npc" ? adapter : undefined), screenFor: () => undefined }),
+  useAskAdapters: () => ({ adapterFor: (id: string) => (id === "npc" ? current : undefined), hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined }),
 }));
 
 const sse = (events: unknown[]) => new Response(events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""));
@@ -50,6 +53,8 @@ const stubs = { Teleport: true, Transition: false, RouterLink: { template: "<a><
 describe("AskPanel", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    current = adapter;
+    confirmStartOver.mockClear().mockResolvedValue(true);
     transport.mockClear();
     push.mockClear();
     route.fullPath = "/dashboard";
@@ -154,6 +159,54 @@ describe("AskPanel", () => {
     finishRun({ record: null, route: null, parts: [{ label: "NPC", ok: true, credits: 4 }] });
     await flushPromises();
     expect(w.find('[data-testid="ask-notice"]').exists()).toBe(true);
+    w.unmount();
+  });
+
+  async function askAndConfirm(w: ReturnType<typeof mount>) {
+    await w.get('[data-testid="ask-input"]').setValue("make a baker");
+    await w.get('[data-testid="ask-input"]').trigger("keydown", { key: "Enter" });
+    await flushPromises();
+    await w.get('[data-testid="ask-confirm"]').trigger("click");
+    await flushPromises();
+  }
+
+  // Bug caught: New conversation during a run wiping the thread its result and its credits belong to.
+  it("disables New conversation while a run is in flight, and frees it when it ends", async () => {
+    useAskUiStore().openPanel();
+    const w = mount(AskPanel, { global: { stubs } });
+    await askAndConfirm(w);
+    expect(w.get('[data-testid="ask-new"]').attributes("disabled")).toBeDefined();
+    await w.get('[data-testid="ask-new"]').trigger("click");
+    expect(w.find('[data-testid="ask-pending"]').exists()).toBe(true);
+    // A question from the search box takes the same path: it joins the thread rather than wiping it.
+    useAskUiStore().openPanel("who is Mara");
+    await flushPromises();
+    expect(w.find('[data-testid="ask-pending"]').exists()).toBe(true);
+    finishRun({ record: null, route: null, parts: [{ label: "NPC", ok: true, credits: 4 }] });
+    await flushPromises();
+    expect(w.get('[data-testid="ask-new"]').attributes("disabled")).toBeUndefined();
+    w.unmount();
+  });
+
+  // Bug caught: New conversation silently discarding a generation the DM paid for and had not yet saved.
+  it("asks before it throws away a generation awaiting Create, and keeps it on a no", async () => {
+    current = {
+      id: "npc",
+      quote: () => ({ lines: [], total: 4, block: null }),
+      preview: async () => ({ ok: true, preview: { shown: { title: "Mara", sections: [] }, parts: [{ label: "NPC", ok: true, credits: 4 }], create: async () => ({ record: null, route: null, parts: [] }) } }),
+    };
+    useAskUiStore().openPanel();
+    const w = mount(AskPanel, { global: { stubs } });
+    await askAndConfirm(w);
+    expect(w.find('[data-testid="ask-preview"]').exists()).toBe(true);
+    confirmStartOver.mockResolvedValueOnce(false);
+    await w.get('[data-testid="ask-new"]').trigger("click");
+    await flushPromises();
+    expect(confirmStartOver.mock.calls[0][0]).toContain("Discard the NPC you have not saved?");
+    expect(w.find('[data-testid="ask-preview"]').exists()).toBe(true);
+    await w.get('[data-testid="ask-new"]').trigger("click");
+    await flushPromises();
+    expect(w.find('[data-testid="ask-preview"]').exists()).toBe(false);
     w.unmount();
   });
 

@@ -342,7 +342,7 @@ async function onCreate() {
       aiProvenance: provenance.value,
       parentQuestId: parentId ?? null,
     });
-    // Mirrors QuestGeneratorPanel's createFromHook: a settled tree with no
+    // Mirrors the quest hooks' Create in the Familiar (`questHooksAskAdapter`): a settled tree with no
     // beats is a legitimate response (see spine.ts), but the DM asked for a
     // quest and got less than one, and shouldn't have to open Story flow to
     // notice.

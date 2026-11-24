@@ -1,6 +1,6 @@
 import { computed } from "vue";
 import type { Ref } from "vue";
-import { useQuery } from "@tanstack/vue-query";
+import { keepPreviousData, useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 
 const CHUNK = 100;
@@ -30,11 +30,13 @@ export async function fetchLocationDescriptions(
  * root so every place mutation, and every `locations` ring from another client,
  * refreshes it.
  */
-export function useLocationDescriptions(ids: Ref<readonly string[]>) {
+export function useLocationDescriptions(ids: Ref<readonly string[]>, options?: { keepPrevious?: boolean }) {
   const sortedIds = computed(() => [...new Set(ids.value)].sort());
   return useQuery({
     queryKey: computed(() => ["locations", "descriptions", sortedIds.value] as const),
     queryFn: ({ queryKey: [, , wanted] }) => fetchLocationDescriptions(wanted),
     enabled: () => sortedIds.value.length > 0,
+    // A reader of several callers' ids (the Ask resolver) keeps what it had while a grown id set loads.
+    ...(options?.keepPrevious ? { placeholderData: keepPreviousData } : {}),
   });
 }

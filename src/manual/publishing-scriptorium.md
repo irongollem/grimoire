@@ -45,7 +45,7 @@ The top of the Scriptorium list has **New handout** and **New book**, plus **Dra
 
 ### Drafting from your campaign with AI
 
-If AI is turned on for your campaign, the template gallery and the Scriptorium list both offer **Draft with AI**. It writes a first draft of one of three documents from your own campaign data:
+If AI is turned on for your campaign, the template gallery and the Scriptorium list both offer **Draft with AI**. It opens a card in the Familiar on the right, and writes a first draft of one of three documents from your own campaign data:
 
 - **Player handout**: an in-world letter, notice, journal page or proclamation about an NPC, a location or a faction.
 - **Faction dossier**: a sectioned briefing on one faction, with its leadership, members, holdings, goals and relations.

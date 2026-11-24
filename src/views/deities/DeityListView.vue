@@ -26,7 +26,7 @@
         v-if="campaign.isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="generatorsUi.deityGeneratorOpen = true"
+        @click="openGenerator('deity')"
       />
       <ListCreateButton
         label="New Deity"
@@ -195,7 +195,7 @@ import { IconFire, IconGenerate, IconNavPantheon, IconPopulate, IconReveal } fro
 import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities, useUpdateDeity } from "@/composables/deities/useDeities";
 import { alignmentAbbreviation, CLERIC_DOMAINS } from "@/types/deity.types";
 import { useDeitiesUiStore } from "@/stores/ui/deities";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { useCampaignStore } from "@/stores/campaign";
 import { useSettingContent } from "@/composables/campaign/useSettingContent";
 import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
@@ -224,7 +224,7 @@ import { useLowArt } from "@/composables/useLowArt";
 import { artFreeSkeleton, type LedgerCell } from "@/components/common/list/ledger";
 
 const deitiesUi = useDeitiesUiStore();
-const generatorsUi = useGeneratorUiStore();
+const { open: openGenerator } = useOpenGenerator();
 const campaign = useCampaignStore();
 const { data: deities, isLoading } = useAllDeities();
 const { data: pantheons } = useAllPantheons();

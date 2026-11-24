@@ -29,6 +29,16 @@ vi.mock("@/ai/useMusicGeneration", () => ({
   useMusicGeneration: () => ({ generate: mocks.generate, error: music.error, completedEntityId: music.completedEntityId }),
 }));
 
+// The people and places a description names: what the card's @ resolves to (read by `parseSceneEntities`, tested there).
+// `byText` answers per description, as the real resolver does; `entities` and `loading` are the default for any other.
+type Mentioned = { label: string; portraitUrl: string | null; textDescription: string | null };
+const scene = vi.hoisted(() => ({ entities: [] as Mentioned[], loading: false, byText: {} as Record<string, { entities: Mentioned[]; loading: boolean }> }));
+vi.mock("@/ai/ask/askSceneMentions", () => ({
+  useAskSceneResolver: () => ({
+    resolve: (text: string) => scene.byText[text] ?? { entities: text.includes("@") ? scene.entities : [], loading: text.includes("@") && scene.loading },
+  }),
+}));
+
 const { useMusicTrackAskAdapter } = await import("./musicTrackAskAdapter");
 const { useMusicTrackQuote } = await import("@/composables/ai/quotes/musicTrackQuote");
 
@@ -41,6 +51,9 @@ describe("useMusicTrackAskAdapter", () => {
     mocks.generate.mockReset().mockResolvedValue(true);
     music.error.value = null;
     music.completedEntityId.value = "s9";
+    scene.entities = [];
+    scene.loading = false;
+    scene.byText = {};
     Object.assign(state, { aiEnabled: true, affordable: true, busy: false, multiplier: 1.5 });
   });
 
@@ -61,19 +74,83 @@ describe("useMusicTrackAskAdapter", () => {
     expect(adapter.quote(proposal({}, "  ")).block?.reason).toBe("missing");
   });
 
-  it("composes without touching the Add Sound dialog's half-typed draft", async () => {
-    await useMusicTrackAskAdapter().run(proposal());
-    expect(mocks.generate.mock.calls[0][0].keepDraft).toBe(true);
+  // Bug caught: the Generate tab's price and request left the card half-read; each choice of the card reaches the server's body.
+  it("sends what the card holds: name, section, one of the three lengths, vocals, and lyrics only when it sings", async () => {
+    await useMusicTrackAskAdapter().run(proposal({ name: "Weir at dusk", category: "music", length_seconds: "180", vocals: "vocals", lyrics: "[Verse 1]\nRise" }));
+    expect(mocks.generate.mock.calls[0][0]).toMatchObject({
+      soundName: "Weir at dusk",
+      category: "music",
+      request: { description: "Rain on a tavern roof", lengthSeconds: 180, vocals: "vocals", lyrics: "[Verse 1]\nRise", imageCount: 0 },
+      imageUrls: [],
+    });
+    await useMusicTrackAskAdapter().run(proposal({ vocals: "choir", lyrics: "x", category: "bagpipes", length_seconds: "100" }));
+    const input = mocks.generate.mock.calls[1][0];
+    expect(input.request).toMatchObject({ lengthSeconds: 60, vocals: "choir" });
+    expect(input.request.lyrics).toBeUndefined();
+    expect(input.category).toBe("ambient");
+    expect(input.soundName).toBe("Rain on a tavern roof");
   });
 
-  it("sends only the lengths the server takes, singing only when asked, and drops unknown keys", async () => {
-    await useMusicTrackAskAdapter().run(proposal({ length_seconds: 100, vocals: true, category: "effects", lyrics: "x" }));
+  // Bug caught: the three-word vocals became the old yes or no, so a choir was sent as instrumental.
+  it("reads the three-word vocals and treats an old yes or no as instrumental", async () => {
+    await useMusicTrackAskAdapter().run(proposal({ vocals: true }));
+    expect(mocks.generate.mock.calls[0][0].request.vocals).toBe("instrumental");
+    expect(useMusicTrackAskAdapter().quote(proposal({ vocals: "choir" })).lines.find((l) => l.label === "Vocals")?.value).toBe("A wordless choir");
+  });
+
+  // Bug caught: a mention reached Lyria as its @-token, and its picture and lore never did.
+  it("hands the mentioned people's pictures and lore to the job and the description without its tokens", async () => {
+    scene.entities = [
+      { label: "Vesper", portraitUrl: "https://cdn/v.png", textDescription: "Vesper: a pale ranger" },
+      { label: "The weir", portraitUrl: null, textDescription: "The weir" },
+    ];
+    await useMusicTrackAskAdapter().run(proposal({}, "the grove at night, @Vesper waiting"));
     const input = mocks.generate.mock.calls[0][0];
-    expect(input.request).toMatchObject({ lengthSeconds: 120, vocals: "vocals", imageCount: 0 });
-    expect(input.category).toBe("ambient");
-    expect(input.request.lyrics).toBeUndefined();
-    await useMusicTrackAskAdapter().run(proposal());
-    expect(mocks.generate.mock.calls[1][0].request).toMatchObject({ lengthSeconds: 60, vocals: "instrumental" });
+    expect(input.imageUrls).toEqual(["https://cdn/v.png"]);
+    expect(input.request).toMatchObject({
+      description: "the grove at night, Vesper waiting",
+      imageCount: 1,
+      mentions: [{ label: "Vesper", description: "Vesper: a pale ranger" }, { label: "The weir", description: "The weir" }],
+    });
+    expect(useMusicTrackAskAdapter().quote(proposal({}, "@Vesper")).lines.find((l) => l.label === "Lyria will read")?.value).toBe("1 picture: Vesper");
+  });
+
+  it("blocks over ten pictures, over-long lyrics, and while the names are still being read", () => {
+    const adapter = useMusicTrackAskAdapter();
+    scene.entities = Array.from({ length: 11 }, (_, i) => ({ label: `P${i}`, portraitUrl: `https://cdn/${i}.png`, textDescription: null }));
+    expect(adapter.quote(proposal({}, "@P0")).block?.reason).toBe("missing");
+    scene.entities = [];
+    expect(adapter.quote(proposal({ vocals: "vocals", lyrics: "la ".repeat(1000) })).block?.reason).toBe("missing");
+    scene.loading = true;
+    expect(adapter.quote(proposal({}, "@Vesper")).block?.reason).toBe("missing");
+  });
+
+  // Bug caught: the adapter held one text for every card, so two music cards with different @-mentions rewrote each
+  // other's text, quoted each other's pictures, and a run resolved against whichever text was set last.
+  it("quotes and runs each card's own @-mentions when two cards are on screen", async () => {
+    scene.byText = {
+      "@Vesper at the weir": { entities: [{ label: "Vesper", portraitUrl: "https://cdn/v.png", textDescription: "Vesper" }], loading: false },
+      "@Orrin in the keep": { entities: [{ label: "Orrin", portraitUrl: "https://cdn/o.png", textDescription: "Orrin" }], loading: false },
+    };
+    const adapter = useMusicTrackAskAdapter();
+    const first = { ...proposal({}, "@Vesper at the weir"), proposalId: "p1" };
+    const second = { ...proposal({}, "@Orrin in the keep"), proposalId: "p2" };
+    expect(adapter.quote(first).lines.find((l) => l.label === "Lyria will read")?.value).toBe("1 picture: Vesper");
+    expect(adapter.quote(second).lines.find((l) => l.label === "Lyria will read")?.value).toBe("1 picture: Orrin");
+    expect(adapter.quote(first).lines.find((l) => l.label === "Lyria will read")?.value).toBe("1 picture: Vesper");
+    await adapter.run(first);
+    expect(mocks.generate.mock.calls[0][0].imageUrls).toEqual(["https://cdn/v.png"]);
+  });
+
+  // Bug caught: the card quoted ready while the lore its own text names was still being read.
+  it("blocks only the card whose own mentions are still loading", () => {
+    scene.byText = {
+      "@Vesper at the weir": { entities: [], loading: true },
+      "@Orrin in the keep": { entities: [], loading: false },
+    };
+    const adapter = useMusicTrackAskAdapter();
+    expect(adapter.quote(proposal({}, "@Vesper at the weir")).block?.reason).toBe("missing");
+    expect(adapter.quote(proposal({}, "@Orrin in the keep")).block).toBeNull();
   });
 
   it("waits for the track and opens the soundboard", async () => {

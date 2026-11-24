@@ -12,8 +12,16 @@ describe("useAskPrefill", () => {
     const apply = vi.fn();
     useAskPrefillStore().offer("complication", "reinforcements from the north");
     useAskPrefill("complication", apply);
-    expect(apply).toHaveBeenCalledExactlyOnceWith("reinforcements from the north");
+    expect(apply).toHaveBeenCalledExactlyOnceWith("reinforcements from the north", {});
     expect(useAskPrefillStore().take("complication")).toBeNull();
+  });
+
+  // Bug caught: a screen's own choices (preset, mode) were lost between the offer and the screen.
+  it("passes the offered inputs to the screen", () => {
+    const apply = vi.fn();
+    useAskPrefillStore().offer("complication", "x", { mode: "reinforcements" });
+    useAskPrefill("complication", apply);
+    expect(apply).toHaveBeenCalledExactlyOnceWith("x", { mode: "reinforcements" });
   });
 
   // Bug caught: asking from inside an already open screen did nothing, because only the mount was watched.
@@ -23,7 +31,7 @@ describe("useAskPrefill", () => {
     expect(apply).not.toHaveBeenCalled();
     useAskPrefillStore().offer("complication", "a rope bridge frays");
     await nextTick();
-    expect(apply).toHaveBeenCalledExactlyOnceWith("a rope bridge frays");
+    expect(apply).toHaveBeenCalledExactlyOnceWith("a rope bridge frays", {});
   });
 
   // Bug caught: a screen took another screen's request.

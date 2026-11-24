@@ -35,7 +35,7 @@ A faction opens as a read-only sheet. Press **Edit** to change it. Below the she
 
 ## Generating a faction with AI
 
-Click **Generate** on the Factions list page to open the faction generator panel and describe the organisation in a concept box; see [AI Generation & Credits](#ai-generation-credits) for how costs are shown, and for what happens if the campaign's AI Assistant is off or your credit balance is short.
+Click **Generate** on the Factions list page to open the Familiar on the right with a faction card. Describe the organisation in **What to make**, then create it; see [AI Generation & Credits](#ai-generation-credits) for how costs are shown, and for what happens if the campaign's AI Assistant is off or your credit balance is short.
 
 ## Bulk moving or copying factions
 

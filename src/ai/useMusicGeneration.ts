@@ -1,15 +1,12 @@
-import { ref } from "vue";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useQueryClient, type QueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { useSoundboardUiStore } from "@/stores/ui/soundboard";
 import type { SoundCategory } from "@/types/sound.types";
-import type { FallbackPromptRequest, MusicLengthSeconds, MusicVocals } from "@/lib/audio/aiMusic";
+import type { FallbackPromptRequest } from "@/lib/audio/aiMusic";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { isAnyAiGenerating, registerAiGenerator } from "./aiGeneratorRegistry";
 import {
-  AiGenerationJobFailedError,
   acknowledgeAiGenerationJob,
   listUnconsumedAiGenerationJobs,
   waitForAiGenerationJob,
@@ -19,48 +16,20 @@ import {
 /**
  * Soundboard music generation (generate-music), run in the background like
  * every other generator: the state lives here at module level, so the DM can
- * close the Add Sound dialog while Lyria works and the AiGenerationBadge tells
- * them when the track is on the board, or brings the dialog back if it failed.
+ * close the Familiar while Lyria works and the AiGenerationBadge tells
+ * them when the track is on the board, or brings the Familiar back if it failed.
+ * The card that asks for it is Ask's (`musicTrackAskAdapter`).
  */
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
-
-/**
- * The Generate tab's draft. Module-level so that closing the dialog mid-run,
- * or reopening it from the badge after Lyria refused a prompt, finds it as the
- * DM left it, refused prompt included.
- */
-const _draft = {
-  description: ref(""),
-  lengthSeconds: ref<MusicLengthSeconds>(60),
-  vocals: ref<MusicVocals>("instrumental"),
-  lyrics: ref(""),
-  /** A complete Lyria prompt the DM is editing after a refusal. While set, it
-   * is sent as written in place of the description. */
-  editedPrompt: ref<string | null>(null),
-  /** The board section of the last run, so a reopened retry files the track
-   * where the DM first asked for it. (Its name is the badge's `concept`.) */
-  category: ref<SoundCategory>("ambient"),
-};
-
-function resetDraft(): void {
-  _draft.description.value = "";
-  _draft.lengthSeconds.value = 60;
-  _draft.vocals.value = "instrumental";
-  _draft.lyrics.value = "";
-  _draft.editedPrompt.value = null;
-  _draft.category.value = "ambient";
-}
 
 registerAiGenerator({
   ..._state,
   label: "Music",
   // Sounds have no page of their own; the finished track is on the board.
   entityRoute: () => "/soundboard",
-  openPanel: () => {
-    useSoundboardUiStore().addSoundDialogOpen = true;
-  },
+  // The Generate button opens the track's card in the Familiar (#1270): the badge brings the DM back to it.
 });
 
 interface MusicGenerationResult {
@@ -163,14 +132,6 @@ export interface MusicGenerationInput {
   category: SoundCategory;
   request: FallbackPromptRequest;
   imageUrls: string[];
-  /** The DM's edited Lyria prompt, sent as written; null to have it structured. */
-  prompt: string | null;
-  /**
-   * Leave the Generate tab's draft exactly as the DM has it. The Add Sound dialog's own Generate wants it cleared
-   * once the track is made; Ask composes a track from a conversation and must not wipe, re-file or overwrite a
-   * half-typed draft that belongs to the dialog.
-   */
-  keepDraft?: boolean;
 }
 
 export function useMusicGeneration() {
@@ -187,7 +148,6 @@ export function useMusicGeneration() {
     _state.error.value = null;
     _state.clearCompleted();
     _state.concept.value = input.soundName;
-    if (!input.keepDraft) _draft.category.value = input.category;
     startAiQuotes("music");
 
     try {
@@ -200,7 +160,6 @@ export function useMusicGeneration() {
         lengthSeconds: request.lengthSeconds,
         vocals: request.vocals,
         lyrics: request.lyrics ?? null,
-        prompt: input.prompt,
         name: input.soundName,
         category: input.category,
         imageUrls: [...input.imageUrls].sort(),
@@ -216,7 +175,6 @@ export function useMusicGeneration() {
           length_seconds: request.lengthSeconds,
           vocals: request.vocals,
           lyrics: request.lyrics,
-          prompt: input.prompt ?? undefined,
           mentions: request.mentions,
           image_urls: input.imageUrls,
         },
@@ -227,15 +185,10 @@ export function useMusicGeneration() {
       const jobId = (data as { job_id?: string } | null)?.job_id;
       if (!jobId) throw new Error("Music generator did not return a job id.");
       const soundId = await resumeMusicJob(queryClient, jobId, input.campaignId, requestId);
-      if (!input.keepDraft) resetDraft();
       if (soundId) _state.completedEntityId.value = soundId;
       return true;
     } catch (err) {
       _state.error.value = err instanceof Error ? err.message : "Generation failed.";
-      // generate-music records the prompt on the job before Lyria reads it; a
-      // job that failed earlier (structuring, an unreadable image) has none.
-      const sentPrompt = err instanceof AiGenerationJobFailedError ? err.job.artifacts.metadata.prompt : null;
-      if (typeof sentPrompt === "string" && !input.keepDraft) _draft.editedPrompt.value = sentPrompt;
       return false;
     } finally {
       _state.isGenerating.value = false;
@@ -263,9 +216,7 @@ export function useMusicGeneration() {
 
   return {
     ..._state,
-    draft: _draft,
     generate,
     recoverReadyJobs,
-    resetDraft,
   };
 }

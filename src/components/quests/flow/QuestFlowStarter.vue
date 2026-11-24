@@ -83,7 +83,7 @@ import { IconClipboard, IconEdit, IconGenerate } from "@/lib/icons";
 const { parentId = null } = defineProps<{ parentId?: string | null }>();
 
 /** A fourth way to start a quest, beside typing one (below), generating one
- *  (`QuestGeneratorPanel.vue`, opened from the quest list), and pasting a
+ *  (quest hooks in the Familiar, opened from the quest list), and pasting a
  *  page from a book (#839, `QuestPasteImportPanel.vue`) — a multi-turn
  *  conversation with the quest-designer model (#873,
  *  `QuestDesignerPanel.vue`): the DM describes the quest in prose, the model

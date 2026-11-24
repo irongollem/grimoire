@@ -24,7 +24,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="npcsUi.npcGeneratorOpen = true"
+        @click="open('npc')"
       />
       <ListActionButton
         :active="npcListRef?.selecting ?? false"
@@ -292,7 +292,7 @@
           block
           v-if="isAiEnabled"
           label="Generate"
-          @click="overflowOpen = false; npcsUi.npcGeneratorOpen = true"
+          @click="overflowOpen = false; open('npc')"
         >
           <template #icon><IconGenerate class="size-5 shrink-0 text-muted-foreground" /></template>
         </AppButton>
@@ -337,7 +337,9 @@
 <script setup lang="ts">
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
+import { kinCardInputs } from "@/lib/npcGenerator/kinPrompt";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { useBarCreate } from "@/composables/useBarCreate";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
@@ -388,12 +390,19 @@ type LocationOption = { id: string; name: string; depth: number };
 
 const npcsUi = useNpcsUiStore();
 
-// /npcs?kin=...&of=... is the "Add relative" link: open the generator, which reads and clears the query itself.
+// /npcs?kin=...&of=... is the "Add relative" link: the NPC card opens in the Familiar with the relative filled in, and
+// the query is consumed once, so a reload does not open it again.
 const route = useRoute();
+const router = useRouter();
+const { open } = useOpenGenerator();
 watch(
   () => route.query.kin,
   (kin) => {
-    if (typeof kin === "string") npcsUi.npcGeneratorOpen = true;
+    if (typeof kin !== "string") return;
+    const inputs = kinCardInputs(route.query);
+    if (inputs) open("npc", { inputs });
+    const { kin: _k, of: _o, also: _a, ...rest } = route.query;
+    void router.replace({ query: rest });
   },
   { immediate: true },
 );

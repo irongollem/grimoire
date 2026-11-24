@@ -95,7 +95,7 @@ Always within reach on the deck:
 
 Open the **Soundboard** page. On the left is a side panel with two sides, **Library** and **Pad**. The library is your sounds, scenes and playlists, plus the shared Grimoire sounds, with search and a category filter; picking a pad turns the panel to that pad's settings, and the switch at its top turns it back. Beside it is the deck you are building, and the **Build / Play** switch lets you try it out right there. While a session is running the page opens in Play.
 
-- **Add a sound.** Click **Add sound**, then choose a source: **URL**, **Upload** (Pro), **Spotify**, **Generate** (AI, needs the campaign's AI Assistant on, and works on every plan, billed to credits), or browse **Grimoire Sounds** (free, curated, doesn't count against your quota) or Freesound's CC0/CC-BY clips.
+- **Add a sound.** Click **Add sound**, then choose a source: **URL**, **Upload** (Pro), **Spotify**, **Generate** (AI, which opens a music card in the Familiar: describe the track, pick a length, and see the price before you press the gilt button; needs the campaign's AI Assistant on, and works on every plan, billed to credits), or browse **Grimoire Sounds** (free, curated, doesn't count against your quota) or Freesound's CC0/CC-BY clips.
 - **Place it.** Drag a row onto a slot, or select an empty slot and click the row. On a phone, tap an empty slot and the library opens on it: tap a sound to put it there.
 - **Add a take.** Drop a sound onto a pad that already has one and it becomes another take of that pad. With the pad's settings open, switch the panel to **Library** to drag one in.
 - **Move pads.** Drag a pad to another slot. If a pad is already there, the two swap. Drop a pad on a page tab to send it to that page.

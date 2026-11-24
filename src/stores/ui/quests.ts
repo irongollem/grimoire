@@ -7,10 +7,6 @@ import { DRAWER_DEFAULT_REM } from "@/lib/quests/drawer";
 
 export const useQuestsUiStore = defineStore("ui:quests", () => {
   // Quest UI state
-  const questGeneratorOpen = ref(false);
-  // What Ask Grimoire (#1253) fixed when it ran the hooks: the generator panel takes it once when it opens on them
-  // (the quest giver and place a hook is built with), then clears it. Not a filter, so not persisted.
-  const questGeneratorPrefill = ref<{ giverNpcId: string; locationId: string } | null>(null);
   // Kanban vs. list is a layout preference and persists, like `entityListLayout`.
   // The filters below are session-scoped (plain refs): they survive navigation
   // but must not persist, or a DM returns weeks later to a near-empty board with
@@ -79,8 +75,6 @@ export const useQuestsUiStore = defineStore("ui:quests", () => {
 
   return {
     levelPlanFoldedFor,
-    questGeneratorOpen,
-    questGeneratorPrefill,
     questsSearch,
     questsIsKanban,
     questsPartyFilter,

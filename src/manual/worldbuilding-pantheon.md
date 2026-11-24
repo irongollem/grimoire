@@ -37,7 +37,7 @@ Pantheons and deities are Grimoire's two thin, sibling world-building modules fo
 
 ## Generating with AI
 
-If AI is switched on for your campaign, the deity list has a **Generate** button next to **New Deity**. Describe the god in a sentence or two (a weary goddess of crossroads, say), and Grimoire writes a complete deity: name, titles, alternate names, alignment, one to three cleric domains, portfolio, a holy symbol description, lore for your players, and secrets with ideas for bringing the god into play, which land in the deity's DM notes box.
+If AI is switched on for your campaign, the deity list has a **Generate** button next to **New Deity**. It opens the Familiar on the right with a deity card. Describe the god in a sentence or two (a weary goddess of crossroads, say), and Grimoire writes a complete deity: name, titles, alternate names, alignment, one to three cleric domains, portfolio, a holy symbol description, lore for your players, and secrets with ideas for bringing the god into play, which land in the deity's DM notes box.
 
 You can steer it before you generate:
 
@@ -45,7 +45,7 @@ You can steer it before you generate:
 - **Alignment** and **Primary domain**: pin either one, or leave them on **Any**.
 - **Generate a portrait**: also paints the divine form and adds it to your Gallery.
 
-It grounds in your campaign setting and your ruleset, so a 2024 campaign draws its domains from the 2024 cleric list. Generating costs credits, shown on the button, and the new deity opens ready to edit.
+It grounds in your campaign setting and your ruleset, so a 2024 campaign draws its domains from the 2024 cleric list. Generating costs credits, shown on the card, and the new deity opens ready to edit.
 
 Any deity you already have can get a portrait too: open it and use **Generate with AI** under **Divine Form**. It paints from the name, titles, alignment, domains, portfolio and symbol on the form, including edits you have not saved yet.
 

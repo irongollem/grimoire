@@ -119,6 +119,7 @@ import { useSpeaker } from "@/composables/party/useSpeaker";
 import { useParty } from "@/composables/party/useParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
+import { getNpcPlayerFace } from "@/lib/npcPlayerFace";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import { useLootRollClock } from "@/composables/campaign/useLootRollClock";
 import type { RollResult } from "@/lib/dice/dice";
@@ -241,12 +242,22 @@ const queryClient = useQueryClient();
 // true one as `sender_name` on every line the DM said in that persona — the
 // loudest possible place for it, above the message, in everyone's chat.
 //
-// The field gate (`getNpcPlayerFacingName`) deliberately does *not* apply here.
-// Choosing a persona is the DM attributing a line out loud; rewriting that to
-// "???" would fight an explicit instruction. `is_revealed` is different — it is
-// the DM's own flag saying this identity is still a secret.
+// The picker keeps the DM's label (`name`), but the line's `sender_name` and
+// face are `speakerName` / `face`: what the player projection would show
+// (`getNpcPlayerFace`), so a name or portrait the DM has not shared never
+// reaches the shared chat (#1270 review).
 const npcs = computed(() =>
-  (npcsData.value ?? []).map((n) => ({ id: n.id, name: getNpcDisplayName(n) ?? "???" }))
+  (npcsData.value ?? []).map((n) => {
+    // What a line said as this NPC shows players (#1270): the name and face the player projection would hand out, so a
+    // hidden portrait or an unrevealed name never reaches the shared chat.
+    const seen = getNpcPlayerFace(n);
+    return {
+      id: n.id,
+      name: getNpcDisplayName(n) ?? "???",
+      speakerName: seen.name ?? "???",
+      face: { portrait: seen.portrait, focal: seen.focal },
+    };
+  })
 );
 
 // The persona name is stored as a snapshot when the DM picks it, so revealing
@@ -259,7 +270,7 @@ watch(npcs, (list) => {
   // Only when the NPC is actually in the list. A miss means the query is
   // between fetches (or the NPC was deleted), and blanking the name there would
   // silently drop the DM's chosen persona back to their own name mid-sentence.
-  if (npc) appUi.setDmTalkAsNpc(npc.id, npc.name);
+  if (npc) appUi.setDmTalkAsNpc(npc.id, npc.speakerName, npc.face);
 });
 
 // The dot is a read position, not a transition (chatUnread.ts). `messages` is

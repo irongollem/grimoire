@@ -129,7 +129,7 @@ function nameOf(p: LocationPlacementWithEntity): string {
 
 // Roll tables have no dedicated detail route today — `/roll-tables/:id`
 // redirects into the Dungeon Craft hub's Roll Tables tab, same as the
-// generator panel's own post-create navigation (RollTableGeneratorPanel).
+// Familiar's roll table Create, which lands on the same route.
 function hrefOf(p: LocationPlacementWithEntity): string {
   switch (kindOf(p)) {
     case "trap": return `/traps/${p.trap_id ?? p.library_trap_id}`;

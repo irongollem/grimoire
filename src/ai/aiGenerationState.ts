@@ -7,9 +7,8 @@
  * 2. In the same file, call `registerAiGenerator(...)` at module level to register it with
  *    the badge system.
  * 3. Call `startAiQuotes()` when generation begins and `stopAiQuotes()` when it ends.
- * 4. Mount the generator's panel component in `DefaultLayout.vue` (always-mounted so
- *    generation survives navigation).
- * 5. Add the panel's open flag to `useGeneratorUiStore` and pass `openPanel` to the registration.
+ * 4. Give the generator an Ask adapter (`src/ai/ask/adapters/`): its button opens a card in the Familiar, and
+ *    the run happens in the adapter, which outlives the pane closing.
  *
  * That's all — the `AiGenerationBadge` will discover it automatically via the registry.
  */

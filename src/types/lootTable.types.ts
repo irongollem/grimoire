@@ -10,7 +10,6 @@
 // Rolling logic: src/lib/dungeon-features/lootTableRoll.ts.
 
 import { parseExpression, maxExpression } from "@/lib/dice/dice";
-import type { ItemRarity } from "@/types/item.types";
 import type { Coins } from "@/lib/currency/currency";
 import type { AiProvenance } from "@/ai/provenance";
 
@@ -24,27 +23,6 @@ export const LOOT_CR_TIER_LABELS: Record<LootCrTier, string> = {
   "5-10":  "CR 5–10",
   "11-16": "CR 11–16",
   "17+":   "CR 17+",
-};
-
-/**
- * Rarity band each CR tier draws from, used by the AI loot generator (#602)
- * to tell the DM what a tier covers before they generate.
- *
- * DUPLICATED, deliberately: `supabase/functions/generate-loot/index.ts` holds
- * the same map and is the one that actually filters retrieval (edge functions
- * cannot import from `src/`). Keep the two in step — this copy is display
- * only, so a drift here misleads rather than misfilters, which is the harder
- * kind of bug to notice. Same arrangement as `ROLL_TABLE_DIE_MAX` and
- * generate-roll-table's `DIE_MAX`.
- *
- * An empty array means "no rarity constraint", never "no rarities".
- */
-export const LOOT_TIER_RARITIES: Record<LootCrTier, ItemRarity[]> = {
-  "any":   [],
-  "0-4":   ["mundane", "common", "uncommon"],
-  "5-10":  ["mundane", "common", "uncommon", "rare"],
-  "11-16": ["common", "uncommon", "rare", "very_rare"],
-  "17+":   ["rare", "very_rare", "legendary", "artifact"],
 };
 
 export interface LootEntry {

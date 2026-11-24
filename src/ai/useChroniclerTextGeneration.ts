@@ -31,14 +31,6 @@ const TONE_INSTRUCTIONS: Record<ChroniclerTone, string> = {
 };
 
 
-/** Pre-process AI output: replace [[scene: ...]] with styled blockquotes. */
-export function preprocessChronicleMarkdown(md: string): string {
-  return md.replace(
-    /^\[\[scene:\s*(.+?)\]\]\s*$/gm,
-    (_, prompt: string) => `> 🖼️ **Illustration suggestion:** ${prompt.trim()}`,
-  );
-}
-
 /** What `generate()` resolves to — the recap markdown plus (when available)
  *  the provenance record for whoever ends up saving it into a note. */
 export interface ChroniclerTextResult {

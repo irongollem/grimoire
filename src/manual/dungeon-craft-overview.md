@@ -45,7 +45,7 @@ The Features, Traproom, Enigmarium and Roll Tables tabs can show a library of re
 
 ## AI generators
 
-Traproom, Enigmarium, Roll Tables, and Loot Tables each have a **Generate** button that opens an AI-assisted generator for that entity type. Features has no AI generator: create those by hand. Generation is Pro-gated and spends AI credits; each generator's page describes its cost and inputs.
+Traproom, Enigmarium, Roll Tables, and Loot Tables each have a **Generate** button that opens the Familiar on the right with a card for that entity type. Features has its own **Generate** button too, described on its page. Generation spends AI credits; each generator's page describes its cost and inputs.
 
 ## Placing things in your world
 

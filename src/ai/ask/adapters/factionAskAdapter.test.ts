@@ -55,8 +55,8 @@ describe("useFactionAskAdapter", () => {
     mocks.generateAndCreateFaction.mockReset().mockResolvedValue(saved());
     Object.assign(state, {
       aiEnabled: true, canCreate: true, affordable: true,
-      npcs: [{ id: "n1", name: "Mara", occupation: "Smith" }, { id: "n2", name: "Odo", occupation: null }, { id: "n3", name: "Odo", occupation: null }],
-      places: [{ id: "l1", name: "Thornkeep" }],
+      npcs: [{ id: "00000000-0000-4000-8000-000000000001", name: "Mara", occupation: "Smith" }, { id: "00000000-0000-4000-8000-000000000002", name: "Odo", occupation: null }, { id: "00000000-0000-4000-8000-000000000003", name: "Odo", occupation: null }],
+      places: [{ id: "00000000-0000-4000-8000-000000000011", name: "Thornkeep" }],
       linkNames: new Map(),
     });
   });
@@ -103,7 +103,7 @@ describe("useFactionAskAdapter", () => {
     // Bug caught: a failed leader was also reported as a Connections part, or a failed tie hid behind the leader's part.
     it("shows a failed tie as its own part, apart from the leader's and headquarters'", async () => {
       mocks.generateAndCreateFaction.mockResolvedValue(saved({ leader: "failed", linkErrors: ["The leader could not be added: gone", "Auril: denied"] }));
-      const result = await useFactionAskAdapter().run(proposal({ links, leader_npc_id: "n1" }));
+      const result = await useFactionAskAdapter().run(proposal({ links, leader_npc_id: "00000000-0000-4000-8000-000000000001" }));
       const connections = result.parts.find((p) => p.label === "Connections");
       expect(connections).toMatchObject({ ok: false, error: "Some connections could not be added: Auril: denied" });
       expect(result.record).toMatchObject({ id: "f1" });
@@ -111,7 +111,7 @@ describe("useFactionAskAdapter", () => {
 
     it("adds no Connections part when only the leader failed", async () => {
       mocks.generateAndCreateFaction.mockResolvedValue(saved({ leader: "failed", linkErrors: ["The leader could not be added: gone"] }));
-      const result = await useFactionAskAdapter().run(proposal({ leader_npc_id: "n1" }));
+      const result = await useFactionAskAdapter().run(proposal({ leader_npc_id: "00000000-0000-4000-8000-000000000001" }));
       expect(result.parts.map((p) => p.label)).not.toContain("Connections");
     });
   });
@@ -138,20 +138,20 @@ describe("useFactionAskAdapter", () => {
 
   it("waits for the NPCs and places before it quotes a leader named by id", () => {
     state.npcs = undefined;
-    expect(useFactionAskAdapter().quote(proposal({ leader_npc_id: "n1" })).block).toMatchObject({ reason: "missing" });
+    expect(useFactionAskAdapter().quote(proposal({ leader_npc_id: "00000000-0000-4000-8000-000000000001" })).block).toMatchObject({ reason: "missing" });
   });
 
   it("links the leader and the headquarters it is given by id, worded as the page words them", async () => {
-    await useFactionAskAdapter().run(proposal({ leader_npc_id: "n1", headquarters_id: "l1", faction_type: "guild", alignment: "chaotic neutral" }));
+    await useFactionAskAdapter().run(proposal({ leader_npc_id: "00000000-0000-4000-8000-000000000001", headquarters_id: "00000000-0000-4000-8000-000000000011", faction_type: "guild", alignment: "chaotic neutral" }));
     expect(mocks.generateAndCreateFaction.mock.calls[0][1]).toEqual({
       faction_type: "Guild", alignment: "Chaotic Neutral",
       leader_name: "Mara (Smith)", headquarters_name: "Thornkeep",
-      leaderNpcId: "n1", headquartersLocationId: "l1", generateImage: false, links: [],
+      leaderNpcId: "00000000-0000-4000-8000-000000000001", headquartersLocationId: "00000000-0000-4000-8000-000000000011", generateImage: false, links: [],
     });
   });
 
   it("never links a name, or an id this campaign lacks, and still tells the generator the name as a constraint", async () => {
-    await useFactionAskAdapter().run(proposal({ leader_name: "Odo", headquarters_name: "Nowhere Hall", headquarters_id: "other-campaign", system_prompt: "x" }));
+    await useFactionAskAdapter().run(proposal({ leader_name: "Odo", headquarters_name: "Nowhere Hall", headquarters_id: "00000000-0000-4000-8000-000000000099", system_prompt: "x" }));
     expect(mocks.generateAndCreateFaction.mock.calls[0][1]).toEqual({
       faction_type: undefined, alignment: undefined,
       leader_name: "Odo", headquarters_name: "Nowhere Hall",
@@ -159,8 +159,17 @@ describe("useFactionAskAdapter", () => {
     });
   });
 
+  // Bug caught: with a pick and a typed name both on the card, the typed name overwrote the picked NPC and linked nobody.
+  it("lets a picked record win over a name typed beside it, which stays only a name when nothing is picked", async () => {
+    const MARA = "00000000-0000-4000-8000-000000000001";
+    await useFactionAskAdapter().run(proposal({ leader_npc_id: MARA, leader_name: "Someone else" }));
+    expect(mocks.generateAndCreateFaction.mock.calls[0][1]).toMatchObject({ leaderNpcId: MARA, leader_name: "Mara (Smith)" });
+    await useFactionAskAdapter().run(proposal({ leader_name: "Someone else" }));
+    expect(mocks.generateAndCreateFaction.mock.calls[1][1]).toMatchObject({ leaderNpcId: null, leader_name: "Someone else" });
+  });
+
   it("names the linked leader and headquarters in the quote, and a bare name as named only", () => {
-    const linked = useFactionAskAdapter().quote(proposal({ leader_npc_id: "n1", headquarters_id: "l1" })).lines;
+    const linked = useFactionAskAdapter().quote(proposal({ leader_npc_id: "00000000-0000-4000-8000-000000000001", headquarters_id: "00000000-0000-4000-8000-000000000011" })).lines;
     expect(linked.find((l) => l.label === "Leader")?.value).toBe("Mara, from your NPCs");
     expect(linked.find((l) => l.label === "Headquarters")?.value).toBe("Thornkeep, from your Atlas");
     const named = useFactionAskAdapter().quote(proposal({ leader_name: "Odo" })).lines;
@@ -177,7 +186,7 @@ describe("useFactionAskAdapter", () => {
     mocks.generateAndCreateFaction.mockResolvedValue(saved({
       leader: "failed", headquarters: "saved", linkErrors: ["The leader could not be added: npc gone"],
     }));
-    const result = await useFactionAskAdapter().run(proposal({ leader_npc_id: "n1", headquarters_id: "l1" }));
+    const result = await useFactionAskAdapter().run(proposal({ leader_npc_id: "00000000-0000-4000-8000-000000000001", headquarters_id: "00000000-0000-4000-8000-000000000011" }));
     expect(result).toMatchObject({ record: { type: "faction", id: "f1", name: "The Ravens" }, route: "/factions/f1" });
     expect(result.parts.map((p) => [p.label, p.ok])).toEqual([["Faction", true], ["Leader", false], ["Headquarters", true]]);
     expect(result.parts[1].error).toContain("npc gone");
@@ -211,16 +220,16 @@ describe("useFactionAskAdapter", () => {
     // Bug caught: unticking the leader or headquarters on the quote still seated or based them.
     it("lines carry their field as the key; at no the workflow gets null ids for that field only, the typed name stays", async () => {
       const adapter = useFactionAskAdapter();
-      const inputs = { leader_npc_id: "n1", headquarters_id: "l1" };
+      const inputs = { leader_npc_id: "00000000-0000-4000-8000-000000000001", headquarters_id: "00000000-0000-4000-8000-000000000011" };
       const lines = adapter.quote(proposal(inputs)).lines;
       expect(lines.find((l) => l.label === "Leader")?.choice).toEqual({ key: "leader_npc_id", on: true });
       expect(lines.find((l) => l.label === "Headquarters")?.choice).toEqual({ key: "headquarters_id", on: true });
       await adapter.run(proposal(inputs));
-      expect(mocks.generateAndCreateFaction.mock.calls[0][1]).toMatchObject({ leaderNpcId: "n1", headquartersLocationId: "l1" });
+      expect(mocks.generateAndCreateFaction.mock.calls[0][1]).toMatchObject({ leaderNpcId: "00000000-0000-4000-8000-000000000001", headquartersLocationId: "00000000-0000-4000-8000-000000000011" });
       await adapter.run(proposal({ ...inputs, leader_name: "Mara the Red" }), { leader_npc_id: false });
-      expect(mocks.generateAndCreateFaction.mock.calls[1][1]).toMatchObject({ leaderNpcId: null, leader_name: "Mara the Red", headquartersLocationId: "l1" });
+      expect(mocks.generateAndCreateFaction.mock.calls[1][1]).toMatchObject({ leaderNpcId: null, leader_name: "Mara the Red", headquartersLocationId: "00000000-0000-4000-8000-000000000011" });
       await adapter.run(proposal(inputs), { headquarters_id: false });
-      expect(mocks.generateAndCreateFaction.mock.calls[2][1]).toMatchObject({ leaderNpcId: "n1", headquartersLocationId: null });
+      expect(mocks.generateAndCreateFaction.mock.calls[2][1]).toMatchObject({ leaderNpcId: "00000000-0000-4000-8000-000000000001", headquartersLocationId: null });
     });
 
     // Bug caught: a leader named only as text got a checkbox, though it ties to no record.

@@ -419,6 +419,50 @@ describe("a proposal", () => {
   });
 });
 
+describe("a voice line asked in words (#1270 story 7)", () => {
+  const SITUATION = "what would @Johnny say if the guard stops him at the gate?";
+
+  // Bug caught: the model never being told that "what would X say" is a generator, so a DM's words answered in prose
+  // where the Voice tab's button would have opened a priced card.
+  it("is told which generator answers 'what would X say', and that it needs the NPC read first", async () => {
+    const h = harness();
+    h.steps.push(say("ok"));
+    await ask(h, { body: { campaignId: CAMPAIGN, message: SITUATION } });
+    const system = h.requests[0].system;
+    expect(system).toContain("- npc_voice:");
+    expect(system).toContain("what would X say");
+    expect(system).toMatch(/npc_voice:[^\n]*Needs a target \(npc\) that you have read/);
+  });
+
+  // Bug caught: the words reaching a different card than the Voice tab's, or one with no NPC to speak for.
+  it("proposes the voice card with the NPC the readers found as its target, in the DM's words, and nothing is charged", async () => {
+    const h = harness();
+    h.records.set(NPC, "Harl");
+    h.steps.push(
+      call("c1", "search", { query: "Johnny" }),
+      call("c2", "propose", { generator: "npc_voice", concept: "the guard stops him at the gate", target: { type: "npc", id: NPC, name: "Johnny" } }),
+    );
+    expect(await ask(h, { body: { campaignId: CAMPAIGN, message: SITUATION } })).toBeNull();
+    const proposed = h.events.find((e) => e.type === "propose") as Extract<AskEvent, { type: "propose" }>;
+    expect(proposed.proposal).toMatchObject({ generator: "npc_voice", concept: "the guard stops him at the gate", target: { type: "npc", id: NPC, name: "Harl" } });
+    expect(h.charges).toEqual([]);
+  });
+
+  // Bug caught: a voice proposal with no NPC accepted, so the card would open and block with "Say whose voice first".
+  it("sends the model back to read the NPC when it proposes the voice card without one", async () => {
+    const h = harness();
+    h.steps.push(
+      call("c1", "propose", { generator: "npc_voice", concept: "the guard stops him at the gate" }),
+      say("Which Johnny do you mean?"),
+    );
+    await ask(h, { body: { campaignId: CAMPAIGN, message: SITUATION } });
+    expect(types(h)).not.toContain("propose");
+    const refusal = h.turns.flatMap((t) => t.blocks).find((b) => b.type === "tool_result" && b.callId === "c1");
+    expect(refusal).toMatchObject({ isError: true });
+    expect(JSON.stringify(refusal)).toContain("name its target");
+  });
+});
+
 describe("earlier routed turns, settled at admission", () => {
   async function routedThenAsk(h: Harness, generated: boolean) {
     h.steps.push(call("c1", "propose", { generator: "npc", concept: "a" }, 5000), say("Harl runs it."));

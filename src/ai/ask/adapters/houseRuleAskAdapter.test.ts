@@ -65,9 +65,17 @@ describe("useHouseRuleAskAdapter", () => {
 
   it("passes only understood constraints and drops what the page's own picker does not offer", async () => {
     await useHouseRuleAskAdapter().run(proposal({ category: "combat", system_prompt: "x" }));
-    expect(mocks.gen).toHaveBeenCalledWith("A test concept", { category: "Combat", allowTracker: true });
+    expect(mocks.gen).toHaveBeenCalledWith("A test concept", { category: "Combat", allowTracker: false });
     mocks.gen.mockClear();
     await useHouseRuleAskAdapter().run(proposal({ category: "Vibes" }));
+    expect(mocks.gen).toHaveBeenCalledWith("A test concept", { category: undefined, allowTracker: false });
+  });
+
+  // Bug caught: the tracker switch was hard-wired on, so a DM who turned it off on the card still got a tracker.
+  it("allows a tracker only when the card's switch is on, and says so on the quote", async () => {
+    const adapter = useHouseRuleAskAdapter();
+    expect(adapter.quote(proposal({ allow_tracker: true })).lines).toContainEqual(expect.objectContaining({ label: "Tracker", value: "Allowed" }));
+    await adapter.run(proposal({ allow_tracker: true }));
     expect(mocks.gen).toHaveBeenCalledWith("A test concept", { category: undefined, allowTracker: true });
   });
 

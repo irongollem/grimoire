@@ -15,7 +15,6 @@ registerAiGenerator({
   label: "Room",
   entityRoute: (id) => placeRoute(id),
   // A fill lives inside the room list, not a sidebar panel: nothing to open.
-  openPanel: () => {},
 });
 
 export interface RoomFillResult {

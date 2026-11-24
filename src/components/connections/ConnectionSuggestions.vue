@@ -11,40 +11,8 @@
         :disabled="isAnyAiGenerating"
         :tooltip="isAnyAiGenerating && !isSuggesting ? 'Another generation is already in progress' : undefined"
         label="Suggest"
-        @click="showSteer = !showSteer"
+        @click="openCard"
       />
-    </div>
-
-    <!-- The steer: what to look for; the function reads every kind this can be tied to. -->
-    <div v-if="showSteer" class="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-3">
-      <div>
-        <label class="mb-1 block text-label-lg font-semibold text-muted-foreground" :for="steerId">
-          Steer the suggestions
-          <span class="font-fell font-normal normal-case text-muted-foreground">(optional)</span>
-        </label>
-        <AppInput
-          :id="steerId"
-          v-model="steer"
-          tone="filled"
-          size="body"
-          :maxlength="AI_PROMPT_LIMIT_SHORT"
-          placeholder="e.g. someone with a grudge against the guild"
-        />
-      </div>
-      <div class="flex items-center justify-end gap-2">
-        <GenerationCostBadge :credits="suggestCost" />
-        <AppButton variant="subtle" size="sm" label="Cancel" @click="showSteer = false" />
-        <AppButton
-          variant="primary"
-          size="sm"
-          :icon="IconGenerate"
-          icon-size="xs"
-          :loading="isSuggesting"
-          :disabled="isAnyAiGenerating"
-          label="Suggest connections"
-          @click="runSuggest"
-        />
-      </div>
     </div>
 
     <p v-if="suggestError" class="text-caption text-destructive">{{ suggestError }}</p>
@@ -102,31 +70,28 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, useId } from "vue";
+import { computed, ref } from "vue";
 import { IconCheck, IconGenerate } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import AppInput from "@/components/common/controls/AppInput.vue";
-import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import ConnectionSlip, { type ConnectionTag } from "@/components/common/entity/ConnectionSlip.vue";
 import { useCreateConnection } from "@/composables/connections/useConnections";
-import { useConnectionSuggestionsQuote } from "@/composables/ai/quotes/connectionSuggestionsQuote";
-import { useGenerationGate } from "@/composables/ai/useGenerationGate";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { useConnectionSuggestions, type ResolvedSuggestion } from "@/ai/useConnectionSuggestions";
-import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 import { typeChoices, type TypeChoice } from "@/lib/worldLinks/connections";
 import type { LinkKind } from "@edge-shared/worldLinkCatalogue.ts";
 import type { SuggestedKinRelation } from "@edge-shared/connectionSuggestions.ts";
 import type { WorldRef } from "@/types/connections.types";
 
 /**
- * "Suggest connections" for one thing (#1084): the steer box, the proposals and
+ * "Suggest connections" for one thing (#1084): the Suggest button, the proposals and
  * the set-aside claims, for any kind of subject. Mounted by the Connections
- * block of a sheet. Nothing is written until the DM accepts a proposal, and an
+ * block of a sheet. The button opens the record's card in the Familiar (#1270),
+ * where the steer is written and the price shown; what comes back lands here. Nothing is written until the DM accepts a proposal, and an
  * accepted one is written through `useCreateConnection` like any tie the DM adds
  * by hand, with the suggestion's provenance.
  */
@@ -135,9 +100,9 @@ const { subject, subjectName } = defineProps<{ subject: WorldRef; subjectName: s
 const campaign = useCampaignStore();
 const toast = useToast();
 const isAiEnabled = computed(() => campaign.isAiEnabled);
-const steerId = useId();
 
-const { suggest, forSubject } = useConnectionSuggestions();
+const { forSubject } = useConnectionSuggestions();
+const { open } = useOpenGenerator();
 // Bound to this subject: another sheet's Suggest run never shows up or accepts here.
 const {
   isGenerating: isSuggesting,
@@ -150,21 +115,11 @@ const {
 } = forSubject(() => subject);
 
 const { mutateAsync: createConnection } = useCreateConnection();
-const { canSpend } = useGenerationGate();
-const quoteFor = useConnectionSuggestionsQuote();
-const suggestCost = computed(() => quoteFor().total);
-
-const showSteer = ref(false);
-const steer = ref("");
 const isAccepting = ref(false);
 
-async function runSuggest() {
-  if (!canSpend(suggestCost.value)) return;
-  const ok = await suggest(subject, steer.value);
-  if (ok) {
-    showSteer.value = false;
-    steer.value = "";
-  }
+/** The card in the Familiar, for this record: a link kind is also the kind of record Ask names. */
+function openCard() {
+  open("connection_suggestions", { target: { type: subject.kind, id: subject.id, name: subjectName } });
 }
 
 // What the target is to the subject, as the tag reads it.

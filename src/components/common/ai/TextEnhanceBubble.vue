@@ -1,5 +1,5 @@
 <template>
-  <BubbleMenu :editor="editor" :tippy-options="{ duration: 100 }" :should-show="hasTextToEnhance">
+  <BubbleMenu :editor="editor" :options="bubbleOptions" :should-show="hasTextToEnhance">
     <div data-slip class="rounded-md border border-border bg-card shadow-lg overflow-hidden">
       <AppButton
         variant="link"
@@ -7,7 +7,7 @@
         :icon="IconGenerate"
         :loading="isEnhancing"
         :disabled="isEnhancing"
-        label="Enhance"
+        :label="enhanceLabel(creditCost)"
         :tooltip="enhanceTooltip"
         @click="onEnhance"
       />
@@ -36,7 +36,7 @@ import type { Editor } from "@tiptap/vue-3";
 import { BubbleMenu } from "@tiptap/vue-3/menus";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconGenerate } from "@/lib/icons";
-import { hasTextToEnhance } from "./enhanceSelection";
+import { enhanceLabel, hasTextToEnhance } from "./enhanceSelection";
 import { parseMarkdown } from "@/lib/tiptap/markdownToTiptap";
 import { useTextEnhancement } from "@/ai/useTextEnhancement";
 
@@ -50,13 +50,16 @@ const { editor, context, styleHint, contextRadius } = defineProps<{
 }>();
 
 const { isEnhancing, creditCost, enhance } = useTextEnhancement();
-// The price is null until it is known (see useCampaignProviders); say nothing about it then.
-const enhanceTooltip = computed(() => {
-  const base = "Rewrite the selection as richer prose";
-  const cost = creditCost.value;
-  if (cost === null) return base;
-  return `${base} (${cost} credit${cost === 1 ? "" : "s"})`;
-});
+// The price is on the button; it is null until known (see useCampaignProviders), and the button says nothing of it then.
+const enhanceTooltip = "Rewrite the selection as richer prose";
+// The bubble sits above the selection and flips below it when the writing area has no room above: the area's own edge,
+// not the viewport's, because the editor's sticky toolbar covers what lies above it and the bubble opened behind it
+// for a selection on the first line.
+const bubbleOptions = computed(() => ({
+  placement: "top" as const,
+  flip: { boundary: editor.view.dom },
+  shift: { boundary: editor.view.dom },
+}));
 const enhanceError = ref<string | null>(null);
 
 

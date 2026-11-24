@@ -45,14 +45,14 @@ Click **New Item** to open a blank editor, or **Clone to customize** on a shared
 
 ## Generating an item with AI
 
-Click **Generate** in the toolbar to open the Item Generator side panel:
+Click **Generate** in the toolbar to open the Familiar on the right with an item card:
 
-1. **Concept**: describe the item in prose; the AI drafts the full record from it.
-2. **Constraints** (optional): pin an **Item Type** and/or **Rarity** so the result fits what you need.
-3. **Generate item art** toggle: also produce a portrait.
-4. **Make it cursed** toggle: let the AI choose and write a curse for the item.
+1. **What to make**: describe the item in prose; the AI drafts the full record from it.
+2. **Item Type** and **Rarity** (optional): pin an **Item Type** and/or **Rarity** so the result fits what you need.
+3. The item art switch: also produce a portrait.
+4. The **Make it cursed** switch: let the AI choose and write a curse for the item.
 
-The panel shows the credit cost before you confirm: it works the same on every plan, as long as the campaign's AI Assistant is on and you can afford the cost.
+The card shows the credit cost before you confirm: it works the same on every plan, as long as the campaign's AI Assistant is on and you can afford the cost.
 
 ## Editing an item
 

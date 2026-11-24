@@ -19,7 +19,6 @@ export const useItemsUiStore = defineStore("ui:items", () => {
    * campaigns" checkbox that did the same job.
    */
   const vaultFilterScope = ref<ItemScope | "">("");
-  const itemGeneratorOpen = ref(false);
 
   const vaultHasActiveFilters = computed(() =>
     vaultSearch.value !== "" || vaultFilterType.value !== "" || vaultFilterRarity.value !== "" || vaultFilterSource.value !== "" || vaultFilterScope.value !== "",
@@ -41,6 +40,5 @@ export const useItemsUiStore = defineStore("ui:items", () => {
     vaultFilterScope,
     vaultHasActiveFilters,
     resetVaultFilters,
-    itemGeneratorOpen,
   };
 });

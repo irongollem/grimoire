@@ -20,7 +20,7 @@
           data-testid="ask-voice"
           @click="emit('voice', !voice.on)"
         />
-        <AppButton variant="ghost" size="inline" label="New conversation" data-testid="ask-new" @click="emit('new')" />
+        <AppButton variant="ghost" size="inline" label="New conversation" :disabled="startingOverBlocked" data-testid="ask-new" @click="emit('new')" />
         <AppButton v-if="!docked" variant="ghost" size="icon-xs" :icon="IconClose" icon-size="md" aria-label="Close the Familiar" data-testid="ask-close" @click="emit('close')" />
       </div>
     </header>
@@ -43,6 +43,13 @@
       @confirm="emit('confirm', $event)"
       @cancel="emit('cancel', $event)"
       @adjust="(id, inputs) => emit('adjust', id, inputs)"
+      @concept="(id, text) => emit('concept', id, text)"
+      @quick="emit('quick', $event)"
+      @create="emit('create', $event)"
+      @again="emit('again', $event)"
+      @act="(id, section, row) => emit('act', id, section, row)"
+      @discard="emit('discard', $event)"
+      @pick="(id, key, value) => emit('pick', id, key, value)"
       @decide="(id, key, on) => emit('decide', id, key, on)"
       @retry="(id, i) => emit('retry', id, i)"
       @leave="(id, i) => emit('leave', id, i)"
@@ -74,6 +81,8 @@ const props = defineProps<{
   items: AskItem[];
   adapters: AskAdapters;
   running: boolean;
+  /** A generation is in flight: a new conversation would lose its result, so the button waits. */
+  startingOverBlocked?: boolean;
   /** Words are arriving: the avatar moves only then. */
   speaking: boolean;
   campaignName: string;
@@ -91,6 +100,13 @@ const emit = defineEmits<{
   confirm: [itemId: number];
   cancel: [itemId: number];
   adjust: [itemId: number, inputs: Record<string, unknown>];
+  concept: [itemId: number, text: string];
+  quick: [itemId: number];
+  create: [previewId: number];
+  again: [previewId: number];
+  act: [previewId: number, section: number, row: number];
+  discard: [previewId: number];
+  pick: [previewId: number, key: string, value: string];
   decide: [itemId: number, key: string, on: boolean];
   retry: [itemId: number, index: number];
   leave: [itemId: number, index: number];

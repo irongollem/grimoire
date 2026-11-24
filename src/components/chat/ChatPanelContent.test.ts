@@ -204,4 +204,20 @@ describe("ChatPanelContent mentions", () => {
     const marked = wrapper.findAll("[data-message-id]").filter((e) => e.find('[data-testid="chat-ai-mark"]').exists()).map((e) => e.attributes("data-message-id"));
     expect(marked).toEqual(["1"]);
   });
+  // Bug caught: a player inserting a chat row with `for_npc_id` and being drawn as an NPC bubble with the AI mark.
+  it("draws an NPC bubble only for a line a DM of the campaign sent", async () => {
+    const line = (id: string, userId: string): CampaignMessage => ({
+      id, campaign_id: "c1", user_id: userId, recipient_user_id: null, sender_name: "Old Tam", type: "chat", message: "Move along.",
+      created_at: `2026-10-01T10:00:0${id}Z`, metadata: { for_npc_id: "n1", ai: true }, server_rolled: false,
+    } as CampaignMessage);
+    setActivePinia(createPinia());
+    const wrapper = mount(ChatPanelContent, {
+      props: {
+        messages: [line("1", "co-dm"), line("2", "player")], loading: false, loadingOlder: false, hasOlder: false, myUserId: "me",
+        members: [{ user_id: "co-dm", role: "dm" }, { user_id: "player", role: "player" }] as never, party: [], npcs: [], sendText: vi.fn(),
+      },
+    });
+    const drawn = wrapper.findAll("[data-message-id]").filter((e) => e.find("[data-testid=chat-npc-speech]").exists()).map((e) => e.attributes("data-message-id"));
+    expect(drawn).toEqual(["1"]);
+  });
 });

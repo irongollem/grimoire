@@ -7,7 +7,6 @@ export const useMonstersUiStore = defineStore("ui:monsters", () => {
   const monstersSearch = ref("");
   const monstersFilterType = ref("all");
   const monstersFilterSource = ref("all");
-  const monsterGeneratorOpen = ref(false);
 
   const monstersHasActiveFilters = computed(() =>
     monstersSearch.value !== "" ||
@@ -27,6 +26,5 @@ export const useMonstersUiStore = defineStore("ui:monsters", () => {
     monstersFilterSource,
     monstersHasActiveFilters,
     resetMonstersFilters,
-    monsterGeneratorOpen,
   };
 });

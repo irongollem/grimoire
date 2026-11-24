@@ -1,10 +1,6 @@
-// The prompt limit and the request shape are the edge function's own, imported
-// rather than duplicated (pure TS, no Deno-specific imports, like several other
-// _shared modules imported from browser code).
-export {
-  MUSIC_PROMPT_MAX_CHARS,
-  type MusicRequest as FallbackPromptRequest,
-} from "@edge-shared/musicPrompt.ts";
+// The request shape is the edge function's own, imported rather than duplicated (pure TS, no Deno-specific
+// imports, like several other _shared modules imported from browser code).
+export type { MusicRequest as FallbackPromptRequest } from "@edge-shared/musicPrompt.ts";
 
 /** Selectable target lengths for a generated track. Lyria 3.5 is one model —
  * length is steered by the prompt (a target duration plus a timestamped

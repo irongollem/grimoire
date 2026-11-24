@@ -1166,7 +1166,7 @@ resolves to the quest screen with that beat opened. Static segments outrank
 
 **Four ways to start a quest**, all reachable without leaving the quest list:
 typing one (`QuestFlowStarter.vue`'s own form — title, starting lane, optional
-premise), generating one (`QuestGeneratorPanel.vue`, opened from the list's
+premise), generating hooks (the `quest_hooks` card in the Familiar, opened from the list's
 "Generate" button), and — since #839 — pasting a page from a book
 (`QuestPasteImportPanel.vue`, a `SegmentedControl` mode inside
 `QuestFlowStarter.vue` itself). The paste mode does **not** run a second
@@ -2162,9 +2162,16 @@ active` on arrival, never demotes, never touches `completed`/`failed`.
 
 ## AI quest generator
 
-`QuestGeneratorPanel.vue` (a `fixed` drawer mounted globally via
-`AiGeneratorPanels.vue`), `src/ai/useQuestGeneration.ts`, edge function
-`generate-quest`. `ai_enabled`- and credit-gated, not plan-gated — it runs on
+The `quest_hooks` card in the Familiar (#1270: the Quest Generator panel is
+deleted), run by `questHooksAskAdapter.ts` over `src/ai/useQuestGeneration.ts`,
+edge function `generate-quest`. The list's "Generate" opens the card with the
+**Theme** (optional, 500 characters), the **Quest giver** and the **Location**
+(record pickers) and a read-only line that says the party level the hooks are
+written for. The five hooks come back in the pane as the preview, each with its
+player log, objectives, story beats and route, and each has its own **Create
+quest** (built once, then "Created" with a "View quest" link; the old panel's
+"Build flow" is the same page since the quest became one screen, #1183). **Done**
+ends the card with a result naming the quests built. `ai_enabled`- and credit-gated, not plan-gated — it runs on
 any plan (24 Sep 2026 policy). Produces **exactly 5** hooks — the system prompt says
 so, and the prompt row is the server's.
 
@@ -2322,8 +2329,9 @@ there.
 ## A departure that needs a decision again
 
 `QuestFlowStarter` sends a newly created quest to `/quests/:id` —
-the new record's own detail page, and it is not alone: `QuestGeneratorPanel`
-does it twice and `QuestPasteImportPanel` once. A fourth,
+the new record's own detail page, and it is not alone: the quest hooks'
+Create in the Familiar offers "Open quest" to it and `QuestPasteImportPanel`
+navigates there once. A fourth,
 `QuestGraphDesigner`'s beat command, targets a _beat_ rather than the quest, so
 it is a different route and not part of this question. The post-mutation
 navigation rule says create should go to the list and explicitly forbids the

@@ -4,6 +4,7 @@ import { reactive, ref } from "vue";
 import SpellDetail from "./SpellDetail.vue";
 import SpellDetailHeader from "./SpellDetailHeader.vue";
 import type { Spell } from "@/types/spell.types";
+import { createPinia, setActivePinia } from "pinia";
 
 /**
  * #596: a brand-new spell used to default to `campaign_id: null` ("every
@@ -78,7 +79,6 @@ vi.mock("@/composables/useToast", () => ({
 }));
 
 const stubs = {
-  SpellGenerateDialog: true,
   SpellLevelAdvisorModal: true,
   SpellLevelAdvisorPanel: true,
   SpellComponentsSection: true,
@@ -98,6 +98,9 @@ const stubs = {
 function mountDetail(spell: Spell | null = null) {
   return shallowMount(SpellDetail, { props: { spell }, global: { stubs } });
 }
+
+// The Generate button and the form it fills meet in the Ask store (#1270).
+beforeEach(() => setActivePinia(createPinia()));
 
 describe("SpellDetail scope default", () => {
   beforeEach(() => {

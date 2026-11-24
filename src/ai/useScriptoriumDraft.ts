@@ -9,7 +9,6 @@ import type {
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useCampaignStore } from "@/stores/campaign";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -18,9 +17,7 @@ registerAiGenerator({
   ..._state,
   label: "Document",
   entityRoute: (id) => `/scriptorium/${id}`,
-  openPanel: () => {
-    useGeneratorUiStore().scriptoriumDraftOpen = true;
-  },
+  // The draft's card is in the Familiar now (#1270): the badge brings the DM back to it.
 });
 
 export interface ScriptoriumDraftRequest {
@@ -40,7 +37,7 @@ export interface ScriptoriumDraft {
  * Drafts a Scriptorium document from campaign data (epic #910, S12).
  *
  * Server-path only: the draft is grounded in rows (and, for players, in what
- * they may see) that only the edge function's service-role client reads. Creating the document from the returned draft is the dialog's job.
+ * they may see) that only the edge function's service-role client reads. Creating the document from the returned draft is the Ask adapter's job.
  */
 export function useScriptoriumDraft() {
   const campaign = useCampaignStore();

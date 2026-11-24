@@ -7,6 +7,7 @@
       :class="asideClass"
       aria-label="Chat and Familiar"
       data-testid="side-dock"
+      data-side-dock
       :data-mode="overlay ? 'overlay' : 'push'"
     >
       <!-- Fixed width, so the dock slides out from the page edge rather than rewrapping while it opens. -->
@@ -58,7 +59,7 @@
  * not close the dock. A phone keeps each one's own bottom sheet, which is why nothing renders here below `md`; the
  * one-at-a-time rule still holds there.
  */
-import { computed, watch } from "vue";
+import { computed, onScopeDispose, watch } from "vue";
 import { useMediaQuery } from "@vueuse/core";
 import { useAbove } from "@/composables/useBreakpoint";
 import { useCanAsk } from "@/composables/ask/useCanAsk";
@@ -97,6 +98,24 @@ watch(
     if (isOpen) appUi.chatOpen = false;
   },
 );
+
+/**
+ * While the dock is on screen it publishes its width as `--dock-right` on <html>, and `AppModal` keeps clear of it
+ * (its backdrop and panel stop at the dock's edge). A button inside an open sheet that opens the Familiar (connections'
+ * Suggest, Paint portrait) otherwise put the card behind the modal's backdrop, dimmed and unclickable; with room left
+ * for it the dock needs no z-index fight, no way past the focus trap and no outside-click exception, for every modal.
+ */
+const DOCK_WIDTH = "26rem";
+watch(
+  () => open.value && isDesktop.value && !contained,
+  (docked) => {
+    const root = document.documentElement;
+    if (docked) root.style.setProperty("--dock-right", DOCK_WIDTH);
+    else root.style.removeProperty("--dock-right");
+  },
+  { immediate: true },
+);
+onScopeDispose(() => document.documentElement.style.removeProperty("--dock-right"));
 
 function close() {
   appUi.chatOpen = false;

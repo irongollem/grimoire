@@ -49,7 +49,7 @@ describe("useSpellAskAdapter", () => {
   });
 
   it("shows a cantrip as a cantrip, not as level 0", () => {
-    expect(useSpellAskAdapter().quote(proposal({ level: 0 })).lines[0]).toMatchObject({ label: "Level", value: "Cantrip" });
+    expect(useSpellAskAdapter().quote(proposal({ level: "0" })).lines[0]).toMatchObject({ label: "Level", value: "Cantrip" });
   });
 
   it("blocks once per gate: AI off, no 5e rules, a short balance, and a missing description", () => {
@@ -71,10 +71,11 @@ describe("useSpellAskAdapter", () => {
     expect(mocks.generateAndCreateSpell).not.toHaveBeenCalled();
   });
 
+  // Bug caught: the level became a list of words and the digit was still read as a number, so every level dropped to "any".
   it("keeps a cantrip's level 0, drops a level out of range and a school the app has not got, and never forwards an unknown key", async () => {
-    await useSpellAskAdapter().run(proposal({ level: 0, school: "Evocation", system_prompt: "x" }));
+    await useSpellAskAdapter().run(proposal({ level: "0", school: "Evocation", system_prompt: "x" }));
     expect(mocks.generateAndCreateSpell.mock.calls[0][1]).toEqual({ level: 0, school: "evocation", generateImage: false });
-    await useSpellAskAdapter().run(proposal({ level: 12, school: "pyromancy" }));
+    await useSpellAskAdapter().run(proposal({ level: "12", school: "pyromancy" }));
     expect(mocks.generateAndCreateSpell.mock.calls[1][1]).toEqual({ level: undefined, school: undefined, generateImage: false });
   });
 

@@ -99,7 +99,7 @@ function matchCandidate<T extends string>(raw: string | null, candidates: readon
  * forwarded, and simply omitted when nothing matches confidently:
  * `useMonsterGeneration`'s own constraint handling force-sets
  * `result.monster_type`/`result.size` to whatever string an option gives it,
- * with no validation of its own — it trusts the Monster Generator panel's
+ * with no validation of its own — it trusts the Monster Generator card's
  * `<select>`, which can only ever offer a real enum member in the first
  * place. Forwarding a page's raw, unvalidated text ("Large fiend (demon)")
  * straight through as `monster_type` would either corrupt the generated row

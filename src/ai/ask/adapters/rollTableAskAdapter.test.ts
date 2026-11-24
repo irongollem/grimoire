@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 
-const mocks = vi.hoisted(() => ({ generateAndCreate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ draft: vi.fn(), save: vi.fn() }));
 const state = vi.hoisted(() => ({ aiEnabled: true, canCreate: true, affordable: true, offersStatBlocks: true }));
 
 vi.mock("@/stores/campaign", () => ({
@@ -20,7 +20,7 @@ vi.mock("@/composables/ai/useCampaignProviders", () => ({
 vi.mock("@/composables/billing/useQuota", () => ({ useQuota: () => ({ canCreate: { get value() { return state.canCreate; } } }) }));
 vi.mock("@/composables/rules/useGameSystem", () => ({ useGameSystem: () => ({ offers: () => state.offersStatBlocks }) }));
 vi.mock("@/composables/dungeon-features/useGenerateRollTable", () => ({
-  useGenerateRollTable: () => ({ generateAndCreateRollTable: mocks.generateAndCreate }),
+  useGenerateRollTable: () => ({ generateRollTableDraft: mocks.draft, saveGeneratedRollTable: mocks.save }),
   ROLL_TABLE_GENERATOR_DICE: ["1d6", "1d8", "1d10", "1d12", "1d20"],
 }));
 
@@ -30,20 +30,29 @@ const { useRollTableQuote } = await import("@/composables/ai/quotes/rollTableQuo
 const proposal = (inputs: Record<string, unknown> = {}, concept = "Things in the smuggler's cellar"): AskProposal => ({
   proposalId: "p1", generator: "roll_table", concept, inputs,
 });
-const saved = (over: Record<string, unknown> = {}) => ({ id: "r1", name: "Cellar Finds", error: null, ...over });
+const table = {
+  name: "Cellar Finds", description: "Roll when they search the cellar", tags: [],
+  entries: [{ min: 1, max: 4, label: "Rats", notes: null }, { min: 5, max: 5, label: "A key", notes: "Rusted" }],
+};
+
+async function previewed(p: AskProposal) {
+  const outcome = await useRollTableAskAdapter().preview(p);
+  if (!outcome.ok) throw new Error("expected a preview");
+  return outcome.preview;
+}
 
 describe("useRollTableAskAdapter", () => {
   beforeEach(() => {
-    mocks.generateAndCreate.mockReset();
+    mocks.draft.mockReset().mockResolvedValue({ draft: table, error: null });
+    mocks.save.mockReset().mockResolvedValue({ id: "r1" });
     Object.assign(state, { aiEnabled: true, canCreate: true, affordable: true, offersStatBlocks: true });
-    mocks.generateAndCreate.mockResolvedValue(saved());
   });
 
   it("quotes the same price the page shows", () => {
     expect(useRollTableAskAdapter().quote(proposal()).total).toBe(useRollTableQuote()().total);
   });
 
-  it("blocks with AI off, on a short balance, and on an empty or overlong concept, and runs nothing", async () => {
+  it("blocks with AI off, on a short balance, and on an empty or overlong concept, and generates nothing", async () => {
     const adapter = useRollTableAskAdapter();
     state.aiEnabled = false;
     expect(adapter.quote(proposal()).block?.reason).toBe("system");
@@ -53,33 +62,56 @@ describe("useRollTableAskAdapter", () => {
     state.affordable = true;
     expect(adapter.quote(proposal({}, "   ")).block?.reason).toBe("missing");
     expect(adapter.quote(proposal({}, "x".repeat(501))).block?.reason).toBe("missing");
-    const result = await adapter.run(proposal({}, "   "));
-    expect(mocks.generateAndCreate).not.toHaveBeenCalled();
-    expect(result.record).toBeNull();
+    expect((await adapter.preview(proposal({}, "   "))).ok).toBe(false);
+    expect(mocks.draft).not.toHaveBeenCalled();
   });
 
-  it("passes only understood constraints, and the page's default when one is not understood", async () => {
-    await useRollTableAskAdapter().run(proposal({ die: 12, tone: "grim" }));
-    expect(mocks.generateAndCreate).toHaveBeenLastCalledWith("Things in the smuggler's cellar", { die: "1d12" });
-    // A d7 and a d100 are not dice the page offers: the page's own d8 applies.
-    await useRollTableAskAdapter().run(proposal({ die: 7 }));
-    expect(mocks.generateAndCreate).toHaveBeenLastCalledWith("Things in the smuggler's cellar", { die: "1d8" });
-    await useRollTableAskAdapter().run(proposal({ die: 100 }));
-    expect(mocks.generateAndCreate).toHaveBeenLastCalledWith("Things in the smuggler's cellar", { die: "1d8" });
+  // Bug caught: the die chips sent "1d12" but the adapter still read an integer, so every pick fell back to the d8.
+  it("generates for the die picked, and for the page's d8 when the die is not one it offers", async () => {
+    await previewed(proposal({ die: "1d12", tone: "grim" }));
+    expect(mocks.draft).toHaveBeenLastCalledWith("Things in the smuggler's cellar", { die: "1d12" });
+    await previewed(proposal({ die: "1d7" }));
+    expect(mocks.draft).toHaveBeenLastCalledWith("Things in the smuggler's cellar", { die: "1d8" });
+    await previewed(proposal());
+    expect(mocks.draft).toHaveBeenLastCalledWith("Things in the smuggler's cellar", { die: "1d8" });
   });
 
-  it("returns a failed part instead of throwing when generation fails or the save throws", async () => {
-    mocks.generateAndCreate.mockResolvedValueOnce({ id: null, name: null, error: "Provider down", });
-    expect((await useRollTableAskAdapter().run(proposal())).parts[0]).toMatchObject({ ok: false, error: "Provider down" });
-    mocks.generateAndCreate.mockRejectedValueOnce(new Error("save failed"));
-    expect((await useRollTableAskAdapter().run(proposal())).parts[0]).toMatchObject({ ok: false, error: "save failed" });
+  // Bug caught: the table saved at the generation, so the DM never saw its rows before keeping it.
+  it("saves nothing until create is called, then saves the table on the die it was generated for", async () => {
+    const preview = await previewed(proposal({ die: "1d6" }));
+    expect(mocks.save).not.toHaveBeenCalled();
+    const made = await preview.create();
+    expect(mocks.save).toHaveBeenCalledWith(table, "1d6");
+    expect(made).toMatchObject({ record: { id: "r1", name: "Cellar Finds" }, route: "/roll-tables/r1" });
+    expect(made.parts.reduce((sum, p) => sum + p.credits, 0)).toBe(1);
   });
 
-  it("needs no game system with stat blocks and no quota", async () => {
+  it("shows the rows with the numbers they cover, and the notes beside them", async () => {
+    const { shown } = await previewed(proposal({ die: "1d6" }));
+    expect(shown).toMatchObject({ title: "Cellar Finds", badge: "1d6" });
+    expect(shown.sections.at(-1)?.rows).toEqual([{ label: "1–4", detail: "Rats" }, { label: "5", detail: "A key (Rusted)" }]);
+  });
+
+  it("ends with a failed part, and no preview, when the generator gave nothing or threw", async () => {
+    mocks.draft.mockResolvedValueOnce({ draft: null, error: "Provider down" });
+    const failed = await useRollTableAskAdapter().preview(proposal());
+    expect(failed.ok === false && failed.result.parts[0]).toMatchObject({ ok: false, error: "Provider down" });
+    mocks.draft.mockRejectedValueOnce(new Error("network"));
+    const thrown = await useRollTableAskAdapter().preview(proposal());
+    expect(thrown.ok === false && thrown.result.parts[0]).toMatchObject({ ok: false, error: "network" });
+  });
+
+  // Bug caught: a failed save threw into the conversation, losing a table the DM had already paid for.
+  it("leaves the preview to try again when the save fails", async () => {
+    mocks.save.mockRejectedValueOnce(new Error("insert failed"));
+    const made = await (await previewed(proposal())).create();
+    expect(made.record).toBeNull();
+    expect(made.parts[0]).toMatchObject({ ok: false, error: "insert failed" });
+  });
+
+  it("needs no game system with stat blocks and no quota", () => {
     state.offersStatBlocks = false;
     state.canCreate = false;
     expect(useRollTableAskAdapter().quote(proposal()).block).toBeNull();
-    const result = await useRollTableAskAdapter().run(proposal());
-    expect(result).toMatchObject({ route: "/roll-tables/r1" });
   });
 });

@@ -1,5 +1,5 @@
 /**
- * "Generate a trap with AI and save it", the step `TrapGeneratorPanel` used to own inline, extracted so Ask Grimoire
+ * "Generate a trap with AI and save it", the step its generator panel used to own inline, extracted so Ask Grimoire
  * (#1253) runs the very same save: the same fields, the same campaign scope, the Gallery log of the picture.
  *
  * Deliberately narrow, like `useGenerateMonster`: the page keeps its credit gate, the party-portrait choice and its

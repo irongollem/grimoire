@@ -1,6 +1,6 @@
 import { computed } from "vue";
 import type { Ref } from "vue";
-import { useQuery } from "@tanstack/vue-query";
+import { keepPreviousData, useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 
 const CHUNK = 100;
@@ -33,12 +33,14 @@ export async function fetchNpcAppearances(
  * under the `npcs` root so every NPC mutation, and every `npcs` ring from
  * another client, refreshes it.
  */
-export function useNpcAppearances(ids: Ref<readonly string[]>) {
+export function useNpcAppearances(ids: Ref<readonly string[]>, options?: { keepPrevious?: boolean }) {
   const sortedIds = computed(() => [...new Set(ids.value)].sort());
   return useQuery({
     queryKey: computed(() => ["npcs", "appearances", sortedIds.value] as const),
     queryFn: ({ queryKey: [, , wanted] }) => fetchNpcAppearances(wanted),
     enabled: () => sortedIds.value.length > 0,
+    // A reader of several callers' ids (the Ask resolver) keeps what it had while a grown id set loads.
+    ...(options?.keepPrevious ? { placeholderData: keepPreviousData } : {}),
   });
 }
 

@@ -106,8 +106,8 @@ left. `useImportEntityMatches.ts` is the one `import-match` call per row —
 keyed on the row id alone, never re-run on a DM's field edit — returning
 `candidatesByKind`/`candidatesFor(kind)` both review surfaces read.
 `useGenerateMonster.ts` is the generate→create pipeline a `generate`-decided
-monster runs through, shared with (extracted from) `MonsterGeneratorPanel.vue`'s
-own AI-generation panel. A library pick is stored as a reference, never cloned: see "Choosing a
+monster runs through, shared with (extracted from) the Bestiary generator's
+former panel (now the monster card in the Familiar). A library pick is stored as a reference, never cloned: see "Choosing a
 library candidate references it" below.
 `useImportSourceOptions.ts` is the "Source book" field's Supabase-backed
 half: three plain reads of the DM's own `monsters`/`items`/`spells` rows
@@ -502,7 +502,7 @@ candidate, or `link`-to-`candidates[0]` when it does. **Quests always default to
 importing a page *for* is never silently merged into an existing one; a quest
 candidate is surfaced only as a duplicate warning.
 
-**`generate` runs through the same pipeline `MonsterGeneratorPanel.vue` uses.**
+**`generate` runs through the same pipeline the monster card in the Familiar uses.**
 `useGenerateMonster.ts` (`src/composables/monsters/`) is the extracted
 generate→create step both callers now share; `useDocumentImportRunner.ts`'s
 `generateMonster` dep calls it with `generateImage: false` (a bulk import

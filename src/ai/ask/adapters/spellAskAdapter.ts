@@ -1,16 +1,16 @@
 /**
  * Ask Grimoire (#1253): the Spell Generator, as a quote and a run.
  *
- * A seam over the page's own workflow: the price is `useSpellQuote`'s (the one `SpellGeneratorPanel` shows), the gates
+ * A seam over the page's own workflow: the price is `useSpellQuote`'s (the one the card shows), the gates
  * are the page's (`useAskGate`, 5e only), and the run is `useGenerateSpell`. The spell is saved before its picture is
  * judged; a failed picture leaves the spell and a part that paints the saved row once with the page's own paint flow.
  *
- * A level is only understood as a whole number from 0 to 9 (`readAskInputs` enforces it) and a school only as one of
- * the app's eight; anything else is dropped and the description carries it.
+ * The level is one of the digits "0" to "9" (the card draws them as Cantrip to 9th; `readAskInputs` holds the word to
+ * that enum) and a school only one of the app's eight; anything else is dropped and the description carries it.
  */
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
-import { askFlag, askInteger, askString, readAskInputs } from "@/ai/ask/askInputs";
+import { askFlag, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
 import { conceptBlock, failedRun, matchKey, picturePart, spent } from "@/ai/ask/adapters/askAdapterKit";
 import { useMissingPortrait } from "@/ai/useMissingPortrait";
@@ -24,6 +24,11 @@ function levelLabel(level: number): string {
   return level === 0 ? "Cantrip" : `Level ${level}`;
 }
 
+/** The enum's digit as the number the workflow takes: "0" is a cantrip, and null is "any level". */
+function spellLevel(word: string | null): number | null {
+  return word === null ? null : Number(word);
+}
+
 export function useSpellAskAdapter(): AskAdapter {
   const campaign = useCampaignStore();
   const quoteSpell = useSpellQuote();
@@ -34,7 +39,7 @@ export function useSpellAskAdapter(): AskAdapter {
   function understand(proposal: AskProposal) {
     const inputs = readAskInputs("spell", proposal.inputs);
     return {
-      level: askInteger(inputs, "level"),
+      level: spellLevel(askString(inputs, "level")),
       school: matchKey(askString(inputs, "school"), SPELL_SCHOOLS),
       image: askFlag(inputs, "image"),
       concept: proposal.concept.trim(),

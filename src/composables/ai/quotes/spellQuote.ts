@@ -1,5 +1,5 @@
 /**
- * What one Spell Generator run costs (#1253), shared by `SpellGeneratorPanel` and the Ask Grimoire spell adapter.
+ * What one Spell Generator run costs (#1253), shared by the generator's card in the Familiar and the Ask Grimoire spell adapter.
  *
  * Verified against the server: `generate-entity-text` charges `spell_generation` for the text; the picture goes through
  * the durable image job (purpose `spell`), which bills `entity_image` at the purpose's square 1024x1024 size, not the

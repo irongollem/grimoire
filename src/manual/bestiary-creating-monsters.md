@@ -88,12 +88,12 @@ Enable the Spellcasting section to set a spellcasting ability (INT, WIS, or CHA)
 ## Generating a monster with AI
 
 1. Click **Generate**, in the Bestiary toolbar or inside the Monster Builder itself.
-2. In the **Monster Generator** panel, describe the creature you want. Optionally set a **Challenge Rating**, **Monster Type** and **Size**. Leave **Generate portrait art** on if you want a picture too.
+2. The Familiar opens on the right with a monster card. Describe the creature in **What to make**. Optionally set a **Challenge Rating**, **Monster Type** and **Size**. Leave the portrait art switch on if you want a picture too.
 3. Grimoire returns a full stat block you can save as-is or keep editing.
 
 This needs the active campaign's AI switched on (Campaign Settings) and enough credits to cover the cost. With AI off, only **New Blank Monster** is offered.
 
-When it's available, the button shows its cost in credits before you confirm.
+When it's available, the card shows its cost in credits before you confirm.
 
 ## Duplicating and copying a monster
 

@@ -23,7 +23,7 @@
       :is-deleting="isDeleting"
       :is-sending-to-scriptorium="isSendingToScriptorium"
       :can-save="!!name.trim()"
-      @generate="showGenerateDialog = true"
+      @generate="generateSheet()"
       @send-to-scriptorium="sendToScriptorium"
       @copy-to-campaign="openCopy"
       @delete="confirmDelete"
@@ -215,13 +215,6 @@
     </div>
   </div>
 
-  <!-- AI generation dialog -->
-  <SpellGenerateDialog
-    :visible="showGenerateDialog && isAiEnabled"
-    @close="showGenerateDialog = false"
-    @generated="onAiGenerated"
-  />
-
   <!-- Copy to campaign (#598) -->
   <CopyToCampaignDialog
     v-if="props.spell"
@@ -247,7 +240,8 @@ import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRouter } from "vue-router";
-import SpellGenerateDialog from "@/ai/SpellGenerateDialog.vue";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
+import { useAskFormFill } from "@/ai/ask/useAskFormFill";
 import SpellLevelAdvisorModal from "./SpellLevelAdvisorModal.vue";
 import SpellLevelAdvisorPanel from "./SpellLevelAdvisorPanel.vue";
 import SpellComponentsSection from "./SpellComponentsSection.vue";
@@ -705,10 +699,16 @@ async function confirmDelete() {
 
 // ── AI generation ─────────────────────────────────────────────────────────────
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
-const showGenerateDialog = ref(false);
+// Generate is a card in the Familiar that fills this form (#1270): nothing is saved, the DM reviews the sheet.
+const { open: openGenerator } = useOpenGenerator();
+const { bind: bindSheet } = useAskFormFill<SpellAiGenerated>("spell_sheet", { context: () => undefined, apply: onAiGenerated });
+
+/** Opens the card bound to THIS form: its result fills this spell, never another's. */
+function generateSheet() {
+  openGenerator("spell_sheet", { target: bindSheet("spell", name.value.trim() || "New spell") });
+}
 
 function onAiGenerated(result: SpellAiGenerated) {
-  showGenerateDialog.value = false;
   // Reuse the adapter so dialog-fill matches what the side-panel "Generate
   // and create" path produces — single source of truth for AI → Spell mapping.
   const ins = spellInsertFromAi(result);

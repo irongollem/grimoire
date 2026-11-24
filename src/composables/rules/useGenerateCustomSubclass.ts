@@ -1,10 +1,8 @@
 /**
- * "Generate a subclass with AI and save it": the create step `CustomSubclassGeneratorPanel.vue` used to own inline,
- * extracted so Ask Grimoire (#1253) runs the same pipeline. A subclass is several rows: its abilities first, then
- * the archetype that points at them (`createWithFeatures`), and a failed write removes the abilities already made.
- *
- * The page generates, shows "this will create", and calls `createSubclassFromDraft` on Create; Ask has its own
- * quote instead of that step and calls `generateAndCreateSubclass`. A failed save throws.
+ * "Generate a subclass with AI, look at it, and save it": the steps the archetype panel used to own inline, now the
+ * Familiar's archetype card (#1270). The generation is one step (`generateSubclassDraft`, charged) and the save
+ * another (`createSubclassFromDraft`, free). A subclass is several rows: its abilities first, then the archetype that
+ * points at them (`createWithFeatures`), and a failed write removes the abilities already made. A failed save throws.
  */
 import { computed } from "vue";
 import { useCampaignCustomClasses, useCampaignSystemClasses } from "@/composables/rules/useCustomClasses";
@@ -18,7 +16,7 @@ import { createWithFeatures } from "@/lib/codex/featureBatch";
 /**
  * The classes a subclass can belong to, with the level each grants its subclass: the campaign-gated lists the class
  * pickers use, so a class the DM switched off is not offered. A homebrew class of the same name wins. Fetched only
- * once `enabled` says so: the panel and Ask are mounted on every DM page.
+ * once `enabled` says so: Ask is mounted on every DM page.
  */
 export function useSubclassParents(enabled: () => boolean) {
   const { data: systemClasses, all: allSystem } = useCampaignSystemClasses(enabled);
@@ -37,9 +35,8 @@ export function useSubclassParents(enabled: () => boolean) {
   return { levelByClass, options, loading };
 }
 
-export interface GenerateSubclassOutcome {
-  id: string | null;
-  name: string | null;
+export interface SubclassDraftOutcome {
+  draft: SubclassDraft | null;
   error: string | null;
 }
 
@@ -58,15 +55,15 @@ export function useGenerateCustomSubclass() {
     });
   }
 
-  async function generateAndCreateSubclass(concept: string, options: CustomSubclassGenerationOptions): Promise<GenerateSubclassOutcome> {
-    if (isAnyAiGenerating.value) return { id: null, name: null, error: "Another AI generation is already in progress." };
+  /** Generates a subclass and saves nothing. */
+  async function generateSubclassDraft(concept: string, options: CustomSubclassGenerationOptions): Promise<SubclassDraftOutcome> {
+    if (isAnyAiGenerating.value) return { draft: null, error: "Another AI generation is already in progress." };
     generation.concept.value = concept;
     generation.clearCompleted();
     const draft = await generation.generate(concept, options);
-    if (!draft) return { id: null, name: null, error: generation.error.value ?? "Archetype generation failed." };
-    const created = await createSubclassFromDraft(draft);
-    return { id: created.id, name: draft.base.subclass_name, error: null };
+    if (!draft) return { draft: null, error: generation.error.value ?? "Archetype generation failed." };
+    return { draft, error: null };
   }
 
-  return { generation, createSubclassFromDraft, generateAndCreateSubclass };
+  return { generation, createSubclassFromDraft, generateSubclassDraft };
 }

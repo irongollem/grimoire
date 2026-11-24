@@ -44,53 +44,73 @@ describe("useGenerateRecipe", () => {
     error.value = null;
   });
 
-  it("makes the output item the model invented, then the recipe, then points the recipe's outputs at that item", async () => {
-    const outcome = await useGenerateRecipe().generateAndCreateRecipe("a draught", { items: [] });
-    expect(mocks.createItem).toHaveBeenCalledWith(expect.objectContaining({ name: "Fire Draught", source: "Grimoire:AI", campaign_id: "c1" }));
-    expect(mocks.outputs).toHaveBeenCalledWith({ recipeId: "r1", outputs: [{ item_id: "item1", library_item_id: null, quantity: 1 }] });
-    expect(outcome.recipe).toMatchObject({ id: "r1", name: "Dragonbreath Draught", partsFailure: null });
+  // Bug caught: the draft step writing rows (the invented output item above all), so Discard on the preview left an item nobody kept.
+  it("generates a draft and writes nothing until the DM keeps it", async () => {
+    const outcome = await useGenerateRecipe().generateRecipeDraft("a draught", { items: [] });
+    expect(outcome.draft).toMatchObject({ recipe: { name: "Dragonbreath Draught" }, resolution: { kind: "create" } });
+    expect(mocks.createItem).not.toHaveBeenCalled();
+    expect(mocks.createRecipe).not.toHaveBeenCalled();
   });
 
+  it("makes the output item the model invented, then the recipe, then points the recipe's outputs at that item", async () => {
+    const { draft } = await useGenerateRecipe().generateRecipeDraft("a draught", { items: [] });
+    if (!draft) throw new Error("a draft");
+    const saved = await useGenerateRecipe().saveRecipe(draft);
+    expect(mocks.createItem).toHaveBeenCalledWith(expect.objectContaining({ name: "Fire Draught", source: "Grimoire:AI", campaign_id: "c1" }));
+    expect(mocks.outputs).toHaveBeenCalledWith({ recipeId: "r1", outputs: [{ item_id: "item1", library_item_id: null, quantity: 1 }] });
+    expect(saved).toMatchObject({ id: "r1", name: "Dragonbreath Draught", partsFailure: null });
+  });
+
+  // Bug caught: a duplicate of an item the campaign already has, made because the match was skipped.
   it("uses an item the campaign already has by that name instead of making a duplicate", async () => {
-    await useGenerateRecipe().generateAndCreateRecipe("a draught", { items: [{ id: UUID, name: "fire draught" }] });
+    const { draft } = await useGenerateRecipe().generateRecipeDraft("a draught", { items: [{ id: UUID, name: "fire draught" }] });
+    if (!draft) throw new Error("a draft");
+    await useGenerateRecipe().saveRecipe(draft);
     expect(mocks.createItem).not.toHaveBeenCalled();
     expect(mocks.outputs).toHaveBeenCalledWith({ recipeId: "r1", outputs: [{ item_id: UUID, library_item_id: null, quantity: 1 }] });
   });
 
+  // Bug caught: the DM's Output item ignored in favour of the model's own, or its name not told to the model.
   it("makes the item the DM picked, and tells the model its name, even when the model's output is named otherwise", async () => {
     const picked = { id: UUID, name: "Smoke Bomb" };
-    await useGenerateRecipe().generateAndCreateRecipe("a draught", { items: [picked], output: picked });
+    const { draft } = await useGenerateRecipe().generateRecipeDraft("a draught", { items: [picked], output: picked });
     expect(mocks.generate).toHaveBeenCalledWith("a draught", { outputName: "Smoke Bomb" });
+    if (!draft) throw new Error("a draft");
+    await useGenerateRecipe().saveRecipe(draft);
     expect(mocks.createItem).not.toHaveBeenCalled();
     expect(mocks.outputs).toHaveBeenCalledWith({ recipeId: "r1", outputs: [{ item_id: UUID, library_item_id: null, quantity: 1 }] });
   });
 
   it("throws, writing no recipe, when the output item cannot be made", async () => {
     mocks.createItem.mockRejectedValue(new Error("item failed"));
-    await expect(useGenerateRecipe().generateAndCreateRecipe("a draught", { items: [] })).rejects.toThrow("item failed");
+    const { draft } = await useGenerateRecipe().generateRecipeDraft("a draught", { items: [] });
+    if (!draft) throw new Error("a draft");
+    await expect(useGenerateRecipe().saveRecipe(draft)).rejects.toThrow("item failed");
     expect(mocks.createRecipe).not.toHaveBeenCalled();
   });
 
   it("keeps the recipe and reports it when a child write fails, rather than throwing and stranding it", async () => {
     mocks.ingredients.mockRejectedValue(new Error("rls"));
-    const outcome = await useGenerateRecipe().generateAndCreateRecipe("a draught", { items: [] });
-    expect(outcome.recipe).toMatchObject({ id: "r1" });
-    expect(outcome.recipe?.partsFailure).toBeInstanceOf(Error);
+    const { draft } = await useGenerateRecipe().generateRecipeDraft("a draught", { items: [] });
+    if (!draft) throw new Error("a draft");
+    const saved = await useGenerateRecipe().saveRecipe(draft);
+    expect(saved).toMatchObject({ id: "r1" });
+    expect(saved.partsFailure).toBeInstanceOf(Error);
     expect(mocks.modifiers).not.toHaveBeenCalled();
   });
 
-  it("creates nothing while another generation is running, and says why when generation fails", async () => {
+  it("generates nothing while another generation is running, and says why when generation fails", async () => {
     busy.value = true;
-    expect(await useGenerateRecipe().generateAndCreateRecipe("a draught", { items: [] })).toMatchObject({ recipe: null });
+    expect(await useGenerateRecipe().generateRecipeDraft("a draught", { items: [] })).toMatchObject({ draft: null });
     expect(mocks.generate).not.toHaveBeenCalled();
     busy.value = false;
     mocks.generate.mockResolvedValue(null);
     error.value = "Provider down";
-    expect(await useGenerateRecipe().generateAndCreateRecipe("a draught", { items: [] })).toMatchObject({ recipe: null, error: "Provider down" });
+    expect(await useGenerateRecipe().generateRecipeDraft("a draught", { items: [] })).toEqual({ draft: null, error: "Provider down" });
   });
 
   it("does not pass the items to the generator: they are for matching the output, not for the model", async () => {
-    await useGenerateRecipe().generateAndCreateRecipe("a draught", { discipline: "alchemy", items: [] });
+    await useGenerateRecipe().generateRecipeDraft("a draught", { discipline: "alchemy", items: [] });
     expect(mocks.generate.mock.calls[0][1]).toEqual({ discipline: "alchemy" });
   });
 });

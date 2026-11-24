@@ -16,7 +16,8 @@ export function useMapStyleAskScreen(): AskScreenAdapter {
     route(proposal: AskProposal): string {
       const target = proposal.target;
       if (!target || target.type !== "location") return "/cartographer";
-      prefill.offer("map_style", proposal.concept.trim());
+      const preset = proposal.inputs.preset;
+      prefill.offer("map_style", proposal.concept.trim(), typeof preset === "string" ? { preset } : {});
       return `/locations/${target.id}/map`;
     },
   };

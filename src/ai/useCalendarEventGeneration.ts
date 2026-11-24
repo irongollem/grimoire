@@ -17,7 +17,6 @@ registerAiGenerator({
   entityRoute: () => "/calendar",
   // Deliberately a no-op: drafting happens inline in the event form, so the DM
   // is already standing in the only place there is to send them.
-  openPanel: () => {},
 });
 
 interface CalendarEventAiResult {

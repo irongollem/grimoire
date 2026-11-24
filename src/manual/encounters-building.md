@@ -107,11 +107,11 @@ Labels: **Trivial / Easy / Medium / Hard / Deadly / Legendary**, with a threshol
 
 ## Generating an encounter with AI
 
-Click **Generate** on the Encounters list (not inside the builder itself) to open the generator panel. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost, and if AI is off, the panel points you at the toggle instead of generating.
+Click **Generate** on the Encounters list (not inside the builder itself) to open the Familiar on the right with an encounter card. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost. If AI is off, the card points you at the toggle instead of generating.
 
-1. Describe the fight in **CONCEPT**: e.g. "Goblin ambush on the forest road, levels 3–5, a betrayal mid-fight".
-2. Pick a **DIFFICULTY**: **Auto**, **Easy**, **Medium**, **Hard**, or **Deadly**.
-3. Click **Generate with AI**.
+1. Describe the fight in **What to make**: e.g. "Goblin ambush on the forest road, levels 3–5, a betrayal mid-fight".
+2. Pick a **Difficulty**: **Auto**, **Easy**, **Medium**, **Hard**, or **Deadly**.
+3. Click the gilt button. The card shows the price first.
 
 Grimoire builds the encounter from your own campaign: your party's levels and classes, and a candidate list of monsters drawn from your homebrew and whichever sourcebooks you've enabled under Monster Sources (see [Bestiary: Overview](#bestiary-overview)), never from a payload you'd have to trust blind.
 

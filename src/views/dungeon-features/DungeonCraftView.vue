@@ -39,7 +39,7 @@
           v-if="rulesAiAvailable"
           :icon="IconGenerate"
           label="Generate"
-          @click="generatorsUi.dungeonFeatureGeneratorOpen = true"
+          @click="openGenerator('dungeon_feature')"
         />
         <ListCreateButton
           label="New Feature"
@@ -54,7 +54,7 @@
           v-if="rulesAiAvailable"
           :icon="IconGenerate"
           label="Generate"
-          @click="generatorsUi.trapGeneratorOpen = true"
+          @click="openGenerator('trap')"
         />
         <ListCreateButton
           label="New Trap"
@@ -70,7 +70,7 @@
             v-if="isAiEnabled"
             :icon="IconGenerate"
             label="Generate"
-            @click="generatorsUi.rollTableGeneratorOpen = true"
+            @click="openGenerator('roll_table')"
           />
           <ListCreateButton
             label="New Roll Table"
@@ -93,7 +93,7 @@
           v-if="rulesAiAvailable"
           :icon="IconGenerate"
           label="Generate"
-          @click="generatorsUi.lootTableGeneratorOpen = true"
+          @click="openGenerator('loot_table')"
         />
         <ListCreateButton
           label="New Loot Table"
@@ -126,7 +126,7 @@
           v-if="isAiEnabled"
           :icon="IconGenerate"
           label="Generate"
-          @click="puzzlesUi.puzzleGeneratorOpen = true"
+          @click="openGenerator('puzzle')"
         />
         <ListCreateButton
           label="New Puzzle"
@@ -160,8 +160,7 @@ import { IconGenerate, IconLibrary } from '@/lib/icons';
 
 
 import { useGameSystem } from "@/composables/rules/useGameSystem";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
-import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
@@ -184,8 +183,7 @@ import DungeonCraftCartographerTab from "@/components/dungeon-features/DungeonCr
 
 const route  = useRoute();
 const router = useRouter();
-const generatorsUi = useGeneratorUiStore();
-const puzzlesUi = usePuzzlesUiStore();
+const { open: openGenerator } = useOpenGenerator();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 // Dungeon features, traps and loot tables are written by generators that put out a

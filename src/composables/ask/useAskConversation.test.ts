@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import { ASK_OFF_TOPIC_MESSAGE, type AskEvent, type AskProposal } from "@edge-shared/agent/askContract";
-import type { AskAdapter, AskQuote, AskRunResult } from "@/lib/ask/askAdapter";
-import { refusalMessage, SPEAKING_MAX_MS, SPEAKING_MS_PER_CHAR, SPEAKING_TAIL_MS, speakingUntil, useAskConversation, type AskConversationDeps } from "./useAskConversation";
+import type { AskAdapter, AskPreview, AskPreviewAdapter, AskQuote, AskRunResult } from "@/lib/ask/askAdapter";
+import { refusalMessage, SPEAKING_MAX_MS, SPEAKING_MS_PER_CHAR, SPEAKING_TAIL_MS, speakingUntil, useAskConversation, type AskConversationDeps, type AskItem } from "./useAskConversation";
 
 function sse(events: unknown[]): Response {
   const body = events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join("");
@@ -18,23 +18,24 @@ const okResult: AskRunResult = {
   parts: [{ label: "NPC", ok: true, credits: 4 }],
 };
 
-function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapter["run"]; campaignId?: () => string | null; onReplied?: AskConversationDeps["onReplied"] } = {}) {
+function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapter["run"]; quick?: AskAdapter["quick"]; campaignId?: () => string | null; onReplied?: AskConversationDeps["onReplied"]; lazy?: boolean } = {}) {
   const responses = [...(over.responses ?? [])];
   const transport = vi.fn(async () => responses.shift() ?? sse([done]));
   const run = vi.fn(over.run ?? (async () => okResult));
-  const adapter: AskAdapter = { id: "npc", quote: () => over.quote ?? readyQuote, run };
+  const quick = over.quick ? vi.fn(over.quick) : undefined;
+  const adapter: AskAdapter = { id: "npc", quote: () => over.quote ?? readyQuote, run, ...(quick ? { quick } : {}) };
   const onFinished = vi.fn();
   const deps: AskConversationDeps = {
     campaignId: over.campaignId ?? (() => "c1"),
     campaignName: () => "Kind Country",
     context: () => ({ route: "/dashboard" }),
-    adapters: { adapterFor: (id) => (id === "npc" ? adapter : undefined), screenFor: () => undefined },
+    adapters: { adapterFor: (id) => (id === "npc" && !over.lazy ? adapter : undefined), hasAdapter: () => false, loadAdapter: async (id) => (id === "npc" ? adapter : undefined), screenFor: () => undefined },
     routePath: () => "/dashboard",
     transport,
     onFinished,
     ...(over.onReplied ? { onReplied: over.onReplied } : {}),
   };
-  return { convo: useAskConversation(deps), transport, run, onFinished };
+  return { convo: useAskConversation(deps), transport, run, quick, onFinished };
 }
 
 async function withProposal(over: Parameters<typeof setup>[0] = {}) {
@@ -226,6 +227,13 @@ describe("useAskConversation: the quote", () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 
+  // Bug caught: adapters load on demand, so a press that beat the load did nothing (or, once awaited, ran twice).
+  it("waits for a not yet loaded adapter, and still runs once for two presses", async () => {
+    const { convo, card, run } = await withProposal({ lazy: true });
+    await Promise.all([convo.confirm(card.id), convo.confirm(card.id)]);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
   // Bug caught: the confirmed line read "You confirmed: Create NPC · 1 credits".
   it("words a one-credit confirmation as 1 credit", async () => {
     const { convo, card } = await withProposal({ quote: { lines: [], total: 1, block: null } });
@@ -414,9 +422,33 @@ describe("refusalMessage", () => {
 });
 
 describe("useAskConversation: campaign, allowance and withheld proposals", () => {
-  // Bug caught: a switch of campaign keeping the old session and thread, so the next turn sent campaign A's session
-  // with campaign B and a quote made in A ran in B.
-  it("starts a new conversation when the campaign changes", async () => {
+  // Bug caught: a turn still in flight when the DM switched campaign writing its refusal (and, for a buffered session
+  // event, its session id) into the campaign now on screen, so B's next turn sent A's session.
+  it("writes a late refusal and a late session into the thread the turn started in, not the one on screen", async () => {
+    const campaign = ref<string | null>("c1");
+    let release: (r: Response) => void = () => {};
+    const late = new Promise<Response>((resolve) => { release = resolve; });
+    const { convo, transport } = setup({ campaignId: () => campaign.value, responses: [sse([done])] });
+    transport.mockImplementationOnce(() => late);
+    const turn = convo.send("hello");
+    await Promise.resolve();
+    campaign.value = "c2";
+    await Promise.resolve();
+    release(new Response(JSON.stringify({ error: "refused", message: "Nope." }), { status: 403 }));
+    await turn;
+    expect(convo.items.value).toEqual([]);
+    transport.mockImplementationOnce(async () => sse([{ type: "session", sessionId: "s-late" }, done]));
+    await convo.send("in b");
+    campaign.value = "c1";
+    await Promise.resolve();
+    expect(convo.items.value.some((i) => i.kind === "error")).toBe(false);
+    await convo.send("back in a");
+    expect(transport).toHaveBeenLastCalledWith(expect.not.objectContaining({ sessionId: "s-late" }), expect.anything());
+  });
+
+  // Bug caught: a switch of campaign keeping the old session and thread on screen, so the next turn sent campaign A's
+  // session with campaign B and a quote made in A ran in B.
+  it("shows an empty conversation, with no session, in the campaign switched to", async () => {
     const campaign = ref<string | null>("c1");
     const { convo, transport } = setup({
       campaignId: () => campaign.value,
@@ -428,6 +460,42 @@ describe("useAskConversation: campaign, allowance and withheld proposals", () =>
     expect(convo.items.value).toEqual([]);
     await convo.send("again");
     expect(transport).toHaveBeenLastCalledWith(expect.not.objectContaining({ sessionId: expect.anything() }), expect.anything());
+  });
+
+  // Bug caught: a campaign switch wiping the thread, or calling newConversation past the held-result guard, so a
+  // generation the DM had paid for was lost; and an Again still running writing a stale entry into the other campaign.
+  it("keeps each campaign's thread with its held previews, restores it on return, and lands an Again in its own", async () => {
+    const campaign = ref<string | null>("c1");
+    const first: AskPreview = { shown: { title: "First", sections: [] }, parts: [{ label: "NPC", ok: true, credits: 4 }], create: vi.fn(async () => okResult) };
+    const second: AskPreview = { shown: { title: "Second", sections: [] }, parts: [{ label: "NPC", ok: true, credits: 4 }], create: vi.fn(async () => okResult) };
+    let release: (v: { ok: true; preview: AskPreview }) => void = () => undefined;
+    const outcomes = [async () => ({ ok: true as const, preview: first }), () => new Promise<{ ok: true; preview: AskPreview }>((r) => (release = r))];
+    const adapter: AskPreviewAdapter = { id: "npc", quote: () => readyQuote, preview: () => (outcomes.shift() ?? outcomes[0])() };
+    const convo = useAskConversation({
+      campaignId: () => campaign.value, campaignName: () => "K", context: () => ({ route: "/" }),
+      adapters: { adapterFor: () => adapter, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined }, routePath: () => "/",
+      transport: vi.fn(async () => sse([{ type: "propose", proposal }, done])),
+    });
+    await convo.send("a baker");
+    const card = convo.items.value.find((i) => i.kind === "proposal");
+    await convo.confirm(card?.id ?? -1);
+    const previewId = convo.items.value.find((i) => i.kind === "preview")?.id ?? -1;
+    const again = convo.againPreview(previewId);
+    campaign.value = "c2";
+    await Promise.resolve();
+    expect(convo.items.value).toEqual([]);
+    release({ ok: true, preview: second });
+    await again;
+    // Nothing from campaign 1 leaked into campaign 2, and nothing is held there.
+    expect(convo.items.value).toEqual([]);
+    expect(convo.holding.value).toBeNull();
+    campaign.value = "c1";
+    await Promise.resolve();
+    expect(convo.items.value.find((i) => i.kind === "preview")).toMatchObject({ phase: "ready", shown: { title: "Second" } });
+    expect(convo.holding.value).toBe("NPC");
+    await convo.createPreview(previewId);
+    expect(second.create).toHaveBeenCalledTimes(1);
+    expect(convo.items.value.at(-1)).toMatchObject({ kind: "result", name: "Mara" });
   });
 
   // Bug caught: "0 of 5 free questions left" after New conversation, because an own-key turn's streamed 0 was kept.
@@ -536,4 +604,368 @@ describe("speakingUntil", () => {
     expect(speakingUntil(0, 1000, 100_000)).toBe(1000 + SPEAKING_MAX_MS);
   });
 
+});
+
+describe("useAskConversation: a card a button opened", () => {
+  const buttonCard = (s: ReturnType<typeof setup>, given?: Record<string, unknown>) => {
+    s.convo.openGenerator({ generatorId: "npc", ...(given ? { inputs: given } : {}) });
+    const card = s.convo.items.value.find((i) => i.kind === "proposal");
+    if (!card || card.kind !== "proposal") throw new Error("no card");
+    return card;
+  };
+
+  // Bug caught: the button asking the model (and so spending the day's free questions) to show a form.
+  it("adds the generator's card with its starting inputs and calls no model", () => {
+    const s = setup();
+    const card = buttonCard(s, { relation: "sibling" });
+    expect(s.transport).not.toHaveBeenCalled();
+    expect(card).toMatchObject({ state: "quote", origin: "button", proposal: { generator: "npc", concept: "", inputs: { portrait: true, relation: "sibling" } } });
+  });
+
+  // Bug caught: a generator this build does not know leaving an empty card in the thread.
+  it("adds nothing for a generator that does not exist", () => {
+    const s = setup();
+    s.convo.openGenerator({ generatorId: "nope" });
+    expect(s.convo.items.value).toEqual([]);
+  });
+
+  // Bug caught: the concept box's words not reaching the run, so the NPC was made from an empty description.
+  it("runs with the words the DM wrote in the concept box", async () => {
+    const s = setup();
+    const card = buttonCard(s);
+    s.convo.setConcept(card.id, "A baker with a secret");
+    await s.convo.confirm(card.id);
+    expect(s.run).toHaveBeenCalledWith(expect.objectContaining({ concept: "A baker with a secret" }), {});
+  });
+
+  describe("quick create", () => {
+    // Bug caught: Quick create going through the priced run, or through nothing when the AI route is blocked on credits.
+    it("runs the adapter's quick route and never its priced run, even when the AI route is blocked", async () => {
+      const s = setup({ quick: async () => okResult, quote: { lines: [], total: 4, block: { reason: "credits", message: "Short." } } });
+      const card = buttonCard(s);
+      await s.convo.quick(card.id);
+      expect(s.quick).toHaveBeenCalledTimes(1);
+      expect(s.run).not.toHaveBeenCalled();
+      expect(card.state).toBe("done");
+      expect(s.convo.items.value.at(-1)).toMatchObject({ kind: "result", route: "/npcs/n1" });
+    });
+
+    // Bug caught: Quick create on "Add relative" before the people loaded: the related person and relation were dropped.
+    it("waits while the quote is still reading what the inputs name, then runs with them", async () => {
+      let loading = true;
+      // An empty concept holds the block while the people load, as the NPC quote does: only `reading` says so.
+      const quote = (): AskQuote => ({ lines: [], total: 4, block: { reason: "missing", message: "Say who this is." }, ...(loading ? { reading: true as const } : {}) });
+      const run = vi.fn(async () => okResult);
+      const quick = vi.fn(async () => okResult);
+      const adapter: AskAdapter = { id: "npc", quote, run, quick };
+      const convo = useAskConversation({
+        campaignId: () => "c1", campaignName: () => "K", context: () => ({ route: "/" }),
+        adapters: { adapterFor: () => adapter, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined }, routePath: () => "/", transport: vi.fn(async () => sse([done])),
+      });
+      convo.openGenerator({ generatorId: "npc", inputs: { related_npc_id: "n9", relation: "child" } });
+      const card = convo.items.value.find((i) => i.kind === "proposal");
+      if (card?.kind !== "proposal") throw new Error("no card");
+      await convo.quick(card.id);
+      expect(quick).not.toHaveBeenCalled();
+      expect(card.state).toBe("quote");
+      loading = false;
+      await convo.quick(card.id);
+      expect(quick).toHaveBeenCalledWith(expect.objectContaining({ inputs: expect.objectContaining({ related_npc_id: "n9", relation: "child" }) }), {});
+    });
+
+    // Bug caught: a double press (or Quick create after Create) making two NPCs from one card.
+    it("makes one record per card, whichever button is pressed first", async () => {
+      const s = setup({ quick: async () => okResult });
+      const card = buttonCard(s);
+      await Promise.all([s.convo.quick(card.id), s.convo.confirm(card.id), s.convo.quick(card.id)]);
+      expect((s.quick?.mock.calls.length ?? 0) + s.run.mock.calls.length).toBe(1);
+    });
+
+    // Bug caught: Quick create on a generator with no such route making a confirmed line and an empty run.
+    it("does nothing for a generator without a quick route", async () => {
+      const s = setup();
+      const card = buttonCard(s);
+      await s.convo.quick(card.id);
+      expect(card.state).toBe("quote");
+    });
+  });
+});
+
+// ── a generation held for the DM's yes (#1270) ───────────────────────────────────────────────────────────────
+
+describe("useAskConversation: a held generation", () => {
+  const shown = { title: "Road Ambush", sections: [] };
+  const made = (credits = 4): AskPreview => ({
+    shown,
+    parts: [{ label: "NPC", ok: true, credits }],
+    create: vi.fn(async () => okResult),
+  });
+
+  async function held(over: { preview?: AskPreviewAdapter["preview"]; quote?: AskQuote } = {}) {
+    const first = made();
+    const preview = vi.fn(over.preview ?? (async () => ({ ok: true as const, preview: first })));
+    const price = { quote: over.quote ?? readyQuote };
+    const adapter: AskPreviewAdapter = { id: "npc", quote: () => price.quote, preview };
+    const onFinished = vi.fn();
+    const responses = [sse([{ type: "propose", proposal }, done])];
+    const transport = vi.fn(async () => responses.shift() ?? sse([done]));
+    const convo = useAskConversation({
+      campaignId: () => "c1",
+      campaignName: () => "Kind Country",
+      context: () => ({ route: "/dashboard" }),
+      adapters: { adapterFor: () => adapter, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined },
+      routePath: () => "/dashboard",
+      transport,
+      onFinished,
+    });
+    await convo.send("make me a baker");
+    const card = convo.items.value.find((i) => i.kind === "proposal");
+    if (!card) throw new Error("no proposal");
+    await convo.confirm(card.id);
+    const previewItem = () => convo.items.value.find((i) => i.kind === "preview");
+    return { convo, card, preview, first, onFinished, previewItem, price };
+  }
+
+  // Bug caught: the encounter saved at the gilt button, so the DM never saw it before it was kept.
+  it("the gilt button shows the generation and saves nothing: the proposal folds, the preview waits", async () => {
+    const { card, first, previewItem, onFinished } = await held();
+    expect(card).toMatchObject({ state: "previewing", credits: 4 });
+    expect(previewItem()).toMatchObject({ phase: "ready", proposalItemId: card.id, shown });
+    expect(first.create).not.toHaveBeenCalled();
+    expect(onFinished).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: Create charging (or notifying) at the generation's price a second time, or a result with no record.
+  it("Create saves it and lands the usual result; the notice carries what the generation cost, once", async () => {
+    const { convo, card, first, previewItem, onFinished } = await held();
+    await convo.createPreview(previewItem()?.id ?? -1);
+    expect(first.create).toHaveBeenCalledTimes(1);
+    expect(card).toMatchObject({ state: "done" });
+    expect(convo.items.value.at(-1)).toMatchObject({ kind: "result", name: "Mara", route: "/npcs/n1" });
+    expect(onFinished).toHaveBeenCalledTimes(1);
+    expect(onFinished.mock.calls[0][0]).toMatchObject({ credits: 4, route: "/npcs/n1" });
+    expect(previewItem()).toMatchObject({ phase: "saved" });
+  });
+
+  // Bug caught: a double press on Create making two records.
+  it("a second press on Create while it saves, or after, saves once", async () => {
+    const { convo, first, previewItem } = await held();
+    const id = previewItem()?.id ?? -1;
+    await Promise.all([convo.createPreview(id), convo.createPreview(id)]);
+    await convo.createPreview(id);
+    expect(first.create).toHaveBeenCalledTimes(1);
+  });
+
+  // Bug caught: a save that failed ending the card, so the generation the DM paid for was lost.
+  it("a save that records nothing keeps the preview and says why, and Create can be pressed again", async () => {
+    const first = made();
+    first.create = vi.fn().mockResolvedValueOnce({ record: null, route: null, parts: [{ label: "NPC", ok: false, credits: 0, error: "limit reached" }] }).mockResolvedValueOnce(okResult);
+    const { convo, previewItem, card } = await held({ preview: async () => ({ ok: true, preview: first }) });
+    const id = previewItem()?.id ?? -1;
+    await convo.createPreview(id);
+    expect(previewItem()).toMatchObject({ phase: "ready", error: "limit reached" });
+    expect(card).toMatchObject({ state: "previewing" });
+    await convo.createPreview(id);
+    expect(card).toMatchObject({ state: "done" });
+  });
+
+  // Bug caught: Again charged without the gates (a balance spent since), or charging twice on a double press.
+  it("Again runs a new generation, replaces what is shown, adds its price to the fold, and a double press is one", async () => {
+    const second: AskPreview = { shown: { title: "Second Try", sections: [] }, parts: [{ label: "NPC", ok: true, credits: 4 }], create: vi.fn(async () => okResult) };
+    const outcomes = [async () => ({ ok: true as const, preview: made() }), async () => ({ ok: true as const, preview: second })];
+    const { convo, card, preview, previewItem } = await held({ preview: () => outcomes.shift()?.() ?? Promise.reject(new Error("too many")) });
+    const id = previewItem()?.id ?? -1;
+    await Promise.all([convo.againPreview(id), convo.againPreview(id)]);
+    expect(preview).toHaveBeenCalledTimes(2);
+    expect(previewItem()).toMatchObject({ phase: "ready", shown: { title: "Second Try" } });
+    expect(card).toMatchObject({ credits: 8 });
+    await convo.createPreview(id);
+    expect(second.create).toHaveBeenCalledTimes(1);
+  });
+
+  // Bug caught: Again going ahead with a gate saying no (a balance the first generation spent).
+  it("Again is refused with the gate's reason when the quote is blocked, and charges nothing", async () => {
+    const { convo, preview, previewItem, price } = await held();
+    price.quote = { lines: [], total: 4, block: { reason: "credits", message: "Not enough credits." } };
+    await convo.againPreview(previewItem()?.id ?? -1);
+    expect(preview).toHaveBeenCalledTimes(1);
+    expect(previewItem()).toMatchObject({ phase: "ready", error: "Not enough credits." });
+  });
+
+  // Bug caught: a pick never reaching the preview, so Create saved the default version.
+  it("a choice on the held generation goes to the preview and updates what is shown", async () => {
+    const first = made();
+    first.choose = vi.fn(() => ({ title: "Picked", sections: [] }));
+    const { convo, previewItem } = await held({ preview: async () => ({ ok: true, preview: first }) });
+    convo.choosePreview(previewItem()?.id ?? -1, "0", "b");
+    expect(first.choose).toHaveBeenCalledWith("0", "b");
+    expect(previewItem()).toMatchObject({ shown: { title: "Picked" } });
+  });
+
+  // Bug caught: a row's press running twice (two records for one hook), or ending the preview so the other rows were lost.
+  it("a row's own press runs once, marks the row done with its links, and leaves the preview open for the others", async () => {
+    let release: (p: { label: string; ok: true; credits: number; links: { label: string; route: string }[] }) => void = () => undefined;
+    const run = vi.fn(() => new Promise<{ label: string; ok: true; credits: number; links: { label: string; route: string }[] }>((r) => (release = r)));
+    const first = made();
+    first.shown = { title: "Hooks", sections: [{ rows: [{ label: "Quest", detail: "A", action: { label: "Create quest", doneLabel: "Created", run } }, { label: "Quest", detail: "B", action: { label: "Create quest", doneLabel: "Created", run } }] }] };
+    const { convo, previewItem } = await held({ preview: async () => ({ ok: true, preview: first }) });
+    const id = previewItem()?.id ?? -1;
+    const press = Promise.all([convo.actOnRow(id, 0, 0), convo.actOnRow(id, 0, 0)]);
+    expect(previewItem()).toMatchObject({ rows: { "0:0": { phase: "running" } } });
+    release({ label: "Quest A", ok: true, credits: 0, links: [{ label: "View quest", route: "/quests/q1" }] });
+    await press;
+    await convo.actOnRow(id, 0, 0);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(previewItem()).toMatchObject({ phase: "ready", rows: { "0:0": { phase: "done", doneLabel: "Created", links: [{ label: "View quest", route: "/quests/q1" }] } } });
+  });
+
+  // Bug caught: a failed row press marking the row done, so the quest was never made and the button was gone.
+  it("a row press that fails says why and can be pressed again; Done waits while a row runs", async () => {
+    const run = vi.fn()
+      .mockResolvedValueOnce({ label: "Quest A", ok: false, credits: 0, error: "insert failed" })
+      .mockResolvedValueOnce({ label: "Quest A", ok: true, credits: 0 });
+    const first = made();
+    first.shown = { title: "Hooks", sections: [{ rows: [{ label: "Quest", detail: "A", action: { label: "Create quest", doneLabel: "Created", run } }] }] };
+    const { convo, previewItem } = await held({ preview: async () => ({ ok: true, preview: first }) });
+    const id = previewItem()?.id ?? -1;
+    await convo.actOnRow(id, 0, 0);
+    expect(previewItem()).toMatchObject({ rows: { "0:0": { phase: "failed", error: "insert failed" } } });
+    await convo.actOnRow(id, 0, 0);
+    expect(previewItem()).toMatchObject({ rows: { "0:0": { phase: "done" } } });
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  const hookRow = (run: () => Promise<{ label: string; ok: true; credits: number }>) => ({ label: "Quest", detail: "A", action: { label: "Create quest", doneLabel: "Created", run } });
+
+  // Bug caught: Again after Create quest replaced the preview and the adapter's record of what was built, so Done
+  // refused and Discard said nothing was saved while the quests existed.
+  it("once a row press has made a record, Again does nothing, and Discard says how many were kept", async () => {
+    const first = made();
+    first.shown = { title: "Hooks", sections: [{ rows: [hookRow(async () => ({ label: "Q", ok: true, credits: 0 })), hookRow(async () => ({ label: "Q", ok: true, credits: 0 }))] }] };
+    const { convo, preview, previewItem, card } = await held({ preview: async () => ({ ok: true, preview: first }) });
+    const id = previewItem()?.id ?? -1;
+    await convo.actOnRow(id, 0, 0);
+    await convo.againPreview(id);
+    expect(preview).toHaveBeenCalledTimes(1);
+    expect(previewItem()).toMatchObject({ phase: "ready", rows: { "0:0": { phase: "done" } } });
+    convo.discardPreview(id);
+    expect(previewItem()).toMatchObject({ phase: "discarded", kept: 1 });
+    expect(card).toMatchObject({ state: "discarded", kept: 1 });
+  });
+
+  // Bug caught: New conversation proceeding while a row press was still writing its record.
+  it("a running row press counts as generating", async () => {
+    let release: (p: { label: string; ok: true; credits: number }) => void = () => undefined;
+    const first = made();
+    first.shown = { title: "Hooks", sections: [{ rows: [hookRow(() => new Promise((r) => (release = r)))] }] };
+    const { convo, previewItem } = await held({ preview: async () => ({ ok: true, preview: first }) });
+    const press = convo.actOnRow(previewItem()?.id ?? -1, 0, 0);
+    expect(convo.generating.value).toBe(true);
+    release({ label: "Q", ok: true, credits: 0 });
+    await press;
+    expect(convo.generating.value).toBe(false);
+  });
+
+  // Bug caught: a create that THREW (outcome unknown: the insert may have gone through) putting Create back, so a
+  // second press inserted a duplicate. It is not offered again; Discard stays.
+  it("a Create that throws is of unknown outcome: it says so, offers no second Create, and keeps Discard", async () => {
+    const first = made();
+    first.create = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(okResult);
+    const { convo, card, previewItem } = await held({ preview: async () => ({ ok: true, preview: first }) });
+    const id = previewItem()?.id ?? -1;
+    await convo.createPreview(id);
+    expect(card).toMatchObject({ state: "failed" });
+    expect(previewItem()).toMatchObject({ phase: "failed" });
+    expect((previewItem() as Extract<AskItem, { kind: "preview" }>).error).toContain("may have been saved");
+    await convo.createPreview(id);
+    await convo.againPreview(id);
+    expect(first.create).toHaveBeenCalledTimes(1);
+    convo.discardPreview(id);
+    expect(previewItem()).toMatchObject({ phase: "discarded" });
+  });
+
+  // Bug caught: a create that resolved with no record (a known non-save) losing its retry along with the unknown case.
+  it("a Create that resolves with no record is a known non-save and stays retryable", async () => {
+    const first = made();
+    first.create = vi.fn()
+      .mockResolvedValueOnce({ record: null, route: null, parts: [{ label: "NPC", ok: false, credits: 0, error: "db said no" }] })
+      .mockResolvedValueOnce(okResult);
+    const { convo, previewItem } = await held({ preview: async () => ({ ok: true, preview: first }) });
+    const id = previewItem()?.id ?? -1;
+    await convo.createPreview(id);
+    expect(previewItem()).toMatchObject({ phase: "ready", error: "db said no" });
+    await convo.createPreview(id);
+    expect(previewItem()).toMatchObject({ phase: "saved" });
+  });
+
+  // Bug caught: Discard pressed while a row's record was still being made, so the row finished after the card was
+  // gone and was missing from "N were made and kept".
+  it("refuses Discard while a row press runs, and then counts that row as kept", async () => {
+    let release: (p: { label: string; ok: true; credits: number }) => void = () => undefined;
+    const first = made();
+    first.shown = { title: "Hooks", sections: [{ rows: [hookRow(() => new Promise((r) => (release = r)))] }] };
+    const { convo, previewItem } = await held({ preview: async () => ({ ok: true, preview: first }) });
+    const id = previewItem()?.id ?? -1;
+    const press = convo.actOnRow(id, 0, 0);
+    convo.discardPreview(id);
+    expect(previewItem()).toMatchObject({ phase: "ready" });
+    release({ label: "Q", ok: true, credits: 0 });
+    await press;
+    convo.discardPreview(id);
+    expect(previewItem()).toMatchObject({ phase: "discarded", kept: 1 });
+  });
+
+  // Bug caught: starting over losing a generation in flight or awaiting Create, with its credits.
+  it("says a generation is in flight while it runs or saves, and what is held while it awaits Create", async () => {
+    let finish: (v: { ok: true; preview: AskPreview }) => void = () => undefined;
+    const pending = new Promise<{ ok: true; preview: AskPreview }>((r) => (finish = r));
+    const s = setup({ responses: [sse([{ type: "propose", proposal }, done])] });
+    void s;
+    const adapter: AskPreviewAdapter = { id: "npc", quote: () => readyQuote, preview: () => pending };
+    const convo = useAskConversation({
+      campaignId: () => "c1", campaignName: () => "K", context: () => ({ route: "/" }),
+      adapters: { adapterFor: () => adapter, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined }, routePath: () => "/",
+      transport: vi.fn(async () => sse([{ type: "propose", proposal }, done])),
+    });
+    await convo.send("x");
+    const card = convo.items.value.find((i) => i.kind === "proposal");
+    const confirming = convo.confirm(card?.id ?? -1);
+    expect(convo.generating.value).toBe(true);
+    expect(convo.holding.value).toBeNull();
+    finish({ ok: true, preview: made() });
+    await confirming;
+    expect(convo.generating.value).toBe(false);
+    expect(convo.holding.value).toBe("NPC");
+    await convo.createPreview(convo.items.value.find((i) => i.kind === "preview")?.id ?? -1);
+    expect(convo.holding.value).toBeNull();
+  });
+
+  // Bug caught: Discard leaving the generation to be saved later, or the card reporting it saved.
+  it("Discard ends it with nothing saved, and Create after it does nothing", async () => {
+    const { convo, card, first, previewItem, onFinished } = await held();
+    const id = previewItem()?.id ?? -1;
+    convo.discardPreview(id);
+    await convo.createPreview(id);
+    expect(first.create).not.toHaveBeenCalled();
+    expect(previewItem()).toMatchObject({ phase: "discarded" });
+    expect(card).toMatchObject({ state: "discarded" });
+    expect(onFinished).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: a failed generation leaving a preview card with nothing in it.
+  it("a generation that makes nothing lands the failed result and no preview", async () => {
+    const failed: AskRunResult = { record: null, route: null, parts: [{ label: "NPC", ok: false, credits: 0, error: "Provider down" }] };
+    const { convo, card } = await held({ preview: async () => ({ ok: false, result: failed }) });
+    expect(card).toMatchObject({ state: "done" });
+    expect(convo.items.value.some((i) => i.kind === "preview")).toBe(false);
+    expect(convo.items.value.at(-1)).toMatchObject({ kind: "result", parts: [{ ok: false, error: "Provider down" }] });
+  });
+
+  // Bug caught: an option changed on the folded card not reaching the second generation.
+  it("options changed after the fold reach the next generation", async () => {
+    const { convo, card, preview, previewItem } = await held();
+    convo.adjust(card.id, { difficulty: "deadly" });
+    await convo.againPreview(previewItem()?.id ?? -1);
+    expect(preview.mock.calls[1][0].inputs).toEqual({ difficulty: "deadly" });
+  });
 });

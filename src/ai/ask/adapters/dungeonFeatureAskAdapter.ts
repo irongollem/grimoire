@@ -1,8 +1,8 @@
 /**
  * Ask Grimoire (#1253): the Dungeon Feature Generator, as a quote and a run.
  *
- * The price is `useDungeonFeatureQuote`'s (the one `DungeonFeatureGeneratorPanel` shows), the gates are the page's (AI off, a game system without stat blocks, the balance: features have no quota) and the run
- * is `useGenerateDungeonFeature`, the generate-and-save step the page calls. The kind is kept only when it is one the page's picker offers; the trigger is not asked through Ask.
+ * The price is `useDungeonFeatureQuote`'s, the gates are the page's (AI off, a game system without stat blocks, the balance: features have no quota) and the run
+ * is `useGenerateDungeonFeature`, the generate-and-save step the page calls. The kind and the trigger are kept only when they are ones the page's pickers offer.
  *
  * A failed picture never costs the feature: the row is saved first and the picture is its own part. There is no
  * one-picture retry for a feature yet (`useMissingPortrait` has no kind for it), so a failed picture says to add one
@@ -16,12 +16,19 @@ import { useAskGate } from "@/ai/ask/useAskGate";
 import { useDungeonFeatureQuote } from "@/composables/ai/quotes/dungeonFeatureQuote";
 import { useGenerateDungeonFeature } from "@/composables/dungeon-features/useGenerateDungeonFeature";
 import { isQuotaExceeded } from "@/lib/quotaError";
-import { DUNGEON_FEATURE_TYPES } from "@/types/dungeonFeature.types";
+import { DUNGEON_FEATURE_TRIGGERS, DUNGEON_FEATURE_TYPES } from "@/types/dungeonFeature.types";
 
 /** The page's picker offers a fixed list: a value is kept only when it is on it, spelled the way the page spells it. */
 function knownFeatureType(said: string | null): string | null {
   if (said === null) return null;
   const found = DUNGEON_FEATURE_TYPES.find((t) => t.toLowerCase() === said.toLowerCase());
+  return found === undefined ? null : found;
+}
+
+/** The page's trigger picker offers a fixed list: a value is kept only when it is on it, spelled the way the page spells it. */
+function knownTrigger(said: string | null): string | null {
+  if (said === null) return null;
+  const found = DUNGEON_FEATURE_TRIGGERS.find((t) => t.toLowerCase() === said.toLowerCase());
   return found === undefined ? null : found;
 }
 
@@ -35,6 +42,7 @@ export function useDungeonFeatureAskAdapter(): AskAdapter {
     const type = knownFeatureType(askString(inputs, "feature_type"));
     return {
       featureType: type,
+      trigger: knownTrigger(askString(inputs, "trigger_type")),
       image: askFlag(inputs, "image"),
       concept: proposal.concept.trim(),
     };
@@ -46,6 +54,7 @@ export function useDungeonFeatureAskAdapter(): AskAdapter {
 
     const lines: AskQuoteLine[] = [];
     if (read.featureType) lines.push({ label: "Kind", value: read.featureType, credits: null });
+    if (read.trigger) lines.push({ label: "Trigger", value: read.trigger, credits: null });
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
 
@@ -64,6 +73,7 @@ export function useDungeonFeatureAskAdapter(): AskAdapter {
     try {
       outcome = await generateAndCreateFeature(read.concept, {
         feature_type: read.featureType ?? undefined,
+        trigger_type: read.trigger ?? undefined,
         // Explicit either way: left out, the generator paints a picture.
         generateImage: read.image,
       });

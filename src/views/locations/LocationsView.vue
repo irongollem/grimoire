@@ -28,7 +28,7 @@
         v-if="isAiEnabled"
         :icon="IconGenerate"
         label="Generate"
-        @click="generatorsUi.locationGeneratorOpen = true"
+        @click="openGenerator('location')"
       />
       <ListCreateButton
         label="New Location"
@@ -71,12 +71,12 @@ import AtlasExplorer from "@/components/locations/atlas/AtlasExplorer.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { usePopulateLocations, usePopulatePlanarLocations } from "@/composables/locations/useLocations";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { useLocationsUiStore } from "@/stores/ui/locations";
 import { useCampaignStore } from "@/stores/campaign";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 
-const generatorsUi = useGeneratorUiStore();
+const { open: openGenerator } = useOpenGenerator();
 const locationsUi = useLocationsUiStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);

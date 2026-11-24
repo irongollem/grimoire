@@ -2,7 +2,7 @@
  * Ask Grimoire (#1253): a complication for a fight being played, opened with the DM's wording as the steer.
  *
  * The fight's Play screen (`/encounters/:id/run`) opens its complication dialog with the steer filled in; the DM
- * presses "Generate" there, which prices it. Reinforcements are the dialog's other mode and stay a pick in the Twist menu.
+ * presses "Generate" there, which prices it. Reinforcements, the dialog's other mode, open the same way when the request named them.
  */
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskScreenAdapter } from "@/lib/ask/askAdapter";
@@ -15,7 +15,8 @@ export function useComplicationAskScreen(): AskScreenAdapter {
     route(proposal: AskProposal): string {
       const target = proposal.target;
       if (!target || target.type !== "encounter") return "/encounters";
-      prefill.offer("complication", proposal.concept.trim());
+      const mode = proposal.inputs.mode;
+      prefill.offer("complication", proposal.concept.trim(), typeof mode === "string" ? { mode } : {});
       return `/encounters/${target.id}/run`;
     },
   };

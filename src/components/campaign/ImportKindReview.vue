@@ -145,8 +145,9 @@ function resetToSuggested(): void {
 }
 
 // ── Monster generation cost ──────────────────────────────────────────────
-// Mirrors MonsterGeneratorPanel.vue's own credit formula exactly — the same
-// generation, the same provider, so the same cost. Computed here (rather
+// The monster generator's own credit formula (useMonsterGenerationCost, the
+// one its card in the Familiar quotes): the same generation, the same
+// provider, so the same cost. Computed here (rather
 // than in each row) because it's one number per campaign/provider, not per
 // entity, and this is the one place both review surfaces already share.
 const { credits: generateCredits } = useMonsterGenerationCost();

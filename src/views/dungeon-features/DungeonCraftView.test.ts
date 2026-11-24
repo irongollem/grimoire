@@ -4,7 +4,7 @@ import { defineComponent, h, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DungeonCraftView from "./DungeonCraftView.vue";
 import { systemOffers, type GameFeature, type GameSystemKey } from "@/systems/registry";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useAskUiStore } from "@/stores/ui/ask";
 
 const mocks = vi.hoisted(() => ({ system: "dnd5e-2024", tab: "features" }));
 
@@ -44,15 +44,15 @@ beforeEach(() => {
 // refuses in a Generic campaign (`generate-entity-text` "feature", `generate-trap`, `generate-loot`).
 describe("DungeonCraftView generate buttons", () => {
   it.each([
-    ["features", "dungeonFeatureGeneratorOpen"],
-    ["traps", "trapGeneratorOpen"],
-    ["loot-tables", "lootTableGeneratorOpen"],
-  ] as const)("the %s tab offers Generate in a 5e campaign and opens its panel", async (tab, flag) => {
+    ["features", "dungeon_feature"],
+    ["traps", "trap"],
+    ["loot-tables", "loot_table"],
+  ] as const)("the %s tab offers Generate in a 5e campaign and opens its card in the Familiar", async (tab, generatorId) => {
     const w = mountView(tab);
     const button = w.findAll("button").find((b) => b.text() === "Generate");
     expect(button).toBeDefined();
     await button!.trigger("click");
-    expect(useGeneratorUiStore()[flag]).toBe(true);
+    expect(useAskUiStore().pendingGenerator).toMatchObject({ generatorId });
   });
 
   it.each(["features", "traps", "loot-tables"])("the %s tab offers no Generate in a Generic campaign", (tab) => {

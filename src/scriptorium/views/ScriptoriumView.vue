@@ -45,7 +45,7 @@ import ScriptoriumDocumentList from "@/scriptorium/components/ScriptoriumDocumen
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
 import { useCampaignStore } from "@/stores/campaign";
-import { useGeneratorUiStore } from "@/stores/ui/generators";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { useAbove } from "@/composables/useBreakpoint";
 
 const router = useRouter();
@@ -54,10 +54,11 @@ const showPaywall = ref(false);
 const canWrite = useAbove("md");
 const layout = useListLayout("scriptorium", "grid");
 const campaign = useCampaignStore();
+const { open } = useOpenGenerator();
 
-// The dialog checks the quota again before it spends anything, so no gate here.
+// The card in the Familiar checks the quota again before it spends anything, so no gate here.
 function handleDraft() {
-  useGeneratorUiStore().scriptoriumDraftOpen = true;
+  open("scriptorium_draft");
 }
 
 // A book starts from the template gallery at /scriptorium/new, which creates it and opens it.

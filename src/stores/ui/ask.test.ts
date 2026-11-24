@@ -42,4 +42,14 @@ describe("useAskUiStore", () => {
     expect(ask.takePrefill()).toBe("Suggest a truth.");
     expect(ask.takePrefill()).toBeNull();
   });
+
+  // Bug caught: the panel's mount and its watcher both taking the waiting generator, so a button made two cards.
+  it("opens the panel on a generator and hands it over exactly once", () => {
+    const ask = useAskUiStore();
+    ask.openGenerator("npc", { inputs: { relation: "sibling" } });
+    expect(ask.open).toBe(true);
+    expect(ask.pendingQuery).toBeNull();
+    expect(ask.takePendingGenerator()).toEqual({ generatorId: "npc", inputs: { relation: "sibling" } });
+    expect(ask.takePendingGenerator()).toBeNull();
+  });
 });

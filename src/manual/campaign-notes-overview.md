@@ -53,7 +53,7 @@ Notes are DM-only by default, but you can share one with specific players:
 
 From a note's toolbar you can reach two AI tools, available on every plan once the campaign's AI Assistant is switched on:
 
-- **Write Chronicle**: paste in raw session facts (supports `@mentions` of your NPCs and locations), pick a tone, and it drafts prose you can review and **Insert into Note** before it touches your note. If the draft names a session that is in your log, the note is linked to it.
+- **Write Chronicle**: opens a card in the Familiar. Paste in raw session facts (supports `@mentions` of your NPCs and locations) and pick a tone. It drafts prose you can read on the card and **Insert into Note** before it touches your note. If the draft names a session that is in your log, the note is linked to it.
 - **Generate scene illustration**: describe a scene (again with `@mentions` to pull in existing character art), pick an image shape, and generate an illustration for the note. Each shape shows its own cost before you generate.
 - **Scene library**: browse illustrations you've already generated for this campaign instead of generating a new one.
 

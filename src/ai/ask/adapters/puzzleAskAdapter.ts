@@ -1,7 +1,7 @@
 /**
  * Ask Grimoire (#1253): the Puzzle Generator, as a quote and a run.
  *
- * The price is `usePuzzleQuote`'s (the one `PuzzleGeneratorPanel` shows), the gates are the page's (AI off, the puzzles quota, the balance) and the run
+ * The price is `usePuzzleQuote`'s, the gates are the page's (AI off, the puzzles quota, the balance) and the run
  * is `useGeneratePuzzle`, the generate-and-save step the page calls. The kind and the difficulty are kept only when they are ones the page's pickers offer.
  *
  * A failed picture never costs the puzzle: the row is saved first and the picture is its own part. There is no

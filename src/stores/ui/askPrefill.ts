@@ -12,8 +12,15 @@ import { ref } from "vue";
 /** How long an offered request stays waiting for its screen: the navigation and the screen's load, with room to spare. */
 export const ASK_PREFILL_TTL_MS = 60_000;
 
-interface Offered {
+/** What a screen's own choices were said in the request, by the generator's input key (a preset, a mode). */
+export type AskPrefillInputs = Readonly<Record<string, string>>;
+
+export interface AskPrefillOffer {
   text: string;
+  inputs: AskPrefillInputs;
+}
+
+interface Offered extends AskPrefillOffer {
   at: number;
 }
 
@@ -21,18 +28,23 @@ export const useAskPrefillStore = defineStore("ui:askPrefill", () => {
   const pending = ref<Record<string, Offered>>({});
 
   /** Leaves `text` for `screenId`, replacing anything still waiting there. */
-  function offer(screenId: string, text: string) {
-    pending.value = { ...pending.value, [screenId]: { text, at: Date.now() } };
+  function offer(screenId: string, text: string, inputs: AskPrefillInputs = {}) {
+    pending.value = { ...pending.value, [screenId]: { text, inputs, at: Date.now() } };
   }
 
-  /** The waiting request, once: null when there is none or it went stale. */
-  function take(screenId: string): string | null {
+  /** The waiting request with its inputs, once: null when there is none or it went stale. */
+  function takeOffer(screenId: string): AskPrefillOffer | null {
     const offered = pending.value[screenId];
     if (!offered) return null;
     const { [screenId]: _taken, ...rest } = pending.value;
     pending.value = rest;
-    return Date.now() - offered.at <= ASK_PREFILL_TTL_MS ? offered.text : null;
+    return Date.now() - offered.at <= ASK_PREFILL_TTL_MS ? { text: offered.text, inputs: offered.inputs } : null;
   }
 
-  return { pending, offer, take };
+  /** The waiting request's text, once. */
+  function take(screenId: string): string | null {
+    return takeOffer(screenId)?.text ?? null;
+  }
+
+  return { pending, offer, take, takeOffer };
 });
