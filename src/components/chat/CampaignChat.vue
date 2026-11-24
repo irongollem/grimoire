@@ -118,7 +118,8 @@ import { resolveItemById, useItemsByIds } from "@/composables/items/useItemsById
 import { useSpeaker } from "@/composables/party/useSpeaker";
 import { useParty } from "@/composables/party/useParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { getNpcDisplayName, getNpcPlayerFace } from "@/lib/npcDisplay";
+import { getNpcDisplayName } from "@/lib/npcDisplay";
+import { getNpcPlayerFace } from "@/lib/npcPlayerFace";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import { useLootRollClock } from "@/composables/campaign/useLootRollClock";
 import type { RollResult } from "@/lib/dice/dice";
