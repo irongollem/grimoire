@@ -4,7 +4,7 @@ section: NPC Tracker
 section_order: 4
 order: 0
 summary: The NPC record, the roster, the detail sheet's tabs, and how NPCs tie into the rest of the campaign.
-keywords: npc, npcs, tracker, roster, overview, character, person, stat block, portrait, disguise, alter ego, connections, relations, family, faction, memory, voice coach, inventory, party stance, relationship, status, favour, populate, bulk, move, copy
+keywords: npc, npcs, tracker, roster, overview, character, person, stat block, portrait, disguise, alter ego, connections, relations, family, faction, memory, voice coach, spoken voice, voice, read aloud, accent, language, dutch, german, inventory, party stance, relationship, status, favour, populate, bulk, move, copy
 ---
 
 The NPC Tracker is the roster of every named person in your campaign: allies, enemies, merchants, sages, mysterious strangers. Every NPC is a rich record: identity, roleplaying notes, an optional full D&D 5e stat block, faction memberships, family and other connections, per-player visibility, inventory, a memory of what was said, and an AI Voice Coach for improvising dialogue at the table. Find it under **NPCs** in the sidebar.
@@ -73,7 +73,7 @@ Every NPC has a **DM notes** box on its page, in view and edit mode alike. It is
 | **Inventory** | Yes | Yes | Items carried by this NPC. |
 | **Relations** | No | Yes | Family, Connections (including faction memberships) and favours owed: see below. |
 | **Combat** | Yes | Yes | The stat block. |
-| **Voice** | No | Yes | The AI Voice Coach. |
+| **Voice** | No | Yes | The NPC's spoken voice and the AI Voice Coach. |
 
 **Inventory**: pick an item in the **Search vault items…** box and click **Add** to give the NPC an item from your Vault. Each carried item shows quantity, an optional note, a **Vault** link back to the source item, a drop-to-chat button (hands the item to the party as a loot drop and removes it from the NPC), and a remove button.
 
@@ -94,7 +94,11 @@ Every NPC has a **DM notes** box on its page, in view and edit mode alike. It is
 
 Stat block fields: Armor Class, Hit Points (as a dice expression, e.g. `8d8+16`), Speed (Walk/Fly with Hover/Swim/Climb/Burrow), the six ability scores (with computed modifiers shown), Challenge Rating, Proficiency Bonus, Saving Throws, Skills, Damage Resistances/Immunities, Condition Immunities, Senses, Languages, Special Abilities, Spellcasting, Actions, and Legendary Actions. A **How it fights** section sets how the app plays the NPC in a fight; it works as described in Creating Custom Monsters in the Bestiary manual.
 
-**Voice**: a one-line situation box (500 characters) and **Suggest lines** returns 2–3 short in-character replies to read aloud. The coach reads the NPC's newest **Memory** lines, so what it suggests stays consistent with what has already been said. Nothing is kept unless you press **Said it** on a line, which adds it to the Memory tab as something they told the party (private until you share it there). **Ask again** re-rolls. If the NPC has an unrevealed alter ego, its true name is never sent to the AI at all: only the disguise persona.
+**Voice**: two parts, shown in campaigns with AI switched on.
+
+**Spoken voice** is the voice that reads this NPC aloud at the AI table. Until you pick one it says **Cast at the table**: the table chooses a fitting voice the first time the NPC speaks and keeps it. **Change** opens the voices to pick from, each with **Listen**, and the choice saves at once. A voice is a sound, not a language: every voice reads whatever language the line is written in, so a voice with a German or Chinese accent speaks English lines in English, with that accent. Pick a foreign voice for an NPC who should sound foreign; if the NPC should actually speak Dutch or German, the line itself has to be in that language.
+
+The **Voice Coach** has a one-line situation box (500 characters) and **Suggest lines** returns 2–3 short in-character replies to read aloud. The coach reads the NPC's newest **Memory** lines, so what it suggests stays consistent with what has already been said. Nothing is kept unless you press **Said it** on a line, which adds it to the Memory tab as something they told the party (private until you share it there). **Ask again** re-rolls. If the NPC has an unrevealed alter ego, its true name is never sent to the AI at all: only the disguise persona.
 
 ### The Alter Ego (disguise system)
 
