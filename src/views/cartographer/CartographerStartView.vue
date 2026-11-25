@@ -63,6 +63,7 @@
             <p class="text-caption text-muted-foreground">A scan, a render or a moving map you already have.</p>
 
             <label
+              ref="bringZone"
               class="flex min-h-36 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed px-4 py-6 text-center transition-colors"
               :class="dragging ? 'border-primary bg-primary/10' : 'border-border bg-card/60 hover:border-primary/60'"
               @dragenter.prevent="dragging = true"
@@ -72,7 +73,7 @@
             >
               <IconUploadCloud class="h-7 w-7 text-muted-foreground" aria-hidden="true" />
               <span class="text-body font-semibold text-foreground">Drop a map here</span>
-              <span class="text-caption text-muted-foreground">or choose a file</span>
+              <span class="text-caption text-muted-foreground">or choose a file, or paste one with {{ pasteKey }}</span>
               <input type="file" :accept="BRING_ACCEPT" class="sr-only" aria-label="Choose a map file" @change="onChoose" />
             </label>
 
@@ -141,6 +142,7 @@ import { useDungeonMaps, useCreateDungeonMap } from "@/composables/cartographer/
 import { useLibraryTilePacks } from "@/composables/cartographer/useLibraryTilePacks";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useToast } from "@/composables/useToast";
+import { pasteKeyLabel, usePasteFiles } from "@/composables/usePasteFiles";
 import { IconChevronLeft, IconDrawLine, IconMap, IconNavCartographer, IconPencilLine, IconUpload, IconUploadCloud } from "@/lib/icons";
 import { mapEditorRoute } from "@/lib/locations/placeRoute";
 import { buildMapStack } from "@/lib/locations/mapStack";
@@ -191,6 +193,9 @@ async function startDrawing(): Promise<void> {
 
 // ── Bring a map ─────────────────────────────────────────────────────────────
 const dragging = ref(false);
+const bringZone = ref<HTMLElement | null>(null);
+const pasteKey = pasteKeyLabel();
+usePasteFiles(bringZone, ([file]) => bring(file));
 
 function bring(file: File): void {
   mapImport.hold(file);

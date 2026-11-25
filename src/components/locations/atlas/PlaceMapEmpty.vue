@@ -6,6 +6,7 @@
        itself. A battle map is kept out of the Atlas's maps, so its card offers
        its own full-screen editor, or the way back into the Atlas. -->
   <section
+    ref="zone"
     class="flex flex-col items-center gap-4 rounded-lg border-2 border-dashed px-6 py-12 text-center transition-colors"
     :class="dragging ? 'border-primary bg-primary/5' : 'border-border bg-muted/30'"
     aria-label="No map yet"
@@ -57,7 +58,7 @@
       @change="onFileChosen"
     />
     <p class="text-caption text-muted-foreground">
-      Or drop a file here: a picture, a moving map or a Universal VTT file.
+      Or drop a file here (a picture, a moving map or a Universal VTT file), or paste one with {{ pasteKey }}.
     </p>
   </section>
 </template>
@@ -72,6 +73,7 @@ import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
 import { usePlacePicture } from "@/composables/locations/usePlacePicture";
 import { useUpdateLocation } from "@/composables/locations/useLocations";
 import { useToast } from "@/composables/useToast";
+import { pasteKeyLabel, usePasteFiles } from "@/composables/usePasteFiles";
 import { IconEdit, IconGrid, IconMap, IconUpload } from "@/lib/icons";
 import { mapEditorRoute, type MapEditorLayer } from "@/lib/locations/placeRoute";
 import type { Location } from "@/types/location.types";
@@ -91,9 +93,12 @@ const router = useRouter();
 const toast = useToast();
 const mapImport = useMapImportStore();
 const fileInput = ref<HTMLInputElement | null>(null);
+const zone = ref<HTMLElement | null>(null);
 
 const dragging = ref(false);
 const busy = ref(false);
+const pasteKey = pasteKeyLabel();
+usePasteFiles(zone, ([file]) => bring(file), { enabled: () => !busy.value });
 
 /** Runs one start action, then opens the editor on the layer it set up. */
 async function startThen(layer: MapEditorLayer, setup?: () => Promise<void>): Promise<void> {

@@ -25,6 +25,7 @@
         </li>
         <li v-if="images.length < MAX_LOOK_PICTURES">
           <label
+            ref="addZone"
             class="flex size-20 cursor-pointer flex-col items-center justify-center gap-1 border border-dashed border-border text-caption text-muted-foreground hover:bg-muted/40"
             :class="{ 'bg-muted/40': dragging, 'pointer-events-none opacity-60': busy }"
             data-testid="look-add"
@@ -33,7 +34,7 @@
             @drop.prevent="onDrop"
           >
             <IconAddImage class="size-5" aria-hidden="true" />
-            <span>{{ busy ? "Adding…" : "Add pictures" }}</span>
+            <span>{{ busy ? "Adding…" : armed ? `or ${pasteKey}` : "Add pictures" }}</span>
             <input type="file" accept="image/*" multiple class="sr-only" data-testid="look-file" :disabled="busy" @change="onPick" />
           </label>
         </li>
@@ -76,6 +77,7 @@ import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useConfirm } from "@/composables/useConfirm";
+import { isImageFile, pasteKeyLabel, usePasteFiles } from "@/composables/usePasteFiles";
 import { useCampaignStore } from "@/stores/campaign";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { useQueryClient } from "@tanstack/vue-query";
@@ -100,6 +102,13 @@ const { images, busy, add, remove } = useLookReferences(
     await qc.invalidateQueries({ queryKey: [CANON_KEY] });
   },
 );
+
+const addZone = ref<HTMLElement | null>(null);
+const pasteKey = pasteKeyLabel();
+const { armed } = usePasteFiles(addZone, (files) => void add(files), {
+  accept: isImageFile,
+  enabled: () => !busy.value,
+});
 
 function onPick(event: Event) {
   const input = event.target as HTMLInputElement;

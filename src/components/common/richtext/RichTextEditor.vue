@@ -434,6 +434,7 @@ import { AiGenerated } from "@/lib/tiptap/AiGenerated";
 import { SecretBlock } from "@/lib/tiptap/secretBlock";
 import { lensPairExtensions } from "@/lib/tiptap/lensPair";
 import { usePendingImageResolver } from "@/composables/usePendingImageResolver";
+import { filesFrom, isImageFile } from "@/composables/usePasteFiles";
 
 const CustomDocument = Node.create({
   name: "doc",
@@ -690,7 +691,7 @@ const editor = useEditor({
       // Pasted image (e.g. screenshot) → convert + upload + insert, mirroring
       // the toolbar upload button instead of embedding a huge data URL.
       if (allowUpload) {
-        const img = firstImageFile(event.clipboardData ?? null);
+        const img = filesFrom(event.clipboardData ?? null, isImageFile)[0];
         if (img) {
           event.preventDefault();
           void uploadImageToEditor(img);
@@ -746,7 +747,7 @@ const editor = useEditor({
     handleDrop(_view, event) {
       // Dropped image file → same convert + upload + insert path as paste.
       if (!allowUpload) return false;
-      const img = firstImageFile((event as DragEvent).dataTransfer ?? null);
+      const img = filesFrom((event as DragEvent).dataTransfer ?? null, isImageFile)[0];
       if (!img) return false;
       event.preventDefault();
       void uploadImageToEditor(img);
@@ -901,13 +902,6 @@ async function onFileSelected(e: Event) {
   if (!file) return;
   (e.target as HTMLInputElement).value = "";
   await uploadImageToEditor(file);
-}
-
-/** First image file on the clipboard/drag payload, if any. */
-function firstImageFile(data: DataTransfer | null): File | null {
-  if (!data) return null;
-  const file = Array.from(data.files).find((f) => f.type.startsWith("image/"));
-  return file ?? null;
 }
 
 function toggleLink() {

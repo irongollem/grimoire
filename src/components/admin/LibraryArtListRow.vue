@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref } from "vue";
+import { isImageFile, usePasteFiles } from "@/composables/usePasteFiles";
 import {
   CheckIcon,
   UploadIcon,
@@ -62,6 +63,8 @@ const emit = defineEmits<{
 // ── File input ref ────────────────────────────────────────────────────────────
 
 const fileInputEl = ref<HTMLInputElement | null>(null);
+const rowEl = ref<HTMLElement | null>(null);
+usePasteFiles(rowEl, ([file]) => emit("upload", file), { accept: isImageFile });
 
 function triggerUpload() {
   fileInputEl.value?.click();
@@ -87,6 +90,7 @@ function resolvedFocalPoint() {
 
 <template>
   <div
+    ref="rowEl"
     class="relative transition-colors"
     :class="dragging ? 'bg-primary/10' : 'bg-card'"
     @dragenter="emit('drag-enter', $event)"

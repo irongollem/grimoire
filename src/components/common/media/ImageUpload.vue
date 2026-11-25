@@ -1,5 +1,5 @@
 <template>
-  <div class="relative">
+  <div ref="root" class="relative">
     <!-- No image: dashed drop zone — label activates file input natively (iOS-safe) -->
     <label
       v-if="!imageUrl"
@@ -21,6 +21,7 @@
       <span class="text-caption italic text-center px-2">
         {{ isUploading ? "Uploading…" : placeholder }}
       </span>
+      <span v-if="armed" class="text-label text-primary">or paste it ({{ pasteKey }})</span>
     </label>
 
     <!-- Image + focal point picker -->
@@ -43,7 +44,7 @@
             class="text-label text-muted-foreground hover:text-foreground transition-colors"
             :class="isUploading ? 'opacity-50 pointer-events-none cursor-default' : 'cursor-pointer'"
           >
-            {{ isUploading ? "Uploading…" : "Change image" }}
+            {{ isUploading ? "Uploading…" : armed ? `Change, or ${pasteKey}` : "Change image" }}
           </label>
           <span class="text-muted-foreground/40 text-xs">·</span>
           <button
@@ -76,7 +77,7 @@
           :for="inputId"
           class="absolute inset-0 cursor-pointer bg-black/50 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
         >
-          <span class="text-caption text-white italic">Change</span>
+          <span class="text-caption text-white italic">{{ armed ? `Change, or paste (${pasteKey})` : "Change" }}</span>
         </label>
         <div v-else class="absolute inset-0 bg-black/50 flex items-center justify-center">
           <span class="text-caption text-white italic">Uploading…</span>
@@ -111,6 +112,7 @@ import type { BucketId } from "@/lib/storage";
 import { ref, computed, useId } from "vue";
 import { IconAddImage } from '@/lib/icons';
 import { useImageUpload } from "@/composables/useImageUpload";
+import { isImageFile, pasteKeyLabel, usePasteFiles } from "@/composables/usePasteFiles";
 import AiImageBadge from "../ai/AiImageBadge.vue";
 import FocalPointPicker from "./FocalPointPicker.vue";
 
@@ -130,8 +132,14 @@ const {
 
 const inputId = useId();
 const fileInput = ref<HTMLInputElement | null>(null);
+const root = ref<HTMLElement | null>(null);
 const dragOver = ref(false);
 const { isUploading, uploadError, upload, remove } = useImageUpload(bucket);
+const pasteKey = pasteKeyLabel();
+const { armed } = usePasteFiles(root, ([file]) => void handleFile(file), {
+  accept: isImageFile,
+  enabled: () => !isUploading.value,
+});
 
 const aspectClass = computed(() => {
   const map = { portrait: "aspect-3/4", landscape: "aspect-video", square: "aspect-square", auto: "min-h-24" } as const;

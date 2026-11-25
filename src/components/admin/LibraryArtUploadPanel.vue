@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref } from "vue";
+import { isImageFile, pasteKeyLabel, usePasteFiles } from "@/composables/usePasteFiles";
 import { ImagePlusIcon } from "@lucide/vue";
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
@@ -18,13 +19,16 @@ const {
 }>();
 
 const emit = defineEmits<{
-  files: [files: FileList];
+  files: [files: FileList | File[]];
   "update:dragging": [value: boolean];
 }>();
 
 // ── Internal file input ref ───────────────────────────────────────────────────
 
 const fileInputRef = ref<HTMLInputElement | null>(null);
+const zoneEl = ref<HTMLElement | null>(null);
+const pasteKey = pasteKeyLabel();
+usePasteFiles(zoneEl, (files) => emit("files", files), { accept: isImageFile, enabled: () => !uploading });
 
 function handleInputChange(event: Event) {
   const files = (event.target as HTMLInputElement).files;
@@ -53,6 +57,7 @@ function onDrop(event: DragEvent) {
 
 <template>
   <div
+    ref="zoneEl"
     class="relative rounded-lg border-2 border-dashed transition-colors p-6 flex flex-col items-center justify-center gap-3 min-h-36 cursor-pointer"
     :class="
       dragging
@@ -86,7 +91,7 @@ function onDrop(event: DragEvent) {
     <template v-else>
       <ImagePlusIcon class="h-8 w-8 text-muted-foreground" />
       <p class="text-heading-sm text-foreground">
-        Drop images here or tap to pick
+        Drop images here, paste them with {{ pasteKey }}, or tap to pick
       </p>
       <p class="text-caption text-muted-foreground italic text-center">
         Select as many as you like. Each is converted to WebP and held in
