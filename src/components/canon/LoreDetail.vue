@@ -17,7 +17,9 @@
           <option v-for="k in LORE_KIND_OPTIONS" :key="k.value" :value="k.value">{{ k.label }}</option>
         </AppSelect>
       </label>
-      <div class="flex min-w-0 flex-1 flex-col gap-1">
+      <!-- At least the width of year, month and day in one row (22rem), so on a phone the date drops under the kind whole
+           instead of squeezing beside it and splitting the year from its month. -->
+      <div class="flex min-w-[min(22rem,100%)] flex-1 flex-col gap-1">
         <span class="text-eyebrow text-muted-foreground">In the world<template v-if="dateText">: {{ dateText }}</template></span>
         <WorldDateField :date="entryDate(entry)" @change="onDate" />
       </div>

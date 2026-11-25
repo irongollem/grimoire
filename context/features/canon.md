@@ -195,10 +195,12 @@ premise entry never has it).
   the canon holds a thing at all. An entry that is open stays open when the DM moves it to another arc (the selection
   reads the whole list). A deleted arc lets go of the filter by itself.
 - **Search (#1258 item 21).** One field at the top of the page searches the whole canon: titles and bodies (plain text of
-  the rich text) of every entry, plus clue titles, force step titles and lore passage titles and bodies (`searchCanon` in
+  the rich text) of every entry and a secret's cover story (shown whole as the hit's line), plus clue titles, force step
+  titles and lore passage titles and bodies (`searchCanon` in
   `canonSearch.ts`, a pure function; passages, clues and steps are the campaign-wide reads the parts already make). It reads the
   arc-narrowed canon, so a clue, step or passage whose entry the arc leaves out is not found. While a query is set the
-  results (`CanonSearchResults.vue`) stand in place of the part, grouped by part in the contents' order, each hit a link to
+  results (`CanonSearchResults.vue`) stand in place of the part (starting a search scrolls the page back to them, since the
+  field stays in view while the results sit at the top), grouped by part in the contents' order, each hit a link to
   `/canon/<part>?entry=<id>` (a clue opens its secret, a step its force, a passage its entry) with a line of the body around
   the match; following one, or choosing a part, clears the query. The query is `useCanonUiStore().query`, part of
   `hasActiveFilters` and cleared by `resetFilters`, with a **Clear** beside the field. Clearing the arc does not clear the search.
@@ -511,7 +513,8 @@ never offers it): the lore detail labels it "The opening, read when the entry is
 A lore entry also carries `EntryStoryLinks` (Because of, Led to, Carries). An NPC's sheet (desktop and phone) has one **In the
 canon** block (`NpcInCanon.vue`, #1279 item 13): **Knows** (entries tied to them `known_to`, a truth offering **Tell the party**
 through `useTellTruth`), **About them** (truths, secrets and forces tied `about` them, and the lore about them with "n of m
-told"), and **Clues and passages on them** (`CanonHere`, bare). All of it is the one `get_canon_here` read (its `knows` and
+told"), and the clues and passages on them (`CanonHere`, bare, whose two groups read **Clues on them** and **Lore to tell
+through them** in the block's own group-label style, beside Knows and About them rather than under a heading of their own). All of it is the one `get_canon_here` read (its `knows` and
 `about` from `20261125220434`), and the Relations tab hides canon ties since the block shows them. **Write lore about this person** makes an entry, ties it `about` the NPC and lands on
 it at `/canon?entry=<id>`; the NPC's own `backstory` field stays the DM's summary. A later passage is told on its own: **Tell the party**
 sets `told_at`, `told_session_id` (the open session) and `player_visible_to` (every party member); **Take back** asks

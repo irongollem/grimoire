@@ -273,12 +273,21 @@ function goTo(id: CanonSectionId) {
   void router.push({ path: `/canon/${id}` });
 }
 
-// A chapter opens at its top; an entry link scrolls to its own row below instead.
-watch(active, async () => {
-  if (entryParam.value !== null) return;
+async function toPageTop() {
   await nextTick();
   const top = document.getElementById("canon-page-top");
   if (top) scrollWithin(top, { block: "start", smooth: !prefersReducedMotion() });
+}
+
+// A chapter opens at its top; an entry link scrolls to its own row below instead.
+watch(active, () => {
+  if (entryParam.value === null) void toPageTop();
+});
+
+// The results stand where the chapter stood, at the top of the page, while the search box stays in view: a search begun
+// lower down would draw them above the fold and look like it found nothing.
+watch(searching, (now) => {
+  if (now) void toPageTop();
 });
 
 // The premise and the questions have no detail pane: a landed-on row is marked for a moment instead.

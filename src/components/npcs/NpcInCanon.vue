@@ -28,8 +28,8 @@
       </ul>
     </div>
 
-    <div v-if="hasHere" class="flex flex-col gap-1" data-testid="npc-on-them">
-      <span class="text-label font-bold text-foreground">Clues and passages on them</span>
+    <!-- Canon here draws its own two groups ("Clues on them", "Lore to tell through them") in this block's label style. -->
+    <div v-if="hasHere" data-testid="npc-on-them">
       <CanonHere kind="npc" :id="npcId" bare />
     </div>
 

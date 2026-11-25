@@ -81,7 +81,9 @@ export function searchCanon(query: string, { entries, clues, steps, passages, ar
 
   for (const entry of entries) {
     const inTitle = matchesQuery(entry.title, query);
-    const excerpt = inTitle ? null : excerptAround(entry.body, query);
+    // A secret's cover story is the DM's own text too (what people believe instead), one plain line, shown whole.
+    const inCover = !inTitle && entry.cover_story !== null && matchesQuery(entry.cover_story, query);
+    const excerpt = inTitle ? null : inCover ? entry.cover_story : excerptAround(entry.body, query);
     if (!inTitle && excerpt === null) continue;
     add(sectionOfPart(entry.part), { key: `entry-${entry.id}`, to: onEntry(sectionOfPart(entry.part), entry.id), title: entry.title, kind: null, of: null, excerpt });
   }

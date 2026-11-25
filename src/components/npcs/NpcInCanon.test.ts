@@ -65,7 +65,7 @@ describe("NpcInCanon", () => {
     expect(mountIt().find("[data-testid=npc-on-them]").exists()).toBe(false);
     here.value = { ...here.value, clues: [{ id: "c", title: "A torn ledger", secret_id: "s", secret_title: "S", found_at: null, found_session_id: null }] };
     const w = mountIt();
-    expect(w.get("[data-testid=npc-on-them]").text()).toContain("Clues and passages on them");
+    expect(w.find("[data-testid=npc-on-them]").exists()).toBe(true);
     expect(w.get("[data-testid=canon-here]").attributes("data-bare")).toBeDefined();
   });
 

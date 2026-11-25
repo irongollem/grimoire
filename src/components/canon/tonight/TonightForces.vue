@@ -7,7 +7,7 @@
         <span v-for="line in linesOf(force)" :key="line.stepId" class="flex flex-wrap items-center gap-x-2 gap-y-1" data-testid="tonight-step">
           <span class="text-label text-muted-foreground">{{ line.title || "An unwritten step" }}</span>
           <span v-if="line.state !== 'next'" class="text-label font-bold" :class="line.state === 'overdue' ? 'text-destructive' : 'text-primary'" data-testid="tonight-step-state">{{ line.state === "overdue" ? "Overdue" : "Due" }}</span>
-          <AppButton variant="outline" size="xs" label="Reached" data-testid="tonight-reached" @click="emit('reach', line.stepId)" />
+          <AppButton variant="outline" size="xs" label="Mark reached" data-testid="tonight-reached" @click="emit('reach', line.stepId)" />
           <TonightPinToggle :pinned="pinnedSteps.has(line.stepId)" @toggle="emit('pin', line.stepId)" />
         </span>
         <span v-if="force.clock" class="text-label text-muted-foreground">

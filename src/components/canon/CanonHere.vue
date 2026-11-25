@@ -1,7 +1,7 @@
 <template>
   <section v-if="clues.length > 0 || passages.length > 0" class="flex flex-col" :class="[bare ? 'gap-3' : 'border border-border bg-card', !bare && (compact ? 'gap-2 p-2' : 'gap-3 p-3')]" aria-label="Canon here" :data-compact="compact || undefined" data-testid="canon-here">
     <div v-if="clues.length > 0" class="flex flex-col gap-2" data-testid="clues-here">
-      <span class="text-eyebrow text-muted-foreground">Clues here</span>
+      <span :class="headingClass">{{ bare ? "Clues on them" : "Clues here" }}</span>
       <ul class="flex flex-col" :class="compact ? 'gap-1' : 'gap-1.5'">
         <li v-for="clue in clues" :key="clue.id" class="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-start sm:gap-3" data-testid="clue-here">
           <span class="min-w-0 flex-1">
@@ -20,7 +20,7 @@
     </div>
 
     <div v-if="passages.length > 0" class="flex flex-col gap-2" data-testid="lore-here">
-      <span class="text-eyebrow text-muted-foreground">Lore to tell here</span>
+      <span :class="headingClass">{{ bare ? "Lore to tell through them" : "Lore to tell here" }}</span>
       <ul class="flex flex-col" :class="compact ? 'gap-1' : 'gap-1.5'">
         <li v-for="p in passages" :key="p.id" class="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-start sm:gap-3" data-testid="passage-here">
           <span class="min-w-0 flex-1">
@@ -57,9 +57,11 @@ import { useTellPassage } from "@/composables/canon/useCanonPassageEdits";
 
 /**
  * `compact` is the run surfaces' version (the quest cockpit, the Play screen): tighter, for a column that already carries a lot.
- * `bare` drops the card, for a host that draws its own (an NPC's "In the canon" block, which holds this as one of its groups).
+ * `bare` drops the card, for a host that draws its own (an NPC's "In the canon" block): its two groups then sit beside the
+ * host's Knows and About them, so they take the host's group label and speak of a person ("on them") rather than a place.
  */
 const { kind, id, compact = false, bare = false } = defineProps<{ kind: ClueKind; id: string; compact?: boolean; bare?: boolean }>();
+const headingClass = computed(() => (bare ? "text-label font-bold text-foreground" : "text-eyebrow text-muted-foreground"));
 
 // One read for the block (get_canon_here), not the campaign's clues, entries and passages.
 const { data: here } = useCanonHere(() => kind, () => id);

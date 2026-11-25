@@ -61,6 +61,12 @@ describe("searchCanon", () => {
     expect(groups[0].hits[0]).toMatchObject({ to: { path: "/canon/secrets", query: { entry: "s1" } }, excerpt: expect.stringContaining("miller") });
   });
 
+  // Bug caught: a secret found by its title or body but never by its cover story, the other text the DM wrote on it.
+  it("finds a secret by its cover story and shows that line", () => {
+    const covered = [canonEntry({ id: "s2", part: "secret", title: "The mayor is a ghost", cover_story: "The mayor is a cheerful dance teacher." })];
+    expect(searchCanon("dance", { ...none, entries: covered })[0].hits[0]).toMatchObject({ to: { path: "/canon/secrets", query: { entry: "s2" } }, excerpt: "The mayor is a cheerful dance teacher." });
+  });
+
   // Bug caught: a title hit carrying an excerpt too, so the row repeats what the title already says.
   it("gives a title hit no excerpt", () => {
     expect(searchCanon("river", { ...none, entries })[0].hits[0]).toMatchObject({ to: { path: "/canon/truths", query: { entry: "t1" } }, excerpt: null });

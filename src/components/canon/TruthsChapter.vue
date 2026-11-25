@@ -20,7 +20,7 @@
         @mark-as="markSelection"
       />
       <div v-if="truths.length > 0" class="flex flex-wrap items-center gap-2" data-testid="truth-toolbar">
-        <SegmentedControl v-model="store.truthFilter" :options="TRUTH_FILTER_OPTIONS" wrap class="shrink-0" aria-label="Show truths by mark" />
+        <SegmentedControl v-model="store.truthFilter" :options="TRUTH_FILTER_OPTIONS" wrap class="max-w-full" aria-label="Show truths by mark" />
         <AppButton
           variant="chip"
           size="sm"
