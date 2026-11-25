@@ -35,6 +35,16 @@ describe("the tool list", () => {
     expect(names.sort()).toEqual(["ask_choice", "campaign_overview", "draft_report", "find", "get", "list", "log_manual_gap", "offer_ideas", "propose", "read_manual", "read_rules", "search"]);
   });
 
+  // Bug caught: a Dutch or German DM's words passed straight into a search that matches English words only
+  // (the manual's a-z terms, the books' English text), which then finds nothing and reports a gap that is not one.
+  it("asks for the manual and rules queries in English", () => {
+    const tools = setup().tools.tools;
+    for (const name of ["read_manual", "read_rules"]) {
+      const schema = tools.find((t) => t.name === name)!.inputSchema as { properties: { query: { description: string } } };
+      expect(schema.properties.query.description).toMatch(/English words, whatever language the DM writes in/);
+    }
+  });
+
   it("offers a 5e generator in propose only where the campaign plays 5e", () => {
     const enumOf = (fiveE: boolean) => {
       const propose = setup({ fiveE }).tools.tools.find((t) => t.name === "propose")!;

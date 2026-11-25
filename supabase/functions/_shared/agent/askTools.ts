@@ -203,7 +203,7 @@ export function askOwnTools(fiveE: boolean): AgentTool[] {
       description: "Search Grimoire's own manual, the pages that explain how the app works: its screens, buttons, fields, features and the words on them. Use it whenever the DM asks how Grimoire itself works, never the campaign readers. Returns the best matching pages (id, title, text). Answer from them and name the page.",
       inputSchema: {
         type: "object",
-        properties: { query: { type: "string", description: "What to look up, in a few words: the feature, the screen or the term." } },
+        properties: { query: { type: "string", description: "What to look up, in a few English words, whatever language the DM writes in: the feature, the screen or the term. The manual is in English and matched by its words." } },
         required: ["query"],
         additionalProperties: false,
       },
@@ -214,7 +214,7 @@ export function askOwnTools(fiveE: boolean): AgentTool[] {
       inputSchema: {
         type: "object",
         properties: {
-          query: { type: "string", description: "What to look up, in a few words: the rule, condition, spell, creature or item." },
+          query: { type: "string", description: "What to look up, in a few English words, whatever language the DM writes in: the rule, condition, spell, creature or item. The books are in English and matched by their words." },
           kind: { type: "string", enum: [...RULES_KINDS], description: "What kind of thing it is, or any when unsure." },
         },
         required: ["query", "kind"],
