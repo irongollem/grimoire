@@ -133,10 +133,12 @@ const auth = useAuthStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { data: entityOptions } = useQuestFilterEntities();
-// The arc facet (#1279 item 25): the story's acts, in the DM's order, once there is one.
-const { data: arcData } = useCanonArcs();
-const arcOptions = computed(() => (arcData.value ?? []).map((a) => ({ id: a.id, name: a.name })));
 const { data: allQuests } = useQuests();
+// The arc facet (#1279 item 25): the story's acts, in the DM's order. The arcs are read only once a quest is filed in
+// one (or the filter is already set), so a campaign that has never used arcs pays no request for the facet.
+const anyQuestInArc = computed(() => (allQuests.value ?? []).some((q) => q.arc_id !== null) || questsUi.questsArcFilter !== "");
+const { data: arcData } = useCanonArcs(() => anyQuestInArc.value);
+const arcOptions = computed(() => (arcData.value ?? []).map((a) => ({ id: a.id, name: a.name })));
 const { data: campaignRefs } = useCampaignQuestRefs();
 const { data: boardSummaries } = useQuestBoardSummaries();
 // Null until the quests arrive: counting an unanswered query as an empty one

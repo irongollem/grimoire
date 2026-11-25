@@ -60,7 +60,7 @@ export async function deleteCanonArc(id: string): Promise<void> {
 }
 
 /** The active campaign's arcs. Refreshed by the doorbell (`canon_arcs`). */
-export function useCanonArcs() {
+export function useCanonArcs(enabled: () => boolean = () => true) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
@@ -69,7 +69,7 @@ export function useCanonArcs() {
       if (cid === null) throw new Error("useCanonArcs fetched without a campaign");
       return fetchCanonArcs(cid);
     },
-    enabled: computed(() => !!campaignId.value),
+    enabled: computed(() => !!campaignId.value && enabled()),
   });
 }
 
