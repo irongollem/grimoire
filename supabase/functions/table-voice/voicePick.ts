@@ -68,7 +68,9 @@ export const SPEECH_MAX_CHARS = 600;
 /**
  * The text a voice is given: the delivery cue as a short tag in front of the words, the way the speech model reads
  * one. The cue is already plain words (`deliveryCue`); brackets inside the words themselves are taken out, so a
- * line cannot carry an instruction of its own.
+ * line cannot carry an instruction of its own. A cue shapes delivery, not who the voice is: an accent tag
+ * ("[strong German accent]") was tried on three ElevenLabs models and barely moved the voice (25 Nov 2026), so an
+ * accent comes from casting a voice that has it (context/features/agent-runtime.md).
  */
 export function speechText(text: string, how: string | null, max: number = SPEECH_MAX_CHARS): string {
   const words = text.replace(/[[\]<>*_]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
