@@ -80,7 +80,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import CanonRef from "./CanonRef.vue";
-import { plainTextToTiptap } from "@/lib/canon/canonParts";
+import { KNOWLEDGE_LABEL, plainTextToTiptap } from "@/lib/canon/canonParts";
 import { useCanonClues, useCreateCanonClue, type NewCanonClue } from "@/composables/canon/useCanonClues";
 import { useCanonEntries, useCreateCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useAcceptForce } from "@/composables/canon/useCanonForces";
@@ -138,7 +138,7 @@ const KIND_TAG: Record<PremiseKind, string> = {
   veil: "Veil",
 };
 const BOUNDARY_KINDS: readonly PremiseKind[] = ["line", "veil"];
-const MARK_TAG = { all: "Known to all", some: "Known to some", secret: "Secret" } as const;
+const MARK_TAG = KNOWLEDGE_LABEL;
 
 const toast = useToast();
 const { confirm } = useConfirm();

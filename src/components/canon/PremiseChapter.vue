@@ -20,6 +20,7 @@
         <PremiseLines title="At the table" item-label="Table note" placeholder="Talk and wandering more than fights…" :kinds="['table']" :entries="premise" />
       </div>
 
+      <LineRequestInbox :sort-order="lineAndVeilCount" />
       <PremiseLines
         title="Lines and veils"
         item-label="Line or veil"
@@ -66,6 +67,7 @@ import { chapterOf } from "@/lib/canon/canonParts";
 import CanonReview from "./CanonReview.vue";
 import CanonBlock from "./kit/CanonBlock.vue";
 import CanonSuggest from "./kit/CanonSuggest.vue";
+import LineRequestInbox from "./LineRequestInbox.vue";
 import PremiseBookPreview from "./PremiseBookPreview.vue";
 import PremiseLook from "./PremiseLook.vue";
 import PremiseLines from "./PremiseLines.vue";
@@ -80,6 +82,8 @@ const { campaign, entries } = defineProps<{ campaign: Campaign; entries: readonl
 const chapter = chapterOf("premise");
 const { open: tableOpen } = useTableAccess();
 const premise = computed(() => entries.filter((e) => e.part === "premise"));
+/** Where a line or veil asked for by a player lands: after the ones already there, as the add row does. */
+const lineAndVeilCount = computed(() => premise.value.filter((e) => e.premise_kind === "line" || e.premise_kind === "veil").length);
 function ofKind(kind: PremiseKind): CanonEntry[] {
   return premise.value.filter((e) => e.premise_kind === kind);
 }

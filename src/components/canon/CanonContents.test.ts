@@ -64,3 +64,25 @@ describe("CanonContents", () => {
     expect(w.emitted("select")).toEqual([["lore"]]);
   });
 });
+
+describe("CanonContents (#1279 items 17 and 18)", () => {
+  // Bug caught (item 17): the narrow picker a flat select, so the grouping that explains the book was lost below the column's width.
+  it("groups the picker's chapters under the book's own group names", () => {
+    const w = mountContents();
+    const groups = w.findAll("select optgroup").map((g) => [g.attributes("label"), g.findAll("option").length]);
+    expect(groups.map(([label]) => label)).toEqual(["Front matter", "The world", "The story, yours only", "The characters"]);
+    expect(groups.reduce((n, [, c]) => n + (c as number), 0)).toBe(CANON_SECTIONS.length);
+  });
+
+  // Bug caught (item 18): counts narrowed to an arc with nothing on the contents saying so, and no way to clear it where the Arc control is hidden.
+  it("shows the arc the counts are narrowed to, with a Clear that asks the page to widen", async () => {
+    const w = mount(CanonContents, { props: { active: "premise", counts: counts(), arcLabel: "The Drowning" }, global: { stubs: { CanonDeleted: DeletedStub } } });
+    expect(w.get("[data-testid=canon-arc-chip]").text()).toContain("The Drowning");
+    await w.get("[data-testid=canon-arc-chip-clear]").trigger("click");
+    expect(w.emitted("clearArc")).toHaveLength(1);
+  });
+
+  it("shows no chip when no arc is chosen", () => {
+    expect(mountContents().find("[data-testid=canon-arc-chip]").exists()).toBe(false);
+  });
+});

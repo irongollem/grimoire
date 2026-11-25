@@ -18,8 +18,12 @@ export const useNotesUiStore = defineStore("ui:notes", () => {
   const journalSortDir = ref<SortDir>("desc");
   // Player journal category filter (Filter State Pattern — survives navigation)
   const journalFilterCategory = ref<JournalCategory | null>(null);
+  // The World tab's filter box (#1279 item 28): it filters the list on screen, so it lives here, not in a local ref.
+  const journalWorldSearch = ref("");
   const journalHasActiveFilters = computed(() => journalFilterCategory.value !== null);
+  const journalWorldHasActiveFilters = computed(() => journalWorldSearch.value.trim() !== "");
   function resetJournalFilters() { journalFilterCategory.value = null; }
+  function resetJournalWorldFilters() { journalWorldSearch.value = ""; }
 
   function resetNotesFilters() {
     notesSearchQuery.value = "";
@@ -36,6 +40,9 @@ export const useNotesUiStore = defineStore("ui:notes", () => {
     journalFilterCategory,
     journalHasActiveFilters,
     resetJournalFilters,
+    journalWorldSearch,
+    journalWorldHasActiveFilters,
+    resetJournalWorldFilters,
     resetNotesFilters,
   };
 });

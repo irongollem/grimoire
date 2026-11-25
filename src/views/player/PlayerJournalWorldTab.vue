@@ -7,8 +7,17 @@
     <IconLibrary class="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
     <p class="font-fell text-muted-foreground italic">Your DM has not told you anything of the world yet.</p>
     <PlayerWonders class="mt-6 text-left" />
+    <PlayerLineRequest class="mt-6 text-left" />
   </div>
   <div v-else class="space-y-6">
+    <div class="flex flex-wrap items-center gap-2" data-testid="world-filter">
+      <AppInput v-model="ui.journalWorldSearch" type="search" tone="filled" size="body" class="min-w-[min(100%,14rem)] flex-1" placeholder="Search what you know…" aria-label="Search the world" />
+      <AppButton v-if="ui.journalWorldHasActiveFilters" variant="ghost" size="sm" label="Clear" data-testid="world-filter-clear" @click="ui.resetJournalWorldFilters()" />
+    </div>
+    <p v-if="ui.journalWorldHasActiveFilters && shownCount === 0" class="py-6 text-center font-fell text-muted-foreground italic" data-testid="world-filter-empty">
+      Nothing you know has those words.
+    </p>
+
     <section v-if="world.premise.length" aria-labelledby="world-campaign" class="space-y-4">
       <h2 id="world-campaign" class="text-label text-muted-foreground mb-2">The campaign</h2>
       <div v-for="entry in pitches" :key="entry.id">
@@ -31,7 +40,7 @@
       <h2 id="world-mine" class="text-label text-muted-foreground mb-2">Only you know</h2>
       <ul class="rounded-lg border border-border bg-card divide-y divide-border">
         <li v-for="truth in world.onlyMine" :key="truth.id" class="px-4 py-3">
-          <p class="text-body text-foreground">{{ truth.title }}</p>
+          <p class="text-body text-foreground">{{ truth.title }}<EntityNewDot :is-new="isToldNew(truth)" title="New" class="ml-2" /></p>
           <p class="text-caption text-muted-foreground/70 italic mt-0.5">Only yours, until you tell the table.</p>
           <RichTextViewer v-if="truth.body" :content="truth.body" class="mt-1" />
           <AppButton
@@ -52,7 +61,7 @@
       <h2 id="world-known" class="text-label text-muted-foreground mb-2">What we know</h2>
       <ul class="rounded-lg border border-border bg-card divide-y divide-border">
         <li v-for="truth in world.known" :key="truth.id" class="px-4 py-3">
-          <p class="text-body text-foreground">{{ truth.title }}</p>
+          <p class="text-body text-foreground">{{ truth.title }}<EntityNewDot :is-new="isToldNew(truth)" title="New" class="ml-2" /></p>
           <p v-if="knownWithLabel(truth)" class="text-caption text-muted-foreground/70 italic mt-0.5" data-testid="known-with">{{ knownWithLabel(truth) }}</p>
           <RichTextViewer v-if="truth.body" :content="truth.body" class="mt-1" />
         </li>
@@ -63,7 +72,7 @@
       <h2 id="world-revealed" class="text-label text-muted-foreground mb-2">Secrets revealed</h2>
       <ul class="rounded-lg border border-border bg-card divide-y divide-border">
         <li v-for="secret in world.revealed" :key="secret.id" class="px-4 py-3">
-          <p class="text-body text-foreground">{{ secret.title }}</p>
+          <p class="text-body text-foreground">{{ secret.title }}<EntityNewDot :is-new="isToldNew(secret)" title="New" class="ml-2" /></p>
           <RichTextViewer v-if="secret.body" :content="secret.body" class="mt-1" />
         </li>
       </ul>
@@ -77,9 +86,9 @@
         :key="item.entry.id"
         color="var(--primary)"
         :icon="IconScrollText"
-        :category-label="kindLabel(item)"
+        :category-label="`${kindLabel(item)} · ${partsLabel(item.passages.length)}`"
         :title="item.entry.title"
-        :date="partsLabel(item.passages.length)"
+        :date="loreDate(item.entry)"
         :expanded="openId === item.entry.id"
         @toggle="toggle(item)"
       >
@@ -112,6 +121,8 @@
 
     <PlayerFoundClues :rows="foundRows" />
 
+    <PlayerBeliefs />
+
     <section v-if="chronicle.length" aria-labelledby="world-chronicle" class="space-y-2">
       <h2 id="world-chronicle" class="text-label text-muted-foreground">The Chronicle</h2>
       <JournalCard
@@ -139,6 +150,8 @@
     </section>
 
     <PlayerWonders />
+
+    <PlayerLineRequest />
   </div>
 </template>
 
@@ -155,11 +168,14 @@
  * player last opened it. The time of that last visit is held while the entry is open, so the passages told since can
  * be marked New even though opening it marks it read.
  */
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 import TagChips from "@/components/common/TagChips.vue";
 import AiGeneratedBadge from "@/components/common/ai/AiGeneratedBadge.vue";
 import NoteReading from "@/components/notes/NoteReading.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import AppInput from "@/components/common/controls/AppInput.vue";
+import PlayerBeliefs from "@/components/player/PlayerBeliefs.vue";
+import PlayerLineRequest from "@/components/player/PlayerLineRequest.vue";
 import PlayerFoundClues from "@/components/player/PlayerFoundClues.vue";
 import PlayerWonders from "@/components/player/PlayerWonders.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
@@ -173,10 +189,13 @@ import { usePlayerVisibleNotes } from "@/composables/notes/useNotes";
 import { usePlayerSessions } from "@/composables/sessions/usePlayerSessions";
 import { useCalendarStore } from "@/stores/calendar";
 import type { Note } from "@/types/notes.types";
-import { usePlayerCanon, isPassageNew, knownWithLabel, type PlayerCanonEntry, type PlayerLore } from "@/composables/canon/usePlayerCanon";
+import { usePlayerCanon, filterPlayerWorld, isPassageNew, knownWithLabel, type PlayerCanonEntry, type PlayerLore } from "@/composables/canon/usePlayerCanon";
 import { usePlayerFoundClues } from "@/composables/canon/usePlayerFoundClues";
 import { useTellParty } from "@/composables/canon/useTellParty";
 import { useAppUiStore } from "@/stores/ui/app";
+import { useNotesUiStore } from "@/stores/ui/notes";
+import { usePlayerBeliefs } from "@/composables/canon/usePlayerBeliefs";
+import { entryDate, worldDateLabel } from "@/lib/canon/canonLore";
 import { useMarkRead, useReadItems } from "@/composables/player/useReadItems";
 import { useLowArt } from "@/composables/useLowArt";
 
@@ -187,10 +206,15 @@ const { tellParty, telling } = useTellParty();
 const appUi = useAppUiStore();
 const readOnly = computed(() => appUi.dmPreviewMode);
 // A failed read says so (the query itself reports it to Sentry); it never reads as "nothing told yet".
-const world = computed(() => worldRef.value ?? { onlyMine: [], known: [], lore: [], backstories: [], premise: [], revealed: [] });
+const ui = useNotesUiStore();
+const { beliefs } = usePlayerBeliefs();
+/** What is told to this player, before the filter box narrows it: the empty state and "nothing matches" depend on it. */
+const fullWorld = computed(() => worldRef.value ?? { onlyMine: [], known: [], lore: [], backstories: [], premise: [], revealed: [] });
+const world = computed(() => filterPlayerWorld(fullWorld.value, ui.journalWorldSearch));
+const shownCount = computed(() => world.value.onlyMine.length + world.value.known.length + world.value.revealed.length + world.value.lore.length);
 const hasAnything = computed(
   () =>
-    world.value.onlyMine.length + world.value.known.length + world.value.lore.length + world.value.premise.length + world.value.revealed.length + foundRows.value.length + chronicle.value.length > 0,
+    beliefs.value.length + fullWorld.value.onlyMine.length + fullWorld.value.known.length + fullWorld.value.lore.length + fullWorld.value.premise.length + fullWorld.value.revealed.length + foundRows.value.length + chronicle.value.length > 0,
 );
 
 const pitches = computed(() => world.value.premise.filter((e) => e.premise_kind === "pitch"));
@@ -234,6 +258,15 @@ function worldDay(note: Note): string {
 
 const { lowArt } = useLowArt();
 const { isNew, readAt } = useReadItems("canon_lore");
+const { isNew: isToldKnown } = useReadItems("canon_told");
+/** A truth or secret the DM told the party is New until the player has been on this tab with it showing (#1279 item 27). */
+const isToldNew = (e: PlayerCanonEntry) => e.revealed_at != null && isToldKnown(e.id, e.revealed_at);
+// Marked read as the tab is left, so the dot is seen on this visit and gone on the next.
+onBeforeUnmount(() => {
+  if (readOnly.value) return;
+  const w = world.value; // what was on screen: a line the filter hid was not seen
+  for (const e of [...w.onlyMine, ...w.known, ...w.revealed]) if (isToldNew(e)) markRead({ entityType: "canon_told", entityId: e.id });
+});
 const { mutate: markRead } = useMarkRead();
 
 const openId = ref<string | null>(null);
@@ -253,5 +286,7 @@ function toggle(item: PlayerLore) {
 }
 
 const kindLabel = (item: PlayerLore) => (item.entry.lore_kind ? item.entry.lore_kind.charAt(0).toUpperCase() + item.entry.lore_kind.slice(1) : "Lore");
+/** The lore's date in the world, in the campaign's calendar, the way the DM's lore shows it; empty when it has none. */
+const loreDate = (e: PlayerCanonEntry) => worldDateLabel(entryDate(e), (y, m, d, f) => calendar.adapter.formatDate(y, m, d, f)) ?? "";
 const partsLabel = (n: number) => `${n} ${n === 1 ? "part" : "parts"} so far`;
 </script>

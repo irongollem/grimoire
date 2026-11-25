@@ -4,7 +4,7 @@ import { ref } from "vue";
 import type { Note } from "@/types/notes.types";
 import type { CampaignSession } from "@/types/session.types";
 
-const canon = vi.hoisted(() => ({ current: { groups: [] as unknown[], total: 0 } }));
+const canon = vi.hoisted(() => ({ current: { groups: [] as unknown[], rows: [] as unknown[], total: 0 } }));
 vi.mock("@/composables/canon/useSessionCanon", () => ({ useSessionCanon: () => ({ value: () => canon.current }) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref([{ id: "m1", name: "Wren" }, { id: "m2", name: "Brakka" }]) }) }));
 vi.mock("@/composables/sessions/useSessionLearned", () => ({ useSessionLearned: () => ({ entries: ref([]) }) }));
@@ -27,7 +27,7 @@ const note = (over: Partial<Note> = {}): Note =>
 
 describe("SessionChronicleLine", () => {
   beforeEach(() => {
-    canon.current = { groups: [], total: 0 };
+    canon.current = { groups: [], rows: [], total: 0 };
   });
 
   // Bug caught: the chronicle paragraph or its sharing state lost when the Chronicle list was folded into the log.
@@ -49,10 +49,19 @@ describe("SessionChronicleLine", () => {
     expect(mount(SessionChronicleLine, { props: { session, note: null } }).find("[data-testid=session-chronicle]").exists()).toBe(false);
   });
 
-  // Bug caught: a session's canon changes dropped in the fold.
-  it("shows the canon counts when the canon did something that session", () => {
-    canon.current = { groups: [{ kind: "clues", label: "Clues found", items: [{ key: "c", title: "A ledger", to: "/x" }] }], total: 1 };
+  // Bug caught: the two lists ("What the party learned", "Canon this session") coming back as two, or a row losing its kind.
+  it("shows one This session list with a kind on each row", () => {
+    canon.current = {
+      groups: [],
+      rows: [
+        { key: "c", title: "A ledger", word: "Found", to: { path: "/canon", query: {} } },
+        { key: "f", title: "The bell was cracked", word: "Table line", to: { path: "/canon/truths", query: {} } },
+      ],
+      total: 2,
+    };
     const w = mount(SessionChronicleLine, { props: { session, note: null } });
-    expect(w.get("[data-testid=chronicle-canon-count]").text()).toBe("Clues found 1");
+    expect(w.findAll("[data-testid=chronicle-session-list]")).toHaveLength(1);
+    expect(w.findAll("[data-testid=chronicle-session-kind]").map((n) => n.text())).toEqual(["Found", "Table line"]);
+    expect(w.text()).not.toContain("What the party learned");
   });
 });

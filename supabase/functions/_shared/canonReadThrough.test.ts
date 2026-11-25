@@ -1,48 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { looseEnds, MAX_CONTRADICTIONS, sanitizeContradictions, type ReadEntry } from "./canonReadThrough";
+import type { LooseEndsInput, LooseEntry } from "./canonLooseEnds";
+import { looseEndFindings, MAX_CONTRADICTIONS, sanitizeContradictions } from "./canonReadThrough";
 
-const entry = (over: Partial<ReadEntry> & Pick<ReadEntry, "id" | "part">): ReadEntry => ({ title: over.id, revealed_at: null, closed_as: null, ...over });
-const none = { clueSecretIds: [], steps: [], entryQuests: [] };
+const entry = (over: Partial<LooseEntry> & Pick<LooseEntry, "id" | "part">): LooseEntry => ({
+  title: over.id, created_at: "2026-01-01T00:00:00Z", revealed_at: null, closed_as: null, arc_id: null, party_member_id: null, loose_end_left_at: null, ...over,
+});
+const none: Omit<LooseEndsInput, "entries"> = { clues: [], steps: [], entryQuests: [], links: [], arcs: [], quests: [], sessions: [] };
+const clueOf = (secret_id: string) => ({ secret_id, location_id: "loc", npc_id: null, quest_beat_id: null, item_id: null, document_id: null, passage_id: null });
 
-describe("looseEnds", () => {
-  // Bug caught: a secret with a clue was reported (or one without was missed), so the list cried wolf or went quiet.
-  it("reports an unrevealed secret with no clue, and not one that has a clue", () => {
-    const out = looseEnds({ ...none, entries: [entry({ id: "s1", part: "secret" }), entry({ id: "s2", part: "secret" })], clueSecretIds: ["s2"] });
-    expect(out).toEqual([{ kind: "loose_end", text: expect.stringContaining("s1"), entry_ids: ["s1"] }]);
+describe("looseEndFindings", () => {
+  // Bug caught: the read keeping its own thinner rule, so a secret with two clues (a loose end in Tonight) went unreported.
+  it("reports by the shared rule: a secret with fewer than three clues, not one with three", () => {
+    const entries = [entry({ id: "s1", part: "secret" }), entry({ id: "s2", part: "secret" })];
+    const out = looseEndFindings({ ...none, entries, clues: [clueOf("s1"), clueOf("s1"), clueOf("s2"), clueOf("s2"), clueOf("s2")] });
+    expect(out).toEqual([{ kind: "loose_end", text: expect.stringContaining("2 clues, fewer than 3"), entry_ids: ["s1"] }]);
   });
 
-  // Bug caught: a revealed secret was flagged for having no clue, though the party already knows it.
-  it("does not report a revealed secret", () => {
-    expect(looseEnds({ ...none, entries: [entry({ id: "s1", part: "secret", revealed_at: "2026-11-01T00:00:00Z" })] })).toEqual([]);
+  // Bug caught: an entry the DM chose to leave still reported, so Leave it only worked on one of the two surfaces.
+  it("skips an entry the DM left", () => {
+    expect(looseEndFindings({ ...none, entries: [entry({ id: "s1", part: "secret", loose_end_left_at: "2026-11-25T00:00:00Z" })] })).toEqual([]);
   });
 
-  // Bug caught: "no next step" counted a force whose steps are all reached as moving; it has nothing left to do.
-  it("reports an open force with no step, or only reached steps, and not one with an unreached step", () => {
-    const entries = [entry({ id: "f1", part: "force" }), entry({ id: "f2", part: "force" }), entry({ id: "f3", part: "force" })];
-    const out = looseEnds({
-      ...none,
-      entries,
-      steps: [{ force_id: "f2", reached_at: "2026-11-01T00:00:00Z" }, { force_id: "f3", reached_at: "2026-11-01T00:00:00Z" }, { force_id: "f3", reached_at: null }],
-    });
-    expect(out.map((f) => f.entry_ids)).toEqual([["f1"], ["f2"]]);
-  });
-
-  // Bug caught: an ended force or an answered question was reported, so finished work kept reappearing.
-  it("never reports a closed force or question", () => {
-    const entries = [entry({ id: "f1", part: "force", closed_as: "stopped" }), entry({ id: "q1", part: "question", closed_as: "answered" })];
-    expect(looseEnds({ ...none, entries })).toEqual([]);
-  });
-
-  // Bug caught: a question tied to a quest was reported, or one tied to nothing was missed.
+  // Bug caught: an open question no quest is tied to going unreported.
   it("reports an open question no quest is tied to", () => {
-    const out = looseEnds({ ...none, entries: [entry({ id: "q1", part: "question" }), entry({ id: "q2", part: "question" })], entryQuests: [{ entry_id: "q2" }] });
-    expect(out.map((f) => f.entry_ids)).toEqual([["q1"]]);
+    const entries = [entry({ id: "q1", part: "question" }), entry({ id: "q2", part: "question" })];
+    expect(looseEndFindings({ ...none, entries, entryQuests: [{ entry_id: "q2" }] }).map((f) => f.entry_ids)).toEqual([["q1"]]);
   });
 
-  // Bug caught: a rule applied to the wrong part (a truth with no clue, lore with no quest) flooded the list.
-  it("ignores parts with no loose-end rule", () => {
-    const entries = ["truth", "lore", "premise", "backstory"].map((part, i) => entry({ id: `e${i}`, part }));
-    expect(looseEnds({ ...none, entries })).toEqual([]);
+  // Bug caught: an arc finding naming its own id as an entry, which the review would link to a canon entry that is not there.
+  it("names no entry for an arc", () => {
+    const out = looseEndFindings({ ...none, entries: [], arcs: [{ id: "a1", name: "The Bell", status: "running" }] });
+    expect(out[0]?.entry_ids).toEqual([]);
+    expect(out[0]?.text).toContain("The Bell");
   });
 });
 

@@ -25,6 +25,9 @@ vi.mock("@/composables/canon/useCampaignBeatQuests", () => ({ useCampaignBeatQue
 vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => reads.locations }));
 vi.mock("@/composables/sessions/useCampaignSessions", () => ({ useCampaignSessions: () => reads.sessions }));
 const campaignState = { activeCampaign: { id: "c1", current_location_id: null as string | null } };
+vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => read<unknown[]>([]) }));
+vi.mock("@/composables/canon/useWorldToday", () => ({ useWorldToday: () => ref(null) }));
+vi.mock("@/composables/canon/useTonightPlan", () => ({ useTonightPins: () => read<unknown[]>([]), useTonightPlanLine: () => read<string | null>(null) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => campaignState }));
 
 import { useCanonUiStore } from "@/stores/ui/canon";

@@ -21,7 +21,7 @@
     <!-- A mark is text at the row's right edge; the one thing in it that takes a tap (the move buttons) lifts itself above the stretched button. -->
     <span v-if="$slots.mark || move" class="pointer-events-none relative z-20 flex shrink-0 items-center gap-2" data-testid="row-mark">
       <slot name="mark" />
-      <CanonMoveButtons v-if="move" class="pointer-events-auto" :label="title" :first="move.first" :last="move.last" @move="(d) => emit('move', d)" />
+      <CanonMoveButtons v-if="move" class="pointer-events-auto" :label="title" :first="move.first" :last="move.last" :to-ends="move.toEnds === true" @move="(d) => emit('move', d)" @move-to="(end) => emit('moveTo', end)" />
     </span>
   </li>
 </template>
@@ -50,7 +50,7 @@ const {
   layout?: string;
   strong?: boolean;
   /** Up and down, offered only while nothing narrows the list; `null` hides them. */
-  move?: { first: boolean; last: boolean } | null;
+  move?: { first: boolean; last: boolean; toEnds?: boolean } | null;
 }>();
-const emit = defineEmits<{ select: []; move: [direction: -1 | 1] }>();
+const emit = defineEmits<{ select: []; move: [direction: -1 | 1]; moveTo: [end: "top" | "bottom"] }>();
 </script>

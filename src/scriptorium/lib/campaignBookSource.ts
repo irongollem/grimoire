@@ -12,9 +12,14 @@
  */
 import { supabase } from "@/lib/supabase";
 import { fetchCanonEntries } from "@/lib/canon/canonEntries";
+import { fetchCanonArcs, fetchHabitats, fetchPeoples } from "@/lib/canon/canonCampaignReads";
+import { getCalendarAdapter } from "@/settings";
+import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
+import type { CurrencyConfig } from "@/lib/currency/currency";
+import type { SettingCalendarDef } from "@/settings/types";
 import { LOCATION_TYPE_LABELS, type LocationType } from "@/types/location.types";
 import type { OpenBookSnapshot } from "@/types/openBook.types";
-import type { BookSource, SourceEntry, SourcePlace } from "@/scriptorium/lib/canonBook";
+import type { BookSource, SourceEntry, SourcePlace, SourceWorldRules } from "@/scriptorium/lib/canonBook";
 
 function isLocationType(value: string | null): value is LocationType {
   return value !== null && value in LOCATION_TYPE_LABELS;
@@ -30,12 +35,29 @@ function entry(row: { id: string; title: string }): SourceEntry {
   return { id: row.id, title: row.title };
 }
 
+/** The campaign's calendar and coins, when it has chosen them: the facts "How the world works" holds. */
+async function fetchWorldRules(campaignId: string): Promise<SourceWorldRules> {
+  const { data, error } = await supabase.from("campaigns").select("calendar_id, custom_calendar, currency").eq("id", campaignId).single();
+  if (error) throw error;
+  const row = data as { calendar_id: string | null; custom_calendar: SettingCalendarDef | null; currency: CurrencyConfig | null };
+  // A campaign that never chose a calendar is read as the blank one, which says nothing worth printing.
+  const calendar = row.calendar_id === null ? null : getCalendarAdapter(row.calendar_id, row.custom_calendar);
+  return {
+    calendar: calendar ? { name: calendar.name, epoch: calendar.epochName, months: calendar.months.map((m) => m.name) } : null,
+    coins: (row.currency?.denominations ?? []).map((d) => d.name),
+  };
+}
+
 /** The DM's book draws on everything the campaign holds. */
 export async function fetchDmBookSource(campaignId: string): Promise<BookSource> {
   const named = (table: "factions" | "pantheons" | "monsters" | "items" | "spells") =>
     rows<{ id: string; name: string }>(supabase.from(table).select("id, name").eq("campaign_id", campaignId).order("name", { ascending: true }));
-  const [canon, places, folk, factions, pantheons, deities, quests, monsters, items, spells] = await Promise.all([
+  const [canon, arcs, peoples, habitats, world, places, folk, factions, pantheons, deities, quests, monsters, items, spells] = await Promise.all([
     fetchCanonEntries(campaignId),
+    fetchCanonArcs(campaignId),
+    fetchPeoples(campaignId),
+    fetchHabitats(campaignId),
+    fetchWorldRules(campaignId),
     rows<SourcePlace>(supabase.from("locations").select("id, parent_id, name, location_type, sort_order").eq("campaign_id", campaignId)),
     rows<BookSource["folk"][number]>(supabase.from("npcs").select("id, name, location_id").eq("campaign_id", campaignId)),
     named("factions"),
@@ -54,6 +76,11 @@ export async function fetchDmBookSource(campaignId: string): Promise<BookSource>
     forces: part("force").map(entry),
     secrets: part("secret").map(entry),
     questions: part("question").map(entry),
+    arcs: arcs.map((a) => ({ id: a.id, name: a.name, summary: a.summary, question: a.question, stakes: a.stakes, ending: a.ending })),
+    peoples: peoples.map((x) => ({ id: x.id, name: x.name, percent: x.percent, text: tiptapToPlainText(x.body) })),
+    habitats: habitats.map((x) => ({ id: x.id, name: x.name, text: tiptapToPlainText(x.description) })),
+    backstories: part("backstory").map(entry),
+    world,
     places,
     folk,
     factions,
@@ -81,6 +108,12 @@ export function sourceFromSnapshot(snapshot: OpenBookSnapshot): BookSource {
     forces: [],
     secrets: [],
     questions: [],
+    // The Open Book does not say any of these: a players' book holds none of them.
+    arcs: [],
+    peoples: [],
+    habitats: [],
+    backstories: [],
+    world: { calendar: null, coins: [] },
     places: snapshot.places.map((p) => ({
       id: p.id,
       parent_id: p.parent_id,

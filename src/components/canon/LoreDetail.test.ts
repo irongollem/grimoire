@@ -6,7 +6,13 @@ import { canonEntry } from "@/test/canonEntry";
 
 const mocks = vi.hoisted(() => ({ update: vi.fn(), createPassage: vi.fn(), updatePassage: vi.fn(), destroyPassage: vi.fn() }));
 const passages = ref<CanonLorePassage[]>([]);
-vi.mock("@/composables/canon/useCanonEntries", () => ({ useUpdateCanonEntry: () => ({ mutate: mocks.update }) }));
+vi.mock("@/composables/canon/useCanonEntries", () => ({ useUpdateCanonEntry: () => ({ mutate: mocks.update }), useCanonEntries: () => ({ data: ref([]) }) }));
+const linkRows = ref<unknown[]>([]);
+const connRows = ref<unknown[]>([]);
+vi.mock("@/composables/connections/useConnections", () => ({
+  useConnections: () => ({ data: connRows }),
+  useCampaignLinks: () => ({ data: linkRows }),
+}));
 vi.mock("@/composables/canon/useCanonPassages", async (orig) => {
   const real = await orig<typeof import("@/composables/canon/useCanonPassages")>();
   return {
@@ -42,7 +48,7 @@ const p = (id: string, sort: number): CanonLorePassage => ({
 const mountIt = (over = {}) =>
   mount(LoreDetail, {
     props: { entry: canonEntry({ id: "l1", part: "lore", title: "The Fall", ...over }) },
-    global: { stubs: { CanonReview: true, EntryQuests: EntryQuestsStub, EntryStoryLinks: { props: ["entry"], template: "<div data-testid='story-links' :data-id='entry.id' />" }, EntityImageBlock: true, AudienceRevealControl: true, ConnectionsSection: true, CanonSuggest: { name: 'CanonSuggest', props: ['request'], template: "<i data-testid='suggest' :data-request='request' />" }, LorePassageRow: { props: ["passage"], emits: ["move", "remove"], template: "<li data-testid='row'>{{ passage.id }}<button data-testid='up' @click=\"$emit('move', -1)\" /><button data-testid='rm' @click=\"$emit('remove')\" /></li>" } } },
+    global: { stubs: { teleport: true, CanonReview: true, EntryQuests: EntryQuestsStub, EntryStoryLinks: { props: ["entry"], template: "<div data-testid='story-links' :data-id='entry.id' />" }, EntityImageBlock: true, AudienceRevealControl: true, ConnectionsSection: true, CanonSuggest: { name: 'CanonSuggest', props: ['request'], template: "<i data-testid='suggest' :data-request='request' />" }, LorePassageRow: { props: ["passage"], emits: ["move", "remove"], template: "<li data-testid='row'>{{ passage.id }}<button data-testid='up' @click=\"$emit('move', -1)\" /><button data-testid='rm' @click=\"$emit('remove')\" /></li>" } } },
   });
 
 describe("LoreDetail", () => {
@@ -94,6 +100,7 @@ describe("LoreDetail", () => {
 
   // Bug: a lore entry showed no "Because of" and "Led to", so its cause and effect were only visible from other entries.
   it("shows what the entry came of and led to", () => {
+    linkRows.value = [{ from_kind: "canon", to_kind: "canon", type: "led_to", from_id: "l1", to_id: "t2" }];
     expect(mountIt().get("[data-testid=story-links]").attributes("data-id")).toBe("l1");
   });
 
@@ -141,5 +148,19 @@ describe("LoreDetail", () => {
     expect(block.props("links")).toEqual([expect.objectContaining({ id: "l1" })]);
     expect(block.props("label")).toBe("The quests that tell it");
     expect(block.props("empty")).toBe("No quest tells this yet.");
+  });
+
+  // Bug caught (#1279 item 16): a lore entry opening with an empty quest picker, story block and connections, or hiding a block that has data.
+  it("folds empty optional blocks into the Add… menu and reveals the one chosen", async () => {
+    linkRows.value = [];
+    connRows.value = [];
+    questData.quests = [];
+    const w = mountIt();
+    expect(w.find("[data-testid=entry-quests]").exists()).toBe(false);
+    expect(w.find("[data-testid=story-links]").exists()).toBe(false);
+    await w.get("[data-testid=canon-add-fold-button]").trigger("click");
+    expect(w.findAll("[data-slip] button").map((b) => b.text())).toEqual(["A quest", "A cause, an effect or a theme", "A connection"]);
+    await w.get("[data-testid=canon-add-quests]").trigger("click");
+    expect(w.find("[data-testid=entry-quests]").exists()).toBe(true);
   });
 });

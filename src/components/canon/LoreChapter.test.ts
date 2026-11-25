@@ -104,4 +104,21 @@ describe("LoreChapter", () => {
     review.vm.$emit("accepted", "l9");
     expect(w.emitted("select")?.[0]).toEqual(["l9"]);
   });
+
+  // Bug caught: the kind filter narrowing on the wrong field, or Clear leaving the list narrowed.
+  it("filters by kind, says when none matches, and Clear brings the list back", async () => {
+    const entries = [
+      canonEntry({ id: "a", part: "lore", title: "Bell tale", lore_kind: "history" }),
+      canonEntry({ id: "b", part: "lore", title: "Moon cult", lore_kind: "faith" }),
+    ];
+    const w = mountIt(entries);
+    await w.get("[data-testid=lore-kind-filter]").setValue("faith");
+    expect(w.findAll("li").map((li) => li.text())).toEqual([expect.stringContaining("Moon cult")]);
+    await w.get("[data-testid=lore-kind-filter]").setValue("legend");
+    expect(w.text()).toContain("No lore of that kind");
+    expect(w.text()).not.toContain("No lore yet");
+    await w.get("[data-testid=lore-clear]").trigger("click");
+    expect(w.findAll("li")).toHaveLength(2);
+    expect(w.find("[data-testid=lore-clear]").exists()).toBe(false);
+  });
 });

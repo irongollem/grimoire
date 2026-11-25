@@ -81,6 +81,8 @@ export function useStartScriptoriumDocument() {
     const book: ScriptoriumDocInsert = {
       ...base(),
       title: campaignBookTitle(campaignName, audience),
+      // Where it came from, so a renamed book is found again instead of drawn a second time (CanonOpenAsBook).
+      drawn_from: "canon",
       kind: "book",
       doc_type: "custom",
       theme: "grimoire",

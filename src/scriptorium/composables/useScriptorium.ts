@@ -17,7 +17,7 @@ const QUERY_KEY = "scriptorium";
 /** Columns the list view renders — see ScriptoriumDocumentSummary. Selecting
  *  `*` here shipped every document's full Tiptap body just to draw its card. */
 const SUMMARY_COLUMNS =
-  "id, title, doc_type, campaign_id, kind, theme, tags, is_published, player_visible_to, word_count, created_at, updated_at, scriptorium_chapters(count)";
+  "id, title, doc_type, campaign_id, kind, theme, tags, is_published, player_visible_to, word_count, created_at, updated_at, audience, drawn_from, scriptorium_chapters(count)";
 
 /** The caller's own id, for scoping reads to their own documents. Since #970 a
  *  player may also SELECT a handout shared with them, so RLS alone would mix

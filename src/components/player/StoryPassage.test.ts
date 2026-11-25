@@ -43,3 +43,26 @@ describe("StoryPassage", () => {
     expect(mountPassage(passage({ by_dm: true })).find("[data-testid=story-new]").exists()).toBe(false);
   });
 });
+
+describe("StoryPassage: a DM's edit (#1279 item 30)", () => {
+  // Bug caught: the player not told the DM changed their words, or unable to read what they wrote.
+  it("says Edited by your DM and keeps what the player wrote to read", () => {
+    const w = mountPassage(passage({ dm_edited_at: "2026-11-20T00:00:00Z", body_before_dm_edit: "my old words" }), { editable: false });
+    expect(w.get("[data-testid=story-dm-edited]").text()).toBe("Edited by your DM");
+    expect(w.get("[data-testid=story-before-edit]").text()).toContain("What you wrote");
+  });
+
+  // Bug caught: the mark shown on every passage, including ones nobody touched.
+  it("shows nothing about an edit on an untouched passage", () => {
+    const w = mountPassage(passage({}));
+    expect(w.find("[data-testid=story-dm-edited]").exists()).toBe(false);
+    expect(w.find("[data-testid=story-before-edit]").exists()).toBe(false);
+  });
+
+  // Bug caught: an empty "What you wrote" disclosure when the player had written nothing before the DM's edit.
+  it("offers no disclosure when there was nothing of the player's to keep", () => {
+    const w = mountPassage(passage({ dm_edited_at: "2026-11-20T00:00:00Z", body_before_dm_edit: null }), { editable: false });
+    expect(w.find("[data-testid=story-dm-edited]").exists()).toBe(true);
+    expect(w.find("[data-testid=story-before-edit]").exists()).toBe(false);
+  });
+});

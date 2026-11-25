@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { endsOf, moveWithin } from "./canonOrder";
+import { endsOf, moveToEnd, moveWithin } from "./canonOrder";
 
 const rows = (...orders: number[]) => orders.map((sort_order, i) => ({ id: `r${i + 1}`, sort_order }));
 
@@ -46,5 +46,42 @@ describe("endsOf", () => {
 
   it("offers nothing for a list of one, which has nowhere to go", () => {
     expect(endsOf(rows(0), "r1")).toBeNull();
+  });
+});
+
+describe("moveToEnd", () => {
+  const apply = (list: ReturnType<typeof rows>, writes: { id: string; sort_order: number }[]) =>
+    list.map((r) => writes.find((w) => w.id === r.id) ?? r).sort((a, b) => a.sort_order - b.sort_order).map((r) => r.id);
+
+  // Bug caught: "Move to top" swapping with the neighbour (a single step) instead of jumping to the head.
+  it("takes a row to the top and shifts the ones above it down", () => {
+    const list = rows(0, 1, 2, 3);
+    expect(apply(list, moveToEnd(list, "r3", "top"))).toEqual(["r3", "r1", "r2", "r4"]);
+  });
+
+  it("takes a row to the bottom and shifts the ones below it up", () => {
+    const list = rows(0, 1, 2, 3);
+    expect(apply(list, moveToEnd(list, "r2", "bottom"))).toEqual(["r1", "r3", "r4", "r2"]);
+  });
+
+  // Bug caught: a row already at the end rewriting the whole list (a write storm for nothing).
+  it("writes nothing for a row already at that end, or one not in the list", () => {
+    expect(moveToEnd(rows(0, 1, 2), "r1", "top")).toEqual([]);
+    expect(moveToEnd(rows(0, 1, 2), "r3", "bottom")).toEqual([]);
+    expect(moveToEnd(rows(0, 1, 2), "ghost", "top")).toEqual([]);
+  });
+
+  // Bug caught: colliding places (new rows take `length`) leaving two rows equal after the jump.
+  it("renumbers a list with doubles so the jump holds, writing only rows that change", () => {
+    const list = rows(0, 1, 1, 3);
+    expect(apply(list, moveToEnd(list, "r4", "top"))).toEqual(["r4", "r1", "r2", "r3"]);
+    expect(moveToEnd(rows(0, 1, 2), "r2", "top")).toEqual([{ id: "r2", sort_order: 0 }, { id: "r1", sort_order: 1 }]);
+  });
+});
+
+describe("endsOf toEnds", () => {
+  it("asks for the top and bottom buttons only when the list opts in", () => {
+    expect(endsOf(rows(0, 1), "r1", true)).toEqual({ first: true, last: false, toEnds: true });
+    expect(endsOf(rows(0, 1), "r1")).not.toHaveProperty("toEnds");
   });
 });

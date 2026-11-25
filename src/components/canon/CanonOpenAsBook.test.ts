@@ -23,6 +23,8 @@ const book = (over: Record<string, unknown>) => ({
   campaign_id: "c1",
   kind: "book",
   doc_type: "custom",
+  audience: "dm",
+  drawn_from: "canon",
   title: "Kind Country: the DM's book",
   created_at: "2026-11-01T00:00:00Z",
   ...over,
@@ -48,11 +50,23 @@ describe("CanonOpenAsBook", () => {
       book({ id: "old" }),
       book({ id: "new", created_at: "2026-11-20T00:00:00Z" }),
       book({ id: "other-campaign", campaign_id: "c2", created_at: "2026-11-23T00:00:00Z" }),
-      book({ id: "players", title: "Kind Country: the players' book", created_at: "2026-11-23T00:00:00Z" }),
+      book({ id: "players", title: "Kind Country: the players' book", audience: "players", created_at: "2026-11-23T00:00:00Z" }),
     ];
     await click();
     expect(mocks.start).not.toHaveBeenCalled();
     expect(mocks.push).toHaveBeenCalledWith("/scriptorium/new");
+  });
+
+  // Bug caught (#1279 item 23): a book the DM renamed was not recognised, so "Open as a book" drew a second copy of the
+  // canon; or a book the DM wrote by hand under the same title was taken for the drawn one.
+  it("opens a renamed book by where it was drawn from, never a book the DM made", async () => {
+    mocks.docs = [
+      book({ id: "renamed", title: "Our campaign bible" }),
+      book({ id: "hand-made", title: "Kind Country: the DM's book", drawn_from: null, created_at: "2026-11-24T00:00:00Z" }),
+    ];
+    await click();
+    expect(mocks.start).not.toHaveBeenCalled();
+    expect(mocks.push).toHaveBeenCalledWith("/scriptorium/renamed");
   });
 
   // Bug caught: drawing the players' book (or none) from the DM's Canon, or not opening what was drawn.

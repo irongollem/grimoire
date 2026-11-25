@@ -9,6 +9,7 @@ import { atlasOrder, buildCampaignBook, type BookSource } from "./canonBook";
 const empty: BookSource = {
   premise: [], truths: [], lore: [], forces: [], secrets: [], questions: [], places: [], folk: [],
   factions: [], pantheons: [], deities: [], quests: [], monsters: [], items: [], spells: [],
+  arcs: [], peoples: [], habitats: [], backstories: [], world: { calendar: null, coins: [] },
 };
 const full: BookSource = {
   premise: [{ id: "pr1", title: "Grim" }],
@@ -26,6 +27,11 @@ const full: BookSource = {
   monsters: [{ id: "m1", name: "Drowned" }],
   items: [{ id: "i1", name: "Pearl" }],
   spells: [{ id: "sp1", name: "Ebb" }],
+  arcs: [{ id: "a1", name: "The Drowning", summary: "The sea takes the coast.", question: "Can the tide be turned?", stakes: null, ending: null }],
+  peoples: [{ id: "pe1", name: "Saltfolk", percent: 60, text: "They read the tide.\n\nThey fear the deep." }],
+  habitats: [{ id: "h1", name: "The flats", text: "" }],
+  backstories: [{ id: "b1", title: "Mara" }],
+  world: { calendar: { name: "Harptos", epoch: "DR", months: ["Hammer", "Alturiak"] }, coins: ["gold", "silver"] },
 };
 
 const titles = (b: { chapters: { content: JSONContent }[] }) => b.chapters.map((c) => chapterTitle(c.content));
@@ -40,14 +46,30 @@ afterEach(() => {
 });
 
 describe("buildCampaignBook", () => {
-  it("leaves chapters III, IV and VIII (and the bestiary and treasures) out of a players' book", () => {
+  it("leaves the DM's chapters (arcs, forces, secrets, backstories, how the world works) and the bestiary and treasures out of a players' book", () => {
     // Fails if the players' copy ever prints what moves behind the screen, a secret or the quests.
-    expect(titles(buildCampaignBook(full, "players"))).toEqual(["The World", "History and Legend", "Gazetteer", "Folk", "Factions and Powers"]);
+    expect(titles(buildCampaignBook(full, "players"))).toEqual(["The World", "History and Legend", "Peoples", "Habitats", "Gazetteer", "Folk", "Factions and Powers"]);
+  });
+
+  // Bug caught (#1279 item 23): the book left out Arcs, Peoples, Habitats, Backstories and How the world works, so "the whole canon as a book" lacked half of it.
+  it("writes arcs, peoples and habitats out as text, and links the backstories", () => {
+    const chapters = buildCampaignBook(full, "dm").chapters;
+    const text = (title: string) => JSON.stringify(chapters.find((c) => chapterTitle(c.content) === title)!.content);
+    expect(text("Arcs")).toContain("The sea takes the coast.");
+    expect(text("Arcs")).toContain("What it asks: Can the tide be turned?");
+    expect(text("Arcs")).not.toContain("What is at stake");
+    expect(text("Peoples")).toContain("Saltfolk (60%)");
+    expect(text("Peoples")).toContain("They fear the deep.");
+    // A habitat with nothing written is still in the book, by name.
+    expect(text("Habitats")).toContain("The flats");
+    expect(text("How the World Works")).toContain("years counted in DR");
+    expect(text("How the World Works")).toContain("gold, silver");
+    expect(ids(chapters.find((c) => chapterTitle(c.content) === "Backstories")!)).toEqual(["canon:b1"]);
   });
 
   it("gives the DM every chapter, in order", () => {
     expect(titles(buildCampaignBook(full, "dm"))).toEqual([
-      "The World", "History and Legend", "What is Moving", "Secrets", "Gazetteer", "Folk", "Factions and Powers", "Adventures", "Bestiary", "Treasures and Spells",
+      "The World", "How the World Works", "History and Legend", "Peoples", "Habitats", "Arcs", "What is Moving", "Secrets", "Backstories", "Gazetteer", "Folk", "Factions and Powers", "Adventures", "Bestiary", "Treasures and Spells",
     ]);
   });
 

@@ -1,11 +1,11 @@
 import { computed } from "vue";
-import { useMutation, useQueryClient } from "@tanstack/vue-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { getCurrentUser, supabase } from "@/lib/supabase";
 import { toast } from "@/lib/toast";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { sharedWith } from "@/lib/canon/canonBackstory";
 import { openBackstory } from "@/composables/canon/useBackstory";
-import { usePlayerCanon, type PlayerBackstory } from "@/composables/canon/usePlayerCanon";
+import { usePlayerCanon, type PlayerBackstory, type PlayerLorePassage } from "@/composables/canon/usePlayerCanon";
 import { useParty } from "@/composables/party/useParty";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
@@ -19,6 +19,20 @@ export function useMyMemberId() {
   const auth = useAuthStore();
   const appUi = useAppUiStore();
   return computed(() => (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId));
+}
+
+/** What a DM's edit left on a passage the player wrote (#1279 item 30). */
+export interface PassageDmEdit {
+  dm_edited_at: string | null;
+  body_before_dm_edit: string | null;
+}
+
+/** The passages with the DM's edit marks laid on the ones they belong to; a passage with no edit is returned as it was. */
+export function withDmEdits(passages: readonly PlayerLorePassage[], edits: ReadonlyMap<string, PassageDmEdit>): PlayerLorePassage[] {
+  return passages.map((p) => {
+    const edit = edits.get(p.id);
+    return edit ? { ...p, dm_edited_at: edit.dm_edited_at, body_before_dm_edit: edit.body_before_dm_edit } : p;
+  });
 }
 
 /**
@@ -35,7 +49,28 @@ export function useMyStory() {
   const { data: party } = useParty();
 
   const member = computed<PartyMember | null>(() => (party.value ?? []).find((m) => m.id === memberId.value) ?? null);
-  const backstory = computed<PlayerBackstory | null>(() => world.value?.backstories.find((b) => b.memberId === memberId.value) ?? null);
+  // The passage read the journal makes does not carry the DM-edit marks, so the player's own passages are read once more
+  // for them. Scoped to the caller in the query: a player's policy reaches only what they wrote, a DM's reaches all.
+  const edits = useQuery({
+    queryKey: computed(() => [CANON_KEY, "my-passage-edits", campaign.activeCampaignId] as const),
+    queryFn: async ({ queryKey: [, , cid] }): Promise<Map<string, PassageDmEdit>> => {
+      const user = getCurrentUser();
+      if (!cid || !user) throw new Error("My passage edits were read without a campaign and a user");
+      const { data, error } = await supabase
+        .from("canon_lore_passages")
+        .select("id, dm_edited_at, body_before_dm_edit")
+        .eq("campaign_id", cid)
+        .eq("author_id", user.id)
+        .not("dm_edited_at", "is", null);
+      if (error) throw error;
+      return new Map((data as (PassageDmEdit & { id: string })[]).map((r) => [r.id, r] as const));
+    },
+    enabled: () => !!campaign.activeCampaignId && !appUi.dmPreviewMode,
+  });
+  const backstory = computed<PlayerBackstory | null>(() => {
+    const found = world.value?.backstories.find((b) => b.memberId === memberId.value);
+    return found ? { ...found, passages: withDmEdits(found.passages, edits.data.value ?? new Map()) } : null;
+  });
   /** A DM looking through a player's eyes reads, never writes: what they wrote would not be the player's. */
   const readOnly = computed(() => appUi.dmPreviewMode);
 

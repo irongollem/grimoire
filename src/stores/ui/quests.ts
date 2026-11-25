@@ -19,13 +19,16 @@ export const useQuestsUiStore = defineStore("ui:quests", () => {
   // so a slow response never makes quests disappear temporarily.
   const questsPrepGapsFilter = ref(false);
   const questsLootFilter = ref(false);
+  // The arc a quest is filed in (#1279 item 25); "" shows every arc.
+  const questsArcFilter = ref("");
 
   const questsHasActiveFilters = computed(() =>
     questsSearch.value !== "" ||
     questsPartyFilter.value ||
     questsEntityFilter.value !== "" ||
     questsPrepGapsFilter.value ||
-    questsLootFilter.value,
+    questsLootFilter.value ||
+    questsArcFilter.value !== "",
   );
 
   // The drawer's width is a layout preference, kept per quest: a long beat
@@ -71,6 +74,7 @@ export const useQuestsUiStore = defineStore("ui:quests", () => {
     questsEntityFilter.value = "";
     questsPrepGapsFilter.value = false;
     questsLootFilter.value = false;
+    questsArcFilter.value = "";
   }
 
   return {
@@ -83,6 +87,7 @@ export const useQuestsUiStore = defineStore("ui:quests", () => {
     drawerWidthFor,
     markSessionChoiceFor,
     questsLootFilter,
+    questsArcFilter,
     questsHasActiveFilters,
     resetQuestsFilters,
   };

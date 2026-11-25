@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canonEntry } from "@/test/canonEntry";
-import { activeQuestBeatIds, cluesToFind, forcesMoving, looseEnds, loreToTell, nothingTonight, placesWithin, scopeHidAll, scopeTonight, threadsLeftOpen, tonight, withoutDone, type LooseEndsInput, type TonightInput, type TonightScopeContext } from "./canonTonight";
+import { activeQuestBeatIds, cluesToFind, forcesMoving, looseEnds, loreToTell, nothingTonight, placesWithin, plannedItems, scopeCounts, scopeHidAll, scopeTonight, stepDueState, threadsLeftOpen, tonight, withoutDone, type LooseEndsInput, type TonightInput, type TonightScopeContext } from "./canonTonight";
 import type { StoryFact } from "@/lib/table/solo/storyRecord";
 import type { CanonClue, CanonForceStep, CanonForceTick, CanonLorePassage } from "@/types/canon.types";
 import type { PartyMember } from "@/types/party.types";
@@ -165,7 +165,7 @@ describe("threadsLeftOpen", () => {
   it("lists the open threads and counts only the DM's untold passages", () => {
     const passages = [passage("dm", "B1"), passage("mine", "B1", { author_id: "player1" }), passage("told", "B1", { told_at: "2026-11-21T10:00:00Z" })];
     expect(threadsLeftOpen([backstory, question], passages, [member("m1")], [link])).toEqual([
-      { memberId: "m1", name: "Hero m1", threads: ["Who burned the mill?"], untoldPassages: 1 },
+      { memberId: "m1", name: "Hero m1", threads: ["Who burned the mill?"], threadIds: ["Q1"], untoldPassages: 1 },
     ]);
   });
 });
@@ -303,17 +303,18 @@ describe("looseEnds", () => {
   });
 
   const question = canonEntry({ id: "Q1", part: "question", title: "Who rang the bell?", created_at: "2026-01-01T00:00:00Z" });
+  const tied = [{ entry_id: "Q1" }];
   const sessionsAfter = (n: number) => Array.from({ length: n }, (_, i) => ({ created_at: `2026-02-0${i + 1}T00:00:00Z` }));
   // Bug caught: the boundary read as five-or-more, flagging a question open for exactly five sessions.
   it("flags a question open through more than five sessions, not five", () => {
-    expect(kinds({ ...base, entries: [question], sessions: sessionsAfter(5) })).toEqual([]);
-    expect(kinds({ ...base, entries: [question], sessions: sessionsAfter(6) })).toEqual(["question:Open through 6 sessions"]);
+    expect(kinds({ ...base, entries: [question], entryQuests: tied, sessions: sessionsAfter(5) })).toEqual([]);
+    expect(kinds({ ...base, entries: [question], entryQuests: tied, sessions: sessionsAfter(6) })).toEqual(["question:Open through 6 sessions"]);
   });
 
   // Bug caught: sessions played before the question was asked counted against it.
   it("counts only the sessions since the question was asked, and skips an answered one", () => {
     const before = Array.from({ length: 8 }, () => ({ created_at: "2025-06-01T00:00:00Z" }));
-    expect(kinds({ ...base, entries: [question], sessions: before })).toEqual([]);
+    expect(kinds({ ...base, entries: [question], entryQuests: tied, sessions: before })).toEqual([]);
     expect(kinds({ ...base, entries: [{ ...question, closed_as: "answered" }], sessions: sessionsAfter(8) })).toEqual([]);
   });
 
@@ -322,7 +323,7 @@ describe("looseEnds", () => {
   it("flags a backstory with no open thread and links to the character", () => {
     const open = canonEntry({ id: "Q2", part: "question" });
     const tie = { from_kind: "canon", from_id: "B1", to_kind: "canon", to_id: "Q2", type: "related_to" } as const;
-    expect(kinds({ ...base, entries: [backstory, open], links: [tie] })).toEqual([]);
+    expect(kinds({ ...base, entries: [backstory, open], links: [tie], entryQuests: [{ entry_id: "Q2" }] })).toEqual([]);
     const ends = looseEnds({ ...base, entries: [backstory] });
     expect(ends.map((e) => e.reasons)).toEqual([["No open thread"]]);
     expect(ends[0]?.to).toEqual({ path: "/canon", query: { backstory: "m1" } });
@@ -378,5 +379,72 @@ describe("withoutDone", () => {
   it("drops done items and the groups they leave empty", () => {
     const groups = [{ at: null, items: ["a", "b"] }, { at: { location_id: "l", npc_id: null, quest_beat_id: null }, items: ["c"] }];
     expect(withoutDone(groups, (i) => i === "a" || i === "c")).toEqual([{ at: null, items: ["b"] }]);
+  });
+});
+
+describe("one loose-end rule (#1279 item 21)", () => {
+  const base: LooseEndsInput = { entries: [], clues: [], steps: [], entryQuests: [], links: [], arcs: [], quests: [], sessions: [] };
+  // Bug caught: Tonight keeping a rule of its own that misses what the read-through finds (a question no quest points at).
+  it("flags an open question with no quest tied to it", () => {
+    const q = canonEntry({ id: "Q1", part: "question", title: "Who?" });
+    expect(looseEnds({ ...base, entries: [q] })[0]?.reasons).toEqual(["No quest tied to it"]);
+  });
+  // Bug caught: "Leave it" written but the row still listed, so the DM cannot dismiss a deliberate gap.
+  it("skips an entry the DM left, and carries the entry id for it", () => {
+    const left = canonEntry({ id: "F1", part: "force", loose_end_left_at: "2026-11-25T10:00:00Z" });
+    expect(looseEnds({ ...base, entries: [left] })).toEqual([]);
+    expect(looseEnds({ ...base, entries: [{ ...left, loose_end_left_at: null }] })[0]?.entryId).toBe("F1");
+  });
+});
+
+describe("stepDueState (#1279 item 20)", () => {
+  const due = (y: number | null, m: number | null, d: number | null) => ({ due_year: y, due_month: m, due_day: d, reached_at: null });
+  const today = { year: 1000, month: 3, day: 5 };
+  // Bug caught: a step due this month called overdue (or a past one only "due"), or a reached/undated step flagged at all.
+  it("is due within the period it names, overdue after it, and nothing otherwise", () => {
+    expect(stepDueState(due(1000, 3, 5), today)).toBe("due");
+    expect(stepDueState(due(1000, 3, null), today)).toBe("due");
+    expect(stepDueState(due(1000, 3, 4), today)).toBe("overdue");
+    expect(stepDueState(due(999, null, null), today)).toBe("overdue");
+    expect(stepDueState(due(1000, 4, null), today)).toBeNull();
+    expect(stepDueState(due(1001, null, null), today)).toBeNull(); // a later year is not due yet
+    expect(stepDueState(due(null, null, null), today)).toBeNull();
+    expect(stepDueState({ ...due(1000, 3, 4), reached_at: "x" }, today)).toBeNull();
+    expect(stepDueState(due(1000, 3, 4), null)).toBeNull();
+  });
+  // Bug caught: a late step that is not the first unreached one being lost behind the next step.
+  it("lists every due step of a force, and its next step separately", () => {
+    const f = canonEntry({ id: "F1", part: "force" });
+    const s1 = step("s1", "F1", 0);
+    const s2 = { ...step("s2", "F1", 1), due_year: 999 };
+    const out = forcesMoving([f], [s1, s2], [], today)[0]!;
+    expect(out.nextStepId).toBe("s1");
+    expect(out.dueSteps).toEqual([{ stepId: "s2", title: "Step s2", state: "overdue" }]);
+  });
+});
+
+describe("a person's place and scope counts (#1279 item 20)", () => {
+  const sec = canonEntry({ id: "S1", part: "secret" });
+  const empty: TonightInput = { entries: [sec], passages: [], clues: [clue("k", "S1", { npc_id: "n1" }), clue("k2", "S1", { npc_id: "n2" })], steps: [], ticks: [], party: [], links: [], facts: [] };
+  const ctx: TonightScopeContext = { currentLocationId: "town", locations: [{ id: "town", parent_id: null }, { id: "inn", parent_id: "town" }], activeBeatIds: new Set(), npcLocationIds: new Map([["n1", "inn"], ["n2", "far"]]) };
+  // Bug caught: a clue lying with a person dropped from "Where the party is" though the person is in the party's town.
+  it("keeps what lies with a person who is where the party is", () => {
+    const scoped = scopeTonight(tonight(empty), "party", ctx);
+    expect(scoped.clues.flatMap((g) => g.items.map((i) => i.clueId))).toEqual(["k"]);
+  });
+  // Bug caught: counts that do not match what the scope shows.
+  it("counts what each scope holds", () => {
+    expect(scopeCounts(tonight(empty), ctx)).toEqual({ party: 1, quests: 0, all: 2 });
+  });
+});
+
+describe("plannedItems (#1279 item 20)", () => {
+  const pin = (id: string, over: Record<string, unknown>) => ({ id, user_id: "u", campaign_id: "c1", clue_id: null, passage_id: null, step_id: null, entry_id: null, sort_order: 0, created_at: "2026-01-01", updated_at: "2026-01-01", ...over });
+  const sec = canonEntry({ id: "S1", part: "secret", title: "Secret" });
+  const input = { entries: [sec], passages: [], clues: [clue("k1", "S1"), clue("k2", "S1", { found_at: "x" })], steps: [] };
+  // Bug caught: pins listed out of the DM's order, or a pin of a clue already found still shown.
+  it("lists pins in sort order and drops one whose clue is found", () => {
+    const pins = [pin("p2", { clue_id: "k2", sort_order: 0 }), pin("p1", { entry_id: "S1", sort_order: 2 }), pin("p3", { clue_id: "k1", sort_order: 1 })];
+    expect(plannedItems(pins, input).map((i) => i.pinId)).toEqual(["p3", "p1"]);
   });
 });

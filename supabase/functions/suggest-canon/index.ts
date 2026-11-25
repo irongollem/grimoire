@@ -45,7 +45,8 @@ import {
   type LoreKind,
   type SpotCandidate,
 } from "../_shared/canonSuggestions.ts";
-import { looseEnds, readShape, sanitizeContradictions, type ReadFinding } from "../_shared/canonReadThrough.ts";
+import { looseEndFindings, readShape, sanitizeContradictions, type ReadFinding } from "../_shared/canonReadThrough.ts";
+import type { LooseClue, LooseEntry } from "../_shared/canonLooseEnds.ts";
 
 /**
  * Canon helpers (#1226 story 2, frame 13): "Draft from a pitch" proposes premise entries, "Suggest truths" proposes
@@ -324,16 +325,22 @@ serve(serveUser(async ({ user, req, report }) => {
           `---BEGIN SPOTS---\n${spotLinesWithIds(found.spots, found.beatQuest)}\n---END SPOTS---`;
         sanitize = (parsed) => sanitizeSecrets(parsed, found.spots, existing);
       } else if (mode === "read") {
-        const [entries, clues, steps, entryQuests] = await Promise.all([
-          readRows<{ id: string; part: string; title: string; body: string | null; revealed_at: string | null; closed_as: string | null }>(
-            admin.from("canon_entries").select("id, part, title, body, revealed_at, closed_as").eq("campaign_id", campaign.id)
+        const [entries, clues, steps, entryQuests, links, arcs, quests, sessions] = await Promise.all([
+          readRows<LooseEntry & { body: string | null }>(
+            admin.from("canon_entries").select("id, part, title, body, created_at, revealed_at, closed_as, arc_id, party_member_id, loose_end_left_at").eq("campaign_id", campaign.id)
               .order("part", { ascending: true }).order("sort_order", { ascending: true }),
           ),
-          readRows<{ secret_id: string }>(admin.from("canon_clues").select("secret_id").eq("campaign_id", campaign.id)),
+          readRows<LooseClue>(admin.from("canon_clues").select("secret_id, location_id, npc_id, quest_beat_id, item_id, document_id, passage_id").eq("campaign_id", campaign.id)),
           readRows<{ force_id: string; reached_at: string | null }>(admin.from("canon_force_steps").select("force_id, reached_at").eq("campaign_id", campaign.id)),
           readRows<{ entry_id: string }>(admin.from("canon_entry_quests").select("entry_id").eq("campaign_id", campaign.id)),
+          readRows<{ from_kind: string; from_id: string | null; to_kind: string; to_id: string | null; type: string }>(
+            admin.from("world_links").select("from_kind, from_id, to_kind, to_id, type").eq("campaign_id", campaign.id).eq("from_kind", "canon").eq("to_kind", "canon"),
+          ),
+          readRows<{ id: string; name: string; status: string; loose_end_left_at: string | null }>(admin.from("canon_arcs").select("id, name, status, loose_end_left_at").eq("campaign_id", campaign.id)),
+          readRows<{ status: string; arc_id: string | null }>(admin.from("quests").select("status, arc_id").eq("campaign_id", campaign.id)),
+          readRows<{ created_at: string }>(admin.from("campaign_sessions").select("created_at").eq("campaign_id", campaign.id)),
         ]);
-        const loose = looseEnds({ entries, clueSecretIds: clues.map((c) => c.secret_id), steps, entryQuests });
+        const loose = looseEndFindings({ entries, clues, steps, entryQuests, links, arcs, quests, sessions });
         const listed = entries.slice(0, MAX_READ_ENTRIES);
         if (listed.length < 2) skipModelWith = loose;
         const nameOf = await loadMentionNames(admin, campaign.id, listed.flatMap((r) => collectMentions(r.body)));

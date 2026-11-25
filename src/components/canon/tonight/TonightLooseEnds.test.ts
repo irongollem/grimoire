@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import TonightLooseEnds from "./TonightLooseEnds.vue";
 import type { LooseEnd } from "@/lib/canon/canonTonight";
 
-const ends: LooseEnd[] = [{ key: "secret:S1", kind: "secret", title: "The mayor is a ghoul", reasons: ["No clues yet"], to: { path: "/canon", query: { entry: "S1" } } }];
+const ends: LooseEnd[] = [{ key: "secret:S1", kind: "secret", title: "The mayor is a ghoul", reasons: ["No clues yet"], entryId: "S1", subjectId: "S1", to: { path: "/canon", query: { entry: "S1" } } }];
 const mountEnds = () => mount(TonightLooseEnds, { props: { ends }, global: { stubs: { RouterLink: { props: ["to"], template: "<a :href='to.query.entry'><slot /></a>" } } } });
 
 describe("TonightLooseEnds", () => {
@@ -20,5 +20,14 @@ describe("TonightLooseEnds", () => {
     const w = mountEnds();
     expect(w.get("[data-testid=loose-end]").text()).toContain("Secret: No clues yet");
     expect(w.get("[data-testid=loose-end] a").attributes("href")).toBe("S1");
+  });
+
+  // Bug caught: Leave it emitting nothing (or another end), so a loose end the DM means to leave nags for ever.
+  it("emits the end for Leave it and the entry for Pin", async () => {
+    const w = mount(TonightLooseEnds, { props: { ends }, global: { stubs: { RouterLink: { template: "<a><slot /></a>" }, AppButton: { props: ["label"], template: "<button>{{ label }}</button>" }, TonightPinToggle: { template: "<button data-testid='pin' @click=\"$emit('toggle')\" />" } } } });
+    await w.get("[data-testid=loose-leave]").trigger("click");
+    expect(w.emitted("leave")?.[0]).toEqual([ends[0]]);
+    await w.get("[data-testid=pin]").trigger("click");
+    expect(w.emitted("pin")?.[0]).toEqual(["S1"]);
   });
 });

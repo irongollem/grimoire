@@ -1,6 +1,6 @@
 <template>
-  <!-- A column under the contents from 90rem; one row beside the chapter picker below that. Arcs are made in the Arcs chapter. -->
-  <section v-if="arcs.length > 0" class="flex flex-wrap items-center gap-2 min-[90rem]:flex-col min-[90rem]:flex-nowrap min-[90rem]:items-stretch" aria-label="Arcs" data-testid="canon-arcs">
+  <!-- A column under the contents from 60rem of the page; one row beside the chapter picker below that. Arcs are made in the Arcs chapter. -->
+  <section v-if="arcs.length > 0" class="flex flex-wrap items-center gap-2 @min-[60rem]/canon:flex-col @min-[60rem]/canon:flex-nowrap @min-[60rem]/canon:items-stretch" aria-label="Arcs" data-testid="canon-arcs">
     <span class="text-eyebrow text-muted-foreground">Arc</span>
     <div class="flex min-w-0 items-center gap-1">
       <AppSelect v-model="filter" tone="filled" weight="normal" size="body" class="min-w-0 flex-1" aria-label="Show the canon of one arc">

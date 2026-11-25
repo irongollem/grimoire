@@ -6,7 +6,7 @@
 
     <template #who>
       <AudienceRevealControl :visible-to="entry.player_visible_to" :name="entry.title" @change="(next) => update({ id: entry.id, patch: { player_visible_to: next } })" />
-      <EntryArcPicker :entry="entry" />
+      <EntryArcPicker v-if="shown('arc')" :entry="entry" />
     </template>
 
     <div class="flex flex-wrap items-end gap-3">
@@ -68,11 +68,13 @@
       </div>
     </CanonBlock>
 
-    <EntryStoryLinks :entry="entry" />
+    <EntryStoryLinks v-if="shown('story')" :entry="entry" />
 
-    <EntryQuests :entry="entry" :links="questLinks" label="The quests that tell it" empty="No quest tells this yet." />
+    <EntryQuests v-if="shown('quests')" :entry="entry" :links="questLinks" label="The quests that tell it" empty="No quest tells this yet." />
 
-    <template #connections>
+    <CanonAddFold :choices="choices(FOLDED)" @choose="choose" />
+
+    <template v-if="shown('connections')" #connections>
       <ConnectionsSection :subject="subject" :subject-name="entry.title" />
     </template>
   </CanonEntryPane>
@@ -92,6 +94,7 @@ import AudienceRevealControl from "@/components/common/reveal/AudienceRevealCont
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import CanonReview from "./CanonReview.vue";
 import CanonBlock from "./kit/CanonBlock.vue";
+import CanonAddFold from "./kit/CanonAddFold.vue";
 import CanonEntryPane from "./kit/CanonEntryPane.vue";
 import EntryArcPicker from "./EntryArcPicker.vue";
 import EntryQuests from "./EntryQuests.vue";
@@ -100,6 +103,7 @@ import LorePassageRow from "./LorePassageRow.vue";
 import WorldDateField from "./WorldDateField.vue";
 import { LORE_KIND_LABEL, LORE_KIND_OPTIONS, entryDate, normaliseDate, worldDateLabel, type WorldDate } from "@/lib/canon/canonLore";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useEntryFold, type FoldKey } from "@/composables/canon/useEntryFold";
 import { useEntryQuestLinks } from "@/composables/canon/useEntryQuestLinks";
 import { usePassageList } from "@/composables/canon/usePassageList";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
@@ -118,6 +122,8 @@ const splitTarget = computed(() => ({ title: entry.title, kind: entry.lore_kind,
 const suggestPassage = computed(() => `Suggest a passage for the lore "${entry.title}".`);
 const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
 const questLinks = useEntryQuestLinks(() => entry.id);
+const FOLDED: readonly FoldKey[] = ["arc", "quests", "story", "connections"];
+const { shown, choices, choose } = useEntryFold(() => entry);
 const { mutate: update } = useUpdateCanonEntry();
 const { text, revision } = useCommittedText(() => entry.title, (next) => update({ id: entry.id, patch: { title: next } }));
 

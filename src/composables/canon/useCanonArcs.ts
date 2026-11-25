@@ -5,6 +5,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { toast } from "@/lib/toast";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { moveWithin } from "@/lib/canon/canonOrder";
+import { fetchCanonArcs } from "@/lib/canon/canonCampaignReads";
 
 /** One arc of the campaign's story (`canon_arcs`): a name and one line of what it is about. DM-only. */
 export interface CanonArc {
@@ -22,6 +23,8 @@ export interface CanonArc {
   ending: string | null;
   /** The premise theme line the arc carries. */
   theme_id: string | null;
+  /** When the DM said "Leave it" to the arc as a loose end (#1279); Tonight and the read-through skip it. */
+  loose_end_left_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -30,17 +33,6 @@ export type CanonArcStatus = CanonArc["status"];
 
 export type CanonArcPatch = Partial<Pick<CanonArc, "name" | "summary" | "sort_order" | "status" | "question" | "stakes" | "ending" | "theme_id">>;
 
-/** The campaign's arcs in the DM's order, scoped in the query: RLS bounds who may read, it does not choose the campaign. */
-export async function fetchCanonArcs(campaignId: string): Promise<CanonArc[]> {
-  const { data, error } = await supabase
-    .from("canon_arcs")
-    .select("*")
-    .eq("campaign_id", campaignId)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  return data as CanonArc[];
-}
 
 export async function createCanonArc(campaignId: string, input: { name: string; summary?: string | null; sort_order?: number }): Promise<CanonArc> {
   const user = getCurrentUser();

@@ -13,7 +13,7 @@
       <AppButton v-if="entry.revealed_at === null && !choosingWho" variant="outline" size="sm" label="Reveal to…" data-testid="reveal-some" @click="choosingWho = true" />
       <AppButton v-if="entry.revealed_at !== null && !wholeParty && !choosingWho" variant="outline" size="sm" label="Reveal to more…" data-testid="reveal-more" @click="choosingWho = true" />
       <AppButton v-if="entry.revealed_at !== null" variant="outline" size="sm" label="Hide again" data-testid="hide" @click="hide" />
-      <EntryArcPicker :entry="entry" />
+      <EntryArcPicker v-if="shown('arc')" :entry="entry" />
       <PassageTellSome
         v-if="choosingWho"
         :key="entry.revealed_at === null ? 'first' : 'more'"
@@ -31,12 +31,27 @@
     </template>
 
     <CanonEntryNotes
+      v-if="shown('notes')"
       :key="entry.id"
       :entry="entry"
       label="More about it"
       help="Players read this once you reveal the secret. Put what only you should see in a DM-only block."
       placeholder="What is really going on, and how it comes out…"
     />
+
+    <CanonBlock v-if="shown('cover')" title="What people believe instead">
+      <AppInput
+        :key="`${entry.id}-${coverRevision}`"
+        v-model.lazy="cover"
+        size="body"
+        tone="filled"
+        maxlength="500"
+        aria-label="What people believe instead"
+        placeholder="The king died of fever."
+        data-testid="cover-story"
+      />
+      <p class="m-0 text-caption text-muted-foreground">Players read this until the secret is revealed to them.</p>
+    </CanonBlock>
 
     <CanonBlock title="Clues" :suggest="clueRequest">
       <CanonReview mode="clues" :secret-id="entry.id" />
@@ -69,9 +84,11 @@
 
     <SecretOutlets :entry="entry" :clues="clues" />
 
-    <EntryStoryLinks :entry="entry" />
+    <EntryStoryLinks v-if="shown('story')" :entry="entry" />
 
-    <template #connections>
+    <CanonAddFold :choices="choices(FOLDED)" @choose="choose" />
+
+    <template v-if="shown('connections')" #connections>
       <ConnectionsSection :subject="subject" :subject-name="entry.title" :hide="isShownAbove" />
     </template>
   </CanonEntryPane>
@@ -88,6 +105,7 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import CanonReview from "./CanonReview.vue";
 import CanonBlock from "./kit/CanonBlock.vue";
+import CanonAddFold from "./kit/CanonAddFold.vue";
 import CanonEntryPane from "./kit/CanonEntryPane.vue";
 import EntryArcPicker from "./EntryArcPicker.vue";
 import EntryStoryLinks from "./EntryStoryLinks.vue";
@@ -99,6 +117,7 @@ import SecretOutlets from "./SecretOutlets.vue";
 import { CLUES_WANTED, SECRET_STATE_LABEL, SECRET_STATE_MARK, clueTally, secretState } from "@/lib/canon/canonSecrets";
 import { cluePlacement, useCreateCanonClue, useCanonClues, useDeleteCanonClue, useSetClueFound, useUpdateCanonClue, type ClueKind } from "@/composables/canon/useCanonClues";
 import { useCanonEntries, useCreateCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useEntryFold, type FoldKey } from "@/composables/canon/useEntryFold";
 import { useLinkBecame } from "@/composables/canon/useLinkBecame";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
@@ -148,6 +167,20 @@ const { confirm } = useConfirm();
 
 const { text, revision } = useCommittedText(() => entry.title, (next) => update({ id: entry.id, patch: { title: next } }));
 
+// What people believe instead (#1279 item 15): one line, saved when the field is left. Unlike the title it may be emptied, which clears it.
+const cover = ref(entry.cover_story ?? "");
+const coverRevision = ref(0);
+watch(() => entry.cover_story, (next) => { cover.value = next ?? ""; });
+watch(cover, (typed) => {
+  const next = typed.trim();
+  if (next === (entry.cover_story ?? "")) {
+    // Nothing changed but spaces (or nothing): put the saved words back, remaking the field to drop what was typed.
+    if (typed !== next) { cover.value = next; coverRevision.value++; }
+    return;
+  }
+  update({ id: entry.id, patch: { cover_story: next === "" ? null : next } });
+});
+
 const adding = ref(false);
 const choosingWho = ref(false);
 watch(() => entry.id, () => { adding.value = false; choosingWho.value = false; });
@@ -162,6 +195,9 @@ const revealedTo = computed(() => {
 });
 // The story links (led to, carries) are EntryStoryLinks' block, so the Connections block does not list them twice.
 const isShownAbove = (c: Connection): boolean => c.source === "link" && (c.type === "led_to" || c.type === "carries");
+
+const FOLDED: readonly FoldKey[] = ["arc", "notes", "story", "connections", "cover"];
+const { shown, choices, choose } = useEntryFold(() => entry, { hideConnection: isShownAbove });
 
 async function addClue(input: { title: string; where: { kind: ClueKind; id: string } | null }) {
   const base = { secret_id: entry.id, title: input.title, sort_order: clues.value.length };

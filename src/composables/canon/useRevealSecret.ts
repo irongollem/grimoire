@@ -4,6 +4,15 @@ import { useCampaignSession } from "@/composables/campaign/useCampaignSession";
 import { useParty } from "@/composables/party/useParty";
 
 /**
+ * The id of the session that is running, or null when none runs: what every "revealed" or "told" stamp records as
+ * `revealed_session_id`. Shared by revealing a secret and telling a truth so the rule is written once.
+ */
+export function useOpenSessionId() {
+  const { session } = useCampaignSession();
+  return () => session.value?.id ?? null;
+}
+
+/**
  * The one way a canon secret is revealed (#1255 item 21): stamp `revealed_at` and the session that is running
  * (`revealed_session_id`, null when none runs, as a Found clue does; #1258 item 23), and share it through
  * `player_visible_to` with every party member, or with the ones chosen. The secret's own page and a quest beat tied to
@@ -13,7 +22,7 @@ import { useParty } from "@/composables/party/useParty";
 export function useRevealSecret() {
   const { mutate } = useUpdateCanonEntry();
   const { data: party } = useParty();
-  const { session } = useCampaignSession();
+  const openSessionId = useOpenSessionId();
   /** False until the party has loaded: revealing to a party that has not loaded would share it with nobody, silently. */
   const ready = computed(() => party.value !== undefined);
 
@@ -25,7 +34,7 @@ export function useRevealSecret() {
     if (audience.length === 0) return false;
     mutate({
       id: secretId,
-      patch: { revealed_at: new Date().toISOString(), revealed_session_id: session.value?.id ?? null, player_visible_to: [...audience] },
+      patch: { revealed_at: new Date().toISOString(), revealed_session_id: openSessionId(), player_visible_to: [...audience] },
     });
     return true;
   }

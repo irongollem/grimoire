@@ -31,6 +31,16 @@ describe("useCanonUiStore filters", () => {
     expect(store.hasActiveFilters).toBe(false);
   });
 
+  // Bug caught: the lore kind lighting no Clear, or Clear leaving the kind set so the chapter stays narrowed.
+  it("lights the lore Clear for a kind and puts it back", () => {
+    const store = useCanonUiStore();
+    expect(store.loreHasActiveFilters).toBe(false);
+    store.loreKindFilter = "faith";
+    expect(store.loreHasActiveFilters).toBe(true);
+    store.resetLoreFilters();
+    expect(store.loreKindFilter).toBeNull();
+  });
+
   it("resets the arc and the search", () => {
     const store = useCanonUiStore();
     store.arcFilter = "a1";

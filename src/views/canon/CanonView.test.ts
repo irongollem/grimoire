@@ -46,6 +46,10 @@ vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaign: { id: "c1" } }) }));
 
 vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
+// The page's search also reads peoples, habitats and the table's lines (#1279 item 24); none of these tests searches them.
+vi.mock("@/composables/canon/useCampaignPeoples", () => ({ useCampaignPeoples: () => ({ peoples: ref([]) }) }));
+vi.mock("@/composables/canon/useCampaignHabitats", () => ({ useCampaignHabitats: () => ({ habitats: ref([]) }) }));
+vi.mock("@/composables/canon/useTableFacts", () => ({ useTableFacts: () => ({ facts: { data: ref([]) } }) }));
 
 import { useCanonUiStore } from "@/stores/ui/canon";
 import CanonView from "./CanonView.vue";

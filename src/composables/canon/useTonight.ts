@@ -6,12 +6,15 @@ import { useCanonEntries } from "@/composables/canon/useCanonEntries";
 import { useCanonForceData } from "@/composables/canon/useCanonForces";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useTableFacts } from "@/composables/canon/useTableFacts";
+import { useTonightPins, useTonightPlanLine } from "@/composables/canon/useTonightPlan";
+import { useWorldToday } from "@/composables/canon/useWorldToday";
 import { useCampaignLinks } from "@/composables/connections/useConnections";
 import { useAllLocations } from "@/composables/locations/useLocations";
+import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useParty } from "@/composables/party/useParty";
 import { useQuests } from "@/composables/quests/useQuests";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
-import { activeQuestBeatIds, looseEnds, nothingTonight, scopeHidAll, scopeTonight, tonight } from "@/lib/canon/canonTonight";
+import { TONIGHT_SCOPES, activeQuestBeatIds, looseEnds, nothingTonight, plannedItems, scopeCounts, scopeHidAll, scopeTonight, tonight } from "@/lib/canon/canonTonight";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCanonUiStore } from "@/stores/ui/canon";
 
@@ -35,7 +38,12 @@ export function useTonight() {
   const beatQuests = useCampaignBeatQuests();
   const locations = useAllLocations();
   const sessions = useCampaignSessions();
-  const reads = [entries, clues, passages, forces, party, links, record.facts, arcs, quests, beatQuests, locations, sessions];
+  const npcs = useNpcs();
+  const today = useWorldToday();
+  // The plan is the DM's own and optional: it never gates the page, it fills in when it arrives.
+  const pins = useTonightPins();
+  const planLine = useTonightPlanLine();
+  const reads = [entries, clues, passages, forces, party, links, record.facts, arcs, quests, beatQuests, locations, sessions, npcs];
 
   const isLoading = computed(() => reads.some((r) => r.isLoading.value));
   const isError = computed(() => reads.some((r) => r.isError.value));
@@ -54,17 +62,24 @@ export function useTonight() {
       party: party.data.value ?? [],
       links: links.data.value ?? [],
       facts: record.facts.data.value ?? [],
+      today: today.value,
     });
   });
-  const plan = computed(() =>
-    full.value === null
-      ? null
-      : scopeTonight(full.value, scope.value, {
-          currentLocationId: campaign.value?.current_location_id ?? null,
-          locations: locations.data.value ?? [],
-          activeBeatIds: activeQuestBeatIds(beatQuests.data.value ?? [], quests.data.value ?? []),
-        }),
-  );
+  const scopeContext = computed(() => ({
+    currentLocationId: campaign.value?.current_location_id ?? null,
+    locations: locations.data.value ?? [],
+    activeBeatIds: activeQuestBeatIds(beatQuests.data.value ?? [], quests.data.value ?? []),
+    npcLocationIds: new Map((npcs.data.value ?? []).map((n) => [n.id, n.location_id])),
+  }));
+  const plan = computed(() => (full.value === null ? null : scopeTonight(full.value, scope.value, scopeContext.value)));
+  /** The scope control only means something when there is lore or a clue for it to narrow. */
+  const showScope = computed(() => full.value !== null && (full.value.lore.length > 0 || full.value.clues.length > 0));
+  /** Each option, with how many lore passages and clues it holds. */
+  const scopeOptions = computed(() => {
+    const counts = full.value === null ? null : scopeCounts(full.value, scopeContext.value);
+    return TONIGHT_SCOPES.map((o) => ({ value: o.id, label: counts === null ? o.label : `${o.label} · ${counts[o.id]}` }));
+  });
+  const noPlace = computed(() => scope.value === "party" && !campaign.value?.current_location_id);
   const ends = computed(() =>
     full.value === null
       ? []
@@ -79,8 +94,19 @@ export function useTonight() {
           sessions: sessions.data.value ?? [],
         }),
   );
+  /** What the DM pinned, resolved against the whole canon (a scope never cuts a pin). */
+  const planned = computed(() =>
+    full.value === null
+      ? []
+      : plannedItems(pins.data.value ?? [], {
+          entries: entries.data.value ?? [],
+          passages: passages.data.value ?? [],
+          clues: clues.data.value ?? [],
+          steps: forces.data.value?.steps ?? [],
+        }),
+  );
   // Empty only when the whole canon has nothing; a scope that hides what exists says so under its control instead.
-  const nothing = computed(() => full.value !== null && nothingTonight(full.value) && ends.value.length === 0);
+  const nothing = computed(() => full.value !== null && nothingTonight(full.value) && ends.value.length === 0 && planned.value.length === 0 && !planLine.data.value);
   const scopeEmpty = computed(() => full.value !== null && plan.value !== null && scopeHidAll(full.value, plan.value));
   const scopeEmptyText = computed(() =>
     scope.value === "party"
@@ -90,5 +116,5 @@ export function useTonight() {
       : "No lore or clue is placed at a beat of an active quest. Choose Everything to see the rest.",
   );
 
-  return { campaign, isLoading, isError, scope, full, plan, ends, nothing, scopeEmpty, scopeEmptyText };
+  return { showScope, scopeOptions, noPlace, campaign, isLoading, isError, scope, full, plan, ends, planned, steps: computed(() => forces.data.value?.steps ?? []), pins: computed(() => pins.data.value ?? []), planLine: computed(() => planLine.data.value ?? null), nothing, scopeEmpty, scopeEmptyText };
 }

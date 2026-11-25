@@ -6,10 +6,11 @@ import {
   worldBlockText,
   worldImageSetting,
   type CanonRowForBlock,
+  type PeopleRow,
 } from "./worldBlock";
 
 /** The block for a campaign that has said nothing of its peoples, unless a test says otherwise. */
-const build = (setting: string | null, rows: CanonRowForBlock[], peoples: readonly { name: string; percent: number }[] = []) => worldBlockFromRows(setting, rows, peoples, []);
+const build = (setting: string | null, rows: CanonRowForBlock[], peoples: readonly PeopleRow[] = []) => worldBlockFromRows(setting, rows, peoples, []);
 
 let order = 0;
 const row = (over: Partial<CanonRowForBlock>): CanonRowForBlock => ({
@@ -139,6 +140,49 @@ describe("the peoples of the world", () => {
 
   it("says 100% without an anyone-else and leaves a share of zero out", () => {
     expect(build(null, [], [{ name: "Elf", percent: 100 }, { name: "Orc", percent: 0 }]).peoples).toBe("Elf 100%");
+  });
+});
+
+describe("peoples with a name and words", () => {
+  const doc = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+
+  // Bug: a culture reached the generators as its species alone, so "the Vell" were just humans with no way of life.
+  it("names a people over its record and says what they are like, in a sentence", () => {
+    const text = worldBlockText(build(null, [], [
+      { name: "the Vell", own_name: "the Vell", record_name: "Human", percent: 30, body: doc("Salt traders who bury their dead at sea. They distrust the hills.") },
+      { name: "Elf", percent: 50 },
+    ]));
+    expect(text).toContain("## Peoples of the world\nElf, 50%\nthe Vell (Human), 30%: Salt traders who bury their dead at sea.\nanyone else, 20%\n");
+  });
+
+  // Bug: a long body went into every generator's prompt in full.
+  it("trims what they are like to about 200 characters", () => {
+    const block = build(null, [], [{ name: "Elf", percent: 100, body: doc("a".repeat(500)) }]);
+    expect(block.peoples!.length).toBeLessThan(230);
+    expect(block.peoples).toContain("…");
+  });
+
+  // Bug: a DM-only passage in a people's description was told to every generator.
+  it("leaves a secret passage of the description out", () => {
+    const body = JSON.stringify({ type: "doc", content: [{ type: "secretBlock", content: [{ type: "paragraph", content: [{ type: "text", text: "HIDDEN-MARKER" }] }] }, { type: "paragraph", content: [{ type: "text", text: "Proud." }] }] });
+    expect(build(null, [], [{ name: "Elf", percent: 100, body }]).peoples).not.toContain("HIDDEN-MARKER");
+  });
+});
+
+describe("what the world commonly believes", () => {
+  // Bug: only the cover story may leave a secret; the block must hold the line and nothing of the secret's own words.
+  it("lists the cover stories in order and nothing else", () => {
+    const block = worldBlockFromRows(null, [], [], [], undefined, [
+      { cover_story: "The king died of fever.", sort_order: 2 },
+      { cover_story: "  ", sort_order: 3 },
+      { cover_story: "The bridge fell in a storm.", sort_order: 1 },
+    ]);
+    expect(block.commonBeliefs).toEqual(["The bridge fell in a storm.", "The king died of fever."]);
+    expect(worldBlockText(block)).toContain("## Commonly believed\n- The bridge fell in a storm.\n- The king died of fever.");
+  });
+
+  it("adds no section when no secret has a cover story", () => {
+    expect(worldBlockText(build(null, [], []))).toBe("");
   });
 });
 

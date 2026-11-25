@@ -5,6 +5,7 @@ import { toast } from "@/lib/toast";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { useCampaignStore } from "@/stores/campaign";
 import { UNREADABLE_CREATURE, type Habitat, type HabitatLife } from "@/lib/canon/habitats";
+import { fetchHabitats } from "@/lib/canon/canonCampaignReads";
 
 /**
  * The ecology of the world (#1255 item 31): `campaign_habitats`, the Atlas places each covers
@@ -25,12 +26,6 @@ export interface HabitatPlace {
   locationId: string;
 }
 
-interface HabitatRow {
-  id: string;
-  name: string;
-  description: string | null;
-  sort_order: number;
-}
 
 interface PlaceRow {
   id: string;
@@ -48,16 +43,6 @@ interface LifeRow {
   name: string | null;
 }
 
-/** The campaign's habitats in the DM's order. Scoped to the campaign in the query: RLS only bounds who may read. */
-export async function fetchHabitats(campaignId: string): Promise<Habitat[]> {
-  const { data, error } = await supabase
-    .from("campaign_habitats")
-    .select("id, name, description, sort_order")
-    .eq("campaign_id", campaignId)
-    .order("sort_order", { ascending: true });
-  if (error) throw error;
-  return (data as HabitatRow[]).map((r) => ({ id: r.id, name: r.name, description: r.description, sortOrder: r.sort_order }));
-}
 
 export async function fetchHabitatPlaces(campaignId: string): Promise<HabitatPlace[]> {
   const { data, error } = await supabase
