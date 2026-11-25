@@ -56,7 +56,7 @@ When the story turns into a fight, it opens as a fight with a map, a roster and 
 
 ### Voices
 
-Lines can be read aloud, in a man's or a woman's Narrator voice, one voice for the whole table. Under **Read aloud** you can switch voices on if your server has them. A voiced line costs more than a text one. Each character with a record speaks in their own voice, which you can choose on the NPC's **Voice** tab. Any voice reads any language: a line is spoken in the language it is written in, and a voice's accent carries over.
+Lines can be read aloud, in a man's or a woman's Narrator voice, one voice for the whole table. Under **Read aloud** you can switch voices on if your server has them. A voiced line costs more than a text one. Each character with a record speaks in their own voice, which you can choose on the NPC's **Voice** tab. Any voice reads any language: a line is spoken in the language it is written in. A voice recorded in English with an accent keeps it; a voice recorded only in another language speaks English with a plain American accent.
 
 ## What it costs
 
