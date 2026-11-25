@@ -490,13 +490,18 @@ async function sample(userId: string, body: Record<string, unknown>, deps: Studi
   }
   if (!deps.services.hasService(row.service)) return jsonError(503, "no_key", STUDIO_MESSAGES.noKey(row.service));
 
-  // The service's free preview first, so a DM listening through voices costs the platform nothing; only a voice
-  // with none (Inworld's) is spoken, once, and kept like the rest. A preview that cannot be fetched falls through.
+  // A voice's sample is the service's free preview, so listening through voices costs the platform nothing; a voice
+  // with none (Inworld's) is spoken once, and kept like the rest. The one exception is Ooru's greeting, which is not a
+  // voice sample but what the Familiar opens with: it is heard saying its words (seen live: Hear Ooru played
+  // ElevenLabs' own preview of the voice instead).
+  const ownWords = row.binding === "familiar" && row.preview_text !== null && row.preview_text.trim() !== "";
   let bytes: Uint8Array | null = null;
-  try {
-    bytes = await deps.services.previewRecording(row.service, row.voice_id);
-  } catch (error) {
-    deps.report(error);
+  if (!ownWords) {
+    try {
+      bytes = await deps.services.previewRecording(row.service, row.voice_id);
+    } catch (error) {
+      deps.report(error);
+    }
   }
   if (bytes === null) bytes = await deps.services.synthesize(row.service, row.voice_id, row.preview_text ?? NEUTRAL_SAMPLE_LINE);
   const mediaType = mediaTypeOf(bytes);

@@ -506,6 +506,19 @@ describe("sample", () => {
     expect(h.store.get(`voice-samples/${SLOT}/oldvoice1234.wav`)).toEqual(WAV);
   });
 
+  // Bug caught (seen live): Hear Ooru playing ElevenLabs' own preview of the voice instead of Ooru's greeting; and a
+  // character's voice sample paid for when the service gives one free.
+  it("speaks Ooru's greeting, while a character's voice keeps the free preview", async () => {
+    const ooru = harness([row({ binding: "familiar", preview_text: "Ooh, there you are!" })]);
+    ooru.h.previewBytes = WAV;
+    await ooru.run({ action: "sample", slotId: SLOT }, false);
+    expect(ooru.h.calls).toEqual(["speak:oldvoice1234:Ooh, there you are!"]);
+    const character = harness([row({ preview_text: "A line for the voice." })]);
+    character.h.previewBytes = WAV;
+    await character.run({ action: "sample", slotId: SLOT }, false);
+    expect(character.h.calls).toEqual(["preview:oldvoice1234"]);
+  });
+
   // Bug caught: a sample of the old voice, finished after the admin replaced it, overwriting the new voice's sample.
   it("does not keep a sample when the slot's voice changed while it was being made", async () => {
     const { h, run } = harness();

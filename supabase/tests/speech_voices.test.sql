@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(15);
 
 -- The voice registry (#1272): every account reads the filled cast slots, only the admin reads the rest or writes,
 -- and a DM can give a character only a voice they can read, so nobody puts another table's signature voice on
@@ -106,6 +106,16 @@ select throws_ok(
   $$update public.speech_voices set service = 'inworld', voice_id = 'snappy-magpie-0676__design-voice-1e599405' where binding = 'familiar'$$,
   '23514', null,
   'a bound slot stays on its binding''s service');
+
+-- Ooru's kept greeting follows its words, and a character's voice sample does not (20261124235617).
+update public.speech_voices set sample_key = 'voice-samples/94400000-0000-4000-8000-000000000030/TestShadyGuy0001.mp3' where id = '94400000-0000-4000-8000-000000000030';
+update public.speech_voices set preview_text = 'New words for the shady guy.' where id = '94400000-0000-4000-8000-000000000030';
+update public.speech_voices set sample_key = 'voice-samples/' || id || '/kGl89T0PY344jeMOzVyf.mp3' where binding = 'familiar';
+update public.speech_voices set preview_text = 'Hoo, a new greeting.' where binding = 'familiar';
+select is(
+  array[(select sample_key is null from public.speech_voices where binding = 'familiar'), (select sample_key is null from public.speech_voices where id = '94400000-0000-4000-8000-000000000030')],
+  array[true, false],
+  'rewriting Ooru''s greeting clears its kept recording; a character voice keeps its sample');
 
 reset role;
 select * from finish();
