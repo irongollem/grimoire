@@ -61,19 +61,6 @@ const entries = computed(() => entriesData.value ?? []);
 const byId = computed(() => new Map(entries.value.map((e) => [e.id, e])));
 const canonLinks = computed(() => (linksData.value ?? []).filter((l) => l.from_kind === "canon" && l.to_kind === "canon"));
 
-/** Entries by id, each once and in the order given; an id with no entry (trashed) is left out. */
-function resolve(ids: readonly string[]): CanonEntry[] {
-  const seen = new Set<string>();
-  const out: CanonEntry[] = [];
-  for (const id of ids) {
-    const e = byId.value.get(id);
-    if (e === undefined || seen.has(e.id) || e.id === entry.id) continue;
-    seen.add(e.id);
-    out.push(e);
-  }
-  return out;
-}
-
 interface Tie { entry: CanonEntry; link: WorldLink | null }
 
 /** Entries with the `led_to` link that ties them, each once; the became pointer gives a row with no link of its own. */

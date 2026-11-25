@@ -311,7 +311,7 @@ describe("SecretDetail", () => {
     expect(hide(conn({ type: "led_to" }))).toBe(true);
     expect(hide(conn({ type: "carries" }))).toBe(true);
     expect(hide(conn({ type: "about" }))).toBe(false);
-    expect(hide(conn({ type: "led_to", source: "record" }))).toBe(false);
+    expect(hide(conn({ type: "led_to", source: "kin" }))).toBe(false);
   });
 
   // Bug caught (#1258 item 18): the truth was pointed at but no canon led_to link was written, so the secret's

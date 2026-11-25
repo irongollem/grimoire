@@ -1,5 +1,5 @@
 import { getCurrentUser, supabase } from "@/lib/supabase";
-import { createCanonPassage } from "@/composables/canon/useCanonPassages";
+import { createCanonPassage } from "@/lib/canon/canonPassageWrites";
 import { queueCanonEmbedding } from "@/lib/canon/queueCanonEmbedding";
 import { appendTiptapDoc } from "@/lib/notes/appendTiptap";
 import type { NoteWas } from "@/lib/notes/noteSorting";

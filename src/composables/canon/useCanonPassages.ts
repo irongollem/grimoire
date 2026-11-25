@@ -1,13 +1,13 @@
-import type { AiProvenance } from "@/ai/provenance";
 import { computed } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
-import { getCurrentUser, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { toast } from "@/lib/toast";
 import { queueCanonEmbedding } from "@/lib/canon/queueCanonEmbedding";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import type { ClueKind } from "@/composables/canon/useCanonClues";
 import type { CanonLorePassage } from "@/types/canon.types";
+import { createCanonPassage, type NewCanonPassage } from "@/lib/canon/canonPassageWrites";
 
 /**
  * Lore told in passages (#1226 story 5): the passages of every lore entry, read once for the whole campaign. Each is
@@ -21,23 +21,6 @@ const WHERE_COLUMN: Partial<Record<ClueKind, "location_id" | "npc_id" | "quest_b
   quest_beat: "quest_beat_id",
 };
 
-/** What a new passage needs. At most one place may be set (the table refuses two, 23514). */
-export type NewCanonPassage = {
-  entry_id: string;
-  title?: string;
-  /** Tiptap JSON string. */
-  body?: string | null;
-  sort_order?: number;
-  /** Set when the passage came from an accepted AI suggestion. */
-  ai_provenance?: AiProvenance | null;
-  /** Who it is told to once told (a backstory passage the DM tells to its character only). */
-  player_visible_to?: string[];
-} & (
-  | { location_id?: string; npc_id?: never; quest_beat_id?: never }
-  | { npc_id?: string; location_id?: never; quest_beat_id?: never }
-  | { quest_beat_id?: string; location_id?: never; npc_id?: never }
-);
-
 /** Every passage of the campaign, scoped in the query: RLS only bounds who may read, it does not choose the campaign. */
 export async function fetchCanonPassages(campaignId: string): Promise<CanonLorePassage[]> {
   const { data, error } = await supabase
@@ -48,21 +31,6 @@ export async function fetchCanonPassages(campaignId: string): Promise<CanonLoreP
     .order("created_at", { ascending: true });
   if (error) throw error;
   return data as CanonLorePassage[];
-}
-
-export async function createCanonPassage(campaignId: string, input: NewCanonPassage): Promise<CanonLorePassage> {
-  const user = getCurrentUser();
-  if (!user) throw new Error("Not authenticated");
-  const { data, error } = await supabase
-    .from("canon_lore_passages")
-    .insert({ ...input, campaign_id: campaignId, user_id: user.id })
-    .select()
-    .single();
-  if (error) throw error;
-  const created = data as CanonLorePassage;
-  // A lore entry's one vector folds its passages in, so a new passage changes the entry's embed text (#1226).
-  queueCanonEmbedding(created.entry_id);
-  return created;
 }
 
 export async function deleteCanonPassage(id: string): Promise<void> {
