@@ -36,7 +36,7 @@ import LoreDetail from "./LoreDetail.vue";
 
 const p = (id: string, sort: number): CanonLorePassage => ({
   id, user_id: "u", campaign_id: "c", entry_id: "l1", title: id, body: null, sort_order: sort, player_visible_to: [], told_at: null, told_session_id: null,
-  location_id: null, npc_id: null, quest_beat_id: null, author_id: "u", ai_provenance: null, created_at: `2026-11-19T10:00:0${sort}Z`, updated_at: "",
+  location_id: null, npc_id: null, quest_beat_id: null, author_id: "u", dm_edited_at: null, body_before_dm_edit: null, ai_provenance: null, created_at: `2026-11-19T10:00:0${sort}Z`, updated_at: "",
 });
 
 const mountIt = (over = {}) =>

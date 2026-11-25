@@ -66,9 +66,11 @@ select throws_ok($$
      'Elsewhere', '12260000-0000-4000-8000-000000000251')
 $$, null, null, 'a clue cannot lie at another campaign''s place');
 
+-- A truth is told at a moment too since #1279 item 27; anything else is never revealed.
 select throws_ok($$
-  update public.canon_entries set revealed_at = now() where id = '12260000-0000-4000-8000-000000000231'
-$$, '23514', null, 'only a secret can be revealed');
+  insert into public.canon_entries (user_id, campaign_id, part, title, revealed_at)
+  values ('12260000-0000-4000-8000-000000000201', '12260000-0000-4000-8000-000000000210', 'lore', 'Old songs', now())
+$$, '23514', null, 'only a secret or a truth is revealed');
 
 -- ── The player, before and after the reveal ───────────────────────────────────
 select set_config('request.jwt.claim.sub', '12260000-0000-4000-8000-000000000202', true);

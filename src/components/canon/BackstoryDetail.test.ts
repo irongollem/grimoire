@@ -40,7 +40,7 @@ import BackstoryDetail from "./BackstoryDetail.vue";
 const member = { id: "m1", name: "Tansy", player_name: "Lotte", owner_user_id: "lotte", player_description: null } as unknown as PartyMember;
 const passage = (over: Partial<CanonLorePassage>): CanonLorePassage => ({
   id: "g", user_id: "dm", campaign_id: "c1", entry_id: "b1", title: "t", body: null, sort_order: 0, player_visible_to: [], told_at: null, told_session_id: null,
-  location_id: null, npc_id: null, quest_beat_id: null, author_id: "dm", ai_provenance: null, created_at: "2026-10-10T09:00:00Z", updated_at: "", ...over,
+  location_id: null, npc_id: null, quest_beat_id: null, author_id: "dm", dm_edited_at: null, body_before_dm_edit: null, ai_provenance: null, created_at: "2026-10-10T09:00:00Z", updated_at: "", ...over,
 });
 
 const RowStub = {

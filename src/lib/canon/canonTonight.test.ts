@@ -10,7 +10,7 @@ const stamp = () => `2026-11-20T10:00:${String(n++ % 60).padStart(2, "0")}Z`;
 
 const passage = (id: string, entry_id: string, over: Partial<CanonLorePassage> = {}): CanonLorePassage => ({
   id, user_id: "u", campaign_id: "c1", entry_id, title: `Passage ${id}`, body: null, sort_order: 0, player_visible_to: [],
-  told_at: null, told_session_id: null, location_id: null, npc_id: null, quest_beat_id: null, author_id: null, ai_provenance: null,
+  told_at: null, told_session_id: null, location_id: null, npc_id: null, quest_beat_id: null, author_id: null, dm_edited_at: null, body_before_dm_edit: null, ai_provenance: null,
   created_at: stamp(), updated_at: stamp(), ...over,
 });
 const clue = (id: string, secret_id: string, over: Partial<CanonClue> = {}): CanonClue => ({

@@ -12,7 +12,7 @@ const clue = (over: Partial<CanonClue>): CanonClue => ({
 });
 const passage = (over: Partial<CanonLorePassage>): CanonLorePassage => ({
   id: "p", user_id: "u", campaign_id: "c1", entry_id: "lore1", title: "The first toll", body: null, sort_order: 1, player_visible_to: [], told_at: at,
-  told_session_id: "s1", location_id: null, npc_id: null, quest_beat_id: null, author_id: null, ai_provenance: null, created_at: at, updated_at: at, ...over,
+  told_session_id: "s1", location_id: null, npc_id: null, quest_beat_id: null, author_id: null, dm_edited_at: null, body_before_dm_edit: null, ai_provenance: null, created_at: at, updated_at: at, ...over,
 });
 const step = (over: Partial<CanonForceStep>): CanonForceStep => ({
   id: "st", user_id: "u", campaign_id: "c1", force_id: "f1", title: "The ferry stops", sort_order: 0, reached_at: at, reached_session_id: "s1",

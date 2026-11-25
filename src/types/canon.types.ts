@@ -50,10 +50,17 @@ export interface CanonEntry {
   body: string | null;
   sort_order: number;
   player_visible_to: string[];
-  /** Set by the DM's Reveal button, only on a secret: until then players never read it. */
+  /**
+   * When a secret was revealed, or a truth told to the party (#1279 item 27). Set only on a secret or a truth: until
+   * then players never read a secret, and a told truth's moment is what gives it a New dot and a place in a session.
+   */
   revealed_at: string | null;
-  /** The session that was running when the secret was revealed; only ever set with `revealed_at` (#1258). */
+  /** The session that was running when it was revealed or told; only ever set with `revealed_at` (#1258). */
   revealed_session_id: string | null;
+  /** What people wrongly believe in a secret's place (#1279 item 15). Set only on a secret; players read it, alone, until the reveal. */
+  cover_story: string | null;
+  /** When the DM said "Leave it" to this entry as a loose end (#1279 item 21); Tonight and the read-through skip it. */
+  loose_end_left_at: string | null;
   /** What happens if nobody stops a force (#1258). Set only when `part` is `force`. */
   if_succeeds: string | null;
   /** What a force wants, in one line. Set only when `part` is `force`. */
@@ -111,6 +118,10 @@ export interface CanonLorePassage {
   quest_beat_id: string | null;
   /** Who wrote it: the DM, or (in a backstory) the character's player. Null once that account is gone. */
   author_id: string | null;
+  /** When the DM last rewrote a player's passage (#1279 item 30); cleared by the player's own next edit. */
+  dm_edited_at: string | null;
+  /** What the player had written before the DM's first edit since; null when the DM has not edited it. */
+  body_before_dm_edit: string | null;
   ai_provenance: AiProvenance | null;
   created_at: string;
   updated_at: string;
@@ -207,6 +218,34 @@ export interface CanonWonder {
   body: string;
   adopted_entry_id: string | null;
   dismissed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A line or veil a player asked for privately (#1279 item 29). `asked_by` is set only when the player signed it. */
+export interface CanonLineRequest {
+  id: string;
+  user_id: string;
+  campaign_id: string;
+  kind: "line" | "veil";
+  body: string;
+  asked_by: string | null;
+  adopted_entry_id: string | null;
+  dismissed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One thing the DM pinned for the next session (#1279 item 20): exactly one of the four ids is set. */
+export interface CanonTonightPin {
+  id: string;
+  user_id: string;
+  campaign_id: string;
+  clue_id: string | null;
+  passage_id: string | null;
+  step_id: string | null;
+  entry_id: string | null;
+  sort_order: number;
   created_at: string;
   updated_at: string;
 }
