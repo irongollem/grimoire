@@ -20,5 +20,13 @@
   "illuminator": { "title": "Torn edges and paper washes: pictures in your D&D book" },
   "prison-cell": { "title": "The jailer's dog has the keys: a D&D jailbreak to steal" },
   "workshop-player": { "title": "Craft at a D&D workbench on your phone" },
-  "workshop-dm": { "title": "Your D&D players invent it, you approve it: crafting recipes" }
+  "workshop-dm": { "title": "Your D&D players invent it, you approve it: crafting recipes" },
+  "ferry": { "title": "Boarding the toast ferry: a D&D scene to read aloud" },
+  "watch": { "title": "Roll for perception: a D&D night watch scene" },
+  "mend": { "title": "Mended with gold: a D&D people made of porcelain" },
+  "tavern": { "title": "You all meet in a tavern: a D&D opening to steal" },
+  "fruit": { "title": "Ripe fruit in the Mirror Orchard: a D&D scene to read aloud" },
+  "hollow": { "title": "The Hollow walk at dusk: an eerie D&D orchard scene" },
+  "hospice": { "title": "A house for the end of the leaf: a gentle D&D scene to read aloud" },
+  "mimic": { "title": "Do you trust that chest? A D&D mimic to steal" }
 }
