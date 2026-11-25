@@ -6,14 +6,14 @@
     </div>
   </Teleport>
 
-  <!-- Phones: a sheet above the bottom nav. -->
+  <!-- Phones: a sheet above the bottom nav; while the on-screen keyboard is up, from the status bar to the keyboard, over the nav. -->
   <template v-if="isMobile">
     <!-- The sheet takes its place in the modal stack: above a modal it was opened from, below anything opened from inside it (a confirm, the paywalls, the report form). -->
     <div v-if="ui.open" class="fixed inset-0 bg-black/40" :style="{ zIndex: sheetZ ?? undefined }" @click="ui.closePanel()" />
     <div
       v-if="ui.open"
       :class="['fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))] inset-x-0 flex flex-col rounded-t-2xl border-t border-border bg-card', fullSheet ? 'top-[calc(env(safe-area-inset-top)+0.5rem)]' : 'h-[65vh]']"
-      :style="{ zIndex: sheetZ ?? undefined }"
+      :style="[{ zIndex: sheetZ ?? undefined }, keyboard.sheetStyle.value]"
       role="dialog"
       aria-label="Familiar"
       data-testid="ask-panel"
@@ -39,6 +39,7 @@ import { computed, defineAsyncComponent, nextTick, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { useLazyMount } from "@/composables/useLazyMount";
+import { useKeyboardSheet } from "@/composables/useKeyboardSheet";
 import { FREE_ASKS_PER_DAY, type AskReportDraft } from "@edge-shared/agent/askContract";
 import { useAskAdapters } from "@/ai/ask/useAskAdapters";
 import { useAskConversation, type AskNotice } from "@/composables/ask/useAskConversation";
@@ -67,6 +68,7 @@ const campaign = useCampaignStore();
 const isMobile = useIsMobile();
 const appUi = useAppUiStore();
 const sheetZ = useModalStack(() => isMobile.value && ui.open);
+const keyboard = useKeyboardSheet();
 const docked = computed(() => !isMobile.value && (ui.open || appUi.chatOpen));
 const { openOutOfCredits } = useOutOfCredits();
 const usage = useAskUsage();

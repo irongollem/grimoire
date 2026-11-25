@@ -2,7 +2,7 @@ import { computed, ref, watch } from "vue";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useUpdateNpc } from "@/composables/npcs/useNpcs";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import {
   fieldsForFirstReveal,
   getNpcPlayerFacingName,
@@ -39,7 +39,7 @@ export function npcShareUpdate(
 
 export function useNpcReveal(npc: () => NpcListRow) {
   const { mutate: updateNpc } = useUpdateNpc();
-  const { data: partyData } = useParty();
+  const { data: partyData } = useActiveParty();
   const { sendNarrativeEvent } = useCampaignMessages();
   const { reportChatFailure } = useChatSendFailure();
   const appUi = useAppUiStore();

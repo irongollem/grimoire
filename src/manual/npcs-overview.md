@@ -4,7 +4,7 @@ section: NPC Tracker
 section_order: 4
 order: 0
 summary: The NPC record, the roster, the detail sheet's tabs, and how NPCs tie into the rest of the campaign.
-keywords: npc, npcs, tracker, roster, overview, character, person, stat block, portrait, disguise, alter ego, connections, relations, family, faction, memory, voice coach, inventory, party stance, relationship, status, favour, populate, bulk, move, copy
+keywords: npc, npcs, tracker, roster, overview, character, person, stat block, portrait, disguise, alter ego, connections, relations, family, faction, memory, voice coach, spoken voice, voice, read aloud, accent, language, inventory, party stance, relationship, status, favour, populate, bulk, move, copy
 ---
 
 The NPC Tracker is the roster of every named person in your campaign: allies, enemies, merchants, sages, mysterious strangers. Every NPC is a rich record: identity, roleplaying notes, an optional full D&D 5e stat block, faction memberships, family and other connections, per-player visibility, inventory, a memory of what was said, and an AI Voice Coach for improvising dialogue at the table. Find it under **NPCs** in the sidebar.
@@ -43,9 +43,9 @@ A **Clear** button appears once any filter is active. Filters persist for the se
 - **Populate Setting**: shown only for campaigns using a recognised published setting (e.g. Forgotten Realms). Bulk-inserts that setting's canonical NPCs, skipping any already added by name, and reports how many were added.
 - **Generate**: opens the [NPC Generator](#npc-generator).
 - **Select**: turns on bulk-selection mode, letting you move or copy selected NPCs to another campaign.
+- **New NPC**: creates a blank NPC (blocked by a paywall if your NPC quota is used up).
 
 When older family links still say just "Family", a notice above the list asks "Which way do your families go?" See [Family trees](#family-trees).
-- **New NPC**: creates a blank NPC (blocked by a paywall if your NPC quota is used up).
 
 ## The detail sheet
 
@@ -73,7 +73,7 @@ Every NPC has a **DM notes** box on its page, in view and edit mode alike. It is
 | **Inventory** | Yes | Yes | Items carried by this NPC. |
 | **Relations** | No | Yes | Family, Connections (including faction memberships) and favours owed: see below. |
 | **Combat** | Yes | Yes | The stat block. |
-| **Voice** | No | Yes | The AI Voice Coach. |
+| **Voice** | No | Yes | The NPC's spoken voice and the AI Voice Coach. |
 
 **Inventory**: pick an item in the **Search vault items…** box and click **Add** to give the NPC an item from your Vault. Each carried item shows quantity, an optional note, a **Vault** link back to the source item, a drop-to-chat button (hands the item to the party as a loot drop and removes it from the NPC), and a remove button.
 
@@ -94,7 +94,15 @@ Every NPC has a **DM notes** box on its page, in view and edit mode alike. It is
 
 Stat block fields: Armor Class, Hit Points (as a dice expression, e.g. `8d8+16`), Speed (Walk/Fly with Hover/Swim/Climb/Burrow), the six ability scores (with computed modifiers shown), Challenge Rating, Proficiency Bonus, Saving Throws, Skills, Damage Resistances/Immunities, Condition Immunities, Senses, Languages, Special Abilities, Spellcasting, Actions, and Legendary Actions. A **How it fights** section sets how the app plays the NPC in a fight; it works as described in Creating Custom Monsters in the Bestiary manual.
 
-**Voice**: a one-line situation box (500 characters) and **Suggest lines** returns 2–3 short in-character replies to read aloud. The coach reads the NPC's newest **Memory** lines, so what it suggests stays consistent with what has already been said. Nothing is kept unless you press **Said it** on a line, which adds it to the Memory tab as something they told the party (private until you share it there). **Ask again** re-rolls. If the NPC has an unrevealed alter ego, its true name is never sent to the AI at all: only the disguise persona.
+**Voice**: two parts, shown in campaigns with AI switched on.
+
+**Spoken voice** is the voice that reads this NPC aloud at the AI table. Until you pick one it says **Cast at the table**: the table chooses a fitting voice the first time the NPC speaks and keeps it. **Change** opens the voices to pick from, each with **Listen**, and the choice saves at once. Either way the choice is written on the NPC, so they sound the same every sitting; only **Change** gives them another. Player characters and people with no NPC record keep a voice of their own too, worked out from their name each time.
+
+What the NPC keeps is a kind of voice ("Old woman, frail", "Shady guy"). If Grimoire's own voice for that kind is ever replaced by a better one, everyone of that kind gets the new one together.
+
+A voice is a sound, not a language: every voice reads whatever language the line is written in. The accent comes from how the voice was recorded. A voice recorded speaking English with a German accent keeps that accent in English. A voice recorded only in another language, such as a Chinese voice, speaks English with a plain American accent, because it has no English of its own to carry over. So for an accented NPC, pick a voice whose sample is English with that accent, and use **Listen** to check. Each spoken line can also carry a short cue for how it is said (whispered, furious, laughing), which the character chooses as it speaks; that shapes the delivery of the line, not who the voice is. If the NPC should actually speak Dutch or German, the line itself has to be in that language.
+
+The **Voice Coach** has a one-line situation box (500 characters) and **Suggest lines** returns 2–3 short in-character replies to read aloud. The coach reads the NPC's newest **Memory** lines, so what it suggests stays consistent with what has already been said. Nothing is kept unless you press **Said it** on a line, which adds it to the Memory tab as something they told the party (private until you share it there). **Ask again** re-rolls. If the NPC has an unrevealed alter ego, its true name is never sent to the AI at all: only the disguise persona.
 
 ### The Alter Ego (disguise system)
 

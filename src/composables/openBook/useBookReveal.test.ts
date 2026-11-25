@@ -24,8 +24,8 @@ vi.mock("@/stores/campaign", () => ({
     activeCampaignId: "c1",
   }),
 }));
-vi.mock("@/composables/party/useParty", () => ({
-  useParty: () => ({ data: { get value() { return session.party; } } }),
+vi.mock("@/composables/party/useActiveParty", () => ({
+  useActiveParty: () => ({ data: { get value() { return session.party; } } }),
 }));
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({

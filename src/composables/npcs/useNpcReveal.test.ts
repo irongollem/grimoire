@@ -18,8 +18,8 @@ vi.mock("@/composables/campaign/useCampaignMessages", () => ({
 vi.mock("@/composables/campaign/chatSendErrors", () => ({
   useChatSendFailure: () => ({ reportChatFailure: mocks.reportChatFailure }),
 }));
-vi.mock("@/composables/party/useParty", () => ({
-  useParty: () => ({
+vi.mock("@/composables/party/useActiveParty", () => ({
+  useActiveParty: () => ({
     data: ref([
       { id: "pc-1", name: "Aela" },
       { id: "pc-2", name: "Brom" },

@@ -38,6 +38,22 @@ describe("pickByKey", () => {
     const got = new Set("abcdefgh".split("").map((k) => pickByKey(k, pool, { sex: "woman", age: "young" }).id));
     expect(got).toEqual(new Set(["wy1", "wy2"]));
   });
+
+  // Bug caught: `hash % length`, where one slot added to the registry re-voiced nearly every player's character and
+  // stranger, so the same character sounded different from one sitting to the next.
+  it("keeps almost every speaker's voice when a slot is added, and moves only the retired slot's speakers when one goes", () => {
+    const big = Array.from({ length: 10 }, (_, i) => slot(`s${i}`));
+    const keys = Array.from({ length: 200 }, (_, i) => `speaker-${i}`);
+    const before = new Map(keys.map((k) => [k, pickByKey(k, big).id]));
+
+    const grown = [...big, slot("s10")];
+    const moved = keys.filter((k) => pickByKey(k, grown).id !== before.get(k));
+    expect(moved.every((k) => pickByKey(k, grown).id === "s10")).toBe(true);
+    expect(moved.length).toBeLessThan(keys.length / 5);
+
+    const shrunk = big.filter((s) => s.id !== "s3");
+    for (const k of keys) if (before.get(k) !== "s3") expect(pickByKey(k, shrunk).id).toBe(before.get(k));
+  });
 });
 
 describe("usedAtPlace", () => {

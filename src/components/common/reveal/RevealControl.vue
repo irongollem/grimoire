@@ -101,7 +101,7 @@ import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import RevealBody from "@/components/common/reveal/RevealBody.vue";
 import { useBookReveal, type BookEntryRef, type BookRule } from "@/composables/openBook/useBookReveal";
 import { useHotkeys } from "@/composables/useHotkeys";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { IconHide, IconOpenBook, IconReveal } from "@/lib/icons";
 import { revealLabel, revealState } from "@/lib/reveal";
 import type { RevealAdapter, RevealForm } from "@/lib/reveal";
@@ -156,7 +156,7 @@ const { adapter, entityName, form = "button", bookEntry, bookRule } = defineProp
   bookRule?: BookRule;
 }>();
 
-const { data: partyData } = useParty();
+const { data: partyData } = useActiveParty();
 const party = computed(() => partyData.value ?? []);
 const partyIds = computed(() => party.value.map((m) => m.id));
 

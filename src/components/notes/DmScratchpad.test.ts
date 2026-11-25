@@ -13,6 +13,10 @@ const env = vi.hoisted(() => ({
   options: [] as Array<{ layer: string; enabled?: { value: boolean } }>,
 }));
 vi.mock("@/composables/useBreakpoint", () => ({ useAbove: () => env.docked }));
+// The on-screen keyboard, up: what the sheet is handed while the DM types on a phone.
+vi.mock("@/composables/useKeyboardSheet", () => ({
+  useKeyboardSheet: () => ({ open: { value: true }, sheetStyle: { value: { top: "40px", bottom: "0px", height: "auto" } } }),
+}));
 vi.mock("@/composables/useHotkeys", () => ({
   useHotkeys: (bindings: Array<{ combo: string; handler: () => void }>, options: { layer: string; enabled?: { value: boolean } }) => {
     env.keys.push(...bindings);
@@ -179,6 +183,21 @@ describe("DmScratchpad", () => {
     const sheet = mountPanel();
     expect(root.dataset.scratchpadDock).toBeUndefined();
     sheet.unmount();
+  });
+
+  // Bug caught: the docked column pinned to the keyboard's room on a tablet (its side column collapsing to a strip),
+  // or the phone sheet left under the bottom bar it shares a layer with.
+  it("is pinned to the keyboard's room and lifted over the bottom bar as a phone sheet only, never while docked", () => {
+    setup();
+    const column = mountPanel();
+    expect(column.get("[data-scratchpad]").attributes("style") ?? "").not.toContain("top");
+    column.unmount();
+
+    env.docked.value = false;
+    setup();
+    const sheet = mountPanel().get<HTMLElement>("[data-scratchpad]").element;
+    expect(sheet.style.top).toBe("40px");
+    expect(sheet.style.zIndex).toBe("50");
   });
 
   it("opens from the hotkey for the DM only, and Escape is live only while the panel is open", async () => {

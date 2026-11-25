@@ -35,6 +35,16 @@ describe("the tool list", () => {
     expect(names.sort()).toEqual(["ask_choice", "campaign_overview", "draft_report", "find", "get", "list", "log_manual_gap", "offer_ideas", "propose", "read_manual", "read_rules", "search"]);
   });
 
+  // Bug caught: a Dutch or German DM's words passed straight into a search that matches English words only
+  // (the manual's a-z terms, the books' English text), which then finds nothing and reports a gap that is not one.
+  it("asks for the manual and rules queries in English", () => {
+    const tools = setup().tools.tools;
+    for (const name of ["read_manual", "read_rules"]) {
+      const schema = tools.find((t) => t.name === name)!.inputSchema as { properties: { query: { description: string } } };
+      expect(schema.properties.query.description).toMatch(/English words, whatever language the DM writes in/);
+    }
+  });
+
   it("offers a 5e generator in propose only where the campaign plays 5e", () => {
     const enumOf = (fiveE: boolean) => {
       const propose = setup({ fiveE }).tools.tools.find((t) => t.name === "propose")!;
@@ -308,6 +318,15 @@ describe("read_manual", () => {
   it("says so when no page matches, and tells the model not to guess", async () => {
     const answer = await setup().tools.callTool("read_manual", { query: "zzqx flurble wombat" });
     expect(JSON.parse(answer.content)).toMatchObject({ pages: [], note: expect.stringContaining("log_manual_gap") });
+  });
+
+  // Bug caught: the gap reminder only riding on an empty search, so pages on the topic that leave the question open
+  // (can a voice speak Dutch?) were answered "the manual does not say" and never reached the ledger.
+  it("reminds the model to note a gap even when pages match", async () => {
+    const answer = await setup().tools.callTool("read_manual", { query: "about known to backstory connection" });
+    const parsed = JSON.parse(answer.content) as { pages: unknown[]; note?: string };
+    expect(parsed.pages.length).toBeGreaterThan(0);
+    expect(parsed.note).toContain("log_manual_gap");
   });
 });
 

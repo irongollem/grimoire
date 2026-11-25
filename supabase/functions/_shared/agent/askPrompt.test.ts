@@ -29,6 +29,14 @@ describe("askSystem", () => {
     expect(systemWithSummary(a, null)).toBe(a);
   });
 
+  // Bug caught: with no rule, the model answers in the language most of the conversation is in, so a DM who
+  // switched from Dutch to German kept getting Dutch (25 Nov 2026).
+  it("answers in the language of the newest message, and keeps the gap ledger in English", () => {
+    const system = askSystem({ campaignName: "c", fiveE: true });
+    expect(system).toMatch(/language of the DM's newest message/);
+    expect(system).toMatch(/log_manual_gap is in English/);
+  });
+
   it("never lets the model say it created something, and keeps prices out of its questions", () => {
     const system = askSystem({ campaignName: "c", fiveE: true });
     expect(system).toMatch(/Never say you created/);

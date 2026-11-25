@@ -4,7 +4,7 @@ section: Running the Table
 section_order: 1
 order: 8
 summary: A solo beta where you play one character and an AI Narrator tells the story, with every character speaking in their own box. How a sitting starts, how rolls work, what it costs, and what it adds to your campaign.
-keywords: ai table, solo table, narrator, ai dungeon master, play alone, sitting, table, beta, roll, say, do, leave the table, story so far, prologue, opening quest, journey, record, canon, voices, credits, violence
+keywords: ai table, solo table, narrator, ai dungeon master, play alone, sitting, table, beta, roll, say, do, leave the table, story so far, prologue, opening quest, journey, record, canon, voices, read aloud, accent, language, credits, violence
 ---
 
 The AI table lets you play a character in your own campaign while an AI **Narrator** is the Dungeon Master. You say what your character says and does, the Narrator tells what happens, and the people you meet answer in their own boxes. It is a **Beta**, and it is not open to everyone yet.
@@ -56,7 +56,7 @@ When the story turns into a fight, it opens as a fight with a map, a roster and 
 
 ### Voices
 
-Lines can be read aloud, in a man's or a woman's Narrator voice, one voice for the whole table. Under **Read aloud** you can switch voices on if your server has them. A voiced line costs more than a text one.
+Lines can be read aloud, in a man's or a woman's Narrator voice, one voice for the whole table. Under **Read aloud** you can switch voices on if your server has them. A voiced line costs more than a text one. Each character with a record speaks in their own voice, which you can choose on the NPC's **Voice** tab. Any voice reads any language: a line is spoken in the language it is written in. A voice recorded in English with an accent keeps it; a voice recorded only in another language speaks English with a plain American accent.
 
 ## What it costs
 

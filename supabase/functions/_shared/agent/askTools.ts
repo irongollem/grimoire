@@ -43,6 +43,9 @@ const MANUAL_QUERY_MAX = 200;
 /** A gap is a short neutral question, and a ledger row is read by an admin: a long one is a pasted passage. */
 export const GAP_QUESTION_MAX = 500;
 export const GAP_PAGES_MAX = 10;
+/** Told with every page the manual finds: a page on the topic that leaves the question open is still a gap. */
+export const MANUAL_PARTIAL_NOTE =
+  "If these pages do not answer the DM's question, or answer only part of it, tell the DM what the manual does not say and call log_manual_gap for the part it leaves open.";
 
 export type AskEnd = "ask" | "propose" | "report";
 
@@ -72,9 +75,12 @@ export function generatorInputGuide(generators: readonly AskGenerator[]): string
     .join("\n");
 }
 
+/** The record types a proposal's target, an idea's reference and the DM's vocabulary (`askVocabulary.ts`) may name. */
+export const ASK_RECORD_TYPES: readonly string[] = ["npc", "monster", "item", "spell", "location", "faction", "quest", "quest_beat", "encounter", "deity", "party_member", "note", "canon", "room"];
+
 /** Ask's own tool schemas. The generator enum is the campaign's: no 5e generator is offered where there are no 5e rules. */
 export function askOwnTools(fiveE: boolean): AgentTool[] {
-  const recordTypes = ["npc", "monster", "item", "spell", "location", "faction", "quest", "quest_beat", "encounter", "deity", "party_member", "note", "canon", "room"];
+  const recordTypes = [...ASK_RECORD_TYPES];
   return [
     {
       name: "find",
@@ -197,7 +203,7 @@ export function askOwnTools(fiveE: boolean): AgentTool[] {
       description: "Search Grimoire's own manual, the pages that explain how the app works: its screens, buttons, fields, features and the words on them. Use it whenever the DM asks how Grimoire itself works, never the campaign readers. Returns the best matching pages (id, title, text). Answer from them and name the page.",
       inputSchema: {
         type: "object",
-        properties: { query: { type: "string", description: "What to look up, in a few words: the feature, the screen or the term." } },
+        properties: { query: { type: "string", description: "What to look up, in a few English words, whatever language the DM writes in: the feature, the screen or the term. The manual is in English and matched by its words." } },
         required: ["query"],
         additionalProperties: false,
       },
@@ -208,7 +214,7 @@ export function askOwnTools(fiveE: boolean): AgentTool[] {
       inputSchema: {
         type: "object",
         properties: {
-          query: { type: "string", description: "What to look up, in a few words: the rule, condition, spell, creature or item." },
+          query: { type: "string", description: "What to look up, in a few English words, whatever language the DM writes in: the rule, condition, spell, creature or item. The books are in English and matched by their words." },
           kind: { type: "string", enum: [...RULES_KINDS], description: "What kind of thing it is, or any when unsure." },
         },
         required: ["query", "kind"],
@@ -364,7 +370,10 @@ export function makeAskTools(input: AskToolsInput): AskTools {
     if (hits.length === 0) {
       return { content: JSON.stringify({ query, pages: [], note: "No page of the manual matches. If the question is about how Grimoire works, tell the DM the manual does not cover it yet and call log_manual_gap. Do not guess." }), isError: false };
     }
-    return { content: JSON.stringify({ query, pages: hits }), isError: false };
+    // Pages that match a question need not answer it. Seen live (25 Nov 2026): asked whether a voice can speak Dutch,
+    // Ooru found the voice pages, told the DM they did not say, and noted nothing, because the only reminder came with
+    // an empty search. So the reminder comes with every search.
+    return { content: JSON.stringify({ query, pages: hits, note: MANUAL_PARTIAL_NOTE }), isError: false };
   }
 
   async function readRules(args: Record<string, unknown>): Promise<ToolAnswer> {
