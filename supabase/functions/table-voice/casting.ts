@@ -69,10 +69,24 @@ export function byLeastUsed(slots: readonly VoiceSlot[], counts: ReadonlyMap<str
   return [...slots].sort((a, b) => use(a) - use(b) || hashOf(`${key}:${a.id}`) - hashOf(`${key}:${b.id}`) || a.id.localeCompare(b.id));
 }
 
-/** The same character always gets the same slot from a pool: for someone with no record, and for a player's character. */
+/** murmur3's finaliser: FNV alone ranks near-identical strings ("…:s1", "…:s10") alike, so one slot won too often. */
+function mix(h: number): number {
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+/**
+ * The same character always gets the same slot from a pool: for someone with no record, and for a player's character,
+ * neither of which has a row to keep a cast on. Highest score wins (rendezvous hashing), not `hash % length`: with a
+ * modulo, adding or retiring one slot moved almost every such speaker to another voice, so a player's character
+ * sounded different the next sitting (25 Nov 2026). Now a speaker moves only when its own slot goes, or a new slot
+ * outscores it, about one in the pool's size.
+ */
 export function pickByKey(key: string, pool: readonly VoiceSlot[], traits: { sex: Sex | null; age: AgeBand | null } = { sex: null, age: null }): VoiceSlot {
   const cast = narrowByTraits(pool, traits);
-  return cast[hashOf(key) % cast.length];
+  const score = (s: VoiceSlot): number => mix(hashOf(`${key}:${s.id}`));
+  return cast.reduce((best, s) => (score(s) > score(best) || (score(s) === score(best) && s.id < best.id) ? s : best));
 }
 
 /** What a judgment is asked and what it answered: the name of the slot it chose, and the tokens it spent. */
