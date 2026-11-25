@@ -30,6 +30,6 @@ describe("meterAudio", () => {
   // Bug caught: a clip routed through an audio context that is not running, which silences it.
   it("leaves a clip alone when no audio context is running", () => {
     const el = { addEventListener: () => undefined } as unknown as HTMLMediaElement;
-    expect(meterAudio(el, () => undefined)).toBeNull();
+    return expect(meterAudio(el, () => undefined)).resolves.toBeNull();
   });
 });

@@ -28,7 +28,7 @@ export async function readVoiceResponse(response: Response): Promise<VoiceAnswer
  * Plays one clip and settles when it is over (or cannot be played). `stop` cuts it short. With `onLevel`, the clip's
  * loudness is reported while it plays, where the browser allows metering it (`metered`); otherwise it just plays.
  */
-export type VoicePlayer = (src: string, onLevel?: (level: number) => void) => { done: Promise<void>; stop(): void; metered?: boolean };
+export type VoicePlayer = (src: string, onLevel?: (level: number) => void) => { done: Promise<void>; stop(): void; metered?: Promise<boolean> };
 
 export const playClip: VoicePlayer = (src, onLevel) => {
   // Where there is no audio at all (a test DOM, a stripped-down webview) a clip is simply over at once.
@@ -40,7 +40,7 @@ export const playClip: VoicePlayer = (src, onLevel) => {
     // A browser that refuses to play (no gesture yet) must not hold up the lines behind it.
     audio.play().catch(() => resolve());
   });
-  const metered = onLevel !== undefined && meterAudio(audio, onLevel) !== null;
+  const metered = onLevel === undefined ? Promise.resolve(false) : meterAudio(audio, onLevel).then((stop) => stop !== null);
   return {
     done,
     metered,
@@ -143,7 +143,10 @@ export function useClipQueue(options: {
         last = next.voice;
         speaking.value = true;
         const clip = player(src, (l) => (level.value = l));
-        metered.value = clip.metered === true;
+        metered.value = false;
+        void clip.metered?.then((m) => {
+          if (current === clip) metered.value = m;
+        });
         current = clip;
         await clip.done;
         current = null;

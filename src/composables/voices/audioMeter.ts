@@ -30,13 +30,23 @@ export function primeAudioMeter(): void {
   }
 }
 
+/** How long a just-pressed context may take to start before a clip plays unmeasured. */
+const WAKE_MS = 300;
+
 /**
  * Meters a playing clip: `onLevel` hears its loudness (0 to about 1, smoothed: quick to open, slower to close) on every
- * animation frame until the clip ends or the returned stop is called, which also hands 0. Returns null, and leaves the
- * clip as it is, when the context is not running or Web Audio is missing.
+ * animation frame until the clip ends or the returned stop is called, which also hands 0. Answers null, and leaves the
+ * clip as it is, when Web Audio is missing or the context is not running. A context made by the press that started
+ * the clip is still starting for a moment (seen in the dev catalogue: a cached clip played before it ran), so it is
+ * given `WAKE_MS` to start before the clip is left unmeasured.
  */
-export function meterAudio(el: HTMLMediaElement, onLevel: (level: number) => void): (() => void) | null {
-  if (context === null || context.state !== "running" || routed.has(el)) return null;
+export async function meterAudio(el: HTMLMediaElement, onLevel: (level: number) => void): Promise<(() => void) | null> {
+  if (context === null || routed.has(el)) return null;
+  if (context.state !== "running") {
+    const ctx = context;
+    await Promise.race([ctx.resume().catch(() => undefined), new Promise<void>((resolve) => setTimeout(resolve, WAKE_MS))]);
+    if (ctx.state !== "running" || routed.has(el)) return null;
+  }
   let analyser: AnalyserNode;
   try {
     const source = context.createMediaElementSource(el);

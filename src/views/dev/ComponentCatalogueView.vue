@@ -131,6 +131,13 @@
     </CatalogueSection>
 
     <CatalogueSection
+      title="Ooru's beak: following a voice"
+      note="The Familiar's avatar driven by the loudness of a playing clip (a stand-in voice here, no speech keys needed): closed in the pauses, half and open on syllables. Tune the thresholds in audioMeter.ts by eye against this."
+    >
+      <FamiliarBeakCatalogue />
+    </CatalogueSection>
+
+    <CatalogueSection
       title="ToggleSwitch: size, against the labels each one sits beside"
       note="Two sizes, not the three the raw measurement suggested. A third (h-4 w-7, 6 sites) was measured and rejected: those sites contradicted each other: one picked it beside the same text-xs label the md sites use, another beside a larger one, and one Illuminate panel picked it while its four siblings on the same screen did not. Each row here pairs a size with the label typography its call sites actually carry."
     >
@@ -736,6 +743,7 @@ import {
   type ButtonSize,
 } from "@/components/common/controls/appButtonVariants";
 import { FIELD_SIZES, FIELD_TONES } from "@/components/common/controls/fieldVariants";
+import FamiliarBeakCatalogue from "./FamiliarBeakCatalogue.vue";
 
 // Every height a call site uses, smallest to the loading screen's.
 const LOADER_HEIGHTS = ["h-3", "h-3.5", "h-4", "h-5", "h-6", "h-8", "h-10", "h-14", "h-26"] as const;

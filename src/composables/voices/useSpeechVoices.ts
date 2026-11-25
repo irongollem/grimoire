@@ -128,7 +128,10 @@ export function useAudioToggle(resolve: (key: string) => Promise<PlayableAudio>)
       if (playing.value === key) playing.value = null;
     });
     playing.value = key;
-    metered.value = meterAudio(playingNow, (l) => (level.value = l)) !== null;
+    metered.value = false;
+    void meterAudio(playingNow, (l) => (level.value = l)).then((stop) => {
+      if (audio === playingNow) metered.value = stop !== null;
+    });
     await playingNow.play().catch(() => {
       if (audio === playingNow) stop();
     });
