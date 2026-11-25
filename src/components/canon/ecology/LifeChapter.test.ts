@@ -3,10 +3,11 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { computed } from "vue";
 
 const mocks = vi.hoisted(() => ({ add: vi.fn(), reorder: vi.fn() }));
+const state = vi.hoisted(() => ({ none: false }));
 
 vi.mock("@/composables/canon/useCampaignHabitats", () => ({
   useHabitatEditing: () => ({
-    habitats: computed(() => [
+    habitats: computed(() => state.none ? [] : [
       { id: "a", name: "Salt marsh", description: null, sortOrder: 0 },
       { id: "b", name: "High moor", description: null, sortOrder: 1 },
       { id: "c", name: "Barrens", description: null, sortOrder: 2 },
@@ -39,6 +40,15 @@ describe("LifeChapter", () => {
   beforeEach(() => {
     mocks.add.mockReset();
     mocks.reorder.mockReset();
+    state.none = false;
+  });
+
+  // Bug caught (#1279 item 10): "Ask the Familiar" on an empty habitat list, for which the canon helper has no mode and which came back as truths.
+  it("offers no Familiar request in the empty state", () => {
+    state.none = true;
+    const w = mount(LifeChapter);
+    expect(w.text()).toContain("Nothing lives here yet");
+    expect(w.find("[data-testid=canon-suggest]").exists()).toBe(false);
   });
 
   // Bug: a habitat's line showed another habitat's creatures, or left out its places.

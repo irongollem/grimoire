@@ -9,15 +9,15 @@
     </div>
     <CanonReview mode="questions" :entries="questions" />
     <WonderInbox :sort-order="questions.length" />
-    <ul v-if="shown.length > 0" class="flex flex-col rounded-lg border border-border bg-card">
+    <ul v-if="open.length > 0" class="flex flex-col rounded-lg border border-border bg-card">
       <QuestionRow
-        v-for="q in shown"
+        v-for="q in open"
         :key="q.id"
         :entry="q"
         :answering="answeringId === q.id"
         :saving="saving"
-        :move="canReorder ? endsOf(shown, q.id) : null"
-        @move="(direction) => reorder(shown, q.id, direction)"
+        :move="canReorder ? endsOf(open, q.id) : null"
+        @move="(direction) => reorder(open, q.id, direction)"
         @rename="(title) => rename(q, title)"
         @remove="remove(q)"
         @start-answer="answeringId = q.id"
@@ -25,7 +25,6 @@
         @answer="(answer, kind) => answerQuestion(q, answer, kind)"
       />
     </ul>
-    <p v-else-if="open.length > 0" class="m-0 text-caption text-muted-foreground" data-testid="no-question-match">No open question has those words in it.</p>
     <p v-else-if="arcLabel !== null && questions.length === 0" class="m-0 text-caption text-muted-foreground" data-testid="no-question-in-arc">Nothing of this part is in {{ arcLabel }}.</p>
     <CanonAddRow placeholder="A new open question…" input-label="A new open question" label="Add question" :create="add" />
 
@@ -60,6 +59,7 @@ import CanonSuggest from "./kit/CanonSuggest.vue";
 import QuestionAnsweredRow from "./QuestionAnsweredRow.vue";
 import QuestionRow from "./QuestionRow.vue";
 import WonderInbox from "./WonderInbox.vue";
+import { useCanonUiStore } from "@/stores/ui/canon";
 import { useCreateCanonEntry, useTrashCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useLinkBecame } from "@/composables/canon/useLinkBecame";
 import { useCanonReorder } from "@/composables/canon/useCanonReorder";
@@ -80,12 +80,12 @@ const { questions, arcLabel = null } = defineProps<{
 
 const linkBecame = useLinkBecame();
 const open = computed(() => questions.filter((q) => q.closed_as === null));
-const shown = open;
 const answered = computed(() => questions.filter((q) => q.closed_as !== null));
 // Moving inside a narrowed list would be ambiguous, so the buttons wait for the whole list.
 const canReorder = computed(() => arcLabel === null);
 const reorder = useCanonReorder();
 
+const ui = useCanonUiStore();
 const { mutateAsync: create } = useCreateCanonEntry();
 const { mutate: update, mutateAsync: updateAsync } = useUpdateCanonEntry();
 const { mutateAsync: destroy } = useTrashCanonEntry();
@@ -97,7 +97,7 @@ const saving = ref(false);
 const showAnswered = ref(false);
 
 async function add(title: string) {
-  await create({ part: "question", title, sort_order: questions.length });
+  await create({ part: "question", title, sort_order: questions.length, arc_id: ui.arcFilter });
 }
 
 function rename(q: CanonEntry, title: string) {

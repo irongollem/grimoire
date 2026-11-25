@@ -60,9 +60,9 @@
 
 <script setup lang="ts">
 /**
- * The What is moving chapter: every force with its next step and its clock. The steps and ticks are read once for the whole list, never one per force.
- * The open force is found among `forces`, so an arc that narrows the list away from it closes it. Adding keeps the
- * add row takes a name only and opens the new force beside the list, where who, what it wants and its clock are set.
+ * The Forces chapter: every force with its next step and its clock. The steps and ticks are read once for the whole list, never one per force.
+ * The open force comes from the whole canon, so an arc that narrows the list away from it (a new force made under an
+ * arc, a force moved to another) keeps it open. The add row takes a name only and opens the new force beside the list, where who, what it wants and its clock are set.
  */
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -72,6 +72,7 @@ import CanonAddRow from "./CanonAddRow.vue";
 import CanonReview from "./CanonReview.vue";
 import ForceDetail from "./ForceDetail.vue";
 import ForceRow from "./ForceRow.vue";
+import { useCanonUiStore } from "@/stores/ui/canon";
 import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCanonReorder } from "@/composables/canon/useCanonReorder";
 import { endsOf } from "@/lib/canon/canonOrder";
@@ -83,17 +84,17 @@ import type { CanonEntry, CanonForceStep, CanonForceTick } from "@/types/canon.t
 
 const EMPTY_TEXT = "A force is someone or something that wants and acts whether or not the party does: a cult, a winter, a rival.";
 
-const { forces, selectedId = null, arcLabel = null } = defineProps<{
+const { forces, selected = null, arcLabel = null } = defineProps<{
   /** The forces of the page's arc (every force when none is chosen). */
   forces: readonly CanonEntry[];
-  selectedId?: string | null;
+  /** The open force, read from the whole canon so an arc that narrows the list away from it does not close it. */
+  selected?: CanonEntry | null;
   /** The name of the arc narrowing this chapter, or null. */
   arcLabel?: string | null;
 }>();
 const emit = defineEmits<{ select: [id: string]; close: []; delete: [] }>();
 
 const chapter = chapterOf("moving");
-const selected = computed(() => (selectedId === null ? null : forces.find((f) => f.id === selectedId) ?? null));
 
 // A force that has ended leaves the ledger and waits under "No longer moving"; its entry opens as any other.
 const moving = computed(() => forces.filter((f) => f.closed_as === null));
@@ -104,10 +105,11 @@ const reorder = useCanonReorder();
 // Transient UI state: whether the ended forces are showing, and the name being typed into the add row.
 const showEnded = ref(false);
 const draft = ref("");
+const ui = useCanonUiStore();
 const { mutateAsync: create } = useCreateCanonEntry();
 
 async function addForce(title: string) {
-  const created = await create({ part: "force", title, sort_order: forces.length });
+  const created = await create({ part: "force", title, sort_order: forces.length, arc_id: ui.arcFilter });
   emit("select", created.id);
 }
 

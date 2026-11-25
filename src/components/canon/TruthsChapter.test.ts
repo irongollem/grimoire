@@ -32,6 +32,7 @@ vi.mock("@/composables/ask/useCanAsk", async () => {
 });
 
 import type { CanonEntry } from "@/types/canon.types";
+import { useCanonUiStore } from "@/stores/ui/canon";
 import TruthsChapter from "./TruthsChapter.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAskUiStore } from "@/stores/ui/ask";
@@ -245,5 +246,15 @@ describe("TruthsChapter open entry and the table's inbox", () => {
     await w.find("form").trigger("submit");
     await flushPromises();
     expect(fake.rows("canon_entries")).toMatchObject([{ title: "A third.", sort_order: 2 }]);
+  });
+
+  // Bug caught (#1279 item 5): a truth added under an arc filter was made in no arc and vanished from the narrowed list.
+  it("makes a new truth in the arc the page is narrowed to", async () => {
+    const w = mountSection({ truths: list, allTruths: list, arcLabel: "The guild" });
+    useCanonUiStore().arcFilter = "a1";
+    await w.find("input").setValue("A third.");
+    await w.find("form").trigger("submit");
+    await flushPromises();
+    expect(fake.rows("canon_entries")).toMatchObject([{ title: "A third.", arc_id: "a1" }]);
   });
 });

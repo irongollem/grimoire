@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-2" data-testid="almanac">
-    <p class="m-0 text-caption text-muted-foreground">One timeline of the world: lore, moving forces and the steps still due, with a date in the world, the events on the Calendar, and every session, in the world's own calendar. The Calendar's events are edited there; follow one to its month.</p>
+    <p class="m-0 text-caption text-muted-foreground">One timeline of the world: lore, forces and the steps still due, with a date in the world, the events on the Calendar, and every session, in the world's own calendar. The Calendar's events are edited there; follow one to its month.</p>
     <ol v-if="events.length > 0" class="relative m-0 mt-1 flex list-none flex-col gap-2.5 p-0 pl-4 before:absolute before:top-1 before:bottom-1 before:left-1 before:w-px before:bg-border">
       <li v-for="event in events" :key="event.key" class="relative text-body" :data-kind="event.kind">
         <span
@@ -45,7 +45,7 @@ const events = computed(() =>
   }),
 );
 
-const KIND_WORD: Record<AlmanacKind, string> = { lore: "Lore", moving: "Moving", due: "Due", session: "Session", calendar: "Calendar" };
+const KIND_WORD: Record<AlmanacKind, string> = { lore: "Lore", moving: "Forces", due: "Due", session: "Session", calendar: "Calendar" };
 function whenOf(event: AlmanacEvent): string {
   const date = worldDateLabel(event.date, (y, m, d, f) => calendar.adapter.formatDate(y, m, d, f));
   return `${date ?? "No date in the world"} · ${event.word ?? KIND_WORD[event.kind]}`;

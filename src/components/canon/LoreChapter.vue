@@ -54,6 +54,7 @@ import CanonRow from "./kit/CanonRow.vue";
 import LoreDetail from "./LoreDetail.vue";
 import { chapterOf } from "@/lib/canon/canonParts";
 import { LORE_KIND_LABEL, LORE_KIND_OPTIONS, entryDate, sortLore, worldDateLabel } from "@/lib/canon/canonLore";
+import { useCanonUiStore } from "@/stores/ui/canon";
 import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { passagesOf, toldTally, useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useLowArt } from "@/composables/useLowArt";
@@ -89,10 +90,11 @@ const dateOf = (e: CanonEntry) => worldDateLabel(entryDate(e), (y, m, d, f) => c
 
 const draftTitle = ref("");
 const draftKind = ref<LoreKind | null>(null);
+const ui = useCanonUiStore();
 const { mutateAsync: create } = useCreateCanonEntry();
 
 async function addLore(title: string) {
-  const created = await create({ part: "lore", title, lore_kind: draftKind.value, sort_order: lore.length });
+  const created = await create({ part: "lore", title, lore_kind: draftKind.value, sort_order: lore.length, arc_id: ui.arcFilter });
   emit("select", created.id);
 }
 </script>

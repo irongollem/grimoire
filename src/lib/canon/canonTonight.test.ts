@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canonEntry } from "@/test/canonEntry";
-import { activeQuestBeatIds, cluesToFind, forcesMoving, looseEnds, loreToTell, nothingTonight, placesWithin, scopeHidAll, scopeTonight, threadsLeftOpen, tonight, type LooseEndsInput, type TonightInput, type TonightScopeContext } from "./canonTonight";
+import { activeQuestBeatIds, cluesToFind, forcesMoving, looseEnds, loreToTell, nothingTonight, placesWithin, scopeHidAll, scopeTonight, threadsLeftOpen, tonight, withoutDone, type LooseEndsInput, type TonightInput, type TonightScopeContext } from "./canonTonight";
 import type { StoryFact } from "@/lib/table/solo/storyRecord";
 import type { CanonClue, CanonForceStep, CanonForceTick, CanonLorePassage } from "@/types/canon.types";
 import type { PartyMember } from "@/types/party.types";
@@ -64,7 +64,7 @@ describe("loreToTell", () => {
     const backstory = canonEntry({ id: "B1", part: "backstory", title: "Tansy", party_member_id: "m1" });
     const passages = [passage("b1", "B1"), passage("b2", "B1", { sort_order: 1, quest_beat_id: "beat1" })];
     const [group] = loreToTell([backstory], passages);
-    expect(group?.at).toEqual({ location_id: null, npc_id: null, quest_beat_id: "beat1" });
+    expect(group?.at).toEqual({ location_id: null, npc_id: null, quest_beat_id: "beat1", item_id: null, document_id: null });
     expect(group?.items[0]).toMatchObject({ entryId: "B1", entryTitle: "Tansy" });
   });
 
@@ -105,7 +105,7 @@ describe("cluesToFind", () => {
   it("groups a clue that is a lore passage where the passage comes out", () => {
     const p = passage("p2", "L1", { sort_order: 1, npc_id: "n9" });
     const [group] = cluesToFind([secret], [clue("c1", "S1", { passage_id: "p2" })], [p]);
-    expect(group?.at).toEqual({ location_id: null, npc_id: "n9", quest_beat_id: null });
+    expect(group?.at).toEqual({ location_id: null, npc_id: "n9", quest_beat_id: null, item_id: null, document_id: null });
   });
 
   // Bug caught: unplaced clues shown first, ahead of the ones with a place to go and look.
@@ -329,6 +329,11 @@ describe("looseEnds", () => {
   });
 
   const arc = { id: "A1", name: "The Drowned Bell", status: "running" };
+  // Bug caught: the arc loose end opening the bare Canon page, so the DM hunts for the arc by hand.
+  it("links a loose arc to that arc in the Arcs chapter", () => {
+    expect(looseEnds({ ...base, arcs: [arc] })[0]?.to).toEqual({ path: "/canon/arcs", query: { arc: "A1" } });
+  });
+
   // Bug caught: a running arc flagged though a force of its own is moving, or one that has only a planned arc flagged.
   it("flags a running arc with no moving force and no active quest, and clears it with either", () => {
     expect(kinds({ ...base, arcs: [arc] })).toHaveLength(1);
@@ -346,5 +351,32 @@ describe("looseEnds", () => {
   // Bug caught: a row linking to the wrong entry.
   it("links a secret row to its own entry", () => {
     expect(looseEnds({ ...base, entries: [secret] })[0]?.to).toEqual({ path: "/canon", query: { entry: "S1" } });
+  });
+});
+
+describe("clues lying in an item or a handout (#1279 item 7)", () => {
+  const sec = canonEntry({ id: "S1", part: "secret" });
+  const empty: TonightInput = { entries: [], passages: [], clues: [], steps: [], ticks: [], party: [], links: [], facts: [] };
+  const ctx = { currentLocationId: "town", locations: [{ id: "town", parent_id: null }], activeBeatIds: new Set<string>() };
+
+  // Bug caught: an item clue and a handout clue filed under "Not placed anywhere yet" (a null place) beside the truly unplaced one.
+  it("groups an item clue and a handout clue under their record, apart from the unplaced", () => {
+    const groups = cluesToFind([sec], [clue("a", "S1", { item_id: "i1" }), clue("b", "S1", { document_id: "d1" }), clue("c", "S1", { item_id: "i1" }), clue("n", "S1")], []);
+    expect(groups.map((g) => [g.at?.item_id ?? g.at?.document_id ?? null, g.items.map((i) => i.clueId)])).toEqual([["i1", ["a", "c"]], ["d1", ["b"]], [null, ["n"]]]);
+  });
+
+  // Bug caught: items and handouts leaking into "Where the party is" (they have no place) or vanishing from "Everything".
+  it("keeps them out of Where the party is and shows them under Everything", () => {
+    const plan = tonight({ ...empty, entries: [sec], clues: [clue("a", "S1", { item_id: "i1" }), clue("b", "S1", { document_id: "d1" })] });
+    expect(scopeTonight(plan, "party", ctx).clues).toEqual([]);
+    expect(scopeTonight(plan, "all", ctx).clues.flatMap((g) => g.items.map((i) => i.clueId))).toEqual(["a", "b"]);
+  });
+});
+
+describe("withoutDone", () => {
+  // Bug caught: a done row shown twice (once in the fold, once still in the stale plan), or an emptied group left as a bare heading.
+  it("drops done items and the groups they leave empty", () => {
+    const groups = [{ at: null, items: ["a", "b"] }, { at: { location_id: "l", npc_id: null, quest_beat_id: null }, items: ["c"] }];
+    expect(withoutDone(groups, (i) => i === "a" || i === "c")).toEqual([{ at: null, items: ["b"] }]);
   });
 });

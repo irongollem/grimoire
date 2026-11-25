@@ -146,7 +146,7 @@ const mark = ref<KnowledgeMark>("all");
 const { mutateAsync: create } = useCreateCanonEntry();
 
 async function addTruth(title: string) {
-  const created = await create({ part: "truth", knowledge: mark.value, title, sort_order: allTruths.length });
+  const created = await create({ part: "truth", knowledge: mark.value, title, sort_order: allTruths.length, arc_id: store.arcFilter });
   emit("select", created.id);
 }
 </script>

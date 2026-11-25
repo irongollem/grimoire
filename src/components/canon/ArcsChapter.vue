@@ -15,7 +15,8 @@
         <template #mark><span class="text-label font-bold text-foreground" data-testid="arc-status">{{ STATUS_LABEL[arc.status] }}</span></template>
       </CanonRow>
     </ul>
-    <CanonEmpty v-else title="No arcs yet" text="An arc is one act of the story: what it asks, what is at stake and how it ends. Name one and file the forces, secrets and quests that belong to it." ask="Suggest three arcs for my campaign." />
+    <!-- No Familiar here: the canon helper has no arcs mode, so a request would come back as truths. -->
+    <CanonEmpty v-else title="No arcs yet" text="An arc is one act of the story: what it asks, what is at stake and how it ends. Name one and file the forces, secrets and quests that belong to it." />
 
     <template #add>
       <CanonAddRow v-model="draft" placeholder="A new arc, by its name…" input-label="A new arc" label="Add arc" :create="addArc" />

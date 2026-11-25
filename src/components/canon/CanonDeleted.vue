@@ -3,7 +3,7 @@
     <AppButton
       variant="ghost"
       size="sm"
-      class="self-start"
+      class="self-start text-muted-foreground"
       :label="`Deleted (${rows.length})`"
       :icon="open ? IconChevronDown : IconChevronRight"
       icon-size="xs"
@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-/** The Deleted list at the foot of the Canon page: what was deleted in the last thirty days, with Restore (#1255 item 17). */
+/** The Deleted list at the foot of the contents column: what was deleted in the last thirty days, with Restore (#1255 item 17). */
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";

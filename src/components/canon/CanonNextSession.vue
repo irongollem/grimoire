@@ -1,14 +1,14 @@
 <template>
-  <section v-if="lines.length > 0" class="flex flex-col gap-2 rounded-lg border bg-card p-3" aria-label="Next session" data-testid="canon-next-session">
+  <section v-if="lines.length > 0" class="flex flex-col gap-2 rounded-lg border bg-card p-3" aria-label="Tonight" data-testid="canon-next-session">
     <div class="flex items-baseline justify-between gap-2">
-      <h2 class="m-0 text-heading-xs font-semibold text-foreground">Next session</h2>
+      <h2 class="m-0 text-heading-xs font-semibold text-foreground">Tonight</h2>
       <span v-if="dateLabel" class="text-label text-muted-foreground" data-testid="next-session-date">{{ dateLabel }}</span>
     </div>
     <p class="m-0 text-label text-muted-foreground">What the canon has waiting for it:</p>
     <ul class="m-0 flex list-none flex-col gap-1 p-0">
       <li v-for="line in lines" :key="line" class="text-body text-foreground" data-testid="next-session-line">{{ line }}</li>
     </ul>
-    <AppButton to="/canon/tonight" size="sm" variant="outline" label="Prepare the session" class="self-start" />
+    <AppButton to="/canon/tonight" size="sm" variant="outline" label="Open Tonight" class="self-start" />
   </section>
 </template>
 
@@ -47,7 +47,7 @@ const lines = computed(() => {
   if (clues > 0) out.push(`${plural(clues, "clue", "clues")} not yet found`);
   const close = plan.value.forces.find((f) => f.clock !== null && !f.clock.full && f.clock.size - f.clock.filled === 1);
   const moving = close ?? plan.value.forces[0];
-  if (moving !== undefined) out.push(close ? `${close.title} is one tick from its next step` : `${moving.title} is moving`);
+  if (moving !== undefined) out.push(close ? `${close.title} is one tick from full` : `${moving.title} is moving`);
   return out;
 });
 </script>

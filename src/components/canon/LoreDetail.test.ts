@@ -62,6 +62,36 @@ describe("LoreDetail", () => {
     expect(opening.text()).toContain("never waits at a place");
   });
 
+  const text = (t: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: t }] }] });
+
+  // Bug caught (#1279 item 2): text on the entry's body that the DM could not see, though players read it.
+  it("shows an entry's own body as text from before passages, and nothing when it has none", () => {
+    expect(mountIt().find("[data-testid=lore-legacy-body]").exists()).toBe(false);
+    expect(mountIt({ body: text("   ") }).find("[data-testid=lore-legacy-body]").exists()).toBe(false);
+    const w = mountIt({ body: text("The sea rose.") });
+    expect(w.get("[data-testid=lore-legacy-body]").text()).toContain("The sea rose.");
+  });
+
+  // Bug caught: the text copied to a passage that lands last (or on top of another) instead of first, or the body left behind to show twice.
+  it("Make this the first passage makes it passage 0, shifts the others and then clears the body", async () => {
+    passages.value = [p("a", 0), p("b", 1)];
+    const w = mountIt({ body: text("The sea rose.") });
+    await w.get("[data-testid=lore-legacy-body] button").trigger("click");
+    await flushPromises();
+    expect(mocks.updatePassage.mock.calls.map(([arg]) => arg)).toEqual([{ id: "a", patch: { sort_order: 1 } }, { id: "b", patch: { sort_order: 2 } }]);
+    expect(mocks.createPassage).toHaveBeenCalledWith({ entry_id: "l1", body: text("The sea rose."), sort_order: 0 });
+    expect(mocks.update).toHaveBeenCalledWith({ id: "l1", patch: { body: null } });
+  });
+
+  // Bug caught: the body cleared even when the passage was refused, so the text was lost.
+  it("keeps the body when the passage cannot be made", async () => {
+    mocks.createPassage.mockRejectedValue(new Error("denied"));
+    const w = mountIt({ body: text("The sea rose.") });
+    await w.get("[data-testid=lore-legacy-body] button").trigger("click");
+    await flushPromises();
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
   // Bug: a lore entry showed no "Because of" and "Led to", so its cause and effect were only visible from other entries.
   it("shows what the entry came of and led to", () => {
     expect(mountIt().get("[data-testid=story-links]").attributes("data-id")).toBe("l1");

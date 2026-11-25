@@ -24,7 +24,7 @@
     </div>
     <div class="flex flex-col gap-1">
       <span class="text-eyebrow text-muted-foreground">If it succeeds</span>
-      <AppInput v-model.lazy="ifSucceeds" wrap size="body" tone="filled" aria-label="If it succeeds" placeholder="What the world becomes if nobody stops it…" />
+      <AppInput :key="ifSucceedsRevision" v-model.lazy="ifSucceeds" wrap size="body" tone="filled" aria-label="If it succeeds" placeholder="What the world becomes if nobody stops it…" />
     </div>
 
     <CanonEntryNotes :key="entry.id" :entry="entry" label="Notes" help="Never shown to players." placeholder="How it plays, what it will do next…" />
@@ -70,7 +70,7 @@
     </div>
 
     <template #connections>
-      <ConnectionsSection :subject="subject" :subject-name="entry.title" />
+      <ConnectionsSection :subject="subject" :subject-name="entry.title" :hide="isShownAbove" />
     </template>
   </CanonEntryPane>
 </template>
@@ -108,7 +108,7 @@ import { useCanonForceData, useUndoForceTick, useTickForce } from "@/composables
 import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { FORCE_OUTCOME_ENDED, FORCE_OUTCOME_OPTIONS, RESUME_FORCE_PATCH, endForce, forceOutcome, type ForceOutcome } from "@/lib/canon/canonClose";
 import type { CanonEntry } from "@/types/canon.types";
-import type { WorldRef } from "@/types/connections.types";
+import type { Connection, WorldRef } from "@/types/connections.types";
 
 const { entry } = defineProps<{ entry: CanonEntry }>();
 const emit = defineEmits<{ delete: []; close: [] }>();
@@ -121,6 +121,9 @@ const { data } = useCanonForceData();
 const steps = computed(() => (data.value?.steps ?? []).filter((s) => s.force_id === entry.id));
 const ticks = computed(() => (data.value?.ticks ?? []).filter((t) => t.force_id === entry.id));
 const links = computed(() => (data.value?.quests ?? []).filter((q) => q.entry_id === entry.id));
+
+// The story links (because of, led to, carries) are EntryStoryLinks' block above, so Connections does not list them again.
+const isShownAbove = (c: Connection): boolean => c.source === "link" && (c.type === "led_to" || c.type === "carries");
 
 const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
 const filled = computed(() => (entry.clock_size === null ? 0 : clockFilled(ticks.value, entry.clock_size)));
@@ -140,12 +143,17 @@ const { text: wants, revision: wantsRevision } = useCommittedText(
 );
 
 // What happens if nobody stops it. Unlike the other fields, clearing it is allowed: it writes null, never an empty string.
+// A no-op edit (the saved words typed back with stray spaces) changes nothing Vue can see, so `ifSucceedsRevision` remakes the field.
+const ifSucceedsRevision = ref(0);
 const ifSucceeds = computed<string>({
   get: () => (entry.if_succeeds === null ? "" : entry.if_succeeds),
   set: (next) => {
     const text = next.trim();
     const saved = entry.if_succeeds === null ? "" : entry.if_succeeds;
-    if (text === saved) return;
+    if (text === saved) {
+      ifSucceedsRevision.value++;
+      return;
+    }
     update({ id: entry.id, patch: { if_succeeds: text === "" ? null : text } });
   },
 });

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { computed, ref } from "vue";
 import { flushPromises, mount } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
 import { canonEntry } from "@/test/canonEntry";
 import type { CanonLorePassage } from "@/types/canon.types";
 import type { PartyMember } from "@/types/party.types";
@@ -69,6 +70,7 @@ const mountDetail = () =>
 
 describe("BackstoryDetail", () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
     Object.values(mocks).forEach((m) => m.mockReset());
     state.entry = canonEntry({ id: "b1", part: "backstory", party_member_id: "m1" });
     state.passages = [];
@@ -179,7 +181,7 @@ describe("BackstoryDetail", () => {
       mocks.createEntry.mockImplementation(async () => { order.push("question"); return { id: "q9", title: "Who burned the mill?" }; });
       mocks.connect.mockImplementation(async () => { order.push("tie"); });
       await addThread(mountDetail(), "Who burned the mill?");
-      expect(mocks.createEntry).toHaveBeenCalledWith({ part: "question", title: "Who burned the mill?" });
+      expect(mocks.createEntry).toHaveBeenCalledWith({ part: "question", title: "Who burned the mill?", arc_id: null });
       expect(mocks.connect).toHaveBeenCalledWith({
         input: expect.objectContaining({ subject: { kind: "canon", id: "b1" }, other: { kind: "canon", id: "q9", name: "Who burned the mill?" }, choice: expect.objectContaining({ key: "related_to" }) }),
         campaignId: "c1",

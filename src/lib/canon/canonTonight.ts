@@ -14,8 +14,11 @@ import type { CampaignSession } from "@/types/session.types";
  * are the view's to look up (`useClueWhere`); here a place is only its ids.
  */
 
-/** Where something comes out: at most one of the three is set, as on a clue and a passage. */
-export type TonightWhere = Pick<CanonClue, "location_id" | "npc_id" | "quest_beat_id">;
+/**
+ * Where something comes out: at most one is set, as on a clue (a passage has no item or handout, so those two may be absent).
+ * An item or a handout has no place, so "Where the party is" never holds them; "Everything" groups by them.
+ */
+export type TonightWhere = Pick<CanonClue, "location_id" | "npc_id" | "quest_beat_id"> & Partial<Pick<CanonClue, "item_id" | "document_id">>;
 
 export interface TonightGroup<T> {
   /** Null for what lies nowhere yet; such a group is always last. */
@@ -74,21 +77,24 @@ export interface Tonight {
   tableUnreviewed: number;
 }
 
-const KIND_ORDER = ["location_id", "npc_id", "quest_beat_id"] as const;
+const KIND_ORDER = ["location_id", "npc_id", "quest_beat_id", "item_id", "document_id"] as const;
 
 function whereOf(source: TonightWhere): TonightWhere | null {
-  if (source.location_id !== null) return { location_id: source.location_id, npc_id: null, quest_beat_id: null };
-  if (source.npc_id !== null) return { location_id: null, npc_id: source.npc_id, quest_beat_id: null };
-  if (source.quest_beat_id !== null) return { location_id: null, npc_id: null, quest_beat_id: source.quest_beat_id };
+  const none = { location_id: null, npc_id: null, quest_beat_id: null, item_id: null, document_id: null };
+  for (const kind of KIND_ORDER) {
+    const id = source[kind];
+    if (id !== null && id !== undefined) return { ...none, [kind]: id };
+  }
   return null;
 }
 
 function keyOf(at: TonightWhere | null): string {
   if (at === null) return "none";
-  return at.location_id !== null ? `l:${at.location_id}` : at.npc_id !== null ? `n:${at.npc_id}` : `b:${at.quest_beat_id}`;
+  const kind = KIND_ORDER.find((k) => at[k] !== null && at[k] !== undefined);
+  return kind === undefined ? "none" : `${kind}:${at[kind]}`;
 }
 
-/** Places first, then people, then beats, each in the order met; what lies nowhere last. */
+/** Places first, then people, beats, items and handouts, each in the order met; what lies nowhere last. */
 function grouped<T>(rows: readonly { at: TonightWhere | null; item: T }[]): TonightGroup<T>[] {
   const groups = new Map<string, TonightGroup<T>>();
   for (const { at, item } of rows) {
@@ -97,7 +103,7 @@ function grouped<T>(rows: readonly { at: TonightWhere | null; item: T }[]): Toni
     if (group) group.items.push(item);
     else groups.set(key, { at, items: [item] });
   }
-  const rank = (g: TonightGroup<T>) => (g.at === null ? KIND_ORDER.length : KIND_ORDER.findIndex((k) => g.at?.[k] !== null));
+  const rank = (g: TonightGroup<T>) => (g.at === null ? KIND_ORDER.length : KIND_ORDER.findIndex((k) => g.at?.[k] !== null && g.at?.[k] !== undefined));
   return [...groups.values()].sort((a, b) => rank(a) - rank(b)); // stable: ties keep the order met
 }
 
@@ -272,8 +278,8 @@ export interface LooseEnd {
   kind: LooseEndKind;
   title: string;
   reasons: string[];
-  /** Where the row opens: the entry, the character's backstory, or the Canon page for an arc (which has no entry of its own). */
-  to: { path: "/canon"; query: Record<string, string> };
+  /** Where the row opens: the entry, the character's backstory, or the Arcs chapter for an arc (which has no entry of its own). */
+  to: { path: "/canon" | "/canon/arcs"; query: Record<string, string> };
 }
 
 export interface LooseEndsInput {
@@ -331,7 +337,26 @@ export function looseEnds(input: LooseEndsInput): LooseEnd[] {
   for (const arc of input.arcs.filter((a) => a.status === "running")) {
     const moving = input.entries.some((e) => e.part === "force" && open(e) && e.arc_id === arc.id);
     const played = input.quests.some((q) => q.arc_id === arc.id && q.status === "active");
-    if (!moving && !played) out.push({ key: `arc:${arc.id}`, kind: "arc", title: arc.name, reasons: ["Running, with no force moving and no quest active"], to: { path: "/canon", query: {} } });
+    if (!moving && !played) out.push({ key: `arc:${arc.id}`, kind: "arc", title: arc.name, reasons: ["Running, with no force moving and no quest active"], to: { path: "/canon/arcs", query: { arc: arc.id } } });
   }
   return out;
+}
+
+// ── Done this session (#1279 item 19): what Tonight's actions did, kept in view so each can be taken back ─────────
+
+export type TonightDoneKind = "tell" | "found" | "tick";
+
+/** One action done on this visit; the page keeps these under a fold instead of letting the row vanish. */
+export interface TonightDone {
+  key: string;
+  kind: TonightDoneKind;
+  /** The passage, clue or force it was done to. */
+  title: string;
+}
+
+export const DONE_VERB: Record<TonightDoneKind, string> = { tell: "Told", found: "Found", tick: "Ticked" };
+
+/** Drops the groups' items the visit has already done (the plan refetches a moment later; until then they must not show twice). */
+export function withoutDone<T>(groups: readonly TonightGroup<T>[], isDone: (item: T) => boolean): TonightGroup<T>[] {
+  return groups.map((g) => ({ ...g, items: g.items.filter((i) => !isDone(i)) })).filter((g) => g.items.length > 0);
 }

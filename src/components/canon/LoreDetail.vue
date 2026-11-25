@@ -31,6 +31,12 @@
         <span class="text-label font-bold text-foreground">The opening, read when the entry is shared</span>
         <span class="text-caption text-muted-foreground">The first passage below is told with the entry, so it never waits at a place. The rest are told one at a time.</span>
       </p>
+      <!-- Lore made before passages (and a note sorted in before they were written to one) kept its text on the entry itself, which only the player's World tab showed. -->
+      <div v-if="legacyText !== ''" class="flex flex-col gap-1 rounded-lg border border-dashed border-border p-3" data-testid="lore-legacy-body">
+        <span class="text-eyebrow text-muted-foreground">Text from before passages</span>
+        <p class="m-0 whitespace-pre-line text-caption text-muted-foreground">{{ legacyText }}</p>
+        <AppButton class="self-start" variant="outline" size="sm" label="Make this the first passage" :loading="adding" @click="makeLegacyFirst" />
+      </div>
       <ul v-if="passages.length > 0" class="flex flex-col" data-testid="lore-passages">
         <LorePassageRow
           v-for="(p, i) in passages"
@@ -115,7 +121,13 @@ const questLinks = useEntryQuestLinks(() => entry.id);
 const { mutate: update } = useUpdateCanonEntry();
 const { text, revision } = useCommittedText(() => entry.title, (next) => update({ id: entry.id, patch: { title: next } }));
 
-const { passages, adding, addPassage, move, removePassage } = usePassageList(() => entry.id);
+const { passages, adding, addPassage, prependPassage, move, removePassage } = usePassageList(() => entry.id);
+const legacyText = computed(() => tiptapToPlainText(entry.body).trim());
+// The body is cleared only once the passage exists, so a refused write loses no text.
+async function makeLegacyFirst() {
+  if (entry.body === null || !(await prependPassage(entry.body))) return;
+  update({ id: entry.id, patch: { body: null } });
+}
 const pictureContext = computed(() => [entry.title, entry.lore_kind, passages.value[0] ? tiptapToPlainText(passages.value[0].body) : ""].filter((t) => t).join(". "));
 
 const calendar = useCalendarStore();

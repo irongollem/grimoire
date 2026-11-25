@@ -56,6 +56,14 @@ describe("ArcsChapter", () => {
     expect(mocks.replace).toHaveBeenLastCalledWith({ query: { arc: undefined } });
   });
 
+  // Bug caught (#1279 item 10): "Ask the Familiar" in the empty arcs list, for which the canon helper has no mode and which came back as truths.
+  it("offers no Familiar request when there are no arcs", () => {
+    arcs.value = [];
+    const w = mountIt();
+    expect(w.get("[data-testid=canon-empty]").text()).toContain("No arcs yet");
+    expect(w.find("canon-suggest-stub").exists()).toBe(false);
+  });
+
   it("adds an arc by its name and opens it", async () => {
     mocks.add.mockResolvedValue({ id: "a3" });
     const w = mountIt();

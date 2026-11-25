@@ -178,11 +178,11 @@ describe("PeoplesChapter", () => {
   });
 
   // Bug: a world with no peoples showed an empty share list with a stray "Adds up" line instead of saying what a people is.
-  it("says what a people is, and offers the Familiar, while none is listed; and says nothing while loading", () => {
+  it("says what a people is, with no Familiar request (#1279 item 10: the helper has no peoples mode), while none is listed; and says nothing while loading", () => {
     state.peoples = [];
     const w = mountIt();
     expect(w.text()).toContain("No peoples yet");
-    expect(w.find("[data-testid=canon-suggest]").exists()).toBe(true);
+    expect(w.find("[data-testid=canon-suggest]").exists()).toBe(false);
     expect(w.find("[data-testid=share-row]").exists()).toBe(false);
     state.loading = true;
     expect(mountIt().text()).not.toContain("No peoples yet");

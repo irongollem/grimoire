@@ -6,7 +6,8 @@ import { CANON_SECTIONS, type CanonSectionId } from "@/lib/canon/canonParts";
 
 const counts = (over: Partial<Record<CanonSectionId, number>> = {}) =>
   Object.fromEntries(CANON_SECTIONS.map((s) => [s.id, over[s.id] ?? 0])) as Record<CanonSectionId, number>;
-const mountContents = (over: Partial<Record<CanonSectionId, number>> = {}, active: CanonSectionId = "premise") => mount(CanonContents, { props: { active, counts: counts(over) } });
+const DeletedStub = { name: "CanonDeleted", template: "<div data-testid=\"canon-deleted\" />" };
+const mountContents = (over: Partial<Record<CanonSectionId, number>> = {}, active: CanonSectionId = "premise") => mount(CanonContents, { props: { active, counts: counts(over) }, global: { stubs: { CanonDeleted: DeletedStub } } });
 
 describe("CanonContents", () => {
 
@@ -16,6 +17,26 @@ describe("CanonContents", () => {
     expect(w.get("[data-testid=count-truths]").text()).toBe("4");
     expect(w.find("[data-testid=count-lore]").exists()).toBe(false);
     expect(w.find("[data-testid=count-world]").exists()).toBe(false);
+  });
+
+  // Bug caught (#1279 item 34c): the Deleted list left under the chapters, so every sheet drew it; it belongs at the foot of the contents.
+  it("holds the Deleted list after every chapter group", () => {
+    const w = mountContents();
+    const nav = w.get("[data-testid=canon-contents]");
+    const deleted = nav.get("[data-testid=canon-deleted]");
+    const lastGroup = [...nav.element.querySelectorAll("section[data-group]")].pop()!;
+    expect(lastGroup.compareDocumentPosition(deleted.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // Bug caught (#1279 item 26): one chapter under three names ("What is moving", "Moving", "Forces"; "Life" for the habitats).
+  it("names the chapters Forces and Habitats, in the column and in the picker", () => {
+    const w = mountContents();
+    expect(w.get("button[data-part=moving]").text()).toBe("Forces");
+    expect(w.get("button[data-part=life]").text()).toBe("Habitats");
+    const options = w.findAll("select option").map((o) => o.text());
+    expect(options).toContain("Forces");
+    expect(options).toContain("Habitats");
+    expect(options.join("|")).not.toMatch(/moving|Life/i);
   });
 
   it("marks the active chapter and selects the one chosen", async () => {

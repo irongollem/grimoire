@@ -37,7 +37,7 @@ describe("CanonNextSession", () => {
   });
 
   // Bug caught: counting groups instead of the passages and clues inside them (two places hold three items).
-  it("counts the items inside the groups and names a force one tick from its next step", () => {
+  it("counts the items inside the groups and names a force one tick from full", () => {
     plan.value = {
       ...empty,
       lore: [{ at: null, items: [item, item] }],
@@ -45,6 +45,6 @@ describe("CanonNextSession", () => {
       forces: [{ entryId: "f", title: "The Guild", nextStep: "Raid", clock: { filled: 3, size: 4, full: false } }],
     };
     const lines = mountCard().findAll("[data-testid=next-session-line]").map((l) => l.text());
-    expect(lines).toEqual(["2 lore passages to tell", "3 clues not yet found", "The Guild is one tick from its next step"]);
+    expect(lines).toEqual(["2 lore passages to tell", "3 clues not yet found", "The Guild is one tick from full"]);
   });
 });

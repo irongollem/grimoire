@@ -29,6 +29,7 @@
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import CanonAddRow from "./CanonAddRow.vue";
+import { useCanonUiStore } from "@/stores/ui/canon";
 import { useCanonEntries, useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCampaignLinks, useCreateConnectionInCampaign } from "@/composables/connections/useConnections";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
@@ -57,6 +58,7 @@ function became(thread: CanonEntry): string {
   return when === "before play" ? what : `${what}, ${when}`;
 }
 
+const ui = useCanonUiStore();
 const { mutateAsync: createEntry } = useCreateCanonEntry();
 const { mutateAsync: connect } = useCreateConnectionInCampaign();
 const related = typeChoices("canon", "canon").find((c) => c.key === "related_to" && c.subjectIsFrom);
@@ -64,7 +66,7 @@ const related = typeChoices("canon", "canon").find((c) => c.key === "related_to"
 async function add(title: string): Promise<void> {
   if (!related) throw new Error("A canon entry has no `related_to` tie to another");
   // The question is made first; creating it tells the DM itself when it fails, and nothing is tied then.
-  const question = await createEntry({ part: "question", title });
+  const question = await createEntry({ part: "question", title, arc_id: ui.arcFilter });
   try {
     await connect({
       input: { subject: { kind: "canon", id: entry.id }, other: { kind: "canon", id: question.id, name: question.title }, choice: related },

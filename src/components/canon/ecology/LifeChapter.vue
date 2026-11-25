@@ -23,7 +23,8 @@
         </template>
       </CanonRow>
     </ul>
-    <CanonEmpty v-else-if="!isLoading" title="Nothing lives here yet" :text="EMPTY_TEXT" ask="Suggest the creatures and habitats of my world." />
+    <!-- No Familiar here: the canon helper has no habitats mode, so a request would come back as truths. -->
+    <CanonEmpty v-else-if="!isLoading" title="Nothing lives here yet" :text="EMPTY_TEXT" />
 
     <template #add>
       <CanonAddRow placeholder="A new kind of country…" input-label="A new kind of country" label="Add habitat" :create="add" />
@@ -37,7 +38,7 @@
 
 <script setup lang="ts">
 /**
- * The Life chapter (#1255 item 31): the world's habitats, kinds of country, one line each with the places it covers and
+ * The Habitats chapter (#1255 item 31): the world's habitats, kinds of country, one line each with the places it covers and
  * what lives there, and the open one beside the list. Only creatures live here: the world's peoples are their own
  * chapter and are never listed or edited from a habitat. Order is the DM's and is kept; the world block lists them in it.
  */

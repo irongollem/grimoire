@@ -113,6 +113,24 @@ describe("ForceDetail", () => {
     expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { clock_size: 8 } });
   });
 
+  // Bug caught (#1279 item 34b): "If it succeeds" had no revision key, so words typed back unchanged (with stray spaces) stayed on screen.
+  it("redraws the if-it-succeeds field when an edit changes nothing", async () => {
+    const w = mountIt(force({ if_succeeds: "The orchard dies." }));
+    const input = w.get("input[aria-label='If it succeeds'], textarea[aria-label='If it succeeds']");
+    await input.setValue("  The orchard dies.  ");
+    await flushPromises();
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect((w.get("[aria-label='If it succeeds']").element as HTMLInputElement).value).toBe("The orchard dies.");
+  });
+
+  // Bug caught (#1279 item 34b): the Connections block listing the led_to and carries ties EntryStoryLinks already shows.
+  it("hides the story ties from Connections, which EntryStoryLinks owns", () => {
+    const hide = mountIt().getComponent({ name: "ConnectionsSection" }).props("hide") as (c: unknown) => boolean;
+    expect(hide({ source: "link", type: "led_to" })).toBe(true);
+    expect(hide({ source: "link", type: "carries" })).toBe(true);
+    expect(hide({ source: "link", type: "related_to" })).toBe(false);
+  });
+
   // Bug caught: the log showing every move at once (burying the clock), or "All N moves" opening nothing.
   it("shows the newest three moves and opens the rest in place", async () => {
     forceData.value.ticks = Array.from({ length: 5 }, (_, i) => tick({ id: `t${i}`, created_at: `2026-11-1${i}T10:00:00Z` }));

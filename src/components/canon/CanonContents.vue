@@ -29,17 +29,21 @@
         </AppButton>
       </section>
     </div>
+
+    <!-- At the foot of the contents, whichever chapter is open (#1279 item 34c): a quiet link that opens what was deleted. -->
+    <CanonDeleted class="mt-2 min-[90rem]:w-56" />
   </nav>
 </template>
 
 <script setup lang="ts">
 /**
- * The book's contents: the chapters in their groups, with a count where a chapter counts entries. The page shows one
+ * The book's contents: the chapters in their groups, with a count where a chapter counts entries, and the Deleted list at the foot. The page shows one
  * chapter at a time, and this is how the DM moves between them: a column from 90rem, a picker below it.
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
+import CanonDeleted from "./CanonDeleted.vue";
 import { CANON_GROUPS, CANON_SECTIONS, chapterOf, type CanonSectionId } from "@/lib/canon/canonParts";
 
 const { active, counts } = defineProps<{ active: CanonSectionId; counts: Record<CanonSectionId, number> }>();

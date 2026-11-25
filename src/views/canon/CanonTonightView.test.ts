@@ -14,7 +14,7 @@ const links = read<unknown[]>([]);
 const facts = read<unknown[]>([]);
 
 vi.mock("@/composables/canon/useCanonEntries", () => ({ useCanonEntries: () => entries }));
-const mocks = vi.hoisted(() => ({ setFound: vi.fn(), tell: vi.fn(), tick: vi.fn() }));
+const mocks = vi.hoisted(() => ({ setFound: vi.fn(), tell: vi.fn(), takeBack: vi.fn(), tick: vi.fn() }));
 const arcs = read<unknown[]>([]);
 const quests = read<unknown[]>([]);
 const beatQuests = read<unknown[]>([]);
@@ -26,7 +26,7 @@ vi.mock("@/composables/quests/useQuests", () => ({ useQuests: () => quests }));
 vi.mock("@/composables/canon/useCampaignBeatQuests", () => ({ useCampaignBeatQuests: () => beatQuests }));
 vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => locations }));
 vi.mock("@/composables/sessions/useCampaignSessions", () => ({ useCampaignSessions: () => sessions }));
-vi.mock("@/composables/canon/useCanonPassageEdits", () => ({ useTellPassage: () => ({ tell: mocks.tell }) }));
+vi.mock("@/composables/canon/useCanonPassageEdits", () => ({ useTellPassage: () => ({ tell: mocks.tell, takeBack: mocks.takeBack }) }));
 vi.mock("@/composables/canon/useCanonClues", () => ({ useCanonClues: () => clues, useSetClueFound: () => mocks.setFound }));
 vi.mock("@/composables/canon/useCanonPassages", () => ({ useCanonPassages: () => passages }));
 vi.mock("@/composables/canon/useCanonForces", () => ({ useCanonForceData: () => forces, useTickForce: () => ({ mutate: mocks.tick }) }));
@@ -40,6 +40,7 @@ import CanonTonightView from "./CanonTonightView.vue";
 
 import { setActivePinia, createPinia } from "pinia";
 import { useCanonUiStore } from "@/stores/ui/canon";
+import { toast } from "@/lib/toast";
 
 const stubs = {
   PageHeader: { template: "<div><slot name='actions' /><slot /></div>" },
@@ -56,6 +57,7 @@ describe("CanonTonightView", () => {
     setActivePinia(createPinia());
     useCanonUiStore().tonightScope = "all";
     Object.values(mocks).forEach((m) => m.mockReset());
+    toast.toasts.value = [];
     campaignState.activeCampaign.current_location_id = null;
     clues.data.value = [];
     passages.data.value = [];
@@ -165,5 +167,56 @@ describe("CanonTonightView", () => {
     const w = mountView();
     expect(w.find("[data-testid=tonight-loose]").text()).toContain("Loose ends (1)");
     expect(w.find("[data-testid=loose-list]").attributes("style")).toContain("display: none");
+  });
+
+  const undoToast = () => toast.toasts.value.at(-1)?.action;
+
+  // Bug caught: Undo on the Found toast writing found again (true) or to another clue, so the mis-tap cannot be taken back.
+  it("Found offers Undo that sets that clue unfound, and the row moves under Done this session", async () => {
+    entries.data.value = [secret];
+    clues.data.value = [clueRow("k1", { location_id: "loc" }), clueRow("k2", { location_id: "loc" })];
+    const w = mountView();
+    await w.findAll("[data-testid=tonight-found]")[0]!.trigger("click");
+    expect(w.findAll("[data-testid=tonight-found]")).toHaveLength(1);
+    expect(w.find("[data-testid=done-list]").text()).toContain("Found: Clue k1");
+    undoToast()!.run();
+    expect(mocks.setFound).toHaveBeenLastCalledWith({ id: "k1" }, false);
+    await w.vm.$nextTick();
+    expect(w.find("[data-testid=tonight-done]").exists()).toBe(false);
+  });
+
+  // Bug caught: Undo on Tell not taking the passage back (or taking back another one), leaving it told to the party.
+  it("Tell offers Undo that takes that passage back", async () => {
+    entries.data.value = [lore];
+    passages.data.value = [passageRow("first", { sort_order: 0 }), passageRow("p2")];
+    const w = mountView();
+    await w.get("[data-testid=tonight-tell]").trigger("click");
+    undoToast()!.run();
+    expect(mocks.takeBack).toHaveBeenCalledWith({ id: "p2" });
+  });
+
+  // Bug caught: Undo on Tick ticking forward again (delta 1) or not at all, so the clock cannot be set back from Tonight.
+  it("Tick offers Undo that ticks that force back by one, from the fold too, and only once", async () => {
+    entries.data.value = [canonEntry({ id: "F1", part: "force", title: "Court", clock_size: 3 })];
+    forces.data.value = { steps: [], ticks: [], quests: [] };
+    const w = mountView();
+    await w.get("[data-testid=tonight-tick]").trigger("click");
+    expect(mocks.tick).toHaveBeenLastCalledWith({ campaignId: "c1", forceId: "F1", delta: 1, note: "" });
+    await w.get("[data-testid=done-undo]").trigger("click");
+    expect(mocks.tick).toHaveBeenLastCalledWith({ campaignId: "c1", forceId: "F1", delta: -1, note: "" });
+    undoToast()!.run(); // the toast after the fold already undid it: no second back-tick
+    expect(mocks.tick).toHaveBeenCalledTimes(2);
+  });
+
+  // Bug caught: the last waiting row done flipping the page to "Nothing is waiting", taking the Undo with it.
+  it("keeps the Done fold on screen when the last passage is told", async () => {
+    entries.data.value = [lore];
+    passages.data.value = [passageRow("first", { sort_order: 0 }), passageRow("p2")];
+    const w = mountView();
+    await w.get("[data-testid=tonight-tell]").trigger("click");
+    passages.data.value = [passageRow("first", { sort_order: 0 }), passageRow("p2", { told_at: "2026-11-21T10:00:00Z" })]; // the refetch
+    await w.vm.$nextTick();
+    expect(w.find("[data-testid=empty]").exists()).toBe(false);
+    expect(w.find("[data-testid=done-row]").text()).toContain("Told: Passage p2");
   });
 });

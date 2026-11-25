@@ -14,20 +14,57 @@ vi.mock("@/lib/canon/queueCanonEmbedding", () => ({ queueCanonEmbedding: queue }
 const doc = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
 
 beforeEach(() => {
+  vi.restoreAllMocks();
   fake.reset();
   queue.mockClear();
 });
 
 describe("writeLoreEntry", () => {
-  it("files the note as a lore entry that keeps its text, its audience and its provenance", async () => {
+  // The fake mints no ids, so a new entry is given one here, as the database does: the passage and the rollback hang off it.
+  beforeEach(() => {
+    const from = fake.client.from.bind(fake.client);
+    vi.spyOn(fake.client, "from").mockImplementation(((table: string) => {
+      const query = from(table);
+      if (table !== "canon_entries") return query;
+      const insert = query.insert.bind(query);
+      query.insert = ((rows: Record<string, unknown>) => insert({ id: "e1", ...rows })) as typeof query.insert;
+      return query;
+    }) as typeof fake.client.from);
+  });
+
+  it("files the note as a lore entry that keeps its audience and its provenance", async () => {
     // Fails if the entry is made for nobody (or everybody) instead of the party members the note was shared with.
     await writeLoreEntry({
       campaign_id: "c1", title: "The Flood", content: doc("water"), player_visible_to: ["pm1"],
       ai_provenance: { model: "m" } as never,
     });
     expect(fake.rows("canon_entries")).toEqual([
-      expect.objectContaining({ campaign_id: "c1", user_id: "dm", part: "lore", title: "The Flood", body: doc("water"), player_visible_to: ["pm1"], ai_provenance: { model: "m" } }),
+      expect.objectContaining({ campaign_id: "c1", user_id: "dm", part: "lore", title: "The Flood", player_visible_to: ["pm1"], ai_provenance: { model: "m" } }),
     ]);
+  });
+
+  // Bug caught (#1279 item 2): the note's text written to the entry's `body`, which the lore editor has no field for, so the DM
+  // could not see text that the player's World tab showed.
+  it("writes the note's text as the entry's first passage and leaves the entry's body empty", async () => {
+    await writeLoreEntry({ campaign_id: "c1", title: "The Flood", content: doc("water"), player_visible_to: [], ai_provenance: null });
+    const [entry] = fake.rows("canon_entries");
+    expect(entry.body ?? null).toBeNull();
+    expect(fake.rows("canon_lore_passages")).toEqual([
+      expect.objectContaining({ entry_id: entry.id, campaign_id: "c1", user_id: "dm", body: doc("water"), sort_order: 0 }),
+    ]);
+  });
+
+  // Bug caught: a note with no text still leaving an empty first passage behind.
+  it("makes no passage for a note with no text", async () => {
+    await writeLoreEntry({ campaign_id: "c1", title: "Empty", content: null, player_visible_to: [], ai_provenance: null });
+    expect(fake.rows("canon_lore_passages")).toEqual([]);
+  });
+
+  // Bug caught: a refused passage leaving a text-less entry behind, which the retried sort then duplicates.
+  it("takes the entry back when its passage is refused", async () => {
+    fake.failNext("canon_lore_passages", { message: "denied" });
+    await expect(writeLoreEntry({ campaign_id: "c1", title: "x", content: doc("w"), player_visible_to: [], ai_provenance: null })).rejects.toThrow();
+    expect(fake.rows("canon_entries")).toEqual([]);
   });
 
   // Bug caught: a sorted lore note was never queued for its embedding, so the Narrator's lookup could not find it by meaning.

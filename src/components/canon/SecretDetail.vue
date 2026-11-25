@@ -11,12 +11,22 @@
       </span>
       <AppButton v-if="entry.revealed_at === null" variant="primary" size="sm" label="Reveal to the party" data-testid="reveal" @click="reveal" />
       <AppButton v-if="entry.revealed_at === null && !choosingWho" variant="outline" size="sm" label="Reveal to…" data-testid="reveal-some" @click="choosingWho = true" />
+      <AppButton v-if="entry.revealed_at !== null && !wholeParty && !choosingWho" variant="outline" size="sm" label="Reveal to more…" data-testid="reveal-more" @click="choosingWho = true" />
       <AppButton v-if="entry.revealed_at !== null" variant="outline" size="sm" label="Hide again" data-testid="hide" @click="hide" />
       <EntryArcPicker :entry="entry" />
-      <PassageTellSome v-if="entry.revealed_at === null && choosingWho" class="basis-full" :members="party ?? []" tell-label="Reveal" @tell="revealChosen" @cancel="choosingWho = false" />
+      <PassageTellSome
+        v-if="choosingWho"
+        :key="entry.revealed_at === null ? 'first' : 'more'"
+        class="basis-full"
+        :members="party ?? []"
+        :told="entry.revealed_at === null ? [] : entry.player_visible_to"
+        :tell-label="entry.revealed_at === null ? 'Reveal' : 'Reveal to them'"
+        @tell="revealChosen"
+        @cancel="choosingWho = false"
+      />
       <p class="m-0 basis-full text-caption text-muted-foreground">
         <template v-if="entry.revealed_at === null">Finding every clue never reveals it by itself: revealing it to the players is your button.</template>
-        <template v-else>The party can read this secret. Hiding it again takes it off their screens.</template>
+        <template v-else><span data-testid="revealed-to">{{ revealedTo }}</span>. Hiding it again takes it off their screens.</template>
       </p>
     </template>
 
@@ -62,7 +72,7 @@
     <EntryStoryLinks :entry="entry" />
 
     <template #connections>
-      <ConnectionsSection :subject="subject" :subject-name="entry.title" />
+      <ConnectionsSection :subject="subject" :subject-name="entry.title" :hide="isShownAbove" />
     </template>
   </CanonEntryPane>
 </template>
@@ -93,13 +103,15 @@ import { useLinkBecame } from "@/composables/canon/useLinkBecame";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useClueWhere } from "@/composables/canon/useClueWhere";
+import { useKnownTo } from "@/composables/canon/useKnownTo";
 import { useRevealSecret } from "@/composables/canon/useRevealSecret";
 import { useParty } from "@/composables/party/useParty";
 import { useConfirm } from "@/composables/useConfirm";
 import { IconAdd } from "@/lib/icons";
+import { audienceLabel } from "@/lib/sessions/learned";
 import { toast } from "@/lib/toast";
 import type { CanonClue, CanonEntry } from "@/types/canon.types";
-import type { WorldRef } from "@/types/connections.types";
+import type { Connection, WorldRef } from "@/types/connections.types";
 
 const { entry } = defineProps<{ entry: CanonEntry }>();
 const emit = defineEmits<{ delete: []; close: [] }>();
@@ -129,7 +141,9 @@ const { mutate: updateClue } = useUpdateCanonClue();
 const { mutateAsync: createClue, isPending: creating } = useCreateCanonClue();
 const { mutateAsync: destroyClue } = useDeleteCanonClue();
 const setFound = useSetClueFound();
-const { ready: partyReady, revealSecret } = useRevealSecret();
+const { ready: partyReady, revealSecret, widenReveal } = useRevealSecret();
+// No subject: the truth made below does not exist yet, so only its writes are used.
+const { nameKnower } = useKnownTo(null);
 const { confirm } = useConfirm();
 
 const { text, revision } = useCommittedText(() => entry.title, (next) => update({ id: entry.id, patch: { title: next } }));
@@ -138,6 +152,16 @@ const adding = ref(false);
 const choosingWho = ref(false);
 watch(() => entry.id, () => { adding.value = false; choosingWho.value = false; });
 const { data: party } = useParty();
+
+// Who reads a revealed secret: the party members in `player_visible_to` (a member no longer in the party is not named).
+const wholeParty = computed(() => party.value !== undefined && party.value.length > 0 && party.value.every((m) => entry.player_visible_to.includes(m.id)));
+const revealedTo = computed(() => {
+  const label = audienceLabel(entry.player_visible_to, party.value ?? []);
+  if (label === "") return "Revealed, but nobody in the party has it";
+  return `Revealed to ${wholeParty.value ? "the whole party" : label}`;
+});
+// The story links (led to, carries) are EntryStoryLinks' block, so the Connections block does not list them twice.
+const isShownAbove = (c: Connection): boolean => c.source === "link" && (c.type === "led_to" || c.type === "carries");
 
 async function addClue(input: { title: string; where: { kind: ClueKind; id: string } | null }) {
   const base = { secret_id: entry.id, title: input.title, sort_order: clues.value.length };
@@ -171,24 +195,35 @@ async function reveal() {
   revealSecret(entry.id);
 }
 
-/** "Reveal to…": only the characters ticked read it, and the picker's Reveal is the DM's act, so it asks nothing more. */
+/** "Reveal to…" / "Reveal to more…": only the characters ticked read it, and the picker's button is the DM's act, so it asks nothing more. A secret already out keeps its time and session. */
 function revealChosen(ids: string[]) {
   choosingWho.value = false;
-  revealSecret(entry.id, ids);
+  if (entry.revealed_at === null) revealSecret(entry.id, ids);
+  else widenReveal(entry.id, entry.player_visible_to, ids);
 }
 
 const making = ref(false);
 
-/** A revealed secret becomes a truth known to all, with its words and notes; the secret stays, still revealed. A failed pointer never deletes the truth. */
+/**
+ * A revealed secret becomes a truth known to those who read it, with its words and notes: "all" when the whole party has it,
+ * otherwise "some", each reader written as a `known_to` link, so a secret shown to two characters never reaches the rest.
+ * The secret stays, still revealed. A failed pointer never deletes the truth.
+ */
 async function makeTruth() {
-  if (entry.revealed_at === null || making.value) return;
+  const members = party.value;
+  if (entry.revealed_at === null || making.value || members === undefined) return;
+  const readers = members.filter((m) => entry.player_visible_to.includes(m.id));
+  const knowledge = readers.length === members.length ? "all" : "some";
   making.value = true;
   try {
     let truth: CanonEntry;
     try {
-      truth = await createEntry({ part: "truth", knowledge: "all", title: entry.title, body: entry.body });
+      truth = await createEntry({ part: "truth", knowledge, title: entry.title, body: entry.body });
     } catch {
       return; // The mutation has already told the DM (toast).
+    }
+    if (knowledge === "some") {
+      for (const m of readers) await nameKnower(truth.id, { kind: "party_member", id: m.id, name: m.name });
     }
     try {
       await updateAsync({ id: entry.id, patch: { became_entry_id: truth.id } });

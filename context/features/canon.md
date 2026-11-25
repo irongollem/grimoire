@@ -13,7 +13,7 @@ Design: the canvas *Campaign Canon* (claude.ai artifact `MAukzQW1bDDG832DT4ZepT`
 | --- | --- | --- | --- |
 | Premise and tone | `premise`, with a `premise_kind`: `pitch`, `theme`, `table`, `voice`, `look`, `line`, `veil` | story 2 | what the DM shared, never the voice or the look |
 | Truths | `truth`, with `knowledge`: `all`, `some`, `secret` | story 2 | known to all; known to some when it is `known_to` their character, or a faction their character is in; never a secret truth |
-| What is moving | `force` | story 4 | never |
+| Forces | `force` | story 4 | never |
 | How the world works | none: columns of `campaigns` (calendar, today's date, climate, coins) | story 5 | n/a |
 | Who and what lives here | none: `campaign_peoples`, `campaign_habitats` and what hangs off them (a truth may carry a `habitat_id`) | #1255 item 31 | n/a |
 | Secrets and open questions | `secret`, `question` | story 3 | a secret once the DM reveals it; never a question |
@@ -118,19 +118,22 @@ chapter on one kit, so learning one chapter teaches them all.
 
 `/canon/:part?` (`src/views/canon/CanonView.vue`). The chapters, in reading order and grouped (`CANON_SECTIONS` and
 `CANON_GROUPS` in `canonParts.ts`, the only place a chapter is added; `chapterOf(id)` gives its label and its one line of
-why): **Front matter** (Premise and tone, How the world works), **The world** (Truths, Lore, Peoples, Life), **The story,
-yours only** (What is moving, Secrets and questions), **The characters** (Backstories). The Chronicle lives on the Sessions
+why): **Front matter** (Premise and tone, How the world works), **The world** (Truths, Lore, Peoples, Habitats), **The story,
+yours only** (Forces, Secrets and questions), **The characters** (Backstories). The Chronicle lives on the Sessions
 page, in each session's own row (`SessionChronicleLine`); the AI table's lines arrive as an inbox on Truths ("n lines from the
 table to keep or strike", **Review** opens `TableAddedSection` in a dialog); `?section=table` lands on Truths. A bare `/canon`
 opens the chapter the DM was last on (`useCanonUiStore().lastPart`); `?entry=<id>`, `?section=<chapter>` (and the helpers'
 words `forces`, `questions`) and `?backstory=<member>` resolve to the chapter that holds them and are rewritten to its address.
 
-- **The header**: the search (`CanonSearchField`), **Bring in a book**, **Open as a book**, and below 90rem **Prepare the next
-  session**. On a phone they sit under the title.
+- **The header**: the search (`CanonSearchField`), **Bring in a book**, **Open as a book**, and below 90rem **Tonight**. On a phone they sit under the title.
 - **The contents** (`CanonContents`): from 90rem a sticky column of the groups and their chapters with counts, the arc
   control under it (`CanonArcs`: an "Arc" picker and Clear) and the next
   session's card (`CanonNextSession`: what the canon has waiting, from `useTonight`, the same gathering as the Tonight
-  page, and **Prepare the session**). Below 90rem the contents are a chapter picker above the chapter.
+  page, and its button to it). Below 90rem the contents are a chapter picker above the chapter.
+  At the foot of the contents, under every chapter, sits the quiet **Deleted (n)** link (`CanonDeleted`, see Deleted entries); it is
+  not drawn under a chapter or a sheet (#1279 item 34c).
+- **One name per thing** (#1279 item 26): the chapter is **Forces** (route id `moving`, kept), the prep page and every link to it say
+  **Tonight**, and the habitats chapter is **Habitats** (route id `life`, kept). Labels live in `CANON_SECTIONS`; only labels changed.
 - **The kit** (`src/components/canon/kit/`): `CanonChapter` (the list, and the open entry beside it from 56rem of the
   chapter's own width; below that the entry replaces the list, with "Back to <chapter>"; the list takes a reading width
   while nothing is open), `CanonRow` (the one row: the words, and one mark at the right, always a sign and a word),
@@ -230,7 +233,8 @@ Five blocks, each left out when empty, in this order:
    entry's title linking to `/canon?entry=<id>`. A passage that comes out nowhere is not listed (no cue), nor an entry's first passage
    (told with the entry).
 2. **Clues to find**: clues not found, of secrets not revealed, grouped by where they lie, "Not placed anywhere yet" last; a clue that
-   is a lore passage lies where the passage comes out. Each names its secret.
+   is a lore passage lies where the passage comes out. Each names its secret. A clue lying in an item or a handout is grouped under
+   that item or handout (named as `useClueWhere` names it); they have no place, so "Where the party is" never holds them and "Everything" does.
 3. **What moves next**: each force still moving, its first unreached step ("No next step written" when none) and its clock as "3 of 6",
    "The clock is full" when it is.
 4. **Threads left open**: per character, the open threads of their backstory (`openThreads`) and the DM's passages not yet told to them,
@@ -245,11 +249,16 @@ through `scopeTonight` in `canonTonight.ts`: *Where the party is* keeps places t
 campaign and are never narrowed. When the scope hides everything the canon holds, a line under the control says so.
 
 A sixth block, **Loose ends**, is folded by default and left out when empty (`looseEnds` in `canonTonight.ts`, from data already loaded).
-Each row links to its entry (a backstory to `/canon?backstory=<member>`, an arc to the Canon page, which has no entry of its own):
+Each row links to its entry (a backstory to `/canon?backstory=<member>`, an arc to `/canon/arcs?arc=<id>`, which has no entry of its own):
 a secret not yet revealed with fewer than three clues or no clue placed anywhere (a place, person, beat, item, document or passage); a
 force still moving with no unreached step or no quest tied (`canon_entry_quests`); an open question with more than five sessions
 begun since it was written (`campaign_sessions.created_at` against the entry's `created_at`); a backstory with no open thread; and an
 arc with status `running` that has no moving force (`canon_entries.arc_id`) and no active quest (`quests.arc_id`).
+
+Tell, Found and Tick each toast with **Undo** (take the passage back, set the clue unfound, tick the clock back by one). The row stays
+in view for the visit: it leaves its block and lands under a folded **Done this session** block (`TonightDone`), where each line has its
+own Undo; the page keeps that block even when nothing else is waiting. An arc loose end opens `/canon/arcs?arc=<id>`. The Next session
+card says "one tick from full" for a clock one tick short of full.
 
 When the whole canon has nothing for any block, the page says nothing is waiting and links back to the Canon. There is no dashboard widget yet.
 
@@ -285,7 +294,8 @@ answer a new entry (a truth with a knowledge mark, or a secret) titled with the 
 `closed_as = 'answered'`, `closed_at`, `closed_note` (the answer) and `became_entry_id` (the new entry). If the second write
 fails the new entry stays and a toast says so. Answered questions fold under "Answered (n)", each linking to what it became
 (`/canon?entry=<id>`; the FK clears the pointer if that entry is deleted) with *Reopen*, which nulls all four columns. A
-revealed secret offers *Make it a truth* (known to all, with its words and notes) and then reads "Now a truth: <title>";
+revealed secret offers *Make it a truth* (with its words and notes; known to all when the whole party reads the secret, otherwise
+`knowledge: some` with a `known_to` link to each character who does, #1279 item 3) and then reads "Now a truth: <title>";
 the secret stays, still revealed, and *Hide again* on it asks first ("The truth it became stays known to all"). Every
 "becomes" (a secret made a truth, a question answered) writes a canon `led_to` link from the old entry to the new one
 beside `became_entry_id` (`useLinkBecame`); a failed link toasts and undoes nothing. A player whose truth a secret became
@@ -304,7 +314,11 @@ its picker says "Plan it in a quest…" and unlinks only hand links. Revealing i
 `revealed_at` and `revealed_session_id`, share with every party member), used by the secret's own button and by a tied
 beat's prompt. **Reveal to…** (#1258 item 23) uses the same pick-some picker as a passage's Tell (`PassageTellSome`) and
 shares with only the characters ticked; both stamp the open session (null when none runs, as a Found clue does), and
-*Hide again* clears both columns, since the table refuses a session with no reveal time. An NPC's DM note stays a note.
+*Hide again* clears both columns, since the table refuses a session with no reveal time. A revealed secret says who has it
+("Revealed to Mira and Bram", "Revealed to the whole party") and, until the whole party has it, offers **Reveal to more…**: the
+same picker with those who have it ticked, which only adds members (`widenReveal`) and keeps `revealed_at` and the session
+(#1279 item 4). A link to an open question (`?entry=<question id>`) opens the chapter on Questions, so its row renders and rings
+(#1279 item 6). An NPC's DM note stays a note.
 
 **The players wonder (#1258 item 24).** Above the open questions, "The players wonder" (`WonderInbox`, drawn only while
 some are open) lists each `canon_wonders` row nobody has answered. *Take it up* makes an open question of the player's
@@ -312,10 +326,10 @@ words (the question first, then the wonder's `adopted_entry_id`; a failed pointe
 *Let it be* stamps `dismissed_at`. A DM never edits a wonder's words. Each open question's row has **Answered in…**, a
 folded `EntryQuests` tying it to the quests that settle it (`canon_entry_quests`).
 
-The hand links are the same `canon_entry_quests` rows (see What is moving), and the quest's page lists the secret under
+The hand links are the same `canon_entry_quests` rows (see Forces), and the quest's page lists the secret under
 "The canon behind this quest" with its state.
 
-## What is moving
+## Forces (the chapter once called What is moving)
 
 Part III of the page (frame 06; `ForcesSection.vue`, `ForceDetail.vue`). A force is a `canon_entries` row with
 `part = 'force'`: its title says who, `wants` says what it wants in one line, and `clock_size` (2 to 12, or null for no
@@ -341,7 +355,7 @@ quests where the party meets it, once each). Players never read any of it.
   (`overdueLine`); an ended force says nothing. Unreached steps with a due date also appear on the Calendar's canon
   timeline ("A step due") and in the almanac ("Due"), beside the ticks already past (`dueSteps`). The detail also holds
   **If it succeeds** (`canon_entries.if_succeeds`, force only): saved when the field is left, and clearing it writes null,
-  unlike the other fields, which put the saved words back. `EntryStoryLinks` (Because of, Led to, Carries) sits below the quest clocks.
+  unlike the other fields, which put the saved words back. `EntryStoryLinks` (Because of, Led to, Carries, and the cause and effect pickers) sits below the quest clocks. It owns `led_to` and `carries`: every detail hides both from its Connections block, each `led_to` row can be removed (a row that is only the entry's own `became_entry_id` pointer is its record, not a tie, and has no remove), and **Add a cause** / **Add an effect** write a `led_to` with this entry at the `to` / `from` end (#1279 item 9).
 
 - **Quests and canon tie both ways** (#1255 item 12). The links are one table for five parts, and one block draws them:
   `EntryQuests` ("Where the party meets it" on a force, "The quests that uncover it" on a secret, "turn on it" on a truth,
@@ -427,9 +441,9 @@ through the world block (`peoplesLine`, shared with the client from `_shared/wor
 
 ## Who and what lives here (Part VI, #1255 item 31)
 
-After How the world works, before Lore (short label "Life"). Not entries, so it has no count in the contents column;
-Since #1267 these are two chapters, **Peoples** (`ecology/PeoplesChapter.vue`) and **Life**
-(`ecology/LifeChapter.vue`), so the world's peoples are no longer read as part of its ecology. **Life** is the habitats: a short list of the world's kinds of
+After How the world works, before Lore (short label "Habitats"). Not entries, so it has no count in the contents column;
+Since #1267 these are two chapters, **Peoples** (`ecology/PeoplesChapter.vue`) and **Habitats**
+(`ecology/LifeChapter.vue`), so the world's peoples are no longer read as part of its ecology. **Habitats** is the habitats chapter: a short list of the world's kinds of
 country, each with a description, the Atlas places it covers and the creatures that live there.
 
 The list (`LifeChapter.vue`, a habitat opening beside it on the kit) shows each habitat's name, its places as plain words and a one-line summary of what lives
@@ -605,7 +619,15 @@ own `ai_system_prompts` row; the client reads each price through `canonSuggestio
   and one needs two distinct entries. An empty read is an answer and is charged; a canon of fewer than two entries skips
   the model and returns the loose ends free. Each finding links its entries to `/canon?entry=<id>`.
 - **Shape the world**, the walk of five steps, went in #1267: the way in leads a new canon, and "Walk me through building
-  my campaign's canon" is asked of the Familiar.
+  my campaign's canon" is asked of the Familiar. Each step of the way in is done in place (#1279 item 1): the pitch is
+  written in `PremisePitch` inside step 1, because the guide stands in for the Premise chapter and a link to it was the
+  page already showing; no step may link to the chapter on screen.
+- **Lore text is a passage** (#1279 item 2). Sorting a note into lore writes its text as the entry's first passage
+  (`canon_lore_passages`, sort order 0), never to `canon_entries.body`, which the lore editor has no field for while the
+  player's World tab renders it. A lore entry that still has a `body` shows it in "Text from before passages", with
+  "Make this the first passage" (passage 0, the others shifted, then the body cleared).
+- **No Familiar on Arcs, Peoples or Life** (#1279 item 10): the canon helper has no mode for them (`canonSuggestionsAskAdapter`),
+  so the request came back as truths. Give one a mode before giving it a button again.
 
 None of the three could be run against a model in the test environment (no AI keys): the tests cover everything around
 the model call, and the two new prompt rows need a run against a real key before they are trusted.
@@ -646,7 +668,7 @@ route, and `CanonImportView.test.ts` fails if a `/campaign/settings?tab=import` 
 
 ## Deleted entries (#1255 item 17)
 
-Deleting an entry on the page moves it to **Deleted (n)**, a quiet disclosure at the very bottom of the Canon page (`CanonDeleted`, absent when empty), for thirty days. Its clues, steps, ticks, passages, quest ties and world links are kept with it as a snapshot in `canon_trash` (DM-only; `trash_canon_entry`, `restore_canon_entry`, migration `20261123235700`; purged by `purge-canon-trash`). A deleted entry is simply not in `canon_entries`, so no reader of canon has to leave it out. Each row says what it was, when it was deleted and how many days are left, with **Restore** and **Delete for good** (asks first). A delete also toasts with Undo.
+Deleting an entry on the page moves it to **Deleted (n)**, a quiet disclosure at the foot of the contents column (`CanonDeleted` inside `CanonContents`, absent when empty, drawn under no chapter or sheet), for thirty days. Its clues, steps, ticks, passages, quest ties and world links are kept with it as a snapshot in `canon_trash` (DM-only; `trash_canon_entry`, `restore_canon_entry`, migration `20261123235700`; purged by `purge-canon-trash`). A deleted entry is simply not in `canon_entries`, so no reader of canon has to leave it out. Each row says what it was, when it was deleted and how many days are left, with **Restore** and **Delete for good** (asks first). A delete also toasts with Undo.
 
 Restore puts everything back **as the restoring DM** (rows come back owned by them), re-points what pointed at the entry, queues the entry's embedding again (a delete dropped the vector) and opens it by `/canon?entry=<id>`. It does not undo anything else: a reference to something deleted meanwhile is emptied, a quest tie to a deleted quest is dropped, and a backstory comes back only while its character has none (otherwise the server answers 23505 in words: delete the new one first). Deletes made by MCP or other server paths are still permanent. The list is read under a `CANON_KEY` query, so `canon_trash` ringing the doorbell refreshes it.
 

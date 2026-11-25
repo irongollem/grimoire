@@ -16,7 +16,8 @@
         </template>
       </CanonRow>
     </ul>
-    <CanonEmpty v-else-if="!isLoading" title="No peoples yet" :text="EMPTY_TEXT" ask="Suggest the peoples of my world." />
+    <!-- No Familiar here: the canon helper has no peoples mode, so a request would come back as truths. -->
+    <CanonEmpty v-else-if="!isLoading" title="No peoples yet" :text="EMPTY_TEXT" />
     <p v-if="peoples.length > 0" class="m-0 text-caption text-muted-foreground" data-testid="share-total">
       Adds up to {{ total }}%.<template v-if="total < 100"> The other {{ sharesRest(total) }}% is anyone else.</template>
       When Grimoire makes up a person, it rolls who they are from these shares. Leave it empty and it is left to the generator.
