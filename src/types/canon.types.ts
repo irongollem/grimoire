@@ -168,6 +168,8 @@ export interface CanonForceStep {
   due_year: number | null;
   due_month: number | null;
   due_day: number | null;
+  /** The Calendar event the DM put this step on (#1279 item 32); null until then, and again if that event is deleted. */
+  calendar_event_id: string | null;
   ai_provenance: AiProvenance | null;
   created_at: string;
   updated_at: string;

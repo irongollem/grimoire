@@ -18,7 +18,7 @@ const clue = (id: string, secret_id: string, over: Partial<CanonClue> = {}): Can
   found_at: null, item_id: null, document_id: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: stamp(), updated_at: stamp(), ...over,
 });
 const step = (id: string, force_id: string, sort_order: number, reached_at: string | null = null): CanonForceStep => ({
-  id, user_id: "u", campaign_id: "c1", force_id, title: `Step ${id}`, sort_order, reached_at, reached_session_id: null, due_year: null, due_month: null, due_day: null, ai_provenance: null,
+  id, user_id: "u", campaign_id: "c1", force_id, title: `Step ${id}`, sort_order, reached_at, reached_session_id: null, due_year: null, due_month: null, due_day: null, calendar_event_id: null, ai_provenance: null,
   created_at: stamp(), updated_at: stamp(),
 });
 const tick = (force_id: string, delta: number): CanonForceTick => ({

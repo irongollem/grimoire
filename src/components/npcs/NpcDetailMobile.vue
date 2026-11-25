@@ -57,6 +57,9 @@
       <QuickFact label="Faction" :value="factionLine" class="bg-card" />
     </template>
 
+    <!-- Their place in the canon (#1279 item 13): the Relations section no longer lists the canon ties, this does. -->
+    <NpcInCanon :npc-id="npc.id" :name="npc.name" />
+
     <DmNoteBox type="npc" :id="npc.id" :label="npc.name" />
 
     <AccordionSection v-model:open="openSections.lore" title="Lore">
@@ -197,6 +200,7 @@ import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
 import NpcSpokenVoice from "@/components/npcs/NpcSpokenVoice.vue";
 import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
+import NpcInCanon from "@/components/npcs/NpcInCanon.vue";
 import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
 import { IconDelete, IconEdit, IconGenerate, IconReveal, IconScrollText, IconTag } from "@/lib/icons";
 import { useDeleteNpc } from "@/composables/npcs/useNpcs";

@@ -196,6 +196,18 @@ describe("QuestionsList find and order (#1255 item 11)", () => {
     expect(mocks.updateAsync.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["q2", 1], ["q1", 2]]);
   });
 
+  // Bug caught: Move to top/bottom missing on questions, so a long list could only be walked one step at a time.
+  it("takes a question to the top or the bottom in one click, renumbering the rest", async () => {
+    const w = mountMany();
+    await w.find("button[aria-label='Move Why c? to the top']").trigger("click");
+    await flushPromises();
+    expect(mocks.updateAsync.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["q2", 0], ["q0", 1], ["q1", 2]]);
+    mocks.updateAsync.mockClear();
+    await w.find("button[aria-label='Move Why c? to the bottom']").trigger("click");
+    await flushPromises();
+    expect(mocks.updateAsync.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["q3", 2], ["q4", 3], ["q5", 4], ["q2", 5]]);
+  });
+
   // Bug caught: moving inside a list an arc has narrowed, where "up" would swap with a row that is not on screen.
   it("hides the move buttons while an arc narrows the list", () => {
     expect(mountMany().find("[data-testid=move-buttons]").exists()).toBe(true);

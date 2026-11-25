@@ -21,9 +21,9 @@ const clue = (over: Partial<CanonHereClue> = {}): CanonHereClue => ({
 });
 const passage = (over: Partial<CanonHerePassage> = {}): CanonHerePassage => ({ id: "g1", title: "What was lost", entry_id: "l1", entry_title: "The Drowned Shrine", ...over });
 
-async function mountHere(kind: "location" | "npc" | "quest_beat", id: string) {
+async function mountHere(kind: "location" | "npc" | "quest_beat", id: string, extra: { bare?: boolean } = {}) {
   const w = mount(CanonHere, {
-    props: { kind, id },
+    props: { kind, id, ...extra },
     global: {
       plugins: [[VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]],
       stubs: { RouterLink: { props: ["to"], template: "<a :href=\"to.query.entry\"><slot /></a>" } },
@@ -41,7 +41,7 @@ describe("CanonHere", () => {
     mocks.rpc.mockReset();
     answer.clues = [];
     answer.passages = [];
-    mocks.rpc.mockImplementation(async () => ({ data: { clues: answer.clues, passages: answer.passages, lore: [] } satisfies CanonHereData, error: null }));
+    mocks.rpc.mockImplementation(async () => ({ data: { clues: answer.clues, passages: answer.passages, lore: [], knows: [], about: [] } satisfies CanonHereData, error: null }));
   });
 
   it("reads through get_canon_here only, never the whole campaign's clues, entries or passages", async () => {
@@ -54,6 +54,13 @@ describe("CanonHere", () => {
 
   it("renders nothing when nothing is placed here, so a place without canon carries no empty block", async () => {
     expect((await mountHere("location", "p9")).find("[data-testid=canon-here]").exists()).toBe(false);
+  });
+
+  // Bug (#1279 item 13): the block inside "In the canon" drawing its own card, a box in a box.
+  it("draws no card of its own when bare, and keeps it otherwise", async () => {
+    answer.clues = [clue()];
+    expect((await mountHere("npc", "n1", { bare: true })).get("[data-testid=canon-here]").classes()).not.toContain("border");
+    expect((await mountHere("npc", "n1")).get("[data-testid=canon-here]").classes()).toContain("border");
   });
 
   it("lists the clue with its secret's statement", async () => {

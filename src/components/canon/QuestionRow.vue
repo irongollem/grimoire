@@ -14,7 +14,7 @@
       />
       <span class="inline-flex flex-wrap items-center gap-2">
         <EntryArcPicker :entry="entry" compact />
-        <CanonMoveButtons v-if="move" :label="entry.title" :first="move.first" :last="move.last" @move="(d) => emit('move', d)" />
+        <CanonMoveButtons v-if="move" :label="entry.title" :first="move.first" :last="move.last" :to-ends="move.toEnds === true" @move="(d) => emit('move', d)" @move-to="(end) => emit('moveTo', end)" />
         <span class="whitespace-nowrap text-label italic text-muted-foreground" data-testid="kept-open">Kept open: nobody settles this by invention</span>
         <AppButton
           variant="ghost"
@@ -53,12 +53,13 @@ const { entry, answering = false, saving = false, move = null } = defineProps<{
   answering?: boolean;
   saving?: boolean;
   /** Up and down, offered only while nothing narrows the list; `null` hides them. */
-  move?: { first: boolean; last: boolean } | null;
+  move?: { first: boolean; last: boolean; toEnds?: boolean } | null;
 }>();
 const emit = defineEmits<{
   rename: [title: string];
   remove: [];
   move: [direction: -1 | 1];
+  moveTo: [end: "top" | "bottom"];
   "start-answer": [];
   "cancel-answer": [];
   answer: [answer: string, kind: AnswerKind];

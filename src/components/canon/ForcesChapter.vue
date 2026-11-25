@@ -12,10 +12,12 @@
         :entry="force"
         :steps="stepsOf(force.id)"
         :ticks="ticksOf(force.id)"
+        :who="whoOf(force.id)"
         :selected="force.id === selected?.id"
-        :move="canReorder ? endsOf(moving, force.id) : null"
+        :move="canReorder ? endsOf(moving, force.id, true) : null"
         @select="emit('select', force.id)"
         @move="(direction) => reorder(moving, force.id, direction)"
+        @move-to="(end) => reorder(moving, force.id, end)"
       />
     </ul>
     <CanonEmpty v-else-if="forces.length === 0 && arcLabel !== null" title="Nothing is moving in this arc" :text="`Nothing of this chapter is in ${arcLabel}.`" />
@@ -41,6 +43,7 @@
             :entry="force"
             :steps="stepsOf(force.id)"
             :ticks="ticksOf(force.id)"
+            :who="whoOf(force.id)"
             :selected="force.id === selected?.id"
             @select="emit('select', force.id)"
           />
@@ -78,6 +81,7 @@ import { useCanonReorder } from "@/composables/canon/useCanonReorder";
 import { endsOf } from "@/lib/canon/canonOrder";
 import { chapterOf } from "@/lib/canon/canonParts";
 import { useCanonForceData } from "@/composables/canon/useCanonForces";
+import { useForceWho } from "@/composables/canon/useForceWho";
 import { IconChevronDown, IconChevronRight } from "@/lib/icons";
 import { drawerTransition } from "@/lib/motion";
 import type { CanonEntry, CanonForceStep, CanonForceTick } from "@/types/canon.types";
@@ -114,6 +118,7 @@ async function addForce(title: string) {
 }
 
 const { data } = useCanonForceData();
+const { whoOf } = useForceWho();
 const NO_STEPS: readonly CanonForceStep[] = [];
 const NO_TICKS: readonly CanonForceTick[] = [];
 const stepsByForce = computed(() => groupBy(data.value?.steps ?? [], (s) => s.force_id));

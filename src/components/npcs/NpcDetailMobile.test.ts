@@ -29,7 +29,7 @@ function mountSheet() {
       // The real accordion (it is what toggles and hides with v-show); everything else about the sheet is out of this test's way.
       stubs: {
         EntitySheetMobile: { template: "<div><slot /></div>" }, NpcRevealControl: true, NpcLoreSections: true, NpcPartyTab: true, NpcMemoryTab: true,
-        NpcInventorySection: true, NpcRelationsTab: true, NpcVoiceCoach: true, NpcSpokenVoice: true, DmNoteBox: true, EntityBacklinks: true, TraitList: { template: "<div><slot /></div>" }, SpellcastingList: true,
+        NpcInventorySection: true, NpcRelationsTab: true, NpcInCanon: true, NpcVoiceCoach: true, NpcSpokenVoice: true, DmNoteBox: true, EntityBacklinks: true, TraitList: { template: "<div><slot /></div>" }, SpellcastingList: true,
         BannerLoader: true, QuickFact: true, AppButton: true,
       },
     },
@@ -62,7 +62,7 @@ describe("NpcDetailMobile: the Combat section builds its body when first opened"
   // Bug caught: the "no stat block" line lost when the body became conditional.
   it("fails if an NPC with no stat block loses its empty-state line", () => {
     setActivePinia(createPinia());
-    const bare = mount(NpcDetailMobile, { props: { npc: { ...npc, stat_block: null } as unknown as NpcListRow }, global: { stubs: { EntitySheetMobile: { template: "<div><slot /></div>" }, NpcRevealControl: true, NpcLoreSections: true, NpcPartyTab: true, NpcMemoryTab: true, NpcInventorySection: true, NpcRelationsTab: true, NpcVoiceCoach: true, NpcSpokenVoice: true, DmNoteBox: true, EntityBacklinks: true, BannerLoader: true, QuickFact: true, AppButton: true } } });
+    const bare = mount(NpcDetailMobile, { props: { npc: { ...npc, stat_block: null } as unknown as NpcListRow }, global: { stubs: { EntitySheetMobile: { template: "<div><slot /></div>" }, NpcRevealControl: true, NpcLoreSections: true, NpcPartyTab: true, NpcMemoryTab: true, NpcInventorySection: true, NpcRelationsTab: true, NpcInCanon: true, NpcVoiceCoach: true, NpcSpokenVoice: true, DmNoteBox: true, EntityBacklinks: true, BannerLoader: true, QuickFact: true, AppButton: true } } });
     expect(bare.text()).toContain("No stat block defined for this NPC.");
   });
 });

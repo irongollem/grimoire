@@ -343,9 +343,12 @@ next, in `sort_order`; `reached_at` and `reached_session_id` stamp the step it h
 move of the clock, forward or back, with a note, the open session and the world's date) and `canon_entry_quests` (the
 quests where the party meets it, once each). Players never read any of it.
 
-- **A force is who doing what** (#1258 item 16). Its title is the plan ("The summoning"), never a copy of its faction's name;
-  the faction is the `about` link, read by `useForceFactions` (one read of the campaign's force-to-faction links, joined to
-  the faction list) and shown as **Who** on the row and the detail under the faction's name as it is now. The add row
+- **A force is who doing what** (#1258 item 16). Its title is the plan ("The summoning"), never a copy of its faction's name.
+  The who is any number of people, factions or gods (#1279 item 11): canon→npc/faction/deity `about` links, set from the
+  **Who** picker in the pane header (`ForceWhoPicker`, each who a chip to its own page) and read by `useForceWho` (one read
+  for the whole list, `lib/canon/forceWho.ts`), named on the row ("The Ferrymen and Vexa") and hidden from the pane's
+  Connections block (`isWhoTie`) so they are not shown twice. A force whose who is an NPC is listed on that NPC's sheet
+  under "About them". The add row
   (`CanonAddRow`, on the canon page and as *Add a force* on a faction's page, which ties the new force `about` that faction)
   takes What they are doing (required); who and the rest are set in the opened entry. Forces made before this keep their titles; the row leaves Who out
   when it equals the title. The detail shows one quiet line when the clock and the steps disagree (`clockStepsDivergence`):
@@ -505,8 +508,11 @@ The text is `canon_lore_passages` (`useCanonPassages.ts`): a heading and rich te
 passage, autosaved. The entry's sharing (`AudienceRevealControl`) tells its first passage, so the first passage reads
 "Told with the entry" and is never offered **Tell the party**. One rule, kept in SQL (`get_player_lore_passages`' `firsts`; `get_canon_here`
 never offers it): the lore detail labels it "The opening, read when the entry is shared" with a line saying it never waits at a place.
-A lore entry also carries `EntryStoryLinks` (Because of, Led to, Carries). An NPC's sheet lists the lore `about` them ("Told of in", each
-with "n of m told", `NpcToldOf.vue`, `useNpcLore`) and **Write lore about this person** makes an entry, ties it `about` the NPC and lands on
+A lore entry also carries `EntryStoryLinks` (Because of, Led to, Carries). An NPC's sheet (desktop and phone) has one **In the
+canon** block (`NpcInCanon.vue`, #1279 item 13): **Knows** (entries tied to them `known_to`, a truth offering **Tell the party**
+through `useTellTruth`), **About them** (truths, secrets and forces tied `about` them, and the lore about them with "n of m
+told"), and **Clues and passages on them** (`CanonHere`, bare). All of it is the one `get_canon_here` read (its `knows` and
+`about` from `20261125220434`), and the Relations tab hides canon ties since the block shows them. **Write lore about this person** makes an entry, ties it `about` the NPC and lands on
 it at `/canon?entry=<id>`; the NPC's own `backstory` field stays the DM's summary. A later passage is told on its own: **Tell the party**
 sets `told_at`, `told_session_id` (the open session) and `player_visible_to` (every party member); **Take back** asks
 first and clears all three. It may come out at one place, person or beat (`WherePicker.vue`, shared with the clue form;
@@ -545,18 +551,15 @@ tells that character, **Tell the party** everyone. A player may insert, update a
 their own character's backstory (`private.writes_own_backstory`); a trigger (`guard_player_passage`) tells it when
 written, lets them share it only with party members, and refuses a place, a beat or a changed author (42501). Each
 passage says whose it is: "Written by <player> · before play" or "... after session N" (N is the latest session that had
-started before it was written, `writtenWhen`) or "Your passage". **People from this past** (`BackstoryPeople.vue`, #1258 item 4) is a short read-only list, one link to the NPC's sheet
-each with the word the tie reads as: the NPCs tied to the character (their own connections, the list their page shows)
-plus any NPC this entry is `about` that the character has no tie to, each once. It is not a second editor; one **Edit on
-the character** link goes to their page, where the ties (each with its own reveal) are edited. Under the threads,
-**Places and things from this past** is the entry's own Connections block (subject `{ kind: "canon" }`), less the `about`
-ties to NPCs (listed in People) and the thread ties (listed under Threads, `isThreadTie`), so nothing is shown twice.
-**New NPC from this backstory** (#1258 item 25) opens a small inline form: a name (required) and, optionally, how that
-person relates to the character (the same typed People tie as on the character's page; none leaves the person tied to the
-backstory only). It creates the NPC hidden from players with the Canon `about` link and, when chosen, the People tie
-(`useNewBackstoryNpc`), and **stays on the backstory**: the new person appears in the list and "Open sheet" is offered. In
-the NPC's Connections block, the People relationship is primary and its Canon origin is a compact marker linking back to
-the source entry.
+started before it was written, `writtenWhen`) or "Your passage".
+
+**A backstory's ties are the character's** (#1279 item 12). The pane mounts the character's own Connections block (subject
+`{ kind: "party_member" }`), editable, so a hometown or a mentor tied there is the character's tie and shows on the
+character's page too; a backstory entry holds canon-to-canon ties (threads) only. `20261125202721` moved the ties older
+backstory entries held onto their characters. **New NPC from this backstory** (`BackstoryPeople.vue`, #1258 item 25) is a
+small inline form, a name and how that person relates to the character, which creates the NPC hidden from players with
+that tie to the character (a contact when no relationship is chosen) and **stays on the backstory**: the new person
+appears in the Connections block. The character's page links to its backstory (**Backstory**, `/canon?backstory=<id>`).
 
 **Threads left open** (#1255 item 13) are the questions and secrets a past raises: the open questions and unrevealed
 secrets tied to the backstory entry by a canon-to-canon link (`related_to` or `led_to`, from either end;
@@ -735,6 +738,21 @@ last row puts the same words to the whole campaign, in place. **Open as a book**
 Habitats, Arcs and Backstories as well. A book drawn from the canon says so itself, `scriptorium_documents.drawn_from =
 'canon'` (`20261125210154`, which marked the books drawn before it by the title drawing gave them), so the DM's book is
 found again however it is renamed, and a book the DM wrote by hand under the same title is never taken for it.
+
+**Starting from an entry, and the Calendar** (item 32). **Start a quest from this** on a secret (`SecretOutlets`) or a
+force (its quests block) creates an undiscovered quest with the entry's title in the entry's arc, ties it to the entry
+(`canon_entry_quests`), for a secret makes a beat for each unplaced clue the DM ticks and places the clue there, and lands
+on the quest (`useStartQuestFrom`; a Sanctioned Exception in CLAUDE.md). It is several writes, not one transaction: a failed
+beat or tie is told and leaves the quest. **Put this step on the Calendar** on a dated force step makes a hidden world event
+on its date and points the step at it (`canon_force_steps.calendar_event_id`, emptied when the event is deleted; the event
+is taken back if the pointer cannot be written), so "On the Calendar" opens the event's month wherever the DM moves it and
+the Calendar draws the event instead of the step's own "A step due".
+
+**Panes and lists, continued.** The force pane folds its empty blocks into **Add…** like the others (clock and steps always
+show). Forces, Secrets, open Questions and Arcs offer Move to top and bottom; Lore reads by date and has no manual order.
+The search links `?people=`, `?habitat=` and `?fact=` open that people's or habitat's editor, or the table review with that
+line ringed, through `useLinkedRow`. The player's Journal badge counts told truths and revealed secrets (`canon_told`), as
+the World tab's New dot does.
 
 **Lines and veils, asked privately** (item 29). A player sends one from the World tab (Line or Veil, a sentence, "Put my
 name on it" off by default) through `ask_for_line_or_veil`. The row belongs to the campaign's owner from the moment it is

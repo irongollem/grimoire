@@ -100,6 +100,13 @@ describe("SecretsChapter", () => {
       expect(mocks.reorder.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["s3", 0], ["s1", 2]]);
     });
 
+    // Bug caught (#1279 item 33): Move to top missing on the secrets list (the row offered it but nothing handled it), or moving past the revealed ones.
+    it("moves a secret to the top of its own state in one go", async () => {
+      await mountChapter({ secrets: list }).find("button[aria-label='Move s3 to the top']").trigger("click");
+      await flushPromises();
+      expect(mocks.reorder.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["s3", 0], ["s1", 1]]);
+    });
+
     it("gives the last unrevealed secret no Down, since the revealed one after it is not in its group", () => {
       expect(mountChapter({ secrets: list }).find("button[aria-label='Move s3 down']").attributes("disabled")).toBeDefined();
     });

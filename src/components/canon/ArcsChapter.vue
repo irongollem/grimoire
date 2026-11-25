@@ -7,9 +7,10 @@
         :key="arc.id"
         :title="arc.name"
         :selected="arc.id === open?.id"
-        :move="endsOf(arcs, arc.id)"
+        :move="endsOf(arcs, arc.id, true)"
         @select="select(arc.id)"
         @move="(direction) => actions.move.mutate({ arcs, id: arc.id, direction })"
+        @move-to="(end) => moveToEnd(arcs, arc.id, end).forEach((w) => actions.update.mutate({ id: w.id, patch: { sort_order: w.sort_order } }))"
       >
         <span v-if="arc.question" class="mt-1 block text-label text-muted-foreground">{{ arc.question }}</span>
         <template #mark><span class="text-label font-bold text-foreground" data-testid="arc-status">{{ STATUS_LABEL[arc.status] }}</span></template>
@@ -80,7 +81,7 @@ import { useCanonEntries } from "@/composables/canon/useCanonEntries";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { useConfirm } from "@/composables/useConfirm";
 import { ARC_STATUS_OPTIONS, statusPatch } from "@/lib/canon/canonArcs";
-import { endsOf } from "@/lib/canon/canonOrder";
+import { endsOf, moveToEnd } from "@/lib/canon/canonOrder";
 import { chapterOf } from "@/lib/canon/canonParts";
 
 const STATUS_LABEL: Record<CanonArcStatus, string> = { planned: "Planned", running: "Running", ended: "Ended" };

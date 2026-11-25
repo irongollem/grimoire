@@ -15,9 +15,10 @@
           :title="secret.title"
           :selected="secret.id === selected?.id"
           layout="flex-col gap-1 sm:flex-row sm:items-start sm:gap-3"
-          :move="canReorder ? endsOf(groupOf(secret), secret.id) : null"
+          :move="canReorder ? endsOf(groupOf(secret), secret.id, true) : null"
           @select="emit('select', secret.id)"
           @move="(direction) => reorder(groupOf(secret), secret.id, direction)"
+          @move-to="(end) => reorder(groupOf(secret), secret.id, end)"
         >
           <template #mark>
             <span class="inline-flex items-center gap-1.5 whitespace-nowrap text-label font-bold text-foreground" data-testid="secret-state">

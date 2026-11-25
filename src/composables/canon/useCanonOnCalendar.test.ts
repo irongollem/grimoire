@@ -7,6 +7,7 @@ const h = vi.hoisted(() => ({
   options: [] as { enabled: { value: boolean } }[],
   auth: { isDM: true },
   campaign: { activeCampaignId: "c1" as string | null },
+  steps: [] as unknown[],
 }));
 
 vi.mock("@tanstack/vue-query", () => ({
@@ -14,7 +15,7 @@ vi.mock("@tanstack/vue-query", () => ({
     h.options.push(opts);
     const forces = opts.queryKey.value[1] === "forces";
     const data = forces
-      ? { ticks: [{ id: "t1", force_id: "f1", delta: 1, note: "", world_year: 50, world_month: null, world_day: null }] }
+      ? { steps: h.steps, ticks: [{ id: "t1", force_id: "f1", delta: 1, note: "", world_year: 50, world_month: null, world_day: null }] }
       : [canonEntry({ id: "l1", part: "lore", title: "Old", world_year: 10 }), canonEntry({ id: "f1", part: "force", title: "Ferrymen" })];
     return { data: ref(data) };
   },
@@ -32,6 +33,7 @@ beforeEach(() => {
   h.options.length = 0;
   h.auth.isDM = true;
   h.campaign.activeCampaignId = "c1";
+  h.steps = [];
 });
 
 describe("useCanonOnCalendar", () => {
@@ -59,5 +61,14 @@ describe("useCanonOnCalendar", () => {
     useCalendarUiStore().showCanonOnCalendar = false;
     expect(items.value).toEqual([]);
     expect(h.options.map((o) => o.enabled.value)).toEqual([false, false]);
+  });
+
+  // Bug caught (#1279 item 32): a step put on the Calendar drawn twice, as its event and again as "A step due".
+  it("leaves out a due step that points at its Calendar event, and keeps one that does not", () => {
+    const step = (id: string, eventId: string | null) => ({ id, force_id: "f1", title: id, sort_order: 0, reached_at: null, due_year: 60, due_month: 2, due_day: 3, calendar_event_id: eventId });
+    h.steps = [step("s1", "e1"), step("s2", null)];
+    const keys = useCanonOnCalendar().items.value.map((i) => i.key);
+    expect(keys).toContain("due:s2");
+    expect(keys).not.toContain("due:s1");
   });
 });

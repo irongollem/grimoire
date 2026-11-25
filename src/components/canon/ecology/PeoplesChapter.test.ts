@@ -7,6 +7,10 @@ import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 const mocks = vi.hoisted(() => ({ add: vi.fn(), setPercent: vi.fn(), remove: vi.fn(), saveBody: vi.fn(), rename: vi.fn(), addPlace: vi.fn(), removePlace: vi.fn() }));
 const state = vi.hoisted(() => ({ loading: false, peoples: [] as unknown[], places: [] as unknown[], monsterEnabled: (() => false) as () => boolean }));
 
+// The chapter reads its deep link (`?people=`) from the route; each test sets the query it was reached with.
+const routeState = vi.hoisted(() => ({ query: {} as Record<string, string> }));
+vi.mock("vue-router", async (orig) => ({ ...(await orig<typeof import("vue-router")>()), useRoute: () => routeState }));
+
 vi.mock("@/composables/canon/useCampaignPeoples", async () => {
   const { computed } = await import("vue");
   return {
@@ -70,10 +74,23 @@ async function setField(w: ReturnType<typeof mount>, label: string, value: strin
 
 describe("PeoplesChapter", () => {
   beforeEach(() => {
+    routeState.query = {};
     mocks.add.mockReset();
     mocks.setPercent.mockReset();
     mocks.remove.mockReset();
     state.peoples = [people("p1", "Elf", 80), people("p2", "Human", 10)];
+  });
+
+  // Bug: a search hit for a people (`?people=`) landed on the chapter with nothing open; an id that is no people must open nothing.
+  it("opens the people a search link names, and nothing for an unknown id", async () => {
+    routeState.query = { people: "p2" };
+    const w = mountIt();
+    await flushPromises();
+    expect(w.get("[data-testid=people-editor]").text()).toContain("Human");
+    routeState.query = { people: "nobody" };
+    const none = mountIt();
+    await flushPromises();
+    expect(none.find("[data-testid=people-editor]").exists()).toBe(false);
   });
 
   it("adds a chosen species at 0%, as a record the campaign has", async () => {

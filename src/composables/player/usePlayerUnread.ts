@@ -108,14 +108,21 @@ export function usePlayerUnread() {
       b.memberId === myMemberId.value && b.latestDmAt !== null ? [{ id: b.entry.id, title: "Your story", updated_at: b.latestDmAt }] : [],
     ),
   );
-  // One request for all six types (#999); they used to be four.
-  const { isNew: isNewOfType } = useReadMarkers(["quest", "puzzle", "handout", "note", "notice_board", "canon_lore", "canon_backstory"]);
+  // One request for all the types (#999); they used to be four.
+  const { isNew: isNewOfType } = useReadMarkers(["quest", "puzzle", "handout", "note", "notice_board", "canon_lore", "canon_backstory", "canon_told"]);
   const isQuestNew = (id: string, updatedAt?: string) => isNewOfType("quest", id, updatedAt);
   const isPuzzleNew = (id: string, updatedAt?: string) => isNewOfType("puzzle", id, updatedAt);
   const isHandoutNew = (id: string, updatedAt?: string) => isNewOfType("handout", id, updatedAt);
   const isNoteNew = (id: string, updatedAt?: string) => isNewOfType("note", id, updatedAt);
   const isLoreNew = (id: string, updatedAt?: string) => isNewOfType("canon_lore", id, updatedAt);
   const isStoryNew = (id: string, updatedAt?: string) => isNewOfType("canon_backstory", id, updatedAt);
+  // A truth told to the party, or a secret revealed, is New until the World tab has shown it: the same marker and rule the tab's own dot uses (#1279 item 27).
+  const told = computed(() => {
+    const w = world.value;
+    if (w === undefined) return [];
+    return [...w.onlyMine, ...w.known, ...w.revealed].flatMap((e) => (e.revealed_at != null ? [{ id: e.id, updated_at: e.revealed_at }] : []));
+  });
+  const isToldNew = (id: string, updatedAt?: string) => isNewOfType("canon_told", id, updatedAt);
   const isNoticeBoardNew = (id: string, updatedAt?: string) => isNewOfType("notice_board", id, updatedAt);
 
   // The Hearth's "Your DM asks…": an open question this player has not answered (#1212).
@@ -144,7 +151,7 @@ export function usePlayerUnread() {
     dmNotes: anyUnread(notes.value, isNoteNew),
     // The RPC lists revealed boards only, so any new one is news for the player.
     noticeBoards: anyUnread(noticeBoards.value, isNoticeBoardNew),
-    world: anyUnread(lore.value, isLoreNew) || anyUnread(chronicle.value, isNoteNew),
+    world: anyUnread(lore.value, isLoreNew) || anyUnread(chronicle.value, isNoteNew) || anyUnread(told.value, isToldNew),
     story: anyUnread(story.value, isStoryNew),
   }));
 

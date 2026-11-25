@@ -32,6 +32,7 @@
       Nothing brings it out yet. Tie a beat to it in a quest, place a clue at a beat, or plan it in a quest.
     </p>
     <EntityCombobox :key="picked" v-model="picked" :options="options" placeholder="Plan it in a quest…" />
+    <StartQuestFrom :entry="entry" :clues="unplaced" />
   </div>
 </template>
 
@@ -39,9 +40,11 @@
 /**
  * Where a secret comes out (#1258 item 3), grouped by quest: the beats that are the secret and the clues placed at the
  * quest's beats, each linking to the beat. A quest the DM linked by hand with neither reads "Planned, no beat yet".
- * One block where there were four (beats, quests, clues' places and the generic connections).
+ * One block where there were four (beats, quests, clues' places and the generic connections). It ends with "Start a quest
+ * from this" (#1279 item 32), which offers the clues that lie nowhere yet as the new quest's beats.
  */
 import { computed, ref, watch } from "vue";
+import StartQuestFrom from "./StartQuestFrom.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useBeatsByIds, useSecretBeats, type SecretBeat } from "@/composables/canon/useSecretBeats";
@@ -95,6 +98,9 @@ const options = computed(() => {
   const shown = new Set(groups.value.map((g) => g.questId));
   return (quests.value ?? []).filter((q) => !shown.has(q.id)).map((q) => ({ id: q.id, name: q.title }));
 });
+
+// The clues that lie nowhere yet: what a quest started from the secret can make beats of. A clue that is a lore passage lies where its passage does.
+const unplaced = computed(() => clues.filter((c) => c.location_id === null && c.npc_id === null && c.quest_beat_id === null && c.item_id === null && c.document_id === null && c.passage_id === null));
 
 const picked = ref("");
 const { mutate: create } = useCreateEntryQuests();

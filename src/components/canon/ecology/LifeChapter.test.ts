@@ -5,6 +5,10 @@ import { computed } from "vue";
 const mocks = vi.hoisted(() => ({ add: vi.fn(), reorder: vi.fn() }));
 const state = vi.hoisted(() => ({ none: false }));
 
+// The chapter reads its deep link (`?habitat=`) from the route; each test sets the query it was reached with.
+const routeState = vi.hoisted(() => ({ query: {} as Record<string, string> }));
+vi.mock("vue-router", async (orig) => ({ ...(await orig<typeof import("vue-router")>()), useRoute: () => routeState }));
+
 vi.mock("@/composables/canon/useCampaignHabitats", () => ({
   useHabitatEditing: () => ({
     habitats: computed(() => state.none ? [] : [
@@ -38,9 +42,22 @@ import LifeChapter from "./LifeChapter.vue";
 
 describe("LifeChapter", () => {
   beforeEach(() => {
+    routeState.query = {};
     mocks.add.mockReset();
     mocks.reorder.mockReset();
     state.none = false;
+  });
+
+  // Bug: a search hit for a habitat (`?habitat=`) landed on the chapter with nothing open; an id that is no habitat must open nothing.
+  it("opens the habitat a search link names, and nothing for an unknown id", async () => {
+    routeState.query = { habitat: "b" };
+    const w = mount(LifeChapter);
+    await flushPromises();
+    expect(w.get("[data-testid=editor]").text()).toContain("High moor");
+    routeState.query = { habitat: "nope" };
+    const none = mount(LifeChapter);
+    await flushPromises();
+    expect(none.find("[data-testid=editor]").exists()).toBe(false);
   });
 
   // Bug caught (#1279 item 10): "Ask the Familiar" on an empty habitat list, for which the canon helper has no mode and which came back as truths.

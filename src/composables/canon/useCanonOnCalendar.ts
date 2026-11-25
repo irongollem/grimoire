@@ -1,5 +1,6 @@
 import { computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
+import { stepOnCalendar } from "@/lib/canon/stepCalendar";
 import { useCanonEntries } from "@/composables/canon/useCanonEntries";
 import { canonCalendarItems, canonOnCalendarEnabled, type CanonCalendarItem } from "@/lib/canon/canonCalendar";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
@@ -34,6 +35,8 @@ export function useCanonOnCalendar() {
     enabled,
   });
 
+  // A step the DM has put on the Calendar is an event there, so its "A step due" line is not drawn a second time (#1279 item 32).
+
   const items = computed<CanonCalendarItem[]>(() => {
     if (!enabled.value) return [];
     const all = entries.data.value ?? [];
@@ -41,7 +44,7 @@ export function useCanonOnCalendar() {
       lore: all.filter((e) => e.part === "lore"),
       forces: all.filter((e) => e.part === "force"),
       ticks: forceData.data.value?.ticks ?? [],
-      steps: forceData.data.value?.steps ?? [],
+      steps: (forceData.data.value?.steps ?? []).filter((s) => !stepOnCalendar(s)),
     });
   });
 

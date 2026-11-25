@@ -5,6 +5,9 @@ import type { CanonEntry } from "@/types/canon.types";
 
 interface Chosen { id: string; name: string }
 
+/** What telling needs of the truth: which one, and whether it was told before (its first stamp is kept). */
+type Told = Pick<CanonEntry, "id" | "revealed_at">;
+
 /**
  * Telling a truth to the party (#1279 item 27): the DM's one tap for "they learned this". The truth is stamped with the
  * time and the session that is running (`revealed_at`, `revealed_session_id`, null when none runs), exactly as a revealed
@@ -18,14 +21,14 @@ export function useTellTruth(entryId: () => string) {
   const { nameKnower } = useKnownTo(entryId);
 
   /** The stamp: the first telling's, kept if the truth was already told. */
-  function stamp(entry: CanonEntry) {
+  function stamp(entry: Told) {
     return entry.revealed_at === null
       ? { revealed_at: new Date().toISOString(), revealed_session_id: openSessionId() }
       : {};
   }
 
   /** Known to all, now. Returns false if the write was refused (the mutation has already told the DM). */
-  async function tellParty(entry: CanonEntry): Promise<boolean> {
+  async function tellParty(entry: Told): Promise<boolean> {
     try {
       await update({ id: entry.id, patch: { knowledge: "all", ...stamp(entry) } });
       return true;
@@ -35,7 +38,7 @@ export function useTellTruth(entryId: () => string) {
   }
 
   /** Known to the characters chosen: each named as a knower, then the truth marked "some". Nothing is written for no one. */
-  async function tellSome(entry: CanonEntry, members: readonly Chosen[]): Promise<boolean> {
+  async function tellSome(entry: Told, members: readonly Chosen[]): Promise<boolean> {
     if (members.length === 0) return false;
     for (const m of members) await nameKnower(entry.id, { kind: "party_member", id: m.id, name: m.name });
     try {

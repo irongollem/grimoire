@@ -95,6 +95,12 @@ describe("ArcsChapter", () => {
     expect(mocks.move).toHaveBeenCalledWith({ arcs: arcs.value, id: "a1", direction: 1 });
   });
 
+  // Bug caught: Move to top/bottom missing on arcs, or writing the wrong places so the arc did not land at the end it was sent to.
+  it("takes an arc to the bottom in one click, renumbering the arcs it passes", async () => {
+    await mountIt().get("button[aria-label='Move The drowned god to the bottom']").trigger("click");
+    expect(mocks.update.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["a2", 0], ["a1", 1]]);
+  });
+
   describe("the shape of an arc", () => {
     // Bug caught: the ending of an ended arc never written (or written to the summary), so "How it ended" came back empty.
     it("writes the ending of an ended arc when the field is left, and clears it when emptied", async () => {

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(30);
 
 -- 20261125202721_canon_story_round_three (#1279 wave 2): cover stories, Tonight's pins and plan, "Leave it", cultures,
 -- a told truth's moment, lines and veils asked for privately, and a DM's edit of a player's passage.
@@ -31,6 +31,18 @@ insert into public.canon_entries (id, user_id, campaign_id, part, knowledge, tit
   ('12790000-0000-4000-8000-000000000103', '12790000-0000-4000-8000-000000000001', '12790000-0000-4000-8000-000000000010', 'backstory', null, 'Tansy''s past', null, '12790000-0000-4000-8000-000000000020');
 insert into public.canon_lore_passages (id, user_id, campaign_id, entry_id, title, body, author_id) values
   ('12790000-0000-4000-8000-000000000201', '12790000-0000-4000-8000-000000000002', '12790000-0000-4000-8000-000000000010', '12790000-0000-4000-8000-000000000103', 'The fire', 'I lit it.', '12790000-0000-4000-8000-000000000002');
+insert into public.npcs (id, user_id, campaign_id, name) values
+  ('12790000-0000-4000-8000-000000000401', '12790000-0000-4000-8000-000000000001', '12790000-0000-4000-8000-000000000010', 'Maren');
+insert into public.world_links (user_id, campaign_id, from_kind, from_canon_entry_id, to_kind, to_npc_id, type) values
+  ('12790000-0000-4000-8000-000000000001', '12790000-0000-4000-8000-000000000010', 'canon', '12790000-0000-4000-8000-000000000102', 'npc', '12790000-0000-4000-8000-000000000401', 'known_to'),
+  ('12790000-0000-4000-8000-000000000001', '12790000-0000-4000-8000-000000000010', 'canon', '12790000-0000-4000-8000-000000000101', 'npc', '12790000-0000-4000-8000-000000000401', 'about');
+insert into public.canon_entries (id, user_id, campaign_id, part, title) values
+  ('12790000-0000-4000-8000-000000000104', '12790000-0000-4000-8000-000000000001', '12790000-0000-4000-8000-000000000010', 'force', 'The tide rises');
+insert into public.canon_force_steps (id, user_id, campaign_id, force_id, title, sort_order) values
+  ('12790000-0000-4000-8000-000000000501', '12790000-0000-4000-8000-000000000001', '12790000-0000-4000-8000-000000000010', '12790000-0000-4000-8000-000000000104', 'The quay floods', 0);
+insert into public.calendar_events (id, user_id, campaign_id, title, year, event_type) values
+  ('12790000-0000-4000-8000-000000000601', '12790000-0000-4000-8000-000000000001', '12790000-0000-4000-8000-000000000010', 'The quay floods', 512, 'world'),
+  ('12790000-0000-4000-8000-000000000602', '12790000-0000-4000-8000-000000000004', '12790000-0000-4000-8000-000000000011', 'Elsewhere', 512, 'world');
 insert into public.species (id, user_id, campaign_id, name) values
   ('12790000-0000-4000-8000-000000000301', '12790000-0000-4000-8000-000000000001', '12790000-0000-4000-8000-000000000010', 'Human');
 
@@ -100,12 +112,27 @@ update public.canon_lore_passages set body = 'She lit it, mostly by accident.' w
 select is((select body_before_dm_edit from public.canon_lore_passages where id = '12790000-0000-4000-8000-000000000201'),
   'I lit it, and I would again.', 'a second DM edit keeps the player''s words, not the DM''s first draft');
 
+select is((select jsonb_array_length(public.get_canon_here('npc', '12790000-0000-4000-8000-000000000401') -> 'knows')), 1,
+  'the NPC sheet reads what the person knows');
+-- ── A force step on the Calendar ──
+select lives_ok($$
+  update public.canon_force_steps set calendar_event_id = '12790000-0000-4000-8000-000000000601' where id = '12790000-0000-4000-8000-000000000501'
+$$, 'a step remembers the Calendar event it became');
+select throws_ok($$
+  update public.canon_force_steps set calendar_event_id = '12790000-0000-4000-8000-000000000602' where id = '12790000-0000-4000-8000-000000000501'
+$$, null, null, 'a step cannot point at another campaign''s event');
+delete from public.calendar_events where id = '12790000-0000-4000-8000-000000000601';
+select is((select calendar_event_id from public.canon_force_steps where id = '12790000-0000-4000-8000-000000000501'), null::uuid,
+  'deleting the event on the Calendar lets go of it');
+
 -- ── Another table ───────────────────────────────────────────────────────────────
 select set_config('request.jwt.claim.sub', '12790000-0000-4000-8000-000000000004', true);
 select is_empty($$ select * from public.get_player_common_beliefs('12790000-0000-4000-8000-000000000010') $$,
   'another table''s DM learns no cover story');
 select throws_ok($$ select public.ask_for_line_or_veil('12790000-0000-4000-8000-000000000010', 'veil', 'Not my table') $$,
   '42501', null, 'and cannot ask at a table they do not play at');
+select is(public.get_canon_here('npc', '12790000-0000-4000-8000-000000000401') -> 'about', '[]'::jsonb,
+  'another table''s DM learns nothing of what is about someone else''s NPC');
 
 -- ── The player again ────────────────────────────────────────────────────────────
 select set_config('request.jwt.claim.sub', '12790000-0000-4000-8000-000000000002', true);

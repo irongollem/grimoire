@@ -55,6 +55,7 @@ import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import { useLinkedRow } from "@/composables/canon/useLinkedRow";
 import { usePeoplesEditing } from "@/composables/canon/useCampaignPeoples";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";
@@ -76,6 +77,8 @@ const { data: species } = useCampaignSpecies();
 const selectedId = ref<string | null>(null);
 const selected = computed(() => peoples.value.find((p) => p.id === selectedId.value) ?? null);
 const total = computed(() => sharesTotal(peoples.value));
+// A search hit lands here as `?people=<id>`: open that people and bring its row into view; an unknown id opens nothing.
+useLinkedRow("people", (id) => peoples.value.some((p) => p.id === id), (id) => (selectedId.value = id), (id) => `canon-people-${id}`);
 
 function remove(id: string) {
   removePeople(id);

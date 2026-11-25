@@ -44,17 +44,12 @@
 
       <EntryStoryLinks :entry="entry" />
 
-      <BackstoryPeople :member="member" :entry="entry" />
+      <BackstoryPeople :member="member" />
     </template>
 
-    <template v-if="entry !== null" #connections>
-      <div data-testid="backstory-things">
-        <ConnectionsSection
-          :subject="{ kind: 'canon', id: entry.id }"
-          :subject-name="member.name"
-          title="Places and things from this past"
-          :hide="isShownAbove"
-        />
+    <template #connections>
+      <div data-testid="backstory-ties">
+        <ConnectionsSection :subject="{ kind: 'party_member', id: member.id }" :subject-name="member.name" title="Connections" />
       </div>
     </template>
   </CanonEntryPane>
@@ -63,10 +58,10 @@
 <script setup lang="ts">
 /**
  * One character's backstory, in the Backstories chapter's entry pane: their own Backstory field as "Before play", then every
- * passage in order (the player's own marked as theirs, the DM's untold until told to that character), and the people
- * this past brings into the world. The DM edits every passage. The entry is made the first time a character is opened.
+ * passage in order (the player's own marked as theirs, the DM's untold until told to that character), and the character's
+ * own Connections block (#1279 item 12: the character is the one subject, so a hometown tied here is tied to the character
+ * and shows on their page too; people, places and things alike). The DM edits every passage. The entry is made the first time a character is opened.
  */
-import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
@@ -82,14 +77,11 @@ import EntryStoryLinks from "./EntryStoryLinks.vue";
 import LorePassageRow from "./LorePassageRow.vue";
 import { isPlayersPassage, passageByline } from "@/lib/canon/canonBackstory";
 import { useBackstoryEntry } from "@/composables/canon/useBackstory";
-import { useCanonEntries, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useEntryQuestLinks } from "@/composables/canon/useEntryQuestLinks";
 import { usePassageList } from "@/composables/canon/usePassageList";
-import { useCampaignLinks } from "@/composables/connections/useConnections";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
-import { allThreads, isThreadTie } from "@/lib/canon/backstoryThreads";
 import { IconAdd } from "@/lib/icons";
-import type { Connection } from "@/types/connections.types";
 import type { PartyMember } from "@/types/party.types";
 
 const { member } = defineProps<{ member: PartyMember }>();
@@ -100,15 +92,6 @@ const { mutate: update } = useUpdateCanonEntry();
 const { passages, adding, addPassage, move, removePassage } = usePassageList(() => entry.value?.id ?? null);
 const questLinks = useEntryQuestLinks(() => entry.value?.id ?? null);
 const { data: sessions } = useCampaignSessions();
-
-// The entry's own block is for places and things. The people are listed above it (BackstoryPeople), so an `about` tie to
-// a person is left out here, and so is a thread (BackstoryThreads lists those, open or paid off): each is shown once. `led_to` and `carries` are EntryStoryLinks'.
-const { data: canonEntries } = useCanonEntries();
-const { data: links } = useCampaignLinks();
-const threadIds = computed(() => new Set(allThreads(entry.value?.id ?? "", canonEntries.value ?? [], links.value ?? []).map((t) => t.id)));
-function isShownAbove(c: Connection): boolean {
-  return (c.type === "about" && c.other_kind === "npc") || isThreadTie(c, threadIds.value) || (c.source === "link" && (c.type === "led_to" || c.type === "carries"));
-}
 
 function setAudience(next: string[]) {
   if (entry.value !== null) update({ id: entry.value.id, patch: { player_visible_to: next } });

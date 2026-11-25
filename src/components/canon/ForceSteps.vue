@@ -11,11 +11,14 @@
         :last="index === steps.length - 1"
         :frozen="frozen"
         :today="today"
+        :calendar-path="calendarPathOf(step)"
+        :putting-on-calendar="putting === step.id"
         @rename="(title) => update({ id: step.id, patch: { title } })"
         @reach="(reached) => reach({ step, reached })"
         @move="(direction) => move({ steps, id: step.id, direction })"
         @remove="remove(step.id)"
         @due="(date) => update({ id: step.id, patch: duePatch(date) })"
+        @calendar="onCalendar(step)"
       />
     </ul>
     <p v-else class="text-caption text-muted-foreground">No steps yet. A step is what the force does next, so the table can see it coming.</p>
@@ -41,6 +44,7 @@ import {
   useReachForceStep,
   useUpdateForceStep,
 } from "@/composables/canon/useCanonForces";
+import { useStepCalendar } from "@/composables/canon/useStepCalendar";
 import { useWorldToday } from "@/composables/canon/useWorldToday";
 import { duePatch } from "@/lib/canon/canonForces";
 import { IconAdd } from "@/lib/icons";
@@ -52,6 +56,18 @@ const { force, steps, frozen = false } = defineProps<{ force: CanonEntry; steps:
 const today = useWorldToday();
 const now = computed(() => stepReached(steps));
 const draft = ref("");
+const { calendarPathOf, putOnCalendar } = useStepCalendar(() => force, () => steps);
+// The step being put on the Calendar, so a second tap before the first lands makes no second event.
+const putting = ref<string | null>(null);
+async function onCalendar(step: CanonForceStep) {
+  if (putting.value !== null) return;
+  putting.value = step.id;
+  try {
+    await putOnCalendar(step);
+  } finally {
+    putting.value = null;
+  }
+}
 
 const { mutateAsync: create, isPending: isAdding } = useCreateForceSteps();
 const { mutate: update } = useUpdateForceStep();

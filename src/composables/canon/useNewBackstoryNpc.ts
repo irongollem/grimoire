@@ -5,19 +5,24 @@ import { useCampaignStore } from "@/stores/campaign";
 import { typeChoices, type TypeChoice } from "@/lib/worldLinks/connections";
 import { ref } from "vue";
 
+/** The tie a made person gets when the DM names none. */
+const DEFAULT_TIE = "contact";
+
 /** What the DM types to make a person from a backstory: a name, and optionally how they relate to the character. */
 export interface NewBackstoryPerson {
   name: string;
-  /** The People tie to the character (the same typed choice as on the character's page); none when the DM left it. */
+  /** The tie to the character (the same typed choice as on the character's page); "contact of" when the DM left it. */
   relationship: TypeChoice | null;
 }
 
 /**
- * New NPC from this backstory (#1226 story 10, frame 14; #1258 item 25): the person a character's past brings in, made
- * from a name the DM types, already tied to the backstory (`about`) and hidden from every player until the DM shares
- * them. The relationship to the character is optional; when it is given it is the same People tie the character's page
- * shows. It does not navigate: the DM stays on the backstory, and the person it made is returned so the caller can offer
- * "Open sheet". The tie has its own reveal, so the player can know a person and not another's name.
+ * New NPC from this backstory (#1226 story 10, frame 14; #1258 item 25; #1279 item 12): the person a character's past
+ * brings in, made from a name the DM types and hidden from every player until the DM shares them. The character is the
+ * one subject of a backstory's ties, so the only tie written is the character's own (the same tie the character's page
+ * shows); nothing is written from the backstory entry. The relationship is optional and reads as "contact of" when the DM
+ * leaves it, so the person is never made with no tie to the character. It does not navigate: the DM stays on the
+ * backstory, and the person it made is returned so the caller can offer "Open sheet". The tie has its own reveal, so the
+ * player can know a person and not another's name.
  */
 export function useNewBackstoryNpc() {
   const { mutateAsync: createNpc } = useCreateNpcInCampaign();
@@ -32,7 +37,7 @@ export function useNewBackstoryNpc() {
     completedConnections = new Set();
   }
 
-  async function start(entryId: string, characterName: string, characterId: string, person: NewBackstoryPerson): Promise<{ id: string; name: string } | null> {
+  async function start(characterName: string, characterId: string, person: NewBackstoryPerson): Promise<{ id: string; name: string } | null> {
     const name = person.name.trim();
     if (creating.value || name === "") return null;
     const campaignId = campaign.activeCampaignId;
@@ -41,8 +46,8 @@ export function useNewBackstoryNpc() {
       toast.error("Switch back to the campaign where this NPC was started, then retry the connection.");
       return null;
     }
-    const about = typeChoices("canon", "npc").find((c) => c.key === "about" && c.subjectIsFrom && c.home === undefined);
-    if (!about) throw new Error("A canon entry has no `about` tie to a person");
+    const tie = person.relationship ?? typeChoices("npc", "party_member").find((c) => c.key === DEFAULT_TIE);
+    if (!tie) throw new Error("A person has no default tie to a character");
     creating.value = true;
     try {
       const createdNpc = pendingNpc ?? await createNpc({
@@ -73,12 +78,8 @@ export function useNewBackstoryNpc() {
       });
       const npc = { ...createdNpc, campaignId };
       pendingNpc = npc;
-      if (!completedConnections.has("canon")) {
-        await connect({ input: { subject: { kind: "canon", id: entryId }, other: { kind: "npc", id: npc.id, name: npc.name }, choice: about }, campaignId });
-        completedConnections.add("canon");
-      }
-      if (person.relationship !== null && !completedConnections.has("person")) {
-        await connect({ input: { subject: { kind: "npc", id: npc.id }, other: { kind: "party_member", id: characterId, name: characterName }, choice: person.relationship }, campaignId });
+      if (!completedConnections.has("person")) {
+        await connect({ input: { subject: { kind: "npc", id: npc.id }, other: { kind: "party_member", id: characterId, name: characterName }, choice: tie }, campaignId });
         completedConnections.add("person");
       }
       pendingNpc = null;

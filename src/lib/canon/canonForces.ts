@@ -26,21 +26,6 @@ export function clockStepsDivergence(size: number | null, filled: number, steps:
   return null;
 }
 
-/**
- * The faction behind each force, by the faction's name as it is now (#1258 item 16). A force's title is its plan, so the
- * faction is read from the `about` link and its row, never from a copy of the name. A force with no link, or one whose
- * faction is gone, has none; if it has several, the first link in the order given wins.
- */
-export function forceWhoNames(links: readonly { force_id: string; faction_id: string }[], factions: readonly { id: string; name: string }[]): Map<string, { id: string; name: string }> {
-  const byId = new Map(factions.map((f) => [f.id, f.name] as const));
-  const who = new Map<string, { id: string; name: string }>();
-  for (const link of links) {
-    const name = byId.get(link.faction_id);
-    if (name !== undefined && !who.has(link.force_id)) who.set(link.force_id, { id: link.faction_id, name });
-  }
-  return who;
-}
-
 // ── A step's due date (#1258 item 9) ─────────────────────────────────────────
 
 type DueColumns = Pick<CanonForceStep, "due_year" | "due_month" | "due_day">;

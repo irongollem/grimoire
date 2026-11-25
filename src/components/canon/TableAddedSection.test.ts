@@ -53,6 +53,15 @@ describe("TableAddedSection", () => {
     tableOpen.value = true;
   });
 
+  // Bug caught: a search hit for a line the DM already kept stayed hidden by the default "new" filter, so the link landed on nothing.
+  it("rings the line a search hit names, widening the filter when it would hide it", async () => {
+    const w = mount(TableAddedSection, { props: { truths: TRUTHS, focusFact: "bb" }, global: { stubs: { SoloCorrectDialog: true, OverflowMenu: true } } });
+    await flushPromises();
+    expect(useCanonUiStore().tableFactFilter).toBe("all");
+    expect(w.get("#table-fact-bb").attributes("data-ringed")).toBe("true");
+    expect(w.get("#table-fact-a").attributes("data-ringed")).toBe("false");
+  });
+
   // Bug caught: the default list showing lines the DM already reviewed, so there was never a clear "to do" list.
   it("opens on what is new", () => {
     const w = mountIt();

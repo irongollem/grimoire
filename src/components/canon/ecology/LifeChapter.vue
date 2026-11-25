@@ -48,6 +48,7 @@ import CanonChapter from "../kit/CanonChapter.vue";
 import CanonEmpty from "../kit/CanonEmpty.vue";
 import CanonRow from "../kit/CanonRow.vue";
 import HabitatEditor from "./HabitatEditor.vue";
+import { useLinkedRow } from "@/composables/canon/useLinkedRow";
 import { useHabitatEditing } from "@/composables/canon/useCampaignHabitats";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { IconLocation } from "@/lib/icons";
@@ -63,6 +64,8 @@ const { locationOptions } = useLocationTree();
 
 const selectedId = ref<string | null>(null);
 const selected = computed(() => habitats.value.find((h) => h.id === selectedId.value) ?? null);
+// A search hit lands here as `?habitat=<id>`: open that habitat and bring its row into view; an unknown id opens nothing.
+useLinkedRow("habitat", (id) => habitats.value.some((h) => h.id === id), (id) => (selectedId.value = id), (id) => `canon-habitat-${id}`);
 
 const nameOfPlace = computed(() => new Map(locationOptions.value.map((l) => [l.id, l.name])));
 const placeNames = (habitatId: string): string[] =>

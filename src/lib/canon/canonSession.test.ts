@@ -17,7 +17,7 @@ const passage = (over: Partial<CanonLorePassage>): CanonLorePassage => ({
 });
 const step = (over: Partial<CanonForceStep>): CanonForceStep => ({
   id: "st", user_id: "u", campaign_id: "c1", force_id: "f1", title: "The ferry stops", sort_order: 0, reached_at: at, reached_session_id: "s1",
-  due_year: null, due_month: null, due_day: null, ai_provenance: null, created_at: at, updated_at: at, ...over,
+  due_year: null, due_month: null, due_day: null, calendar_event_id: null, ai_provenance: null, created_at: at, updated_at: at, ...over,
 });
 const tick = (over: Partial<CanonForceTick>): CanonForceTick => ({
   id: "t", user_id: "u", campaign_id: "c1", force_id: "f1", delta: 1, note: "the toll is refused", session_id: "s1", step_id: null,

@@ -82,10 +82,10 @@
     </template>
   </CanonChapter>
 
-  <AppModal :open="reviewing" size="lg" @close="reviewing = false">
-    <ModalHeader title="What the table added" closeable @close="reviewing = false" />
+  <AppModal :open="reviewing" size="lg" @close="closeReview">
+    <ModalHeader title="What the table added" closeable @close="closeReview" />
     <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-      <TableAddedSection :truths="allTruths" />
+      <TableAddedSection :truths="allTruths" :focus-fact="focusFact" />
     </div>
   </AppModal>
 </template>
@@ -117,6 +117,7 @@ import { MARK_OPTIONS, chapterOf } from "@/lib/canon/canonParts";
 import { unreviewedCount } from "@/lib/canon/canonTableFacts";
 import { TRUTH_FILTER_OPTIONS, aboutByTruth, filterTruths, groupTruths } from "@/lib/canon/canonTruthView";
 import { endsOf } from "@/lib/canon/canonOrder";
+import { useLinkedRow } from "@/composables/canon/useLinkedRow";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { toast } from "@/lib/toast";
 import { useCanonReorder } from "@/composables/canon/useCanonReorder";
@@ -187,6 +188,16 @@ const markSelection = (mark: KnowledgeMark, label: string) => writeSelection({ k
 const tableRecord = useTableFacts();
 const unreviewed = computed(() => unreviewedCount(tableRecord.facts.data.value ?? []));
 const reviewing = ref(false);
+// A search hit for a table line lands as `?fact=<id>`: the review opens on that line, ringed. An unknown id opens nothing.
+const focusFact = ref<string | null>(null);
+const closeReview = () => {
+  reviewing.value = false;
+  focusFact.value = null;
+};
+useLinkedRow("fact", (id) => (tableRecord.facts.data.value ?? []).some((f) => f.id === id), (id) => {
+  focusFact.value = id;
+  reviewing.value = true;
+}, null);
 
 const draft = ref("");
 const mark = ref<KnowledgeMark>("all");

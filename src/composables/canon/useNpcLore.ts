@@ -15,10 +15,14 @@ export interface NpcLoreRow {
 }
 
 /**
+ * An NPC's place in the canon (#1279 item 13), beside the lore told about them (#1258 item 26): what they know and what
+ * is about them come with the same `get_canon_here` read.
+ *
  * The lore told about one NPC (#1258 item 26): the lore entries whose `about` link points at them, each with how many
  * of its passages are told (the first counts as told with the entry), and "Write lore about this person", which makes
  * an entry, ties it `about` the person and lands on it in the Canon page. A backstory is not lore, so a character's
- * backstory that is `about` the same person is left out. DM sheets only: the canon reads are the DM's.
+ * backstory that is `about` the same person is left out. `knows` is the entries tied to them as a knower and `about` the
+ * truths, secrets and forces (anything but lore) tied `about` them. DM sheets only: the canon reads are the DM's.
  */
 export function useNpcLore(npcId: MaybeRefOrGetter<string>, npcName: MaybeRefOrGetter<string>) {
   const router = useRouter();
@@ -31,16 +35,19 @@ export function useNpcLore(npcId: MaybeRefOrGetter<string>, npcName: MaybeRefOrG
 
   const rows = computed<NpcLoreRow[]>(() => (here.value?.lore ?? []).map((l) => ({ id: l.id, title: l.title, told: l.told, total: l.total })));
 
+  const knows = computed(() => here.value?.knows ?? []);
+  const about = computed(() => here.value?.about ?? []);
+
   async function writeLore(): Promise<void> {
     if (writing.value) return;
-    const about = typeChoices("canon", "npc").find((c) => c.key === "about" && c.subjectIsFrom && c.home === undefined);
-    if (!about) throw new Error("A canon entry has no `about` tie to a person");
+    const aboutTie = typeChoices("canon", "npc").find((c) => c.key === "about" && c.subjectIsFrom && c.home === undefined);
+    if (!aboutTie) throw new Error("A canon entry has no `about` tie to a person");
     writing.value = true;
     try {
       const name = toValue(npcName);
       const entry = await createEntry({ part: "lore", title: `Lore about ${name}` });
       try {
-        await connect({ subject: { kind: "canon", id: entry.id }, other: { kind: "npc", id: toValue(npcId), name }, choice: about });
+        await connect({ subject: { kind: "canon", id: entry.id }, other: { kind: "npc", id: toValue(npcId), name }, choice: aboutTie });
       } catch (e) {
         // The entry exists: land on it anyway, where the Connections section can tie it again.
         toast.error(`The lore was made but not tied to ${name}. ${toast.fromError(e)}`);
@@ -53,5 +60,5 @@ export function useNpcLore(npcId: MaybeRefOrGetter<string>, npcName: MaybeRefOrG
     }
   }
 
-  return { rows, writeLore, writing };
+  return { rows, knows, about, writeLore, writing };
 }

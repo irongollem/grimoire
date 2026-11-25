@@ -21,6 +21,10 @@ vi.mock("@/composables/canon/useCanonForces", async (original) => ({
   }),
 }));
 
+vi.mock("@/composables/canon/useForceWho", () => ({
+  useForceWho: () => ({ whoOf: (id: string) => (id === "f1" ? [{ kind: "faction", id: "fa1", name: "The Ferrymen" }, { kind: "npc", id: "n1", name: "Vexa" }] : []) }),
+}));
+
 import ForcesChapter from "./ForcesChapter.vue";
 import { useCanonUiStore } from "@/stores/ui/canon";
 
@@ -65,6 +69,21 @@ describe("ForcesChapter", () => {
   it("offers the move buttons only while no arc narrows the list", () => {
     expect(mountIt().find("[data-testid=move-buttons]").exists()).toBe(true);
     expect(mountIt({ arcLabel: "The guild" }).find("[data-testid=move-buttons]").exists()).toBe(false);
+  });
+
+  // Bug caught (#1279 item 33): Move to bottom offered on a force row but handled by nothing, so a long list could only be walked a step at a time.
+  it("moves a force to the bottom in one go", async () => {
+    await mountIt().find("button[aria-label='Move The Stain spreads to the bottom']").trigger("click");
+    await flushPromises();
+    expect(mocks.reorder.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["f1", 1]]);
+  });
+
+  // Bug caught (#1279 item 11): the list not naming who is behind a force, or naming another force's who.
+  it("names who is behind each force on its row", () => {
+    const w = mountIt();
+    const rows = w.findAll("li");
+    expect(rows[0].get("[data-testid=force-who-line]").text()).toBe("The Ferrymen and Vexa");
+    expect(rows[1].find("[data-testid=force-who-line]").exists()).toBe(false);
   });
 
   it("says what a force is when there are none, and offers to ask for one", () => {

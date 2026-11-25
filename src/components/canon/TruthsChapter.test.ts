@@ -8,6 +8,10 @@ const { fake } = await vi.hoisted(async () => {
   const { createSupabaseFake } = await import("@/test/supabaseFake");
   return { fake: createSupabaseFake() };
 });
+// The chapter reads its deep link (`?fact=`) from the route; each test sets the query it was reached with.
+const routeState = vi.hoisted(() => ({ query: {} as Record<string, string> }));
+vi.mock("vue-router", async (orig) => ({ ...(await orig<typeof import("vue-router")>()), useRoute: () => routeState }));
+
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "dm-1" }) }));
 const knowers = vi.hoisted(() => ({ value: new Map<string, unknown[]>() }));
 vi.mock("@/composables/canon/useKnownToByEntry", async () => {
@@ -39,7 +43,7 @@ import { useAskUiStore } from "@/stores/ui/ask";
 
 // TruthDetail and the table's review are other files' business here: they are stubbed to what this chapter hands them.
 const TruthDetailStub = { name: "TruthDetail", props: ["entry"], emits: ["close", "delete"], template: "<div data-testid='detail'><button data-testid='detail-close' @click=\"$emit('close')\" /><button data-testid='detail-delete' @click=\"$emit('delete')\" /></div>" };
-const TableAddedStub = { name: "TableAddedSection", props: ["truths"], template: "<div data-testid='table-added' />" };
+const TableAddedStub = { name: "TableAddedSection", props: ["truths", "focusFact"], template: "<div data-testid='table-added' />" };
 
 function mountSection(props: { truths?: CanonEntry[]; allTruths?: CanonEntry[]; selected?: CanonEntry | null; arcLabel?: string | null } = {}) {
   const pinia = createPinia();
@@ -221,6 +225,7 @@ describe("TruthsChapter open entry and the table's inbox", () => {
     fake.reset();
     ties.value = [];
     tableFacts.value = [];
+    routeState.query = {};
   });
   const list = [canonEntry({ id: "t0", part: "truth", knowledge: "all", title: "River", sort_order: 0 })];
   const fact = (id: string, over: Record<string, unknown> = {}) => ({ id, source: "table", supersedes_id: null, kept_at: null, struck_at: null, created_at: `2026-11-20T10:00:0${id}Z`, ...over });
@@ -255,6 +260,21 @@ describe("TruthsChapter open entry and the table's inbox", () => {
     await w.get("[data-testid=table-review]").trigger("click");
     expect(document.querySelector("[data-testid=table-added]")).not.toBeNull();
     expect(w.getComponent(TableAddedStub).props("truths")).toHaveLength(2);
+  });
+
+  // Bug caught: a search hit for a table line (`?fact=`) landing on the Truths chapter with the review closed; an id that is no line must open nothing.
+  it("opens the review on the line a search link names, and nothing for an unknown id", async () => {
+    tableFacts.value = [fact("1")];
+    routeState.query = { fact: "1" };
+    const w = mountSection({ truths: list });
+    await flushPromises();
+    expect(w.getComponent(TableAddedStub).props("focusFact")).toBe("1");
+    w.unmount();
+    document.body.innerHTML = "";
+    routeState.query = { fact: "ghost" };
+    mountSection({ truths: list });
+    await flushPromises();
+    expect(document.querySelector("[data-testid=table-added]")).toBeNull();
   });
 
   // Bug caught: a truth added under a narrowing arc taking the arc's count as its place, landing in the middle of the whole list.

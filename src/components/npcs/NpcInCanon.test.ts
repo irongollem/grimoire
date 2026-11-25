@@ -1,39 +1,76 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { computed, ref } from "vue";
-import type { CanonHereLore } from "@/composables/canon/useCanonHere";
+import type { CanonHere, CanonHereEntry } from "@/composables/canon/useCanonHere";
 
-const mocks = vi.hoisted(() => ({ createEntry: vi.fn(), connect: vi.fn(), push: vi.fn(), toastError: vi.fn() }));
-// Which lore is about this person, and the told counts, are `get_canon_here`'s (canon_story_shape.test.sql).
-const lore = ref<CanonHereLore[]>([]);
+const mocks = vi.hoisted(() => ({ createEntry: vi.fn(), connect: vi.fn(), push: vi.fn(), toastError: vi.fn(), tellParty: vi.fn() }));
+// What is tied to this person, and the told counts, are `get_canon_here`'s (canon_story_shape.test.sql).
+const here = ref<CanonHere>({ clues: [], passages: [], lore: [], knows: [], about: [] });
 
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: mocks.push }), RouterLink: { props: ["to"], template: "<a :href=\"to.query.entry\"><slot /></a>" } }));
 vi.mock("@/lib/toast", () => ({ toast: { error: mocks.toastError, fromError: (e: unknown) => (e instanceof Error ? e.message : "?") } }));
 vi.mock("@/composables/connections/useConnections", () => ({ useCreateConnection: () => ({ mutateAsync: mocks.connect }) }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({ useCreateCanonEntry: () => ({ mutateAsync: mocks.createEntry }) }));
-vi.mock("@/composables/canon/useCanonHere", () => ({ useCanonHere: () => ({ data: computed(() => ({ clues: [], passages: [], lore: lore.value })) }) }));
+vi.mock("@/composables/canon/useCanonHere", () => ({ useCanonHere: () => ({ data: computed(() => here.value) }) }));
+vi.mock("@/composables/canon/useTellTruth", () => ({ useTellTruth: () => ({ tellParty: mocks.tellParty }) }));
 
-import NpcToldOf from "./NpcToldOf.vue";
+import NpcInCanon from "./NpcInCanon.vue";
 
-const mountIt = () => mount(NpcToldOf, { props: { npcId: "n1", name: "Maera" }, global: { stubs: { AppButton: { props: ["label"], emits: ["click"], template: "<button @click=\"$emit('click')\">{{ label }}</button>" } } } });
+const entry = (over: Partial<CanonHereEntry>): CanonHereEntry => ({ id: "t1", title: "The bridge was never built", part: "truth", knowledge: "some", revealed_at: null, ...over });
+const mountIt = () =>
+  mount(NpcInCanon, {
+    props: { npcId: "n1", name: "Maera" },
+    global: { stubs: { CanonHere: { props: ["kind", "id", "bare"], template: "<div data-testid='canon-here' :data-bare='bare' />" }, AppButton: { props: ["label"], emits: ["click"], template: "<button @click=\"$emit('click')\">{{ label }}</button>" } } },
+  });
 
-describe("NpcToldOf", () => {
+describe("NpcInCanon", () => {
   beforeEach(() => {
     for (const m of Object.values(mocks)) m.mockReset();
-    lore.value = [];
+    here.value = { clues: [], passages: [], lore: [], knows: [], about: [] };
+  });
+
+  // Bug (#1279 item 13): what an NPC can tell was invisible from their sheet, or listed under About them.
+  it("lists what they know under Knows and what is about them under About them, each opening its entry", () => {
+    here.value = { ...here.value, knows: [entry({ id: "k1", title: "The ferrymen lie" })], about: [entry({ id: "a1", title: "Maera is the Warden", part: "secret", knowledge: null })] };
+    const w = mountIt();
+    expect(w.get("[data-testid=npc-knows-row] a").attributes("href")).toBe("k1");
+    expect(w.get("[data-testid=npc-about-row] a").attributes("href")).toBe("a1");
+    expect(w.find("[data-testid=npc-knows]").text()).not.toContain("Warden");
   });
 
   // Bug: the block showed no count of what is told, or did not link the entry.
-  it("lists the lore told of this person, each with how many passages are told", () => {
-    lore.value = [{ id: "l1", title: "The Fall of the Mere", told: 2, total: 3 }];
-    const rows = mountIt().findAll("[data-testid=npc-lore-row]");
-    expect(rows).toHaveLength(1);
-    expect(rows[0]!.get("[data-testid=npc-lore-told]").text()).toBe("2 of 3 told");
-    expect(rows[0]!.get("a").attributes("href")).toBe("l1");
+  it("lists the lore told of this person under About them, each with how many passages are told", () => {
+    here.value = { ...here.value, lore: [{ id: "l1", title: "The Fall of the Mere", told: 2, total: 3 }] };
+    const row = mountIt().get("[data-testid=npc-lore-row]");
+    expect(row.get("[data-testid=npc-lore-told]").text()).toContain("2 of 3 told");
+    expect(row.get("a").attributes("href")).toBe("l1");
   });
 
-  it("says so when no lore is told of them", () => {
-    expect(mountIt().get("[data-testid=npc-lore-none]").text()).toContain("Maera");
+  // Bug: "Tell the party" offered on a secret, a force, or a truth already told to all.
+  it("offers Tell the party only on a truth they know that is not yet told to everyone, and tells that truth", async () => {
+    here.value = {
+      ...here.value,
+      knows: [entry({ id: "t1" }), entry({ id: "t2", knowledge: "all", revealed_at: "2026-11-01T00:00:00Z" }), entry({ id: "s1", part: "secret", knowledge: null })],
+    };
+    const w = mountIt();
+    const buttons = w.findAll("[data-testid=npc-tell]");
+    expect(buttons).toHaveLength(1);
+    await buttons[0]!.trigger("click");
+    expect(mocks.tellParty).toHaveBeenCalledWith(expect.objectContaining({ id: "t1" }));
+    expect(w.find("[data-testid=npc-told]").exists()).toBe(true);
+  });
+
+  // Bug: the clues and passages on them dropped out when the block replaced "Canon here" on the sheet.
+  it("holds the clues and passages on them (Canon here, without its card) only when there are some", () => {
+    expect(mountIt().find("[data-testid=npc-on-them]").exists()).toBe(false);
+    here.value = { ...here.value, clues: [{ id: "c", title: "A torn ledger", secret_id: "s", secret_title: "S", found_at: null, found_session_id: null }] };
+    const w = mountIt();
+    expect(w.get("[data-testid=npc-on-them]").text()).toContain("Clues and passages on them");
+    expect(w.get("[data-testid=canon-here]").attributes("data-bare")).toBeDefined();
+  });
+
+  it("says so when nothing in the canon is tied to them", () => {
+    expect(mountIt().get("[data-testid=npc-canon-none]").text()).toContain("Maera");
   });
 
   // Bug: the button made an entry that was not tied to the person, or did not land on it.
