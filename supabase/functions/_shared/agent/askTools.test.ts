@@ -309,6 +309,15 @@ describe("read_manual", () => {
     const answer = await setup().tools.callTool("read_manual", { query: "zzqx flurble wombat" });
     expect(JSON.parse(answer.content)).toMatchObject({ pages: [], note: expect.stringContaining("log_manual_gap") });
   });
+
+  // Bug caught: the gap reminder only riding on an empty search, so pages on the topic that leave the question open
+  // (can a voice speak Dutch?) were answered "the manual does not say" and never reached the ledger.
+  it("reminds the model to note a gap even when pages match", async () => {
+    const answer = await setup().tools.callTool("read_manual", { query: "about known to backstory connection" });
+    const parsed = JSON.parse(answer.content) as { pages: unknown[]; note?: string };
+    expect(parsed.pages.length).toBeGreaterThan(0);
+    expect(parsed.note).toContain("log_manual_gap");
+  });
 });
 
 describe("read_rules", () => {
