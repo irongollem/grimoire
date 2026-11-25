@@ -28,5 +28,8 @@
   "fruit": { "title": "Ripe fruit in the Mirror Orchard: a D&D scene to read aloud" },
   "hollow": { "title": "The Hollow walk at dusk: an eerie D&D orchard scene" },
   "hospice": { "title": "A house for the end of the leaf: a gentle D&D scene to read aloud" },
-  "mimic": { "title": "Do you trust that chest? A D&D mimic to steal" }
+  "mimic": { "title": "Do you trust that chest? A D&D mimic to steal" },
+  "steal-blinkhill-reel": { "title": "Steal this D&D monster: the hill you stopped on for lunch" },
+  "steal-hand-from-the-closet-reel": { "title": "Steal this D&D monster: a wardrobe door in the wilderness" },
+  "steal-sinkmouth-reel": { "title": "Steal this D&D monster: the hole in the road that smells of bread" }
 }
