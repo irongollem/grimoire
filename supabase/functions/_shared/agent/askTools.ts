@@ -72,9 +72,12 @@ export function generatorInputGuide(generators: readonly AskGenerator[]): string
     .join("\n");
 }
 
+/** The record types a proposal's target, an idea's reference and the DM's vocabulary (`askVocabulary.ts`) may name. */
+export const ASK_RECORD_TYPES: readonly string[] = ["npc", "monster", "item", "spell", "location", "faction", "quest", "quest_beat", "encounter", "deity", "party_member", "note", "canon", "room"];
+
 /** Ask's own tool schemas. The generator enum is the campaign's: no 5e generator is offered where there are no 5e rules. */
 export function askOwnTools(fiveE: boolean): AgentTool[] {
-  const recordTypes = ["npc", "monster", "item", "spell", "location", "faction", "quest", "quest_beat", "encounter", "deity", "party_member", "note", "canon", "room"];
+  const recordTypes = [...ASK_RECORD_TYPES];
   return [
     {
       name: "find",
