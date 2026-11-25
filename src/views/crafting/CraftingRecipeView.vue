@@ -17,9 +17,10 @@ import { useCraftingRecipe } from "@/composables/crafting/useCrafting";
 const route = useRoute();
 const router = useRouter();
 
-const isNew = computed(() => route.params.id === "new");
+// /crafting/new is its own route with no :id, so ask the route's name, never params.id.
+const isNew = computed(() => route.name === "crafting-new");
 const isEditing = computed(() => route.query.edit === "true");
-const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
+const id = computed(() => (isNew.value ? "" : String(route.params.id)));
 
 const { data: recipe } = useCraftingRecipe(id);
 
