@@ -32,10 +32,15 @@ function sync() {
   const el = video.value;
   if (!el) return;
   if (speaking && !prefersReducedMotion()) {
+    // From the loop's first frame (beak closed), so the beak opens as the sound begins rather than mid-word.
+    el.currentTime = 0;
     // A browser may refuse to play (power saving, a background tab): the still stays, which is the quiet state.
     el.play()?.catch(() => undefined);
   } else {
+    // At rest the beak is closed: back to the first frame, which matches the still. Pausing where the loop happened
+    // to be left the beak open in silence and closed while it spoke (the maintainer: "an inexperienced muppeteer").
     el.pause();
+    el.currentTime = 0;
   }
 }
 
