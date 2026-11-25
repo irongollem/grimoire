@@ -515,7 +515,7 @@ canon** block (`NpcInCanon.vue`, #1279 item 13): **Knows** (entries tied to them
 through `useTellTruth`), **About them** (truths, secrets and forces tied `about` them, and the lore about them with "n of m
 told"), and the clues and passages on them (`CanonHere`, bare, whose two groups read **Clues on them** and **Lore to tell
 through them** in the block's own group-label style, beside Knows and About them rather than under a heading of their own). All of it is the one `get_canon_here` read (its `knows` and
-`about` from `20261125220434`), and the Relations tab hides canon ties since the block shows them. **Write lore about this person** makes an entry, ties it `about` the NPC and lands on
+`about` from `20261125233840`), and the Relations tab hides canon ties since the block shows them. **Write lore about this person** makes an entry, ties it `about` the NPC and lands on
 it at `/canon?entry=<id>`; the NPC's own `backstory` field stays the DM's summary. A later passage is told on its own: **Tell the party**
 sets `told_at`, `told_session_id` (the open session) and `player_visible_to` (every party member); **Take back** asks
 first and clears all three. It may come out at one place, person or beat (`WherePicker.vue`, shared with the clue form;
@@ -558,7 +558,7 @@ started before it was written, `writtenWhen`) or "Your passage".
 
 **A backstory's ties are the character's** (#1279 item 12). The pane mounts the character's own Connections block (subject
 `{ kind: "party_member" }`), editable, so a hometown or a mentor tied there is the character's tie and shows on the
-character's page too; a backstory entry holds canon-to-canon ties (threads) only. `20261125202721` moved the ties older
+character's page too; a backstory entry holds canon-to-canon ties (threads) only. `20261125233838` moved the ties older
 backstory entries held onto their characters. **New NPC from this backstory** (`BackstoryPeople.vue`, #1258 item 25) is a
 small inline form, a name and how that person relates to the character, which creates the NPC hidden from players with
 that tie to the character (a contact when no relationship is chosen) and **stays on the backstory**: the new person
@@ -684,7 +684,7 @@ Restore puts everything back **as the restoring DM** (rows come back owned by th
 
 ## The third review's story tools (#1279 wave 2)
 
-Data in `20261125202721_canon_story_round_three`; pgTAP in `canon_story_round_three.test.sql`.
+Data in `20261125233838_canon_story_round_three`; pgTAP in `canon_story_round_three.test.sql`.
 
 **Entry panes are as tall as what they hold** (item 16). A pane shows the blocks that hold something and folds every empty
 optional one (arc, notes, quests, cause/effect/theme, connections, a secret's cover story) into one **Addâ€¦** menu
@@ -717,7 +717,7 @@ sentence of what they are like. The world block sends "the Vell (Human), 30%: â€
 **One rule for loose ends, and Leave it** (item 21). `supabase/functions/_shared/canonLooseEnds.ts` decides what is a loose
 end, for Tonight and the paid read-through alike (its doc comment says why each case is one). An entry with
 `canon_entries.loose_end_left_at` set, or an arc with `canon_arcs.loose_end_left_at` set
-(`20261125210154`), is skipped by both; Tonight's **Leave it** sets it on either, with Undo.
+(`20261125233839`), is skipped by both; Tonight's **Leave it** sets it on either, with Undo.
 
 **Tonight's plan** (item 20). Pins (`canon_tonight_pins`: one clue, passage, force step or entry each) sit in a
 **Planned** block at the top in the DM's order; a pin whose clue is found, passage told or step reached drops out, and the
@@ -739,7 +739,7 @@ history lore entry in the active arc, `TimelineAddEvent`) above the almanac; How
 **Search and the book** (items 23, 24). The Canon search also reads arcs, peoples, habitats and the table's lines; its
 last row puts the same words to the whole campaign, in place. **Open as a book** draws How the world works, Peoples,
 Habitats, Arcs and Backstories as well. A book drawn from the canon says so itself, `scriptorium_documents.drawn_from =
-'canon'` (`20261125210154`, which marked the books drawn before it by the title drawing gave them), so the DM's book is
+'canon'` (`20261125233839`, which marked the books drawn before it by the title drawing gave them), so the DM's book is
 found again however it is renamed, and a book the DM wrote by hand under the same title is never taken for it.
 
 **Starting from an entry, and the Calendar** (item 32). **Start a quest from this** on a secret (`SecretOutlets`) or a

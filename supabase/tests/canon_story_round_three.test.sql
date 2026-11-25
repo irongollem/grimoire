@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(33);
 
--- 20261125202721_canon_story_round_three (#1279 wave 2): cover stories, Tonight's pins and plan, "Leave it", cultures,
+-- 20261125233838_canon_story_round_three (#1279 wave 2): cover stories, Tonight's pins and plan, "Leave it", cultures,
 -- a told truth's moment, lines and veils asked for privately, and a DM's edit of a player's passage.
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
