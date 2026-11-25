@@ -1,5 +1,5 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useToast } from "@/composables/useToast";
 import {
   useClearOpenBookEntries,
@@ -65,7 +65,7 @@ export function useBookReveal(
 ) {
   const campaign = useCampaignStore();
   const toast = useToast();
-  const { data: partyData } = useParty();
+  const { data: partyData } = useActiveParty();
 
   // Disabled queries (no entry, or not the owner) cost nothing, which matters: this runs on every card in a list.
   const campaignId = computed(() =>

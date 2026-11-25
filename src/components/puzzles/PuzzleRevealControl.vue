@@ -41,7 +41,7 @@
 import { computed, ref, watch } from "vue";
 import RevealControl from "@/components/common/reveal/RevealControl.vue";
 import RevealOption from "@/components/common/reveal/RevealOption.vue";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useUpdatePuzzle } from "@/composables/dungeon-features/usePuzzles";
 import { arrayRevealAdapter } from "@/lib/reveal";
 import type { RevealForm } from "@/lib/reveal";
@@ -54,7 +54,7 @@ const { puzzle, form = "button" } = defineProps<{
 }>();
 
 const { mutate: updatePuzzle } = useUpdatePuzzle();
-const { data: partyData } = useParty();
+const { data: partyData } = useActiveParty();
 const campaign = useCampaignStore();
 
 /** Local optimistic state, so a toggle lands without waiting for the refetch. */

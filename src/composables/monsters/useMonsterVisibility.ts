@@ -1,7 +1,7 @@
 import { computed } from "vue";
 import type { Ref, ComputedRef } from "vue";
 import type { Monster } from "@/types/monster.types";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import {
   useCampaignDiscoveries,
   useToggleMonsterDiscovery,
@@ -21,7 +21,7 @@ export function useMonsterVisibility(
   monster: Ref<RevealableMonster | null | undefined> | ComputedRef<RevealableMonster | null | undefined>,
 ) {
   const { data: discoveries } = useCampaignDiscoveries();
-  const { data: party } = useParty();
+  const { data: party } = useActiveParty();
   const { mutate: toggleDiscovery } = useToggleMonsterDiscovery();
   const { mutate: updateVisibility } = useUpdateDiscoveryVisibility();
   const { mutate: updateStats } = useUpdateDiscoveryStats();
@@ -45,12 +45,22 @@ export function useMonsterVisibility(
     return d.visible_to.includes(memberId);
   }
 
+  /**
+   * `null` is "the whole party", now and later (#1259): a list of today's ids would leave out a character who joins
+   * after the reveal. So a list that reaches everyone at the table is stored as `null` too, the same rule the
+   * database applies to `player_visible_to` everywhere else.
+   */
+  function audience(next: string[]): string[] | null {
+    const party = allPartyIds.value;
+    return party.length > 0 && party.every((id) => next.includes(id)) ? null : next;
+  }
+
   function setWholeParty() {
     const m = monster.value;
     if (!m) return;
     const d = currentDiscovery.value;
-    if (!d) toggleDiscovery({ monster: m, currentDiscovery: undefined, visibleTo: allPartyIds.value });
-    else updateVisibility({ id: d.id, visibleTo: allPartyIds.value });
+    if (!d) toggleDiscovery({ monster: m, currentDiscovery: undefined, visibleTo: null });
+    else updateVisibility({ id: d.id, visibleTo: null });
   }
 
   function toggleMember(memberId: string) {
@@ -58,14 +68,14 @@ export function useMonsterVisibility(
     if (!m) return;
     const d = currentDiscovery.value;
     if (!d) {
-      toggleDiscovery({ monster: m, currentDiscovery: undefined, visibleTo: [memberId] });
+      toggleDiscovery({ monster: m, currentDiscovery: undefined, visibleTo: audience([memberId]) });
       return;
     }
     const current: string[] = d.visible_to === null ? allPartyIds.value : [...d.visible_to];
     const next = current.includes(memberId)
       ? current.filter((id) => id !== memberId)
       : [...current, memberId];
-    updateVisibility({ id: d.id, visibleTo: next });
+    updateVisibility({ id: d.id, visibleTo: audience(next) });
   }
 
   function unshare() {

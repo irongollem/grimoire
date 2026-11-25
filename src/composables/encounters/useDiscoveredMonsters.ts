@@ -190,10 +190,11 @@ export function useAutoDiscoverMonsters() {
       const campaignId = campaign.activeCampaignId!;
 
       // Fetch existing discoveries to deduplicate
-      const { data: existing } = await supabase
+      const { data: existing, error: existingError } = await supabase
         .from("discovered_monsters")
         .select("monster_id, library_monster_id")
         .eq("campaign_id", campaignId);
+      if (existingError) throw existingError;
 
       const existingMonsterIds = new Set((existing ?? []).map((d) => d.monster_id).filter(Boolean));
       const existingSlugs = new Set((existing ?? []).map((d) => d.library_monster_id).filter(Boolean));

@@ -35,7 +35,7 @@
 import { computed, ref, watch } from "vue";
 import RevealControl from "@/components/common/reveal/RevealControl.vue";
 import RevealOption from "@/components/common/reveal/RevealOption.vue";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useUpdateLocation } from "@/composables/locations/useLocations";
 import { arrayRevealAdapter } from "@/lib/reveal";
 import type { RevealForm } from "@/lib/reveal";
@@ -51,7 +51,7 @@ const { location, form = "button" } = defineProps<{
 type ShareKey = "is_description_shared" | "is_npcs_shared" | "is_inventory_shared" | "is_map_shared";
 
 const { mutate: updateLocation } = useUpdateLocation();
-const { data: partyData } = useParty();
+const { data: partyData } = useActiveParty();
 
 /**
  * Local optimistic state synced from the row, so a toggle lands instantly and

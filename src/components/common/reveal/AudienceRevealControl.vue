@@ -34,7 +34,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import RevealControl from "@/components/common/reveal/RevealControl.vue";
-import { useParty } from "@/composables/party/useParty";
+import { useActiveParty } from "@/composables/party/useActiveParty";
 import type { BookEntryRef } from "@/composables/openBook/useBookReveal";
 import { arrayRevealAdapter } from "@/lib/reveal";
 import type { RevealForm } from "@/lib/reveal";
@@ -51,7 +51,7 @@ const { visibleTo, form = "button", bookEntry } = defineProps<{
 
 const emit = defineEmits<{ change: [string[]] }>();
 
-const { data: partyData } = useParty();
+const { data: partyData } = useActiveParty();
 
 /**
  * Local optimistic state, so a toggle lands instantly rather than waiting for a
