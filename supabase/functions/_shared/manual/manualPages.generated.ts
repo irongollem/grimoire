@@ -1439,8 +1439,6 @@ export const MANUAL_PAGES: readonly ManualPageSource[] = [
       "read aloud",
       "accent",
       "language",
-      "dutch",
-      "german",
       "inventory",
       "party stance",
       "relationship",

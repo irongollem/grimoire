@@ -4,7 +4,7 @@ section: NPC Tracker
 section_order: 4
 order: 0
 summary: The NPC record, the roster, the detail sheet's tabs, and how NPCs tie into the rest of the campaign.
-keywords: npc, npcs, tracker, roster, overview, character, person, stat block, portrait, disguise, alter ego, connections, relations, family, faction, memory, voice coach, spoken voice, voice, read aloud, accent, language, dutch, german, inventory, party stance, relationship, status, favour, populate, bulk, move, copy
+keywords: npc, npcs, tracker, roster, overview, character, person, stat block, portrait, disguise, alter ego, connections, relations, family, faction, memory, voice coach, spoken voice, voice, read aloud, accent, language, inventory, party stance, relationship, status, favour, populate, bulk, move, copy
 ---
 
 The NPC Tracker is the roster of every named person in your campaign: allies, enemies, merchants, sages, mysterious strangers. Every NPC is a rich record: identity, roleplaying notes, an optional full D&D 5e stat block, faction memberships, family and other connections, per-player visibility, inventory, a memory of what was said, and an AI Voice Coach for improvising dialogue at the table. Find it under **NPCs** in the sidebar.
