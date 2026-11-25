@@ -64,7 +64,7 @@
     <div
       v-if="appUi.chatOpen"
       class="chat-no-print fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+var(--dock-bottom,0px))] inset-x-0 z-50 flex flex-col bg-card border-t border-border rounded-t-2xl md:hidden"
-      style="height: 65vh"
+      :style="[{ height: '65vh' }, keyboard.sheetStyle.value]"
     >
       <ChatPanelContent
         :messages="messages"
@@ -106,6 +106,7 @@ import { loadReadMarker, resolveChatUnread, saveReadMarker, type ReadMarker } fr
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useAbove } from "@/composables/useBreakpoint";
+import { useKeyboardSheet } from "@/composables/useKeyboardSheet";
 import { useAskUiStore } from "@/stores/ui/ask";
 import { useCampaignMessages, loadChatHistory } from "@/composables/campaign/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
@@ -201,6 +202,8 @@ onUnmounted(() => {
 
 const appUi = useAppUiStore();
 const isDesktop = useAbove("md");
+// On a phone the sheet reaches from the status bar to the keyboard while one is up, over the bottom bar.
+const keyboard = useKeyboardSheet();
 // The tab sits on the right edge; with the Familiar open in the dock (md and up) it is not needed.
 const askUi = useAskUiStore();
 const askOpen = computed(() => askUi.open);
