@@ -7,10 +7,10 @@ vi.mock("@/lib/motion", () => ({ prefersReducedMotion: () => motion.reduced }));
 
 const { default: FamiliarAvatar } = await import("./FamiliarAvatar.vue");
 
-function mounted(speaking: boolean) {
+function mounted(speaking: boolean, level: number | null = null) {
   const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
   const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
-  const w = mount(FamiliarAvatar, { props: { speaking } });
+  const w = mount(FamiliarAvatar, { props: { speaking, level } });
   return { w, play, pause };
 }
 
@@ -42,6 +42,19 @@ describe("FamiliarAvatar", () => {
     video.currentTime = 0.6;
     await w.setProps({ speaking: true });
     expect(video.currentTime).toBe(0);
+  });
+
+  // Bug caught: the beak open in a pause or shut on a syllable, when the voice's own loudness is there to follow.
+  it("follows a measured voice: closed in silence, open on a loud syllable, and no loop meanwhile", async () => {
+    const { w, play } = mounted(true);
+    play.mockClear();
+    await w.setProps({ speaking: true, level: 0.01 });
+    expect(w.get("[data-testid=familiar-avatar]").attributes("data-beak")).toBe("closed");
+    await w.setProps({ level: 0.3 });
+    expect(w.get("[data-testid=familiar-avatar]").attributes("data-beak")).toBe("open");
+    expect(play).not.toHaveBeenCalled();
+    await w.setProps({ level: null });
+    expect(w.find("[data-testid=familiar-beak]").exists()).toBe(false);
   });
 
   // Bug caught: motion played for someone whose device asks for reduced motion.

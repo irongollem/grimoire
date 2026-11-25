@@ -1,4 +1,5 @@
 import { computed, onBeforeUnmount, ref, toValue, type MaybeRefOrGetter } from "vue";
+import { meterAudio, primeAudioMeter } from "./audioMeter";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import type { GreetingResponse, SampleResponse, SpeechVoice, VoiceStudioRequest } from "@/types/speechVoice.types";
@@ -83,6 +84,9 @@ export function useAudioToggle(resolve: (key: string) => Promise<PlayableAudio>)
   const playing = ref<string | null>(null);
   const loading = ref<string | null>(null);
   const problem = ref<string | null>(null);
+  /** The playing audio's loudness (0 at rest); `metered` says whether it is measured, for an avatar to follow. */
+  const level = ref(0);
+  const metered = ref(false);
   const urls = new Map<string, string>();
   let audio: HTMLAudioElement | null = null;
   // Raised by every press, so a slow first fetch that comes back after another key was pressed does not play over it.
@@ -98,6 +102,8 @@ export function useAudioToggle(resolve: (key: string) => Promise<PlayableAudio>)
   async function toggle(key: string): Promise<void> {
     if (playing.value === key) return stop();
     stop();
+    // A press is the moment a browser lets the audio context start, so it can be metered.
+    primeAudioMeter();
     const mine = press;
     problem.value = null;
     let url = urls.get(key);
@@ -122,6 +128,7 @@ export function useAudioToggle(resolve: (key: string) => Promise<PlayableAudio>)
       if (playing.value === key) playing.value = null;
     });
     playing.value = key;
+    metered.value = meterAudio(playingNow, (l) => (level.value = l)) !== null;
     await playingNow.play().catch(() => {
       if (audio === playingNow) stop();
     });
@@ -143,7 +150,7 @@ export function useAudioToggle(resolve: (key: string) => Promise<PlayableAudio>)
 
   onBeforeUnmount(reset);
 
-  return { playing, loading, problem, toggle, stop, forget, reset };
+  return { playing, loading, problem, level, metered, toggle, stop, forget, reset };
 }
 
 /** The listen button of a slot: its sample, fetched from the studio on the first press. */

@@ -1,4 +1,5 @@
 import { ref, watch, type Ref } from "vue";
+import { meterAudio } from "./audioMeter";
 
 // The one player behind every voice that reads aloud: the AI table's lines and Ooru's replies in Ask. They used to
 // each carry a copy of this queue, and the copies had already drifted (one loop guard each, a different re-drain
@@ -23,10 +24,13 @@ export async function readVoiceResponse(response: Response): Promise<VoiceAnswer
   return { kind: "clip", src: `data:${typeof body.mime === "string" ? body.mime : "audio/mpeg"};base64,${body.audio}` };
 }
 
-/** Plays one clip and settles when it is over (or cannot be played). `stop` cuts it short. */
-export type VoicePlayer = (src: string) => { done: Promise<void>; stop(): void };
+/**
+ * Plays one clip and settles when it is over (or cannot be played). `stop` cuts it short. With `onLevel`, the clip's
+ * loudness is reported while it plays, where the browser allows metering it (`metered`); otherwise it just plays.
+ */
+export type VoicePlayer = (src: string, onLevel?: (level: number) => void) => { done: Promise<void>; stop(): void; metered?: boolean };
 
-export const playClip: VoicePlayer = (src) => {
+export const playClip: VoicePlayer = (src, onLevel) => {
   // Where there is no audio at all (a test DOM, a stripped-down webview) a clip is simply over at once.
   if (typeof Audio === "undefined") return { done: Promise.resolve(), stop: () => {} };
   const audio = new Audio(src);
@@ -36,8 +40,10 @@ export const playClip: VoicePlayer = (src) => {
     // A browser that refuses to play (no gesture yet) must not hold up the lines behind it.
     audio.play().catch(() => resolve());
   });
+  const metered = onLevel !== undefined && meterAudio(audio, onLevel) !== null;
   return {
     done,
+    metered,
     stop: () => {
       audio.pause();
       audio.dispatchEvent(new Event("ended"));
@@ -74,6 +80,9 @@ export function useClipQueue(options: {
 
   /** True while a clip is playing (not while one is still being made): what an owl moving with the audio follows. */
   const speaking = ref(false);
+  /** The playing clip's loudness, 0 when none plays; `metered` says whether it is being measured at all. */
+  const level = ref(0);
+  const metered = ref(false);
   /**
    * True from the first clip asked for until the last one has played, the waits to make one and the breaths between
    * voices included: what "a voice is still reading" means to a table that must not go on over it.
@@ -133,11 +142,13 @@ export function useClipQueue(options: {
         }
         last = next.voice;
         speaking.value = true;
-        const clip = player(src);
+        const clip = player(src, (l) => (level.value = l));
+        metered.value = clip.metered === true;
         current = clip;
         await clip.done;
         current = null;
         speaking.value = false;
+        level.value = 0;
       }
     } finally {
       draining = false;
@@ -175,5 +186,5 @@ export function useClipQueue(options: {
     clearRefusals();
   });
 
-  return { speaking, busy, unavailable, spent, broke, refused, fetchClip, enqueue, stop, clearRefusals };
+  return { speaking, level, metered, busy, unavailable, spent, broke, refused, fetchClip, enqueue, stop, clearRefusals };
 }

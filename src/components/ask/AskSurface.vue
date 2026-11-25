@@ -2,7 +2,7 @@
   <div class="flex h-full min-h-0 w-full flex-col">
     <header class="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-2.5">
       <div class="flex min-w-0 items-center gap-2">
-        <FamiliarAvatar class="size-11" :speaking="speaking" />
+        <FamiliarAvatar class="size-11" :speaking="speaking" :level="beakLevel" />
         <h2 class="text-heading font-semibold text-foreground">Familiar</h2>
         <AppButton as="span" variant="tinted" size="xs" tone="info" emphasis="outline" label="Beta" data-testid="ask-beta" />
       </div>
@@ -88,6 +88,8 @@ const props = defineProps<{
   startingOverBlocked?: boolean;
   /** Words are arriving: the avatar moves only then. */
   speaking: boolean;
+  /** The loudness of Ooru's voice while it plays and can be measured; null to follow `speaking` with the loop. */
+  beakLevel?: number | null;
   campaignName: string;
   pageTitle: string | null;
   allowanceLine: string;

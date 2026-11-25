@@ -4,6 +4,7 @@ import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useAuthStore } from "@/stores/auth";
 import { sendToTableVoice, type VoiceTransport } from "@/composables/table/useTableVoice";
 import { useClipQueue, type VoicePlayer } from "@/composables/voices/useClipQueue";
+import { primeAudioMeter } from "@/composables/voices/audioMeter";
 
 /** The name Ooru's words are kept under on the server (`FAMILIAR_SPEAKER`); the server sets it whatever is sent. */
 export const FAMILIAR_NAME = "Ooru";
@@ -53,6 +54,7 @@ export function useFamiliarVoice(options: { transport?: VoiceTransport; player?:
    * a reply already read costs nothing; one never read is made and charged like any.
    */
   function replay(input: { campaignId: string; sessionId: string; text: string }): void {
+    primeAudioMeter();
     voice.stop();
     if (voice.refused()) return;
     replaying.value = input.text;
@@ -75,9 +77,11 @@ export function useFamiliarVoice(options: { transport?: VoiceTransport; player?:
     const id = userId.value;
     if (id === null) return;
     wanted.value = { ...wanted.value, [id]: value };
+    // Switching the voice on is a press: the moment the audio context may start, so replies can be metered.
+    if (value) primeAudioMeter();
     if (!value) voice.stop();
     else voice.clearRefusals();
   }
 
-  return { on, setOn, speaking: voice.speaking, replaying, unavailable: voice.unavailable, spent: voice.spent, broke: voice.broke, say, replay, stop };
+  return { on, setOn, speaking: voice.speaking, level: voice.level, metered: voice.metered, replaying, unavailable: voice.unavailable, spent: voice.spent, broke: voice.broke, say, replay, stop };
 }

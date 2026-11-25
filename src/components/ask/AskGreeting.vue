@@ -3,7 +3,13 @@
   <div class="flex flex-col gap-3 py-3" data-testid="ask-greeting">
     <!-- Ooru introduces itself, so it is seen properly here: the header's small avatar is for while it talks. It moves
          while its greeting plays. -->
-    <FamiliarAvatar v-if="text" class="size-24 self-center" :speaking="hear.playing.value === KEY" data-testid="ask-greeting-portrait" />
+    <FamiliarAvatar
+      v-if="text"
+      class="size-24 self-center"
+      :speaking="hear.playing.value === KEY"
+      :level="hear.playing.value === KEY && hear.metered.value ? hear.level.value : null"
+      data-testid="ask-greeting-portrait"
+    />
     <AskReply v-if="text" :text="text" who="Ooru" />
     <p v-else class="py-3 text-center text-body text-muted-foreground" data-testid="ask-greeting-fallback">{{ HINT }}</p>
     <div v-if="text" class="flex flex-col items-start gap-1.5">

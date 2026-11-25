@@ -43,6 +43,7 @@ import { FREE_ASKS_PER_DAY, type AskReportDraft } from "@edge-shared/agent/askCo
 import { useAskAdapters } from "@/ai/ask/useAskAdapters";
 import { useAskConversation, type AskNotice } from "@/composables/ask/useAskConversation";
 import { stopVoiceLines } from "@/composables/voices/useVoiceLineSpeech";
+import { primeAudioMeter } from "@/composables/voices/audioMeter";
 import { loadLastAskConversation } from "@/composables/ask/askHistory";
 import { useAuthStore } from "@/stores/auth";
 import { useFamiliarVoice } from "@/composables/ask/useFamiliarVoice";
@@ -152,6 +153,8 @@ const surfaceProps = computed(() => ({
   // The owl moves while the words arrive and while Ooru reads them aloud: either is Ooru talking. Following the audio
   // alone left it still through the streaming, and for good on a reply the server declined to voice.
   speaking: convo.speaking.value || voice.speaking.value,
+  // While Ooru's voice plays and the browser lets it be measured, the beak follows the sound itself.
+  beakLevel: voice.speaking.value && voice.metered.value ? voice.level.value : null,
   campaignName: campaign.activeCampaign?.name ?? "No campaign",
   pageTitle: (route.meta.title as string | undefined) ?? null,
   allowanceLine: allowanceLine.value,
@@ -169,7 +172,11 @@ const surfaceHandlers = {
     if (campaignId !== null && sessionId !== null && voicePerMinute.value !== null) voice.replay({ campaignId, sessionId, text });
   },
   close: () => ui.closePanel(),
-  send: (text: string) => void convo.send(text),
+  // Sending is a press, so the audio context can start: Ooru's reply that follows may then be metered.
+  send: (text: string) => {
+    primeAudioMeter();
+    void convo.send(text);
+  },
   choose: convo.choose,
   "hand-off": convo.handOff,
   confirm: (id: number) => void convo.confirm(id),
