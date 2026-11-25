@@ -109,7 +109,8 @@ export function usePlayerCalendarEventsRange(startYear: MaybeRef<number>, endYea
   });
 }
 
-export function useCalendarEventsRange(startYear: MaybeRef<number>, endYear: MaybeRef<number>) {
+/** `wanted` lets a caller with no span to ask about (a force with no step on the Calendar) send nothing at all. */
+export function useCalendarEventsRange(startYear: MaybeRef<number>, endYear: MaybeRef<number>, wanted: MaybeRef<boolean> = true) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
@@ -118,7 +119,7 @@ export function useCalendarEventsRange(startYear: MaybeRef<number>, endYear: May
       if (cid === null) throw new Error("useCalendarEventsRange fetched without a campaign");
       return fetchEventsByRange(sy, ey, cid);
     },
-    enabled: () => !!campaignId.value,
+    enabled: () => !!campaignId.value && unref(wanted),
   });
 }
 

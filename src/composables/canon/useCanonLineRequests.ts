@@ -1,4 +1,4 @@
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
@@ -75,21 +75,30 @@ export function useLineRequestActions() {
     onError: (e) => toast.error(toast.fromError(e)),
   });
 
+  /** The requests being added right now: a second press while one is in flight would make the line twice. */
+  const adopting = ref<ReadonlySet<string>>(new Set());
+
   /** The entry is made first, then the request points at it. A failed pointer never deletes the entry just made. */
   async function adopt(request: Pick<CanonLineRequest, "id" | "kind" | "body">, sortOrder: number): Promise<void> {
-    let entry;
+    if (adopting.value.has(request.id)) return;
+    adopting.value = new Set([...adopting.value, request.id]);
     try {
-      entry = await createEntry({ part: "premise", premise_kind: request.kind, title: request.body, sort_order: sortOrder });
-    } catch {
-      return; // The mutation has already told the DM (toast).
+      let entry;
+      try {
+        entry = await createEntry({ part: "premise", premise_kind: request.kind, title: request.body, sort_order: sortOrder });
+      } catch {
+        return; // The mutation has already told the DM (toast).
+      }
+      try {
+        await updateRequest(request.id, { adopted_entry_id: entry.id });
+      } catch {
+        toast.error(`The ${request.kind} was added, but the request could not be marked as answered.`);
+      }
+      await refresh();
+    } finally {
+      adopting.value = new Set([...adopting.value].filter((id) => id !== request.id));
     }
-    try {
-      await updateRequest(request.id, { adopted_entry_id: entry.id });
-    } catch {
-      toast.error(`The ${request.kind} was added, but the request could not be marked as answered.`);
-    }
-    await refresh();
   }
 
-  return { adopt, letBe: (request: Pick<CanonLineRequest, "id">) => letBe.mutate(request.id) };
+  return { adopt, adopting, letBe: (request: Pick<CanonLineRequest, "id">) => letBe.mutate(request.id) };
 }

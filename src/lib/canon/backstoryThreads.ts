@@ -1,3 +1,4 @@
+import { THREAD_LINK_TYPES, isOpenThread, threadTiedIds } from "@edge-shared/canonLooseEnds.ts";
 import type { CanonEntry } from "@/types/canon.types";
 import type { WorldLink } from "@/types/connections.types";
 
@@ -9,31 +10,15 @@ import type { WorldLink } from "@/types/connections.types";
 
 export type BackstoryThreadLink = Pick<WorldLink, "from_kind" | "from_id" | "to_kind" | "to_id" | "type">;
 
-/** The link types that tie one canon entry to another. */
-export const THREAD_LINK_TYPES = ["related_to", "led_to"] as const;
-
-export function isOpenThread(entry: Pick<CanonEntry, "part" | "closed_as" | "revealed_at">): boolean {
-  return (entry.part === "question" && entry.closed_as === null) || (entry.part === "secret" && entry.revealed_at === null);
-}
+/** The rule is the loose-ends module's, shared with Tonight and the read-through, so the three never disagree. */
+export { THREAD_LINK_TYPES, isOpenThread };
 
 /** A question or a secret: the two parts a thread can be. */
 const isThreadPart = (entry: Pick<CanonEntry, "part">) => entry.part === "question" || entry.part === "secret";
 
-/** The ids of the canon entries tied to a backstory by a thread link (either end). */
-function tiedIds(backstoryId: string, links: readonly BackstoryThreadLink[]): Set<string> {
-  const tied = new Set<string>();
-  for (const link of links) {
-    if (link.from_kind !== "canon" || link.to_kind !== "canon") continue;
-    if (!(THREAD_LINK_TYPES as readonly string[]).includes(link.type)) continue;
-    if (link.from_id === backstoryId) tied.add(link.to_id);
-    else if (link.to_id === backstoryId) tied.add(link.from_id);
-  }
-  return tied;
-}
-
 /** Every thread of a backstory, open or paid off: the questions and secrets tied to it, in the DM's order, each once. */
 export function allThreads(backstoryId: string, entries: readonly CanonEntry[], links: readonly BackstoryThreadLink[]): CanonEntry[] {
-  const tied = tiedIds(backstoryId, links);
+  const tied = threadTiedIds(backstoryId, links);
   return entries.filter((e) => tied.has(e.id) && isThreadPart(e));
 }
 

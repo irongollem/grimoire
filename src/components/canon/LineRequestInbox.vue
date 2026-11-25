@@ -12,7 +12,7 @@
           <span v-if="askedBy(request)" class="text-label italic text-muted-foreground" data-testid="line-request-by"> · {{ askedBy(request) }}</span>
         </p>
         <span class="inline-flex items-center gap-2">
-          <AppButton variant="outline" size="sm" :label="`Add as a ${request.kind}`" data-testid="line-request-add" @click="adopt(request, sortOrder)" />
+          <AppButton variant="outline" size="sm" :label="`Add as a ${request.kind}`" :loading="adopting.has(request.id)" data-testid="line-request-add" @click="adopt(request, sortOrder)" />
           <AppButton variant="ghost" size="sm" label="Let it be" data-testid="line-request-let-be" @click="letBe(request)" />
         </span>
       </li>
@@ -38,7 +38,7 @@ const { sortOrder } = defineProps<{
 
 const { data: requests } = useCampaignLineRequests();
 const { data: party } = useParty();
-const { adopt, letBe } = useLineRequestActions();
+const { adopt, adopting, letBe } = useLineRequestActions();
 const open = computed(() => (requests.value ?? []).filter(isOpenLineRequest));
 /** The character, only when the player signed it. */
 const askedBy = (r: CanonLineRequest) => (r.asked_by === null ? null : ((party.value ?? []).find((m) => m.id === r.asked_by)?.name ?? null));

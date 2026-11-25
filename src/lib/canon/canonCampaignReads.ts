@@ -50,7 +50,8 @@ export async function fetchPeoples(campaignId: string): Promise<People[]> {
     name: r.name === null ? UNREADABLE_PEOPLE : r.name,
     ownName: r.own_name,
     recordName: r.record_name === null ? UNREADABLE_PEOPLE : r.record_name,
-    readable: r.name !== null,
+    // Readable is the record, not the name: a people's own name ("the Vell") fills `name` over a record this reader may not read.
+    readable: r.record_name !== null,
     percent: Number(r.percent),
     body: r.body,
   }));

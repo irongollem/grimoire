@@ -27,7 +27,7 @@ export const MIN_CLUES = 3;
 export const STALE_QUESTION_SESSIONS = 5;
 
 /** The link types that tie one canon entry to another as a thread of a backstory. */
-const THREAD_LINK_TYPES = ["related_to", "led_to"];
+export const THREAD_LINK_TYPES = ["related_to", "led_to"] as const;
 
 export interface LooseEntry {
   id: string;
@@ -75,17 +75,31 @@ export interface LooseEndFound {
 
 const isPlaced = (c: LooseClue) => c.location_id !== null || c.npc_id !== null || c.quest_beat_id !== null || c.item_id !== null || c.document_id !== null || c.passage_id !== null;
 
-/** Whether a question or secret is still open: an answered question and a revealed secret are paid off. */
-const isOpenThread = (e: LooseEntry) => (e.part === "question" && e.closed_as === null) || (e.part === "secret" && e.revealed_at === null);
+/**
+ * Whether a question or secret is still open: an answered question and a revealed secret are paid off. Anything else is
+ * never an open thread. The one rule: the backstory pane's thread list (`backstoryThreads.ts`) imports it from here.
+ */
+export function isOpenThread(e: { part: string; closed_as: string | null; revealed_at: string | null }): boolean {
+  return (e.part === "question" && e.closed_as === null) || (e.part === "secret" && e.revealed_at === null);
+}
 
-/** Whether a backstory has an open question or secret tied to it by a thread link, from either end. */
-function hasOpenThread(backstoryId: string, entries: readonly LooseEntry[], links: LooseEndsInput["links"]): boolean {
+/** The ids of the canon entries tied to a backstory by a thread link, from either end. Shared as `isOpenThread` is. */
+export function threadTiedIds(
+  backstoryId: string,
+  links: readonly { from_kind: string; from_id: string | null; to_kind: string; to_id: string | null; type: string }[],
+): Set<string> {
   const tied = new Set<string>();
   for (const l of links) {
-    if (l.from_kind !== "canon" || l.to_kind !== "canon" || !THREAD_LINK_TYPES.includes(l.type)) continue;
+    if (l.from_kind !== "canon" || l.to_kind !== "canon" || !(THREAD_LINK_TYPES as readonly string[]).includes(l.type)) continue;
     if (l.from_id === backstoryId && l.to_id !== null) tied.add(l.to_id);
     else if (l.to_id === backstoryId && l.from_id !== null) tied.add(l.from_id);
   }
+  return tied;
+}
+
+/** Whether a backstory has an open question or secret tied to it by a thread link, from either end. */
+function hasOpenThread(backstoryId: string, entries: readonly LooseEntry[], links: LooseEndsInput["links"]): boolean {
+  const tied = threadTiedIds(backstoryId, links);
   return entries.some((e) => tied.has(e.id) && isOpenThread(e));
 }
 

@@ -367,6 +367,15 @@ language plpgsql
 set search_path = ''
 as $$
 begin
+  -- The two marks are this trigger's alone: a client never writes them, on insert or on any update, so a player cannot
+  -- invent "Edited by your DM" and a DM cannot clear it without the player's words coming back.
+  if tg_op = 'INSERT' then
+    new.dm_edited_at := null;
+    new.body_before_dm_edit := null;
+    return new;
+  end if;
+  new.dm_edited_at := old.dm_edited_at;
+  new.body_before_dm_edit := old.body_before_dm_edit;
   if old.author_id is null or (new.body is not distinct from old.body and new.title is not distinct from old.title) then
     return new;
   end if;
@@ -386,28 +395,56 @@ begin
 end;
 $$;
 revoke execute on function private.canon_lore_passages_keep_player_words() from public, anon, authenticated;
-create trigger canon_lore_passages_keep_player_words before update on public.canon_lore_passages
+create trigger canon_lore_passages_keep_player_words before insert or update on public.canon_lore_passages
   for each row execute procedure private.canon_lore_passages_keep_player_words();
 
 -- ── 8. A backstory's places hang off the character ────────────────────────────
 -- A hometown could be tied to the character or to the backstory, and neither page showed the other's tie. The
--- character is now the one subject: the backstory pane edits the character's own Connections. Ties a backstory
--- entry held to anything but the canon move to its character, unless the character already holds the same tie.
-insert into public.world_links (user_id, campaign_id, from_kind, from_party_member_id, to_kind, to_npc_id,
-                                to_party_member_id, to_faction_id, to_location_id, to_deity_id, to_item_id, type, note,
-                                told, player_visible_to, ai_provenance)
-select l.user_id, l.campaign_id, 'party_member', e.party_member_id, l.to_kind, l.to_npc_id, l.to_party_member_id,
-       l.to_faction_id, l.to_location_id, l.to_deity_id, l.to_item_id, l.type, l.note, l.told, l.player_visible_to,
-       l.ai_provenance
+-- character is now the one subject: the backstory pane edits the character's own Connections.
+--
+-- A tie from a canon entry only ever has a canon type (about, known_to, took_place_at), and none of those exists from a
+-- character (private.world_link_types), so a tie cannot move with its type. Copying it as it was broke the catalogue's
+-- foreign key on the nine such ties production held on 26 Nov 2026, all to people: "People from this past" (about)
+-- and the people a past was told to (known_to, with what they were told). A person from a character's past becomes the
+-- character's contact, the tie "New NPC from this backstory" makes when the DM picks no other, keeping the note, what
+-- was told and who sees it; an about and a known_to to one person become one tie. A character already tied to that
+-- person keeps their tie (a symmetric tie is stored either way round), which takes the note and what was told when it
+-- had none, and who sees them. A tie to a place, faction, god or item has no character type to become, and production
+-- held none, so those stay on the entry.
+create temp table backstory_people as
+select l.campaign_id, e.party_member_id as member, l.to_npc_id,
+       (array_agg(l.user_id order by l.type = 'known_to' desc, l.created_at))[1] as user_id,
+       coalesce(string_agg(distinct nullif(btrim(l.note), ''), E'\n'), '') as note,
+       coalesce(string_agg(distinct nullif(btrim(l.told), ''), E'\n'), '') as told,
+       coalesce(array_agg(distinct v) filter (where v is not null), '{}') as visible_to,
+       (array_agg(l.ai_provenance order by l.type = 'known_to' desc, l.created_at))[1] as ai_provenance
   from public.world_links l
   join public.canon_entries e on e.id = l.from_canon_entry_id and e.part = 'backstory'
- where l.to_kind not in ('canon', 'party_member')
-   and not exists (select 1 from public.world_links c
-                    where c.from_party_member_id = e.party_member_id and c.type = l.type and c.to_kind = l.to_kind
-                      and c.to_id = l.to_id);
+  left join lateral unnest(l.player_visible_to) as v on true
+ where l.to_kind = 'npc'
+ group by l.campaign_id, e.party_member_id, l.to_npc_id;
+
+update public.world_links c
+   set note = case when c.note = '' then b.note else c.note end,
+       told = case when c.told = '' then b.told else c.told end,
+       player_visible_to = array(select distinct x from unnest(c.player_visible_to || b.visible_to) as x)
+  from backstory_people b
+ where (c.from_party_member_id = b.member and c.to_npc_id = b.to_npc_id)
+    or (c.from_npc_id = b.to_npc_id and c.to_party_member_id = b.member);
+
+insert into public.world_links (user_id, campaign_id, from_kind, from_party_member_id, to_kind, to_npc_id, type, note,
+                                told, player_visible_to, ai_provenance)
+select b.user_id, b.campaign_id, 'party_member', b.member, 'npc', b.to_npc_id, 'contact', b.note, b.told, b.visible_to,
+       b.ai_provenance
+  from backstory_people b
+ where not exists (select 1 from public.world_links c
+                    where (c.from_party_member_id = b.member and c.to_npc_id = b.to_npc_id)
+                       or (c.from_npc_id = b.to_npc_id and c.to_party_member_id = b.member));
+
 delete from public.world_links l
  using public.canon_entries e
- where e.id = l.from_canon_entry_id and e.part = 'backstory' and l.to_kind not in ('canon', 'party_member');
+ where e.id = l.from_canon_entry_id and e.part = 'backstory' and l.to_kind = 'npc';
+drop table backstory_people;
 
 -- ── Live sync and the demo template ───────────────────────────────────────────
 create trigger canon_tonight_pins_signal_insert after insert on public.canon_tonight_pins

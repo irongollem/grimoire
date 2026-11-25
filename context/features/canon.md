@@ -767,8 +767,13 @@ table. The DM's Premise chapter shows `LineRequestInbox`: **Add as a line/veil**
 player had (`body_before_dm_edit`, from the first DM edit since the player last wrote) and stamps `dm_edited_at`; the
 player's own next edit clears both. The player's backstory shows "Edited by your DM" and "What you wrote".
 
-**A backstory's ties are the character's** (item 12). The migration moved every non-canon tie a backstory entry held onto
-its character (`party_member`), skipping one the character already held.
+**A backstory's ties are the character's** (item 12). A canon entry's ties only ever have canon types (`about`,
+`known_to`, `took_place_at`), none of which exists from a character, so a tie cannot move with its type. The migration
+made each person a backstory entry was tied to the character's `contact` (the tie "New NPC from this backstory" makes when
+no other is chosen), one tie per person, keeping the note, what was told and who sees it; a character already tied to
+that person keeps their tie, which takes the note and what was told when it had none. Ties to places, factions, gods or
+items have no character type to become and stay on the entry (production held none). The trigger that keeps a player's
+words also owns the two DM-edit marks: a client never writes `dm_edited_at` or `body_before_dm_edit`, on insert or update.
 
 ## Embedding on write
 

@@ -19,11 +19,14 @@ import type { Connection } from "@/types/connections.types";
  * name. It sits under the connections root, which a `world_links` write rings and the connection writers refresh.
  */
 async function fetchForceWhoLinks(campaignId: string): Promise<{ force_id: string; kind: WhoKind; id: string }[]> {
+  // Only links from a force: lore, secrets and truths are tied `about` people too, often by the hundred, and none of
+  // them is ever looked up here. The embed names its column because a link has two to the canon (from and to).
   const { data, error } = await supabase
     .from("world_links")
-    .select("from_id, to_id, to_kind")
+    .select("from_id, to_id, to_kind, source:canon_entries!from_canon_entry_id!inner(part)")
     .eq("campaign_id", campaignId)
     .eq("from_kind", "canon")
+    .eq("source.part", "force")
     .in("to_kind", [...WHO_KINDS])
     .eq("type", "about")
     .order("created_at", { ascending: true });

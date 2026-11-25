@@ -90,6 +90,20 @@ describe("useLineRequestActions", () => {
     expect(fake.rows("canon_line_requests")[0]).toMatchObject({ adopted_entry_id: null });
   });
 
+  // Bug caught (#1279 review): a double press ran adopt twice before either marked the request, making the line twice.
+  it("adds a request once when it is pressed again while the first is in flight", async () => {
+    let finish: (v: { id: string }) => void = () => {};
+    mocks.createEntry.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    const actions = host(() => useLineRequestActions());
+    const first = actions.adopt({ id: "r1", kind: "line", body: "x" }, 0);
+    expect(actions.adopting.value.has("r1")).toBe(true);
+    await actions.adopt({ id: "r1", kind: "line", body: "x" }, 0);
+    finish({ id: "e1" });
+    await first;
+    expect(mocks.createEntry).toHaveBeenCalledTimes(1);
+    expect(actions.adopting.value.has("r1")).toBe(false);
+  });
+
   // Bug caught: Let it be wrote nothing, or made an entry.
   it("lets a request be by stamping dismissed_at only", async () => {
     host(() => useLineRequestActions()).letBe({ id: "r1" });

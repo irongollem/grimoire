@@ -31,14 +31,23 @@ export function pinFor(pins: readonly CanonTonightPin[], target: PinTarget): Can
   return pins.find((p) => (p as unknown as Record<string, unknown>)[column] === id);
 }
 
-/** The new order after moving one pin a place: every pin whose index changed gets it as its `sort_order`. Pure. */
-export function reorderedPins(orderedIds: readonly string[], id: string, direction: -1 | 1): { id: string; sort_order: number }[] {
+/**
+ * The new order after moving one pin a place: the list is renumbered from its position, and every pin whose stored
+ * `sort_order` differs from its new index is written. Unpinning leaves gaps (5, 6, 7 once 0 to 4 are gone), so comparing
+ * positions alone would renumber the two that swapped and leave the rest behind them. Pure.
+ */
+export function reorderedPins(
+  orderedIds: readonly string[],
+  id: string,
+  direction: -1 | 1,
+  storedOrder: (pinId: string) => number | undefined,
+): { id: string; sort_order: number }[] {
   const from = orderedIds.indexOf(id);
   const to = from + direction;
   if (from < 0 || to < 0 || to >= orderedIds.length) return [];
   const next = [...orderedIds];
   [next[from], next[to]] = [next[to]!, next[from]!];
-  return next.flatMap((pinId, index) => (pinId === orderedIds[index] ? [] : [{ id: pinId, sort_order: index }]));
+  return next.flatMap((pinId, index) => (storedOrder(pinId) === index ? [] : [{ id: pinId, sort_order: index }]));
 }
 
 function useCampaignId() {
@@ -122,7 +131,7 @@ export function useTonightPinWrites(pins: () => readonly CanonTonightPin[]) {
   const move = useMutation({
     mutationFn: async ({ orderedIds, id, direction }: { orderedIds: readonly string[]; id: string; direction: -1 | 1 }) => {
       const results = await Promise.all(
-        reorderedPins(orderedIds, id, direction).map((c) => supabase.from("canon_tonight_pins").update({ sort_order: c.sort_order }).eq("id", c.id)),
+        reorderedPins(orderedIds, id, direction, (pinId) => pins().find((p) => p.id === pinId)?.sort_order).map((c) => supabase.from("canon_tonight_pins").update({ sort_order: c.sort_order }).eq("id", c.id)),
       );
       for (const r of results) if (r.error) throw r.error;
     },

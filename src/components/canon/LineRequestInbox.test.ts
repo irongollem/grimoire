@@ -7,7 +7,7 @@ const requests = ref<Record<string, unknown>[]>([]);
 vi.mock("@/composables/canon/useCanonLineRequests", async (orig) => ({
   ...(await orig<typeof import("@/composables/canon/useCanonLineRequests")>()),
   useCampaignLineRequests: () => ({ data: requests }),
-  useLineRequestActions: () => ({ adopt: mocks.adopt, letBe: mocks.letBe }),
+  useLineRequestActions: () => ({ adopt: mocks.adopt, adopting: ref(new Set<string>()), letBe: mocks.letBe }),
 }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref([{ id: "pm1", name: "Mira" }]) }) }));
 

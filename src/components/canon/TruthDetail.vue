@@ -54,7 +54,7 @@
       <p v-if="entry.revealed_at !== null" class="m-0 text-body text-foreground" data-testid="told-line">{{ toldLine }}</p>
       <div v-if="!toldToAll" class="flex flex-wrap items-center gap-2" data-testid="tell-controls">
         <AppButton variant="primary" size="sm" label="Tell the party" data-testid="tell-party" @click="tellParty(entry)" />
-        <AppButton v-if="!choosingWho" variant="outline" size="sm" :label="entry.revealed_at === null ? 'Tell…' : 'Tell more…'" data-testid="tell-some" @click="choosingWho = true" />
+        <AppButton v-if="!choosingWho && entry.knowledge !== 'all'" variant="outline" size="sm" :label="entry.revealed_at === null ? 'Tell…' : 'Tell more…'" data-testid="tell-some" @click="choosingWho = true" />
       </div>
       <PassageTellSome
         v-if="choosingWho && !toldToAll"

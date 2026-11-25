@@ -350,6 +350,14 @@ describe("TruthDetail", () => {
       expect(mocks.update).toHaveBeenCalledWith({ id: "t1", patch: expect.objectContaining({ knowledge: "some", revealed_session_id: "sess1" }) });
     });
 
+    // Bug caught (#1279 review): a truth marked known to all before telling existed has no stamp, so the Tell controls
+    // show, and "Tell…" narrowed it to some, taking it off every other player's World tab.
+    it("offers only Tell the party on a truth already known to all, never Tell…", () => {
+      const w = mountDetail(entry({ knowledge: "all", revealed_at: null }));
+      expect(w.find("[data-testid=tell-party]").exists()).toBe(true);
+      expect(w.find("[data-testid=tell-some]").exists()).toBe(false);
+    });
+
     // Bug caught: telling more later restamping the time and session, so the truth moved to the wrong night in "Canon this session".
     it("keeps the first time and session when told to more", async () => {
       const w = mountDetail(entry({ knowledge: "some", revealed_at: "2026-11-01T10:00:00Z", revealed_session_id: "old" }));

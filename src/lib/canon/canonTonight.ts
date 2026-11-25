@@ -385,6 +385,17 @@ export interface PinnedItem {
  * (a clue found, a passage told, a step reached): it has been played, and the DM does not have to unpin it. The scope
  * never cuts a pin; the DM chose it.
  */
+/**
+ * A pinned entry has been played as a pinned clue has: a question answered or a force ended (`closed_at`), a secret
+ * revealed, a truth told to the whole party. A backstory or an arc thread is never done by itself.
+ */
+function entryPlayed(e: Pick<CanonEntry, "part" | "closed_at" | "revealed_at" | "knowledge">): boolean {
+  if (e.closed_at !== null) return true;
+  if (e.part === "secret") return e.revealed_at !== null;
+  if (e.part === "truth") return e.knowledge === "all" && e.revealed_at !== null;
+  return false;
+}
+
 export function plannedItems(
   pins: readonly CanonTonightPin[],
   input: Pick<TonightInput, "entries" | "passages" | "clues" | "steps">,
@@ -409,7 +420,7 @@ export function plannedItems(
       out.push({ pinId: pin.id, kind: "step", title: step.title || "An unwritten step", context: `Step of: ${force.title}`, to: { path: "/canon", query: { entry: force.id } } });
     } else if (pin.entry_id !== null) {
       const target = entry.get(pin.entry_id);
-      if (target === undefined) continue;
+      if (target === undefined || entryPlayed(target)) continue;
       const to: Record<string, string> = target.part === "backstory" && target.party_member_id !== null ? { backstory: target.party_member_id } : { entry: target.id };
       out.push({ pinId: pin.id, kind: "entry", title: target.title, context: "Thread to follow", to: { path: "/canon", query: to } });
     }

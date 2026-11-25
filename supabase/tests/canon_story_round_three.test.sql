@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(33);
 
 -- 20261125202721_canon_story_round_three (#1279 wave 2): cover stories, Tonight's pins and plan, "Leave it", cultures,
 -- a told truth's moment, lines and veils asked for privately, and a DM's edit of a player's passage.
@@ -111,6 +111,11 @@ select is((select body_before_dm_edit from public.canon_lore_passages where id =
 update public.canon_lore_passages set body = 'She lit it, mostly by accident.' where id = '12790000-0000-4000-8000-000000000201';
 select is((select body_before_dm_edit from public.canon_lore_passages where id = '12790000-0000-4000-8000-000000000201'),
   'I lit it, and I would again.', 'a second DM edit keeps the player''s words, not the DM''s first draft');
+update public.canon_lore_passages set dm_edited_at = null, body_before_dm_edit = null
+ where id = '12790000-0000-4000-8000-000000000201';
+select ok((select dm_edited_at is not null and body_before_dm_edit = 'I lit it, and I would again.' from public.canon_lore_passages
+            where id = '12790000-0000-4000-8000-000000000201'),
+  'the DM cannot clear the mark without the player''s words coming back');
 
 select is((select jsonb_array_length(public.get_canon_here('npc', '12790000-0000-4000-8000-000000000401') -> 'knows')), 1,
   'the NPC sheet reads what the person knows');
@@ -136,6 +141,16 @@ select is(public.get_canon_here('npc', '12790000-0000-4000-8000-000000000401') -
 
 -- ── The player again ────────────────────────────────────────────────────────────
 select set_config('request.jwt.claim.sub', '12790000-0000-4000-8000-000000000002', true);
+update public.canon_lore_passages set body_before_dm_edit = 'Words I never wrote'
+ where id = '12790000-0000-4000-8000-000000000201';
+select is((select body_before_dm_edit from public.canon_lore_passages where id = '12790000-0000-4000-8000-000000000201'),
+  'I lit it, and I would again.', 'the player cannot rewrite what the passage said before the DM''s edit');
+insert into public.canon_lore_passages (id, campaign_id, entry_id, title, body, sort_order, dm_edited_at, body_before_dm_edit)
+select '12790000-0000-4000-8000-000000000209', p.campaign_id, p.entry_id, 'New', 'Mine', 9, now(), 'Invented'
+  from public.canon_lore_passages p where p.id = '12790000-0000-4000-8000-000000000201';
+select ok((select dm_edited_at is null and body_before_dm_edit is null from public.canon_lore_passages
+            where id = '12790000-0000-4000-8000-000000000209'),
+  'a new passage cannot arrive marked as edited by the DM');
 update public.canon_lore_passages set body = 'Fine. By accident.' where id = '12790000-0000-4000-8000-000000000201';
 select ok((select dm_edited_at is null and body_before_dm_edit is null from public.canon_lore_passages
             where id = '12790000-0000-4000-8000-000000000201'),

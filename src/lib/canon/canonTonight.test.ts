@@ -447,4 +447,16 @@ describe("plannedItems (#1279 item 20)", () => {
     const pins = [pin("p2", { clue_id: "k2", sort_order: 0 }), pin("p1", { entry_id: "S1", sort_order: 2 }), pin("p3", { clue_id: "k1", sort_order: 1 })];
     expect(plannedItems(pins, input).map((i) => i.pinId)).toEqual(["p3", "p1"]);
   });
+  // Bug caught (#1279 review): a pinned clue left Planned once found, but a pinned question stayed after it was answered
+  // and a pinned secret after it was revealed, listed as a thread to follow every session after.
+  it("drops a pinned entry once it is played, and keeps one still open", () => {
+    const entries = [
+      canonEntry({ id: "Q", part: "question", closed_as: "answered", closed_at: "x" }),
+      canonEntry({ id: "R", part: "secret", revealed_at: "x" }),
+      canonEntry({ id: "T", part: "truth", knowledge: "all", revealed_at: "x" }),
+      canonEntry({ id: "O", part: "secret" }),
+    ];
+    const pins = ["Q", "R", "T", "O"].map((id, i) => pin(`p${id}`, { entry_id: id, sort_order: i }));
+    expect(plannedItems(pins, { entries, passages: [], clues: [], steps: [] }).map((i) => i.pinId)).toEqual(["pO"]);
+  });
 });

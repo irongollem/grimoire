@@ -15,9 +15,14 @@ export function useStepCalendar(force: () => CanonEntry, steps: () => readonly C
   const linked = computed(() => steps().filter(stepOnCalendar));
   const years = computed(() => {
     const due = linked.value.flatMap((s) => (s.due_year === null ? [] : [s.due_year]));
-    return due.length === 0 ? { from: 0, to: 0 } : { from: Math.min(...due), to: Math.max(...due) };
+    return due.length === 0 ? null : { from: Math.min(...due), to: Math.max(...due) };
   });
-  const { data: events } = useCalendarEventsRange(computed(() => years.value.from), computed(() => years.value.to));
+  // No step on the Calendar with a year, the common case: no span to read, so no request (a year-0 read finds nothing).
+  const { data: events } = useCalendarEventsRange(
+    computed(() => years.value?.from ?? 0),
+    computed(() => years.value?.to ?? 0),
+    computed(() => years.value !== null),
+  );
   const { mutateAsync: create } = useCreateCalendarEvent();
   const { mutateAsync: removeEvent } = useDeleteCalendarEvent();
 

@@ -6,7 +6,7 @@ import type { CanonEntry } from "@/types/canon.types";
 interface Chosen { id: string; name: string }
 
 /** What telling needs of the truth: which one, and whether it was told before (its first stamp is kept). */
-type Told = Pick<CanonEntry, "id" | "revealed_at">;
+type Told = Pick<CanonEntry, "id" | "revealed_at" | "knowledge">;
 
 /**
  * Telling a truth to the party (#1279 item 27): the DM's one tap for "they learned this". The truth is stamped with the
@@ -37,12 +37,15 @@ export function useTellTruth(entryId: () => string) {
     }
   }
 
-  /** Known to the characters chosen: each named as a knower, then the truth marked "some". Nothing is written for no one. */
+  /**
+   * Known to the characters chosen: each named as a knower, then the truth marked "some". Nothing is written for no one.
+   * A truth already known to all stays so: naming knowers never narrows who knows it.
+   */
   async function tellSome(entry: Told, members: readonly Chosen[]): Promise<boolean> {
     if (members.length === 0) return false;
     for (const m of members) await nameKnower(entry.id, { kind: "party_member", id: m.id, name: m.name });
     try {
-      await update({ id: entry.id, patch: { knowledge: "some", ...stamp(entry) } });
+      await update({ id: entry.id, patch: { knowledge: entry.knowledge === "all" ? "all" : "some", ...stamp(entry) } });
       return true;
     } catch {
       return false;
