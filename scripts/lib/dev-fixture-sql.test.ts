@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildHallSql, buildPlayerContentSql, FIXTURE_TAG, journalDrafts } from "./dev-fixture-sql";
+import { buildPlayerContentSql, FIXTURE_TAG, journalDrafts } from "./dev-fixture-sql";
 
 const CAMPAIGN = "11111111-2222-3333-4444-555555555555";
 const PLAYER = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 const MEMBER = "99999999-8888-7777-6666-555555555555";
-const FIXTURE = "12121212-3434-5656-7878-909090909090";
 
 describe("journalDrafts", () => {
   it("makes the requested number, tagged, spread over every category", () => {
@@ -64,24 +63,5 @@ describe("buildPlayerContentSql", () => {
 
   it("refuses an id that is not a uuid, so nothing can ride in on one", () => {
     expect(() => buildPlayerContentSql({ ...plan, campaignId: "x'; drop table npcs; --" })).toThrow(/uuid/);
-  });
-});
-
-describe("buildHallSql", () => {
-  it("gives every copy a fresh id and the fixture as owner, and replaces the old ones", () => {
-    const text = buildHallSql([{ id: "old", user_id: "other", name: "Brannoc", only_remote: 1 }], ["id", "user_id", "name"], FIXTURE, "fx_hall");
-    expect(text).toContain(`delete from public.hall_of_heroes where user_id = '${FIXTURE}'`);
-    expect(text).toContain("gen_random_uuid()");
-    expect(text).toContain("x.name");
-    // A column production has and this checkout lacks rides in the jsonb but is never named.
-    expect(text).toContain("(id, user_id, name)");
-    // The original id and owner are overridden, not copied through.
-    expect(text).toContain(`'user_id', '${FIXTURE}'::text`);
-  });
-
-  it("still clears the old copies when production has none", () => {
-    const text = buildHallSql([], ["id", "user_id", "name"], FIXTURE, "fx_hall");
-    expect(text).toContain("delete from public.hall_of_heroes");
-    expect(text).not.toContain("insert into");
   });
 });

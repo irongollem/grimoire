@@ -43,9 +43,10 @@
  *    took only one.
  *    (`dev-auth.ts` names its own clone "<name> (fixture)", so the two cannot
  *    be mistaken for each other.)
- * 5. Copies the account's Hall of Heroes, which belongs to the account rather
- *    than a campaign.
- * 6. Seats `player-fixture` in the copy, claims a character,
+ *    The Hall of Heroes is not copied: it is a shared library every signed-in
+ *    account reads, and `(setting, lower(name))` is unique across all accounts,
+ *    so the fixture already sees the admin's heroes and a copy could only collide.
+ * 5. Seats `player-fixture` in the copy, claims a character,
  *    and writes the player-side rows that can never come from production
  *    because they are the players' own: journal entries, discovered monsters
  *    and recipes shared with the character, all invented and generic (`lib/dev-fixture-sql.ts`).
@@ -98,7 +99,7 @@ import {
 } from "./lib/dev-campaign-io.ts";
 import { quote, sql } from "./lib/dev-db.ts";
 import { type PulledTable } from "./lib/dev-demo-sql.ts";
-import { buildHallSql, buildPlayerContentSql, journalDrafts } from "./lib/dev-fixture-sql.ts";
+import { buildPlayerContentSql, journalDrafts } from "./lib/dev-fixture-sql.ts";
 import { type FkRule, ownershipFilter, pruneForeignRows, remapToFixture, type Rows } from "./lib/dev-ownership.ts";
 import { assertRemoteUrl, readLocalStack, remoteCount, remoteRows } from "./lib/dev-stack.ts";
 
@@ -304,13 +305,6 @@ export async function pullAndCopy(
   };
 }
 
-async function copyHall(dbUrl: string, remote: URL, key: string, source: string, owner: string): Promise<number> {
-  const rows = await remoteRows(remote, key, "hall_of_heroes", `user_id=eq.${source}`, "id");
-  const columns = readLocalColumns(dbUrl, ["hall_of_heroes"]).get("hall_of_heroes") ?? [];
-  runSqlFile(dbUrl, buildHallSql(rows, columns, owner, "fx_hall"));
-  return rows.length;
-}
-
 function seedPlayerSide(dbUrl: string, campaignId: string) {
   const seat = seatPlayerFixture(dbUrl, campaignId);
   if (!seat) return null;
@@ -361,9 +355,6 @@ async function check(dbUrl: string, remote: URL, key: string, source: string): P
     const copies = previousCopies(dbUrl, owner, name);
     console.log(`    ${FIXTURE_EMAIL} has : ${copies.length ? copies.map((c) => describeCounts(localCounts(dbUrl, c))).join(" | ") : "no copy"}`);
   }
-  const hall = await remoteCount(remote, key, "hall_of_heroes", `user_id=eq.${source}`);
-  const localHall = sql(dbUrl, `select count(*) from public.hall_of_heroes where user_id = ${quote(owner)}`);
-  console.log(`\nhall of heroes: production ${hall}, fixture has ${localHall}`);
   console.log("\nRun without --check to pull, import, copy and seat.");
 }
 
@@ -415,8 +406,6 @@ async function main(): Promise<void> {
     }
   }
 
-  const heroes = await copyHall(stack.DB_URL, remote, key, source, owner);
-
   const biggest = copies.reduce((a, b) => (total(b.counts) > total(a.counts) ? b : a));
   const player = seedPlayerSide(stack.DB_URL, biggest.copyId);
 
@@ -433,7 +422,6 @@ async function main(): Promise<void> {
     console.log(`    pruned (dangling foreign keys) : ${tally(imported.pruned) || "nothing"}`);
     console.log(`    emptied (column kept, row kept): ${tally(imported.detached) || "nothing"}`);
   }
-  console.log(`  hall of heroes: ${heroes} copied`);
   if (removed.length) console.log(`  removed local copies of: ${removed.map((n) => `"${n}"`).join(", ")}`);
   console.log(
     player

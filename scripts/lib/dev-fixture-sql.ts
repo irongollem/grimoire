@@ -1,7 +1,6 @@
 /**
- * The pure halves of the account-level and player-side content `dev-campaigns.ts`
- * writes: the Hall of Heroes copy, and the rows a player authors that can never
- * come from production (journal entries, discovered monsters, shared recipes).
+ * The pure half of the player-side content `dev-campaigns.ts` writes: the rows
+ * a player authors that can never come from production (journal entries, discovered monsters, shared recipes).
  * Kept apart from the script so the statements can be tested without a stack.
  *
  * The player-side text is invented and deliberately generic. A real player's
@@ -9,7 +8,7 @@
  * from, production content.
  */
 import { markdownToTiptap } from "./tiptap.ts";
-import { dollar, ident, sharedColumns, uuid } from "./dev-demo-sql.ts";
+import { dollar, uuid } from "./dev-demo-sql.ts";
 
 /** Marks the journal rows this script wrote, so a re-run replaces exactly those. */
 export const FIXTURE_TAG = "dev-fixture";
@@ -116,35 +115,6 @@ export function buildPlayerContentSql(plan: PlayerContentPlan): string {
       `update public.crafting_recipes set player_visible_to = array_append(player_visible_to, '${member}') ` +
         `where id in (select r.id from public.crafting_recipes r where r.campaign_id = '${campaign}' order by r.name limit ${limit(plan.recipeLimit)}) ` +
         `and not '${member}' = any(player_visible_to);`,
-    );
-  }
-  lines.push("commit;");
-  return lines.join("\n") + "\n";
-}
-
-/**
- * Replaces the account's Hall of Heroes with fresh copies of the pulled rows.
- *
- * The hall is account-level (no campaign), and nothing references its rows, so
- * a copy needs only a new id and a new owner. The fixture's hall is made by
- * this script alone, which is why it is replaced whole rather than by marker.
- */
-export function buildHallSql(
-  rows: Record<string, unknown>[],
-  localColumns: string[],
-  fixtureId: string,
-  tag: string,
-): string {
-  const owner = uuid(fixtureId);
-  const lines = ["begin;", `delete from public.hall_of_heroes where user_id = '${owner}';`];
-  if (rows.length > 0) {
-    const cols = sharedColumns("hall_of_heroes", localColumns, rows).filter((c) => c !== "id" && c !== "user_id");
-    const stamped = "e || jsonb_build_object('id', gen_random_uuid(), 'user_id', " + `'${owner}'::text)`;
-    lines.push(
-      `insert into public.hall_of_heroes (id, user_id, ${cols.map(ident).join(", ")}) ` +
-        `select x.id, x.user_id, ${cols.map((c) => `x.${c}`).join(", ")} ` +
-        `from jsonb_array_elements(${dollar(JSON.stringify(rows), tag)}::jsonb) e ` +
-        `cross join lateral jsonb_populate_record(null::public.hall_of_heroes, ${stamped}) x;`,
     );
   }
   lines.push("commit;");
