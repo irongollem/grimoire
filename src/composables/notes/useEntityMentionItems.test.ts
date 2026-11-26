@@ -3,8 +3,8 @@ import { computed, effectScope, ref } from "vue";
 
 const speciesRows = ref<Array<{ id: string; name: string }>>([]);
 const speciesWanted = vi.hoisted(() => ({ last: null as null | (() => boolean) }));
-vi.mock("@/composables/canon/useCampaignSpecies", () => ({
-  useSpeciesList: (wanted: () => boolean) => {
+vi.mock("@/composables/canon/useSpeciesNames", () => ({
+  useSpeciesNames: (wanted: () => boolean) => {
     speciesWanted.last = wanted;
     return { species: speciesRows };
   },

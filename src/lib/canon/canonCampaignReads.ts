@@ -1,9 +1,9 @@
 import { supabase } from "@/lib/supabase";
 import { UNREADABLE_PEOPLE, type People } from "@/lib/canon/peoples";
-import { UNREADABLE_CREATURE, type Habitat, type HabitatLife } from "@/lib/canon/habitats";
+import { UNREADABLE_CREATURE } from "@/lib/canon/shares";
+import type { Habitat, HabitatLife } from "@/lib/canon/habitats";
 import type { Abundance, Activity, Clade, HabitatSpecies, Kingdom, LinkKind, LivesAs, Species, SpeciesForm, SpeciesLink, SpeciesSeason, SpeciesYield } from "@/lib/canon/ecologyTypes";
 import type { SeasonKind } from "@/types/calendar.types";
-import type { CanonArc } from "@/composables/canon/useCanonArcs";
 
 /**
  * The campaign's arcs, peoples and habitats, read below the Vue layer: their composables query through these, and the
@@ -11,17 +11,6 @@ import type { CanonArc } from "@/composables/canon/useCanonArcs";
  * composable.
  */
 
-/** The campaign's arcs in the DM's order, scoped in the query: RLS bounds who may read, it does not choose the campaign. */
-export async function fetchCanonArcs(campaignId: string): Promise<CanonArc[]> {
-  const { data, error } = await supabase
-    .from("canon_arcs")
-    .select("*")
-    .eq("campaign_id", campaignId)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  return data as CanonArc[];
-}
 
 interface NamedRow {
   id: string;

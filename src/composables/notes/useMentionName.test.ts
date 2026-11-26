@@ -79,8 +79,8 @@ vi.mock("@/composables/quests/useQuests", () => ({
 }));
 
 const speciesData = ref<Array<{ id: string; name: string }>>([]);
-vi.mock("@/composables/canon/useCampaignSpecies", () => ({
-  useSpeciesList: () => ({ species: speciesData }),
+vi.mock("@/composables/canon/useSpeciesNames", () => ({
+  useSpeciesNames: () => ({ species: speciesData }),
 }));
 
 vi.mock("@/lib/supabase", () => ({ supabase: {} }));

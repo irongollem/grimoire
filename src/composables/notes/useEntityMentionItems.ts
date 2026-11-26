@@ -4,7 +4,7 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
-import { useSpeciesList } from "@/composables/canon/useCampaignSpecies";
+import { useSpeciesNames } from "@/composables/canon/useSpeciesNames";
 import { useRoute } from "vue-router";
 import { isPlayerArea } from "@/router/lens";
 import { useCampaignStore } from "@/stores/campaign";
@@ -24,7 +24,7 @@ export function useEntityMentionItems(enabled?: () => boolean) {
   // are wanted here, not the whole guide.
   const route                  = useRoute();
   const dmArea                 = route === undefined || !isPlayerArea(route.path);
-  const { species }            = useSpeciesList(() => dmArea && (enabled === undefined || enabled()));
+  const { species }            = useSpeciesNames(() => dmArea && (enabled === undefined || enabled()));
   const campaignStore          = useCampaignStore();
 
   const mentionItems = computed<EntityMentionItem[]>(() => {

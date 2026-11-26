@@ -5,7 +5,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { toast } from "@/lib/toast";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { moveWithin } from "@/lib/canon/canonOrder";
-import { fetchCanonArcs } from "@/lib/canon/canonCampaignReads";
+import { fetchCanonArcs } from "@/lib/canon/canonArcReads";
 
 /** One arc of the campaign's story (`canon_arcs`): a name and one line of what it is about. DM-only. */
 export interface CanonArc {

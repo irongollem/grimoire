@@ -7,6 +7,13 @@
  * It imports nothing: the words the world block says for a list (`sharesLine`) are the server's, in
  * `@edge-shared/worldBlock.ts`, and a chunk that only wants a roll does not carry the world block.
  */
+/**
+ * What stands where a name would, for a creature a co-DM listed from their own shelf (a share that counts but is not
+ * `readable`). Here, not in `habitats.ts` or `ecologyTypes.ts`: the canon reads use it, and they load on the quest
+ * list, which must not pull in the roll, the world block or another chunk (the request budget, 27 Nov 2026).
+ */
+export const UNREADABLE_CREATURE = "A creature another DM listed";
+
 export interface Share {
   /** The record's name; a placeholder when this reader may not read the record. */
   name: string;

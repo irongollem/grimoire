@@ -7,7 +7,7 @@ import { sharesLine } from "@edge-shared/worldBlock.ts";
 import { tablesForPlaces, type TableOnPlace } from "@/lib/travel/wayTables";
 import { isAboutAt, linkSentence, linkWords, rollAdjust, TIME_OF_DAY_WORDS, workedOutShares, type RollWhen } from "./ecology";
 import type { HabitatLifeRow, HabitatSpecies, Species, SpeciesForm, SpeciesLink } from "./ecologyTypes";
-import { rollShare } from "./shares";
+import { rollShare, UNREADABLE_CREATURE } from "./shares";
 
 export interface Habitat {
   id: string;
@@ -22,8 +22,6 @@ export interface Habitat {
 /** A form on a habitat's roll; `readable` is false when this reader may not read its stat block's name. */
 export type HabitatLife = HabitatLifeRow & { readable: boolean };
 
-/** What stands where a name would, for a creature a co-DM listed from their own shelf. */
-export const UNREADABLE_CREATURE = "A creature another DM listed";
 
 /** A place put in a habitat, as `campaign_habitat_places` holds it. */
 export interface HabitatCoverage {

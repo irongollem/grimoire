@@ -13,7 +13,6 @@
 import { supabase } from "@/lib/supabase";
 import { fetchCanonEntries } from "@/lib/canon/canonEntries";
 import {
-  fetchCanonArcs,
   fetchClades,
   fetchHabitats,
   fetchHabitatSpecies,
@@ -24,6 +23,7 @@ import {
   fetchStatBlockNames,
   fetchHabitatLife,
 } from "@/lib/canon/canonCampaignReads";
+import { fetchCanonArcs } from "@/lib/canon/canonArcReads";
 import { getCalendarAdapter } from "@/settings";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { CurrencyConfig } from "@/lib/currency/currency";

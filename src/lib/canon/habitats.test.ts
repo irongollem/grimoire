@@ -5,12 +5,12 @@ import {
   habitatForPlace,
   lifeConstraints,
   whereLine,
-  UNREADABLE_CREATURE,
   type EncounterEntry,
   type EncounterHabitat,
   type HabitatLife,
 } from "./habitats";
 import type { Species, SpeciesForm } from "./ecologyTypes";
+import { UNREADABLE_CREATURE } from "./shares";
 
 const parents: Record<string, string | null> = { room: "town", town: "region", region: null, island: null, inner: "town" };
 const parentOf = (id: string) => parents[id] ?? null;
