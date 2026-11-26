@@ -76,6 +76,20 @@
               placeholder="admin_grant"
             />
           </div>
+          <div class="space-y-1 basis-full">
+            <label class="block text-eyebrow font-semibold text-muted-foreground">
+              Message to the user (shown once with the credits)
+            </label>
+            <AppInput
+              v-model="grantMessage"
+              type="text"
+              tone="filled"
+              size="body"
+              maxlength="500"
+              :disabled="(grantAmount ?? 0) < 0"
+              placeholder="Thanks for reporting the recipe bug!"
+            />
+          </div>
           <AppButton
             variant="primary"
             size="sm"
@@ -181,6 +195,7 @@ const selectedUser = computed(() =>
 
 const grantAmount = ref<number | null>(null);
 const grantReason = ref("admin_grant");
+const grantMessage = ref("");
 const grantSuccess = ref(false);
 
 function formatWhen(iso: string): string {
@@ -195,9 +210,12 @@ async function doGrantCredits() {
     userId: selectedUserId.value,
     amount: grantAmount.value,
     reason: grantReason.value || "admin_grant",
+    // Taking credits back is a correction, so it carries no message (the RPC refuses one).
+    message: grantAmount.value > 0 && grantMessage.value.trim() ? grantMessage.value.trim() : null,
   });
   grantSuccess.value = true;
   grantAmount.value = null;
+  grantMessage.value = "";
   await ledger.refetch();
   setTimeout(() => (grantSuccess.value = false), 3000);
 }

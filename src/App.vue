@@ -21,6 +21,7 @@
     <ConfirmDialog />
     <LootDropChoiceDialog />
     <OutOfCreditsModal v-if="auth.isAuthenticated" />
+    <CreditGiftDialog v-if="auth.isAuthenticated" />
     <ToastHost />
     <ManualRollPrompt />
     <RollModePicker />
@@ -58,6 +59,7 @@ import { navigationPending } from "@/router/navigationPending";
 import ConfirmDialog from "@/components/common/overlays/ConfirmDialog.vue";
 import LootDropChoiceDialog from "@/components/chat/LootDropChoiceDialog.vue";
 import OutOfCreditsModal from "@/components/billing/OutOfCreditsModal.vue";
+import CreditGiftDialog from "@/components/billing/CreditGiftDialog.vue";
 import ToastHost from "@/components/common/feedback/ToastHost.vue";
 import ManualRollPrompt from "@/components/common/dice/ManualRollPrompt.vue";
 import RollModePicker from "@/components/common/dice/RollModePicker.vue";
