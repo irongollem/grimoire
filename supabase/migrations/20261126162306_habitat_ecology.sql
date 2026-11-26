@@ -187,6 +187,9 @@ create table public.campaign_species_yields (
 );
 create unique index campaign_species_yields_item_once on public.campaign_species_yields (species_id, item_id) where item_id is not null;
 create unique index campaign_species_yields_library_once on public.campaign_species_yields (species_id, library_item_id) where library_item_id is not null;
+-- The two partial unique indexes cover only rows with that kind of item; foreign_key_indexes.test.sql wants every
+-- foreign key to have an index all its lookups can use.
+create index campaign_species_yields_species_idx on public.campaign_species_yields (species_id);
 create index campaign_species_yields_item_idx on public.campaign_species_yields (item_id) where item_id is not null;
 create index campaign_species_yields_campaign_idx on public.campaign_species_yields (campaign_id);
 create index campaign_species_yields_user_idx on public.campaign_species_yields (user_id);
