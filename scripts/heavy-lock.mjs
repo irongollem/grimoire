@@ -60,6 +60,10 @@ export function tryAcquire(owner, dir = LOCK_DIR, now = Date.now()) {
     const held = readOwner(dir);
     const stale = held === null ? lockAge(dir, now) > 60_000 : !isAlive(held.pid);
     if (!stale) return held ?? { pid: 0, label: "another job", cwd: "?", command: "", startedAt: new Date(now).toISOString() };
+    // Two waiters can both find the same dead owner. Remove the lock only if it is still that owner's: one that another
+    // waiter has already taken over (a live pid, or a different one) is left alone and waited on.
+    const again = readOwner(dir);
+    if (again !== null && (held === null || again.pid !== held.pid)) return again;
     rmSync(dir, { recursive: true, force: true });
     return tryAcquire(owner, dir, now);
   }
@@ -80,6 +84,11 @@ function lockAge(dir, now) {
 export function release(pid, dir = LOCK_DIR) {
   const held = readOwner(dir);
   if (held !== null && held.pid === pid) rmSync(dir, { recursive: true, force: true });
+}
+
+/** One argument as a single POSIX shell word. */
+export function shellQuote(arg) {
+  return /^[A-Za-z0-9_./:=@%+-]+$/.test(arg) ? arg : `'${arg.replace(/'/g, `'\\''`)}'`;
 }
 
 function describe(owner) {
@@ -113,8 +122,11 @@ async function main(argv) {
     process.on("exit", letGo);
   }
 
-  // One string through the shell: package.json passes a whole command line (with && and env prefixes) as one argument.
-  const child = spawn(command.join(" "), {
+  // The first argument is a whole command line (package.json passes it quoted, with && and env prefixes) and goes to the
+  // shell as written; arguments npm appends after it (`npm test -- -t "adds a species"`) are quoted so the shell does
+  // not split them again.
+  const line = [command[0], ...command.slice(1).map(shellQuote)].join(" ");
+  const child = spawn(line, {
     stdio: "inherit",
     shell: true,
     env: { ...process.env, GRIMOIRE_HEAVY_LOCK: bypass ? process.env.GRIMOIRE_HEAVY_LOCK : "held" },

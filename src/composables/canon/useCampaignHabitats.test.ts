@@ -113,6 +113,22 @@ describe("the writes", () => {
     expect(roll[0]).toMatchObject({ percent: null, species_id: "s1", habitat_id: "h1" });
   });
 
+  // Bug: the roll's insert failed after the species was added, leaving it here with nothing on its roll and a retry refused.
+  it("takes the species back out when its forms cannot be put on the roll", async () => {
+    fake.seed("campaign_species_forms", [
+      { id: "adult", campaign_id: "c1", species_id: "s1", stage_order: 1, domesticated: false, monster_id: "m1", library_monster_id: null },
+    ]);
+    const { addHabitatSpecies } = inSetup(useHabitatEditing);
+    await flushPromises();
+    // The first call is the read of the roll's last sort order; the refusal is the insert after it.
+    fake.failNext("campaign_habitat_life", { message: "boom" }, { after: 1 });
+    addHabitatSpecies("h1", "s1");
+    await flushPromises();
+    expect(fake.rows("campaign_habitat_species")).toHaveLength(0);
+    expect(fake.rows("campaign_habitat_life")).toHaveLength(0);
+    expect(toasts.error).toHaveBeenCalled();
+  });
+
   // Bug: the species landing twice (23505) surfaced as a raw index name.
   it("says a species already living here in plain words", async () => {
     const { addHabitatSpecies } = inSetup(useHabitatEditing);

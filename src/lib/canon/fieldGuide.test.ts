@@ -40,6 +40,13 @@ describe("speciesMark", () => {
 });
 
 describe("splitStageInput", () => {
+  // Bug: a long stage label passed the field but the database refused it (labels hold 40 characters) with a vague toast.
+  it("cuts a stage label to the 40 characters a form label holds", () => {
+    const long = "Fully grown breeding adult in the winter coat";
+    expect(splitStageInput(long, null, null)?.label).toBe("Fully grown breeding adult in the winter");
+    expect(splitStageInput(`${long} @Rime_Cub`, "@Rime_Cub", "m1")?.label.length).toBeLessThanOrEqual(40);
+  });
+
   // Bug: the words typed before the @ were dropped, or a bare stat block made a form with no label.
   it("takes the words before the pick as the label and defaults to Adult", () => {
     expect(splitStageInput("Young @Rime_Cub ", "@Rime_Cub", "m1")).toEqual({ label: "Young", itemId: "m1" });

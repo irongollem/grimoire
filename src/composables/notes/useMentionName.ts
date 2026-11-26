@@ -42,7 +42,7 @@ import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonsters
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
-import { useCampaignSpecies } from "@/composables/canon/useCampaignSpecies";
+import { useSpeciesList } from "@/composables/canon/useCampaignSpecies";
 import type { EntityType } from "@/lib/tiptap/nodeViewTypes";
 
 /**
@@ -171,7 +171,8 @@ function useCompanionName(id: string): ComputedRef<string | null> {
 }
 
 function useDmSpeciesName(id: string): ComputedRef<string | null> {
-  const { species } = useCampaignSpecies();
+  // Only the names: a chip reads the one list, never the whole field guide.
+  const { species } = useSpeciesList();
   return computed(() => nameOf(species.value, id));
 }
 

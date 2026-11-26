@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-2" data-testid="species-forms">
     <ul v-if="mine.length > 0" class="m-0 flex list-none flex-col gap-1.5 p-0">
       <li v-for="f in mine" :key="f.id" class="flex flex-wrap items-center gap-x-3 gap-y-1" data-testid="species-form">
-        <InlineEditText :model-value="f.label" required placeholder="A stage" :ariaLabel="`Stage of ${f.label}`" :maxlength="60" text-class="text-body font-semibold" @commit="(v) => v !== null && updateForm(f.id, { label: v })" />
+        <InlineEditText :model-value="f.label" required placeholder="A stage" :ariaLabel="`Stage of ${f.label}`" :maxlength="FORM_LABEL_MAX" text-class="text-body font-semibold" @commit="(v) => v !== null && updateForm(f.id, { label: v })" />
         <EntityMentionChip v-if="statBlockOf(f) !== null" entity-type="monster" :id="statBlockOf(f) as string" :editable="false" data-testid="form-stat-block" />
         <span v-else class="text-caption italic text-muted-foreground">No stat block</span>
         <span class="ml-auto flex items-center gap-2">
@@ -46,7 +46,7 @@ import MentionTextarea from "@/components/common/controls/MentionTextarea.vue";
 import EntityMentionChip from "@/components/tiptap/EntityMentionChip.vue";
 import { useSpeciesEditing } from "@/composables/canon/useCampaignSpecies";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
-import { splitStageInput } from "@/lib/canon/fieldGuide";
+import { FORM_LABEL_MAX, splitStageInput } from "@/lib/canon/fieldGuide";
 import type { Species, SpeciesForm } from "@/lib/canon/ecologyTypes";
 import { IconAdd, IconClose } from "@/lib/icons";
 

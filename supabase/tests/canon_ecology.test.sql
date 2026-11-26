@@ -6,7 +6,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(28);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('12830000-0000-4000-8000-00000000000' || n)::uuid, '00000000-0000-0000-0000-000000000000',
@@ -136,6 +136,14 @@ select lives_ok($$
 $$, 'the DM takes the false crust out of the marsh');
 select is((select count(*)::int from public.campaign_habitat_life where species_id = '12830000-0000-4000-8000-0000000000d1'), 0,
   'and its forms leave the roll with it');
+
+-- ── Removing a form widens its links ──
+select lives_ok($$
+  delete from public.campaign_species_forms where id = '12830000-0000-4000-8000-000000000022'
+$$, 'the DM removes the grown pith piper form');
+select is((select count(*)::int from public.campaign_species_links
+            where from_species_id = '12830000-0000-4000-8000-0000000000d1' and kind = 'eats' and to_form_id is null), 1,
+  'the false crust still eats pith pipers, now of any age: the link was widened, not deleted');
 
 -- ── A truth about a species ──
 select lives_ok($$

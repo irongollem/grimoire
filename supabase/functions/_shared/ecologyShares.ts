@@ -56,8 +56,10 @@ const weightOf = (s: EcologySpeciesInput | undefined): number => {
 
 export function workedOutShares(input: WorkedOutInput): WorkedOut {
   const otherSet = input.otherPercent !== null;
-  const other = input.otherPercent ?? DEFAULT_OTHER_PERCENT;
   const setTotal = input.life.reduce((sum, l) => sum + (l.percent ?? 0), 0);
+  // A worked-out "anything else" only takes what the DM's own shares leave: 10, or less when they already fill the roll,
+  // so the whole never reads past 100 (the database checks only the DM's numbers).
+  const other = otherSet ? (input.otherPercent as number) : Math.min(DEFAULT_OTHER_PERCENT, Math.max(0, 100 - setTotal));
   const free = Math.max(0, 100 - other - setTotal);
 
   const speciesById = new Map(input.species.map((s) => [s.speciesId, s]));

@@ -17,6 +17,24 @@ import type { SeasonKind } from "@/types/calendar.types";
 
 const UNIQUE_VIOLATION = "23505";
 
+/**
+ * The species alone, for a picker or a chip that needs only names (the @-mention list): the same query, under the same
+ * key, as `useCampaignSpecies`, so the two share one cache entry, without reading clades, forms, links and yields.
+ */
+export function useSpeciesList(wanted: () => boolean = () => true) {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  const query = useQuery({
+    queryKey: computed(() => [CANON_KEY, "species", campaignId.value] as const),
+    queryFn: ({ queryKey: [, , cid] }) => {
+      if (cid === null) throw new Error("useSpeciesList fetched without a campaign");
+      return fetchSpecies(cid);
+    },
+    enabled: computed(() => !!campaignId.value && wanted()),
+  });
+  return { species: computed(() => query.data.value ?? []) };
+}
+
 export function useCampaignSpecies(wanted: () => boolean = () => true) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);

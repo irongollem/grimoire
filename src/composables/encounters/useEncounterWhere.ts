@@ -58,7 +58,8 @@ export function useEncounterWhere(placeId: () => string | null, wanted: () => bo
       statBlockNameByForm: statBlockNameByForm.value,
       when: { timeOfDay: hour, season: season.value },
     });
-    return built.entries.some((e) => e.percent > 0) ? built : null;
+    // Kept when nothing can be met right now (all away or resting): its notes and the "not about" constraint still matter.
+    return built.entries.length > 0 || built.notes.length > 0 ? built : null;
   }
   const habitat = computed<EncounterHabitat | null>(() => habitatOf(source.value, timeOfDay()));
 

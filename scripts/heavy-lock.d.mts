@@ -12,3 +12,4 @@ export function isAlive(pid: number): boolean;
 export function readOwner(dir?: string): HeavyLockOwner | null;
 export function tryAcquire(owner: HeavyLockOwner, dir?: string, now?: number): HeavyLockOwner | null;
 export function release(pid: number, dir?: string): void;
+export function shellQuote(arg: string): string;

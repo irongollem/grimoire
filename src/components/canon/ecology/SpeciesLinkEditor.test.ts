@@ -21,7 +21,9 @@ const link = { id: "l1", fromSpeciesId: "piper", kind: "eats" as const, toSpecie
 const mountFor = (speciesId: string) => mount(SpeciesLinkEditor, { props: { link, species: sp(speciesId, speciesId) as never } });
 
 describe("SpeciesLinkEditor", () => {
-  beforeEach(() => mocks.updateLink.mockReset().mockResolvedValue(undefined));
+  beforeEach(() => {
+    mocks.updateLink.mockReset().mockResolvedValue(undefined);
+  });
 
   // Bug: the age picked for "this species" was written to the link's from side whichever way the link was written.
   it("writes the open species' age to the column that species is in", async () => {

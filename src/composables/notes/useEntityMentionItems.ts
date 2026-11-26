@@ -4,7 +4,9 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
-import { useCampaignSpecies } from "@/composables/canon/useCampaignSpecies";
+import { useSpeciesList } from "@/composables/canon/useCampaignSpecies";
+import { useRoute } from "vue-router";
+import { isPlayerArea } from "@/router/lens";
 import { useCampaignStore } from "@/stores/campaign";
 import type { EntityMentionItem } from "@/lib/tiptap/EntityMention";
 
@@ -18,7 +20,11 @@ export function useEntityMentionItems(enabled?: () => boolean) {
   const { data: monsterIndex } = useMonsterIndex(enabled ? () => ({ enabled: enabled() }) : undefined);
   const { data: locations }    = useAllLocations(enabled);
   const { data: factions }     = useAllFactions(enabled);
-  const { species }            = useCampaignSpecies(enabled);
+  // The field guide is the DM's: a player's editor never reads it (RLS would return nothing anyway), and only the names
+  // are wanted here, not the whole guide.
+  const route                  = useRoute();
+  const dmArea                 = route === undefined || !isPlayerArea(route.path);
+  const { species }            = useSpeciesList(() => dmArea && (enabled === undefined || enabled()));
   const campaignStore          = useCampaignStore();
 
   const mentionItems = computed<EntityMentionItem[]>(() => {

@@ -77,4 +77,12 @@ describe("speciesShare", () => {
     const r = workedOutShares({ species: [sp("a")], life: [{ formId: "a1", speciesId: "a", percent: 20 }, { formId: "a2", speciesId: "a", percent: 5 }, { formId: "z", speciesId: "a", percent: 30 }], otherPercent: null });
     expect(speciesShare(r.forms, ["a1", "a2"])).toBe(25);
   });
+
+  // Bug: with the DM's shares at 100, a worked-out "anything else" of 10 made the roll read 110%.
+  it("shrinks a worked-out anything else to what the DM's own shares leave", () => {
+    const full = workedOutShares({ species: [sp("a"), sp("b")], life: [{ formId: "fa", speciesId: "a", percent: 60 }, { formId: "fb", speciesId: "b", percent: 40 }], otherPercent: null });
+    expect(full.other).toEqual({ percent: 0, set: false });
+    const most = workedOutShares({ species: [sp("a")], life: [{ formId: "fa", speciesId: "a", percent: 95 }], otherPercent: null });
+    expect(most.other).toEqual({ percent: 5, set: false });
+  });
 });

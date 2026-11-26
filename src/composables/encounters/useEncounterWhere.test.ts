@@ -69,11 +69,10 @@ describe("useEncounterWhere", () => {
   });
 
   // Bug: a habitat whose forms all have no share drew "anything else 100%" and rolled a constraint from nothing.
-  it("reports no habitat when no creature there has a share", () => {
+  it("keeps a habitat whose creatures are all at no share, so the roll can say none of them is about", () => {
     state.percent = 0;
     const where = useEncounterWhere(() => "town");
-    expect(where.habitat.value).toBeNull();
-    expect(where.line.value).toBeNull();
+    expect(where.habitat.value?.entries.map((e) => e.percent)).toEqual([0]);
   });
 
   // Bug: the card's Time of day never reached the roll, so a night fight met the daytime species at full strength.
@@ -88,7 +87,10 @@ describe("useEncounterWhere", () => {
   it("takes a species off the roll in a season it is away, from the campaign's date", () => {
     state.away = true;
     state.season = "winter";
-    expect(useEncounterWhere(() => "town").habitat.value).toBeNull();
+    // Bug (review, 26 Nov 2026): a habitat whose species were all away was dropped, and with it the note saying why.
+    const winter = useEncounterWhere(() => "town");
+    expect(winter.habitat.value?.entries[0].percent).toBe(0);
+    expect(winter.line.value).toContain("away in winter");
     state.season = "summer";
     expect(useEncounterWhere(() => "town").habitat.value?.entries[0].percent).toBe(40);
   });

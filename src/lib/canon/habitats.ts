@@ -139,7 +139,12 @@ export function buildEncounterHabitat(input: BuildEncounterHabitatInput): Encoun
  */
 export function lifeConstraints(h: EncounterHabitat, random: () => number = Math.random): string[] {
   const shared = h.entries.filter((e) => e.percent > 0);
-  if (shared.length === 0) return [];
+  if (shared.length === 0) {
+    // Everything that lives here is away this season or resting now: say so, so the generator does not pick one of them.
+    const absent = [...new Set(h.entries.filter((e) => e.readable).map((e) => e.speciesName))];
+    if (absent.length === 0) return [];
+    return [`Nothing that lives in ${h.name} is about now (${absent.join(", ")} are not): something this country rarely sees.`];
+  }
   const rolled = rollShare(shared, random);
   if (rolled) {
     const where = `it is what lives in ${h.name}${rolled.about === null ? "" : `, ${rolled.about}`}.`;
@@ -153,9 +158,13 @@ export function lifeConstraints(h: EncounterHabitat, random: () => number = Math
 
 /** "Salt marsh: Marsh eel 40%, Giant frog 20%, anything else 40%": each species once, its forms summed. */
 export function whereLine(h: EncounterHabitat): string {
-  const bySpecies = new Map<string, number>();
-  for (const e of h.entries) bySpecies.set(e.speciesName, (bySpecies.get(e.speciesName) ?? 0) + e.percent);
-  const line = sharesLine([...bySpecies].map(([name, percent]) => ({ name, percent })), "anything else");
+  // By species id: two species may share a common name, and each keeps its own share.
+  const bySpecies = new Map<string, { name: string; percent: number }>();
+  for (const e of h.entries) {
+    const seen = bySpecies.get(e.speciesId);
+    bySpecies.set(e.speciesId, { name: e.speciesName, percent: (seen === undefined ? 0 : seen.percent) + e.percent });
+  }
+  const line = sharesLine([...bySpecies.values()], "anything else");
   return `${h.name}: ${line}`;
 }
 

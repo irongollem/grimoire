@@ -110,13 +110,17 @@ export interface StageInput {
  * cub's stat block), "Adult" when only a stat block was picked. With nothing picked the whole line is the label, for a
  * stage that has no stat block yet. Null when the line holds no words and no pick.
  */
+/** The longest stage label `campaign_species_forms_label_length` takes. */
+export const FORM_LABEL_MAX = 40;
+
 export function splitStageInput(text: string, pickedToken: string | null, pickedId: string | null): StageInput | null {
   const at = pickedToken === null ? -1 : text.indexOf(pickedToken);
+  // A label past the column's limit is cut to it rather than refused by the database with a vague error.
   if (pickedId !== null && at >= 0) {
-    const label = text.slice(0, at).trim();
+    const label = text.slice(0, at).trim().slice(0, FORM_LABEL_MAX).trim();
     return { label: label === "" ? DEFAULT_FORM_LABEL : label, itemId: pickedId };
   }
-  const label = text.trim();
+  const label = text.trim().slice(0, FORM_LABEL_MAX).trim();
   return label === "" ? null : { label, itemId: null };
 }
 

@@ -10,7 +10,10 @@ const base = { id: "s1", name: "Rime bear", scientificName: null, cladeId: null,
 const mountIt = (seasons = {}, activity: "night" | null = null) => mount(SpeciesWhen, { props: { species: { ...base, seasons, activity } } });
 
 describe("SpeciesWhen", () => {
-  beforeEach(() => mocks.update.mockReset().mockResolvedValue(undefined));
+  // Braces: a function returned from beforeEach is called as its cleanup, and that would call the mock.
+  beforeEach(() => {
+    mocks.update.mockReset().mockResolvedValue(undefined);
+  });
 
   // Bug: Choose… saved an empty string as the activity (the database refuses it), or the label was saved instead of the value.
   it("saves the activity as its value and Choose as none", async () => {
@@ -32,5 +35,16 @@ describe("SpeciesWhen", () => {
     const w = mountIt({ winter: { away: true, note: null }, spring: { away: false, note: "calves" } });
     await w.get("[data-testid=season-winter] input[type=checkbox]").setValue(false);
     expect(mocks.update).toHaveBeenCalledExactlyOnceWith("s1", { seasons: { spring: { away: false, note: "calves" } } });
+  });
+
+  // Bug: two quick marks each rebuilt the seasons from the prop, which lags the write, so the second wiped the first.
+  it("keeps the first of two quick changes while its save is still in flight", async () => {
+    const pending: (() => void)[] = [];
+    mocks.update.mockImplementation(() => new Promise<void>((resolve) => { pending.push(resolve); }));
+    const w = mountIt();
+    await w.get("[data-testid=season-winter] input[type=checkbox]").setValue(true);
+    await w.get("[data-testid=season-autumn] input[type=checkbox]").setValue(true);
+    expect(mocks.update).toHaveBeenLastCalledWith("s1", { seasons: { winter: { away: true, note: null }, autumn: { away: true, note: null } } });
+    pending.forEach((resolve) => resolve());
   });
 });

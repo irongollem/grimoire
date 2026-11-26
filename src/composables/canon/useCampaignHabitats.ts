@@ -106,13 +106,21 @@ export async function insertHabitatSpecies(campaignId: string, habitatId: string
   const forms = await fetchFormsOfSpecies(campaignId, speciesId);
   const { error } = await supabase.from("campaign_habitat_species").insert({ campaign_id: campaignId, habitat_id: habitatId, species_id: speciesId, sort_order: sortOrder });
   if (error) throw error;
-  let next = await nextSortOrder("campaign_habitat_life", campaignId, habitatId);
   const onRoll = forms.filter((f) => !f.domesticated && (f.monsterId !== null || f.libraryMonsterId !== null));
   if (onRoll.length === 0) return;
-  const { error: lifeError } = await supabase.from("campaign_habitat_life").insert(
-    onRoll.map((f) => ({ campaign_id: campaignId, habitat_id: habitatId, species_id: speciesId, form_id: f.id, percent: null, sort_order: next++ })),
-  );
-  if (lifeError) throw lifeError;
+  try {
+    let next = await nextSortOrder("campaign_habitat_life", campaignId, habitatId);
+    const { error: lifeError } = await supabase.from("campaign_habitat_life").insert(
+      onRoll.map((f) => ({ campaign_id: campaignId, habitat_id: habitatId, species_id: speciesId, form_id: f.id, percent: null, sort_order: next++ })),
+    );
+    if (lifeError) throw lifeError;
+  } catch (failure) {
+    // Two requests, not one transaction: if the roll cannot be written, take the species back out, so it is not left
+    // living here with nothing on its roll and a retry is not refused as "already lives here".
+    // A habitat holds a species once (campaign_habitat_species_once), so habitat and species name this one row.
+    await supabase.from("campaign_habitat_species").delete().eq("campaign_id", campaignId).eq("habitat_id", habitatId).eq("species_id", speciesId);
+    throw failure;
+  }
 }
 
 export async function updateHabitatSpeciesAbundance(id: string, abundance: Abundance | null): Promise<void> {

@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { isAlive, readOwner, release, tryAcquire } from "./heavy-lock.mjs";
+import { isAlive, readOwner, release, shellQuote, tryAcquire } from "./heavy-lock.mjs";
 
 let base: string;
 let dir: string;
@@ -49,5 +49,12 @@ describe("heavy-lock", () => {
     expect(readOwner(dir)).toMatchObject({ label: "holder" });
     release(process.pid, dir);
     expect(readOwner(dir)).toBeNull();
+  });
+
+  // Bug: `npm test -- -t "adds a species"` reached vitest as `-t adds a species`: the lock re-split npm's arguments.
+  it("keeps an appended argument one shell word, quotes and all", () => {
+    expect(shellQuote("--maxWorkers=4")).toBe("--maxWorkers=4");
+    expect(shellQuote("adds a species")).toBe("'adds a species'");
+    expect(shellQuote("it's $HOME")).toBe(`'it'\\''s $HOME'`);
   });
 });

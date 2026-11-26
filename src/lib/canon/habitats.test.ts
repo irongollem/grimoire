@@ -72,18 +72,30 @@ describe("lifeConstraints", () => {
     expect(lifeConstraints(h, () => 0.5)).toEqual(["The creatures are not Marsh eel: something this country rarely sees."]);
   });
 
-  // Bug: a habitat with nothing at a share still constrained the encounter.
-  it("adds no constraint for a habitat with no creature at a share", () => {
+  // Bug: a habitat with nothing in it still constrained the encounter.
+  it("adds no constraint for a habitat where nothing lives", () => {
     expect(lifeConstraints(country([]), () => 0.1)).toEqual([]);
-    expect(lifeConstraints(country([entry("Marsh eel", 0)]), () => 0.1)).toEqual([]);
+  });
+
+  // Bug: when every species was away or resting, the roll sent nothing, and the model could pick one that is away.
+  it("says what lives here is not about now when nothing can be met", () => {
+    expect(lifeConstraints(country([entry("Marsh eel", 0), entry("Giant frog", 0)]), () => 0.1)).toEqual([
+      "Nothing that lives in Salt marsh is about now (Marsh eel, Giant frog are not): something this country rarely sees.",
+    ]);
   });
 });
 
 describe("whereLine", () => {
   // Bug: two forms of one species were listed as two creatures, or the rest left out.
   it("sums a species' forms and names the rest as anything else", () => {
-    const h = country([entry("Young eel", 10, { speciesName: "Marsh eel" }), entry("Old eel", 30, { speciesName: "Marsh eel" }), entry("Giant frog", 20)]);
+    const h = country([entry("Young eel", 10, { speciesId: "eel", speciesName: "Marsh eel" }), entry("Old eel", 30, { speciesId: "eel", speciesName: "Marsh eel" }), entry("Giant frog", 20)]);
     expect(whereLine(h)).toBe("Salt marsh: Marsh eel 40%, Giant frog 20%, anything else 40%");
+  });
+
+  // Bug: two species with the same common name were merged into one share.
+  it("keeps two species that share a name apart", () => {
+    const h = country([entry("rat-a", 20, { speciesId: "a", speciesName: "Marsh rat" }), entry("rat-b", 15, { speciesId: "b", speciesName: "Marsh rat" })]);
+    expect(whereLine(h)).toBe("Salt marsh: Marsh rat 20%, Marsh rat 15%, anything else 65%");
   });
 });
 

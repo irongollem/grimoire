@@ -154,10 +154,11 @@ create table public.campaign_species_links (
   updated_at timestamptz not null default now(),
   constraint campaign_species_links_target check (to_species_id is not null or kind in ('shelters', 'carries')),
   constraint campaign_species_links_to_form_needs_species check (to_form_id is null or to_species_id is not null),
+  -- A removed form widens the link to any age (only the form column is emptied); it never deletes the link itself.
   constraint campaign_species_links_from_form foreign key (from_form_id, from_species_id)
-    references public.campaign_species_forms (id, species_id) on delete cascade,
+    references public.campaign_species_forms (id, species_id) on delete set null (from_form_id),
   constraint campaign_species_links_to_form foreign key (to_form_id, to_species_id)
-    references public.campaign_species_forms (id, species_id) on delete cascade
+    references public.campaign_species_forms (id, species_id) on delete set null (to_form_id)
 );
 create index campaign_species_links_from_idx on public.campaign_species_links (from_species_id);
 create index campaign_species_links_to_idx on public.campaign_species_links (to_species_id) where to_species_id is not null;
