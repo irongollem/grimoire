@@ -10,13 +10,21 @@ vi.mock("@/composables/canon/usePlacedTables", () => ({ usePlacedTables: () => c
 
 vi.mock("@/composables/canon/useCampaignHabitats", () => ({
   useCampaignHabitats: () => ({
-    habitats: computed(() => [{ id: "h1", name: "Salt marsh", description: null, sortOrder: 0 }]),
+    habitats: computed(() => [{ id: "h1", name: "Salt marsh", description: null, sortOrder: 0, otherPercent: null }]),
     places: computed(() => state.places),
+    habitatSpecies: computed(() => [
+      { id: "s1", habitatId: "h1", speciesId: "eel", abundance: "common", sortOrder: 0 },
+      { id: "s2", habitatId: "h1", speciesId: "frog", abundance: null, sortOrder: 1 },
+    ]),
     life: computed(() => [
-      { id: "l1", habitatId: "h1", recordId: "eel", fromLibrary: true, name: "Marsh eel", percent: 40, readable: true },
-      { id: "l2", habitatId: "h1", recordId: "frog", fromLibrary: true, name: "Giant frog", percent: 20, readable: true },
+      { id: "l1", habitatId: "h1", speciesId: "eel", formId: "fe", percent: 40, sortOrder: 0 },
+      { id: "l2", habitatId: "h1", speciesId: "frog", formId: "ff", percent: null, sortOrder: 1 },
     ]),
   }),
+}));
+const kind = (id: string, name: string) => ({ id, name, scientificName: null, cladeId: null, kingdom: "animal", livesAs: null, activity: null, seasons: {}, description: null, sortOrder: 0 });
+vi.mock("@/composables/canon/useCampaignSpecies", () => ({
+  useCampaignSpecies: () => ({ species: computed(() => [kind("eel", "Marsh eel"), kind("frog", "Giant frog")]), forms: computed(() => []) }),
 }));
 vi.mock("@/composables/locations/useLocations", () => ({
   useAllLocations: () => ({
@@ -35,14 +43,14 @@ const mountFor = (placeId: string) => mount(PlaceHabitat, { props: { placeId }, 
 describe("PlaceHabitat", () => {
   beforeEach(() => { state.tables = []; });
 
-  // Bug: the block showed the habitat but not what lives there, or no way to the Life section.
+  // Bug: the block showed the habitat but not what lives there (the frog left to be worked out takes what the eel and the default leave), or no way to the Life section.
   it("shows the habitat a place is in, what lives there and the way to Life", () => {
     state.places = [{ id: "p", habitatId: "h1", locationId: "town" }];
     const w = mountFor("town");
     expect(w.get("[data-testid=place-habitat]").text()).toContain("Lies in");
     expect(w.get("[data-testid=place-habitat]").text()).toContain("Salt marsh");
     expect(w.get("[data-testid=place-habitat]").text()).not.toContain("through");
-    expect(w.get("[data-testid=place-habitat-life]").text()).toBe("Marsh eel 40%, Giant frog 20%, anything else 40%");
+    expect(w.get("[data-testid=place-habitat-life]").text()).toBe("Giant frog 50%, Marsh eel 40%, anything else 10%");
     expect(w.get("a").attributes("href")).toBe("life");
   });
 

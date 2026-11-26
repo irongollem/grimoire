@@ -55,6 +55,16 @@ describe("loadMentionNames", () => {
     expect(nameOf("npc", NPC_C)).toBeNull();
   });
 
+  // Bug: a species mention had no source, so a lore entry naming one read "???" on the server.
+  it("reads a species name from campaign_species, scoped to the campaign", async () => {
+    const { client, queries } = recordingClient({ campaign_species: [{ id: NPC_A, name: "Gloomwren" }] });
+    const nameOf = await loadMentionNames(client, "camp", [{ entityType: "species", id: NPC_A }]);
+    expect(queries).toHaveLength(1);
+    expect(queries[0].table).toBe("campaign_species");
+    expect(queries[0].filters).toContain("campaign_id=camp");
+    expect(nameOf("species", NPC_A)).toBe("Gloomwren");
+  });
+
   // Bug: the same id under another type answered with the NPC's name.
   it("keeps a type's names apart", async () => {
     const { client } = recordingClient({ npcs: [{ id: NPC_A, name: "Maren" }] });

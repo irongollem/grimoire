@@ -3,7 +3,10 @@ import { ref } from "vue";
 import type { AskProposal } from "@edge-shared/agent/askContract";
 
 const mocks = vi.hoisted(() => ({ draft: vi.fn(), save: vi.fn() }));
-const habitatState = vi.hoisted(() => ({ value: null as { name: string; life: { id: string; habitatId: string; recordId: string; fromLibrary: boolean; name: string; readable: boolean; percent: number }[] } | null }));
+const habitatState = vi.hoisted(() => ({
+  value: null as { name: string; notes: string[]; entries: { formId: string; speciesId: string; speciesName: string; name: string; percent: number; readable: boolean; about: string | null; linkLines: string[] }[] } | null,
+  asked: [] as (string | null)[],
+}));
 const state = vi.hoisted(() => ({ aiEnabled: true, canCreate: true, affordable: true, offersStatBlocks: true, whereReady: true, places: undefined as { id: string; name: string }[] | undefined }));
 
 vi.mock("@/stores/campaign", () => ({
@@ -31,10 +34,19 @@ vi.mock("@/composables/library/useSourceTitles", () => ({ useSourceTitles: () =>
 vi.mock("@/composables/encounters/useEncounterWhere", () => ({
   // The habitat answers only once the place's reads have: before that it is null, as the real lists are empty.
   useEncounterWhere: () => ({
-    habitatFor: () => (state.whereReady ? habitatState.value : null),
+    habitatFor: (_id: string, hour: string | null) => {
+      habitatState.asked.push(hour);
+      return state.whereReady ? habitatState.value : null;
+    },
     ready: { get value() { return state.whereReady; } },
   }),
 }));
+
+const marsh = () => ({
+  name: "Salt marsh",
+  notes: [],
+  entries: [{ formId: "f", speciesId: "s", speciesName: "Marsh eel", name: "Marsh eel", percent: 100, readable: true, about: null, linkLines: [] }],
+});
 
 const { useEncounterAskAdapter } = await import("./encounterAskAdapter");
 const { useEncounterQuote } = await import("@/composables/ai/quotes/encounterQuote");
@@ -64,6 +76,7 @@ describe("useEncounterAskAdapter", () => {
     mocks.draft.mockReset().mockResolvedValue(drafted());
     mocks.save.mockReset().mockResolvedValue({ id: "r1", name: "Road Ambush" });
     habitatState.value = null;
+    habitatState.asked = [];
     Object.assign(state, { aiEnabled: true, canCreate: true, affordable: true, offersStatBlocks: true, whereReady: true, places: [{ id: PLACE, name: "Whispering Caves" }] });
   });
 
@@ -166,7 +179,7 @@ describe("useEncounterAskAdapter", () => {
   // Bug caught: the habitats, placed tables and place tree load after the Atlas, so the first generation went out with
   // no habitat constraints (a marsh rolled a desert) while the quote already read ready.
   it("blocks until the place's habitat reads have arrived, then sends what lives there", async () => {
-    habitatState.value = { name: "Salt marsh", life: [{ id: "l", habitatId: "h", recordId: "eel", fromLibrary: true, name: "Marsh eel", readable: true, percent: 100 }] };
+    habitatState.value = marsh();
     state.whereReady = false;
     const adapter = useEncounterAskAdapter();
     expect(adapter.quote(proposal({ location_id: PLACE })).block).toMatchObject({ reason: "missing", message: "Still reading the place…" });
@@ -188,10 +201,19 @@ describe("useEncounterAskAdapter", () => {
 
   // Bug caught: the place's habitat never reached the generator, so a card set in a marsh rolled a desert.
   it("tells the generator what lives where the encounter is set", async () => {
-    habitatState.value = { name: "Salt marsh", life: [{ id: "l", habitatId: "h", recordId: "eel", fromLibrary: true, name: "Marsh eel", readable: true, percent: 100 }] };
+    habitatState.value = marsh();
     await useEncounterAskAdapter().preview(proposal({ location_id: PLACE }));
     expect(mocks.draft.mock.calls[0][1].constraints).toEqual([expect.stringContaining("Marsh eel")]);
     expect(mocks.draft.mock.calls[0][1].constraints[0]).toContain("Salt marsh");
+  });
+
+  // Bug caught: the card's Time of day was shown but never reached the roll, so a night fight still rolled daytime species.
+  it("rolls the habitat at the hour the card names, and at no hour for Any time", async () => {
+    habitatState.value = marsh();
+    await useEncounterAskAdapter().preview(proposal({ location_id: PLACE, time_of_day: "night" }));
+    await useEncounterAskAdapter().preview(proposal({ location_id: PLACE, time_of_day: "any" }));
+    await useEncounterAskAdapter().preview(proposal({ location_id: PLACE }));
+    expect(habitatState.asked).toEqual(["night", null, null]);
   });
 
   it("names the place in the quote, and ignores a place the campaign lacks", async () => {
@@ -214,7 +236,7 @@ describe("useEncounterAskAdapter", () => {
 
   // Bug caught: unticking the place on the quote still anchored the encounter there.
   it("the place line carries a choice keyed location_id; at no the encounter is unanchored and its habitat unused", async () => {
-    habitatState.value = { name: "Salt marsh", life: [{ id: "l", habitatId: "h", recordId: "eel", fromLibrary: true, name: "Marsh eel", readable: true, percent: 100 }] };
+    habitatState.value = marsh();
     const adapter = useEncounterAskAdapter();
     expect(adapter.quote(proposal({ location_id: PLACE })).lines.find((l) => l.label === "In")?.choice).toEqual({ key: "location_id", on: true });
     await (await previewed(adapter, proposal({ location_id: PLACE }))).create();

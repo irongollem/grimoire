@@ -91,6 +91,8 @@ export interface CanonEntry {
   arc_id: string | null;
   /** The habitat this truth belongs to (`campaign_habitats`, the Ecology part); set only when `part` is `truth`. */
   habitat_id: string | null;
+  /** The species this truth belongs to (`campaign_species`, the field guide); set only when `part` is `truth`. */
+  species_id: string | null;
   created_at: string;
   updated_at: string;
 }

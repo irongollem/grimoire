@@ -78,6 +78,11 @@ vi.mock("@/composables/quests/useQuests", () => ({
   usePlayerVisibleQuests: () => ({ data: questsData }),
 }));
 
+const speciesData = ref<Array<{ id: string; name: string }>>([]);
+vi.mock("@/composables/canon/useCampaignSpecies", () => ({
+  useCampaignSpecies: () => ({ species: speciesData }),
+}));
+
 vi.mock("@/lib/supabase", () => ({ supabase: {} }));
 
 import { mentionTypeForNote, monsterNameTable, useMentionName } from "./useMentionName";
@@ -101,6 +106,15 @@ describe("useMentionName — DM", () => {
     expect(run(() => useMentionName("location", "loc-1")).value).toBe("Shadowdale");
     expect(run(() => useMentionName("faction", "fac-1")).value).toBe("The Harpers");
     expect(run(() => useMentionName("player", "pm-1")).value).toBe("Aria");
+  });
+
+  it("resolves a species name for the DM and withholds it from a player (the field guide is DM-only)", () => {
+    speciesData.value = [{ id: "sp-1", name: "Gloomwren" }];
+    route.path = "/canon/species";
+    expect(run(() => useMentionName("species", "sp-1")).value).toBe("Gloomwren");
+    route.path = "/play/party";
+    expect(run(() => useMentionName("species", "sp-1")).value).toBeNull();
+    route.path = "/npcs/npc-1";
   });
 
   it("resolves the party sentinel to 'Party'", () => {

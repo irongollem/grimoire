@@ -20,7 +20,7 @@ export interface CanonHitLink {
 export interface CanonHit {
   /** Unique on the page. */
   key: string;
-  /** What the hit opens: an entry (`/canon/<part>?entry=<id>`; a clue opens its secret, a step its force, a passage its entry), an arc (`?arc=`), a people (`?people=`), a habitat (`?habitat=`) or the Truths chapter for a table line. */
+  /** What the hit opens: an entry (`/canon/<part>?entry=<id>`; a clue opens its secret, a step its force, a passage its entry), an arc (`?arc=`), a people (`?people=`), a habitat (`?habitat=`), a species (`?species=`) or the Truths chapter for a table line. */
   to: CanonHitLink;
   /** What matched: the entry's title, or the clue's, step's or passage's. */
   title: string;
@@ -48,6 +48,8 @@ export interface CanonSearchSources {
   peoples: readonly { id: string; name: string; body: string | null }[];
   /** The habitats: `description` is a rich-text document as text. */
   habitats: readonly { id: string; name: string; description: string | null }[];
+  /** The field guide's species: found by common or scientific name, or by description (a rich-text document as text). */
+  species: readonly { id: string; name: string; scientificName: string | null; description: string | null }[];
   /** The record's facts; only the table's own, not struck, are searched. */
   facts: readonly Pick<StoryFact, "id" | "body" | "source" | "struck_at">[];
 }
@@ -72,7 +74,7 @@ export function excerptAround(body: string | null, query: string): string | null
  * passage hit opens the entry it belongs to; one whose entry is not in `entries` (an arc narrowed it away, or it is
  * gone) is left out. A blank query finds nothing: the page then shows its part, not a list of everything.
  */
-export function searchCanon(query: string, { entries, clues, steps, passages, arcs, peoples, habitats, facts }: CanonSearchSources): CanonHitGroup[] {
+export function searchCanon(query: string, { entries, clues, steps, passages, arcs, peoples, habitats, species, facts }: CanonSearchSources): CanonHitGroup[] {
   if (query.trim() === "") return [];
   const byId = new Map(entries.map((e) => [e.id, e]));
   const found = new Map<CanonSectionId, CanonHit[]>();
@@ -121,6 +123,12 @@ export function searchCanon(query: string, { entries, clues, steps, passages, ar
     const excerpt = inName ? null : excerptAround(habitat.description, query);
     if (!inName && excerpt === null) continue;
     add("life", { key: `habitat-${habitat.id}`, to: { path: "/canon/life", query: { habitat: habitat.id } }, title: habitat.name, kind: null, of: null, excerpt });
+  }
+  for (const one of species) {
+    const inName = matchesQuery(one.name, query) || (one.scientificName !== null && matchesQuery(one.scientificName, query));
+    const excerpt = inName ? null : excerptAround(one.description, query);
+    if (!inName && excerpt === null) continue;
+    add("species", { key: `species-${one.id}`, to: { path: "/canon/species", query: { species: one.id } }, title: one.name, kind: null, of: one.scientificName, excerpt });
   }
   // What the table added is reviewed on Truths; a struck line never happened, so it is not found.
   for (const fact of facts) {

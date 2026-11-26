@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { computed } from "vue";
 
-const seen = vi.hoisted(() => ({ place: null as (() => string | null) | null, wanted: null as (() => boolean) | null }));
+const seen = vi.hoisted(() => ({ place: null as (() => string | null) | null, wanted: null as (() => boolean) | null, hour: null as (() => string | null) | null }));
 const party = vi.hoisted(() => ({ value: undefined as { level: number }[] | undefined }));
 vi.mock("@/composables/party/useActiveParty", () => ({ useActiveParty: () => ({ data: { get value() { return party.value; } } }) }));
 vi.mock("@/composables/encounters/useEncounterWhere", () => ({
-  useEncounterWhere: (place: () => string | null, wanted: () => boolean) => {
+  useEncounterWhere: (place: () => string | null, wanted: () => boolean, hour: () => string | null) => {
+    seen.hour = hour;
     seen.place = place;
     seen.wanted = wanted;
     return { line: computed(() => "Uses Coast road here") };
@@ -25,6 +26,17 @@ describe("the encounter's Where aside", () => {
     inputs = { location_id: "place-1" };
     expect(seen.wanted?.()).toBe(true);
     expect(seen.place?.()).toBe("place-1");
+  });
+});
+
+describe("the encounter's Where aside at an hour", () => {
+  // Bug caught: the aside read the card's place but not its Time of day, so "resting by day" never showed.
+  it("reads the card's Time of day, and Any time as no hour", () => {
+    let inputs: Record<string, unknown> = { time_of_day: "dusk" };
+    ASK_ASIDES.encounter_where(() => inputs);
+    expect(seen.hour?.()).toBe("dusk");
+    inputs = { time_of_day: "any" };
+    expect(seen.hour?.()).toBeNull();
   });
 });
 

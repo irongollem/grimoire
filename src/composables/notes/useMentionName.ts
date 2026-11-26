@@ -42,6 +42,7 @@ import { usePlayerMonstersByIds } from "@/composables/monsters/usePlayerMonsters
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import { useCompanions } from "@/composables/encounters/useCompanions";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
+import { useCampaignSpecies } from "@/composables/canon/useCampaignSpecies";
 import type { EntityType } from "@/lib/tiptap/nodeViewTypes";
 
 /**
@@ -169,6 +170,11 @@ function useCompanionName(id: string): ComputedRef<string | null> {
   return computed(() => nameOf(data.value, id));
 }
 
+function useDmSpeciesName(id: string): ComputedRef<string | null> {
+  const { species } = useCampaignSpecies();
+  return computed(() => nameOf(species.value, id));
+}
+
 function useQuestName(id: string): ComputedRef<string | null> {
   // Only quests this player may see come back, so a hidden quest stays "???".
   const { data } = usePlayerVisibleQuests();
@@ -198,6 +204,9 @@ export function useMentionName(entityType: MentionNameType | null, id: string): 
       return isPlayer ? usePlayerFactionName(id) : useDmFactionName(id);
     case "monster":
       return isPlayer ? usePlayerMonsterName(id) : useDmMonsterName(id);
+    // The field guide is DM-only: a player has no read on it, so a species mention stays "???" for them.
+    case "species":
+      return isPlayer ? computed(() => null) : useDmSpeciesName(id);
     case "companion":
       return useCompanionName(id);
     case "quest":

@@ -210,6 +210,7 @@
   --color-kind-location: var(--kind-location);
   --color-kind-party: var(--kind-party);
   --color-kind-faction: var(--kind-faction);
+  --color-kind-species: var(--kind-species);
   --color-sound-music: var(--sound-music);
   --color-sound-ambient: var(--sound-ambient);
   --color-sound-effects: var(--sound-effects);
@@ -448,6 +449,7 @@
   --kind-location: #34d399;
   --kind-party: #fbbf24;
   --kind-faction: #22d3ee;
+  --kind-species: #84cc16;
 
   /* Categorical: soundboard categories */
   --sound-music: #f0c74a;

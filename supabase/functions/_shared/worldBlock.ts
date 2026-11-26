@@ -12,6 +12,8 @@
  */
 import { plainWithoutSecrets } from "./secretBlocks.ts";
 import type { MentionNameOf } from "./mentionNames.ts";
+import type { AbundanceKey, LivesAsKey } from "./ecologyShares.ts";
+import { ecologyLines, type EcologySpecies, type HabitatEcology, type LinkKind } from "./worldBlockEcology.ts";
 
 export interface WorldBlock {
   world: string | null;
@@ -105,49 +107,90 @@ export function peoplesBlockText(list: readonly PeopleRow[], nameOf?: MentionNam
   return lines.join("\n");
 }
 
-/** One habitat as `campaign_habitats`, its places by name and its life by name, for the block. */
+/** One habitat as `campaign_habitats`, its places by name and its ecology, for the block. */
 export interface HabitatForBlock {
   name: string;
   places: string[];
-  life: People[];
+  ecology: HabitatEcology;
 }
 
-/** What the block reads of `campaign_habitats`, `campaign_habitat_places` (with its place's name) and `campaign_habitat_life_named`. */
-export const WORLD_BLOCK_HABITAT_COLUMNS = "id, name";
+/** What the block reads of the habitat tables, for both loaders. */
+export const WORLD_BLOCK_HABITAT_COLUMNS = "id, name, other_percent";
 export const WORLD_BLOCK_HABITAT_PLACE_COLUMNS = "habitat_id, location:locations(name)";
-export const WORLD_BLOCK_HABITAT_LIFE_COLUMNS = "habitat_id, name, percent";
+/** `campaign_habitat_life_named`: a form with no readable stat block still counts, so none is filtered out for its name. */
+export const WORLD_BLOCK_HABITAT_LIFE_COLUMNS = "habitat_id, species_id, form_id, percent, sort_order";
+export const WORLD_BLOCK_HABITAT_SPECIES_COLUMNS = "habitat_id, species_id, abundance, sort_order";
+export const WORLD_BLOCK_SPECIES_COLUMNS = "id, name, kingdom, lives_as, clade_id";
+export const WORLD_BLOCK_FORM_COLUMNS = "id, species_id, label";
+export const WORLD_BLOCK_LINK_COLUMNS = "from_species_id, kind, to_species_id, from_form_id, to_form_id, habitat_id";
+export const WORLD_BLOCK_CLADE_COLUMNS = "id, name";
 
 /** An embedded many-to-one row: PostgREST sends an object, supabase-js types it as a list when the table has no generated types. */
 type Embedded<T> = T | readonly T[] | null;
 
 export interface HabitatRows {
-  habitats: readonly { id: string; name: string }[];
+  habitats: readonly { id: string; name: string; other_percent: number | null }[];
   /** A place this reader may not read comes with no `location`, and is left out. */
   places: readonly { habitat_id: string; location: Embedded<{ name: string }> }[];
-  /** Already without the creatures this reader may not name: their share falls under "anything else". */
-  life: readonly { habitat_id: string; name: string; percent: number }[];
+  life: readonly { habitat_id: string; species_id: string; form_id: string; percent: number | null }[];
+  habitatSpecies: readonly { habitat_id: string; species_id: string; abundance: AbundanceKey | null }[];
+  species: readonly { id: string; name: string; kingdom: string; lives_as: LivesAsKey | null; clade_id: string | null }[];
+  forms: readonly { id: string; species_id: string; label: string }[];
+  links: readonly {
+    from_species_id: string;
+    kind: LinkKind;
+    to_species_id: string | null;
+    from_form_id: string | null;
+    to_form_id: string | null;
+    habitat_id: string | null;
+  }[];
+  clades: readonly { id: string; name: string }[];
 }
 
-/** Joins the three reads into the habitats the block names, in the order given. One rule for both loaders. */
+/** Joins the reads into the habitats the block names, in the order given. One rule for both loaders. */
 export function habitatsForBlock(rows: HabitatRows): HabitatForBlock[] {
-  return rows.habitats.map((h) => ({
-    name: h.name,
-    places: rows.places.filter((p) => p.habitat_id === h.id).flatMap((p) => (Array.isArray(p.location) ? p.location : p.location ? [p.location] : []).map((l) => l.name)),
-    life: rows.life.filter((l) => l.habitat_id === h.id),
-  }));
+  const speciesById = new Map(rows.species.map((s) => [s.id, s]));
+  const cladeById = new Map(rows.clades.map((c) => [c.id, c]));
+  const formLabel = new Map(rows.forms.map((f) => [f.id, f.label]));
+  return rows.habitats.map((h) => {
+    const life = rows.life.filter((l) => l.habitat_id === h.id);
+    // Species that live here: the DM's list, then any a form on the roll names that the list lacks.
+    const ids = [...new Set([...rows.habitatSpecies.filter((s) => s.habitat_id === h.id).map((s) => s.species_id), ...life.map((l) => l.species_id)])];
+    const abundanceOf = new Map(rows.habitatSpecies.filter((s) => s.habitat_id === h.id).map((s) => [s.species_id, s.abundance]));
+    const species = ids.flatMap((id): EcologySpecies[] => {
+      const s = speciesById.get(id);
+      if (!s) return [];
+      const clade = s.clade_id === null ? undefined : cladeById.get(s.clade_id);
+      return [{ id, name: s.name, kingdom: s.kingdom, livesAs: s.lives_as, abundance: abundanceOf.get(id) ?? null, clade: clade ? { id: clade.id, name: clade.name } : null }];
+    });
+    const formOf = (id: string | null): string | null => (id === null ? null : (formLabel.get(id) ?? null));
+    return {
+      name: h.name,
+      places: rows.places.filter((p) => p.habitat_id === h.id).flatMap((p) => (Array.isArray(p.location) ? p.location : p.location ? [p.location] : []).map((l) => l.name)),
+      ecology: {
+        otherPercent: h.other_percent,
+        species,
+        life: life.map((l) => ({ formId: l.form_id, speciesId: l.species_id, percent: l.percent })),
+        links: rows.links
+          .filter((l) => l.habitat_id === null || l.habitat_id === h.id)
+          .map((l) => ({ kind: l.kind, fromSpeciesId: l.from_species_id, fromForm: formOf(l.from_form_id), toSpeciesId: l.to_species_id, toForm: formOf(l.to_form_id) })),
+      },
+    };
+  });
 }
 
 /**
- * One line a habitat: "Salt marsh (the Marsh, Saltmere's edge): Marsh eel 40%, Giant frog 20%, anything else 40%".
- * A habitat with neither a place nor a creature tells a generator nothing and is left out; "" when none is left.
+ * One block a habitat: "Salt marsh (the Marsh): Marsh eel 40%, anything else 60%", then indented lines for what lives
+ * there but is never met, the food web and the kin. A habitat with neither a place nor a species tells a generator
+ * nothing and is left out; "" when none is left.
  */
 export function habitatsLines(list: readonly HabitatForBlock[]): string {
   return list
-    .filter((h) => h.places.length > 0 || h.life.some((l) => l.percent > 0))
+    .filter((h) => h.places.length > 0 || h.ecology.species.length > 0)
     .map((h) => {
       const where = h.places.length > 0 ? ` (${h.places.join(", ")})` : "";
-      const life = sharesLine(h.life, "anything else");
-      return `${h.name}${where}${life ? `: ${life}` : ""}`;
+      const { shares, extra } = ecologyLines(h.ecology);
+      return [`${h.name}${where}${shares ? `: ${shares}` : ""}`, ...extra.map((e) => `  ${e}`)].join("\n");
     })
     .join("\n");
 }
@@ -265,7 +308,7 @@ export function worldBlockText(block: WorldBlock): string {
   }
   if (block.habitats) {
     sections.push(
-      `## Life of the world\n${block.habitats}\nWhen a creature turns up somewhere, choose it at these odds for the country it is in.`,
+      `## Life of the world\n${block.habitats}\nWhen a creature turns up somewhere, choose it at these odds for the country it is in, and keep to what eats what.`,
     );
   }
   if (block.commonBeliefs.length) {

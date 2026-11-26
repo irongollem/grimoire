@@ -20,7 +20,20 @@ import { buildAtlasIndex, childrenOf } from "@/lib/locations/tree";
 import { sortLore } from "@/lib/canon/canonLore";
 import type { CanonEntry, PremiseKind } from "@/types/canon.types";
 import type { LocationSummary, LocationType } from "@/types/location.types";
-import { doc, h1, h2, h3, p } from "@/scriptorium/data/templates/builders";
+import { doc, em, h1, h2, h3, p } from "@/scriptorium/data/templates/builders";
+import {
+  ABUNDANCE_LABEL,
+  ACTIVITY_LABEL,
+  KINGDOM_LABEL,
+  LIVES_AS_LABEL,
+  cladePath,
+  linkSentence,
+  linkWords,
+  speciesShare,
+  workedOutShares,
+} from "@/lib/canon/ecology";
+import type { Clade, HabitatLifeRow, HabitatSpecies, Species, SpeciesForm, SpeciesLink } from "@/lib/canon/ecologyTypes";
+import { SEASON_KINDS } from "@/types/calendar.types";
 
 /** Who the book is for: the DM's book holds everything, a players' book only what the whole party may read. */
 export type BookAudience = "dm" | "players";
@@ -75,6 +88,17 @@ export interface SourceDescribed {
   text: string;
 }
 
+/** A habitat: its name, what is written of it as plain text, and the DM's "anything else" share (null for the default). */
+export interface SourceHabitat extends SourceDescribed {
+  otherPercent: number | null;
+}
+
+/** A species of the field guide, its description already flattened to plain text. */
+export type SourceSpecies = Omit<Species, "description"> & { text: string };
+
+/** A form on a habitat's roll; the names are not needed, only which form, of which species, at what share. */
+export type SourceLife = Pick<HabitatLifeRow, "habitatId" | "speciesId" | "formId" | "percent">;
+
 /** The facts the world runs on that a reader needs: its calendar and its coins. Null when nothing was chosen. */
 export interface SourceWorldRules {
   calendar: { name: string; epoch: string; months: string[] } | null;
@@ -93,7 +117,16 @@ export interface BookSource {
   /** The campaign's arcs, the DM's own: a players' source leaves them empty. */
   arcs: SourceArc[];
   peoples: SourceDescribed[];
-  habitats: SourceDescribed[];
+  habitats: SourceHabitat[];
+  /** The field guide (#1283): the DM's own, so a players' source leaves every one of these empty. */
+  clades: Clade[];
+  species: SourceSpecies[];
+  forms: SpeciesForm[];
+  links: SpeciesLink[];
+  habitatSpecies: HabitatSpecies[];
+  habitatLife: SourceLife[];
+  /** A form's stat block name; a form with none, or one this reader cannot read, is null or absent. */
+  statBlockNameByForm: ReadonlyMap<string, string | null>;
   /** One backstory entry per character who has one. */
   backstories: SourceEntry[];
   world: SourceWorldRules;
@@ -212,6 +245,87 @@ function arcSection(arc: SourceArc): JSONContent[] {
   return [h2(arc.name), ...lines.filter(([, text]) => (text ?? "").trim() !== "").map(([label, text]) => p(`${label}${text!.trim()}`))];
 }
 
+const pct = (n: number): string => `${Math.round(n * 10) / 10}%`;
+
+/** A habitat: its description, then "What lives here": each species with how common it is and its share of the life met. */
+function habitatSection(habitat: SourceHabitat, source: BookSource): JSONContent[] {
+  const species = new Map(source.species.map((s) => [s.id, s]));
+  const here = source.habitatSpecies.filter((hs) => hs.habitatId === habitat.id).sort((a, b) => a.sortOrder - b.sortOrder);
+  const life = source.habitatLife.filter((l) => l.habitatId === habitat.id);
+  const worked = workedOutShares({
+    species: here.map((hs) => ({ speciesId: hs.speciesId, abundance: hs.abundance, livesAs: species.get(hs.speciesId)?.livesAs ?? null })),
+    life,
+    otherPercent: habitat.otherPercent,
+  });
+  const lines = here.flatMap((hs) => {
+    const s = species.get(hs.speciesId);
+    if (s === undefined) return [];
+    const formIds = life.filter((l) => l.speciesId === s.id).map((l) => l.formId);
+    // A plant (or any species with no form on the roll) has no share to work out: it is listed as living here.
+    const parts = [hs.abundance === null ? null : ABUNDANCE_LABEL[hs.abundance], formIds.length === 0 ? null : `about ${pct(speciesShare(worked.forms, formIds))} of what is met`].filter((x): x is string => x !== null);
+    return [p(parts.length === 0 ? s.name : `${s.name}: ${parts.join(", ")}`)];
+  });
+  return [...described(habitat.name, habitat.text), ...(lines.length === 0 ? [] : [h3("What lives here"), ...lines])];
+}
+
+/** The chain of ranks a species is filed under, root first, as the key it is grouped and ordered by. */
+function fieldGuideGroups(source: BookSource): { title: string; species: SourceSpecies[] }[] {
+  const groups = new Map<string, { title: string; order: (number | string)[]; species: SourceSpecies[] }>();
+  for (const s of source.species) {
+    const path = cladePath(s.cladeId, source.clades);
+    const key = path.map((c) => c.id).join("/");
+    const group = groups.get(key) ?? {
+      title: path.length === 0 ? "In no clade" : path.map((c) => c.name).join(", "),
+      order: path.length === 0 ? [Number.MAX_SAFE_INTEGER] : path.flatMap((c) => [c.sortOrder, c.name]),
+      species: [],
+    };
+    group.species.push(s);
+    groups.set(key, group);
+  }
+  return [...groups.values()]
+    .sort((a, b) => {
+      for (let i = 0; i < Math.min(a.order.length, b.order.length); i++) {
+        if (a.order[i] === b.order[i]) continue;
+        return typeof a.order[i] === "number" ? (a.order[i] as number) - (b.order[i] as number) : String(a.order[i]).localeCompare(String(b.order[i]));
+      }
+      return a.order.length - b.order.length;
+    })
+    .map((g) => ({ title: g.title, species: g.species.sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)) }));
+}
+
+/** One species: names, how it lives, when it is about, its forms, its links from its own side, and what is written of it. */
+function speciesEntry(s: SourceSpecies, source: BookSource): JSONContent[] {
+  const speciesById = new Map<string, Species>(source.species.map((x) => [x.id, { ...x, description: null }]));
+  const formsById = new Map(source.forms.map((f) => [f.id, f]));
+  const ctx = { speciesById, formsById, statBlockNameByForm: source.statBlockNameByForm };
+  const seasons = SEASON_KINDS.flatMap((kind) => {
+    const season = s.seasons[kind];
+    if (season === undefined) return [];
+    const word = kind.charAt(0).toUpperCase() + kind.slice(1);
+    const note = (season.note ?? "").trim();
+    return [season.away ? `${word}: away${note === "" ? "" : `, ${note}`}` : note === "" ? null : `${word}: ${note}`].filter((x): x is string => x !== null);
+  });
+  const how = [KINGDOM_LABEL[s.kingdom], s.livesAs === null ? null : LIVES_AS_LABEL[s.livesAs], s.activity === null ? null : ACTIVITY_LABEL[s.activity], ...seasons].filter((x): x is string => x !== null);
+  const forms = source.forms
+    .filter((f) => f.speciesId === s.id)
+    .sort((a, b) => a.stageOrder - b.stageOrder || a.label.localeCompare(b.label))
+    .map((f) => (f.domesticated ? `${f.label} (domesticated)` : f.label));
+  const links = source.links.filter((l) => l.fromSpeciesId === s.id || l.toSpeciesId === s.id).map((l) => linkSentence(linkWords(l, s.id, ctx)));
+  const scientific = (s.scientificName ?? "").trim();
+  return [
+    h3(s.name),
+    ...(scientific === "" ? [] : [p(em(scientific))]),
+    p(how.join(". ") + "."),
+    ...(forms.length === 0 ? [] : [p(`Forms: ${forms.join(", ")}.`)]),
+    ...links.map((l) => p(l)),
+    ...paragraphs(s.text),
+  ];
+}
+
+function fieldGuideChapter(source: BookSource): { content: JSONContent } | null {
+  return chapter("Field guide", ...fieldGuideGroups(source).map((g) => [h2(g.title), ...g.species.flatMap((s) => speciesEntry(s, source))]));
+}
+
 function worldRulesSection(world: SourceWorldRules): JSONContent[] | null {
   const body: JSONContent[] = [];
   if (world.calendar) {
@@ -269,7 +383,8 @@ export function buildCampaignBook(source: BookSource, audience: BookAudience): D
     dm ? chapter("How the World Works", worldRulesSection(source.world)) : null,
     chapter("History and Legend", section(null, 2, lore.map((e) => embed("canon", e.id)))),
     chapter("Peoples", ...source.peoples.map((x) => described(x.percent === undefined ? x.name : `${x.name} (${x.percent}%)`, x.text))),
-    chapter("Habitats", ...source.habitats.map((x) => described(x.name, x.text))),
+    chapter("Habitats", ...source.habitats.map((x) => habitatSection(x, source))),
+    fieldGuideChapter(source),
     // An arc is the DM's story: the players' copy has no chapter for it.
     dm ? chapter("Arcs", ...source.arcs.map((arc) => arcSection(arc))) : null,
     // A secret and a force are the DM's: the players' copy has no chapter for them at all.

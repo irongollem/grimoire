@@ -8,6 +8,7 @@
 import { computed, type ComputedRef } from "vue";
 import { useEncounterWhere } from "@/composables/encounters/useEncounterWhere";
 import { useActiveParty } from "@/composables/party/useActiveParty";
+import { timeOfDayOf } from "@/ai/ask/timeOfDay";
 import { averagePartyLevel } from "@/lib/quests/hooksPrompt";
 
 export type AskAside = (inputs: () => Readonly<Record<string, unknown>>) => ComputedRef<string | null>;
@@ -19,7 +20,7 @@ export const ASK_ASIDES: Readonly<Record<string, AskAside>> = {
       const id = inputs().location_id;
       return typeof id === "string" && id !== "" ? id : null;
     };
-    const { line } = useEncounterWhere(place, () => place() !== null);
+    const { line } = useEncounterWhere(place, () => place() !== null, () => timeOfDayOf(inputs().time_of_day));
     return computed(() => line.value);
   },
   /** Under the quest giver: the party level the hooks are written for, which the card cannot change (the panel showed it as a read-only line). */

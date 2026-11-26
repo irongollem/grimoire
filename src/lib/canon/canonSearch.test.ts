@@ -8,7 +8,7 @@ const doc = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "p
 const clue = (over: Partial<CanonClue>): CanonClue => ({ id: "c1", secret_id: "s1", title: "x", ...over }) as CanonClue;
 const step = (over: Partial<CanonForceStep>): CanonForceStep => ({ id: "st1", force_id: "f1", title: "x", ...over }) as CanonForceStep;
 const passage = (over: Partial<CanonLorePassage>): CanonLorePassage => ({ id: "p1", entry_id: "l1", title: "", body: null, ...over }) as CanonLorePassage;
-const none = { entries: [], clues: [], steps: [], passages: [], arcs: [], peoples: [], habitats: [], facts: [] };
+const none = { entries: [], clues: [], steps: [], passages: [], arcs: [], peoples: [], habitats: [], species: [], facts: [] };
 const fact = (over: Partial<StoryFact>): Pick<StoryFact, "id" | "body" | "source" | "struck_at"> => ({ id: "f", body: "x", source: "table", struck_at: null, ...over });
 
 describe("matchesQuery", () => {
@@ -117,6 +117,18 @@ describe("searchCanon", () => {
       ["arcs", [{ path: "/canon/arcs", query: { arc: "a1" } }, { path: "/canon/arcs", query: { arc: "a2" } }]],
     ]);
     expect(groups.find((g) => g.section === "arcs")!.hits[1].excerpt).toContain("tide");
+  });
+
+  // Bug caught (#1283): the field guide was unsearchable, or a species was found by its common name only, so "Ursus" found nothing.
+  it("finds a species by its common or scientific name, opening it in the field guide", () => {
+    const species = [
+      { id: "s1", name: "Rime bear", scientificName: "Ursus glacialis", description: null },
+      { id: "s2", name: "Pith piper", scientificName: null, description: doc("Nests near a rime bear den.") },
+    ];
+    const byScientific = searchCanon("ursus", { ...none, species });
+    expect(byScientific.map((g) => [g.section, g.hits.map((h) => h.to)])).toEqual([["species", [{ path: "/canon/species", query: { species: "s1" } }]]]);
+    const byBody = searchCanon("den", { ...none, species });
+    expect(byBody[0].hits.map((h) => h.title)).toEqual(["Pith piper"]);
   });
 
   // Bug caught: a line the DM struck (it never happened), or one the DM wrote themselves, found as if it were the table's.

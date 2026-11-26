@@ -71,6 +71,14 @@ describe("EntityMentionChip — known mention", () => {
     expect(wrapper.find("button").attributes("title")).toBe("Go to npc: Elminster");
   });
 
+  it("opens a species in the Canon's field guide, not at /species/:id", async () => {
+    route.path = "/canon/premise";
+    const wrapper = mountChip({ entityType: "species", id: "sp-1", name: "Gloomwren" });
+    await wrapper.find(".entity-chip").trigger("click");
+    expect(push).toHaveBeenCalledWith("/canon/species?species=sp-1");
+    route.path = "/npcs/npc-1";
+  });
+
   it("navigates to the DM entity route on click", async () => {
     route.path = "/npcs/npc-1";
     const wrapper = mountChip({ name: "Elminster", entityType: "npc", id: "npc-1" });

@@ -60,6 +60,7 @@ const ENTITY_LABELS: Record<EntityType, string> = {
   location: "LOC",
   party:    "PARTY",
   faction:  "FAC",
+  species:  "SPE",
 };
 
 const BADGE_CLASSES: Record<EntityType, string> = {
@@ -69,6 +70,7 @@ const BADGE_CLASSES: Record<EntityType, string> = {
   location: "text-ink-success border-tone-success/40 bg-tone-success/10",
   party:    "text-ink-caution border-tone-caution/40 bg-tone-caution/10",
   faction:  "text-ink-info border-tone-info/40 bg-tone-info/10",
+  species:  "text-ink-success border-tone-success/40 bg-tone-success/10",
 };
 
 const model = defineModel<string>({ required: true });

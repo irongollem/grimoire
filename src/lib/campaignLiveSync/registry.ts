@@ -331,6 +331,13 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["canon_wonders", [CANON_KEY]],
   ["campaign_habitats", [CANON_KEY]],
   ["campaign_habitat_places", [CANON_KEY]],
+  // (#1283) the field guide: clades, species, their forms, links and yields, and a habitat's species.
+  ["campaign_clades", [CANON_KEY]],
+  ["campaign_species", [CANON_KEY]],
+  ["campaign_species_forms", [CANON_KEY]],
+  ["campaign_species_links", [CANON_KEY]],
+  ["campaign_species_yields", [CANON_KEY]],
+  ["campaign_habitat_species", [CANON_KEY]],
   ["campaign_people_places", [CANON_KEY]],
   ["canon_tonight_pins", [CANON_KEY]],
   ["canon_tonight_plans", [CANON_KEY]],

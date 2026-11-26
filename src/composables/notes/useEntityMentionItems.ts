@@ -4,6 +4,7 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
+import { useCampaignSpecies } from "@/composables/canon/useCampaignSpecies";
 import { useCampaignStore } from "@/stores/campaign";
 import type { EntityMentionItem } from "@/lib/tiptap/EntityMention";
 
@@ -17,6 +18,7 @@ export function useEntityMentionItems(enabled?: () => boolean) {
   const { data: monsterIndex } = useMonsterIndex(enabled ? () => ({ enabled: enabled() }) : undefined);
   const { data: locations }    = useAllLocations(enabled);
   const { data: factions }     = useAllFactions(enabled);
+  const { species }            = useCampaignSpecies(enabled);
   const campaignStore          = useCampaignStore();
 
   const mentionItems = computed<EntityMentionItem[]>(() => {
@@ -51,6 +53,11 @@ export function useEntityMentionItems(enabled?: () => boolean) {
         id: f.id,
         entityType: "faction" as const,
         label: f.name,
+      })),
+      ...(species.value ?? []).map((s) => ({
+        id: s.id,
+        entityType: "species" as const,
+        label: s.name,
       })),
     );
 

@@ -30,12 +30,14 @@ import { useCampaignHabitats } from "@/composables/canon/useCampaignHabitats";
 import { usePlacedTables } from "@/composables/canon/usePlacedTables";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { encounterSourceForPlace, habitatForPlace } from "@/lib/canon/habitats";
-import { sharesLine } from "@edge-shared/worldBlock.ts";
+import { useCampaignSpecies } from "@/composables/canon/useCampaignSpecies";
+import { habitatSummary } from "@/lib/canon/habitatRows";
 
 const { placeId } = defineProps<{ placeId: string }>();
 
 const { data: locations } = useAllLocations();
-const { habitats, places, life } = useCampaignHabitats();
+const { habitats, places, habitatSpecies, life } = useCampaignHabitats();
+const { species, forms } = useCampaignSpecies();
 
 const placedTables = usePlacedTables();
 const ownTable = computed(() => {
@@ -52,6 +54,6 @@ const match = computed<{ name: string; through: string | null; summary: string }
   const habitat = habitats.value.find((h) => h.id === found.habitatId);
   if (habitat === undefined) return null;
   const through = found.throughPlaceId === placeId ? null : (all.find((l) => l.id === found.throughPlaceId)?.name ?? null);
-  return { name: habitat.name, through, summary: sharesLine(life.value.filter((l) => l.habitatId === habitat.id), "anything else") };
+  return { name: habitat.name, through, summary: habitatSummary({ habitat, habitatSpecies: habitatSpecies.value, life: life.value, species: species.value, forms: forms.value }) };
 });
 </script>

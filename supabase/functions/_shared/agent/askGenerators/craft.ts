@@ -10,7 +10,9 @@ export const CRAFT_GENERATORS: readonly AskGenerator[] = [
     inputs: {
       difficulty: { type: "string", description: "How hard.", enum: ["auto", "easy", "medium", "hard", "deadly"], label: "Difficulty" },
       location_id: { type: "string", description: "Id of a place in this campaign where the fight happens.", label: "Where", record: "location", placeholder: "Nowhere in particular", aside: "encounter_where" },
+      time_of_day: { type: "string", description: "The hour the fight happens, when the place lies in a habitat: species that rest then are met less often.", enum: ["any", "dawn", "day", "dusk", "night"], label: "Time of day", optionLabels: { any: "Any time", dawn: "Dawn", day: "Day", dusk: "Dusk", night: "Night" } },
     },
+    opened: { time_of_day: "any" },
     concept: { label: "What to make", placeholder: "Goblin ambush on the forest road, levels 3–5, a betrayal mid-fight…", required: true, max: 500 },
     ask: ["difficulty"],
   },

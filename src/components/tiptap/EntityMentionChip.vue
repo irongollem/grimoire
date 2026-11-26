@@ -86,6 +86,7 @@ const DM_ENTITY_ROUTES: Record<EntityType, string> = {
   location: "/locations",
   party: "/party",
   faction: "/factions",
+  species: "/canon/species?species=",
 };
 
 // Player portal only has list pages — navigate to the list, no ID.
@@ -96,6 +97,7 @@ const PLAYER_LIST_ROUTES: Record<EntityType, string> = {
   location: "/play/atlas",
   party: "/play/party",
   faction: "/play/factions",
+  species: "/play/party",
 };
 
 function navigate() {
@@ -109,6 +111,10 @@ function navigate() {
     const target = PLAYER_LIST_ROUTES[entityType.value];
     if (target) void router.push(target);
   } else {
+    if (entityType.value === "species") {
+      void router.push(`${DM_ENTITY_ROUTES.species}${entityId.value}`);
+      return;
+    }
     const base = DM_ENTITY_ROUTES[entityType.value];
     if (base) void router.push(`${base}/${entityId.value}`);
   }
@@ -255,6 +261,25 @@ function navigate() {
 .entity-chip--faction:hover {
   background: theme(colors.kind-faction / 20%);
   border-color: theme(colors.kind-faction / 60%);
+}
+
+/* ── Species (lime) ─────────────────────────────────────────────────────── */
+.entity-chip--species--edit {
+  border-color: theme(colors.kind-species / 35%);
+  background: theme(colors.kind-species / 10%);
+  color: theme(colors.kind-species);
+  cursor: default;
+}
+.entity-chip--species {
+  border-color: theme(colors.kind-species / 40%);
+  background: theme(colors.kind-species / 10%);
+  color: theme(colors.kind-species);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.entity-chip--species:hover {
+  background: theme(colors.kind-species / 20%);
+  border-color: theme(colors.kind-species / 60%);
 }
 
 /* ── Unknown to this viewer (withheld name) — muted, inert ─────────────── */

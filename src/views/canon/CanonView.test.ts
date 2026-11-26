@@ -49,6 +49,7 @@ vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data
 // The page's search also reads peoples, habitats and the table's lines (#1279 item 24); none of these tests searches them.
 vi.mock("@/composables/canon/useCampaignPeoples", () => ({ useCampaignPeoples: () => ({ peoples: ref([]) }) }));
 vi.mock("@/composables/canon/useCampaignHabitats", () => ({ useCampaignHabitats: () => ({ habitats: ref([]) }) }));
+vi.mock("@/composables/canon/useCampaignSpecies", () => ({ useCampaignSpecies: () => ({ species: ref([]) }) }));
 vi.mock("@/composables/canon/useTableFacts", () => ({ useTableFacts: () => ({ facts: { data: ref([]) } }) }));
 
 import { useCanonUiStore } from "@/stores/ui/canon";
@@ -108,7 +109,7 @@ async function settle() {
 
 // Every chapter is another file's business; the page is what mounts them and hands them their slice of the canon.
 const STUBS = {
-  RouterLink, CanonArcs: true, CanonDeleted: true, ArcsChapter: true, CanonOpenAsBook: true, CanonNextSession: true, CanonReview: true, CanonContents: true, WorldChapter: true, PeoplesChapter: true, LifeChapter: true,
+  RouterLink, CanonArcs: true, CanonDeleted: true, ArcsChapter: true, CanonOpenAsBook: true, CanonNextSession: true, CanonReview: true, CanonContents: true, WorldChapter: true, PeoplesChapter: true, LifeChapter: true, FieldGuideChapter: true,
   AppButton: { props: ["to", "label"], template: "<component :is=\"to ? 'a' : 'button'\" :href=\"to\">{{ label }}<slot /></component>" },
   TruthsChapter: TruthsStub, LoreChapter: LoreStub, SecretsChapter: SecretsStub, ForcesChapter: ForcesStub, BackstoriesChapter: BackstoriesStub, PremiseChapter: PremiseStub,
 };

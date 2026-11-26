@@ -6,8 +6,10 @@ import {
   worldBlockText,
   worldImageSetting,
   type CanonRowForBlock,
+  type HabitatForBlock,
   type PeopleRow,
 } from "./worldBlock";
+import type { EcologyLink, EcologySpecies, HabitatEcology } from "./worldBlockEcology";
 
 /** The block for a campaign that has said nothing of its peoples, unless a test says otherwise. */
 const build = (setting: string | null, rows: CanonRowForBlock[], peoples: readonly PeopleRow[] = []) => worldBlockFromRows(setting, rows, peoples, []);
@@ -241,43 +243,124 @@ describe("mentions in canon text", () => {
 });
 
 describe("the life of the world", () => {
-  const marsh = { name: "Salt marsh", places: ["the Marsh", "Saltmere's edge"], life: [{ name: "Marsh eel", percent: 40 }, { name: "Giant frog", percent: 20 }] };
-  const withHabitats = (list: Parameters<typeof habitatsLines>[0]) => worldBlockText(worldBlockFromRows(null, [], [], list));
+  const sp = (id: string, name: string, extra: Partial<EcologySpecies> = {}): EcologySpecies => ({
+    id, name, kingdom: "animal", livesAs: null, abundance: null, clade: null, ...extra,
+  });
+  const eco = (over: Partial<HabitatEcology>): HabitatEcology => ({ otherPercent: null, species: [], life: [], links: [], ...over });
+  const habitat = (name: string, places: string[], ecology: HabitatEcology): HabitatForBlock => ({ name, places, ecology });
+  const withHabitats = (list: HabitatForBlock[]) => worldBlockText(worldBlockFromRows(null, [], [], list));
 
-  // Bug: a habitat's places and shares never reached the generators, so a bog gave the same monsters as a desert.
-  it("tells every generator what lives where, each habitat with its places and its creatures at their shares", () => {
-    expect(withHabitats([marsh])).toContain(
-      "## Life of the world\nSalt marsh (the Marsh, Saltmere's edge): Marsh eel 40%, Giant frog 20%, anything else 40%\nWhen a creature turns up somewhere, choose it at these odds for the country it is in.",
-    );
+  // Bug: a DM-set share was overwritten by the worked-out one, or an unset one read as 0 and vanished.
+  it("keeps a set share, works an unset one out from abundance, and names species with the abundance word", () => {
+    const lines = habitatsLines([
+      habitat("Marsh", ["the Marsh"], eco({
+        species: [sp("a", "Puffrush", { abundance: "common" }), sp("b", "Pith Piper", { abundance: "common" })],
+        life: [{ formId: "fa", speciesId: "a", percent: 15 }, { formId: "fb", speciesId: "b", percent: null }],
+      })),
+    ]);
+    // Set 15; "anything else" defaults to 10; the unset form takes what is left: 100 - 10 - 15 = 75.
+    expect(lines).toBe("Marsh (the Marsh): Pith Piper 75% (common), Puffrush 15% (common), anything else 10%");
+  });
+
+  // Bug: a species with several forms listed each form apart instead of as one species share.
+  it("adds a species' forms into one share", () => {
+    const lines = habitatsLines([
+      habitat("Marsh", [], eco({
+        otherPercent: 0,
+        species: [sp("b", "Pith Piper")],
+        life: [{ formId: "f1", speciesId: "b", percent: 20 }, { formId: "f2", speciesId: "b", percent: 3.4 }],
+      })),
+    ]);
+    expect(lines).toBe("Marsh: Pith Piper 23.4%");
+  });
+
+  // Bug: a plant nobody fights vanished from the block, so a generator never heard it exists.
+  it("lists a species with no form on the roll as never met", () => {
+    const lines = habitatsLines([
+      habitat("Marsh", [], eco({
+        species: [sp("a", "Puffrush"), sp("g", "Grub-duster", { kingdom: "plant" })],
+        life: [{ formId: "fa", speciesId: "a", percent: 50 }],
+      })),
+    ]);
+    expect(lines).toContain("\n  Also here, never met as an encounter: Grub-duster (plant).");
+    expect(lines.split("\n")[0]).not.toContain("Grub-duster");
+  });
+
+  const here = [sp("r", "Rust Robber"), sp("p", "Puffrush"), sp("s", "Squillick")];
+  const link = (over: Partial<EcologyLink>): EcologyLink => ({ kind: "eats", fromSpeciesId: "r", fromForm: null, toSpeciesId: "p", toForm: null, ...over });
+
+  it("words the food web, with a narrowed form before its species and 'other animals' for no target", () => {
+    const lines = habitatsLines([
+      habitat("Marsh", [], eco({
+        species: here,
+        links: [link({}), link({ kind: "eats", fromSpeciesId: "s", toForm: "Young" }), link({ kind: "carries", fromSpeciesId: "p", toSpeciesId: null })],
+      })),
+    ]);
+    expect(lines).toContain("  Food web: Rust Robber eats Puffrush; Squillick eats young Puffrush; Puffrush carries other animals.");
+  });
+
+  // Bug: a link to a species that lives elsewhere told the generator about food that is not in this country.
+  it("leaves out a link whose species does not live in the habitat", () => {
+    const lines = habitatsLines([habitat("Marsh", [], eco({ species: here, links: [link({ toSpeciesId: "elsewhere" }), link({ fromSpeciesId: "elsewhere" })] }))]);
+    expect(lines).not.toContain("Food web");
+  });
+
+  // Bug: a food web of hundreds of links drowned the block.
+  it("caps the food web at 12 links, keeping those of the most met species", () => {
+    const many = Array.from({ length: 15 }, (_, i) => sp(`x${i}`, `Beast ${i}`));
+    const life = many.map((m, i) => ({ formId: `f${i}`, speciesId: m.id, percent: i === 14 ? 50 : 1 }));
+    const links = many.map((m) => link({ fromSpeciesId: m.id, toSpeciesId: null, kind: "shelters" }));
+    const lines = habitatsLines([habitat("Marsh", [], eco({ species: many, life, links }))]);
+    const web = lines.split("\n").find((l) => l.includes("Food web")) ?? "";
+    expect(web.split("; ")).toHaveLength(12);
+    expect(web).toContain("Beast 14 shelters");
+  });
+
+  // Bug: kin were named by nothing, or species of different clades were lumped together.
+  it("names species that share a clade as kin", () => {
+    const rub = { id: "c1", name: "Rubiursus" };
+    const lines = habitatsLines([
+      habitat("Wood", [], eco({ species: [sp("a", "Bramblebear", { clade: rub }), sp("b", "Bristlewick", { clade: rub }), sp("c", "Lone Owl", { clade: { id: "c2", name: "Strix" } })] })),
+    ]);
+    expect(lines).toContain("  Kin: Bramblebear and Bristlewick (Rubiursus).");
+    expect(lines).not.toContain("Lone Owl (Strix)");
   });
 
   // Bug: an empty ecology still wrote a heading and an instruction about odds that name nothing.
-  it("adds nothing for an empty ecology, nor for a habitat with no place and no creature", () => {
+  it("adds nothing for an empty ecology, nor for a habitat with no place and no species", () => {
     expect(withHabitats([])).toBe("");
-    expect(withHabitats([{ name: "Barren", places: [], life: [] }])).toBe("");
+    expect(withHabitats([habitat("Barren", [], eco({}))])).toBe("");
     expect(worldBlockFromRows(null, [], [], []).habitats).toBeNull();
   });
 
-  it("says a habitat that has creatures but no place, and one that has a place but no creature", () => {
-    expect(habitatsLines([{ name: "Hills", places: [], life: [{ name: "Goat", percent: 100 }] }, { name: "Fen", places: ["Mere"], life: [] }])).toBe(
-      "Hills: Goat 100%\nFen (Mere)",
-    );
+  it("closes with the instruction to keep to what eats what", () => {
+    expect(withHabitats([habitat("Fen", ["Mere"], eco({}))])).toContain("keep to what eats what.");
   });
 
-  // Bug: the join took every habitat's creatures for each habitat, or kept a place the reader may not read as "undefined".
-  it("joins each habitat only to its own places and creatures, and leaves out a place that cannot be read", () => {
+  // Bug: the join took every habitat's species for each habitat, or kept a place the reader may not read as "undefined".
+  it("joins each habitat only to its own places, species and links, and leaves out a place that cannot be read", () => {
     const joined = habitatsForBlock({
-      habitats: [{ id: "h1", name: "Marsh" }, { id: "h2", name: "Hills" }],
-      places: [
-        { habitat_id: "h1", location: { name: "Mere" } },
-        { habitat_id: "h1", location: null },
-        { habitat_id: "h2", location: { name: "Tor" } },
+      habitats: [{ id: "h1", name: "Marsh", other_percent: 5 }, { id: "h2", name: "Hills", other_percent: null }],
+      places: [{ habitat_id: "h1", location: { name: "Mere" } }, { habitat_id: "h1", location: null }, { habitat_id: "h2", location: { name: "Tor" } }],
+      life: [{ habitat_id: "h1", species_id: "a", form_id: "fa", percent: null }],
+      habitatSpecies: [{ habitat_id: "h1", species_id: "a", abundance: "rare" }, { habitat_id: "h2", species_id: "g", abundance: null }],
+      species: [
+        { id: "a", name: "Eel", kingdom: "animal", lives_as: null, clade_id: "c" },
+        { id: "g", name: "Goat", kingdom: "animal", lives_as: "herd", clade_id: null },
       ],
-      life: [{ habitat_id: "h1", name: "Eel", percent: 50 }, { habitat_id: "h2", name: "Goat", percent: 10 }],
+      forms: [{ id: "fa", species_id: "a", label: "Adult" }],
+      links: [
+        { from_species_id: "a", kind: "eats", to_species_id: null, from_form_id: "fa", to_form_id: null, habitat_id: "h1" },
+        { from_species_id: "g", kind: "eats", to_species_id: null, from_form_id: null, to_form_id: null, habitat_id: "h2" },
+      ],
+      clades: [{ id: "c", name: "Anguilla" }],
     });
-    expect(joined).toEqual([
-      { name: "Marsh", places: ["Mere"], life: [{ habitat_id: "h1", name: "Eel", percent: 50 }] },
-      { name: "Hills", places: ["Tor"], life: [{ habitat_id: "h2", name: "Goat", percent: 10 }] },
-    ]);
+    expect(joined[0].places).toEqual(["Mere"]);
+    expect(joined[0].ecology.otherPercent).toBe(5);
+    expect(joined[0].ecology.species).toEqual([{ id: "a", name: "Eel", kingdom: "animal", livesAs: null, abundance: "rare", clade: { id: "c", name: "Anguilla" } }]);
+    expect(joined[0].ecology.links).toEqual([{ kind: "eats", fromSpeciesId: "a", fromForm: "Adult", toSpeciesId: null, toForm: null }]);
+    expect(joined[1].places).toEqual(["Tor"]);
+    expect(joined[1].ecology.species.map((s) => s.name)).toEqual(["Goat"]);
+    expect(joined[1].ecology.life).toEqual([]);
   });
 });

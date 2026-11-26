@@ -56,7 +56,8 @@
             <WorldChapter v-else-if="active === 'world'" />
             <TimelineChapter v-else-if="active === 'timeline'" :arc-label="arcLabel" />
             <PeoplesChapter v-else-if="active === 'peoples'" />
-            <LifeChapter v-else />
+            <LifeChapter v-else-if="active === 'life'" />
+            <FieldGuideChapter v-else />
           </template>
         </template>
       </div>
@@ -96,12 +97,14 @@ import TruthsChapter from "@/components/canon/TruthsChapter.vue";
 import WorldChapter from "@/components/canon/WorldChapter.vue";
 import TimelineChapter from "@/components/canon/TimelineChapter.vue";
 import LifeChapter from "@/components/canon/ecology/LifeChapter.vue";
+import FieldGuideChapter from "@/components/canon/ecology/FieldGuideChapter.vue";
 import PeoplesChapter from "@/components/canon/ecology/PeoplesChapter.vue";
 import { narrowToArc } from "@/lib/canon/canonNarrow";
 import { isNewCanon, wayInSteps } from "@/lib/canon/canonWayIn";
 import { searchCanon } from "@/lib/canon/canonSearch";
 import { useCanonArcs } from "@/composables/canon/useCanonArcs";
 import { useCampaignHabitats } from "@/composables/canon/useCampaignHabitats";
+import { useCampaignSpecies } from "@/composables/canon/useCampaignSpecies";
 import { useCampaignPeoples } from "@/composables/canon/useCampaignPeoples";
 import { useTableFacts } from "@/composables/canon/useTableFacts";
 import { useCanonUiStore } from "@/stores/ui/canon";
@@ -167,6 +170,7 @@ const counts = computed(() => ({
 const searching = computed(() => ui.query.trim() !== "");
 const { peoples } = useCampaignPeoples();
 const { habitats } = useCampaignHabitats();
+const { species } = useCampaignSpecies();
 const { facts: tableFacts } = useTableFacts();
 const hitGroups = computed(() =>
   searching.value
@@ -178,6 +182,7 @@ const hitGroups = computed(() =>
         arcs: arcs.value ?? [],
         peoples: peoples.value,
         habitats: habitats.value,
+        species: species.value,
         facts: tableFacts.data.value ?? [],
       })
     : [],

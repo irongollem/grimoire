@@ -24,6 +24,7 @@ export const CANON_SECTIONS = [
   { id: "timeline", label: "Timeline", short: "Timeline", group: "world", parts: [], counted: false, why: "What happened and what is due, in the world's own calendar, with the events you add." },
   { id: "peoples", label: "Peoples", short: "Peoples", group: "world", parts: [], counted: false, why: "The world's peoples and cultures: where they live and how." },
   { id: "life", label: "Habitats", short: "Habitats", group: "world", parts: [], counted: false, why: "Creatures and habitats: what lives where, and what the land gives." },
+  { id: "species", label: "Field guide", short: "Field guide", group: "world", parts: [], counted: false, why: "The world's living things: each species, its kin, its forms, and what it does to the others." },
   // Arcs are their own table, not entries: the contents' count comes from `sectionCounts`'s `arcCount`.
   { id: "arcs", label: "Arcs", short: "Arcs", group: "story", parts: [], counted: true, why: "The campaign's acts: what each asks, what is at stake, and how it ends." },
   { id: "moving", label: "Forces", short: "Forces", group: "story", parts: ["force"], counted: true, why: "Forces that act whether or not the party does. Never shown to players." },

@@ -13,7 +13,7 @@ vi.mock("@/composables/canon/useCanonEntries", () => ({
 
 import HabitatNotes from "./HabitatNotes.vue";
 
-const habitat = { id: "h1", name: "Salt marsh", description: null, sortOrder: 0 };
+const habitat = { id: "h1", name: "Salt marsh", description: null, sortOrder: 0, otherPercent: null };
 const links = { RouterLink: { props: ["to"], template: "<a :href='to.path + \"?entry=\" + to.query.entry'><slot /></a>" } };
 
 describe("HabitatNotes", () => {

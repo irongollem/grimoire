@@ -11,7 +11,7 @@ vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignI
 vi.mock("pinia", async (importOriginal) => ({ ...(await importOriginal<typeof import("pinia")>()), storeToRefs: (s: object) => ({ activeCampaignId: { value: (s as { activeCampaignId: string }).activeCampaignId } }) }));
 
 describe("useStartScriptoriumDocument", () => {
-  const source = { premise: [], truths: [{ id: "t1", title: "x" }], lore: [], forces: [{ id: "f1", title: "f" }], secrets: [], questions: [], places: [], folk: [], factions: [], pantheons: [], deities: [], quests: [], monsters: [], items: [], spells: [], arcs: [], peoples: [], habitats: [], backstories: [], world: { calendar: null, coins: [] } };
+  const source = { premise: [], truths: [{ id: "t1", title: "x" }], lore: [], forces: [{ id: "f1", title: "f" }], secrets: [], questions: [], places: [], folk: [], factions: [], pantheons: [], deities: [], quests: [], monsters: [], items: [], spells: [], arcs: [], peoples: [], habitats: [], clades: [], species: [], forms: [], links: [], habitatSpecies: [], habitatLife: [], statBlockNameByForm: new Map(), backstories: [], world: { calendar: null, coins: [] } };
   beforeEach(() => {
     mocks.mutateAsync.mockReset().mockResolvedValue({ id: "new-id" });
     mocks.dmSource.mockReset().mockResolvedValue(source);

@@ -26,6 +26,7 @@ import { useEncounterQuote } from "@/composables/ai/quotes/encounterQuote";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { unmatchedLabel, useGenerateEncounter, type EncounterDraft } from "@/composables/encounters/useGenerateEncounter";
 import { useEncounterWhere } from "@/composables/encounters/useEncounterWhere";
+import { timeOfDayOf } from "@/ai/ask/timeOfDay";
 import { lifeConstraints } from "@/lib/canon/habitats";
 import { swapCombatantVersion, type ResolvableMonster } from "@/lib/encounters/resolveGeneratedCombatants";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
@@ -96,6 +97,8 @@ export function useEncounterAskAdapter(): AskPreviewAdapter {
       location: locationId === null ? null : locations.value?.find((l) => l.id === locationId) ?? null,
       // The page's own default: the server resolves "auto" from the party.
       difficulty: said === null ? "auto" : said,
+      // The hour decides who is about; "any" (the card's default) is no hour at all.
+      timeOfDay: timeOfDayOf(askString(inputs, "time_of_day")),
       concept: proposal.concept.trim(),
     };
   }
@@ -129,9 +132,9 @@ export function useEncounterAskAdapter(): AskPreviewAdapter {
     const read = understand(proposal);
     // A place at no leaves the encounter unanchored, as if the proposal had not named one.
     const location = askChoice(choices, "location_id", true).on ? read.location : null;
-    // What lives where the encounter is set, rolled once in code and sent beside the concept, as the panel did.
-    const habitat = location === null ? null : where.habitatFor(location.id);
-    const constraints = habitat === null ? [] : lifeConstraints(habitat.name, habitat.life);
+    // What lives where the encounter is set, rolled once in code, at the card's hour and the campaign's season, and sent beside the concept.
+    const habitat = location === null ? null : where.habitatFor(location.id, read.timeOfDay);
+    const constraints = habitat === null ? [] : lifeConstraints(habitat);
 
     let outcome;
     try {

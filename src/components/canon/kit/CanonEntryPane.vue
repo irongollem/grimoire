@@ -1,8 +1,10 @@
 <template>
   <section class="flex min-w-0 flex-col gap-4" :aria-label="kind" data-testid="canon-entry-pane">
-    <header class="flex items-start gap-2">
+    <!-- A letterhead (a species, a habitat) sets its title in type over a double gilt rule, with a rank line above. -->
+    <header class="flex items-start gap-2" :class="letterhead ? 'border-b-[3px] border-double border-primary/60 pb-3' : ''">
       <div class="flex min-w-0 flex-1 flex-col gap-1">
-        <span class="text-caption italic text-muted-foreground">{{ kind }}</span>
+        <span v-if="letterhead" class="text-eyebrow text-muted-foreground" data-testid="canon-entry-rank"><slot name="rank">{{ kind }}</slot></span>
+        <span v-else class="text-caption italic text-muted-foreground">{{ kind }}</span>
         <slot name="title" />
       </div>
       <AppButton variant="ghost" size="icon-sm" :icon="IconClose" :aria-label="closeLabel" data-testid="canon-entry-close" @click="emit('close')" />
@@ -32,11 +34,13 @@
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconClose, IconDelete } from "@/lib/icons";
 
-const { kind, deleteLabel, closeLabel } = defineProps<{
+const { kind, deleteLabel, closeLabel, letterhead = false } = defineProps<{
   /** The small word over the title: "Truth". */
   kind: string;
   deleteLabel?: string;
   closeLabel: string;
+  /** Set the head as a field guide's letterhead (#1283): the `rank` slot over the title, a double rule under it. */
+  letterhead?: boolean;
 }>();
 const emit = defineEmits<{ close: []; delete: [] }>();
 </script>

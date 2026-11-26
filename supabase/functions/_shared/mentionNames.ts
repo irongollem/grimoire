@@ -23,6 +23,7 @@ const SOURCES: Record<string, NameSource> = {
   npc: { table: "npcs", scope: "campaign" },
   location: { table: "locations", scope: "campaign" },
   faction: { table: "factions", scope: "campaign" },
+  species: { table: "campaign_species", scope: "campaign" },
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

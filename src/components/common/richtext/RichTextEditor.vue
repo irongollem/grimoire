@@ -452,6 +452,7 @@ const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   location: "LOC",
   party: "PARTY",
   faction: "FAC",
+  species: "SPE",
 };
 
 const {
@@ -1142,5 +1143,10 @@ const enhanceAvailable = useEnhanceAvailable();
   color: theme(colors.kind-faction);
   border-color: theme(colors.kind-faction / 40%);
   background: theme(colors.kind-faction / 10%);
+}
+.entity-suggestion-badge--species {
+  color: theme(colors.kind-species);
+  border-color: theme(colors.kind-species / 40%);
+  background: theme(colors.kind-species / 10%);
 }
 </style>

@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { rollLife, type HabitatLife } from "./habitats";
-import { sharesProblem, sharesRest, sharesTotal } from "./shares";
+import { rollShare, sharesProblem, sharesRest, sharesTotal, type Share } from "./shares";
 
-const creature = (name: string, percent: number, over: Partial<HabitatLife> = {}): HabitatLife => ({
-  id: `l-${name}`, habitatId: "h1", recordId: `lib_${name}`, fromLibrary: true, name, readable: true, percent, ...over,
-});
+const creature = (name: string, percent: number, over: Partial<Share> = {}): Share => ({ name, readable: true, percent, ...over });
 
 const share = (name: string, percent: number) => ({ name, percent });
 
@@ -40,20 +37,20 @@ describe("the share rules, one for the peoples and for a habitat's life", () => 
   });
 });
 
-describe("rollLife", () => {
+describe("rollShare", () => {
   const marsh = [creature("Eel", 40), creature("Frog", 20)];
 
   // Bug caught: a roll that ignores the shares (uniform pick) breaks "40% eels".
   it("picks the creature whose share the roll lands in, and nothing past the listed total", () => {
-    expect(rollLife(marsh, () => 0.3)?.name).toBe("Eel");
-    expect(rollLife(marsh, () => 0.5)?.name).toBe("Frog");
-    expect(rollLife(marsh, () => 0.6)).toBeNull();
+    expect(rollShare(marsh, () => 0.3)?.name).toBe("Eel");
+    expect(rollShare(marsh, () => 0.5)?.name).toBe("Frog");
+    expect(rollShare(marsh, () => 0.6)).toBeNull();
   });
 
   // Bug caught: a creature on a co-DM's own shelf was rolled and its placeholder name handed to a generator.
   it("never picks a creature this reader cannot name: its share is anything else", () => {
     const list = [creature("A creature another DM listed", 60, { readable: false }), creature("Frog", 30)];
-    expect(rollLife(list, () => 0.3)).toBeNull();
-    expect(rollLife(list, () => 0.7)?.name).toBe("Frog");
+    expect(rollShare(list, () => 0.3)).toBeNull();
+    expect(rollShare(list, () => 0.7)?.name).toBe("Frog");
   });
 });

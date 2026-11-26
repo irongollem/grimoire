@@ -38,6 +38,7 @@ export function canonEntry(over: Partial<CanonEntry> = {}): CanonEntry {
     from_fact_id: null,
     arc_id: null,
     habitat_id: null,
+    species_id: null,
     created_at: "2026-11-19T10:00:00Z",
     updated_at: "2026-11-19T10:00:00Z",
     ...over,

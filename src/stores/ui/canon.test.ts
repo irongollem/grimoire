@@ -116,4 +116,15 @@ describe("useCanonUiStore last part", () => {
     localStorage.setItem("grimoire:canon-part", "gone");
     expect(useCanonUiStore().lastPart).toBe("premise");
   });
+
+  // Bug caught (#1283): the field guide's kingdom lighting no Clear, or Clear leaving the kingdom set so the list stays narrowed.
+  it("lights the field guide Clear for a kingdom and puts it back", () => {
+    const store = useCanonUiStore();
+    expect(store.fieldGuideHasActiveFilters).toBe(false);
+    store.fieldGuideKingdom = "plant";
+    expect(store.fieldGuideHasActiveFilters).toBe(true);
+    store.resetFieldGuideFilters();
+    expect(store.fieldGuideKingdom).toBeNull();
+    expect(store.fieldGuideHasActiveFilters).toBe(false);
+  });
 });

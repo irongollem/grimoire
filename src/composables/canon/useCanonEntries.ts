@@ -43,6 +43,8 @@ export type NewCanonEntry =
       from_fact_id?: string | null;
       /** The habitat this truth belongs to, a note on the living world (the Life part). */
       habitat_id?: string | null;
+      /** The species this truth belongs to, a note in the field guide. */
+      species_id?: string | null;
       arc_id?: string | null;
     }
   | ({ part: "force"; title: string; wants?: string | null; clock_size?: number | null; sort_order?: number; ai_provenance?: AiProvenance | null } & InArc)

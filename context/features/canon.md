@@ -68,14 +68,28 @@ the `campaigns` row, which every member reads (#1228).
   view `campaign_peoples_named` (invoker) gives `kind`, `record_id`, `from_library` and the record's `name`, and leaves out
   a row whose record is gone. DMs read and write; it rings the doorbell (`campaign_peoples` → `CANON_KEY`).
 - `campaign_habitats`, `campaign_habitat_places`, `campaign_habitat_life` (`20261123235700_canon_story_tools.sql` section 5,
-  #1255 item 31): the ecology. A habitat is a kind of country (`name` 1 to 80 characters, a rich-text `description`,
-  `sort_order`); `campaign_habitat_places` ties it to the Atlas places it covers, a place in at most one habitat (23505);
-  `campaign_habitat_life` is what lives there as shares, exactly one of `monster_id` (the DM's creature) or
-  `library_monster_id` (a shared book's; a missing id is 23503), a creature once per habitat (23505), the shares of a
-  habitat not passing 100, checked at commit (23514). The view `campaign_habitat_life_named` (invoker) adds the
-  creature's `name`, null for one this reader may not read, and keeps the row so totals add up. `canon_entries.habitat_id`
-  (a truth only, 23514 otherwise) is a truth that belongs to a habitat. DM-only; all ring the doorbell under
-  `CANON_KEY`.
+  #1255 item 31, reshaped by `20261126162306_habitat_ecology.sql`, #1283): the ecology. A habitat is a kind of country
+  (`name` 1 to 80 characters, a rich-text `description`, `sort_order`, and `other_percent`, the "anything else" share:
+  null is the worked-out 10); `campaign_habitat_places` ties it to the Atlas places it covers, a place in at most one
+  habitat (23505). What lives there is `campaign_habitat_species` (a species once per habitat, 23505, with `abundance`:
+  very_rare, rare, uncommon, common, abundant), and the roll is `campaign_habitat_life`, one row per species **form** on
+  the roll (`species_id`, `form_id`, unique per habitat). A composite reference ties a life row to its species living in
+  that habitat (taking a species out takes its forms off the roll) and to a form of that species (23503 otherwise).
+  `percent` null is a share worked out in code (`supabase/functions/_shared/ecologyShares.ts`, `workedOutShares`); a
+  number is the DM's. The DM's numbers plus a set `other_percent` may not pass 100, checked at commit (23514); worked-out
+  shares never count. The view `campaign_habitat_life_named` (invoker) adds `species_name`, `form_label` and the form's
+  stat block `name`, null for one this reader may not read. `canon_entries.habitat_id` and `canon_entries.species_id`
+  (a truth only, 23514 otherwise) tie a truth to a habitat or a species. DM-only; all ring the doorbell under `CANON_KEY`.
+- The field guide (`20261126162306_habitat_ecology.sql`, #1283): `campaign_clades` (kin, nested by `parent_id`, an
+  optional free-word `rank`, never inside itself: 23514); `campaign_species` (`name`, `scientific_name`, `clade_id`,
+  `kingdom` animal/plant/fungus/other, `lives_as` alone/pairs/family/harem/herd/colony, `activity` day/twilight/night/any,
+  `seasons` jsonb keyed by the calendar's season kinds with `{away, note}`); `campaign_species_forms` (an age or a
+  domesticated breed: `label`, `stage_order`, `domesticated`, at most one of `monster_id` / `library_monster_id`, a stat
+  block a form of one species per campaign, 23505); `campaign_species_links` (`kind` eats, competes, helps, lives_on,
+  shelters, carries; `to_species_id` may be empty only for shelters and carries; optional `from_form_id` / `to_form_id`,
+  each a form of its side's species; optional `habitat_id`; a `note`); `campaign_species_yields` (an item or a library
+  item a species gives). Every closed list is mirrored in `src/lib/canon/ecologyTypes.ts` and held equal by
+  `ecologyTypesMirror.test.ts`. DM-only, ringing under `CANON_KEY`, copied with the demo, handed on with a campaign.
 - The world web's seventh kind, `canon` (`from_/to_canon_entry_id` on `world_links`; pairs `canon_person`,
   `canon_faction`, `canon_location`, `canon_deity`, `canon_item`, `canon_canon` in
   `supabase/functions/_shared/worldLinkCatalogue.ts`). A canon entry is always the `from` end. "Known to some" is
@@ -93,11 +107,12 @@ load it with `loadWorldBlock` (`worldBlockLoad.ts`). The
 Chronicler's `{settingPrompt}` placeholder is filled with it. It also carries `## Peoples of the world` (who lives
 there, as shares, largest first, with "do not default to humans"; see "How the world works"), left out when the DM
 listed none. Both loaders read the names and shares from `campaign_peoples_named` in the same round trip as the canon rows.
-It also carries `## Life of the world` (`habitatsLines`: one line per habitat, "Salt marsh (the Marsh, Saltmere's edge):
-Marsh eel 40%, Giant frog 20%, anything else 40%", with "When a creature turns up somewhere, choose it at these odds for
-the country it is in."), left out when no habitat has a place or a creature. Both loaders read `campaign_habitats`, the
-places (with each place's name) and `campaign_habitat_life_named` in the same `Promise.all`; a creature with no readable
-name is left out of its line, so its share falls under "anything else". `habitatsForBlock` joins the three reads, once for both loaders.
+It also carries `## Life of the world`, one line per habitat with its species and worked-out shares (the abundance word
+in brackets), then indented lines for what lives there but is never met as an encounter (a plant), the habitat's food
+web (at most twelve links, the most-met species first) and kin sharing a clade, ending "When a creature turns up
+somewhere, choose it at these odds for the country it is in, and keep to what eats what." Left out when no habitat has a
+place or anything living there. The shares are `workedOutShares` from `_shared/ecologyShares.ts`, the same function the
+client uses, so the generator and the screen never disagree.
 
 Canon text takes @mentions (pitch, lore and backstory passages, notes on a truth, secret or force; not a player's own
 passage), but a stored mention is `{ id, entityType }` with no name, on purpose (#932). The plain-text walkers emit only
@@ -455,42 +470,71 @@ Since #1267 these are two chapters, **Peoples** (`ecology/PeoplesChapter.vue`) a
 (`ecology/LifeChapter.vue`), so the world's peoples are no longer read as part of its ecology. **Habitats** is the habitats chapter: a short list of the world's kinds of
 country, each with a description, the Atlas places it covers and the creatures that live there.
 
-The list (`LifeChapter.vue`, a habitat opening beside it on the kit) shows each habitat's name, its places as plain words and a one-line summary of what lives
-there ("Marsh eel 40%, Giant frog 20%, anything else 40%", `sharesLine`), with up and down to reorder (the DM's order is
-the world block's) and an add row, "A new kind of country...", which opens the new habitat. The selected habitat's editor
-(`HabitatEditor.vue`) is below: the name (saved when left, never blank), the description (`RichTextEditor`, secrets
-allowed, autosaved), **The places it covers** (`HabitatPlaces.vue`: the picker is the Atlas tree and leaves out every place
-already in a habitat, a line saying which habitat holds those; a place covers the places inside it unless one is another
-habitat's), **What lives here** (`HabitatLife.vue`), **Notes on the living world** (`HabitatNotes.vue`: the truths whose
-`habitat_id` is this habitat, each linking to `/canon?entry=<id>`, and an add row making a truth known to all with the
-habitat set, so a note is listed in Truths too and its mark is changed there) and **Delete this habitat** (asks first;
-places and life go with it, the notes stay as truths with no habitat).
+The list (`LifeChapter.vue`, a habitat opening beside it on the kit) shows each habitat's name, its places as plain
+words and a one-line summary of what lives there by species, with worked-out shares ("Pith Piper 90%, anything else
+10%", `habitatSummary` in `lib/canon/habitatRows.ts`), up and down to reorder (the DM's order is the world block's) and
+an add row, "A new kind of country...", which opens the new habitat. The open habitat (`HabitatEditor.vue`) has a
+**letterhead** (`CanonEntryPane` with `letterhead`: "Habitat · N places" over the name in type, a double rule under it);
+the name is `InlineEditText` (`components/common/controls/`, the maintainer's rule of 26 Nov 2026: "no edit and save
+buttons, simply clicking the name makes it an edit box, clicking outside it solidifies it again") and the description
+`InlineEditRich` (read as text, the rich editor while clicked, autosaved). Then **The places it covers**
+(`HabitatPlaces.vue`, unchanged), **What lives here** (`HabitatLife.vue`), **Notes on the living world**
+(`HabitatNotes.vue`) and **Delete this habitat** (asks first).
 
-**The shares rule** is one for the peoples and for a habitat's life: `src/lib/canon/shares.ts` (`sharesTotal`,
-`sharesProblem`, `sharesRest`, `rollShare`), the one list-of-shares component `ShareList.vue` (rows, the running total
-"Adds up to 60%. The other 40% is anything else.", the problem sentence, a share saving when its field is left and never
-while the total would pass 100), and `sharesLine` in `_shared/worldBlock.ts` for the words. `peoples.ts` and `habitats.ts`
-only add their own types and name the roll (`rollPeople`, `rollLife`). A creature is never typed: it is picked from the
-bestiary index the encounter picker reads (`useMonsterIndex`, loaded when the picker first opens), with a "New creature"
-link to `/monsters/new`; the table keeps a creature once per habitat and the shares to 100 (23514 is shown as "These
-shares would pass 100.", a place already placed, 23505, as "That place is already in another habitat."). A creature this
-reader may not read keeps its row under a placeholder name and is never rolled, so the shares still add up.
-`useCampaignHabitats.ts` reads the three tables and writes them, all scoped to the campaign and under `CANON_KEY`.
+**What lives here** (#1283, canvas frames U02 and U04) is one `ConnectionSlip` per species (`HabitatSpeciesSlip.vue`):
+the picture of the form met most often there, else the first form (`thumbnailFormId`); the name opens the species in
+the Field guide; the italic line is the scientific name or how it lives. At the right, in fixed columns, **How common**
+(very rare to abundant) and the share: an `AppInput` whose grey placeholder is the share worked out in code and whose
+value, in ink, is the DM's own number; clearing it goes back to worked out. Nothing else marks a set share. A species
+with several forms on the roll shows their sum and lists the forms under its name, each with its own share. Under the
+slips, **Anything else** (placeholder 10) and "Adds up to 100%." or the problem sentence. A species is added with @ (a
+one-line `MentionTextarea` over the field guide's species); adding one puts each of its wild forms with a stat block on
+the roll with no share (domesticated forms and forms without a stat block never go on).
+
+**Worked-out shares.** `workedOutShares` (`supabase/functions/_shared/ecologyShares.ts`, shared by the screen, the
+roll, the world block and the book) weighs each species by how common it is (very rare 1, rare 3, uncommon 8, common
+20, abundant 40; unset as uncommon) times how it lives (alone 1, pairs 0.8, family 0.7, harem 0.6, herd and colony 0.5,
+since a group is met as one encounter). The DM's own numbers and anything else (10 unless set) come off the top; the
+rest is shared out by weight, a species' share split evenly over its unset forms, to one decimal.
 
 The world block tells every other generator the result (see "The world block").
 
 **Rolled for an encounter.** `habitatForPlace` (`habitats.ts`) says which habitat a place lies in: its own, else the one
-of the nearest place it lies inside that is covered (the rule `tablesForPlaces` uses for encounter tables), with that
-covered place as `throughPlaceId`. The encounter generator has a **Where** choice (`useEncounterWhere`, the party's
-place, `campaigns.current_location_id`, until the DM picks or clears it). When that place lies in a habitat with a
-creature at a share, one quiet line gives the habitat and its shares ("Salt marsh: Marsh eel 40%, Giant frog 20%,
-anything else 40%"), and each generation rolls once with `rollLife` through `lifeConstraints`: a rolled creature becomes
-"Build this encounter around X: it is what lives in <habitat>. Other creatures may join it.", and a roll on "anything
-else" becomes "The creatures are not <listed>: something this country rarely sees." The roll is a constraint beside the
-DM's concept and never over it, a creature the reader cannot read is never named, and no place or a place in no habitat
-sends nothing. **A place's own table wins (#1258 item 15):** `encounterSourceForPlace` (`habitats.ts`) is the one rule: the roll table placed on the
-place, or on the nearest place it lies inside (`tablesForPlaces`), comes first, and the habitat is the fallback only when neither has one. With a table
-the Where line says "Uses <table> here" and nothing is rolled from the habitat. The lines travel as `constraints` on `generate` (`useEncounterGeneration`): sent as `constraints` in the body to `generate-encounter`.
+of the nearest place it lies inside that is covered, with that covered place as `throughPlaceId`. The encounter card in
+the Familiar has a **Where** (`useEncounterWhere`) and, since #1283, a **Time of day** (Any time, Dawn, Day, Dusk,
+Night; `src/ai/ask/timeOfDay.ts`). The season comes from the campaign's calendar date (`seasonOn`). `buildEncounterHabitat`
+works the shares out, then `rollAdjust` (`lib/canon/ecology.ts`): a species away that season is off the roll, one resting
+at that hour (its activity: by day, at dawn and dusk, by night) is met half as often, and what they give up falls to
+anything else. The Where line is `whereLine(h)` plus those notes ("Rust Robber is resting by day, so it is met half as
+often."). Each generation rolls once through `lifeConstraints(h)`: a rolled form becomes "Build this encounter around X:
+it is what lives in <habitat>, about at dusk. <up to three of its links as sentences> Other creatures may join it.", and
+a roll on anything else "The creatures are not <listed>: something this country rarely sees." Only forms with a stat
+block are rolled. **A place's own table wins (#1258 item 15):** `encounterSourceForPlace` (`habitats.ts`) is the one
+rule: a roll table placed on the place, or on the nearest place it lies inside, comes first, and the habitat is the
+fallback. The lines travel as `constraints` to `generate-encounter`.
+
+## The Field guide (#1283)
+
+After Habitats in the contents (route id `species`, `FieldGuideChapter.vue`), from the Habitat Ecology canvas, frames U01
+and U03. The list groups species by clade (an eyebrow per clade holding species, indented by depth, "In no clade"
+last; `groupSpecies` in `lib/canon/fieldGuide.ts`), each row the common name with the scientific name in italics and its
+habitats under it and a mark ("3 forms", "No stat block", "2 forms, 1 domesticated"). A kingdom filter (All, Animals,
+Plants, Fungi, Other) is kept in the canon UI store (`fieldGuideKingdom`) with Clear. `?species=<id>` opens one, and the
+canon search finds species by common or scientific name.
+
+The open species (`SpeciesEditor.vue`) is a letterhead: the rank line is kingdom and clade path, each click-to-edit
+(`SpeciesRank.vue`; the clade is an `EntityCombobox` with "New clade…", a name and the clade it lies in), the common name
+and the scientific name are `InlineEditText`. Then **How it lives** (the select the shares read), the description
+(`InlineEditRich`), **Forms** (`SpeciesForms.vue`: each stage with its stat block as an @ chip and a Domesticated box to
+the right of its label; the add line takes a stage and @ a stat block, a bare pick being an "Adult"), **In the web**
+(`SpeciesLinks.vue`: each link as a sentence from this species' side, `linkWords`; the age reads before the species
+("eats grown @Pith Piper"), a form with its own stat block named by it instead ("@Old False Crust is home to
+@Grub-duster"); a click opens its note, habitat and ages, `SpeciesLinkEditor.vue`; the add row is the kind then @ the
+other species, which may be left empty only for shelters and carries), **Lives in** (`SpeciesHabitats.vue`: a button per
+habitat with "met on a roll N%" or "never met on a roll") and, folded under **Add…**, **When it is about**
+(`SpeciesWhen.vue`), **Yields** (`SpeciesYields.vue`, items) and **Notes** (`SpeciesNotes.vue`, truths with
+`species_id`). Species are an @-mention kind (`species`, badge SPE, `kind-species` olive), the DM's only: a player's
+chip is inert. The book (`scriptorium/lib/canonBook.ts`) prints a Field guide chapter after Habitats.
 
 **On the place.** The DM's place page shows `PlaceHabitat.vue` beside the canon placed here: "Lies in <habitat>" (with
 ", through <place>" when the habitat is inherited), its shares line, and a link to `/canon?section=life`. Nothing renders

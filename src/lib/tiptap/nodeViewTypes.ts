@@ -3,7 +3,7 @@
 // a component never imports its own extension (the extension imports the
 // component to render it), which would make a runtime import cycle.
 
-export type EntityType = "player" | "npc" | "monster" | "location" | "party" | "faction";
+export type EntityType = "player" | "npc" | "monster" | "location" | "party" | "faction" | "species";
 
 /** `subclass` is a `custom_subclasses` row: a setting book's class content is its subclasses (#1115). `canon` is a `canon_entries` row: a truth, lore, a force, a secret, a question or a premise line (#1226). */
 export type EntityEmbedType =

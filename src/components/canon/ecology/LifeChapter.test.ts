@@ -3,7 +3,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { computed } from "vue";
 
 const mocks = vi.hoisted(() => ({ add: vi.fn(), reorder: vi.fn() }));
-const state = vi.hoisted(() => ({ none: false }));
+const state = vi.hoisted(() => ({ none: false, eelPercent: 40 as number | null }));
 
 // The chapter reads its deep link (`?habitat=`) from the route; each test sets the query it was reached with.
 const routeState = vi.hoisted(() => ({ query: {} as Record<string, string> }));
@@ -12,19 +12,31 @@ vi.mock("vue-router", async (orig) => ({ ...(await orig<typeof import("vue-route
 vi.mock("@/composables/canon/useCampaignHabitats", () => ({
   useHabitatEditing: () => ({
     habitats: computed(() => state.none ? [] : [
-      { id: "a", name: "Salt marsh", description: null, sortOrder: 0 },
-      { id: "b", name: "High moor", description: null, sortOrder: 1 },
-      { id: "c", name: "Barrens", description: null, sortOrder: 2 },
+      { id: "a", name: "Salt marsh", description: null, sortOrder: 0, otherPercent: null },
+      { id: "b", name: "High moor", description: null, sortOrder: 1, otherPercent: null },
+      { id: "c", name: "Barrens", description: null, sortOrder: 2, otherPercent: null },
     ]),
     places: computed(() => [{ id: "p1", habitatId: "a", locationId: "l1" }]),
+    habitatSpecies: computed(() => [
+      { id: "s1", habitatId: "a", speciesId: "eel", abundance: "common", sortOrder: 0 },
+      { id: "s2", habitatId: "a", speciesId: "frog", abundance: null, sortOrder: 1 },
+      { id: "s3", habitatId: "b", speciesId: "goat", abundance: null, sortOrder: 0 },
+    ]),
     life: computed(() => [
-      { id: "x", habitatId: "a", name: "Marsh eel", percent: 40, readable: true },
-      { id: "y", habitatId: "a", name: "Giant frog", percent: 20, readable: true },
-      { id: "z", habitatId: "b", name: "Goat", percent: 10, readable: true },
+      { id: "x", habitatId: "a", speciesId: "eel", formId: "fe", percent: state.eelPercent, sortOrder: 0 },
+      { id: "y", habitatId: "a", speciesId: "frog", formId: "ff", percent: 20, sortOrder: 1 },
+      { id: "z", habitatId: "b", speciesId: "goat", formId: "fg", percent: 10, sortOrder: 0 },
     ]),
     isLoading: computed(() => false),
     addHabitat: mocks.add,
     reorderHabitats: mocks.reorder,
+  }),
+}));
+const kind = (id: string, name: string) => ({ id, name, scientificName: null, cladeId: null, kingdom: "animal", livesAs: null, activity: null, seasons: {}, description: null, sortOrder: 0 });
+vi.mock("@/composables/canon/useCampaignSpecies", () => ({
+  useCampaignSpecies: () => ({
+    species: computed(() => [kind("eel", "Marsh eel"), kind("frog", "Giant frog"), kind("goat", "Goat")]),
+    forms: computed(() => []),
   }),
 }));
 vi.mock("@/composables/locations/useLocations", () => ({
@@ -46,6 +58,7 @@ describe("LifeChapter", () => {
     mocks.add.mockReset();
     mocks.reorder.mockReset();
     state.none = false;
+    state.eelPercent = 40;
   });
 
   // Bug: a search hit for a habitat (`?habitat=`) landed on the chapter with nothing open; an id that is no habitat must open nothing.
@@ -76,6 +89,13 @@ describe("LifeChapter", () => {
     expect(rows[0].get("[data-testid=habitat-summary]").text()).toBe("Marsh eel 40%, Giant frog 20%, anything else 40%");
     expect(rows[1].get("[data-testid=habitat-summary]").text()).toBe("Goat 10%, anything else 90%");
     expect(rows[2].text()).toContain("Nothing lives here yet.");
+  });
+
+  // Bug: the list line showed only what the DM typed, so a species left to be worked out vanished from it.
+  it("says a species left to be worked out at the share the code gives it", () => {
+    state.eelPercent = null;
+    // Frog 20 and the default 10 for anything else leave 70, all of it the eel's.
+    expect(mount(LifeChapter).findAll("li")[0].get("[data-testid=habitat-summary]").text()).toBe("Marsh eel 70%, Giant frog 20%, anything else 10%");
   });
 
   // Bug: moving a habitat down moved it up, or the first row could still be moved up past the top.

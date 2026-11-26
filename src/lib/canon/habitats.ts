@@ -3,8 +3,11 @@
  * (`campaign_habitat_places`) and what lives in each as shares of its life (`campaign_habitat_life`, read by name
  * through `campaign_habitat_life_named`). The share rules are `shares.ts`'s, the same as the peoples'.
  */
-import { rollShare, type Share } from "./shares";
+import { sharesLine } from "@edge-shared/worldBlock.ts";
 import { tablesForPlaces, type TableOnPlace } from "@/lib/travel/wayTables";
+import { isAboutAt, linkSentence, linkWords, rollAdjust, TIME_OF_DAY_WORDS, workedOutShares, type RollWhen } from "./ecology";
+import type { HabitatLifeRow, HabitatSpecies, Species, SpeciesForm, SpeciesLink } from "./ecologyTypes";
+import { rollShare } from "./shares";
 
 export interface Habitat {
   id: string;
@@ -12,21 +15,15 @@ export interface Habitat {
   /** Tiptap JSON, or null while the DM has said nothing. */
   description: string | null;
   sortOrder: number;
+  /** The DM's "anything else" share, or null for the default. */
+  otherPercent: number | null;
 }
 
-/** One creature living in a habitat and its share. `recordId` is a text id for a book's creature, a uuid for the DM's own. */
-export interface HabitatLife extends Share {
-  id: string;
-  habitatId: string;
-  recordId: string;
-  fromLibrary: boolean;
-}
+/** A form on a habitat's roll; `readable` is false when this reader may not read its stat block's name. */
+export type HabitatLife = HabitatLifeRow & { readable: boolean };
 
 /** What stands where a name would, for a creature a co-DM listed from their own shelf. */
 export const UNREADABLE_CREATURE = "A creature another DM listed";
-
-/** What a made-up encounter's creature is in this country: each at its share, the rest as `null` ("anything else"). */
-export const rollLife = rollShare<HabitatLife>;
 
 /** A place put in a habitat, as `campaign_habitat_places` holds it. */
 export interface HabitatCoverage {
@@ -56,10 +53,83 @@ export function habitatForPlace(placeId: string, parentOf: (id: string) => strin
   return null;
 }
 
-/** The habitat an encounter is made in: its name and the creatures that live there at a share. */
+/** One creature (one form of one species) on a habitat's roll at this hour and season. */
+export interface EncounterEntry {
+  formId: string;
+  speciesId: string;
+  speciesName: string;
+  /** The stat block's name, or {@link UNREADABLE_CREATURE}. */
+  name: string;
+  percent: number;
+  readable: boolean;
+  /** "about at dusk" when the hour is this species' own, else null. */
+  about: string | null;
+  /** Sentences about the species' links here (at most 3). */
+  linkLines: string[];
+}
+
+/** The habitat an encounter is made in: its name and the creatures that live there, as they stand at this hour. */
 export interface EncounterHabitat {
   name: string;
-  life: HabitatLife[];
+  entries: EncounterEntry[];
+  notes: string[];
+}
+
+export interface BuildEncounterHabitatInput {
+  habitat: Habitat;
+  habitatSpecies: readonly HabitatSpecies[];
+  life: readonly HabitatLife[];
+  species: readonly Species[];
+  forms: readonly SpeciesForm[];
+  links: readonly SpeciesLink[];
+  statBlockNameByForm: ReadonlyMap<string, string | null>;
+  when: RollWhen;
+}
+
+const MAX_LINK_LINES = 3;
+
+/**
+ * A habitat's roll as it stands now: the worked-out shares, changed by the hour and the season, for the forms that have
+ * a stat block. A form with none takes its share but is never rolled; its share falls to "anything else".
+ */
+export function buildEncounterHabitat(input: BuildEncounterHabitatInput): EncounterHabitat {
+  const speciesById = new Map(input.species.map((s) => [s.id, s]));
+  const formsById = new Map(input.forms.map((f) => [f.id, f]));
+  const worked = workedOutShares({
+    species: input.habitatSpecies.map((h) => ({ speciesId: h.speciesId, abundance: h.abundance, livesAs: speciesById.get(h.speciesId)?.livesAs ?? null })),
+    life: input.life.map((l) => ({ formId: l.formId, speciesId: l.speciesId, percent: l.percent })),
+    otherPercent: input.habitat.otherPercent,
+  });
+  const rollShares = input.life.map((l) => ({ formId: l.formId, speciesId: l.speciesId, percent: worked.forms.get(l.formId)?.percent ?? 0 }));
+  const adjusted = rollAdjust(rollShares, speciesById, input.when);
+  const percentByForm = new Map(adjusted.shares.map((s) => [s.formId, s.percent]));
+  const ctx = { speciesById, formsById, statBlockNameByForm: input.statBlockNameByForm };
+
+  const entries: EncounterEntry[] = [];
+  for (const l of [...input.life].sort((a, b) => a.sortOrder - b.sortOrder)) {
+    if (l.recordId === null) continue;
+    const species = speciesById.get(l.speciesId);
+    const timeOfDay = input.when.timeOfDay;
+    const about =
+      species !== undefined && timeOfDay !== null && species.activity !== null && species.activity !== "any" && isAboutAt(species.activity, timeOfDay)
+        ? `about ${TIME_OF_DAY_WORDS[timeOfDay]}`
+        : null;
+    const linkLines = input.links
+      .filter((k) => (k.fromSpeciesId === l.speciesId || k.toSpeciesId === l.speciesId) && (k.habitatId === null || k.habitatId === input.habitat.id))
+      .slice(0, MAX_LINK_LINES)
+      .map((k) => linkSentence(linkWords(k, l.speciesId, ctx)));
+    entries.push({
+      formId: l.formId,
+      speciesId: l.speciesId,
+      speciesName: l.speciesName,
+      name: l.name ?? UNREADABLE_CREATURE,
+      percent: percentByForm.get(l.formId) ?? 0,
+      readable: l.readable,
+      about,
+      linkLines,
+    });
+  }
+  return { name: input.habitat.name, entries, notes: adjusted.notes };
 }
 
 /**
@@ -67,14 +137,26 @@ export interface EncounterHabitat {
  * share), or, when the roll lands on "anything else", that it is not one of those listed. A constraint, never an
  * override: the DM's own concept still stands. Nothing is said for a habitat with no creature at a share.
  */
-export function lifeConstraints(habitatName: string, life: readonly HabitatLife[], random: () => number = Math.random): string[] {
-  const shared = life.filter((l) => l.percent > 0);
+export function lifeConstraints(h: EncounterHabitat, random: () => number = Math.random): string[] {
+  const shared = h.entries.filter((e) => e.percent > 0);
   if (shared.length === 0) return [];
-  const rolled = rollLife(shared, random);
-  if (rolled) return [`Build this encounter around ${rolled.name}: it is what lives in ${habitatName}. Other creatures may join it.`];
-  const listed = shared.filter((l) => l.readable).map((l) => l.name);
+  const rolled = rollShare(shared, random);
+  if (rolled) {
+    const where = `it is what lives in ${h.name}${rolled.about === null ? "" : `, ${rolled.about}`}.`;
+    const links = rolled.linkLines.join(" ");
+    return [`Build this encounter around ${rolled.name}: ${where} ${links} Other creatures may join it.`.replace(/ {2,}/g, " ")];
+  }
+  const listed = shared.filter((e) => e.readable).map((e) => e.name);
   if (listed.length === 0) return [];
   return [`The creatures are not ${listed.join(", ")}: something this country rarely sees.`];
+}
+
+/** "Salt marsh: Marsh eel 40%, Giant frog 20%, anything else 40%": each species once, its forms summed. */
+export function whereLine(h: EncounterHabitat): string {
+  const bySpecies = new Map<string, number>();
+  for (const e of h.entries) bySpecies.set(e.speciesName, (bySpecies.get(e.speciesName) ?? 0) + e.percent);
+  const line = sharesLine([...bySpecies].map(([name, percent]) => ({ name, percent })), "anything else");
+  return `${h.name}: ${line}`;
 }
 
 /** A roll table put on a place, with its name for the line that says "Uses <name> here". */

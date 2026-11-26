@@ -98,21 +98,24 @@ $$, 'a beat is tied to a canon secret');
 select lives_ok($$
   insert into public.campaign_habitats (id, campaign_id, name) values ('12557000-0000-4000-8000-0000000000aa', '12557000-0000-4000-8000-0000000000c1', 'Salt marsh');
   insert into public.campaign_habitat_places (campaign_id, habitat_id, location_id) values ('12557000-0000-4000-8000-0000000000c1', '12557000-0000-4000-8000-0000000000aa', '12557000-0000-4000-8000-0000000000a2');
-  insert into public.campaign_habitat_life (campaign_id, habitat_id, library_monster_id, percent) values ('12557000-0000-4000-8000-0000000000c1', '12557000-0000-4000-8000-0000000000aa', 'test_1255_eel', 70);
+  insert into public.campaign_species (id, campaign_id, name) values ('12557000-0000-4000-8000-0000000000b1', '12557000-0000-4000-8000-0000000000c1', 'Marsh eel');
+  insert into public.campaign_species_forms (id, campaign_id, species_id, label, library_monster_id) values ('12557000-0000-4000-8000-0000000000b2', '12557000-0000-4000-8000-0000000000c1', '12557000-0000-4000-8000-0000000000b1', 'Adult', 'test_1255_eel');
+  insert into public.campaign_habitat_species (campaign_id, habitat_id, species_id, abundance) values ('12557000-0000-4000-8000-0000000000c1', '12557000-0000-4000-8000-0000000000aa', '12557000-0000-4000-8000-0000000000b1', 'common');
+  insert into public.campaign_habitat_life (campaign_id, habitat_id, species_id, form_id, percent) values ('12557000-0000-4000-8000-0000000000c1', '12557000-0000-4000-8000-0000000000aa', '12557000-0000-4000-8000-0000000000b1', '12557000-0000-4000-8000-0000000000b2', 70);
   update public.canon_entries set habitat_id = '12557000-0000-4000-8000-0000000000aa' where id = '12557000-0000-4000-8000-0000000000e3';
 $$, 'the DM writes a habitat, the place it covers, what lives there and a truth of it');
 select throws_ok($$
   update public.canon_entries set habitat_id = '12557000-0000-4000-8000-0000000000aa' where id = '12557000-0000-4000-8000-0000000000e1'
 $$, '23514', null, 'only a truth belongs to a habitat');
 select throws_ok($$
-  insert into public.campaign_habitat_life (campaign_id, habitat_id, library_monster_id, percent) values ('12557000-0000-4000-8000-0000000000c1', '12557000-0000-4000-8000-0000000000aa', 'no_such_creature', 5)
+  insert into public.campaign_species_forms (campaign_id, species_id, label, library_monster_id) values ('12557000-0000-4000-8000-0000000000c1', '12557000-0000-4000-8000-0000000000b1', 'Old', 'no_such_creature')
 $$, '23503', null, 'a creature is never typed: an id the bestiary does not have is refused');
 select throws_ok($$
   insert into public.campaign_habitat_places (campaign_id, habitat_id, location_id) values ('12557000-0000-4000-8000-0000000000c1', '12557000-0000-4000-8000-0000000000aa', '12557000-0000-4000-8000-0000000000a2')
 $$, '23505', null, 'a place lies in one habitat');
 select throws_ok($$
   do $do$ begin
-    update public.campaign_habitat_life set percent = 120 where library_monster_id = 'test_1255_eel';
+    update public.campaign_habitat_life set percent = 120 where form_id = '12557000-0000-4000-8000-0000000000b2';
   end $do$
 $$, '23514', null, 'a share above a hundred is refused');
 select is((select name from public.campaign_habitat_life_named where habitat_id = '12557000-0000-4000-8000-0000000000aa'), 'Marsh eel',

@@ -28,7 +28,7 @@ vi.mock("@/composables/locations/useLocations", () => ({
 
 import HabitatPlaces from "./HabitatPlaces.vue";
 
-const habitat = { id: "h1", name: "Salt marsh", description: null, sortOrder: 0 };
+const habitat = { id: "h1", name: "Salt marsh", description: null, sortOrder: 0, otherPercent: null };
 const mountIt = () => mount(HabitatPlaces, { props: { habitat } });
 const optionsOf = (picker: { props: () => unknown }) => (picker.props() as { options: { name: string }[] }).options;
 

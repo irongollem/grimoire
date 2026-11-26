@@ -12,7 +12,18 @@
  */
 import { supabase } from "@/lib/supabase";
 import { fetchCanonEntries } from "@/lib/canon/canonEntries";
-import { fetchCanonArcs, fetchHabitats, fetchPeoples } from "@/lib/canon/canonCampaignReads";
+import {
+  fetchCanonArcs,
+  fetchClades,
+  fetchHabitats,
+  fetchHabitatSpecies,
+  fetchPeoples,
+  fetchSpecies,
+  fetchSpeciesForms,
+  fetchSpeciesLinks,
+  fetchStatBlockNames,
+  fetchHabitatLife,
+} from "@/lib/canon/canonCampaignReads";
 import { getCalendarAdapter } from "@/settings";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { CurrencyConfig } from "@/lib/currency/currency";
@@ -52,11 +63,17 @@ async function fetchWorldRules(campaignId: string): Promise<SourceWorldRules> {
 export async function fetchDmBookSource(campaignId: string): Promise<BookSource> {
   const named = (table: "factions" | "pantheons" | "monsters" | "items" | "spells") =>
     rows<{ id: string; name: string }>(supabase.from(table).select("id, name").eq("campaign_id", campaignId).order("name", { ascending: true }));
-  const [canon, arcs, peoples, habitats, world, places, folk, factions, pantheons, deities, quests, monsters, items, spells] = await Promise.all([
+  const [canon, arcs, peoples, habitats, clades, species, forms, links, habitatSpecies, habitatLife, world, places, folk, factions, pantheons, deities, quests, monsters, items, spells] = await Promise.all([
     fetchCanonEntries(campaignId),
     fetchCanonArcs(campaignId),
     fetchPeoples(campaignId),
     fetchHabitats(campaignId),
+    fetchClades(campaignId),
+    fetchSpecies(campaignId),
+    fetchSpeciesForms(campaignId),
+    fetchSpeciesLinks(campaignId),
+    fetchHabitatSpecies(campaignId),
+    fetchHabitatLife(campaignId),
     fetchWorldRules(campaignId),
     rows<SourcePlace>(supabase.from("locations").select("id, parent_id, name, location_type, sort_order").eq("campaign_id", campaignId)),
     rows<BookSource["folk"][number]>(supabase.from("npcs").select("id, name, location_id").eq("campaign_id", campaignId)),
@@ -68,6 +85,11 @@ export async function fetchDmBookSource(campaignId: string): Promise<BookSource>
     named("items"),
     named("spells"),
   ]);
+  // A form's stat block name, for a link that narrows to a form; one this reader cannot read is absent and so null.
+  const blockNames = await fetchStatBlockNames(
+    forms.flatMap((f) => (f.monsterId === null ? [] : [f.monsterId])),
+    forms.flatMap((f) => (f.libraryMonsterId === null ? [] : [f.libraryMonsterId])),
+  );
   const part = (p: string) => canon.filter((e) => e.part === p);
   return {
     premise: part("premise").map(entry),
@@ -78,7 +100,14 @@ export async function fetchDmBookSource(campaignId: string): Promise<BookSource>
     questions: part("question").map(entry),
     arcs: arcs.map((a) => ({ id: a.id, name: a.name, summary: a.summary, question: a.question, stakes: a.stakes, ending: a.ending })),
     peoples: peoples.map((x) => ({ id: x.id, name: x.name, percent: x.percent, text: tiptapToPlainText(x.body) })),
-    habitats: habitats.map((x) => ({ id: x.id, name: x.name, text: tiptapToPlainText(x.description) })),
+    habitats: habitats.map((x) => ({ id: x.id, name: x.name, text: tiptapToPlainText(x.description), otherPercent: x.otherPercent })),
+    clades,
+    species: species.map(({ description, ...rest }) => ({ ...rest, text: tiptapToPlainText(description) })),
+    forms,
+    links,
+    habitatSpecies,
+    habitatLife: habitatLife.map((l) => ({ habitatId: l.habitatId, speciesId: l.speciesId, formId: l.formId, percent: l.percent })),
+    statBlockNameByForm: new Map(forms.map((f) => [f.id, blockNames.get(f.monsterId ?? f.libraryMonsterId ?? "") ?? null])),
     backstories: part("backstory").map(entry),
     world,
     places,
@@ -112,6 +141,14 @@ export function sourceFromSnapshot(snapshot: OpenBookSnapshot): BookSource {
     arcs: [],
     peoples: [],
     habitats: [],
+    // An older Open Book snapshot has no field guide (and a players' book never holds one): a real absence, so none.
+    clades: [],
+    species: [],
+    forms: [],
+    links: [],
+    habitatSpecies: [],
+    habitatLife: [],
+    statBlockNameByForm: new Map(),
     backstories: [],
     world: { calendar: null, coins: [] },
     places: snapshot.places.map((p) => ({
