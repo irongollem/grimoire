@@ -24,7 +24,6 @@
         <AppButton variant="outline" size="sm" :label="againLabel" :disabled="price === null" data-testid="walk-again" @click="emit('again')" />
         <AppButton variant="primary" size="sm" label="Next section" data-testid="walk-next" @click="emit('next')" />
       </div>
-      <p v-if="spent > 0" class="text-caption text-muted-foreground" data-testid="walk-spent">{{ creditsText(spent) }} so far</p>
     </template>
 
     <!-- open, or failed: the same field and the same three answers, so a failure is retried where it happened. -->
@@ -67,7 +66,7 @@ import CanonReview from "@/components/canon/CanonReview.vue";
 import { useCanonSuggestionsQuote } from "@/composables/ai/quotes/canonSuggestionsQuote";
 import { useCanonEntries } from "@/composables/canon/useCanonEntries";
 import type { AskItem } from "@/composables/ask/askItems";
-import { creditsText } from "@/lib/ask/askCredits";
+import { creditsText, showsPrice } from "@/lib/ask/askCredits";
 import { stopChapterPath, stopTitle } from "@/lib/ask/askWalkCopy";
 import { draftHeldBecause, stepOf, walkScope } from "@/lib/canon/canonWalk";
 import type { CanonEntry } from "@/types/canon.types";
@@ -84,7 +83,6 @@ const title = computed(() => stopTitle(item.stop));
 const draft = computed(() => step.value.draft);
 const held = computed(() => draftHeldBecause(step.value, pitchWritten));
 const canSkip = computed(() => step.value.id !== "pitch");
-const spent = computed(() => item.credits ?? 0);
 
 // The DM's words, editable until the block is saved; a retry after a failure starts from what they last wrote.
 const text = ref(item.answer);
@@ -92,8 +90,9 @@ watch(() => item.answer, (answer) => { text.value = answer; });
 
 const quoteOf = useCanonSuggestionsQuote();
 const price = computed(() => (draft.value === null ? null : (quoteOf(draft.value.mode).total ?? null)));
-const enhanceLabel = computed(() => (price.value === null ? "Enhance with AI" : `Enhance with AI · ${creditsText(price.value)}`));
-const againLabel = computed(() => (price.value === null ? "Again" : `Again · ${creditsText(price.value)}`));
+// A draft's price is on its button only when notable; a cheap one is said once in the walk's opening and totalled in its progress line.
+const enhanceLabel = computed(() => (showsPrice(price.value) ? `Enhance with AI · ${creditsText(price.value)}` : "Enhance with AI"));
+const againLabel = computed(() => (showsPrice(price.value) ? `Again · ${creditsText(price.value)}` : "Again"));
 
 const PART_OF_MODE = { premise: "premise", truths: "truth", forces: "force", secrets: "secret", questions: "question", lore: "lore" } as const;
 const { data: allEntries } = useCanonEntries();

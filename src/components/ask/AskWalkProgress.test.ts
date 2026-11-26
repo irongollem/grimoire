@@ -18,6 +18,12 @@ describe("AskWalkProgress", () => {
     expect(w.find("[data-testid=walk-progress-list]").exists()).toBe(false);
   });
 
+  // Bug caught: with the price gone from cheap drafts' buttons, nothing on screen said what the walk had cost.
+  it("keeps the running total once something has been spent", () => {
+    expect(mount(AskWalkProgress, { props: { progress, spent: 0 } }).get("[data-testid=walk-progress-toggle]").text()).not.toContain("credit");
+    expect(mount(AskWalkProgress, { props: { progress, spent: 4 } }).get("[data-testid=walk-progress-toggle]").text()).toContain("2 of 3 done · 4 credits");
+  });
+
   // Bug caught: a press on a stop doing nothing, or jumping to the wrong one.
   it("opens into the stops and asks the one pressed", async () => {
     const w = mount(AskWalkProgress, { props: { progress } });

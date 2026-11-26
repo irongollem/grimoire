@@ -4,7 +4,7 @@ import { WALK_SKIPPABLE, type WalkStepId, type WalkStopRef } from "@/lib/canon/c
 import { PITCH, fakeWalkPorts } from "@/test/askWalkPorts";
 import { canonEntry } from "@/test/canonEntry";
 import type { AskItem } from "./askItems";
-import { NO_ANSWER_STEER } from "./useAskWalk";
+import { NO_ANSWER_STEER, introText } from "./useAskWalk";
 import { useAskConversation } from "./useAskConversation";
 
 /** Fifteen words or more: a full answer, which opens the block without a follow-up. */
@@ -229,6 +229,15 @@ describe("the walk: Enhance with AI", () => {
     await s.walk.enhance(s.lastBlock().id);
     await s.walk.again(s.lastBlock().id);
     expect(s.lastBlock()).toMatchObject({ phase: "drafted", credits: 8 });
+    // The walk's running total, which the progress line shows in place of a price on every cheap button.
+    expect(s.walk.spent.value).toBe(8);
+  });
+
+  // Bug caught: with the price gone from cheap buttons, the DM never told what a draft costs; or the walk claiming a
+  // price it does not know.
+  it("says once, as it starts, what a draft costs", () => {
+    expect(introText(1)).toContain("Each draft I write costs 1 credit");
+    expect(introText(null)).not.toContain("costs");
   });
 
   // Bug caught: a second press while the draft is out starting a second paid call.

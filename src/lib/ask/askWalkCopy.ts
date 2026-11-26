@@ -13,6 +13,8 @@ export interface AskWalkView {
   awaiting: WalkStopRef | null;
   /** A block holds a draft: typed words change it. */
   drafted: boolean;
+  /** What the walk's drafts have cost so far, shown in the progress line. */
+  spent: number;
 }
 
 /** What a stop is called: its section, or the character's notes. */

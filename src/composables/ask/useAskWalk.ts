@@ -8,6 +8,7 @@
  * The canon itself is the walk's memory: a stop is filled because the canon says so, and `handled` only covers the
  * moment between a write and the refetch that shows it.
  */
+import { creditsText } from "@/lib/ask/askCredits";
 import { computed, ref, watch } from "vue";
 import {
   draftHeldBecause, followUpOf, isThin, questionOf, sameStop, stepOf, stopKey, walkScope,
@@ -50,8 +51,12 @@ export interface AskWalkDeps {
 /** What Enhance is told when the DM said nothing ("you decide"): the helper has the pitch and the canon to go on. */
 export const NO_ANSWER_STEER = "Write this from the pitch and what the canon already holds.";
 
-const INTRO =
-  "Let's design your campaign together. I will ask one question for each part of the canon. Answer in your own words: the more you tell me, the more the draft will sound like your idea. Then you choose: write it yourself, let me write it (each draft shows its price first) or skip it. Pressing Next section when you have nothing more to add tells me that part is done.";
+/** The walk's opening, with what a draft costs said once here rather than on every button (a cheap one carries none). */
+export function introText(draftPrice: number | null): string {
+  const price = draftPrice === null ? "" : ` Each draft I write costs ${creditsText(draftPrice)}; the line above keeps the running total.`;
+  return "Let's design your campaign together. I will ask one question for each part of the canon. Answer in your own words: the more you tell me, the more the draft will sound like your idea. " +
+    `Then you choose: write it yourself, let me write it, or skip it.${price} Pressing Next section when you have nothing more to add tells me that part is done.`;
+}
 const PITCH_NEEDED = "The pitch is needed before anything else can be drafted.";
 const CLOSING = "That is every part of the canon written or skipped. Open any chapter to carry on, or ask me for more whenever you like.";
 const BUSY = "Another generation is running. Wait for it to finish, then try again.";
@@ -182,7 +187,7 @@ export function useAskWalk(deps: AskWalkDeps) {
     handled.value = new Map();
     followedUp.clear();
     firstAnswers.clear();
-    deps.push({ kind: "reply", text: INTRO, who: null });
+    deps.push({ kind: "reply", text: introText(ports.price({ mode: "truths" })), who: null });
     await whenLoaded();
     // A new conversation while the canon loaded ended the walk: nothing is asked into a thread that is gone.
     if (!active.value) return;
@@ -364,7 +369,10 @@ export function useAskWalk(deps: AskWalkDeps) {
     ask(stop);
   }
 
-  return { active, awaiting, awaitingId: computed(() => awaitingId.value), current, progress, draftedBlock, start, answer, youDecide, justIdeas, done, writeMyself, enhance, again, skip, next, jump, leave };
+  /** What the walk's drafts have cost in this thread, for its progress line. */
+  const spent = computed(() => deps.items.value.reduce((sum, i) => sum + (i.kind === "walk-block" ? (i.credits ?? 0) : 0), 0));
+
+  return { spent, active, awaiting, awaitingId: computed(() => awaitingId.value), current, progress, draftedBlock, start, answer, youDecide, justIdeas, done, writeMyself, enhance, again, skip, next, jump, leave };
 }
 
 export type AskWalk = ReturnType<typeof useAskWalk>;

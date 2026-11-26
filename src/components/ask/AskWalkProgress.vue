@@ -46,10 +46,11 @@ import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useCanonWalkSkipActions } from "@/composables/canon/useCanonWalkSkips";
 import { IconChevronDown, IconChevronUp } from "@/lib/icons";
+import { creditsText } from "@/lib/ask/askCredits";
 import { stateWord, stopTitle, type AskWalkView } from "@/lib/ask/askWalkCopy";
 import { stopKey, type WalkStopRef } from "@/lib/canon/canonWalk";
 
-const { progress } = defineProps<{ progress: AskWalkView["progress"] }>();
+const { progress, spent = 0 } = defineProps<{ progress: AskWalkView["progress"]; spent?: number }>();
 const emit = defineEmits<{ jump: [stop: WalkStopRef]; leave: [] }>();
 
 const open = ref(false);
@@ -65,6 +66,8 @@ const { bringBack } = useCanonWalkSkipActions();
 const summary = computed(() => {
   const here = progress.find((s) => s.current);
   const done = progress.filter((s) => s.state !== "todo").length;
-  return `${here ? `${stopTitle(here)} · ` : ""}${done} of ${progress.length} done`;
+  // The running total stands in for a price on every cheap draft's button (#1282, the notable-price rule).
+  const cost = spent > 0 ? ` · ${creditsText(spent)}` : "";
+  return `${here ? `${stopTitle(here)} · ` : ""}${done} of ${progress.length} done${cost}`;
 });
 </script>

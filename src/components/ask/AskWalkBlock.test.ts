@@ -80,8 +80,18 @@ describe("AskWalkBlock", () => {
     const review = w.getComponent(CanonReview).props();
     expect(review).toMatchObject({ mode: "premise", scope: "walk:voice" });
     expect(review.entries).toEqual([{ id: "e1", part: "premise" }]);
-    expect(w.get("[data-testid=walk-spent]").text()).toBe("2 credits so far");
-    expect(w.get("[data-testid=walk-again]").text()).toBe("Again · 3 credits");
+  });
+
+  // Bug caught: a 1-credit draft carrying its price on every button, the meter anxiety the maintainer ruled out ("if its
+  // like 1 we dont"); or a notable price (a pricier provider's multiple) hidden from the press that spends it.
+  it("names a draft's price on its buttons only when it is notable", () => {
+    price.total = 1;
+    const cheap = block("voice", { phase: "drafted" });
+    expect(cheap.get("[data-testid=walk-again]").text()).toBe("Again");
+    expect(block("voice").get("[data-testid=walk-enhance]").text()).toBe("Enhance with AI");
+    price.total = 3;
+    expect(block("voice", { phase: "drafted" }).get("[data-testid=walk-again]").text()).toBe("Again · 3 credits");
+    expect(block("voice").get("[data-testid=walk-enhance]").text()).toBe("Enhance with AI · 3 credits");
   });
 
   it("reviews a character's backstory under that character's scope", () => {

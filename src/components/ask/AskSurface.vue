@@ -34,7 +34,7 @@
     <!-- Why Ooru went quiet, in the context line's own voice. -->
     <p v-if="voice.note" class="shrink-0 border-b border-border/60 px-4 py-1.5 text-caption text-muted-foreground" role="status" data-testid="ask-voice-note">{{ voice.note }}</p>
 
-    <AskWalkProgress v-if="walk?.active" :progress="walk.progress" @jump="emit('walk-jump', $event)" @leave="emit('walk-leave')" />
+    <AskWalkProgress v-if="walk?.active" :progress="walk.progress" :spent="walk.spent" @jump="emit('walk-jump', $event)" @leave="emit('walk-leave')" />
 
     <AskThread
       :items="items"

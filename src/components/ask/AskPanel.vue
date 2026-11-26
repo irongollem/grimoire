@@ -157,6 +157,7 @@ const walkView = computed<AskWalkView>(() => ({
   pitchWritten: convo.walk.progress.value.some((s) => s.step === "pitch" && s.state === "filled"),
   awaiting: convo.walk.awaiting.value,
   drafted: convo.walk.draftedBlock.value !== null,
+  spent: convo.walk.spent.value,
 }));
 
 // The page follows the walk: as the Familiar asks about a section, the Canon opens its chapter and brings it into view.
