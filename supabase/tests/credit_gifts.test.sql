@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(13);
 
 -- Credits the admin gives an account, told to its owner (20261125233731).
 -- A positive admin grant leaves a gift the owner sees once; the owner may only
@@ -62,6 +62,13 @@ select is_empty(
   $$ select 1 from public.credit_gifts where user_id = '6b000000-0000-4000-8000-000000000002' $$,
   'another account cannot read the gifts');
 
+-- The unseen count rides on the subscription row (20261126005354). It runs as the caller, so another account handing
+-- it the owner's row counts none of the owner's gifts.
+select is(
+  public.unseen_credit_gifts(jsonb_populate_record(null::public.user_subscriptions, '{"user_id":"6b000000-0000-4000-8000-000000000002"}')),
+  0,
+  'another account counts none of the owner''s unseen gifts through their subscription row');
+
 update public.credit_gifts set seen_at = now() where user_id = '6b000000-0000-4000-8000-000000000002';
 
 -- ── As the owner ─────────────────────────────────────────────────────────────
@@ -72,6 +79,11 @@ select is(
   (select count(*)::integer from public.credit_gifts where seen_at is null),
   2,
   'the owner sees both gifts unseen, so another account could not mark them seen');
+
+select is(
+  public.unseen_credit_gifts(jsonb_populate_record(null::public.user_subscriptions, '{"user_id":"6b000000-0000-4000-8000-000000000002"}')),
+  2,
+  'the owner''s subscription row counts their two unseen gifts');
 
 select throws_ok(
   $$ update public.credit_gifts set credits = 9999 $$,

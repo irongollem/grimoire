@@ -122,6 +122,8 @@ export interface UserSubscription {
   cancel_at: string | null
   suspended_at: string | null
   suspension_reason: string | null
+  /** Unseen credit gifts, a computed field read with the row (`unseen_credit_gifts`, 20261126005354). */
+  unseen_credit_gifts: number
   /** The Terms/Privacy version this account last accepted — null for a row
    *  that predates the column, which is what the Terms gate re-prompts for. */
   terms_version: string | null

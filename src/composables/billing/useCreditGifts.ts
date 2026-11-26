@@ -2,6 +2,7 @@ import { computed } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
+import { useSubscription } from "@/composables/billing/useSubscription";
 
 export interface CreditGift {
   id: string;
@@ -17,14 +18,17 @@ const QUERY_KEY = ["credit-gifts"] as const;
  * about, oldest first, and `markSeen` to put them away. A gift is written by
  * `admin_grant_credits` (20261125233731); the owner may only set `seen_at`.
  *
- * Read once per sign-in (and on the query's usual refetches): a gift is
- * account-level, so it has no campaign doorbell to ring, and it can wait for
- * the next visit.
+ * Read only when the subscription row, which every boot reads anyway, says some
+ * are unseen (`unseen_credit_gifts`, 20261126005354): most accounts never get a
+ * gift, so the dialog costs them no request. A gift is account-level, so it has
+ * no campaign doorbell to ring, and it can wait for the next visit.
  */
 export function useCreditGifts() {
   const auth = useAuthStore();
   const userId = computed(() => auth.user?.id ?? null);
   const queryClient = useQueryClient();
+  const { subscription } = useSubscription();
+  const anyUnseen = computed(() => (subscription.value?.unseen_credit_gifts ?? 0) > 0);
 
   const query = useQuery({
     queryKey: computed(() => [...QUERY_KEY, userId.value] as const),
@@ -39,7 +43,7 @@ export function useCreditGifts() {
       if (error) throw error;
       return (data ?? []).map((g) => ({ ...g, credits: Number(g.credits) })) as CreditGift[];
     },
-    enabled: computed(() => !!userId.value),
+    enabled: computed(() => !!userId.value && anyUnseen.value),
   });
 
   const gifts = computed(() => query.data.value ?? []);
@@ -61,7 +65,10 @@ export function useCreditGifts() {
         (prev ?? []).filter((g) => !ids.includes(g.id)),
       );
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: ["subscription"] });
+    },
   });
 
   return {

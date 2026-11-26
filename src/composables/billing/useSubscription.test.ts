@@ -67,6 +67,7 @@ function sub(overrides: Partial<UserSubscription> = {}) {
     cancel_at: null,
     suspended_at: null,
     suspension_reason: null,
+    unseen_credit_gifts: 0,
     terms_version: null,
     terms_accepted_at: null,
     created_at: "2026-01-01T00:00:00Z",

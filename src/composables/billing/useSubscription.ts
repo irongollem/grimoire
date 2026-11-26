@@ -13,7 +13,8 @@ import type { UserSubscription } from "@/types/subscription.types";
 async function fetchSubscription(userId: string): Promise<UserSubscription | null> {
   const { data, error } = await supabase
     .from("user_subscriptions")
-    .select("*")
+    // The unseen credit gifts come with the row (a computed field), so the gift dialog asks for nothing at boot.
+    .select("*, unseen_credit_gifts")
     .eq("user_id", userId)
     .maybeSingle();
   if (error) throw error;
