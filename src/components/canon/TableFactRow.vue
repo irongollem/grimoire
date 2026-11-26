@@ -1,5 +1,5 @@
 <template>
-  <li class="flex flex-col gap-2 border-b border-border px-4 py-3 last:border-b-0 sm:flex-row sm:items-start sm:gap-3" :data-review="review" data-testid="table-fact">
+  <li :id="`table-fact-${fact.id}`" class="flex flex-col gap-2 border-b border-border px-4 py-3 last:border-b-0 sm:flex-row sm:items-start sm:gap-3" :class="ringed ? 'ring-2 ring-inset ring-primary' : ''" :data-ringed="ringed" :data-review="review" data-testid="table-fact">
     <div class="flex min-w-0 flex-1 flex-col gap-1">
       <p class="m-0 text-body" :class="review === 'struck' || review === 'corrected' ? 'text-muted-foreground line-through decoration-1' : 'text-foreground'">{{ fact.body }}</p>
       <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted-foreground">
@@ -44,6 +44,8 @@ import type { FactReview } from "@/lib/canon/canonTableFacts";
 
 defineProps<{
   fact: StoryFact;
+  /** The line a search hit named: drawn with a ring until the review is closed. */
+  ringed?: boolean;
   /** The truth this fact already became, when it has; the fact then links to it and is not offered Make it a truth again. */
   truthId?: string | null;
   review: FactReview;

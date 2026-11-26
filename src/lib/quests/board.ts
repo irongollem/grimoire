@@ -110,6 +110,8 @@ export interface QuestBoardFilters {
   entity: string;
   prepGapsOnly: boolean;
   pendingLootOnly: boolean;
+  /** The arc a quest is filed in; "" for any (#1279 item 25). */
+  arc: string;
 }
 
 export interface QuestBoardFilterData {
@@ -374,6 +376,8 @@ export function filterQuestBoard(
       );
       if (!primaryMatch && !refMatch) return false;
     }
+
+    if (filters.arc !== "" && quest.arc_id !== filters.arc) return false;
 
     const summary = data.summaries?.[quest.id];
     if (filters.prepGapsOnly && data.summaries && !(summary?.prepGapCount)) return false;

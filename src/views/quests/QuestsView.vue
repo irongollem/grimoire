@@ -47,6 +47,14 @@
           placeholder="NPC, faction, or location…"
           class="min-w-48 max-w-full flex-1 sm:max-w-64 sm:flex-none"
         />
+        <EntityCombobox
+          v-if="arcOptions.length"
+          v-model="questsUi.questsArcFilter"
+          :options="arcOptions"
+          placeholder="Any arc…"
+          class="min-w-40 max-w-full flex-1 sm:max-w-56 sm:flex-none"
+          data-testid="quest-arc-filter"
+        />
         <AppButton
           v-if="boardSummaries !== undefined"
           :icon="IconWarning"
@@ -115,6 +123,7 @@ import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useQuests, useCampaignQuestRefs, useQuestFilterEntities } from "@/composables/quests/useQuests";
+import { useCanonArcs } from "@/composables/canon/useCanonArcs";
 import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
 import { countQuestBoardFilters, isQuestInSession } from "@/lib/quests/board";
 
@@ -125,6 +134,11 @@ const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { data: entityOptions } = useQuestFilterEntities();
 const { data: allQuests } = useQuests();
+// The arc facet (#1279 item 25): the story's acts, in the DM's order. The arcs are read only once a quest is filed in
+// one (or the filter is already set), so a campaign that has never used arcs pays no request for the facet.
+const anyQuestInArc = computed(() => (allQuests.value ?? []).some((q) => q.arc_id !== null) || questsUi.questsArcFilter !== "");
+const { data: arcData } = useCanonArcs(() => anyQuestInArc.value);
+const arcOptions = computed(() => (arcData.value ?? []).map((a) => ({ id: a.id, name: a.name })));
 const { data: campaignRefs } = useCampaignQuestRefs();
 const { data: boardSummaries } = useQuestBoardSummaries();
 // Null until the quests arrive: counting an unanswered query as an empty one
@@ -138,6 +152,7 @@ const filterCounts = computed(() => allQuests.value && countQuestBoardFilters(
     entity: questsUi.questsEntityFilter,
     prepGapsOnly: questsUi.questsPrepGapsFilter,
     pendingLootOnly: questsUi.questsLootFilter,
+    arc: questsUi.questsArcFilter,
   },
   { refs: campaignRefs.value ?? [], summaries: boardSummaries.value },
 ));

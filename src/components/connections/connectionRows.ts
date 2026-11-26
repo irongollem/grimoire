@@ -56,7 +56,7 @@ export function choiceHomeNote(choice: Pick<TypeChoice, "home">): string | null 
 export const COLLAPSE_AT = 5;
 
 export type BlockEntry =
-  | { kind: "row"; key: string; connection: Connection; canonOrigin?: Pick<Connection, "other_id"> }
+  | { kind: "row"; key: string; connection: Connection; }
   | { kind: "summary"; key: string; text: string; points: string; home: string };
 
 export interface BlockGroup {
@@ -89,53 +89,22 @@ function collapsed(subject: WorldRef, rows: Connection[]): { summary: BlockEntry
   return { summary: { kind: "summary", key: "summary:members", text, points: "Members", home: HOME_LABEL.membership }, folded: new Set(people) };
 }
 
-/** A backstory can mark a People row only if it has a single tie to that character. */
-function backstoryOrigins(subject: WorldRef, connections: readonly Connection[]): Map<Connection, Connection> {
-  const origins = new Map<Connection, Connection>();
-  if (subject.kind !== "npc") return origins;
-
-  for (const backstory of connections) {
-    if (!backstory.backstory_party_member_id) continue;
-    const people = connections.filter((connection) =>
-      connection.other_kind === "party_member" && connection.other_id === backstory.backstory_party_member_id,
-    );
-    const [person] = people;
-    if (person && people.length === 1) origins.set(person, backstory);
-  }
-  return origins;
-}
-
-/**
- * A character's own list, seen from the backstory: the NPCs that backstory entry is `about` carry the "From Canon"
- * marker, linking back to the entry. The caller knows them (it read the entry's own connections), because the
- * character's read does not say which of its people came from the backstory.
- */
-export interface BackstoryOrigin {
-  entryId: string;
-  npcIds: ReadonlySet<string>;
-}
-
 export interface GroupOptions {
-  origin?: BackstoryOrigin;
   /** Rows to leave out of the block, for a block that shows only what another block does not. */
   hide?: (connection: Connection) => boolean;
 }
 
 /** Rows grouped by the other end's kind, in the order every sheet uses; an empty group is absent. */
 export function groupConnections(subject: WorldRef, connections: readonly Connection[], options: GroupOptions = {}): BlockGroup[] {
-  const { origin: given, hide } = options;
-  const origins = backstoryOrigins(subject, connections);
-  const shownAsOrigins = new Set(origins.values());
-  const kept = connections.filter((connection) => !shownAsOrigins.has(connection) && !(hide?.(connection) ?? false));
+  const { hide } = options;
+  const kept = connections.filter((connection) => !(hide?.(connection) ?? false));
   return groupByKind(kept, (c) => c.other_kind).map(({ group, items: rows }) => {
     const fold = collapsed(subject, rows);
     const entries: BlockEntry[] = [];
     if (fold) entries.push(fold.summary);
     for (const c of rows) {
       if (fold?.folded.has(c)) continue;
-      const fromEntry = given && c.other_kind === "npc" && given.npcIds.has(c.other_id) ? { other_id: given.entryId } : undefined;
-      const origin = origins.get(c) ?? fromEntry;
-      entries.push({ kind: "row", key: rowKey(c), connection: c, ...(origin ? { canonOrigin: origin } : {}) });
+      entries.push({ kind: "row", key: rowKey(c), connection: c });
     }
     return { group, title: CONNECTION_GROUP_TITLES[group], entries };
   });

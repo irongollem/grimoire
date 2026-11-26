@@ -55,8 +55,7 @@
         </span>
       </SheetFactLine>
       <NpcTabContent :npc="npc" :full="full" />
-      <CanonHere class="mt-4" kind="npc" :id="npc.id" />
-      <NpcToldOf class="mt-4" :npc-id="npc.id" :name="npc.name" />
+      <NpcInCanon class="mt-4" :npc-id="npc.id" :name="npc.name" />
       <DmNoteBox class="mt-4" type="npc" :id="npc.id" :label="npc.name" />
     </div>
   </div>
@@ -72,8 +71,7 @@ import { useLowArt } from "@/composables/useLowArt";
 import { IconCompassRose } from "@/lib/icons";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import NpcTabContent from "@/components/npcs/NpcTabContent.vue";
-import CanonHere from "@/components/canon/CanonHere.vue";
-import NpcToldOf from "@/components/npcs/NpcToldOf.vue";
+import NpcInCanon from "@/components/npcs/NpcInCanon.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import { getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import type { Npc, NpcListRow } from "@/types/npc.types";

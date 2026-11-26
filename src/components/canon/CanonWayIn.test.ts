@@ -4,7 +4,9 @@ import { createPinia, setActivePinia } from "pinia";
 import type { CanonClue, CanonEntry } from "@/types/canon.types";
 
 const create = vi.fn();
-vi.mock("@/composables/canon/useCanonEntries", () => ({ useCreateCanonEntry: () => ({ mutateAsync: create }) }));
+const createNow = vi.fn();
+vi.mock("@/composables/canon/useCanonEntries", () => ({ useCreateCanonEntry: () => ({ mutateAsync: create, mutate: createNow, isPending: { value: false } }) }));
+vi.mock("@/composables/campaign/useSettingContent", () => ({ useSettingContent: () => ({ data: { value: undefined } }) }));
 vi.mock("@/composables/ask/useCanAsk", () => ({ useCanAsk: () => ({ value: true }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "camp-1" }) }));
 
@@ -12,14 +14,15 @@ import { useCanonUiStore } from "@/stores/ui/canon";
 import CanonWayIn from "./CanonWayIn.vue";
 
 const entry = (over: Partial<CanonEntry>) => ({ id: "e", part: "truth", premise_kind: null, body: null, ...over }) as CanonEntry;
-const stubs = { AppButton: { props: ["label", "to"], template: "<button @click=\"$emit('click')\">{{ label }}</button>" } };
+const stubs = { AppButton: { props: ["label", "to"], template: "<a v-if=\"to\" :href=\"to\">{{ label }}</a><button v-else @click=\"$emit('click')\">{{ label }}</button>" } };
 const mountIt = (entries: CanonEntry[] = [], clues: CanonClue[] = []) =>
-  mount(CanonWayIn, { props: { entries, clues }, global: { stubs, plugins: [createPinia()] } });
+  mount(CanonWayIn, { props: { entries, clues, calendarId: null }, global: { stubs, plugins: [createPinia()] } });
 
 describe("CanonWayIn", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     create.mockReset().mockResolvedValue({ id: "new-1" });
+    createNow.mockReset();
     localStorage.clear();
   });
 
@@ -29,6 +32,38 @@ describe("CanonWayIn", () => {
     expect(w.get("[data-testid=way-in-pitch]").attributes("data-state")).toBe("open");
     expect(w.get("[data-testid=way-in-truths]").attributes("data-state")).toBe("later");
     expect(w.find("[data-testid=way-in-truths] form").exists()).toBe(false);
+  });
+
+  // Bug caught (#1279 item 1): step 1 was a link to /canon/premise, the page the guide stands in for, so the pitch could never be started and the guide never finished.
+  it("starts the pitch in place on step 1", async () => {
+    const w = mountIt();
+    const step = w.get("[data-testid=way-in-pitch]");
+    expect(step.find("a").exists()).toBe(false);
+    await step.get("button").trigger("click");
+    expect(createNow).toHaveBeenCalledWith({ part: "premise", premise_kind: "pitch", body: null, player_visible_to: [] });
+  });
+
+  // Bug caught (#1279 item 1): any step whose button links to the chapter already showing, which does nothing.
+  it.each([
+    ["the pitch", []],
+    ["the truths", [entry({ id: "p", part: "premise", premise_kind: "pitch", body: JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }] }) })]],
+  ])("links to no page already showing while %s is the open step", (_name, entries) => {
+    const hrefs = mountIt(entries).findAll("a").map((a) => a.attributes("href"));
+    expect(hrefs).not.toContain("/canon/premise");
+    expect(hrefs).toEqual(["/canon/import"]);
+  });
+
+  // Bug caught: a made secret's clue link leading to the page showing; it must go to the Secrets chapter.
+  it("sends the clue step to the Secrets chapter, a different page", async () => {
+    const steps = [
+      entry({ id: "p", part: "premise", premise_kind: "pitch", body: JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }] }) }),
+      entry({ id: "t1" }), entry({ id: "t2" }), entry({ id: "t3" }), entry({ id: "f", part: "force" }),
+    ];
+    const w = mountIt(steps);
+    await w.get("[data-testid=way-in-secret] input").setValue("The king is dead");
+    await w.get("[data-testid=way-in-secret] form").trigger("submit");
+    await flushPromises();
+    expect(w.get("[data-testid=way-in-clue] a").attributes("href")).toBe("/canon/secrets?entry=new-1");
   });
 
   // Bug caught: a truth made without "known to all", leaving it marked secret or unmarked in a list that reads it.

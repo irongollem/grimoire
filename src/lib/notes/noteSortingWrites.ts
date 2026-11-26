@@ -1,4 +1,5 @@
 import { getCurrentUser, supabase } from "@/lib/supabase";
+import { createCanonPassage } from "@/lib/canon/canonPassageWrites";
 import { queueCanonEmbedding } from "@/lib/canon/queueCanonEmbedding";
 import { appendTiptapDoc } from "@/lib/notes/appendTiptap";
 import type { NoteWas } from "@/lib/notes/noteSorting";
@@ -53,15 +54,26 @@ export async function writeLoreEntry(
       user_id: user.id,
       part: "lore",
       title: note.title,
-      body: note.content,
       player_visible_to: note.player_visible_to,
       ai_provenance: note.ai_provenance ?? null,
     })
     .select("id");
   if (error) throw error;
   if (data.length === 0) throw new Error("The lore entry was not saved: you may not add to this campaign's canon.");
+  const entryId = (data[0] as { id: string }).id;
+  // The text is the entry's first passage: the entry's own `body` has no field in the lore editor, so text left there is
+  // read by players and never seen by the DM (#1279 item 2).
+  if (note.content !== null && note.content !== "") {
+    try {
+      await createCanonPassage(note.campaign_id, { entry_id: entryId, body: note.content, sort_order: 0, ai_provenance: note.ai_provenance ?? null });
+    } catch (passageError) {
+      // An entry with no text would pass for the whole note once the note is taken off the list: take the entry back too.
+      await supabase.from("canon_entries").delete().eq("id", entryId);
+      throw passageError;
+    }
+  }
   // The entry is findable by meaning only once its vector exists.
-  queueCanonEmbedding((data[0] as { id: string }).id);
+  queueCanonEmbedding(entryId);
 }
 
 /** Sets the note's session, which makes it that session's chronicle entry. */

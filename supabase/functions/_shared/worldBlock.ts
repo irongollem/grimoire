@@ -29,6 +29,8 @@ export interface WorldBlock {
   peoples: string | null;
   /** One line per habitat ("Salt marsh (the Marsh): Marsh eel 40%, anything else 60%"); null when the DM has described none. */
   habitats: string | null;
+  /** What the world wrongly believes (#1279 item 15): the cover stories of open secrets, and only those lines. Never the secret's title or body. */
+  commonBeliefs: string[];
 }
 
 /** One people of the world and its share of the population, as `campaign_peoples_named` reads it. */
@@ -55,6 +57,53 @@ export function sharesLine(list: readonly People[], rest: string): string {
 }
 
 export const peoplesLine = (list: readonly People[]): string => sharesLine(list, "anyone else");
+
+/** A people as `campaign_peoples_named` reads it: its own name (a culture) over the record's, and what they are like. */
+export interface PeopleRow extends People {
+  own_name?: string | null;
+  record_name?: string | null;
+  /** The editor's document, as stored. */
+  body?: string | null;
+}
+
+/** How long a people's description may run in the block: the block is read by every generator on every call. */
+const PEOPLE_SUMMARY_MAX = 200;
+
+/**
+ * The first sentence of a text, or its first ~200 characters when it has no early sentence end, on one line. "" for
+ * nothing. Used for what a people is like in the world block and in the NPC prompt.
+ */
+export function shortText(text: string, max: number = PEOPLE_SUMMARY_MAX): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  if (flat === "") return "";
+  const end = flat.search(/[.!?](\s|$)/);
+  const sentence = end >= 0 ? flat.slice(0, end + 1) : flat;
+  return sentence.length <= max ? sentence : `${sentence.slice(0, max - 1).trimEnd()}…`;
+}
+
+/** A people's body as one short plain line, DM-only passages left out. */
+export const peopleSummary = (body: string | null | undefined, nameOf?: MentionNameOf): string => shortText(plainWithoutSecrets(body, nameOf));
+
+/**
+ * The peoples for the block. With nothing but names and shares it is `peoplesLine`'s one line. When a people has its
+ * own name or words, each gets a line: "the Vell (human), 30%: Salt traders who never…", the unlisted remainder last.
+ */
+export function peoplesBlockText(list: readonly PeopleRow[], nameOf?: MentionNameOf): string {
+  const listed = list.filter((p) => p.percent > 0);
+  const summaries = listed.map((p) => peopleSummary(p.body, nameOf));
+  const detailed = listed.some((p, i) => (p.own_name ?? "") !== "" || summaries[i] !== "");
+  if (!detailed) return peoplesLine(list);
+  const lines = listed
+    .map((p, i) => ({ p, summary: summaries[i] }))
+    .sort((a, b) => b.p.percent - a.p.percent)
+    .map(({ p, summary }) => {
+      const record = p.own_name && p.record_name && p.record_name !== p.name ? ` (${p.record_name})` : "";
+      return `${p.name}${record}, ${roundShare(p.percent)}%${summary ? `: ${summary}` : ""}`;
+    });
+  const left = roundShare(100 - listed.reduce((sum, p) => sum + p.percent, 0));
+  if (left > 0) lines.push(`anyone else, ${left}%`);
+  return lines.join("\n");
+}
 
 /** One habitat as `campaign_habitats`, its places by name and its life by name, for the block. */
 export interface HabitatForBlock {
@@ -114,7 +163,16 @@ export interface CanonRowForBlock {
 }
 
 /** What the block reads of `campaign_peoples_named`, in the DM's order, for both loaders. */
-export const WORLD_BLOCK_PEOPLES_COLUMNS = "name, percent";
+export const WORLD_BLOCK_PEOPLES_COLUMNS = "name, percent, own_name, record_name, body";
+
+/** What the block reads of the open secrets that carry a cover story. Filtered in the query with `WORLD_BLOCK_BELIEF_*`. */
+export const WORLD_BLOCK_BELIEF_COLUMNS = "cover_story, sort_order";
+
+/** A secret that is still a secret: not closed and not yet told. Its cover story is what the world believes meanwhile. */
+export interface BeliefRow {
+  cover_story: string | null;
+  sort_order: number;
+}
 
 /** Columns the block reads, for both the server and the client loader. */
 export const WORLD_BLOCK_CANON_COLUMNS = "part, premise_kind, knowledge, title, body, sort_order, reference_images";
@@ -146,9 +204,10 @@ export function premiseEntryText(kind: string | null, titleRaw: string, bodyRaw:
 export function worldBlockFromRows(
   setting: string | null,
   rows: CanonRowForBlock[],
-  peoples: readonly People[],
+  peoples: readonly PeopleRow[],
   habitats: readonly HabitatForBlock[],
   nameOf?: MentionNameOf,
+  beliefs: readonly BeliefRow[] = [],
 ): WorldBlock {
   const entryText = (row: CanonRowForBlock): string =>
     premiseEntryText(row.part === "premise" ? row.premise_kind : null, row.title, row.body, nameOf);
@@ -179,8 +238,12 @@ export function worldBlockFromRows(
       .filter((r) => r.part === "truth" && r.knowledge === "all")
       .map(entryText)
       .filter((t) => t.length > 0),
-    peoples: peoplesLine(peoples) || null,
+    peoples: peoplesBlockText(peoples, nameOf) || null,
     habitats: habitatsLines(habitats) || null,
+    commonBeliefs: [...beliefs]
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((b) => (b.cover_story ?? "").trim())
+      .filter((t) => t.length > 0),
   };
 }
 
@@ -203,6 +266,11 @@ export function worldBlockText(block: WorldBlock): string {
   if (block.habitats) {
     sections.push(
       `## Life of the world\n${block.habitats}\nWhen a creature turns up somewhere, choose it at these odds for the country it is in.`,
+    );
+  }
+  if (block.commonBeliefs.length) {
+    sections.push(
+      `## Commonly believed\n${bullets(block.commonBeliefs)}\nPeople in the world take these for true. Let them say so, and do not contradict them unless the scene is about the truth.`,
     );
   }
   if (block.lines.length) {

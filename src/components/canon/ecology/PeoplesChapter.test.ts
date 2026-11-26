@@ -4,8 +4,12 @@ import { ref } from "vue";
 import { createPinia } from "pinia";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 
-const mocks = vi.hoisted(() => ({ add: vi.fn(), setPercent: vi.fn(), remove: vi.fn(), saveBody: vi.fn() }));
-const state = vi.hoisted(() => ({ loading: false, peoples: [] as unknown[], monsterEnabled: (() => false) as () => boolean }));
+const mocks = vi.hoisted(() => ({ add: vi.fn(), setPercent: vi.fn(), remove: vi.fn(), saveBody: vi.fn(), rename: vi.fn(), addPlace: vi.fn(), removePlace: vi.fn() }));
+const state = vi.hoisted(() => ({ loading: false, peoples: [] as unknown[], places: [] as unknown[], monsterEnabled: (() => false) as () => boolean }));
+
+// The chapter reads its deep link (`?people=`) from the route; each test sets the query it was reached with.
+const routeState = vi.hoisted(() => ({ query: {} as Record<string, string> }));
+vi.mock("vue-router", async (orig) => ({ ...(await orig<typeof import("vue-router")>()), useRoute: () => routeState }));
 
 vi.mock("@/composables/canon/useCampaignPeoples", async () => {
   const { computed } = await import("vue");
@@ -17,8 +21,16 @@ vi.mock("@/composables/canon/useCampaignPeoples", async () => {
       setPercent: mocks.setPercent,
       removePeople: mocks.remove,
       saveBody: mocks.saveBody,
+      renamePeople: mocks.rename,
+      places: computed(() => state.places),
+      addPlace: mocks.addPlace,
+      removePlace: mocks.removePlace,
     }),
   };
+});
+vi.mock("@/composables/locations/useLocations", async () => {
+  const { computed } = await import("vue");
+  return { useLocationTree: () => ({ locationOptions: computed(() => []) }) };
 });
 vi.mock("@/composables/notes/useEntityMentionItems", () => ({ useEntityMentionItems: () => ({ mentionItems: ref([]) }) }));
 vi.mock("@/composables/ask/useCanAsk", async () => {
@@ -41,7 +53,7 @@ import PeoplesChapter from "./PeoplesChapter.vue";
 const optionsOf = (picker: { props: () => unknown }) => (picker.props() as { options: { name: string }[] }).options;
 
 const people = (id: string, name: string, percent: number, over: Record<string, unknown> = {}) => ({
-  id, name, percent, kind: "species", recordId: `r-${id}`, fromLibrary: true, readable: true, body: null, ...over,
+  id, name, percent, kind: "species", recordId: `r-${id}`, fromLibrary: true, readable: true, body: null, ownName: null, recordName: name, ...over,
 });
 
 const links = { RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" } };
@@ -62,10 +74,23 @@ async function setField(w: ReturnType<typeof mount>, label: string, value: strin
 
 describe("PeoplesChapter", () => {
   beforeEach(() => {
+    routeState.query = {};
     mocks.add.mockReset();
     mocks.setPercent.mockReset();
     mocks.remove.mockReset();
     state.peoples = [people("p1", "Elf", 80), people("p2", "Human", 10)];
+  });
+
+  // Bug: a search hit for a people (`?people=`) landed on the chapter with nothing open; an id that is no people must open nothing.
+  it("opens the people a search link names, and nothing for an unknown id", async () => {
+    routeState.query = { people: "p2" };
+    const w = mountIt();
+    await flushPromises();
+    expect(w.get("[data-testid=people-editor]").text()).toContain("Human");
+    routeState.query = { people: "nobody" };
+    const none = mountIt();
+    await flushPromises();
+    expect(none.find("[data-testid=people-editor]").exists()).toBe(false);
   });
 
   it("adds a chosen species at 0%, as a record the campaign has", async () => {
@@ -73,7 +98,7 @@ describe("PeoplesChapter", () => {
     const [speciesPicker] = w.findAllComponents(EntityCombobox);
     speciesPicker.vm.$emit("update:modelValue", "srd_elf");
     await flushPromises();
-    expect(mocks.add).toHaveBeenCalledWith({ kind: "species", recordId: "srd_elf", fromLibrary: true, percent: 0 });
+    expect(mocks.add).toHaveBeenCalledWith({ kind: "species", recordId: "srd_elf", fromLibrary: true, percent: 0, name: "" });
   });
 
   // Bug: a species the DM wrote (a uuid) was filed as a book's species, which the table refuses.
@@ -81,7 +106,7 @@ describe("PeoplesChapter", () => {
     const w = mountIt();
     w.findAllComponents(EntityCombobox)[0].vm.$emit("update:modelValue", "0f8fad5b-d9cb-469f-a165-70867728950e");
     await flushPromises();
-    expect(mocks.add).toHaveBeenCalledWith({ kind: "species", recordId: "0f8fad5b-d9cb-469f-a165-70867728950e", fromLibrary: false, percent: 0 });
+    expect(mocks.add).toHaveBeenCalledWith({ kind: "species", recordId: "0f8fad5b-d9cb-469f-a165-70867728950e", fromLibrary: false, percent: 0, name: "" });
   });
 
   // Bug: a bestiary creature was added with the wrong source, so a library creature was written as the DM's own.
@@ -90,7 +115,7 @@ describe("PeoplesChapter", () => {
     const creaturePicker = w.findAllComponents(EntityCombobox)[1];
     creaturePicker.vm.$emit("update:modelValue", "srd_owlbear");
     await flushPromises();
-    expect(mocks.add).toHaveBeenCalledWith({ kind: "creature", recordId: "srd_owlbear", fromLibrary: true, percent: 0 });
+    expect(mocks.add).toHaveBeenCalledWith({ kind: "creature", recordId: "srd_owlbear", fromLibrary: true, percent: 0, name: "" });
   });
 
   // Bug: the bestiary index (3,500 rows) loaded with the page instead of when the creature picker was opened.
@@ -114,6 +139,25 @@ describe("PeoplesChapter", () => {
     expect(optionsOf(creaturePicker).map((o) => o.name)).toEqual(["Marsh Hag"]);
   });
 
+  // Bug: a second people of a listed record (a nation of humans) could not be added, because the record was never offered again.
+  it("offers a listed record again once the people to add is named, and sends the name", async () => {
+    state.peoples = [people("p1", "Elf", 80, { recordId: "srd_elf" })];
+    const w = mountIt();
+    await w.get("input[aria-label='Name of the people to add']").setValue("the Vell");
+    const [speciesPicker] = w.findAllComponents(EntityCombobox);
+    expect(optionsOf(speciesPicker).map((o) => o.name)).toContain("Elf");
+    speciesPicker.vm.$emit("update:modelValue", "srd_elf");
+    await flushPromises();
+    expect(mocks.add).toHaveBeenCalledWith({ kind: "species", recordId: "srd_elf", fromLibrary: true, percent: 0, name: "the Vell" });
+  });
+
+  // Bug: a record that stands behind only a named people was hidden from the unnamed add, though one unnamed is allowed.
+  it("keeps a record offered unnamed when only a named people holds it", () => {
+    state.peoples = [people("p1", "the Vell", 30, { recordId: "srd_elf", ownName: "the Vell", recordName: "Elf" })];
+    const w = mountIt();
+    expect(optionsOf(w.findAllComponents(EntityCombobox)[0]).map((o) => o.name)).toContain("Elf");
+  });
+
   // Bug: a species and a creature that share an id string hid each other from the pickers (the match ignored the kind).
   it("keeps a creature offered when only a species of the same record id is listed", () => {
     state.peoples = [people("p1", "Elf", 80, { kind: "species", recordId: "srd_owlbear" })];
@@ -133,6 +177,17 @@ describe("PeoplesChapter", () => {
     await open(w, "p2");
     expect(w.get("[data-testid=people-editor]").text()).toContain("Human");
     expect((w.get("input[aria-label='Share of Human, percent']").element as HTMLInputElement).value).toBe("10");
+  });
+
+  // Bug: the name field saved the record's name back as an own name, or a cleared field never went back to the record's name.
+  it("names a people, and clears the name to go back to the record's", async () => {
+    state.peoples = [people("p1", "the Vell", 30, { ownName: "the Vell", recordName: "Human" })];
+    const w = mountIt();
+    await open(w, "p1");
+    await setField(w, "Name of this people", "");
+    expect(mocks.rename).toHaveBeenCalledWith("p1", null);
+    await setField(w, "Name of this people", "the Vellish");
+    expect(mocks.rename).toHaveBeenLastCalledWith("p1", "the Vellish");
   });
 
   it("saves a share when the field is left", async () => {
@@ -178,11 +233,11 @@ describe("PeoplesChapter", () => {
   });
 
   // Bug: a world with no peoples showed an empty share list with a stray "Adds up" line instead of saying what a people is.
-  it("says what a people is, and offers the Familiar, while none is listed; and says nothing while loading", () => {
+  it("says what a people is, with no Familiar request (#1279 item 10: the helper has no peoples mode), while none is listed; and says nothing while loading", () => {
     state.peoples = [];
     const w = mountIt();
     expect(w.text()).toContain("No peoples yet");
-    expect(w.find("[data-testid=canon-suggest]").exists()).toBe(true);
+    expect(w.find("[data-testid=canon-suggest]").exists()).toBe(false);
     expect(w.find("[data-testid=share-row]").exists()).toBe(false);
     state.loading = true;
     expect(mountIt().text()).not.toContain("No peoples yet");

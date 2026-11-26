@@ -29,17 +29,6 @@
         />
         <span v-else class="text-label font-semibold" :style="{ color }" data-testid="type-word-static">{{ word }}</span>
 
-        <AppButton
-          v-if="canonOrigin"
-          :to="dmSheetPath({ kind: 'canon', id: canonOrigin.other_id })"
-          :aria-label="`From Canon: ${otherName}'s backstory`"
-          variant="tinted"
-          tone="neutral"
-          emphasis="outline"
-          size="xs"
-          label="From Canon"
-        />
-
         <span
           v-if="connection.source !== 'link'"
           class="rounded-sm border border-dashed border-border px-1.5 py-0.5 text-label text-muted-foreground"
@@ -100,7 +89,6 @@ import {
   membershipEnds,
   offeredRoles,
 } from "@/components/connections/connectionRows";
-import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import ConnectionSlip, { type ConnectionTag } from "@/components/common/entity/ConnectionSlip.vue";
@@ -119,13 +107,12 @@ import { connectionFamily, connectionWord, typeChoices, type TypeChoice } from "
 import { NPC_FACTION_STATUS_COLORS, type NpcFactionStatus } from "@/types/faction.types";
 import type { Connection, WorldRef } from "@/types/connections.types";
 
-const { connection, subject, subjectName, all, canonOrigin } = defineProps<{
+const { connection, subject, subjectName, all } = defineProps<{
   connection: Connection;
   subject: WorldRef;
   subjectName: string;
   /** Every row of the block, to say what a one-valued record would replace. */
   all: readonly Connection[];
-  canonOrigin?: Pick<Connection, "other_id">;
 }>();
 
 const router = useRouter();

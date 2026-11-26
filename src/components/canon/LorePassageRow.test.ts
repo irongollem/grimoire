@@ -22,7 +22,7 @@ import LorePassageRow from "./LorePassageRow.vue";
 
 const passage = (over: Partial<CanonLorePassage> = {}): CanonLorePassage => ({
   id: "g1", user_id: "u", campaign_id: "c", entry_id: "l1", title: "What was lost", body: null, sort_order: 1, player_visible_to: [], told_at: null,
-  told_session_id: null, location_id: null, npc_id: null, quest_beat_id: null, author_id: "u", ai_provenance: null, created_at: "", updated_at: "", ...over,
+  told_session_id: null, location_id: null, npc_id: null, quest_beat_id: null, author_id: "u", dm_edited_at: null, body_before_dm_edit: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
 });
 
 const mountRow = (p: CanonLorePassage, first = false, extra: Record<string, unknown> = {}) =>

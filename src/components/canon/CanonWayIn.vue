@@ -32,7 +32,8 @@
 
         <template v-if="step.id === current">
           <p class="m-0 text-caption text-muted-foreground">{{ HINTS[step.id] }}</p>
-          <AppButton v-if="step.id === 'pitch'" class="self-start" variant="outline" size="sm" to="/canon/premise" label="Write the pitch" />
+          <!-- Written here, not linked to: the guide stands in place of the Premise chapter, so a link to it would lead nowhere. -->
+          <PremisePitch v-if="step.id === 'pitch'" :pitches="pitches" :calendar-id="calendarId" />
           <CanonAddRow
             v-else
             v-model="draft"
@@ -57,7 +58,7 @@
 <script setup lang="ts">
 /**
  * What a new canon shows in place of its chapters: the four short steps (pitch, three truths, a force, a secret with a
- * clue) with the first open one carrying its own add. The overseer's page shows it while `isNewCanon(steps)` and the
+ * clue) with the first open one carrying its own add, each done in place (a step that linked to the page already showing could not be finished). The overseer's page shows it while `isNewCanon(steps)` and the
  * campaign has not skipped it; every step reads straight from the canon, so finishing one in a chapter ticks it here.
  */
 import { computed, ref } from "vue";
@@ -69,8 +70,14 @@ import { useCanonUiStore } from "@/stores/ui/canon";
 import type { CanonClue, CanonEntry } from "@/types/canon.types";
 import CanonAddRow from "./CanonAddRow.vue";
 import CanonSuggest from "./kit/CanonSuggest.vue";
+import PremisePitch from "./PremisePitch.vue";
 
-const { entries, clues } = defineProps<{ entries: readonly CanonEntry[]; clues: readonly CanonClue[] }>();
+const { entries, clues, calendarId } = defineProps<{
+  entries: readonly CanonEntry[];
+  clues: readonly CanonClue[];
+  /** The campaign's calendar id (its named world), for the pitch's "Start from". */
+  calendarId: string | null;
+}>();
 
 const TITLES: Record<WayInStepId, string> = {
   pitch: "Write the pitch",
@@ -95,13 +102,14 @@ const REQUESTS: Record<"truths" | "force", string> = {
 };
 
 const steps = computed(() => wayInSteps(entries, clues));
+const pitches = computed(() => entries.filter((e) => e.part === "premise" && e.premise_kind === "pitch"));
 const current = computed(() => steps.value.find((s) => !s.done)?.id ?? null);
 
 const draft = ref("");
 const madeSecret = ref<string | null>(null);
 const { mutateAsync: create } = useCreateCanonEntry();
 
-// The pitch is written on its own sheet, so it has no add here.
+// The pitch is written in `PremisePitch`, so it has no add row.
 async function add(id: WayInStepId, title: string) {
   if (id === "pitch") return;
   const count = (part: CanonEntry["part"]) => entries.filter((e) => e.part === part).length;

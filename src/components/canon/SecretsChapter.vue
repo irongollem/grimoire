@@ -15,9 +15,10 @@
           :title="secret.title"
           :selected="secret.id === selected?.id"
           layout="flex-col gap-1 sm:flex-row sm:items-start sm:gap-3"
-          :move="canReorder ? endsOf(groupOf(secret), secret.id) : null"
+          :move="canReorder ? endsOf(groupOf(secret), secret.id, true) : null"
           @select="emit('select', secret.id)"
           @move="(direction) => reorder(groupOf(secret), secret.id, direction)"
+          @move-to="(end) => reorder(groupOf(secret), secret.id, end)"
         >
           <template #mark>
             <span class="inline-flex items-center gap-1.5 whitespace-nowrap text-label font-bold text-foreground" data-testid="secret-state">
@@ -47,9 +48,10 @@
  * The Secrets and questions chapter: a switch between the secrets (each with its state and how many clues are found,
  * what is still to find first) and the open questions the DM keeps open on purpose. A secret opens beside the list; the
  * questions edit in their rows. The clues are read once for the whole list, never one per secret. The view chosen is
- * the store's `secretsView`, and selecting a secret from anywhere brings the page back to the secrets.
+ * the store's `secretsView`, and selecting a secret from anywhere brings the page back to the secrets, and a link to a question opens the questions.
  */
 import { computed, watch } from "vue";
+import { useRoute } from "vue-router";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import CanonAddRow from "./CanonAddRow.vue";
 import CanonReview from "./CanonReview.vue";
@@ -86,8 +88,18 @@ const emit = defineEmits<{ select: [id: string]; close: []; delete: [] }>();
 
 const chapter = chapterOf("secrets");
 const store = useCanonUiStore();
-// A secret opened from a link or a search is on the secrets list, not behind the Questions switch.
-watch(() => selected?.id, (id) => { if (id !== undefined) store.secretsView = "secrets"; }, { immediate: true });
+const route = useRoute();
+// A link (`?entry=`) to one of this chapter's open questions: its row lives behind the Questions switch.
+const linkedQuestionId = computed(() => {
+  const id = route.query.entry;
+  return typeof id === "string" && questions.some((q) => q.id === id) ? id : null;
+});
+// A secret opened from a link or a search is on the secrets list, and a question linked to is on the questions list;
+// either way the row the DM was sent to is the one that renders.
+watch([() => selected?.id, linkedQuestionId], ([secretId, questionId]) => {
+  if (secretId !== undefined) store.secretsView = "secrets";
+  else if (questionId !== null) store.secretsView = "questions";
+}, { immediate: true });
 
 // What is still to find reads first; a revealed secret settles to the end.
 const shown = computed(() => revealedLast(secrets));
@@ -116,7 +128,7 @@ function stateWord(secret: CanonEntry): string {
 const { mutateAsync: create } = useCreateCanonEntry();
 
 async function addSecret(title: string) {
-  const created = await create({ part: "secret", title, sort_order: secrets.length });
+  const created = await create({ part: "secret", title, sort_order: secrets.length, arc_id: store.arcFilter });
   emit("select", created.id);
 }
 </script>

@@ -46,6 +46,10 @@ vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaign: { id: "c1" } }) }));
 
 vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
+// The page's search also reads peoples, habitats and the table's lines (#1279 item 24); none of these tests searches them.
+vi.mock("@/composables/canon/useCampaignPeoples", () => ({ useCampaignPeoples: () => ({ peoples: ref([]) }) }));
+vi.mock("@/composables/canon/useCampaignHabitats", () => ({ useCampaignHabitats: () => ({ habitats: ref([]) }) }));
+vi.mock("@/composables/canon/useTableFacts", () => ({ useTableFacts: () => ({ facts: { data: ref([]) } }) }));
 
 import { useCanonUiStore } from "@/stores/ui/canon";
 import CanonView from "./CanonView.vue";
@@ -79,9 +83,9 @@ const SecretsStub = {
 };
 const ForcesStub = {
   name: "ForcesChapter",
-  props: ["forces", "selectedId", "arcLabel"],
+  props: ["forces", "selected", "arcLabel"],
   emits: ["select", "close", "delete"],
-  template: `<section>${rows("forces")}<div v-if='selectedId' id='canon-inline-detail' data-testid='force-detail'>{{ selectedId }}<button data-testid='del-force' @click="$emit('delete')" /></div></section>`,
+  template: `<section>${rows("forces")}<div v-if='selected' id='canon-inline-detail' data-testid='force-detail'>{{ selected.id }}<button data-testid='del-force' @click="$emit('delete')" /></div></section>`,
 };
 const BackstoriesStub = {
   name: "BackstoriesChapter",
@@ -183,7 +187,7 @@ describe("CanonView", () => {
     route.query = { entry: "f1" };
     const w = mountView();
     await settle();
-    expect(w.findComponent({ name: "ForcesChapter" }).props("selectedId")).toBe("f1");
+    expect(w.findComponent({ name: "ForcesChapter" }).props("selected")?.id).toBe("f1");
   });
 
   // Bug caught: a link from a passage to its lore entry opening no entry.
@@ -396,9 +400,16 @@ describe("CanonView", () => {
     });
   });
 
-  // Bug caught (#1255 item 17): a delete was permanent because the Deleted list, where Restore lives, was never on the page.
-  it("mounts the Deleted list under the chapter", () => {
-    expect(mountView().findComponent({ name: "CanonDeleted" }).exists()).toBe(true);
+  // Bug caught (#1279 item 34c): the Deleted list drawn under every chapter and sheet. It lives at the foot of the contents (CanonContents), so the page mounts none.
+  it("draws no Deleted list under the chapter: it sits in the contents", () => {
+    expect(mountView().findComponent({ name: "CanonDeleted" }).exists()).toBe(false);
+  });
+
+  // Bug caught (#1279 item 26): the prep page was "Next session" in the header and "Prepare the next session" on a phone, while the page itself says Tonight.
+  it("names the prep page Tonight on every link to it", () => {
+    const links = mountView().findAll("a[href='/canon/tonight']");
+    expect(links.length).toBeGreaterThan(0);
+    expect(links.map((l) => l.text())).toEqual(links.map(() => "Tonight"));
   });
 
   // Bug caught: the contents column counting only the backstories already opened, so a party of two read "0" over a ledger of two rows.

@@ -15,6 +15,8 @@ const state = vi.hoisted(() => ({
   addWonder: vi.fn(),
   found: [] as unknown[],
   wonders: [] as unknown[],
+  beliefs: [] as string[],
+  ask: vi.fn(),
 }));
 
 vi.mock("@/composables/canon/usePlayerCanon", async (orig) => {
@@ -46,6 +48,11 @@ vi.mock("@/composables/canon/useCanonWonders", () => ({
   usePlayerWonders: () => ({ data: ref(state.wonders) }),
   useAddWonder: () => ({ mutateAsync: state.addWonder }),
 }));
+vi.mock("@/composables/canon/usePlayerBeliefs", () => ({ usePlayerBeliefs: () => ({ beliefs: ref(state.beliefs) }) }));
+vi.mock("@/composables/canon/useCanonLineRequests", async (orig) => ({
+  ...(await orig<typeof import("@/composables/canon/useCanonLineRequests")>()),
+  useAskLineOrVeil: () => ({ mutateAsync: state.ask }),
+}));
 vi.mock("@/composables/sessions/usePlayerSessions", () => ({ usePlayerSessions: () => ({ data: ref(state.sessions) }) }));
 vi.mock("@/stores/calendar", () => ({
   useCalendarStore: () => ({ adapter: { formatDate: (y: number, m: number | null, d: number | null) => `${d}/${m}/${y} AR` } }),
@@ -75,6 +82,8 @@ beforeEach(() => {
   state.addWonder.mockReset();
   state.found = [];
   state.wonders = [];
+  state.beliefs = [];
+  state.ask.mockReset();
   state.readAt = new Map();
   state.marked = [];
   state.notes = [];
@@ -203,8 +212,8 @@ describe("PlayerJournalWorldTab", () => {
     state.world = world({});
     const w = mount(PlayerJournalWorldTab);
     expect(w.text()).toContain("has not told you anything of the world yet");
-    // Only the player's own wonders stay: they have something to ask even when nothing has been told.
-    expect(w.find("section:not([data-testid=player-wonders])").exists()).toBe(false);
+    // Only the player's own wonders and request form stay: they have something to ask even when nothing has been told.
+    expect(w.find("section:not([data-testid=player-wonders]):not([data-testid=player-line-request])").exists()).toBe(false);
   });
 });
 
@@ -277,5 +286,67 @@ describe("PlayerJournalWorldTab: who knows, found clues and wonders (#1258 items
     expect(items[0]!.text()).toContain("Taken up by the DM");
     expect(items[1]!.text()).toContain("Let be");
     expect(items[2]!.text()).toBe("Where does the river go?");
+  });
+
+  // Bug caught (#1279 item 27): a truth the DM told the party looked like every old one, with no New dot.
+  it("marks a truth told since the player last looked as New, and an old truth not", () => {
+    state.readAt = new Map([["old", new Date("2026-11-20T00:00:00Z")]]);
+    state.world = world({
+      known: [
+        { ...truth("old", "Old news", "all"), revealed_at: "2026-11-10T00:00:00Z" },
+        { ...truth("fresh", "Fresh news", "all"), revealed_at: "2026-11-21T00:00:00Z" },
+        truth("plain", "Always known", "all"),
+      ],
+    });
+    const w = mount(PlayerJournalWorldTab);
+    const rows = w.findAll("section")[0]!.findAll("li");
+    const dots = rows.map((r) => r.findComponent({ name: "EntityNewDot" }).props("isNew"));
+    expect(dots).toEqual([false, true, false]);
+  });
+
+  // Bug caught (#1279 item 28): the filter box narrowing nothing, or hiding the premise as well.
+  it("narrows truths and lore by title and text, and Clear brings them back", async () => {
+    state.world = world({
+      known: [{ ...truth("a", "The river gives back", "all"), body: "salt" }, truth("b", "Magic leaves a taste", "all")],
+      lore: [lore([passage("p1", "What everyone says", "2026-11-09T00:00:00Z")])],
+    });
+    const w = mount(PlayerJournalWorldTab);
+    await w.get("[data-testid=world-filter] input").setValue("taste");
+    expect(w.text()).toContain("Magic leaves a taste");
+    expect(w.text()).not.toContain("The river gives back");
+    expect(w.text()).not.toContain("The Fall of the Guild");
+    await w.get("[data-testid=world-filter-clear]").trigger("click");
+    expect(w.text()).toContain("The river gives back");
+    expect(w.text()).toContain("The Fall of the Guild");
+  });
+
+  // Bug caught (#1279 item 28): the world date was never shown, the card's date slot held the part count.
+  it("shows a lore entry's world date, with the part count on the card too", () => {
+    const l = lore([passage("p1", "What everyone says", "2026-11-09T00:00:00Z")]);
+    l.entry = { ...l.entry, world_year: 1492, world_month: 3, world_day: 9 };
+    state.world = world({ lore: [l] });
+    const w = mount(PlayerJournalWorldTab);
+    expect(w.text()).toContain("9/3/1492 AR");
+    expect(w.text()).toContain("1 part so far");
+  });
+
+  // Bug caught (#1279 item 15): the common beliefs never reached the player's page.
+  it("shows what people say, as plain lines", () => {
+    state.beliefs = ["The mill burned by itself."];
+    state.world = world({ known: [truth("b", "Magic leaves a taste", "all")] });
+    const w = mount(PlayerJournalWorldTab);
+    expect(w.get("[data-testid=player-beliefs]").text()).toContain("The mill burned by itself.");
+  });
+
+  // Bug caught (#1279 item 29): the request signed without the player ticking the box, or the answer not saying so.
+  it("sends a line request unsigned by default and says it does not show the name", async () => {
+    state.world = world({ known: [truth("b", "Magic leaves a taste", "all")] });
+    const w = mount(PlayerJournalWorldTab);
+    const form = w.get("[data-testid=player-line-request]");
+    await form.get("input[type=text], input:not([type])").setValue("No harm to animals");
+    await form.get("form").trigger("submit");
+    await flushPromises();
+    expect(state.ask).toHaveBeenCalledWith({ kind: "line", body: "No harm to animals", signed: false });
+    expect(form.get("[data-testid=line-request-sent]").text()).toBe("Sent to your DM. It does not show your name.");
   });
 });

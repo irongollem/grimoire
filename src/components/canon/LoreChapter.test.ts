@@ -15,6 +15,7 @@ vi.mock("@/composables/canon/useCanonPassages", async (orig) => {
 vi.mock("@/stores/calendar", () => ({ useCalendarStore: () => ({ adapter: { formatDate: (y: number) => `year ${y}` } }) }));
 vi.mock("@/composables/useLowArt", () => ({ useLowArt: () => ({ lowArt: ref(true) }) }));
 
+import { useCanonUiStore } from "@/stores/ui/canon";
 import LoreChapter from "./LoreChapter.vue";
 
 const lore = (id: string, title: string, year: number | null) => canonEntry({ id, part: "lore", title, world_year: year, lore_kind: "history" });
@@ -64,7 +65,18 @@ describe("LoreChapter", () => {
     await w.find("select[aria-label='What kind of lore']").setValue("legend");
     await w.find("form").trigger("submit");
     await flushPromises();
-    expect(mocks.create).toHaveBeenCalledWith({ part: "lore", title: "The Fall", lore_kind: "legend", sort_order: 0 });
+    expect(mocks.create).toHaveBeenCalledWith({ part: "lore", title: "The Fall", lore_kind: "legend", sort_order: 0, arc_id: null });
+  });
+
+  // Bug caught (#1279 item 5): lore added under an arc filter was made in no arc and vanished from the narrowed list.
+  it("makes new lore in the arc the page is narrowed to", async () => {
+    mocks.create.mockResolvedValue({ id: "l9" });
+    useCanonUiStore().arcFilter = "a1";
+    const w = mountIt([], { arcLabel: "The Long Winter" });
+    await w.find("input[aria-label='A new piece of lore']").setValue("The Fall");
+    await w.find("form").trigger("submit");
+    await flushPromises();
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ part: "lore", arc_id: "a1" }));
     expect(w.emitted("select")?.[0]).toEqual(["l9"]);
   });
 
@@ -91,5 +103,22 @@ describe("LoreChapter", () => {
     expect(review.props()).toMatchObject({ mode: "lore", lore: { entryId: null } });
     review.vm.$emit("accepted", "l9");
     expect(w.emitted("select")?.[0]).toEqual(["l9"]);
+  });
+
+  // Bug caught: the kind filter narrowing on the wrong field, or Clear leaving the list narrowed.
+  it("filters by kind, says when none matches, and Clear brings the list back", async () => {
+    const entries = [
+      canonEntry({ id: "a", part: "lore", title: "Bell tale", lore_kind: "history" }),
+      canonEntry({ id: "b", part: "lore", title: "Moon cult", lore_kind: "faith" }),
+    ];
+    const w = mountIt(entries);
+    await w.get("[data-testid=lore-kind-filter]").setValue("faith");
+    expect(w.findAll("li").map((li) => li.text())).toEqual([expect.stringContaining("Moon cult")]);
+    await w.get("[data-testid=lore-kind-filter]").setValue("legend");
+    expect(w.text()).toContain("No lore of that kind");
+    expect(w.text()).not.toContain("No lore yet");
+    await w.get("[data-testid=lore-clear]").trigger("click");
+    expect(w.findAll("li")).toHaveLength(2);
+    expect(w.find("[data-testid=lore-clear]").exists()).toBe(false);
   });
 });

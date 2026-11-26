@@ -19,7 +19,7 @@ import PassageClues from "./PassageClues.vue";
 
 const passage: CanonLorePassage = {
   id: "g1", user_id: "u", campaign_id: "c", entry_id: "l1", title: "What was lost", body: null, sort_order: 1, player_visible_to: [], told_at: null,
-  told_session_id: null, location_id: null, npc_id: null, quest_beat_id: null, author_id: "u", ai_provenance: null, created_at: "", updated_at: "",
+  told_session_id: null, location_id: null, npc_id: null, quest_beat_id: null, author_id: "u", dm_edited_at: null, body_before_dm_edit: null, ai_provenance: null, created_at: "", updated_at: "",
 };
 const clue = (over: Partial<CanonClue>): CanonClue => ({
   id: "k1", user_id: "u", campaign_id: "c", secret_id: "s1", title: "What was lost", sort_order: 0, location_id: null, npc_id: null,

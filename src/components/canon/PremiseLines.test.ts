@@ -11,6 +11,7 @@ const { fake } = await vi.hoisted(async () => {
 });
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "dm-1" }) }));
 
+import { useCanonUiStore } from "@/stores/ui/canon";
 import PremiseLines from "./PremiseLines.vue";
 import { useCampaignStore } from "@/stores/campaign";
 
@@ -43,6 +44,16 @@ describe("PremiseLines add row", () => {
     await flushPromises();
     expect(fake.rows("canon_entries")).toMatchObject([{ part: "premise", premise_kind: "theme", title: "Kindness is courage." }]);
     expect(boxValue(w)).toBe("");
+  });
+
+  // Bug caught (#1279 item 5): the arc filter leaking into a premise row, which has no arc (the table refuses it).
+  it("never writes an arc on a premise entry, whatever arc the page is narrowed to", async () => {
+    const w = mountLines();
+    useCanonUiStore().arcFilter = "a1";
+    await w.find("input").setValue("Kindness is courage.");
+    await w.find("form").trigger("submit");
+    await flushPromises();
+    expect(fake.rows("canon_entries")[0]).not.toHaveProperty("arc_id");
   });
 
   it("keeps the words in the box when the create fails, so the DM can try again", async () => {

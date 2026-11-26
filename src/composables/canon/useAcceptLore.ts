@@ -2,7 +2,8 @@ import type { AiProvenance } from "@/ai/provenance";
 import type { LoreSuggestion } from "@/ai/useCanonSuggestions";
 import { plainTextToTiptap } from "@/lib/canon/canonParts";
 import { useCreateCanonEntry } from "@/composables/canon/useCanonEntries";
-import { useCreateCanonPassage, useDeleteCanonPassage, type NewCanonPassage } from "@/composables/canon/useCanonPassages";
+import { useCreateCanonPassage, useDeleteCanonPassage } from "@/composables/canon/useCanonPassages";
+import type { NewCanonPassage } from "@/lib/canon/canonPassageWrites";
 import type { CanonLorePassage } from "@/types/canon.types";
 
 type Passage = LoreSuggestion["passages"][number];

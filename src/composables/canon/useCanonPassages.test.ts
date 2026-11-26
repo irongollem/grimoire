@@ -10,7 +10,8 @@ vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => 
 const queue = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/canon/queueCanonEmbedding", () => ({ queueCanonEmbedding: queue }));
 
-import { createCanonPassage, deleteCanonPassage, fetchCanonPassages, passagesOf, toldTally, wherePatch } from "./useCanonPassages";
+import { deleteCanonPassage, fetchCanonPassages, passagesOf, toldTally, wherePatch } from "./useCanonPassages";
+import { createCanonPassage } from "@/lib/canon/canonPassageWrites";
 import { TAKE_BACK_PATCH, tellPatch, updateCanonPassage } from "./useCanonPassageEdits";
 import type { CanonLorePassage } from "@/types/canon.types";
 

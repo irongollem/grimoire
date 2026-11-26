@@ -21,11 +21,16 @@ vi.mock("@/composables/canon/useCanonForces", async (original) => ({
   }),
 }));
 
+vi.mock("@/composables/canon/useForceWho", () => ({
+  useForceWho: () => ({ whoOf: (id: string) => (id === "f1" ? [{ kind: "faction", id: "fa1", name: "The Ferrymen" }, { kind: "npc", id: "n1", name: "Vexa" }] : []) }),
+}));
+
 import ForcesChapter from "./ForcesChapter.vue";
+import { useCanonUiStore } from "@/stores/ui/canon";
 
 const forces = [canonEntry({ id: "f1", part: "force", title: "The Stain spreads", clock_size: 6 }), canonEntry({ id: "f2", part: "force", title: "The Brewlings" })];
 const DetailStub = { name: "ForceDetail", props: ["entry"], emits: ["close", "delete"], template: "<div data-testid='detail'><button data-testid='detail-delete' @click=\"$emit('delete')\" /></div>" };
-const mountIt = (props: { forces?: typeof forces; selectedId?: string | null; arcLabel?: string | null } = {}) =>
+const mountIt = (props: { forces?: typeof forces; selected?: (typeof forces)[number] | null; arcLabel?: string | null } = {}) =>
   mount(ForcesChapter, { props: { forces, ...props }, global: { stubs: { CanonReview: true, ForceDetail: DetailStub, CanonSuggest: true } } });
 
 describe("ForcesChapter", () => {
@@ -47,7 +52,7 @@ describe("ForcesChapter", () => {
 
   // Bug caught: the entry opening for the wrong force, or not at all, so the list had no single place for it.
   it("opens the entry of the selected force beside the list and passes close and delete up", async () => {
-    const w = mountIt({ selectedId: "f2" });
+    const w = mountIt({ selected: forces[1] });
     expect(w.getComponent(DetailStub).props("entry")).toMatchObject({ id: "f2" });
     await w.get("[data-testid=detail-delete]").trigger("click");
     expect(w.emitted("delete")).toHaveLength(1);
@@ -64,6 +69,21 @@ describe("ForcesChapter", () => {
   it("offers the move buttons only while no arc narrows the list", () => {
     expect(mountIt().find("[data-testid=move-buttons]").exists()).toBe(true);
     expect(mountIt({ arcLabel: "The guild" }).find("[data-testid=move-buttons]").exists()).toBe(false);
+  });
+
+  // Bug caught (#1279 item 33): Move to bottom offered on a force row but handled by nothing, so a long list could only be walked a step at a time.
+  it("moves a force to the bottom in one go", async () => {
+    await mountIt().find("button[aria-label='Move The Stain spreads to the bottom']").trigger("click");
+    await flushPromises();
+    expect(mocks.reorder.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["f1", 1]]);
+  });
+
+  // Bug caught (#1279 item 11): the list not naming who is behind a force, or naming another force's who.
+  it("names who is behind each force on its row", () => {
+    const w = mountIt();
+    const rows = w.findAll("li");
+    expect(rows[0].get("[data-testid=force-who-line]").text()).toBe("The Ferrymen and Vexa");
+    expect(rows[1].find("[data-testid=force-who-line]").exists()).toBe(false);
   });
 
   it("says what a force is when there are none, and offers to ask for one", () => {
@@ -88,7 +108,24 @@ describe("ForcesChapter", () => {
     await w.get("input[aria-label='A new force']").setValue("  The Winter  ");
     await w.get("form").trigger("submit");
     await flushPromises();
-    expect(mocks.create).toHaveBeenCalledWith({ part: "force", title: "The Winter", sort_order: 2 });
+    expect(mocks.create).toHaveBeenCalledWith({ part: "force", title: "The Winter", sort_order: 2, arc_id: null });
     expect(w.emitted("select")?.[0]).toEqual(["f9"]);
+  });
+
+  // Bug caught (#1279 item 5): a force added under an arc filter was made in no arc, so it left the narrowed list it was added to.
+  it("makes a new force in the arc the page is narrowed to", async () => {
+    useCanonUiStore().arcFilter = "a1";
+    mocks.create.mockResolvedValue({ id: "f9" });
+    const w = mountIt({ arcLabel: "The guild" });
+    await w.get("input[aria-label='A new force']").setValue("The Winter");
+    await w.get("form").trigger("submit");
+    await flushPromises();
+    expect(mocks.create).toHaveBeenCalledWith({ part: "force", title: "The Winter", sort_order: 2, arc_id: "a1" });
+  });
+
+  // Bug caught (#1279 item 5): the open force was looked up in the narrowed list, so a new force (or one moved to another arc) closed at once.
+  it("keeps the open force open when the narrowed list no longer holds it", () => {
+    const w = mountIt({ forces: [forces[0]], selected: forces[1], arcLabel: "The guild" });
+    expect(w.getComponent(DetailStub).props("entry")).toMatchObject({ id: "f2" });
   });
 });

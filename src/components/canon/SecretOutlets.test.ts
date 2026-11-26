@@ -35,7 +35,7 @@ const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
 const link = (over: Partial<CanonEntryQuest> = {}): CanonEntryQuest => ({ id: "l1", user_id: "u", campaign_id: "c1", entry_id: "s1", quest_id: "q1", created_at: "", ...over });
 const ComboStub = { name: "EntityCombobox", props: ["modelValue", "options"], emits: ["update:modelValue"], template: "<div />" };
 const mountIt = (clues: CanonClue[] = []) =>
-  mount(SecretOutlets, { props: { entry, clues }, global: { stubs: { EntityCombobox: ComboStub, RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" } } } });
+  mount(SecretOutlets, { props: { entry, clues }, global: { stubs: { StartQuestFrom: true, EntityCombobox: ComboStub, RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" } } } });
 
 describe("SecretOutlets", () => {
   beforeEach(() => {
@@ -107,5 +107,21 @@ describe("SecretOutlets", () => {
     w.getComponent(ComboStub).vm.$emit("update:modelValue", "q2");
     await nextTick();
     expect(mocks.create).toHaveBeenCalledWith([{ campaign_id: "c1", entry_id: "s1", quest_id: "q2" }]);
+  });
+
+  // Bug caught (#1279 item 32): clues already at a place (or a lore passage's) offered as beats, which would move them off where they lie.
+  it("offers only the clues that lie nowhere yet to a quest started from the secret", () => {
+    const clues = [
+      clue({ id: "k1", title: "nowhere" }),
+      clue({ id: "k2", location_id: "l" }),
+      clue({ id: "k3", npc_id: "n" }),
+      clue({ id: "k4", quest_beat_id: "b" }),
+      clue({ id: "k5", item_id: "i" }),
+      clue({ id: "k6", document_id: "d" }),
+      clue({ id: "k7", passage_id: "p" }),
+    ];
+    const start = mountIt(clues).getComponent({ name: "StartQuestFrom" });
+    expect(start.props("clues").map((c: CanonClue) => c.id)).toEqual(["k1"]);
+    expect(start.props("entry")).toMatchObject({ id: "s1" });
   });
 });

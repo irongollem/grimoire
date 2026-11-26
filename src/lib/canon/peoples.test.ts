@@ -4,7 +4,7 @@ import { rollPeople, type People } from "./peoples";
 import { sharesTotal } from "./shares";
 
 const people = (name: string, percent: number, over: Partial<People> = {}): People => ({
-  id: `p-${name}`, kind: "species", recordId: `lib_${name}`, fromLibrary: true, name, readable: true, percent, body: null, ...over,
+  id: `p-${name}`, kind: "species", recordId: `lib_${name}`, fromLibrary: true, name, readable: true, percent, body: null, ownName: null, recordName: name, ...over,
 });
 const world = [people("Elf", 80), people("Human", 15)];
 

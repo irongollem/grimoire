@@ -11,12 +11,19 @@ import ForceRow from "./ForceRow.vue";
 
 const step = (over: Partial<CanonForceStep>): CanonForceStep => ({
   id: "s", user_id: "u", campaign_id: "c1", force_id: "f1", title: "The ferry stops", sort_order: 0, reached_at: null, reached_session_id: null,
-  due_year: 500, due_month: null, due_day: null, ai_provenance: null, created_at: "x", updated_at: "x", ...over,
+  due_year: 500, due_month: null, due_day: null, calendar_event_id: null, ai_provenance: null, created_at: "x", updated_at: "x", ...over,
 });
 const mountIt = (entry = canonEntry({ id: "f1", part: "force", title: "The Ferrymen" }), steps = [step({})]) =>
   mount(ForceRow, { props: { entry, steps, ticks: [] }, global: { stubs: { CanonRow: { template: "<div><slot /><slot name='mark' /></div>" }, ForceClock: true, CanonMoveButtons: true } } });
 
 describe("ForceRow", () => {
+  // Bug caught (#1279 item 11): the row not saying who is behind the force, or saying it for a force with none.
+  it("names who is behind it, joined as a sentence, and says nothing with none", () => {
+    const w = mount(ForceRow, { props: { entry: canonEntry({ id: "f1", part: "force" }), steps: [], ticks: [], who: [{ kind: "faction", id: "a", name: "The Ferrymen" }, { kind: "npc", id: "b", name: "Vexa" }] }, global: { stubs: { CanonRow: { template: "<div><slot /></div>" }, ForceClock: true } } });
+    expect(w.get("[data-testid=force-who-line]").text()).toBe("The Ferrymen and Vexa");
+    expect(mountIt().find("[data-testid=force-who-line]").exists()).toBe(false);
+  });
+
   // Bug caught: the row naming the reached step or the first in the list instead of the next one the world has not reached.
   it("names the earliest step not yet reached as Next, and says so when none is written", () => {
     const steps = [step({ id: "a", title: "Done", sort_order: 0, reached_at: "x" }), step({ id: "c", title: "Later", sort_order: 2 }), step({ id: "b", title: "Sooner", sort_order: 1 })];

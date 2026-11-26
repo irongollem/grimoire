@@ -29,6 +29,23 @@ export function usePassageList(entryId: MaybeRefOrGetter<string | null>) {
     }
   }
 
+  /**
+   * Puts a new passage first, with this text, and pushes every other one place along. Resolves true once it exists.
+   * The others move before it is made, so a failure part-way leaves them in the same order and nothing lost.
+   */
+  async function prependPassage(body: string): Promise<boolean> {
+    const id = toValue(entryId);
+    if (id === null) return false;
+    try {
+      for (const [i, p] of passages.value.entries()) await updatePassage({ id: p.id, patch: { sort_order: i + 1 } });
+      await createPassage({ entry_id: id, body, sort_order: 0 });
+      return true;
+    } catch {
+      // The mutation has already told the DM (toast).
+      return false;
+    }
+  }
+
   /** Moves one passage a place by renumbering the order from its position, so equal or gappy numbers still reorder. */
   async function move(index: number, by: -1 | 1) {
     const order: CanonLorePassage[] = [...passages.value];
@@ -50,5 +67,5 @@ export function usePassageList(entryId: MaybeRefOrGetter<string | null>) {
     }
   }
 
-  return { passages, adding, addPassage, move, removePassage };
+  return { passages, adding, addPassage, prependPassage, move, removePassage };
 }

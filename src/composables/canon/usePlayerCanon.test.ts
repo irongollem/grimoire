@@ -10,7 +10,7 @@ const { fake } = await vi.hoisted(async () => {
 });
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client }));
 
-import { groupPlayerWorld, isPassageNew, knownWithLabel, usePlayerCanon, type PlayerCanonEntry, type PlayerLorePassage } from "./usePlayerCanon";
+import { filterPlayerWorld, groupPlayerWorld, isPassageNew, knownWithLabel, usePlayerCanon, type PlayerCanonEntry, type PlayerLorePassage } from "./usePlayerCanon";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 
@@ -258,5 +258,34 @@ describe("usePlayerCanon", () => {
     await flushPromises();
     expect(q.error.value).toBeTruthy();
     expect(q.world.value).toBeUndefined();
+  });
+});
+
+describe("filterPlayerWorld", () => {
+  const tt = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+  const world = groupPlayerWorld(
+    [
+      entry({ id: "a", title: "The river gives back", body: tt("salt and bone") }),
+      entry({ id: "b", title: "Magic leaves a taste" }),
+      entry({ id: "l1", part: "lore", knowledge: null, title: "The Guild" }),
+    ],
+    [passage({ id: "p1", entry_id: "l1", title: "The ferry", body: tt("Mira rowed") })],
+  );
+
+  // Bug caught (#1279 item 28): the filter ignored the text (title only), or matched on the raw JSON of the body.
+  it("matches titles and the plain text of the body, every word, case blind", () => {
+    expect(filterPlayerWorld(world, "SALT bone").known.map((e) => e.id)).toEqual(["a"]);
+    expect(filterPlayerWorld(world, "doc paragraph").known).toEqual([]);
+    // One word of two present is not a match.
+    expect(filterPlayerWorld(world, "river taste").known).toEqual([]);
+  });
+
+  // Bug caught: lore found only by its own title, so a passage's words could not be searched.
+  it("finds a lore entry through the passages the player was told", () => {
+    expect(filterPlayerWorld(world, "mira").lore.map((l) => l.entry.id)).toEqual(["l1"]);
+  });
+
+  it("returns the world untouched for an empty query", () => {
+    expect(filterPlayerWorld(world, "  ")).toBe(world);
   });
 });

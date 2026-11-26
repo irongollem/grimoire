@@ -6,7 +6,8 @@ const { fake } = await vi.hoisted(async () => {
 });
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "dm-1" }) }));
 
-import { createCanonArc, fetchCanonArcs, updateCanonArc } from "./useCanonArcs";
+import { createCanonArc, updateCanonArc } from "./useCanonArcs";
+import { fetchCanonArcs } from "@/lib/canon/canonCampaignReads";
 
 const arc = (over: Record<string, unknown>): Record<string, unknown> => ({
   id: "a1", user_id: "dm-1", campaign_id: "c1", name: "The drowned god", summary: null, sort_order: 0,

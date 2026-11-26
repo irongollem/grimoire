@@ -1,28 +1,29 @@
 <template>
-  <PageHeader owns-phone-bar title="Canon" description="The campaign's background book.">
+  <!-- `@container/canon`: the contents column and the next-session card appear by the page's own width, not the screen's, so a laptop with the sidebar open still gets them. -->
+  <PageHeader class="@container/canon" owns-phone-bar title="Canon" description="The campaign's background book.">
     <template #actions>
       <CanonSearchField class="w-72 min-w-0 shrink @max-3xl/header:w-40" />
       <AppButton to="/canon/import" variant="outline" size="md" :icon="IconUpload" label="Bring in a book" collapse-label-on-mobile collapse-below="header" />
       <CanonOpenAsBook />
       <!-- Short, so the header keeps to one row on a laptop; the tooltip says what it opens. -->
-      <AppButton to="/canon/tonight" variant="outline" size="md" :icon="IconMoon" label="Next session" tooltip="Prepare the next session: what the canon has waiting for it" collapse-label-on-mobile collapse-below="header" class="min-[90rem]:hidden" />
+      <AppButton to="/canon/tonight" variant="outline" size="md" :icon="IconMoon" label="Tonight" tooltip="Prepare tonight: what the canon has waiting for the session" collapse-label-on-mobile collapse-below="header" class="@min-[60rem]/canon:hidden" />
     </template>
     <!-- The header holds these from a tablet up; a phone's header is the page's own bar, so they sit under the title where a thumb finds them. -->
     <div class="mb-4 flex flex-col gap-2 md:hidden" data-testid="canon-phone-actions">
       <CanonSearchField />
       <div class="flex flex-wrap gap-2">
         <AppButton to="/canon/import" variant="outline" size="sm" :icon="IconUpload" label="Bring in a book" />
-        <AppButton to="/canon/tonight" variant="outline" size="sm" :icon="IconMoon" label="Prepare the next session" />
+        <AppButton to="/canon/tonight" variant="outline" size="sm" :icon="IconMoon" label="Tonight" />
       </div>
     </div>
 
-    <div id="canon-page-top" class="flex flex-col gap-4 min-[90rem]:flex-row min-[90rem]:items-start min-[90rem]:gap-6">
-      <!-- The contents: a column from 90rem (kept in sight), a chapter picker above the chapter below it. The arc filter is page-wide, so it sits with it. -->
-      <div class="flex min-w-0 flex-wrap items-end gap-x-4 gap-y-2 min-[90rem]:flex-col min-[90rem]:flex-nowrap min-[90rem]:items-stretch min-[90rem]:gap-3 min-[90rem]:sticky min-[90rem]:top-0 min-[90rem]:w-56 min-[90rem]:shrink-0 min-[90rem]:self-start">
-        <CanonContents :active="active" :counts="counts" @select="goTo" />
+    <div id="canon-page-top" class="flex flex-col gap-4 @min-[60rem]/canon:flex-row @min-[60rem]/canon:items-start @min-[60rem]/canon:gap-6">
+      <!-- The contents: a column from 60rem of the page (kept in sight), a chapter picker above the chapter below it. The arc filter is page-wide, so it sits with it. -->
+      <div class="flex min-w-0 flex-wrap items-end gap-x-4 gap-y-2 @min-[60rem]/canon:flex-col @min-[60rem]/canon:flex-nowrap @min-[60rem]/canon:items-stretch @min-[60rem]/canon:gap-3 @min-[60rem]/canon:sticky @min-[60rem]/canon:top-0 @min-[60rem]/canon:w-56 @min-[60rem]/canon:shrink-0 @min-[60rem]/canon:self-start">
+        <CanonContents :active="active" :counts="counts" :arc-label="arcLabel" @select="goTo" @clear-arc="ui.arcFilter = null" />
         <CanonArcs v-if="ready && (searching || ARC_NARROWED_SECTIONS.includes(active))" />
-        <!-- The next session under the contents; below 90rem the header has the button instead. -->
-        <div class="hidden min-[90rem]:block"><CanonNextSession /></div>
+        <!-- The next session under the contents; below that the header has the button instead. -->
+        <div class="hidden @min-[60rem]/canon:block"><CanonNextSession /></div>
       </div>
 
       <!-- Centred in the room beside the contents, never hugging the left with an empty right half. -->
@@ -34,7 +35,7 @@
           <CanonReview mode="read" />
           <CanonSearchResults v-if="searching" class="mx-auto w-full max-w-3xl" :groups="hitGroups" :query="ui.query" @open="ui.query = ''" />
           <!-- A new canon is led in by the page itself, until its four steps are done or the DM skips them. -->
-          <CanonWayIn v-else-if="showWayIn" :entries="entries" :clues="allClues ?? []" />
+          <CanonWayIn v-else-if="showWayIn" :entries="entries" :clues="allClues ?? []" :calendar-id="campaign?.calendar_id ?? null" />
           <template v-else>
             <TruthsChapter
               v-if="active === 'truths'"
@@ -47,15 +48,15 @@
               @delete="removeSelected"
             />
             <ArcsChapter v-else-if="active === 'arcs'" />
-            <ForcesChapter v-else-if="active === 'moving'" :forces="shownForces" :arc-label="arcLabel" :selected-id="selectedForce?.id ?? null" @select="select" @close="closeEntry" @delete="removeSelected" />
+            <ForcesChapter v-else-if="active === 'moving'" :forces="shownForces" :arc-label="arcLabel" :selected="selectedForce" @select="select" @close="closeEntry" @delete="removeSelected" />
             <SecretsChapter v-else-if="active === 'secrets'" :secrets="shownSecrets" :questions="shownQuestions" :selected="selectedSecret" :arc-label="arcLabel" @select="select" @close="closeEntry" @delete="removeSelected" />
             <LoreChapter v-else-if="active === 'lore'" :lore="shownLore" :selected="selectedLore" :arc-label="arcLabel" @select="select" @close="closeEntry" @delete="removeSelected" />
             <BackstoriesChapter v-else-if="active === 'backstories'" :party="party" :entries="backstories" :passages="allPassages ?? []" :selected-id="selectedBackstoryMember?.id ?? null" @select="selectBackstory" @close="closeEntry" />
             <PremiseChapter v-else-if="active === 'premise'" :campaign="campaign" :entries="entries" />
             <WorldChapter v-else-if="active === 'world'" />
+            <TimelineChapter v-else-if="active === 'timeline'" :arc-label="arcLabel" />
             <PeoplesChapter v-else-if="active === 'peoples'" />
             <LifeChapter v-else />
-            <CanonDeleted />
           </template>
         </template>
       </div>
@@ -66,7 +67,7 @@
 <script setup lang="ts">
 /**
  * The DM's Canon page (#1226, rebuilt in #1267): the campaign's background book, one chapter at a time, chosen in the
- * contents (a column from 90rem, a picker below). The chapter is the route, `/canon/:part`; `/canon` opens the one the DM
+ * contents (a column from 60rem of the page, a grouped picker below). The chapter is the route, `/canon/:part`; `/canon` opens the one the DM
  * was last on. `?entry=<id>` is the link to one entry (search results and the world web point there) and also the page's
  * own selection, which opens beside the chapter's list; it, `?section=<chapter>` and `?backstory=<member>` on a bare
  * `/canon` resolve to the chapter that holds them. One search in the header finds a word in any title or body, and
@@ -80,7 +81,6 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import CanonArcs from "@/components/canon/CanonArcs.vue";
 import CanonSearchResults from "@/components/canon/CanonSearchResults.vue";
 import CanonSearchField from "@/components/canon/CanonSearchField.vue";
-import CanonDeleted from "@/components/canon/CanonDeleted.vue";
 import CanonNextSession from "@/components/canon/CanonNextSession.vue";
 import CanonOpenAsBook from "@/components/canon/CanonOpenAsBook.vue";
 import CanonReview from "@/components/canon/CanonReview.vue";
@@ -94,12 +94,16 @@ import PremiseChapter from "@/components/canon/PremiseChapter.vue";
 import SecretsChapter from "@/components/canon/SecretsChapter.vue";
 import TruthsChapter from "@/components/canon/TruthsChapter.vue";
 import WorldChapter from "@/components/canon/WorldChapter.vue";
+import TimelineChapter from "@/components/canon/TimelineChapter.vue";
 import LifeChapter from "@/components/canon/ecology/LifeChapter.vue";
 import PeoplesChapter from "@/components/canon/ecology/PeoplesChapter.vue";
 import { narrowToArc } from "@/lib/canon/canonNarrow";
 import { isNewCanon, wayInSteps } from "@/lib/canon/canonWayIn";
 import { searchCanon } from "@/lib/canon/canonSearch";
 import { useCanonArcs } from "@/composables/canon/useCanonArcs";
+import { useCampaignHabitats } from "@/composables/canon/useCampaignHabitats";
+import { useCampaignPeoples } from "@/composables/canon/useCampaignPeoples";
+import { useTableFacts } from "@/composables/canon/useTableFacts";
 import { useCanonUiStore } from "@/stores/ui/canon";
 import { ARC_NARROWED_SECTIONS, isSectionId, sectionCounts, sectionFromWord, sectionOfPart, type CanonSectionId } from "@/lib/canon/canonParts";
 import { useCanonClues } from "@/composables/canon/useCanonClues";
@@ -161,8 +165,22 @@ const counts = computed(() => ({
 
 // The page's one search: it reads the arc-narrowed canon, and the clues, force steps and passages of what it reads.
 const searching = computed(() => ui.query.trim() !== "");
+const { peoples } = useCampaignPeoples();
+const { habitats } = useCampaignHabitats();
+const { facts: tableFacts } = useTableFacts();
 const hitGroups = computed(() =>
-  searching.value ? searchCanon(ui.query, { entries: narrowed.value, clues: allClues.value ?? [], steps: forceData.value?.steps ?? [], passages: allPassages.value ?? [] }) : [],
+  searching.value
+    ? searchCanon(ui.query, {
+        entries: narrowed.value,
+        clues: allClues.value ?? [],
+        steps: forceData.value?.steps ?? [],
+        passages: allPassages.value ?? [],
+        arcs: arcs.value ?? [],
+        peoples: peoples.value,
+        habitats: habitats.value,
+        facts: tableFacts.data.value ?? [],
+      })
+    : [],
 );
 
 const entryParam = computed(() => (typeof route.query.entry === "string" ? route.query.entry : null));

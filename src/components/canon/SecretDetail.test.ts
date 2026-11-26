@@ -12,6 +12,8 @@ const session = ref<{ id: string } | null>({ id: "sess1" });
 const passages = ref<{ id: string; entry_id: string; title: string }[]>([]);
 
 const entries = ref<CanonEntry[]>([]);
+const connRows = ref<Connection[]>([]);
+const linkRows = ref<unknown[]>([]);
 vi.mock("@/lib/toast", () => ({ toast: { error: mocks.toastError } }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({
   useUpdateCanonEntry: () => ({ mutate: mocks.update, mutateAsync: mocks.updateAsync }),
@@ -26,7 +28,13 @@ vi.mock("@/composables/canon/useCanonClues", async (importOriginal) => ({
   useDeleteCanonClue: () => ({ mutateAsync: mocks.destroyClue }),
   useSetClueFound: () => mocks.setFound,
 }));
-vi.mock("@/composables/connections/useConnections", () => ({ useCreateConnection: () => ({ mutateAsync: mocks.connect }) }));
+vi.mock("@/composables/connections/useConnections", () => ({
+  useCreateConnection: () => ({ mutateAsync: mocks.connect }),
+  useRemoveConnection: () => ({ mutateAsync: vi.fn() }),
+  useConnections: () => ({ data: connRows, isLoading: ref(false), isError: ref(false) }),
+  useCampaignLinks: () => ({ data: linkRows }),
+}));
+vi.mock("@/composables/canon/useEntryQuestLinks", () => ({ useEntryQuestLinks: () => ref([]) }));
 vi.mock("@/composables/canon/useClueWhere", () => ({ useClueWhere: () => ref(() => null), useBeatOptions: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/canon/useCanonPassages", () => ({ useCanonPassages: () => ({ data: passages }) }));
 vi.mock("@/composables/campaign/useCampaignSession", () => ({ useCampaignSession: () => ({ session }) }));
@@ -39,6 +47,8 @@ vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data
 import SecretDetail from "./SecretDetail.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
 import SecretOutlets from "./SecretOutlets.vue";
+import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
+import type { Connection } from "@/types/connections.types";
 import EntryStoryLinks from "./EntryStoryLinks.vue";
 import { useAskUiStore } from "@/stores/ui/ask";
 
@@ -48,7 +58,7 @@ const clue = (over: Partial<CanonClue> = {}): CanonClue => ({
   quest_beat_id: null, found_at: null, item_id: null, document_id: null, found_session_id: null, passage_id: null, ai_provenance: null, created_at: "", updated_at: "", ...over,
 });
 
-const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { CanonReview: true, EntryStoryLinks: true, ConnectionsSection: true, SecretOutlets: true, CanonEntryNotes: true, ClueForm: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
+const mountDetail = (e: CanonEntry) => mount(SecretDetail, { props: { entry: e }, global: { stubs: { teleport: true, CanonReview: true, EntryStoryLinks: true, ConnectionsSection: true, SecretOutlets: true, CanonEntryNotes: true, ClueForm: true, RouterLink: { props: ["to"], template: "<a><slot /></a>" } } } });
 
 describe("SecretDetail", () => {
   beforeEach(() => {
@@ -58,6 +68,8 @@ describe("SecretDetail", () => {
     session.value = { id: "sess1" };
     passages.value = [];
     entries.value = [];
+    connRows.value = [];
+    linkRows.value = [];
     Object.values(mocks).forEach((m) => m.mockReset());
   });
 
@@ -76,8 +88,9 @@ describe("SecretDetail", () => {
   });
 
   // Bug caught (#1255 item 8): the secret had nowhere to write what is really going on, or the notes were bound to another entry.
-  it("mounts the notes for this secret", () => {
-    expect(mountDetail(secret()).getComponent(CanonEntryNotes).props("entry")).toMatchObject({ id: "s1" });
+  it("mounts the notes for this secret once it has words", () => {
+    const body = JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "She wears the locket." }] }] });
+    expect(mountDetail(secret({ body })).getComponent(CanonEntryNotes).props("entry")).toMatchObject({ id: "s1" });
   });
 
   // Bug caught (#1255 item 5): a clue that is a lore passage read "Not placed anywhere yet", as if it were unplaced.
@@ -144,7 +157,8 @@ describe("SecretDetail", () => {
   });
 
   // Bug caught (#1258 item 18, mounted here by item 23): the cause-and-effect block was handed no entry, or another one.
-  it("mounts the story links for this secret", () => {
+  it("mounts the story links for this secret once it has a cause or an effect", () => {
+    linkRows.value = [{ from_kind: "canon", to_kind: "canon", type: "led_to", from_id: "s1", to_id: "t2" }];
     expect(mountDetail(secret()).getComponent(EntryStoryLinks).props("entry")).toMatchObject({ id: "s1" });
   });
 
@@ -229,11 +243,84 @@ describe("SecretDetail", () => {
   it("makes a truth known to all with the secret's words and notes, then points the secret at it", async () => {
     mocks.create.mockResolvedValue(canonEntry({ id: "t7", part: "truth" }));
     mocks.updateAsync.mockResolvedValue(undefined);
-    const w = mountDetail(revealed());
+    const w = mountDetail(revealed({ player_visible_to: ["pm1", "pm2"] }));
     await w.get("[data-testid=make-truth]").trigger("click");
     await flushPromises();
     expect(mocks.create).toHaveBeenCalledWith({ part: "truth", knowledge: "all", title: "Sift is the guild master's daughter.", body: "{\"type\":\"doc\"}" });
     expect(mocks.updateAsync).toHaveBeenCalledWith({ id: "s1", patch: { became_entry_id: "t7" } });
+    // Bug caught (#1279 item 3): a whole-party secret grew per-person links it does not need.
+    expect(mocks.connect).not.toHaveBeenCalledWith(expect.objectContaining({ choice: expect.objectContaining({ key: "known_to" }) }));
+  });
+
+  // Bug caught (#1279 item 3): a secret revealed to Mira only became a truth known to "all", so every player read it.
+  it("makes a truth known to some, with a known_to link per reader, when the secret is revealed to only some", async () => {
+    mocks.create.mockResolvedValue(canonEntry({ id: "t7", part: "truth" }));
+    mocks.updateAsync.mockResolvedValue(undefined);
+    const w = mountDetail(revealed({ player_visible_to: ["pm1"] }));
+    await w.get("[data-testid=make-truth]").trigger("click");
+    await flushPromises();
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ part: "truth", knowledge: "some" }));
+    const knowers = mocks.connect.mock.calls.filter(([c]) => c.choice.key === "known_to");
+    expect(knowers).toHaveLength(1);
+    expect(knowers[0][0]).toMatchObject({ subject: { kind: "canon", id: "t7" }, other: { kind: "party_member", id: "pm1", name: "Mira" }, choice: { subjectIsFrom: true } });
+  });
+
+  // Bug caught: the party not having loaded made every secret look partly revealed, or "all" by default.
+  it("makes no truth before the party has loaded, since who reads it is not known", async () => {
+    party.value = undefined;
+    const w = mountDetail(revealed({ player_visible_to: ["pm1"] }));
+    await w.get("[data-testid=make-truth]").trigger("click");
+    await flushPromises();
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  // Bug caught (#1279 item 4): the help line said "The party can read this secret" whoever it was revealed to.
+  it("says who a revealed secret is revealed to", () => {
+    expect(mountDetail(revealed({ player_visible_to: ["pm1", "pm2"] })).get("[data-testid=revealed-to]").text()).toBe("Revealed to the whole party");
+    expect(mountDetail(revealed({ player_visible_to: ["pm1"] })).get("[data-testid=revealed-to]").text()).toBe("Revealed to Mira");
+    party.value = [{ id: "pm1", name: "Mira" }, { id: "pm2", name: "Bram" }, { id: "pm3", name: "Cole" }];
+    expect(mountDetail(revealed({ player_visible_to: ["pm1", "pm2"] })).get("[data-testid=revealed-to]").text()).toBe("Revealed to Mira and Bram");
+  });
+
+  // Bug caught (#1279 item 4): a partly revealed secret offered no way to widen it, and a whole-party one offered a pointless one.
+  it("offers Reveal to more… only on a secret not yet revealed to the whole party", () => {
+    expect(mountDetail(revealed({ player_visible_to: ["pm1"] })).find("[data-testid=reveal-more]").exists()).toBe(true);
+    expect(mountDetail(revealed({ player_visible_to: ["pm1", "pm2"] })).find("[data-testid=reveal-more]").exists()).toBe(false);
+    expect(mountDetail(secret()).find("[data-testid=reveal-more]").exists()).toBe(false);
+  });
+
+  // Bug caught (#1279 item 4): widening restamped the reveal time and session, or replaced who had it instead of adding to it.
+  it("adds the members ticked under Reveal to more…, keeping those who have it and the time it came out", async () => {
+    const w = mountDetail(revealed({ player_visible_to: ["pm1"], revealed_session_id: "sess0" }));
+    await w.get("[data-testid=reveal-more]").trigger("click");
+    expect((w.get("[data-testid=tell-some-pm1]").element as HTMLInputElement).checked).toBe(true);
+    await w.get("[data-testid=tell-some-pm2]").setValue(true);
+    await w.get("[data-testid=tell-some-confirm]").trigger("click");
+    await flushPromises();
+    expect(mocks.update).toHaveBeenCalledTimes(1);
+    expect(mocks.update).toHaveBeenCalledWith({ id: "s1", patch: { player_visible_to: ["pm1", "pm2"] } });
+  });
+
+  // Bug caught: confirming the picker with nobody new ticked wrote anyway.
+  it("writes nothing when Reveal to more… adds no one", async () => {
+    const w = mountDetail(revealed({ player_visible_to: ["pm1"] }));
+    await w.get("[data-testid=reveal-more]").trigger("click");
+    await w.get("[data-testid=tell-some-confirm]").trigger("click");
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  // Bug caught (#1279 item 3, with #1258 items 6 and 18): the Connections block listed the led_to and carries ties again beside the story links that own them.
+  it("keeps led_to and carries ties out of its Connections block, and nothing else", () => {
+    const conn = (over: Partial<Connection>): Connection => ({
+      source: "link", row_id: "r", type: "about", outward: true, other_kind: "npc", other_id: "n1", other_name: "Sift",
+      other_image: null, note: null, told: null, player_visible_to: null, ai_provenance: null, role: null, status: null, ...over,
+    });
+    connRows.value = [conn({ type: "about", row_id: "x" })];
+    const hide = mountDetail(secret()).getComponent(ConnectionsSection).props("hide") as (c: Connection) => boolean;
+    expect(hide(conn({ type: "led_to" }))).toBe(true);
+    expect(hide(conn({ type: "carries" }))).toBe(true);
+    expect(hide(conn({ type: "about" }))).toBe(false);
+    expect(hide(conn({ type: "led_to", source: "kin" }))).toBe(false);
   });
 
   // Bug caught (#1258 item 18): the truth was pointed at but no canon led_to link was written, so the secret's
@@ -268,5 +355,60 @@ describe("SecretDetail", () => {
     const w = mountDetail(revealed({ became_entry_id: "t7" }));
     expect(w.find("[data-testid=make-truth]").exists()).toBe(false);
     expect(w.get("[data-testid=secret-became]").text()).toBe("Now a truth: Sift is the daughter.");
+  });
+
+  describe("What people believe instead (#1279 item 15)", () => {
+    const choose = async (w: ReturnType<typeof mountDetail>) => {
+      await w.get("[data-testid=canon-add-fold-button]").trigger("click");
+      await w.get("[data-testid=canon-add-cover]").trigger("click");
+    };
+    const field = (w: ReturnType<typeof mountDetail>) => w.get("input[data-testid=cover-story]");
+
+    // Bug caught: the cover story drawn on every secret, an empty field among the clues.
+    it("is folded until chosen, and drawn at once when the secret has one", async () => {
+      const w = mountDetail(secret());
+      expect(w.find("[data-testid=cover-story]").exists()).toBe(false);
+      await choose(w);
+      expect(w.find("[data-testid=cover-story]").exists()).toBe(true);
+      expect(mountDetail(secret({ cover_story: "The king died of fever." })).find("[data-testid=cover-story]").exists()).toBe(true);
+    });
+
+    // Bug caught: the line saved with its stray spaces, or on every keystroke instead of when the field is left.
+    it("saves the trimmed line when the field is left", async () => {
+      const w = mountDetail(secret({ cover_story: "old" }));
+      await field(w).setValue("  The king died of fever.  ");
+      await field(w).trigger("change");
+      expect(mocks.update).toHaveBeenCalledWith({ id: "s1", patch: { cover_story: "The king died of fever." } });
+    });
+
+    // Bug caught: emptying the line saved "" (which the table refuses) or was reverted, so a cover story could never be removed.
+    it("clears the cover story when the field is emptied", async () => {
+      const w = mountDetail(secret({ cover_story: "old" }));
+      await field(w).setValue("   ");
+      await field(w).trigger("change");
+      expect(mocks.update).toHaveBeenCalledWith({ id: "s1", patch: { cover_story: null } });
+    });
+
+    // Bug caught: an unchanged line written back on blur, a pointless write that also rings every player's screen.
+    it("writes nothing when the line is unchanged", async () => {
+      const w = mountDetail(secret({ cover_story: "same" }));
+      await field(w).setValue("same ");
+      await field(w).trigger("change");
+      expect(mocks.update).not.toHaveBeenCalled();
+    });
+
+    // Bug caught: a remote change not reaching the open field, so the DM edited and overwrote a stale line.
+    it("follows the server copy when another tab changes it", async () => {
+      const w = mountDetail(secret({ cover_story: "old" }));
+      await w.setProps({ entry: secret({ cover_story: "new" }) });
+      expect((field(w).element as HTMLInputElement).value).toBe("new");
+    });
+
+    // Bug caught: the field with no length limit, so a 600-character line is refused by the table only after typing it.
+    it("limits the line to 500 characters and says who reads it", async () => {
+      const w = mountDetail(secret({ cover_story: "x" }));
+      expect(field(w).attributes("maxlength")).toBe("500");
+      expect(w.text()).toContain("Players read this until the secret is revealed to them.");
+    });
   });
 });

@@ -1,5 +1,5 @@
 <template>
-  <section v-if="clues.length > 0 || passages.length > 0" class="flex flex-col border border-border bg-card" :class="compact ? 'gap-2 p-2' : 'gap-3 p-3'" aria-label="Canon here" :data-compact="compact || undefined" data-testid="canon-here">
+  <section v-if="clues.length > 0 || passages.length > 0" class="flex flex-col" :class="[bare ? 'gap-3' : 'border border-border bg-card', !bare && (compact ? 'gap-2 p-2' : 'gap-3 p-3')]" aria-label="Canon here" :data-compact="compact || undefined" data-testid="canon-here">
     <div v-if="clues.length > 0" class="flex flex-col gap-2" data-testid="clues-here">
       <span class="text-eyebrow text-muted-foreground">Clues here</span>
       <ul class="flex flex-col" :class="compact ? 'gap-1' : 'gap-1.5'">
@@ -55,8 +55,11 @@ import { useSetClueFound, type ClueKind } from "@/composables/canon/useCanonClue
 import { useCanonHere } from "@/composables/canon/useCanonHere";
 import { useTellPassage } from "@/composables/canon/useCanonPassageEdits";
 
-/** `compact` is the run surfaces' version (the quest cockpit, the Play screen): tighter, for a column that already carries a lot. */
-const { kind, id, compact = false } = defineProps<{ kind: ClueKind; id: string; compact?: boolean }>();
+/**
+ * `compact` is the run surfaces' version (the quest cockpit, the Play screen): tighter, for a column that already carries a lot.
+ * `bare` drops the card, for a host that draws its own (an NPC's "In the canon" block, which holds this as one of its groups).
+ */
+const { kind, id, compact = false, bare = false } = defineProps<{ kind: ClueKind; id: string; compact?: boolean; bare?: boolean }>();
 
 // One read for the block (get_canon_here), not the campaign's clues, entries and passages.
 const { data: here } = useCanonHere(() => kind, () => id);

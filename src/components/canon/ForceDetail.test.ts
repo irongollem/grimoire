@@ -4,17 +4,21 @@ import { ref } from "vue";
 import type { CanonForceTick } from "@/types/canon.types";
 import { canonEntry } from "@/test/canonEntry";
 
-const mocks = vi.hoisted(() => ({ update: vi.fn(), tick: vi.fn(), undo: vi.fn(), createTruth: vi.fn(), connect: vi.fn(), faction: { current: null as { id: string; name: string } | null } }));
+const mocks = vi.hoisted(() => ({ update: vi.fn(), tick: vi.fn(), undo: vi.fn(), createTruth: vi.fn(), connect: vi.fn() }));
 const forceData = ref<{ steps: unknown[]; ticks: CanonForceTick[]; quests: unknown[] }>({ steps: [], ticks: [], quests: [] });
 
 vi.mock("@/stores/calendar", () => ({ useCalendarStore: () => ({ adapter: { formatDate: () => "" } }) }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({
   useUpdateCanonEntry: () => ({ mutate: mocks.update, mutateAsync: (arg: unknown) => Promise.resolve(mocks.update(arg)) }),
   useCreateCanonEntry: () => ({ mutateAsync: mocks.createTruth }),
+  useCanonEntries: () => ({ data: ref([]) }),
   discardCanonEntry: vi.fn(),
 }));
-vi.mock("@/composables/connections/useConnections", () => ({ useCreateConnection: () => ({ mutateAsync: mocks.connect }) }));
-vi.mock("@/composables/canon/useForceFactions", () => ({ useForceFactions: () => ({ factionOf: () => mocks.faction.current, whoOf: () => mocks.faction.current?.name ?? null }) }));
+vi.mock("@/composables/connections/useConnections", () => ({
+  useCreateConnection: () => ({ mutateAsync: mocks.connect }),
+  useConnections: () => ({ data: ref([]) }),
+  useCampaignLinks: () => ({ data: ref([]) }),
+}));
 vi.mock("@/composables/canon/useCanonForces", async (original) => ({
   ...(await original<typeof import("@/composables/canon/useCanonForces")>()),
   useCanonForceData: () => ({ data: forceData }),
@@ -37,13 +41,20 @@ const EntryQuestsStub = { name: "EntryQuests", props: ["entry", "links", "label"
 
 const CanonSuggestStub = { name: "CanonSuggest", props: ["request"], template: "<i data-testid='suggest' />" };
 
+/** The pane with its folded Connections block chosen, so the section's `hide` can be read. */
+async function mountWithConnections() {
+  const w = mountIt();
+  w.getComponent({ name: "CanonAddFold" }).vm.$emit("choose", "connections");
+  await w.vm.$nextTick();
+  return w;
+}
+
 const mountIt = (entry = force()) =>
-  mount(ForceDetail, { props: { entry }, global: { stubs: { CanonSuggest: CanonSuggestStub, RouterLink: { props: ["to"], template: "<a :href=\"to\"><slot /></a>" }, ForceSteps: true, EntryQuests: EntryQuestsStub, ConnectionsSection: true, CanonEntryNotes: true, ForceQuestClocks: true, EntryStoryLinks: true } } });
+  mount(ForceDetail, { props: { entry }, global: { stubs: { CanonSuggest: CanonSuggestStub, RouterLink: { props: ["to"], template: "<a :href=\"to\"><slot /></a>" }, ForceSteps: true, EntryQuests: EntryQuestsStub, ConnectionsSection: true, CanonEntryNotes: true, ForceQuestClocks: true, EntryStoryLinks: true, ForceWhoPicker: true, StartQuestFrom: true, CanonAddFold: true } } });
 
 describe("ForceDetail", () => {
   beforeEach(() => {
     for (const m of [mocks.update, mocks.tick, mocks.undo, mocks.createTruth, mocks.connect]) m.mockReset();
-    mocks.faction.current = null;
     forceData.value = { steps: [], ticks: [], quests: [] };
   });
 
@@ -55,8 +66,11 @@ describe("ForceDetail", () => {
   });
 
   // Bug caught (#1255 item 8): the force had nowhere to write how to play it, or the notes were bound to another entry.
-  it("mounts the notes for this force, labelled as never shown to players", () => {
-    const notes = mountIt().getComponent(CanonEntryNotes);
+  it("mounts the notes for this force, labelled as never shown to players", async () => {
+    const w = mountIt();
+    w.getComponent({ name: "CanonAddFold" }).vm.$emit("choose", "notes");
+    await w.vm.$nextTick();
+    const notes = w.getComponent(CanonEntryNotes);
     expect(notes.props("entry")).toMatchObject({ id: "f1" });
     expect(notes.props("help")).toBe("Never shown to players.");
   });
@@ -111,6 +125,24 @@ describe("ForceDetail", () => {
     expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { title: "The Stain" } });
     await w.get("select[aria-label='Clock size']").setValue("8");
     expect(mocks.update).toHaveBeenCalledWith({ id: "f1", patch: { clock_size: 8 } });
+  });
+
+  // Bug caught (#1279 item 34b): "If it succeeds" had no revision key, so words typed back unchanged (with stray spaces) stayed on screen.
+  it("redraws the if-it-succeeds field when an edit changes nothing", async () => {
+    const w = mountIt(force({ if_succeeds: "The orchard dies." }));
+    const input = w.get("input[aria-label='If it succeeds'], textarea[aria-label='If it succeeds']");
+    await input.setValue("  The orchard dies.  ");
+    await flushPromises();
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect((w.get("[aria-label='If it succeeds']").element as HTMLInputElement).value).toBe("The orchard dies.");
+  });
+
+  // Bug caught (#1279 item 34b): the Connections block listing the led_to and carries ties EntryStoryLinks already shows.
+  it("hides the story ties from Connections, which EntryStoryLinks owns", async () => {
+    const hide = (await mountWithConnections()).getComponent({ name: "ConnectionsSection" }).props("hide") as (c: unknown) => boolean;
+    expect(hide({ source: "link", type: "led_to" })).toBe(true);
+    expect(hide({ source: "link", type: "carries" })).toBe(true);
+    expect(hide({ source: "link", type: "related_to" })).toBe(false);
   });
 
   // Bug caught: the log showing every move at once (burying the clock), or "All N moves" opening nothing.
@@ -189,13 +221,43 @@ describe("ForceDetail", () => {
     expect(w.find("[data-testid=force-end-form]").exists()).toBe(true);
   });
 
-  // Bug caught (#1258 item 16): the detail's Who was an editable copy of the title; it must read the faction's live name instead.
-  it("names the linked faction as Who, and shows no Who for a force with none", () => {
-    mocks.faction.current = { id: "fa1", name: "The Ferrymen (renamed)" };
-    const w = mountIt(force());
-    expect(w.get("[data-testid=force-who]").text()).toBe("The Ferrymen (renamed)");
-    mocks.faction.current = null;
-    expect(mountIt().find("[data-testid=force-who]").exists()).toBe(false);
+  // Bug caught (#1279 item 11): the force's Who was read-only and faction-only; the header must offer the picker, for this force.
+  it("puts the Who picker in the header, for this force", () => {
+    expect(mountIt().getComponent({ name: "ForceWhoPicker" }).props("forceId")).toBe("f1");
+  });
+
+  // Bug caught (#1279 item 11): a who tie (about a person, faction or god) shown a second time in Connections.
+  it("hides the who ties from Connections, and only the outward about ties to a person, faction or god", async () => {
+    const hide = (await mountWithConnections()).getComponent({ name: "ConnectionsSection" }).props("hide") as (c: unknown) => boolean;
+    const tie = (over: object) => ({ source: "link", type: "about", outward: true, other_kind: "npc", ...over });
+    expect(hide(tie({}))).toBe(true);
+    expect(hide(tie({ other_kind: "faction" }))).toBe(true);
+    expect(hide(tie({ other_kind: "deity" }))).toBe(true);
+    expect(hide(tie({ other_kind: "location" }))).toBe(false);
+    expect(hide(tie({ outward: false }))).toBe(false);
+  });
+
+  // Bug caught (#1279 item 16): ten blocks drawn on a force with nothing in them.
+  it("folds the empty optional blocks into Add…, and draws one once it is chosen", async () => {
+    const w = mountIt();
+    expect(w.findComponent(EntryQuestsStub).exists()).toBe(false);
+    expect(w.findComponent({ name: "EntryStoryLinks" }).exists()).toBe(false);
+    expect(w.findComponent({ name: "ConnectionsSection" }).exists()).toBe(false);
+    expect(w.find("[data-testid=start-quest]").exists()).toBe(false);
+    const choices = w.getComponent({ name: "CanonAddFold" }).props("choices") as { key: string }[];
+    expect(choices.map((c) => c.key)).toEqual(["notes", "quests", "story", "connections"]);
+    w.getComponent({ name: "CanonAddFold" }).vm.$emit("choose", "quests");
+    await w.vm.$nextTick();
+    expect(w.findComponent(EntryQuestsStub).exists()).toBe(true);
+    expect(w.findComponent({ name: "StartQuestFrom" }).props("entry")).toMatchObject({ id: "f1" });
+  });
+
+  // Bug caught (#1279 item 16): a block that holds a quest folded away so the DM cannot see it.
+  it("draws the quests block, and the way to start one, when the force already has a quest", () => {
+    forceData.value.quests = [{ id: "l1", entry_id: "f1", quest_id: "q1" }];
+    const w = mountIt();
+    expect(w.findComponent(EntryQuestsStub).exists()).toBe(true);
+    expect((w.getComponent({ name: "CanonAddFold" }).props("choices") as { key: string }[]).map((c) => c.key)).not.toContain("quests");
   });
 
   // Bug caught (#1258 item 11): a clock and steps that disagree said nothing, in either direction.
@@ -264,7 +326,10 @@ describe("ForceDetail", () => {
   });
 
   // Bug caught: the story links (what it is because of, what it led to) not mounted on a force, or for another entry.
-  it("mounts the story links for this force", () => {
-    expect(mountIt().getComponent({ name: "EntryStoryLinks" }).props("entry")).toMatchObject({ id: "f1" });
+  it("mounts the story links for this force", async () => {
+    const w = mountIt();
+    w.getComponent({ name: "CanonAddFold" }).vm.$emit("choose", "story");
+    await w.vm.$nextTick();
+    expect(w.getComponent({ name: "EntryStoryLinks" }).props("entry")).toMatchObject({ id: "f1" });
   });
 });

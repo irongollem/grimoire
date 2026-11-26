@@ -5,15 +5,14 @@
       <span v-if="worldDate" class="text-muted-foreground" data-testid="chronicle-world-date">In the world: {{ worldDate }}</span>
       <span :class="shared ? 'font-semibold text-tone-success' : 'text-muted-foreground'" data-testid="chronicle-shared">{{ shared ?? "Not shared yet" }}</span>
     </p>
-    <SessionChronicleLearned :session-id="session.id" />
-    <SessionChronicleCanon v-if="canon.total > 0" :canon="canon" />
+    <SessionChronicleList :learned="learned" :canon="canon" />
   </div>
 </template>
 
 <script setup lang="ts">
 /**
  * What a session's log entry says about the evening, under its row or card (frame 12): the chronicle excerpt, its date
- * in the world and who the note is shared with, what the party learned, and what the canon did. A session with no note
+ * in the world and who the note is shared with, and one list of what happened that session (learned, told, revealed, found, the table's lines). A session with no note
  * says nothing here; its Write notes and Draft buttons are the row's own controls.
  */
 import { computed } from "vue";
@@ -26,8 +25,7 @@ import { audienceLabel } from "@/lib/sessions/learned";
 import { useCalendarStore } from "@/stores/calendar";
 import type { Note } from "@/types/notes.types";
 import type { CampaignSession } from "@/types/session.types";
-import SessionChronicleCanon from "./SessionChronicleCanon.vue";
-import SessionChronicleLearned from "./SessionChronicleLearned.vue";
+import SessionChronicleList from "./SessionChronicleList.vue";
 
 const { session, note } = defineProps<{ session: CampaignSession; note: Note | null }>();
 

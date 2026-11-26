@@ -23,6 +23,9 @@ vi.mock("@tanstack/vue-query", async (importOriginal) => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }));
 
+// The players' line requests have their own test (LineRequestInbox); here the chapter only mounts it.
+vi.mock("@/components/canon/LineRequestInbox.vue", () => ({ default: { name: "LineRequestInbox", props: ["sortOrder"], template: "<i data-testid='line-requests-stub' />" } }));
+
 const tableOpen = vi.hoisted(() => ({ on: true }));
 vi.mock("@/composables/campaign/useTableAccess", async () => {
   const { computed } = await import("vue");
@@ -89,5 +92,11 @@ describe("PremiseChapter", () => {
     tableOpen.on = false;
     expect(mountChapter([]).find("[data-testid=premise-violence]").exists()).toBe(false);
     tableOpen.on = true;
+  });
+
+  // Bug caught (#1279 item 29): the players' requests never shown in the Premise chapter, or added at the wrong place in the list.
+  it("mounts the players' line requests, to be added after the lines and veils already there", () => {
+    const w = mountChapter([entry({ id: "l", premise_kind: "line" }), entry({ id: "v", premise_kind: "veil" }), entry({ id: "t", premise_kind: "theme" })]);
+    expect(w.findComponent({ name: "LineRequestInbox" }).props("sortOrder")).toBe(2);
   });
 });

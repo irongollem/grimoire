@@ -6,7 +6,7 @@
 
     <template #who>
       <AudienceRevealControl :visible-to="entry.player_visible_to" :name="entry.title" @change="(next) => update({ id: entry.id, patch: { player_visible_to: next } })" />
-      <EntryArcPicker :entry="entry" />
+      <EntryArcPicker v-if="shown('arc')" :entry="entry" />
     </template>
 
     <div class="flex flex-wrap items-end gap-3">
@@ -31,6 +31,12 @@
         <span class="text-label font-bold text-foreground">The opening, read when the entry is shared</span>
         <span class="text-caption text-muted-foreground">The first passage below is told with the entry, so it never waits at a place. The rest are told one at a time.</span>
       </p>
+      <!-- Lore made before passages (and a note sorted in before they were written to one) kept its text on the entry itself, which only the player's World tab showed. -->
+      <div v-if="legacyText !== ''" class="flex flex-col gap-1 rounded-lg border border-dashed border-border p-3" data-testid="lore-legacy-body">
+        <span class="text-eyebrow text-muted-foreground">Text from before passages</span>
+        <p class="m-0 whitespace-pre-line text-caption text-muted-foreground">{{ legacyText }}</p>
+        <AppButton class="self-start" variant="outline" size="sm" label="Make this the first passage" :loading="adding" @click="makeLegacyFirst" />
+      </div>
       <ul v-if="passages.length > 0" class="flex flex-col" data-testid="lore-passages">
         <LorePassageRow
           v-for="(p, i) in passages"
@@ -62,11 +68,13 @@
       </div>
     </CanonBlock>
 
-    <EntryStoryLinks :entry="entry" />
+    <EntryStoryLinks v-if="shown('story')" :entry="entry" />
 
-    <EntryQuests :entry="entry" :links="questLinks" label="The quests that tell it" empty="No quest tells this yet." />
+    <EntryQuests v-if="shown('quests')" :entry="entry" :links="questLinks" label="The quests that tell it" empty="No quest tells this yet." />
 
-    <template #connections>
+    <CanonAddFold :choices="choices(FOLDED)" @choose="choose" />
+
+    <template v-if="shown('connections')" #connections>
       <ConnectionsSection :subject="subject" :subject-name="entry.title" />
     </template>
   </CanonEntryPane>
@@ -86,6 +94,7 @@ import AudienceRevealControl from "@/components/common/reveal/AudienceRevealCont
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import CanonReview from "./CanonReview.vue";
 import CanonBlock from "./kit/CanonBlock.vue";
+import CanonAddFold from "./kit/CanonAddFold.vue";
 import CanonEntryPane from "./kit/CanonEntryPane.vue";
 import EntryArcPicker from "./EntryArcPicker.vue";
 import EntryQuests from "./EntryQuests.vue";
@@ -94,6 +103,7 @@ import LorePassageRow from "./LorePassageRow.vue";
 import WorldDateField from "./WorldDateField.vue";
 import { LORE_KIND_LABEL, LORE_KIND_OPTIONS, entryDate, normaliseDate, worldDateLabel, type WorldDate } from "@/lib/canon/canonLore";
 import { useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
+import { useEntryFold, type FoldKey } from "@/composables/canon/useEntryFold";
 import { useEntryQuestLinks } from "@/composables/canon/useEntryQuestLinks";
 import { usePassageList } from "@/composables/canon/usePassageList";
 import { useCommittedText } from "@/composables/canon/useCommittedText";
@@ -112,10 +122,18 @@ const splitTarget = computed(() => ({ title: entry.title, kind: entry.lore_kind,
 const suggestPassage = computed(() => `Suggest a passage for the lore "${entry.title}".`);
 const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
 const questLinks = useEntryQuestLinks(() => entry.id);
+const FOLDED: readonly FoldKey[] = ["arc", "quests", "story", "connections"];
+const { shown, choices, choose } = useEntryFold(() => entry);
 const { mutate: update } = useUpdateCanonEntry();
 const { text, revision } = useCommittedText(() => entry.title, (next) => update({ id: entry.id, patch: { title: next } }));
 
-const { passages, adding, addPassage, move, removePassage } = usePassageList(() => entry.id);
+const { passages, adding, addPassage, prependPassage, move, removePassage } = usePassageList(() => entry.id);
+const legacyText = computed(() => tiptapToPlainText(entry.body).trim());
+// The body is cleared only once the passage exists, so a refused write loses no text.
+async function makeLegacyFirst() {
+  if (entry.body === null || !(await prependPassage(entry.body))) return;
+  update({ id: entry.id, patch: { body: null } });
+}
 const pictureContext = computed(() => [entry.title, entry.lore_kind, passages.value[0] ? tiptapToPlainText(passages.value[0].body) : ""].filter((t) => t).join(". "));
 
 const calendar = useCalendarStore();

@@ -13,7 +13,9 @@
         class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
       >← Party</RouterLink>
       <template v-if="member">
-        <AppButton class="ml-auto" variant="outline" size="md" label="Export Sheet" :to="`/character-sheet/${member.id}`" />
+        <!-- The character's past is written in the Canon; this is the way back to it (#1279 item 12). -->
+        <AppButton class="ml-auto" variant="outline" size="md" label="Backstory" :to="{ path: '/canon', query: { backstory: member.id } }" data-testid="backstory-link" />
+        <AppButton variant="outline" size="md" label="Export Sheet" :to="`/character-sheet/${member.id}`" />
         <AppButton variant="primary" size="md" :icon="IconEdit" label="Edit" @click="editOpen = true" />
         <!-- Retire first, the heavier word below the rule: only the DM marks a fall. -->
         <OverflowMenu
@@ -33,7 +35,7 @@
     />
 
     <!-- Everything this character is tied to, factions and patron deity included (#1084). -->
-    <ConnectionsSection v-if="member" :subject="{ kind: 'party_member', id: member.id }" :subject-name="member.name" :origin="origin" />
+    <ConnectionsSection v-if="member" :subject="{ kind: 'party_member', id: member.id }" :subject-name="member.name" />
 
     <!-- Distinct from the character's own "Notes" above, which players read. -->
     <DmNoteBox v-if="member" type="party_member" :id="member.id" :label="member.name" />
@@ -66,7 +68,6 @@ import { computed, ref, defineAsyncComponent } from "vue";
 import { useRoute, RouterLink } from "vue-router";
 import { IconEdit } from '@/lib/icons';
 import { useParty } from "@/composables/party/useParty";
-import { useBackstoryOrigin } from "@/composables/canon/useBackstoryOrigin";
 import PlayerCharacterView from "@/views/player/PlayerCharacterView.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
@@ -90,10 +91,6 @@ const { data: party } = useParty();
 const member = computed(() => (party.value ?? []).find((m) => m.id === id.value) ?? null);
 
 const editOpen = ref(false);
-
-// The people this character's backstory brought in carry the same "From Canon" marker here as on the Canon page.
-// Read-only: it never makes the backstory entry a character does not have yet.
-const origin = useBackstoryOrigin(id);
 
 const { data: memorials } = useCampaignMemorials();
 const memorialInEffect = computed(

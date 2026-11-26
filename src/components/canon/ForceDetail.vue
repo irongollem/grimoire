@@ -5,11 +5,8 @@
     </template>
 
     <template #who>
-      <span v-if="faction !== null" class="inline-flex items-baseline gap-2">
-        <span class="text-eyebrow text-muted-foreground">Who</span>
-        <RouterLink :to="`/factions/${faction.id}`" class="text-body font-semibold text-foreground hover:underline" data-testid="force-who">{{ faction.name }}</RouterLink>
-      </span>
-      <EntryArcPicker :entry="entry" />
+      <ForceWhoPicker :force-id="entry.id" />
+      <EntryArcPicker v-if="shown('arc')" :entry="entry" />
     </template>
 
     <div v-if="outcome !== null" class="flex flex-col gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-2" data-testid="force-ended">
@@ -24,10 +21,10 @@
     </div>
     <div class="flex flex-col gap-1">
       <span class="text-eyebrow text-muted-foreground">If it succeeds</span>
-      <AppInput v-model.lazy="ifSucceeds" wrap size="body" tone="filled" aria-label="If it succeeds" placeholder="What the world becomes if nobody stops it…" />
+      <AppInput :key="ifSucceedsRevision" v-model.lazy="ifSucceeds" wrap size="body" tone="filled" aria-label="If it succeeds" placeholder="What the world becomes if nobody stops it…" />
     </div>
 
-    <CanonEntryNotes :key="entry.id" :entry="entry" label="Notes" help="Never shown to players." placeholder="How it plays, what it will do next…" />
+    <CanonEntryNotes v-if="shown('notes')" :key="entry.id" :entry="entry" label="Notes" help="Never shown to players." placeholder="How it plays, what it will do next…" />
 
     <CanonBlock title="Its clock and its steps">
       <div class="flex flex-col gap-2">
@@ -56,37 +53,42 @@
       <ForceSteps :force="entry" :steps="steps" :frozen="outcome !== null" />
     </CanonBlock>
 
-    <CanonBlock title="Recent moves">
+    <CanonBlock v-if="ticks.length > 0" title="Recent moves">
       <ForceLog :ticks="ticks" :limit="RECENT_MOVES" @undo="undo" />
     </CanonBlock>
 
-    <EntryQuests :entry="entry" :links="links" label="Where the party meets it" empty="In no quest yet: the party has not crossed its path." />
+    <div v-if="shown('quests')" class="flex flex-col gap-2">
+      <EntryQuests :entry="entry" :links="links" label="Where the party meets it" empty="In no quest yet: the party has not crossed its path." />
+      <StartQuestFrom :entry="entry" />
+    </div>
     <ForceQuestClocks :entry="entry" />
-    <EntryStoryLinks :entry="entry" />
+    <EntryStoryLinks v-if="shown('story')" :entry="entry" />
+
+    <CanonAddFold :choices="choices(FOLDED)" @choose="choose" />
 
     <div v-if="outcome === null" class="flex flex-col gap-2">
       <ForceEndForm v-if="ending" :initial="endingFrom" @end="end" @cancel="ending = false" />
       <AppButton v-else variant="outline" size="sm" label="End this force…" class="self-start" data-testid="force-end" @click="startEnding('stopped')" />
     </div>
 
-    <template #connections>
-      <ConnectionsSection :subject="subject" :subject-name="entry.title" />
+    <template v-if="shown('connections')" #connections>
+      <ConnectionsSection :subject="subject" :subject-name="entry.title" :hide="isShownAbove" />
     </template>
   </CanonEntryPane>
 </template>
 
 <script setup lang="ts">
 /**
- * The open force, in the chapter's entry pane: who it is, what it wants and what the world becomes if it succeeds, its
- * clock with Tick forward and back and its steps, the newest three moves, and the quests where the party meets it. The
- * clock's fill is the sum of the ticks, never stored.
+ * The open force, in the chapter's entry pane: who is behind it (a person, a faction or a god), what it wants and what the world becomes if it succeeds, its
+ * clock with Tick forward and back and its steps, the newest three moves, and the quests where the party meets it, with "Start a quest from this". Optional blocks that
+ * are empty fold into one "Add…" row. The clock's fill is the sum of the ticks, never stored.
  */
 import { computed, ref } from "vue";
-import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
+import CanonAddFold from "./kit/CanonAddFold.vue";
 import CanonBlock from "./kit/CanonBlock.vue";
 import CanonEntryPane from "./kit/CanonEntryPane.vue";
 import CanonEntryNotes from "./CanonEntryNotes.vue";
@@ -98,9 +100,12 @@ import EntryArcPicker from "./EntryArcPicker.vue";
 import EntryQuests from "./EntryQuests.vue";
 import EntryStoryLinks from "./EntryStoryLinks.vue";
 import ForceSteps from "./ForceSteps.vue";
+import ForceWhoPicker from "./ForceWhoPicker.vue";
+import StartQuestFrom from "./StartQuestFrom.vue";
 import { discardCanonEntry, useCreateCanonEntry, useUpdateCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCreateConnection } from "@/composables/connections/useConnections";
-import { useForceFactions } from "@/composables/canon/useForceFactions";
+import { useEntryFold, type FoldKey } from "@/composables/canon/useEntryFold";
+import { isWhoTie } from "@/lib/canon/forceWho";
 import { clockFilled, clockStepsDivergence } from "@/lib/canon/canonForces";
 import { typeChoices } from "@/lib/worldLinks/connections";
 import { toast } from "@/lib/toast";
@@ -108,7 +113,7 @@ import { useCanonForceData, useUndoForceTick, useTickForce } from "@/composables
 import { useCommittedText } from "@/composables/canon/useCommittedText";
 import { FORCE_OUTCOME_ENDED, FORCE_OUTCOME_OPTIONS, RESUME_FORCE_PATCH, endForce, forceOutcome, type ForceOutcome } from "@/lib/canon/canonClose";
 import type { CanonEntry } from "@/types/canon.types";
-import type { WorldRef } from "@/types/connections.types";
+import type { Connection, WorldRef } from "@/types/connections.types";
 
 const { entry } = defineProps<{ entry: CanonEntry }>();
 const emit = defineEmits<{ delete: []; close: [] }>();
@@ -122,14 +127,19 @@ const steps = computed(() => (data.value?.steps ?? []).filter((s) => s.force_id 
 const ticks = computed(() => (data.value?.ticks ?? []).filter((t) => t.force_id === entry.id));
 const links = computed(() => (data.value?.quests ?? []).filter((q) => q.entry_id === entry.id));
 
+// The story links (because of, led to, carries) are EntryStoryLinks' block above and the who is the header's, so Connections does not list them again.
+const isShownAbove = (c: Connection): boolean => isWhoTie(c) || (c.source === "link" && (c.type === "led_to" || c.type === "carries"));
+
+// The optional blocks fold into one "Add…" row while empty (#1279 item 16); the clock and its steps are the force and always show.
+const FOLDED: readonly FoldKey[] = ["arc", "notes", "quests", "story", "connections"];
+const { shown, choices, choose } = useEntryFold(() => entry, { hideConnection: isShownAbove });
+
 const subject = computed<WorldRef>(() => ({ kind: "canon", id: entry.id }));
 const filled = computed(() => (entry.clock_size === null ? 0 : clockFilled(ticks.value, entry.clock_size)));
 
 const { mutate: update, mutateAsync: updateAsync } = useUpdateCanonEntry();
 const { mutateAsync: createEntry } = useCreateCanonEntry();
 const { mutateAsync: connect } = useCreateConnection();
-const { factionOf } = useForceFactions();
-const faction = computed(() => factionOf(entry.id));
 const { mutate: tickForce } = useTickForce();
 const { mutate: undo } = useUndoForceTick();
 
@@ -140,12 +150,17 @@ const { text: wants, revision: wantsRevision } = useCommittedText(
 );
 
 // What happens if nobody stops it. Unlike the other fields, clearing it is allowed: it writes null, never an empty string.
+// A no-op edit (the saved words typed back with stray spaces) changes nothing Vue can see, so `ifSucceedsRevision` remakes the field.
+const ifSucceedsRevision = ref(0);
 const ifSucceeds = computed<string>({
   get: () => (entry.if_succeeds === null ? "" : entry.if_succeeds),
   set: (next) => {
     const text = next.trim();
     const saved = entry.if_succeeds === null ? "" : entry.if_succeeds;
-    if (text === saved) return;
+    if (text === saved) {
+      ifSucceedsRevision.value++;
+      return;
+    }
     update({ id: entry.id, patch: { if_succeeds: text === "" ? null : text } });
   },
 });

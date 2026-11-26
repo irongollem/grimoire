@@ -73,7 +73,7 @@ The map itself — and the room-shapes list that rides alongside it — is delib
 
 Canon links to a PC backstory use the character's name and portrait when the canon entry has no title or image (`get_connections` and `get_world_ties`, migration `20261121234606`). The player-authored backstory itself may intentionally have an empty title; a connection must still have a non-null display name because `ConnectionSlip` renders it as a name and uses it in the type-picker sentence.
 
-On an NPC sheet, an incoming Canon `about` link to a backstory is shown as a compact **From Canon** marker on the People relationship to that backstory's PC, and the duplicate Canon row is folded away only when that owner match is unambiguous. The backstory's own Connections block keeps the full Canon link and its controls.
+A backstory holds no ties to people or places of its own: they are its character's, edited from the backstory pane's Connections block, which is the character's (#1279 item 12).
 
 Creating an NPC from a backstory first asks how the NPC relates to that backstory's PC. It then creates the selected People tie alongside the Canon `about` tie, so the NPC's relationship is available in the ordinary People group while the backstory remains linked in Canon.
 

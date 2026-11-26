@@ -112,6 +112,8 @@ export interface ScriptoriumDocument {
   footer_style: ScriptoriumFooterStyle;
   /** `scriptorium_documents.audience`, default `dm`. */
   audience: ScriptoriumBookAudience;
+  /** Where the document came from: `canon` for a book drawn from the campaign's canon, null for one the DM made (#1279). */
+  drawn_from: "canon" | null;
   page_number_start: number;
   /** Page-furniture decorations (Phase D). JSONB column, defaults to [].
    * Optional until the column + editor wiring land (foundation-only for now). */
@@ -186,6 +188,8 @@ export type ScriptoriumDocumentSummary = Pick<
   | "word_count"
   | "created_at"
   | "updated_at"
+  | "audience"
+  | "drawn_from"
 > & {
   /** PostgREST's embedded `scriptorium_chapters(count)`: always one row. */
   scriptorium_chapters: { count: number }[];
@@ -194,9 +198,9 @@ export type ScriptoriumDocumentSummary = Pick<
 /** `paper_tone` and `footer_style` are left to the columns' defaults (the look's own paper, a plain footer) on insert. */
 export type ScriptoriumDocInsert = Omit<
   ScriptoriumDocument,
-  "id" | "user_id" | "created_at" | "updated_at" | "player_visible_to" | "word_count" | "paper_tone" | "footer_style" | "audience"
+  "id" | "user_id" | "created_at" | "updated_at" | "player_visible_to" | "word_count" | "paper_tone" | "footer_style" | "audience" | "drawn_from"
 > &
-  Partial<Pick<ScriptoriumDocument, "paper_tone" | "footer_style" | "audience">>;
+  Partial<Pick<ScriptoriumDocument, "paper_tone" | "footer_style" | "audience" | "drawn_from">>;
 export type ScriptoriumDocUpdate = Partial<ScriptoriumDocInsert>;
 
 /** One linked entry the handout would reveal, as `share_handout` reports it. */

@@ -76,31 +76,13 @@ describe("groupConnections", () => {
   });
 });
 
-describe("groupConnections origin and hide", () => {
-  // Bug caught: a character's list seen from the backstory never said which of its people came from the backstory.
-  it("marks the People row of an NPC the backstory is about, and no other", () => {
-    const rows = [conn({ row_id: "1", other_id: "maren" }), conn({ row_id: "2", other_id: "harl" })];
-    const [people] = groupConnections({ kind: "party_member", id: "pc" }, rows, { origin: { entryId: "e1", npcIds: new Set(["maren"]) } });
-    const marked = people!.entries.flatMap((e) => (e.kind === "row" && e.canonOrigin ? [`${e.connection.other_id}>${e.canonOrigin.other_id}`] : []));
-    expect(marked).toEqual(["maren>e1"]);
-  });
-
-  // Bug caught: the origin ids marking a place or a faction that happens to share an id.
-  it("marks only people", () => {
-    const rows = [conn({ other_kind: "faction", other_id: "maren" })];
-    const [group] = groupConnections({ kind: "party_member", id: "pc" }, rows, { origin: { entryId: "e1", npcIds: new Set(["maren"]) } });
-    expect(group!.entries.some((e) => e.kind === "row" && e.canonOrigin)).toBe(false);
-  });
-
-  // Bug caught: the NPC sheet's own fold of a backstory into its People row stopped working when origins were added.
-  it("still folds a backstory into the People row on an NPC's own sheet", () => {
-    const rows = [
-      conn({ row_id: "pc", other_kind: "party_member", other_id: "pc1", type: "mentor" }),
-      conn({ row_id: "bs", other_kind: "canon", other_id: "e1", type: "about", backstory_party_member_id: "pc1" }),
-    ];
-    const groups = groupConnections({ kind: "npc", id: "maren" }, rows);
-    expect(groups).toHaveLength(1);
-    expect(groups[0]!.entries[0]).toMatchObject({ canonOrigin: { other_id: "e1" } });
+describe("groupConnections hide", () => {
+  // Bug caught: a block that shows only what its neighbour does not listed the neighbour's rows too.
+  it("leaves out the rows the caller hides, and a group left empty", () => {
+    const rows = [conn({ row_id: "1", other_id: "maren" }), conn({ row_id: "2", other_kind: "faction", other_id: "ferrymen" })];
+    const groups = groupConnections({ kind: "party_member", id: "pc" }, rows, { hide: (c) => c.other_kind === "faction" });
+    expect(groups.map((g) => g.entries.length)).toEqual([1]);
+    expect(groups[0]!.entries[0]).toMatchObject({ connection: { other_id: "maren" } });
   });
 });
 

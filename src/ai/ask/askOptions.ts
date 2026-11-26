@@ -72,8 +72,14 @@ export const ASK_LISTS: Readonly<Record<string, () => ComputedRef<AskOption[]>>>
     const { peoples } = useCampaignPeoples();
     const { data: campaignSpecies } = useCampaignSpecies();
     return computed(() => {
-      const names = peoples.value.filter((p) => p.readable).map((p) => p.name);
-      const listed = new Set(names.map((n) => n.toLowerCase()));
+      // A race is the record's name: a people with a name of its own (the Vell) is a culture of that record, not a race.
+      const listed = new Set<string>();
+      const names: string[] = [];
+      for (const p of peoples.value) {
+        if (!p.readable || listed.has(p.recordName.toLowerCase())) continue;
+        listed.add(p.recordName.toLowerCase());
+        names.push(p.recordName);
+      }
       for (const { name } of campaignSpecies.value) {
         if (listed.has(name.toLowerCase())) continue;
         listed.add(name.toLowerCase());

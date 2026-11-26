@@ -3,7 +3,12 @@
     <div class="flex flex-wrap items-center gap-2 text-label text-muted-foreground">
       <span data-testid="story-byline">{{ passage.by_dm ? "Told by the DM" : `You, ${when}` }}</span>
       <span v-if="isNew" class="font-bold text-destructive" data-testid="story-new">New</span>
+      <span v-if="passage.dm_edited_at" class="italic" data-testid="story-dm-edited">Edited by your DM</span>
     </div>
+    <details v-if="passage.dm_edited_at && passage.body_before_dm_edit" class="text-caption text-muted-foreground" data-testid="story-before-edit">
+      <summary class="cursor-pointer">What you wrote</summary>
+      <RichTextViewer :content="passage.body_before_dm_edit" class="mt-1" />
+    </details>
 
     <template v-if="editable">
       <AppInput v-model="draft.title" size="body" tone="filled" aria-label="Passage heading" placeholder="A heading, such as After the Mere" />
@@ -23,7 +28,8 @@
 <script setup lang="ts">
 /**
  * One passage of "My story" (frame 14). The player's own are theirs to write and remove, saved as they type; the DM's are
- * only read, marked as told by the DM, and offer nothing to change.
+ * only read, marked as told by the DM, and offer nothing to change. When the DM has edited a passage the player wrote it
+ * says so, with what the player wrote kept to read (#1279 item 30).
  */
 import { reactive, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";

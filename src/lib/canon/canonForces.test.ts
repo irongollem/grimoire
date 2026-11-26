@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { campaignToday, clockFilled, clockStepsDivergence, dueSteps, duePatch, firstOverdueStep, forceWhoNames, overdueLine, stepOverdue } from "./canonForces";
+import { campaignToday, clockFilled, clockStepsDivergence, dueSteps, duePatch, firstOverdueStep, overdueLine, stepOverdue } from "./canonForces";
 import { canonEntry } from "@/test/canonEntry";
 import type { CanonForceStep } from "@/types/canon.types";
 
@@ -42,31 +42,9 @@ describe("clockStepsDivergence", () => {
   });
 });
 
-describe("forceWhoNames", () => {
-  const factions = [{ id: "fa1", name: "The Ferrymen (renamed)" }];
-
-  // Bug caught (#1258 item 16): the force showed the name it was created with, so renaming its faction left it stale.
-  it("names a force's faction by the faction's current name", () => {
-    expect(forceWhoNames([{ force_id: "f1", faction_id: "fa1" }], factions).get("f1")).toEqual({ id: "fa1", name: "The Ferrymen (renamed)" });
-  });
-
-  // Bug caught: a second `about` link overwrote the first, so the Who changed with the order the rows came back in.
-  it("keeps the first link when a force has two", () => {
-    const two = [{ id: "fa1", name: "A" }, { id: "fa2", name: "B" }];
-    expect(forceWhoNames([{ force_id: "f1", faction_id: "fa1" }, { force_id: "f1", faction_id: "fa2" }], two).get("f1")?.name).toBe("A");
-  });
-
-  // Bug caught: a link to a faction that is gone, or to none, read as "Who: undefined".
-  it("has no who for a force with no link or a faction that is gone", () => {
-    const who = forceWhoNames([{ force_id: "f2", faction_id: "gone" }], factions);
-    expect(who.has("f1")).toBe(false);
-    expect(who.has("f2")).toBe(false);
-  });
-});
-
 const due = (over: Partial<CanonForceStep> = {}): CanonForceStep => ({
   id: "s1", user_id: "u", campaign_id: "c1", force_id: "f1", title: "The orchards sour", sort_order: 0, reached_at: null, reached_session_id: null,
-  due_year: null, due_month: null, due_day: null, ai_provenance: null, created_at: "2026-11-01T10:00:00Z", updated_at: "2026-11-01T10:00:00Z", ...over,
+  due_year: null, due_month: null, due_day: null, calendar_event_id: null, ai_provenance: null, created_at: "2026-11-01T10:00:00Z", updated_at: "2026-11-01T10:00:00Z", ...over,
 });
 const day = (year: number, month: number, d: number) => ({ year, month, day: d });
 const fmt = (y: number, m: number | null, d: number | null) => `${d ?? ""} m${m ?? ""} y${y}`.trim();

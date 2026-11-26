@@ -55,7 +55,7 @@ describe("canonOnCalendarEnabled", () => {
 
 const step = (over: Partial<CanonForceStep>): CanonForceStep => ({
   id: "s1", user_id: "u", campaign_id: "c1", force_id: "f1", title: "The ferry stops", sort_order: 0, reached_at: null, reached_session_id: null,
-  due_year: null, due_month: null, due_day: null, ai_provenance: null, created_at: "2026-11-01T10:00:00Z", updated_at: "2026-11-01T10:00:00Z", ...over,
+  due_year: null, due_month: null, due_day: null, calendar_event_id: null, ai_provenance: null, created_at: "2026-11-01T10:00:00Z", updated_at: "2026-11-01T10:00:00Z", ...over,
 });
 
 describe("canonCalendarItems: steps that are due", () => {

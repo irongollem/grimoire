@@ -55,4 +55,22 @@ describe("useRevealSecret", () => {
     expect(useRevealSecret().revealSecret("s1", [])).toBe(false);
     expect(mocks.update).not.toHaveBeenCalled();
   });
+
+  // Bug caught (#1279 item 4): widening restamped the time and session, or dropped members who already had it.
+  it("widens a reveal by writing only the union of readers", () => {
+    expect(useRevealSecret().widenReveal("s1", ["pm1"], ["pm1", "pm2"])).toBe(true);
+    expect(mocks.update).toHaveBeenCalledWith({ id: "s1", patch: { player_visible_to: ["pm1", "pm2"] } });
+  });
+
+  // Bug caught: unticking someone in the widen picker took them off the secret.
+  it("never takes a reader off", () => {
+    useRevealSecret().widenReveal("s1", ["pm1", "pm2"], ["pm3"]);
+    expect((mocks.update.mock.calls[0]![0] as { patch: { player_visible_to: string[] } }).patch.player_visible_to).toEqual(["pm1", "pm2", "pm3"]);
+  });
+
+  // Bug caught: a widen that adds no one still wrote.
+  it("writes nothing when no one new is added", () => {
+    expect(useRevealSecret().widenReveal("s1", ["pm1"], ["pm1"])).toBe(false);
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
 });

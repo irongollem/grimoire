@@ -20,6 +20,7 @@ vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks
 
 vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
 
+import { useCanonUiStore } from "@/stores/ui/canon";
 import QuestionsList from "./QuestionsList.vue";
 
 const q = (id: string, title: string): CanonEntry => canonEntry({ id, part: "question", title });
@@ -31,6 +32,17 @@ const submitButton = (w: ReturnType<typeof mountList>) => w.find("button[type=su
 describe("QuestionsList", () => {
   beforeEach(() => setActivePinia(createPinia()));
   beforeEach(() => Object.values(mocks).forEach((m) => m.mockReset()));
+
+  // Bug caught (#1279 item 5): a question added under an arc filter was made in no arc and vanished from the narrowed list.
+  it("makes a new question in the arc the page is narrowed to", async () => {
+    useCanonUiStore().arcFilter = "a1";
+    mocks.create.mockResolvedValue({ id: "q9" });
+    const w = mountList();
+    await w.find("input[aria-label='A new open question']").setValue("Can the guild wake again?");
+    await w.find("form").trigger("submit");
+    await flushPromises();
+    expect(mocks.create).toHaveBeenCalledWith({ part: "question", title: "Can the guild wake again?", sort_order: 1, arc_id: "a1" });
+  });
 
   it("will not add a blank question", async () => {
     const w = mountList();
@@ -46,7 +58,7 @@ describe("QuestionsList", () => {
     await input.setValue("  Can the guild wake again?  ");
     await w.find("form").trigger("submit");
     await flushPromises();
-    expect(mocks.create).toHaveBeenCalledWith({ part: "question", title: "Can the guild wake again?", sort_order: 1 });
+    expect(mocks.create).toHaveBeenCalledWith({ part: "question", title: "Can the guild wake again?", sort_order: 1, arc_id: null });
     expect((input.element as HTMLInputElement).value).toBe("");
   });
 
@@ -182,6 +194,18 @@ describe("QuestionsList find and order (#1255 item 11)", () => {
     await mountMany().find("button[aria-label='Move Why c? up']").trigger("click");
     await flushPromises();
     expect(mocks.updateAsync.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["q2", 1], ["q1", 2]]);
+  });
+
+  // Bug caught: Move to top/bottom missing on questions, so a long list could only be walked one step at a time.
+  it("takes a question to the top or the bottom in one click, renumbering the rest", async () => {
+    const w = mountMany();
+    await w.find("button[aria-label='Move Why c? to the top']").trigger("click");
+    await flushPromises();
+    expect(mocks.updateAsync.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["q2", 0], ["q0", 1], ["q1", 2]]);
+    mocks.updateAsync.mockClear();
+    await w.find("button[aria-label='Move Why c? to the bottom']").trigger("click");
+    await flushPromises();
+    expect(mocks.updateAsync.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["q3", 2], ["q4", 3], ["q5", 4], ["q2", 5]]);
   });
 
   // Bug caught: moving inside a list an arc has narrowed, where "up" would swap with a row that is not on screen.

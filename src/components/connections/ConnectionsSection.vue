@@ -42,7 +42,6 @@
               :subject="subject"
               :subject-name="subjectName"
               :all="connections"
-              :canon-origin="entry.canonOrigin"
             />
             <li
               v-else
@@ -84,7 +83,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import ConnectionRow from "@/components/connections/ConnectionRow.vue";
 import ConnectionSuggestions from "@/components/connections/ConnectionSuggestions.vue";
-import { groupConnections, type BackstoryOrigin } from "@/components/connections/connectionRows";
+import { groupConnections } from "@/components/connections/connectionRows";
 import { useConnections } from "@/composables/connections/useConnections";
 import { useLazyMount } from "@/composables/useLazyMount";
 import { IconAdd, IconNetwork } from "@/lib/icons";
@@ -94,13 +93,11 @@ import type { Connection, WorldRef } from "@/types/connections.types";
 // flow on every sheet that shows connections (#1138).
 const AddConnectionDialog = defineAsyncComponent(() => import("@/components/connections/AddConnectionDialog.vue"));
 
-const { subject, subjectName, title = "Connections", origin, hide } = defineProps<{
+const { subject, subjectName, title = "Connections", hide } = defineProps<{
   subject: WorldRef;
   subjectName: string;
   /** The block's heading, when two blocks share a page. */
   title?: string;
-  /** The people a backstory entry is about: their rows carry the "From Canon" marker. */
-  origin?: BackstoryOrigin;
   /** Rows to leave out, for a block that shows only what another block beside it does not. */
   hide?: (connection: Connection) => boolean;
 }>();
@@ -112,5 +109,5 @@ const addOpen = ref(false);
 const addMounted = useLazyMount(addOpen);
 
 const connections = computed<readonly Connection[]>(() => data.value ?? []);
-const groups = computed(() => groupConnections(subject, connections.value, { origin, hide }));
+const groups = computed(() => groupConnections(subject, connections.value, { hide }));
 </script>

@@ -43,6 +43,7 @@ const emptyFilters: QuestBoardFilters = {
   entity: "",
   prepGapsOnly: false,
   pendingLootOnly: false,
+  arc: "",
 };
 
 const ready: QuestBoardSummary = {
@@ -76,6 +77,13 @@ describe("filterQuestBoard", () => {
       { refs: [], summaries },
     );
     expect(result.map((item) => item.id)).toEqual(["a"]);
+  });
+
+  // Bug caught: the arc facet ignored (every quest shown), or matching quests with no arc when an arc is chosen.
+  it("narrows to the quests filed in the chosen arc, and shows all when none is chosen", () => {
+    const quests = [quest("a", { arc_id: "arc-1" }), quest("b", { arc_id: "arc-2" }), quest("c", { arc_id: null })];
+    expect(filterQuestBoard(quests, { ...emptyFilters, arc: "arc-1" }, { refs: [] }).map((q) => q.id)).toEqual(["a"]);
+    expect(filterQuestBoard(quests, emptyFilters, { refs: [] }).map((q) => q.id)).toEqual(["a", "b", "c"]);
   });
 
   it("matches primary giver/location and typed quest refs", () => {

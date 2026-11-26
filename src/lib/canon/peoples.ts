@@ -13,6 +13,10 @@ export interface People extends Share {
   kind: "species" | "creature";
   recordId: string;
   fromLibrary: boolean;
+  /** The people's own name over its record ("the Vell", humans); null when it goes by the record's name. `name` is this, else `recordName`. */
+  ownName: string | null;
+  /** The species or creature behind it; a placeholder when this reader may not read the record. */
+  recordName: string;
   /** What they are like: a rich-text document as text, null while nothing is written. */
   body: string | null;
 }

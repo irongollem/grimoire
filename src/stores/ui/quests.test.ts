@@ -19,6 +19,7 @@ describe("quest filter state", () => {
     ["entity", (s: ReturnType<typeof useQuestsUiStore>) => { s.questsEntityFilter = "faction:faction-1"; }],
     ["prep gaps", (s: ReturnType<typeof useQuestsUiStore>) => { s.questsPrepGapsFilter = true; }],
     ["loot", (s: ReturnType<typeof useQuestsUiStore>) => { s.questsLootFilter = true; }],
+    ["arc", (s: ReturnType<typeof useQuestsUiStore>) => { s.questsArcFilter = "arc-1"; }],
   ])("the %s filter alone lights Clear, survives navigation, and is put back by it", (_name, narrow) => {
     narrow(useQuestsUiStore());
 
@@ -34,7 +35,8 @@ describe("quest filter state", () => {
       entity: afterNavigation.questsEntityFilter,
       prep: afterNavigation.questsPrepGapsFilter,
       loot: afterNavigation.questsLootFilter,
-    }).toEqual({ search: "", party: false, entity: "", prep: false, loot: false });
+      arc: afterNavigation.questsArcFilter,
+    }).toEqual({ search: "", party: false, entity: "", prep: false, loot: false, arc: "" });
   });
 
   it("keeps a drawer width per quest, so a wide beat in one quest does not widen the others", () => {

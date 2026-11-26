@@ -13,7 +13,8 @@ vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => 
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
 vi.mock("@/lib/toast", () => ({ toast: { error: toasts.error, fromError: (e: unknown) => (e instanceof Error ? e.message : "failed") } }));
 
-import { fetchPeoples, insertPeople, updatePeopleBody, usePeoplesEditing } from "./useCampaignPeoples";
+import { insertPeople, updatePeopleBody, usePeoplesEditing } from "./useCampaignPeoples";
+import { fetchPeoples } from "@/lib/canon/canonCampaignReads";
 
 function inSetup<T>(use: () => T): T {
   let result!: T;
@@ -65,7 +66,7 @@ it("writes nothing when the last sort order cannot be read", async () => {
 
 describe("fetchPeoples", () => {
   const named = (id: string, campaign_id: string, sort_order: number) => ({
-    id, campaign_id, sort_order, percent: "12.50", kind: "species", record_id: `r-${id}`, from_library: true, name: `Name ${id}`, body: null,
+    id, campaign_id, sort_order, percent: "12.50", kind: "species", record_id: `r-${id}`, from_library: true, name: `Name ${id}`, own_name: null, record_name: `Name ${id}`, body: null,
   });
 
   // Bug (Client Reads): the read took every campaign the account's policy allows, so a DM of two worlds saw both lists.
@@ -73,7 +74,7 @@ describe("fetchPeoples", () => {
     fake.seed("campaign_peoples_named", [named("b", "c1", 2), named("a", "c1", 1), named("x", "c2", 0)]);
     const list = await fetchPeoples("c1");
     expect(list.map((p) => p.id)).toEqual(["a", "b"]);
-    expect(list[0]).toEqual({ id: "a", kind: "species", recordId: "r-a", fromLibrary: true, name: "Name a", readable: true, percent: 12.5, body: null });
+    expect(list[0]).toEqual({ id: "a", kind: "species", recordId: "r-a", fromLibrary: true, name: "Name a", ownName: null, recordName: "Name a", readable: true, percent: 12.5, body: null });
   });
 
   // Bug caught (the security audit, #1255): a species on a co-DM's own shelf has no name for this reader. Dropping the
@@ -90,6 +91,31 @@ describe("fetchPeoples", () => {
   it("throws a failed read instead of returning an empty list", async () => {
     fake.failNext("campaign_peoples_named", { message: "boom" });
     await expect(fetchPeoples("c1")).rejects.toThrow("boom");
+  });
+});
+
+describe("a people with a name of its own", () => {
+  // Bug: the own name was dropped on the way in, so "the Vell" was saved as a second unnamed human and refused.
+  it("writes the trimmed own name, and none when blank", async () => {
+    await insertPeople("c1", { kind: "species", recordId: "srd_human", fromLibrary: true, percent: 0, name: "  the Vell " });
+    await insertPeople("c1", { kind: "species", recordId: "srd_elf", fromLibrary: true, percent: 0, name: "  " });
+    expect(fake.rows("campaign_peoples").map((r) => r.name ?? null)).toEqual(["the Vell", null]);
+  });
+
+  // Bug: the name column was not read, so a culture showed as its record and the editor could not tell them apart.
+  it("reads the own name and the record's name apart", async () => {
+    fake.seed("campaign_peoples_named", [{ id: "a", campaign_id: "c1", sort_order: 1, percent: 5, kind: "species", record_id: "r", from_library: true, name: "the Vell", own_name: "the Vell", record_name: "Human", body: null }]);
+    const [row] = await fetchPeoples("c1");
+    expect([row.name, row.ownName, row.recordName]).toEqual(["the Vell", "the Vell", "Human"]);
+  });
+
+  // Bug: the table's 23505 for an unnamed duplicate surfaced as a raw database message.
+  it("says a duplicate unnamed people in plain words", async () => {
+    const { addPeople } = inSetup(usePeoplesEditing);
+    fake.failNext("campaign_peoples", { message: "duplicate key", code: "23505" });
+    addPeople({ kind: "species", recordId: "srd_elf", fromLibrary: true, percent: 0 });
+    await flushPromises();
+    expect(toasts.error).toHaveBeenCalledWith(expect.stringContaining("already listed"));
   });
 });
 

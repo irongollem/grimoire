@@ -5,6 +5,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { inWrittenOrder } from "@/lib/canon/canonBackstory";
+import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { KnowledgeMark, LoreKind } from "@/types/canon.types";
 
 /** One row of `get_player_canon`: an entry the player's audience reaches, secret blocks already withheld. */
@@ -30,6 +31,8 @@ export interface PlayerCanonEntry {
   became_entry_id?: string | null;
   /** On a truth known to some: the other party characters who know it, alphabetical, possibly empty. Null on every other entry (#1258 item 14). */
   known_with?: string[] | null;
+  /** When the DM told this to the party (a truth told, a secret revealed); null while untold (#1279 item 27). Absent until `get_player_canon` returns the column. */
+  revealed_at?: string | null;
 }
 
 /** One row of `get_player_lore_passages`: a passage this player has been told. */
@@ -44,6 +47,10 @@ export interface PlayerLorePassage {
   by_dm: boolean;
   /** When it was written, which is the order a backstory grew in. */
   written_at: string;
+  /** When the DM last edited a passage the player wrote; cleared by the player's own next edit (#1279 item 30). Absent until the read returns it. */
+  dm_edited_at?: string | null;
+  /** What the player wrote before the DM's edit; shown to the player read-only. */
+  body_before_dm_edit?: string | null;
 }
 
 /** A character's backstory as this player reads it: the passages told to them, in the order the story grew. */
@@ -100,6 +107,30 @@ export function knownWithLabel(e: PlayerCanonEntry): string | null {
   if (e.knowledge !== "some" || names.length === 0) return null;
   if (names.length === 1) return `You and ${names[0]} know`;
   return `You, ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]} know`;
+}
+
+/** True when every word of the query is in the title or the text. An empty query matches everything. */
+function matchesWords(query: string, title: string, body: string | null): boolean {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const hay = `${title}\n${tiptapToPlainText(body)}`.toLowerCase();
+  return words.every((w) => hay.includes(w));
+}
+
+/**
+ * The World tab's filter box (#1279 item 28): searches the titles and text of the truths, secrets and lore the player
+ * can read (a lore entry also by its told passages). The premise is the campaign's front page, not a list, so it stays.
+ */
+export function filterPlayerWorld(world: PlayerWorld, query: string): PlayerWorld {
+  if (query.trim() === "") return world;
+  const entryMatches = (e: PlayerCanonEntry) => matchesWords(query, e.title, e.body);
+  return {
+    ...world,
+    onlyMine: world.onlyMine.filter(entryMatches),
+    known: world.known.filter(entryMatches),
+    revealed: world.revealed.filter(entryMatches),
+    lore: world.lore.filter((l) => entryMatches(l.entry) || l.passages.some((p) => matchesWords(query, p.title, p.body))),
+  };
 }
 
 function dateKey(e: PlayerCanonEntry): [number, number, number] {

@@ -22,6 +22,7 @@
             :review="factReview(entry.fact, entry.closed)"
             :about="aboutFor(entry.fact.id)"
             :truth-id="truthOf.get(entry.fact.id) ?? null"
+            :ringed="entry.fact.id === focusFact"
             @keep="keep(entry.fact)"
             @edit="correcting = entry.fact"
             @strike="strike(entry.fact)"
@@ -43,7 +44,7 @@
  * what is new; a line the DM has just acted on stays on screen under every filter until the page is left, so a Strike
  * can be undone and a Keep can be seen to have landed.
  */
-import { computed, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
@@ -56,12 +57,16 @@ import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions"
 import { useFactAbout } from "@/composables/table/useFactAbout";
 import { useToast } from "@/composables/useToast";
 import type { SittingInfo, StoryFact } from "@/lib/table/solo/storyRecord";
+import { prefersReducedMotion } from "@/lib/motion";
+import { scrollWithin } from "@/lib/scrollParent";
 import { useCanonUiStore } from "@/stores/ui/canon";
 import type { CanonEntry } from "@/types/canon.types";
 import TableFactRow from "./TableFactRow.vue";
 import { FACT_FILTER_OPTIONS, factReview, isAlreadyATruth, tableGroups, truthByFact, type FactFilter } from "@/lib/canon/canonTableFacts";
 
-const { truths } = defineProps<{
+const { truths, focusFact = null } = defineProps<{
+  /** The line to show ringed and scrolled to (a search hit); the filter widens to All when it would hide it. */
+  focusFact?: string | null;
   /** The campaign's truths: how many there are sets the next one's place, and which carry a fact's id says which facts are already one. */
   truths: readonly CanonEntry[];
 }>();
@@ -78,6 +83,28 @@ const sessionLog = useCampaignSessions();
 const sittings = computed(() => new Map<string, SittingInfo>((sessionLog.data.value ?? []).map((s) => [s.id, s])));
 
 const groups = computed(() => tableGroups(record.facts.data.value ?? [], sittings.value, ui.tableFactFilter, touched));
+
+// The line a search hit named: the default "new" filter would hide one already kept, so it widens to All, then the line is scrolled to once on screen.
+let focused: string | null = null;
+watch(
+  () => [focusFact, record.facts.data.value, groups.value] as const,
+  async ([id, facts, shown]) => {
+    if (id === null) {
+      focused = null;
+      return;
+    }
+    if (id === focused || !(facts ?? []).some((f) => f.id === id)) return;
+    if (!shown.some((g) => g.entries.some((e) => e.fact.id === id))) {
+      ui.tableFactFilter = "all";
+      return;
+    }
+    focused = id;
+    await nextTick();
+    const row = document.getElementById(`table-fact-${id}`);
+    if (row) scrollWithin(row, { block: "center", smooth: !prefersReducedMotion() });
+  },
+  { immediate: true },
+);
 
 const EMPTY: Record<FactFilter, { title: string; description: string }> = {
   new: { title: "Nothing new", description: "Everything the Narrator made up has been reviewed. What it invents next lands here." },

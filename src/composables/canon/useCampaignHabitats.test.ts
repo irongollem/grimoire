@@ -13,7 +13,8 @@ vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => 
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
 vi.mock("@/lib/toast", () => ({ toast: { error: toasts.error, fromError: (e: unknown) => (e instanceof Error ? e.message : "failed") } }));
 
-import { fetchHabitatLife, fetchHabitats, insertHabitat, insertHabitatLife, useHabitatEditing } from "./useCampaignHabitats";
+import { fetchHabitatLife, insertHabitat, insertHabitatLife, useHabitatEditing } from "./useCampaignHabitats";
+import { fetchHabitats } from "@/lib/canon/canonCampaignReads";
 
 function inSetup<T>(use: () => T): T {
   let result!: T;

@@ -21,7 +21,7 @@ vi.mock("@/composables/party/useParty", () => ({
   useParty: () => ({ data: ref([{ id: "m1", name: "Tansy" }, { id: "m2", name: "Pim" }, { id: "m3", name: "Sift" }]) }),
 }));
 
-import { updateMyPassage, useMyStory } from "./useMyStory";
+import { updateMyPassage, useMyStory, withDmEdits } from "./useMyStory";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
 
@@ -102,5 +102,41 @@ describe("updateMyPassage", () => {
   // Bug caught: RLS refuses a write with no error and no row, so editing a passage the DM wrote read as "Saved".
   it("says so when the write changed no row, which is what RLS refusing it looks like", async () => {
     await expect(updateMyPassage("not-mine", { title: "x", body: null })).rejects.toThrow("may not change");
+  });
+});
+
+describe("withDmEdits", () => {
+  const p = (id: string) => ({ id, entry_id: "e", sort_order: 0, title: "", body: "now", told_at: null, by_dm: false, written_at: "" });
+
+  // Bug caught (#1279 item 30): the DM's edit mark laid on the wrong passage, or on all of them.
+  it("marks only the passage the DM edited, with what the player wrote", () => {
+    const out = withDmEdits([p("a"), p("b")], new Map([["b", { dm_edited_at: "2026-11-20T00:00:00Z", body_before_dm_edit: "before" }]]));
+    expect(out[0]?.dm_edited_at).toBeUndefined();
+    expect(out[1]).toMatchObject({ dm_edited_at: "2026-11-20T00:00:00Z", body_before_dm_edit: "before" });
+  });
+});
+
+describe("useMyStory: DM edits", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    fake.reset();
+    useCampaignStore().activeCampaignId = "c1";
+  });
+
+  // Bug caught: the player's own read of their passages scoped by RLS alone, or marks read from passages someone else wrote.
+  it("reads the edit marks of the caller's own passages only", async () => {
+    world.value = {
+      onlyMine: [], known: [], lore: [], premise: [], revealed: [],
+      backstories: [{ entry: { id: "e" }, memberId: "m1", passages: [{ id: "mine", sort_order: 0 }, { id: "theirs", sort_order: 1 }], latestDmAt: null }],
+    };
+    fake.seed("canon_lore_passages", [
+      { id: "mine", campaign_id: "c1", author_id: "lotte", dm_edited_at: "2026-11-20T00:00:00Z", body_before_dm_edit: "before" },
+      { id: "theirs", campaign_id: "c1", author_id: "someone", dm_edited_at: "2026-11-20T00:00:00Z", body_before_dm_edit: "other" },
+    ]);
+    const story = run();
+    await flushPromises();
+    const passages = story.backstory.value?.passages as { id: string; body_before_dm_edit?: string }[];
+    expect(passages.find((x) => x.id === "mine")?.body_before_dm_edit).toBe("before");
+    expect(passages.find((x) => x.id === "theirs")?.body_before_dm_edit).toBeUndefined();
   });
 });

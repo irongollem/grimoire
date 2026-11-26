@@ -167,6 +167,7 @@ const filtered = computed(() => filterQuestBoard(
     entity: questsUi.questsEntityFilter,
     prepGapsOnly: questsUi.questsPrepGapsFilter,
     pendingLootOnly: questsUi.questsLootFilter,
+    arc: questsUi.questsArcFilter,
   },
   { refs: campaignRefs.value ?? [], summaries: boardSummaries.value },
 ));

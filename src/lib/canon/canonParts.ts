@@ -20,11 +20,13 @@ export const CANON_SECTIONS = [
   { id: "lore", label: "Lore", short: "Lore", group: "world", parts: ["lore"], counted: true, why: "History, legends, faiths and ways, told in passages." },
   // The peoples (campaign_peoples) and the habitats are not canon entries; a truth that belongs to a habitat is still a
   // truth and counted under Truths.
+  // The timeline is a read of dated lore, forces, calendar events and sessions, plus the events a DM adds there (dated lore): no part of its own.
+  { id: "timeline", label: "Timeline", short: "Timeline", group: "world", parts: [], counted: false, why: "What happened and what is due, in the world's own calendar, with the events you add." },
   { id: "peoples", label: "Peoples", short: "Peoples", group: "world", parts: [], counted: false, why: "The world's peoples and cultures: where they live and how." },
-  { id: "life", label: "Life", short: "Life", group: "world", parts: [], counted: false, why: "Creatures and habitats: what lives where, and what the land gives." },
+  { id: "life", label: "Habitats", short: "Habitats", group: "world", parts: [], counted: false, why: "Creatures and habitats: what lives where, and what the land gives." },
   // Arcs are their own table, not entries: the contents' count comes from `sectionCounts`'s `arcCount`.
   { id: "arcs", label: "Arcs", short: "Arcs", group: "story", parts: [], counted: true, why: "The campaign's acts: what each asks, what is at stake, and how it ends." },
-  { id: "moving", label: "What is moving", short: "Moving", group: "story", parts: ["force"], counted: true, why: "Forces that act whether or not the party does. Never shown to players." },
+  { id: "moving", label: "Forces", short: "Forces", group: "story", parts: ["force"], counted: true, why: "Forces that act whether or not the party does. Never shown to players." },
   // Questions are counted with the secrets: the contents column shows one number for the whole chapter.
   { id: "secrets", label: "Secrets and questions", short: "Secrets", group: "story", parts: ["secret", "question"], counted: true, why: "What the world keeps back, and what you leave open on purpose." },
   // A backstory is one per character: the page counts the characters, not the entries opened so far.
@@ -81,7 +83,8 @@ export function sectionCounts(entries: readonly CanonEntry[], arcCount = 0): Rec
 export const KNOWLEDGE_LABEL: Record<KnowledgeMark, string> = {
   all: "Known to all",
   some: "Known to some",
-  secret: "Secret",
+  // The mark, not the Secrets chapter: a truth nobody in the world says. A secret to be found and revealed is made in Secrets.
+  secret: "Known to no one",
 };
 
 /** The three marks as a segmented control's options, in the table's order. */
@@ -91,7 +94,7 @@ export const MARK_OPTIONS: ReadonlyArray<{ value: KnowledgeMark; label: string }
 }));
 
 export const KNOWLEDGE_HELP =
-  "Known to all: anyone in the world may say it, and players read it. Known to some: only the people below know it. Secret: nobody in the world says it.";
+  "Known to all: anyone in the world may say it, and players read it. Known to some: only the people below know it. Known to no one: nobody in the world says it.";
 
 /**
  * Plain text as a Tiptap document (a paragraph per blank-line block, a line break per newline), for a pitch started

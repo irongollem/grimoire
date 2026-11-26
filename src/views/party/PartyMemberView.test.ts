@@ -1,14 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { computed } from "vue";
 import { mount } from "@vue/test-utils";
-import type { BackstoryOrigin } from "@/components/connections/connectionRows";
-
-const state = vi.hoisted(() => ({ origin: undefined as unknown }));
-
 vi.mock("vue-router", () => ({ useRoute: () => ({ params: { id: "m1" } }), RouterLink: { template: "<a><slot /></a>" } }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: computed(() => [{ id: "m1", name: "Tansy" }]) }) }));
 vi.mock("@/composables/memorials/useMemorials", () => ({ useCampaignMemorials: () => ({ data: computed(() => []) }) }));
-vi.mock("@/composables/canon/useBackstoryOrigin", () => ({ useBackstoryOrigin: () => computed(() => state.origin) }));
 
 import PartyMemberView from "./PartyMemberView.vue";
 
@@ -22,25 +17,22 @@ const mountView = () =>
         SetDownDialog: true,
         DmNoteBox: true,
         EntityBacklinks: true,
-        ConnectionsSection: { name: "ConnectionsSection", props: ["subject", "subjectName", "origin"], template: "<div data-testid='section' />" },
+        ConnectionsSection: { name: "ConnectionsSection", props: ["subject", "subjectName"], template: "<div data-testid='section' />" },
       },
     },
   });
 
 describe("PartyMemberView", () => {
-  // Bug: the character's own page mounted the block without `origin`, so a person from the backstory was unmarked here
-  // while the Canon page marked them.
-  it("hands the connections block the backstory origin", () => {
-    const origin: BackstoryOrigin = { entryId: "b1", npcIds: new Set(["n1"]) };
-    state.origin = origin;
+  // Bug: the connections block was mounted for no subject, or for another character.
+  it("mounts the connections block on this character", () => {
     const section = mountView().findComponent({ name: "ConnectionsSection" });
-    expect(section.props("origin")).toStrictEqual(origin);
     expect(section.props("subject")).toEqual({ kind: "party_member", id: "m1" });
   });
 
-  // Bug: a character with no backstory yet passed a made-up origin and marked someone.
-  it("hands no origin when the character has no backstory entry", () => {
-    state.origin = undefined;
-    expect(mountView().findComponent({ name: "ConnectionsSection" }).props("origin")).toBeUndefined();
+  // Bug (#1279 item 12): the character's page had no way to the backstory written about them in the Canon.
+  it("links to this character's backstory in the Canon", () => {
+    const link = mountView().findComponent("[data-testid=backstory-link]");
+    expect(link.exists()).toBe(true);
+    expect((link as unknown as { props(k: string): unknown }).props("to")).toEqual({ path: "/canon", query: { backstory: "m1" } });
   });
 });

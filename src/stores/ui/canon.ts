@@ -5,6 +5,7 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { useStorage } from "@vueuse/core";
+import type { LoreKind } from "@/types/canon.types";
 import type { FactFilter } from "@/lib/canon/canonTableFacts";
 import { DEFAULT_TRUTH_FILTER, type TruthFilter } from "@/lib/canon/canonTruthView";
 import { CANON_SECTIONS, isSectionId, type CanonSectionId } from "@/lib/canon/canonParts";
@@ -40,6 +41,13 @@ export const useCanonUiStore = defineStore("ui:canon", () => {
   const truthFilter = ref<TruthFilter>(DEFAULT_TRUTH_FILTER);
   const truthsGrouped = ref(false);
 
+  /** The lore chapter's kind filter (#1279 item 33); null shows every kind. */
+  const loreKindFilter = ref<LoreKind | null>(null);
+  const loreHasActiveFilters = computed(() => loreKindFilter.value !== null);
+  function resetLoreFilters() {
+    loreKindFilter.value = null;
+  }
+
   /** Which list the Secrets and questions chapter shows. A view, not a filter: it is not part of `hasActiveFilters`. */
   const secretsView = ref<"secrets" | "questions">("secrets");
 
@@ -68,5 +76,6 @@ export const useCanonUiStore = defineStore("ui:canon", () => {
     tableFactFilter, tableFactsHasActiveFilters, resetTableFactFilters,
     lastPart, arcFilter, query, tonightScope, hasActiveFilters, resetFilters,
     truthFilter, truthsGrouped, truthsHaveActiveFilters, resetTruthFilters, secretsView, wayInDismissed,
+    loreKindFilter, loreHasActiveFilters, resetLoreFilters,
   };
 });

@@ -9,10 +9,12 @@ const forces = ref<{ steps: unknown[]; ticks: Record<string, unknown>[]; quests:
 const clues = ref<Record<string, unknown>[]>([]);
 const quests = ref<Record<string, unknown>[]>([]);
 const links = ref<Record<string, unknown>[]>([]);
-vi.mock("@/composables/canon/useCanonEntries", () => ({ useCanonEntries: () => ({ data: entries }) }));
+const updateEntry = vi.fn();
+const updateQuest = vi.fn();
+vi.mock("@/composables/canon/useCanonEntries", () => ({ useCanonEntries: () => ({ data: entries }), useUpdateCanonEntry: () => ({ mutate: updateEntry }) }));
 vi.mock("@/composables/canon/useCanonForces", () => ({ useCanonForceData: () => ({ data: forces }) }));
 vi.mock("@/composables/canon/useCanonClues", () => ({ useCanonClues: () => ({ data: clues }) }));
-vi.mock("@/composables/quests/useQuests", () => ({ useQuests: () => ({ data: quests }) }));
+vi.mock("@/composables/quests/useQuests", () => ({ useQuests: () => ({ data: quests }), useUpdateQuest: () => ({ mutate: updateQuest }) }));
 vi.mock("@/composables/connections/useConnections", () => ({ useCampaignLinks: () => ({ data: links }) }));
 
 import ArcContents from "./ArcContents.vue";
@@ -23,7 +25,14 @@ const block = (w: ReturnType<typeof mountIt>, name: string) => w.get(`[data-test
 
 describe("ArcContents", () => {
   beforeEach(() => {
+    updateEntry.mockReset();
+    updateQuest.mockReset();
     entries.value = [
+      canonEntry({ id: "t1", part: "truth", title: "Magic tastes of tin", arc_id: "a1", knowledge: "all" }),
+      canonEntry({ id: "t2", part: "truth", title: "Other arc truth", arc_id: "a2", knowledge: "all" }),
+      canonEntry({ id: "l1", part: "lore", title: "The first bell", arc_id: "a1", lore_kind: "history" }),
+      canonEntry({ id: "t3", part: "truth", title: "Loose truth", arc_id: null, knowledge: "some" }),
+      canonEntry({ id: "p1", part: "premise", title: "A premise line", arc_id: null }),
       canonEntry({ id: "f1", part: "force", title: "The tide cult", arc_id: "a1", clock_size: 6 }),
       canonEntry({ id: "f2", part: "force", title: "The thieves", arc_id: "a2" }),
       canonEntry({ id: "s1", part: "secret", title: "The god sleeps", arc_id: "a1" }),
@@ -76,5 +85,41 @@ describe("ArcContents", () => {
     const w = mountIt();
     expect(block(w, "quests").get("a").attributes("data-to")).toBe(JSON.stringify("/quests/qu1"));
     expect(block(w, "forces").get("a").attributes("data-to")).toBe(JSON.stringify({ path: "/canon", query: { entry: "f1" } }));
+  });
+
+  // Bug caught: truths and lore omitted (the arc showing half its contents), or listing another arc's.
+  it("lists the arc's truths and lore with their marks", () => {
+    const w = mountIt();
+    expect(block(w, "truths").text()).toContain("Magic tastes of tin");
+    expect(block(w, "truths").text()).toContain("Known to all");
+    expect(block(w, "truths").text()).not.toContain("Other arc truth");
+    expect(block(w, "lore").text()).toContain("The first bell");
+    expect(block(w, "lore").text()).toContain("History");
+  });
+
+  // Bug caught: remove writing the wrong id, or clearing a quest through the canon write (quests are another table).
+  it("takes an entry or a quest out of the arc by clearing its own arc_id", async () => {
+    const w = mountIt();
+    await block(w, "truths").get("[data-testid=arc-remove]").trigger("click");
+    expect(updateEntry).toHaveBeenCalledWith({ id: "t1", patch: { arc_id: null } });
+    await block(w, "quests").get("[data-testid=arc-remove]").trigger("click");
+    expect(updateQuest).toHaveBeenCalledWith({ id: "qu1", update: { arc_id: null } });
+  });
+
+  // Bug caught: the picker offering what is already here or a premise line (which cannot have an arc), or filing a
+  // quest through the entry write.
+  it("offers only what is not in the arc and never premise, and files the pick in place", async () => {
+    const w = mountIt();
+    const picker = w.getComponent({ name: "EntityCombobox" });
+    const names = (picker.props("options") as { id: string; name: string }[]).map((o) => o.name);
+    expect(names).toContain("Loose truth (Truth)");
+    expect(names).toContain("The heist (Quest)");
+    expect(names.some((n) => n.includes("Magic tastes of tin") || n.includes("A premise line") || n.includes("Into the mill"))).toBe(false);
+    picker.vm.$emit("update:modelValue", "entry:t3");
+    await w.vm.$nextTick();
+    expect(updateEntry).toHaveBeenCalledWith({ id: "t3", patch: { arc_id: "a1" } });
+    picker.vm.$emit("update:modelValue", "quest:qu2");
+    await w.vm.$nextTick();
+    expect(updateQuest).toHaveBeenCalledWith({ id: "qu2", update: { arc_id: "a1" } });
   });
 });

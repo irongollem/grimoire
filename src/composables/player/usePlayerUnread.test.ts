@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({
   noticeBoards: [] as unknown[],
   lore: [] as { entry: { id: string; title: string }; latestAt: string }[],
   backstories: [] as { entry: { id: string }; memberId: string; latestDmAt: string | null }[],
+  told: { onlyMine: [] as { id: string; revealed_at: string | null }[], known: [] as { id: string; revealed_at: string | null }[], revealed: [] as { id: string; revealed_at: string | null }[] },
   newIds: new Set<string>(),
   questions: [] as { id: string; closed_at: string | null; mode: string; exclusive: boolean }[],
   questionAnswers: [] as { question_id: string; user_id: string; option_id: string | null }[],
@@ -35,7 +36,7 @@ vi.mock("@/composables/noticeBoards/usePlayerNoticeBoards", async () => {
 });
 vi.mock("@/composables/canon/usePlayerCanon", async () => {
   const { ref: r } = await import("vue");
-  return { usePlayerCanon: () => ({ world: r({ onlyMine: [], known: [], lore: state.lore, backstories: state.backstories }) }) };
+  return { usePlayerCanon: () => ({ world: r({ onlyMine: state.told.onlyMine, known: state.told.known, revealed: state.told.revealed, lore: state.lore, backstories: state.backstories }) }) };
 });
 vi.mock("@/composables/canon/useMyStory", async () => {
   const { computed: c } = await import("vue");
@@ -64,6 +65,7 @@ beforeEach(() => {
   state.noticeBoards = [];
   state.lore = [];
   state.backstories = [];
+  state.told = { onlyMine: [], known: [], revealed: [] };
   state.newIds = new Set();
   state.questions = [];
   state.questionAnswers = [];
@@ -115,6 +117,17 @@ describe("usePlayerUnread", () => {
     state.quests = [{ id: "q2", status: "active", updated_at: "2026-10-01" }];
     state.newIds.add("quest:q2");
     expect(usePlayerUnread().sections.value.quests).toBe(true);
+  });
+
+  // Fails if the nav badge ignores told truths: the tab's own dot lit (canon_told) while the badge stayed dark.
+  it("lights the World badge for a told truth or a revealed secret the tab has not shown yet, and not for one it has or one never told", () => {
+    state.told = { onlyMine: [], known: [{ id: "t1", revealed_at: "2026-11-20" }, { id: "t0", revealed_at: null }], revealed: [{ id: "s1", revealed_at: "2026-11-21" }] };
+    expect(usePlayerUnread().sections.value.world).toBe(false);
+    state.newIds.add("canon_told:t0");
+    expect(usePlayerUnread().sections.value.world).toBe(false);
+    state.newIds.add("canon_told:s1");
+    expect(usePlayerUnread().sections.value.world).toBe(true);
+    expect(usePlayerUnread().journal.value).toBe(true);
   });
 
   it("lights the Journal's World tab when a passage was told after the player last opened the lore", () => {

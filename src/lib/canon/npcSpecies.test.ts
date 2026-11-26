@@ -3,7 +3,7 @@ import { npcSpecies } from "./npcSpecies";
 import type { People } from "./peoples";
 
 const people = (name: string, percent: number, kind: People["kind"] = "species"): People =>
-  ({ id: name, kind, recordId: name, fromLibrary: true, name, readable: true, percent, body: null });
+  ({ id: name, kind, recordId: name, fromLibrary: true, name, ownName: null, recordName: name, readable: true, percent, body: null });
 
 describe("npcSpecies", () => {
   it("keeps the species the DM named and never rolls", () => {
@@ -18,6 +18,12 @@ describe("npcSpecies", () => {
     const creature = npcSpecies("", world, () => 0.9);
     expect(creature.race).toBe("Owlbear");
     expect(creature.lines[1]).toContain("not a monster to fight");
+  });
+
+  it("races a named culture by its record and adds the culture line", () => {
+    // Bug: a person of "the Vell" was saved with race "the Vell", or the culture never reached the model.
+    const vell: People = { ...people("the Vell", 100), ownName: "the Vell", recordName: "Human", body: JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Salt traders. They bury their dead at sea." }] }] }) };
+    expect(npcSpecies("", [vell], () => 0)).toEqual({ race: "Human", lines: ["Race: Human", "Culture: the Vell, Salt traders."] });
   });
 
   it("asks for someone the list does not hold when the roll lands on anyone else", () => {

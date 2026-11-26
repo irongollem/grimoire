@@ -16,6 +16,9 @@ export { CANON_KEY };
  * What a new entry needs. A premise row must name its kind and a truth its knowledge mark: the table refuses either
  * without it (check constraints, 23514), so the type refuses it first.
  */
+/** The arc a new entry is made in (every part but the premise takes one); null leaves it in no arc. */
+type InArc = { arc_id?: string | null };
+
 export type NewCanonEntry =
   | {
       part: "premise";
@@ -40,18 +43,19 @@ export type NewCanonEntry =
       from_fact_id?: string | null;
       /** The habitat this truth belongs to, a note on the living world (the Life part). */
       habitat_id?: string | null;
+      arc_id?: string | null;
     }
-  | { part: "force"; title: string; wants?: string | null; clock_size?: number | null; sort_order?: number; ai_provenance?: AiProvenance | null }
-  | { part: "secret"; title: string; sort_order?: number; ai_provenance?: AiProvenance | null }
-  | { part: "question"; title: string; sort_order?: number; ai_provenance?: AiProvenance | null }
-  | { part: "lore"; title: string; lore_kind?: LoreKind | null; sort_order?: number; ai_provenance?: AiProvenance | null };
+  | ({ part: "force"; title: string; wants?: string | null; clock_size?: number | null; sort_order?: number; ai_provenance?: AiProvenance | null } & InArc)
+  | ({ part: "secret"; title: string; sort_order?: number; ai_provenance?: AiProvenance | null } & InArc)
+  | ({ part: "question"; title: string; sort_order?: number; ai_provenance?: AiProvenance | null } & InArc)
+  | ({ part: "lore"; title: string; lore_kind?: LoreKind | null; sort_order?: number; ai_provenance?: AiProvenance | null } & InArc);
 
 /**
  * A change to an entry. `ai_provenance` is written only when an accepted suggestion replaces the text; an edit by the
  * DM never sends it, and the database marks an AI-written entry edited when its words change
  * (`private.canon_entries_mark_edited`).
  */
-export type CanonEntryPatch = Partial<Pick<CanonEntry, "title" | "body" | "knowledge" | "player_visible_to" | "sort_order" | "ai_provenance" | "revealed_at" | "revealed_session_id" | "wants" | "if_succeeds" | "clock_size" | "image_url" | "reference_images" | "lore_kind" | "world_year" | "world_month" | "world_day" | "closed_as" | "closed_at" | "closed_note" | "became_entry_id" | "arc_id">>;
+export type CanonEntryPatch = Partial<Pick<CanonEntry, "title" | "body" | "knowledge" | "player_visible_to" | "sort_order" | "ai_provenance" | "revealed_at" | "revealed_session_id" | "wants" | "if_succeeds" | "clock_size" | "image_url" | "reference_images" | "lore_kind" | "world_year" | "world_month" | "world_day" | "closed_as" | "closed_at" | "closed_note" | "became_entry_id" | "arc_id" | "cover_story">>;
 
 export async function createCanonEntry(campaignId: string, input: NewCanonEntry): Promise<CanonEntry> {
   const user = getCurrentUser();

@@ -25,7 +25,7 @@ describe("plainTextToTiptap", () => {
 describe("sectionCounts", () => {
   it("counts a truth under Truths and not under Premise, so the contents column shows each chapter's own number", () => {
     const counts = sectionCounts([entry("premise", "1"), entry("premise", "2"), entry("truth", "3"), entry("lore", "4")]);
-    expect(counts).toEqual({ premise: 2, world: 0, truths: 1, lore: 1, peoples: 0, life: 0, arcs: 0, moving: 0, secrets: 0, backstories: 0 });
+    expect(counts).toEqual({ premise: 2, world: 0, truths: 1, lore: 1, timeline: 0, peoples: 0, life: 0, arcs: 0, moving: 0, secrets: 0, backstories: 0 });
   });
 
   it("counts secrets and open questions as one chapter, so the contents column adds up to what the chapter lists", () => {

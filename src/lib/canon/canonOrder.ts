@@ -32,8 +32,26 @@ export function moveWithin(list: readonly Ordered[], id: string, direction: -1 |
   return next.map((row, place) => ({ id: row.id, sort_order: place })).filter((write) => list.find((row) => row.id === write.id)?.sort_order !== write.sort_order);
 }
 
-/** Which ends of its list a row sits at, for the buttons that move it; null for a list of one, which has nowhere to go. */
-export function endsOf(list: readonly Ordered[], id: string): { first: boolean; last: boolean } | null {
+/**
+ * The writes that take one row to the top or the bottom of its list in one go; none when it is already there or is not
+ * in the list. The list is renumbered from position (a value-swap cannot jump a row over many), and only the rows whose
+ * place changes are written.
+ */
+export function moveToEnd(list: readonly Ordered[], id: string, end: "top" | "bottom"): OrderWrite[] {
+  const from = list.findIndex((row) => row.id === id);
+  if (from === -1 || (end === "top" && from === 0) || (end === "bottom" && from === list.length - 1)) return [];
+  const row = list[from] as Ordered;
+  const rest = list.filter((r) => r.id !== id);
+  const next = end === "top" ? [row, ...rest] : [...rest, row];
+  return next.map((r, place) => ({ id: r.id, sort_order: place })).filter((write) => list.find((r) => r.id === write.id)?.sort_order !== write.sort_order);
+}
+
+/**
+ * Which ends of its list a row sits at, for the buttons that move it; null for a list of one, which has nowhere to go.
+ * `toEnds` also offers "Move to top" and "Move to bottom", for a list that handles them.
+ */
+export function endsOf(list: readonly Ordered[], id: string, toEnds = false): { first: boolean; last: boolean; toEnds?: true } | null {
   if (list.length < 2) return null;
-  return { first: list[0]?.id === id, last: list[list.length - 1]?.id === id };
+  const ends = { first: list[0]?.id === id, last: list[list.length - 1]?.id === id };
+  return toEnds ? { ...ends, toEnds: true } : ends;
 }

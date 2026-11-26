@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import type { ClueKind } from "@/composables/canon/useCanonClues";
+import { CANON_PARTS, KNOWLEDGE_MARKS, type CanonPart, type KnowledgeMark } from "@/types/canon.types";
 
 /** A clue lying here, with the title of the secret it points at. */
 export type CanonHereClue = {
@@ -20,7 +21,13 @@ export type CanonHerePassage = { id: string; title: string; entry_id: string; en
 
 /** On a person: a lore entry told about them, with how many of its passages are told. */
 export type CanonHereLore = { id: string; title: string; told: number; total: number };
-export type CanonHere = { clues: CanonHereClue[]; passages: CanonHerePassage[]; lore: CanonHereLore[] };
+/** On a person: a canon entry tied to them, with what the NPC sheet needs to offer "Tell the party" on a truth. */
+export type CanonHereEntry = { id: string; title: string; part: CanonPart; knowledge: KnowledgeMark | null; revealed_at: string | null };
+/**
+ * On a person, `knows` is the entries tied to them as a knower (`known_to`) and `about` the entries (truths, secrets,
+ * forces, anything but lore, which has its own list) tied `about` them.
+ */
+export type CanonHere = { clues: CanonHereClue[]; passages: CanonHerePassage[]; lore: CanonHereLore[]; knows: CanonHereEntry[]; about: CanonHereEntry[] };
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const isStringOrNull = (v: unknown): v is string | null => v === null || typeof v === "string";
@@ -45,13 +52,28 @@ function isLore(v: unknown): v is CanonHereLore {
   return isRecord(v) && typeof v.id === "string" && typeof v.title === "string" && typeof v.told === "number" && typeof v.total === "number";
 }
 
+function isEntry(v: unknown): v is CanonHereEntry {
+  return (
+    isRecord(v) &&
+    typeof v.id === "string" &&
+    typeof v.title === "string" &&
+    (CANON_PARTS as readonly unknown[]).includes(v.part) &&
+    (v.knowledge === null || (KNOWLEDGE_MARKS as readonly unknown[]).includes(v.knowledge)) &&
+    isStringOrNull(v.revealed_at)
+  );
+}
+
 /** Narrows `get_canon_here`'s jsonb; a shape the client does not know is an error, never an empty block. */
 export function parseCanonHere(data: unknown): CanonHere {
   if (!isRecord(data) || !Array.isArray(data.clues) || !Array.isArray(data.passages)) throw new Error("get_canon_here returned an unexpected shape");
   const lore = data.lore === undefined ? [] : data.lore;
   if (!Array.isArray(lore)) throw new Error("get_canon_here returned an unexpected shape");
   if (!data.clues.every(isClue) || !data.passages.every(isPassage) || !lore.every(isLore)) throw new Error("get_canon_here returned an unexpected row");
-  return { clues: data.clues, passages: data.passages, lore };
+  const knows = data.knows === undefined ? [] : data.knows;
+  const about = data.about === undefined ? [] : data.about;
+  if (!Array.isArray(knows) || !Array.isArray(about)) throw new Error("get_canon_here returned an unexpected shape");
+  if (!knows.every(isEntry) || !about.every(isEntry)) throw new Error("get_canon_here returned an unexpected row");
+  return { clues: data.clues, passages: data.passages, lore, knows, about };
 }
 
 export async function fetchCanonHere(kind: ClueKind, id: string): Promise<CanonHere> {

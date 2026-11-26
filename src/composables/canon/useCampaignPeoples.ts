@@ -4,8 +4,9 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/toast";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { useCampaignStore } from "@/stores/campaign";
-import { UNREADABLE_PEOPLE, type People } from "@/lib/canon/peoples";
-import { CHECK_VIOLATION, nextSortOrder } from "@/composables/canon/useCampaignHabitats";
+import type { People } from "@/lib/canon/peoples";
+import { fetchPeoples } from "@/lib/canon/canonCampaignReads";
+import { habitatWriteMessage, nextSortOrder } from "@/composables/canon/useCampaignHabitats";
 
 /**
  * The peoples of the world (#1255 item 30): `campaign_peoples`, each row a species or a creature the campaign already
@@ -14,16 +15,6 @@ import { CHECK_VIOLATION, nextSortOrder } from "@/composables/canon/useCampaignH
  * and the screen shows what the server has.
  */
 
-interface NamedRow {
-  id: string;
-  percent: number;
-  kind: People["kind"];
-  record_id: string;
-  from_library: boolean;
-  /** Null when the record is not this reader's to read (a co-DM's own species): the row still counts. */
-  name: string | null;
-  body: string | null;
-}
 
 export interface NewPeople {
   kind: People["kind"];
@@ -31,27 +22,10 @@ export interface NewPeople {
   /** True for a shared book's record (a text id), false for one the DM wrote (a uuid). */
   fromLibrary: boolean;
   percent: number;
+  /** The people's own name over the record's; null or blank goes by the record's. */
+  name?: string | null;
 }
 
-/** The campaign's peoples in the DM's order. Scoped to the campaign in the query: RLS only bounds who may read. */
-export async function fetchPeoples(campaignId: string): Promise<People[]> {
-  const { data, error } = await supabase
-    .from("campaign_peoples_named")
-    .select("id, percent, kind, record_id, from_library, name, body")
-    .eq("campaign_id", campaignId)
-    .order("sort_order", { ascending: true });
-  if (error) throw error;
-  return (data as NamedRow[]).map((r) => ({
-    id: r.id,
-    kind: r.kind,
-    recordId: r.record_id,
-    fromLibrary: r.from_library,
-    name: r.name === null ? UNREADABLE_PEOPLE : r.name,
-    readable: r.name !== null,
-    percent: Number(r.percent),
-    body: r.body,
-  }));
-}
 
 /** Which of the table's four columns a record goes in; exactly one is ever set. */
 export function peopleColumn(kind: People["kind"], fromLibrary: boolean): "species_id" | "library_species_id" | "monster_id" | "library_monster_id" {
@@ -66,9 +40,44 @@ export async function insertPeople(campaignId: string, people: NewPeople): Promi
     campaign_id: campaignId,
     [peopleColumn(people.kind, people.fromLibrary)]: people.recordId,
     percent: people.percent,
+    name: people.name?.trim() || null,
     sort_order: sortOrder,
   });
   if (error) throw error;
+}
+
+export interface PeoplePlace {
+  id: string;
+  peopleId: string;
+  locationId: string;
+}
+
+/** Every Atlas place a people of the campaign lives in. Scoped to the campaign in the query. */
+export async function fetchPeoplePlaces(campaignId: string): Promise<PeoplePlace[]> {
+  const { data, error } = await supabase
+    .from("campaign_people_places")
+    .select("id, people_id, location_id")
+    .eq("campaign_id", campaignId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data as { id: string; people_id: string; location_id: string }[]).map((r) => ({ id: r.id, peopleId: r.people_id, locationId: r.location_id }));
+}
+
+export async function insertPeoplePlace(campaignId: string, peopleId: string, locationId: string): Promise<void> {
+  const { error } = await supabase.from("campaign_people_places").insert({ campaign_id: campaignId, people_id: peopleId, location_id: locationId });
+  if (error) throw error;
+}
+
+export async function deletePeoplePlace(id: string): Promise<void> {
+  const { error } = await supabase.from("campaign_people_places").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/** The own name a people takes over its record; blank clears it, and the record's name shows again. */
+export async function updatePeopleName(id: string, name: string | null): Promise<void> {
+  const { data, error } = await supabase.from("campaign_peoples").update({ name: name?.trim() || null }).eq("id", id).select("id");
+  if (error) throw error;
+  if (data.length === 0) throw new Error("That people is gone, or you may not change it.");
 }
 
 export async function updatePeoplePercent(id: string, percent: number): Promise<void> {
@@ -105,20 +114,33 @@ export function useCampaignPeoples() {
   return { peoples: computed<People[]>(() => query.data.value ?? []), isLoading: query.isLoading };
 }
 
+/** The Atlas places the campaign's peoples live in, refreshed by the doorbell (`campaign_people_places` rings under the canon root). */
+export function useCampaignPeoplePlaces() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  const query = useQuery({
+    queryKey: computed(() => [CANON_KEY, "people-places", campaignId.value] as const),
+    queryFn: ({ queryKey: [, , cid] }) => {
+      if (cid === null) throw new Error("useCampaignPeoplePlaces fetched without a campaign");
+      return fetchPeoplePlaces(cid);
+    },
+    enabled: computed(() => !!campaignId.value),
+  });
+  return { places: computed<PeoplePlace[]>(() => query.data.value ?? []) };
+}
+
 /** The peoples and the writes, for the screen that edits them. A write that fails refreshes too, so the screen shows what the server has. */
 export function usePeoplesEditing() {
   const campaign = useCampaignStore();
   const qc = useQueryClient();
   const { peoples, isLoading } = useCampaignPeoples();
+  const { places } = useCampaignPeoplePlaces();
 
   function write<A>(run: (arg: A) => Promise<void>) {
     return useMutation({
       mutationFn: run,
-      onError: (e) => {
-        const over = typeof e === "object" && e !== null && "code" in e && e.code === CHECK_VIOLATION;
-        toast.error(over ? "These shares would pass 100%." : toast.fromError(e));
-      },
-      onSettled: () => qc.invalidateQueries({ queryKey: [CANON_KEY, "peoples"] }),
+      onError: (e) => toast.error(habitatWriteMessage(e, "That people is already listed. Give this one a name of its own to list it again.")),
+      onSettled: () => Promise.all([qc.invalidateQueries({ queryKey: [CANON_KEY, "peoples"] }), qc.invalidateQueries({ queryKey: [CANON_KEY, "people-places"] })]),
     });
   }
 
@@ -129,6 +151,13 @@ export function usePeoplesEditing() {
   });
   const setPercentOf = write(({ id, percent }: { id: string; percent: number }) => updatePeoplePercent(id, percent));
   const removeOne = write(deletePeople);
+  const rename = write(({ id, name }: { id: string; name: string | null }) => updatePeopleName(id, name));
+  const placeIn = write(async ({ peopleId, locationId }: { peopleId: string; locationId: string }) => {
+    const campaignId = campaign.activeCampaignId;
+    if (!campaignId) throw new Error("No campaign is open.");
+    await insertPeoplePlace(campaignId, peopleId, locationId);
+  });
+  const unplace = write(deletePeoplePlace);
   // The words save themselves and report through the autosave status, so this one neither toasts nor swallows a failure.
   async function saveBody(id: string, body: string | null): Promise<void> {
     try {
@@ -146,5 +175,9 @@ export function usePeoplesEditing() {
     setPercent: (id: string, percent: number) => setPercentOf.mutate({ id, percent }),
     removePeople: (id: string) => removeOne.mutate(id),
     saveBody,
+    renamePeople: (id: string, name: string | null) => rename.mutate({ id, name }),
+    places,
+    addPlace: (peopleId: string, locationId: string) => placeIn.mutate({ peopleId, locationId }),
+    removePlace: (id: string) => unplace.mutate(id),
   };
 }

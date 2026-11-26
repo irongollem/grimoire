@@ -5,10 +5,12 @@ import type { Tonight } from "@/lib/canon/canonTonight";
 
 const empty: Tonight = { lore: [], clues: [], forces: [], threads: [], tableUnreviewed: 0 };
 const plan = ref<Tonight | null>(empty);
+const planLine = ref<string | null>(null);
+const planned = ref<unknown[]>([]);
 const proposals = ref<unknown[] | undefined>([]);
 const cadence = ref<unknown>(null);
 
-vi.mock("@/composables/canon/useTonight", () => ({ useTonight: () => ({ plan }) }));
+vi.mock("@/composables/canon/useTonight", () => ({ useTonight: () => ({ plan, planLine, planned }) }));
 vi.mock("@/composables/calendar/useScheduling", () => ({
   useSessionProposals: () => ({ data: proposals }),
   useSessionCadence: () => ({ data: cadence }),
@@ -25,6 +27,8 @@ const clue = { clueId: "c", title: "t", secretId: "s", secretTitle: "S" };
 describe("CanonNextSession", () => {
   beforeEach(() => {
     plan.value = empty;
+    planLine.value = null;
+    planned.value = [];
     proposals.value = [];
     cadence.value = null;
   });
@@ -37,14 +41,23 @@ describe("CanonNextSession", () => {
   });
 
   // Bug caught: counting groups instead of the passages and clues inside them (two places hold three items).
-  it("counts the items inside the groups and names a force one tick from its next step", () => {
+  it("counts the items inside the groups and names a force one tick from full", () => {
     plan.value = {
       ...empty,
       lore: [{ at: null, items: [item, item] }],
       clues: [{ at: null, items: [clue] }, { at: { location_id: "l", npc_id: null, quest_beat_id: null }, items: [clue, clue] }],
-      forces: [{ entryId: "f", title: "The Guild", nextStep: "Raid", clock: { filled: 3, size: 4, full: false } }],
+      forces: [{ entryId: "f", title: "The Guild", nextStep: "Raid", nextStepId: "s1", dueSteps: [], clock: { filled: 3, size: 4, full: false } }],
     };
     const lines = mountCard().findAll("[data-testid=next-session-line]").map((l) => l.text());
-    expect(lines).toEqual(["2 lore passages to tell", "3 clues not yet found", "The Guild is one tick from its next step"]);
+    expect(lines).toEqual(["2 lore passages to tell", "3 clues not yet found", "The Guild is one tick from full"]);
+  });
+
+  // Bug caught: the plan line and the pinned count never reaching the card, or the card hidden when only a plan exists.
+  it("shows the plan line and the pinned count, even when nothing else waits", () => {
+    planLine.value = "Open on the burned mill";
+    planned.value = [{}, {}];
+    const w = mountCard();
+    expect(w.get("[data-testid=next-session-plan]").text()).toBe("Open on the burned mill");
+    expect(w.get("[data-testid=next-session-pinned]").text()).toBe("2 things pinned for it");
   });
 });

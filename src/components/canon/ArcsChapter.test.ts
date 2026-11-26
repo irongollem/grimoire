@@ -56,6 +56,14 @@ describe("ArcsChapter", () => {
     expect(mocks.replace).toHaveBeenLastCalledWith({ query: { arc: undefined } });
   });
 
+  // Bug caught (#1279 item 10): "Ask the Familiar" in the empty arcs list, for which the canon helper has no mode and which came back as truths.
+  it("offers no Familiar request when there are no arcs", () => {
+    arcs.value = [];
+    const w = mountIt();
+    expect(w.get("[data-testid=canon-empty]").text()).toContain("No arcs yet");
+    expect(w.find("canon-suggest-stub").exists()).toBe(false);
+  });
+
   it("adds an arc by its name and opens it", async () => {
     mocks.add.mockResolvedValue({ id: "a3" });
     const w = mountIt();
@@ -85,6 +93,12 @@ describe("ArcsChapter", () => {
   it("moves an arc through the shared order rule", async () => {
     await mountIt().get("button[aria-label='Move The drowned god down']").trigger("click");
     expect(mocks.move).toHaveBeenCalledWith({ arcs: arcs.value, id: "a1", direction: 1 });
+  });
+
+  // Bug caught: Move to top/bottom missing on arcs, or writing the wrong places so the arc did not land at the end it was sent to.
+  it("takes an arc to the bottom in one click, renumbering the arcs it passes", async () => {
+    await mountIt().get("button[aria-label='Move The drowned god to the bottom']").trigger("click");
+    expect(mocks.update.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["a2", 0], ["a1", 1]]);
   });
 
   describe("the shape of an arc", () => {

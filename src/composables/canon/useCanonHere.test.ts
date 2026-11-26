@@ -10,9 +10,18 @@ describe("parseCanonHere", () => {
     const clue = { id: "k", title: "t", secret_id: "s", secret_title: "S", found_at: null, found_session_id: null };
     const passage = { id: "g", title: "t", entry_id: "e", entry_title: "E" };
     const lore = { id: "l", title: "The Fall", told: 1, total: 2 };
-    expect(parseCanonHere({ clues: [clue], passages: [passage], lore: [lore] })).toEqual({ clues: [clue], passages: [passage], lore: [lore] });
-    // A place or a beat has no lore list; it reads as none.
-    expect(parseCanonHere({ clues: [], passages: [] }).lore).toEqual([]);
+    const entry = { id: "t", title: "The bridge", part: "truth", knowledge: "some", revealed_at: null };
+    expect(parseCanonHere({ clues: [clue], passages: [passage], lore: [lore], knows: [entry], about: [entry] })).toEqual({ clues: [clue], passages: [passage], lore: [lore], knows: [entry], about: [entry] });
+    // A place or a beat has no lore, knows or about list; each reads as none.
+    const bare = parseCanonHere({ clues: [], passages: [] });
+    expect([bare.lore, bare.knows, bare.about]).toEqual([[], [], []]);
+  });
+
+  // Bug: an entry of an unknown part (or a truth with a made-up mark) read as fine, so the sheet offered "Tell the party" on it.
+  it("throws on an entry with a part or mark the canon does not have", () => {
+    const bad = { id: "t", title: "x", part: "rumour", knowledge: null, revealed_at: null };
+    expect(() => parseCanonHere({ clues: [], passages: [], knows: [bad] })).toThrow();
+    expect(() => parseCanonHere({ clues: [], passages: [], about: [{ ...bad, part: "truth", knowledge: "most" }] })).toThrow();
   });
 
   it("throws on a payload without both lists, so a changed RPC shows as an error and not as an empty block", () => {

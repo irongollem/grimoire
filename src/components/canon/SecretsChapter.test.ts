@@ -12,6 +12,8 @@ vi.mock("@/composables/canon/useCanonEntries", () => ({
   useUpdateCanonEntry: () => ({ mutateAsync: mocks.reorder }),
 }));
 vi.mock("@/composables/canon/useCanonClues", () => ({ useCanonClues: () => ({ data: clues }) }));
+const route = vi.hoisted(() => ({ query: {} as Record<string, string> }));
+vi.mock("vue-router", () => ({ useRoute: () => route }));
 vi.mock("@/composables/ask/useCanAsk", () => ({ useCanAsk: () => ref(true) }));
 
 import SecretsChapter from "./SecretsChapter.vue";
@@ -36,7 +38,18 @@ function mountChapter(props: { secrets?: CanonEntry[]; questions?: CanonEntry[];
 }
 
 describe("SecretsChapter", () => {
-  beforeEach(() => { mocks.create.mockReset(); mocks.reorder.mockReset(); mocks.reorder.mockResolvedValue(undefined); clues.value = []; });
+  beforeEach(() => { route.query = {}; mocks.create.mockReset(); mocks.reorder.mockReset(); mocks.reorder.mockResolvedValue(undefined); clues.value = []; });
+
+  // Bug caught (#1279 item 5): a secret added under an arc filter was made in no arc and vanished from the narrowed list.
+  it("makes a new secret in the arc the page is narrowed to", async () => {
+    mocks.create.mockResolvedValue({ id: "s9" });
+    const w = mountChapter({ arcLabel: "The guild" });
+    useCanonUiStore().arcFilter = "a1";
+    await w.find("input[aria-label='A new secret']").setValue("Sift lies.");
+    await w.find("form").trigger("submit");
+    await flushPromises();
+    expect(mocks.create).toHaveBeenCalledWith({ part: "secret", title: "Sift lies.", sort_order: 0, arc_id: "a1" });
+  });
 
   it("adds a secret, empties the box and opens the new secret", async () => {
     mocks.create.mockResolvedValue({ id: "s9" });
@@ -45,7 +58,7 @@ describe("SecretsChapter", () => {
     await input.setValue("  Sift is the guild master's daughter. ");
     await w.find("form").trigger("submit");
     await flushPromises();
-    expect(mocks.create).toHaveBeenCalledWith({ part: "secret", title: "Sift is the guild master's daughter.", sort_order: 0 });
+    expect(mocks.create).toHaveBeenCalledWith({ part: "secret", title: "Sift is the guild master's daughter.", sort_order: 0, arc_id: null });
     expect((input.element as HTMLInputElement).value).toBe("");
     expect(w.emitted("select")?.[0]).toEqual(["s9"]);
   });
@@ -87,6 +100,13 @@ describe("SecretsChapter", () => {
       expect(mocks.reorder.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["s3", 0], ["s1", 2]]);
     });
 
+    // Bug caught (#1279 item 33): Move to top missing on the secrets list (the row offered it but nothing handled it), or moving past the revealed ones.
+    it("moves a secret to the top of its own state in one go", async () => {
+      await mountChapter({ secrets: list }).find("button[aria-label='Move s3 to the top']").trigger("click");
+      await flushPromises();
+      expect(mocks.reorder.mock.calls.map(([c]) => [c.id, c.patch.sort_order])).toEqual([["s3", 0], ["s1", 1]]);
+    });
+
     it("gives the last unrevealed secret no Down, since the revealed one after it is not in its group", () => {
       expect(mountChapter({ secrets: list }).find("button[aria-label='Move s3 down']").attributes("disabled")).toBeDefined();
     });
@@ -124,6 +144,32 @@ describe("SecretsChapter", () => {
       await nextTick();
       expect(useCanonUiStore().secretsView).toBe("secrets");
       expect(w.find("[data-testid=secret-ledger]").exists()).toBe(true);
+    });
+  });
+
+  describe("a link to a question", () => {
+    // Bug caught (#1279 item 6): `?entry=<question id>` opened the Secrets list, so the question row never rendered, scrolled to or rang.
+    it("opens the questions view when the linked entry is an open question", () => {
+      route.query = { entry: "q1" };
+      const w = mountChapter({ secrets: [secret("s1", 0)], questions: [canonEntry({ id: "q1", part: "question" })] });
+      expect(useCanonUiStore().secretsView).toBe("questions");
+      expect(w.find("[data-testid=questions]").exists()).toBe(true);
+    });
+
+    // Bug caught: every link forced the questions view, so a link to a secret or to nothing on this chapter opened the wrong list.
+    it("stays on the secrets when the linked entry is not a question here", () => {
+      route.query = { entry: "elsewhere" };
+      mountChapter({ secrets: [secret("s1", 0)], questions: [canonEntry({ id: "q1", part: "question" })] });
+      expect(useCanonUiStore().secretsView).toBe("secrets");
+    });
+
+    // Bug caught: the canon loads after the page does, so a question that arrives after mount was never switched to.
+    it("switches once the linked question has loaded", async () => {
+      route.query = { entry: "q1" };
+      const w = mountChapter();
+      expect(useCanonUiStore().secretsView).toBe("secrets");
+      await w.setProps({ questions: [canonEntry({ id: "q1", part: "question" })] });
+      expect(useCanonUiStore().secretsView).toBe("questions");
     });
   });
 

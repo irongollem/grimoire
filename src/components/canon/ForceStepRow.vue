@@ -24,6 +24,11 @@
         <WorldDateField :date="due" @change="(date) => emit('due', date)" />
         <AppButton v-if="due.year !== null" variant="outline" size="xs" label="Clear the date" data-testid="force-step-due-clear" @click="emit('due', { year: null, month: null, day: null })" />
       </template>
+      <!-- A dated step can be put on the Calendar once; after that the row points at it instead. -->
+      <template v-if="due.year !== null">
+        <RouterLink v-if="calendarPath !== null" :to="calendarPath" class="text-label font-semibold text-foreground underline" data-testid="force-step-on-calendar">On the Calendar</RouterLink>
+        <AppButton v-else variant="outline" size="xs" label="Put this step on the Calendar" :loading="puttingOnCalendar" data-testid="force-step-to-calendar" @click="emit('calendar')" />
+      </template>
     </span>
   </li>
 </template>
@@ -31,9 +36,11 @@
 <script setup lang="ts">
 /**
  * One step of a force: its line (saved when the field is left), the Reached tick, the reorder and remove buttons and
- * the date it is due in the world (#1258 item 9), which says so quietly once the campaign's date has passed it.
+ * the date it is due in the world (#1258 item 9), which says so quietly once the campaign's date has passed it, and
+ * (#1279 item 32) "Put this step on the Calendar" for a dated step, which becomes "On the Calendar" once it is there.
  */
 import { computed, ref } from "vue";
+import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
@@ -48,7 +55,7 @@ import type { CanonForceStep } from "@/types/canon.types";
 
 const STATE_LABEL: Record<StepState, string> = { done: "Done", now: "Now", next: "Next" };
 
-const { step, state, first, last, frozen = false, today = null } = defineProps<{
+const { step, state, first, last, frozen = false, today = null, calendarPath = null, puttingOnCalendar = false } = defineProps<{
   step: CanonForceStep;
   state: StepState;
   first: boolean;
@@ -56,8 +63,12 @@ const { step, state, first, last, frozen = false, today = null } = defineProps<{
   frozen?: boolean;
   /** The campaign's date in the world, or null when it keeps no calendar. */
   today?: WorldDate | null;
+  /** Whether the step is already an event on the Calendar. */
+  /** Where the step's Calendar event is, once it is on the Calendar; null until then. */
+  calendarPath?: { path: string; query: Record<string, string> } | null;
+  puttingOnCalendar?: boolean;
 }>();
-const emit = defineEmits<{ rename: [title: string]; reach: [reached: boolean]; move: [direction: -1 | 1]; remove: []; due: [date: WorldDate] }>();
+const emit = defineEmits<{ rename: [title: string]; reach: [reached: boolean]; move: [direction: -1 | 1]; remove: []; due: [date: WorldDate]; calendar: [] }>();
 
 const calendar = useCalendarStore();
 const format = (y: number, m: number | null, d: number | null, f: string | null) => calendar.adapter.formatDate(y, m, d, f);
