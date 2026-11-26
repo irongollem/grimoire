@@ -65,9 +65,11 @@ Launch with `model: "sonnet"` (haiku only for pure lookups). Every spec contains
 Read every diff yourself. An executor's green report is a claim, not a verification:
 
 1. `npm run typecheck` (every tsconfig project, one process each with a 10 GB heap: the app program alone outgrew 6 GB in Nov 2026; see `scripts/typecheck.mjs`)
-2. `npm test` (full suite: here, once per commit, and nowhere else; it waits on the machine-wide heavy-job lock, see CLAUDE.md)
-3. **`npm run build`** — non-negotiable when any `.vue` file changed: vue-tsc and
-   vitest have both missed a malformed SFC that only the vite build caught.
+2. Tests: per commit, `npx vitest related <the commit's files> --run`; the full suite (`npm test`) once per push, right before it, and nowhere else. It waits on the machine-wide heavy-job lock (CLAUDE.md).
+3. **`npm run build`**, once per push with the full suite — non-negotiable when any `.vue` file
+   changed since the last push: vue-tsc and vitest have both missed a malformed SFC that only
+   the vite build caught. Most tests are unit tests of one module, so `vitest related` per
+   commit catches what a change can break; the full run catches what crosses modules.
 4. Conventions review (the `conventions-reviewer` agent) scoped to exactly the
    story's files.
 5. UI changed → look at it running (`dm-fixture@example.invalid`, never the admin).
