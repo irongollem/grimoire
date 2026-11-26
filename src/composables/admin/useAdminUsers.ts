@@ -93,15 +93,19 @@ export function useAdminUsers() {
       userId,
       amount,
       reason,
+      message,
     }: {
       userId: string
       amount: number
       reason: string
+      /** Shown to the account's owner once, with the gift (positive grants only). */
+      message: string | null
     }) => {
       const { error } = await supabase.rpc('admin_grant_credits', {
         p_user_id: userId,
         p_delta: amount,
         p_reason: reason || 'admin_grant',
+        p_message: message,
       })
       if (error) throw error
     },
