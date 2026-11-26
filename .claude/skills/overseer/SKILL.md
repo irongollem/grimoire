@@ -54,7 +54,7 @@ Launch with `model: "sonnet"` (haiku only for pure lookups). Every spec contains
   `npx vitest related <every file changed or created> --run` (every test that imports
   those files, transitively), plus vue-tsc and `rtk proxy npx oxlint --config oxlint.json
   <files>` with errors reported only for its own files. **Executors never run the full
-  `npx vitest run` or `npm run build`**: the suite is 20k+ tests and the build takes
+  `npm test` or `npm run build`**: the suite is 20k+ tests and the build takes
   minutes, and with several executors plus the overseer each running both, a session
   spent most of its wall clock re-proving untouched code (Map Table, 1 Nov 2026). The
   full suite and the build run once, in step 4. A browser check only when the spec asks.
@@ -65,7 +65,7 @@ Launch with `model: "sonnet"` (haiku only for pure lookups). Every spec contains
 Read every diff yourself. An executor's green report is a claim, not a verification:
 
 1. `npm run typecheck` (every tsconfig project, one process each with a 10 GB heap: the app program alone outgrew 6 GB in Nov 2026; see `scripts/typecheck.mjs`)
-2. `npx vitest run` (full suite: here, once per commit, and nowhere else)
+2. `npm test` (full suite: here, once per commit, and nowhere else; it waits on the machine-wide heavy-job lock, see CLAUDE.md)
 3. **`npm run build`** — non-negotiable when any `.vue` file changed: vue-tsc and
    vitest have both missed a malformed SFC that only the vite build caught.
 4. Conventions review (the `conventions-reviewer` agent) scoped to exactly the
