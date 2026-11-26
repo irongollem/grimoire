@@ -18,6 +18,11 @@ export type SuggestedPremiseKind = (typeof SUGGESTED_PREMISE_KINDS)[number];
 
 /** A kind that holds one entry: a second proposal of it in one answer is dropped. */
 export const SINGLE_PREMISE_KINDS: readonly SuggestedPremiseKind[] = ["pitch", "voice", "look"];
+/**
+ * Versions of a pitch, voice or look one sectioned draft may offer (Design it with me, #1282): the DM chooses between
+ * them, from the one closest to their notes to the boldest. A whole-starter draft still offers one of each.
+ */
+export const MAX_SINGLE_ALTERNATIVES = 3;
 
 export const MAX_PREMISE_SUGGESTIONS = 18;
 export const MAX_TRUTH_SUGGESTIONS = 8;
@@ -75,9 +80,21 @@ function listOf(parsed: unknown, key: string): unknown[] {
 const isSuggestedKind = (v: unknown): v is SuggestedPremiseKind =>
   typeof v === "string" && (SUGGESTED_PREMISE_KINDS as readonly string[]).includes(v);
 
+/**
+ * The `kinds` a request narrows the premise to ("Enhance with AI" on one section): a non-empty list of premise kinds, or
+ * absent for the whole starter. Anything else is the caller's mistake, not a thing to guess at.
+ */
+export function readPremiseKinds(raw: unknown): { ok: true; kinds: SuggestedPremiseKind[] | null } | { ok: false } {
+  if (raw === undefined || raw === null) return { ok: true, kinds: null };
+  if (!Array.isArray(raw) || raw.length === 0 || !raw.every(isSuggestedKind)) return { ok: false };
+  return { ok: true, kinds: [...new Set(raw)] };
+}
+
+/** With `kinds`, only those kinds survive: the model may stray, the section the DM asked for is all it gets to write. */
 export function sanitizePremise(
   parsed: unknown,
   existing: readonly ExistingPremise[],
+  kinds: readonly SuggestedPremiseKind[] | null = null,
 ): { suggestions: PremiseSuggestion[]; setAside: CanonSetAside[] } {
   const suggestions: PremiseSuggestion[] = [];
   const setAside: CanonSetAside[] = [];
@@ -89,9 +106,11 @@ export function sanitizePremise(
     const text = clean(raw.text, kind === "pitch" || kind === "voice" || kind === "look" ? MAX_PARAGRAPH_CHARS : MAX_LINE_CHARS);
     if (text === "") continue;
     if (!isSuggestedKind(kind)) continue;
+    if (kinds !== null && !kinds.includes(kind)) continue;
     const key = `${kind}|${norm(text)}`;
     if (seen.has(key)) continue;
-    if (SINGLE_PREMISE_KINDS.includes(kind) && suggestions.some((s) => s.kind === kind)) continue;
+    const allowed = kinds === null ? 1 : MAX_SINGLE_ALTERNATIVES;
+    if (SINGLE_PREMISE_KINDS.includes(kind) && suggestions.filter((s) => s.kind === kind).length >= allowed) continue;
     seen.add(key);
     suggestions.push({ kind, text });
   }
@@ -140,7 +159,11 @@ export function sanitizeTruths(
   return { suggestions, setAside };
 }
 
-export function premiseShape(): string {
+export function premiseShape(kinds: readonly SuggestedPremiseKind[] | null = null): string {
+  if (kinds !== null) {
+    return `\n\nReturn a single JSON object {"suggestions":[...]}, each suggestion {"kind":"${kinds.join("|")}","text":"the entry, in plain words"}. Write ONLY these kinds of entry: ${kinds.join(", ")}. Write no other kind. The DM's words are rough notes, not the finished text: develop them into full, specific entries that build on the pitch, the premise and everything the canon already holds, and never hand the notes back reworded. A pitch is a full paragraph of three to five sentences; a voice or a look is a short paragraph; a theme, table note, line or veil is one complete sentence. A pitch, voice or look may be offered in up to ${MAX_SINGLE_ALTERNATIVES} versions for the DM to choose between. Lines and veils are private discussion drafts, never agreed boundaries.\n` +
+      "Return only the JSON object. No markdown fences, no explanation.";
+  }
   return `\n\nReturn a single JSON object {"suggestions":[...]}, up to ${MAX_PREMISE_SUGGESTIONS} suggestions, each {"kind":"${SUGGESTED_PREMISE_KINDS.join("|")}","text":"the entry, in plain words"}. Build the campaign starter from the DM's pitch and campaign context. Include one pitch, at least one theme, one table note, one voice, one look, and one grounded line and veil draft. Existing pitch, voice, and look may be proposed as replacements only when meaningfully improved; the DM will see the old and new text and confirm before replacing. Lines and veils are private discussion drafts, never agreed boundaries: the DM must review them with players before accepting.\n` +
     "Return only the JSON object. No markdown fences, no explanation.";
 }
@@ -482,5 +505,174 @@ export function sanitizeSecrets(
 
 export function secretShape(): string {
   return `\n\nReturn a single JSON object {"suggestions":[...]}, up to ${MAX_SECRET_SUGGESTIONS} suggestions, each {"title":"the secret, one statement of what is true and hidden","clues":[{"title":"the clue, one line, hinting at the secret and never stating it","at":null or {"kind":"location|npc|quest_beat","id":"the id copied exactly from the list given"}}]}. Give every secret three clues, each at a different place, person or beat from the list where one fits.\n` +
+    "Return only the JSON object. No markdown fences, no explanation.";
+}
+
+// ── Design it with me (#1282): arcs, peoples and a backstory's DM passages ────────────────────────────────────────
+
+export const MAX_ARC_SUGGESTIONS = 6;
+export const MAX_ARC_NAME_CHARS = 80;
+export const MAX_BACKSTORY_SUGGESTIONS = 5;
+
+/** A premise theme line an arc may carry: always a real `canon_entries` row of the campaign. */
+export interface ThemeCandidate {
+  id: string;
+  text: string;
+}
+
+export interface ArcSuggestion {
+  name: string;
+  summary: string;
+  question: string | null;
+  stakes: string | null;
+  /** One of the given theme ids, or null: an unknown id never becomes a tie, and the arc stays. */
+  themeId: string | null;
+}
+
+/**
+ * Arcs. The name is the arc's (1 to 80 characters) and a name the campaign already has, or one twice in the answer, is
+ * skipped. A `theme_id` is kept only when it is one the server gave the model.
+ */
+export function sanitizeArcs(
+  parsed: unknown,
+  themes: readonly ThemeCandidate[],
+  existingNames: readonly string[],
+): { suggestions: ArcSuggestion[]; setAside: CanonSetAside[] } {
+  const themeIds = new Set(themes.map((t) => t.id));
+  const suggestions: ArcSuggestion[] = [];
+  const seen = new Set(existingNames.map(norm));
+  for (const raw of listOf(parsed, "suggestions")) {
+    if (suggestions.length >= MAX_ARC_SUGGESTIONS) break;
+    if (!isRecord(raw)) continue;
+    const name = clean(raw.name, MAX_ARC_NAME_CHARS);
+    const summary = clean(raw.summary, MAX_LINE_CHARS);
+    if (name === "" || summary === "" || seen.has(norm(name))) continue;
+    seen.add(norm(name));
+    suggestions.push({
+      name,
+      summary,
+      question: clean(raw.question, MAX_LINE_CHARS) || null,
+      stakes: clean(raw.stakes, MAX_LINE_CHARS) || null,
+      themeId: typeof raw.theme_id === "string" && themeIds.has(raw.theme_id) ? raw.theme_id : null,
+    });
+  }
+  return { suggestions, setAside: [] };
+}
+
+export const PEOPLE_KIND_VALUES = ["species", "library_species"] as const;
+export type PeopleSuggestionKind = (typeof PEOPLE_KIND_VALUES)[number];
+
+/** A record the campaign may use as a people: its own species (a uuid) or a shared book's (a text id). */
+export interface PeopleCandidate {
+  kind: PeopleSuggestionKind;
+  id: string;
+  name: string;
+}
+
+export interface ListedPeople {
+  kind: string;
+  recordId: string;
+  /** The culture's own name, or null when it goes by the record's. */
+  name: string | null;
+  percent: number;
+}
+
+export interface PeopleSuggestion {
+  kind: PeopleSuggestionKind;
+  recordId: string;
+  /** The record's name, for the review to show. */
+  recordName: string;
+  /** A culture's own name, or null. */
+  name: string | null;
+  percent: number;
+}
+
+export const MAX_PEOPLE_SUGGESTIONS = 8;
+export const MAX_PEOPLE_NAME_CHARS = 80;
+
+/**
+ * Peoples with their shares. Every record is matched by id AND kind to a candidate the server read for this campaign:
+ * anything else is set aside. A record and name already listed (or twice in the answer) is set aside, and shares are
+ * added up with what is listed: a people whose whole share would take the total past 100 is set aside, so the database's
+ * hundred-percent rule is never what refuses an accept.
+ */
+export function sanitizePeoples(
+  parsed: unknown,
+  candidates: readonly PeopleCandidate[],
+  listed: readonly ListedPeople[],
+): { suggestions: PeopleSuggestion[]; setAside: CanonSetAside[] } {
+  const byKey = new Map(candidates.map((c) => [`${c.kind}|${c.id}`, c]));
+  const identity = (kind: string, id: string, name: string | null) => `${kind}|${id}|${norm(name ?? "")}`;
+  const seen = new Set(listed.map((p) => identity(p.kind, p.recordId, p.name)));
+  let total = listed.reduce((sum, p) => sum + p.percent, 0);
+  const suggestions: PeopleSuggestion[] = [];
+  const setAside: CanonSetAside[] = [];
+  for (const raw of listOf(parsed, "suggestions")) {
+    if (suggestions.length >= MAX_PEOPLE_SUGGESTIONS) break;
+    if (!isRecord(raw)) continue;
+    const kind = typeof raw.kind === "string" ? raw.kind : "";
+    const id = typeof raw.record_id === "string" ? raw.record_id : "";
+    const found = byKey.get(`${kind}|${id}`);
+    const own = clean(raw.name, MAX_PEOPLE_NAME_CHARS) || null;
+    if (!found) {
+      setAside.push({ claim: own ?? (id || "a people"), reason: "it is not a species this campaign has or may use, so it cannot be a people here" });
+      continue;
+    }
+    const percent = typeof raw.percent === "number" && Number.isFinite(raw.percent) ? Math.round(raw.percent) : 0;
+    if (percent < 1 || percent > 100) continue;
+    const label = own ?? found.name;
+    const key = identity(found.kind, found.id, own);
+    if (seen.has(key)) {
+      setAside.push({ claim: label, reason: "this people is already listed" });
+      continue;
+    }
+    if (total + percent > 100) {
+      setAside.push({ claim: label, reason: `its ${percent}% would take the peoples past 100%` });
+      continue;
+    }
+    seen.add(key);
+    total += percent;
+    suggestions.push({ kind: found.kind, recordId: found.id, recordName: found.name, name: own, percent });
+  }
+  return { suggestions, setAside };
+}
+
+export interface BackstorySuggestion {
+  title: string;
+  /** Plain text, paragraphs: the client turns it into the rich body when it writes. */
+  body: string;
+}
+
+/** A passage the DM's side of a past might hold. A title the backstory already has, or one twice in the answer, is skipped. */
+export function sanitizeBackstory(
+  parsed: unknown,
+  existingTitles: readonly string[],
+): { suggestions: BackstorySuggestion[]; setAside: CanonSetAside[] } {
+  const suggestions: BackstorySuggestion[] = [];
+  const seen = new Set(existingTitles.map(norm));
+  for (const raw of listOf(parsed, "suggestions")) {
+    if (suggestions.length >= MAX_BACKSTORY_SUGGESTIONS) break;
+    if (!isRecord(raw)) continue;
+    const title = clean(raw.title, MAX_PASSAGE_TITLE_CHARS);
+    const body = clean(raw.body, MAX_PASSAGE_BODY_CHARS);
+    if (title === "" || body === "" || seen.has(norm(title))) continue;
+    seen.add(norm(title));
+    suggestions.push({ title, body });
+  }
+  return { suggestions, setAside: [] };
+}
+
+export function arcShape(): string {
+  return `\n\nReturn a single JSON object {"suggestions":[...]}, up to ${MAX_ARC_SUGGESTIONS} suggestions, each {"name":"the arc's name, up to ${MAX_ARC_NAME_CHARS} characters","summary":"one line of what the arc is about","question":"the dramatic question it asks, one line, or leave out","stakes":"what is at stake, one line, or leave out","theme_id":"the id of one theme line given, copied exactly, or leave out"}.\n` +
+    "Return only the JSON object. No markdown fences, no explanation.";
+}
+
+export function peopleShape(): string {
+  return `\n\nReturn a single JSON object {"suggestions":[...]}, up to ${MAX_PEOPLE_SUGGESTIONS} suggestions, each {"kind":"${PEOPLE_KIND_VALUES.join("|")}","record_id":"the id copied exactly from the second field of one line given","name":"a culture's own name, only when it has one distinct from its species (never the species' name or its plural); otherwise leave out","percent":1 to 100}. Every record_id must be copied from the lines given, with the kind on its line. The percent shares of what you propose and of the peoples already listed must not add up to more than 100.\n` +
+    "Return only the JSON object. No markdown fences, no explanation.";
+}
+
+export function backstoryShape(): string {
+  return `\n\nReturn a single JSON object {"suggestions":[...]}, up to ${MAX_BACKSTORY_SUGGESTIONS} suggestions, each {"title":"the passage's heading","body":"plain text, one or two short paragraphs"}.\n` +
     "Return only the JSON object. No markdown fences, no explanation.";
 }

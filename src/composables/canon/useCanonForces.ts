@@ -246,13 +246,14 @@ export interface AcceptForceContext {
  * Write an accepted force: the entry, then its steps in order, its quest links and the tie to its faction or person,
  * each stamped with the run's provenance. Nothing is written before this is called.
  */
-export async function writeAcceptedForce(s: ForceSuggestion, ctx: AcceptForceContext): Promise<void> {
+export async function writeAcceptedForce(s: ForceSuggestion, ctx: AcceptForceContext): Promise<string> {
   const stamp = ctx.provenance ? { ai_provenance: { ...ctx.provenance } } : {};
   const created = await ctx.createEntry({ part: "force", title: s.title, wants: s.wants, clock_size: s.clockSize, sort_order: ctx.sortOrder, ...stamp });
   await createForceSteps(s.steps.map((title, index) => ({ campaign_id: ctx.campaignId, force_id: created.id, title, sort_order: index, ...stamp })));
   // A quest named twice is linked once: the table's unique index and the insert's ignore-duplicates say so.
   await createEntryQuests(s.quests.map((q) => ({ campaign_id: ctx.campaignId, entry_id: created.id, quest_id: q.id })));
   if (s.who) await ctx.connectAbout(created.id, { kind: s.who.kind, id: s.who.id, name: s.who.name }, ctx.provenance);
+  return created.id;
 }
 
 /** `writeAcceptedForce` wired to the real writers. */
@@ -265,7 +266,7 @@ export function useAcceptForce() {
     const campaignId = campaign.activeCampaignId;
     if (campaignId === null) throw new Error("Accepting a force without a campaign");
     try {
-      await writeAcceptedForce(s, {
+      return await writeAcceptedForce(s, {
         campaignId,
         sortOrder,
         provenance,

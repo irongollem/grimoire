@@ -26,6 +26,8 @@ import type { PendingGenerator } from "@/stores/ui/ask";
 import { sendToAskTurn, type AskTransport } from "./askTransport";
 import { findItem, partsCredits, quickWaitsOnLoad, type AskItem, type AskThreadState, type NewItem, type ReplyItem } from "./askItems";
 import { useAskPreviews } from "./useAskPreviews";
+import { useAskWalk, type AskWalkPorts } from "./useAskWalk";
+import { useAskWalkPorts } from "./useAskWalkPorts";
 
 export { previewRowKey, type AskItem, type ResultPart } from "./askItems";
 
@@ -77,6 +79,8 @@ export interface AskConversationDeps {
    * stored turns, or null when there is none. Read through the caller's own rows.
    */
   restore?: (campaignId: string) => Promise<{ sessionId: string; turns: StoredTurn[] } | null>;
+  /** What "Design it with me" (#1282) reads and writes the canon through; the panel's own canon queries when left out. */
+  walk?: AskWalkPorts;
 }
 
 const NOT_ANSWERED = "Your Familiar could not answer that. Try again.";
@@ -194,6 +198,9 @@ export function useAskConversation(deps: AskConversationDeps) {
     // Return the reactive proxy, so a later mutation of it reaches the screen.
     return thread.items[thread.items.length - 1] as AskItem;
   }
+
+  // The scripted walk through the canon: its questions and blocks are items of this thread.
+  const walk = useAskWalk({ items, thread: () => current, alive, push: pushTo, ports: deps.walk ?? useAskWalkPorts() });
 
   const push = pushTo;
 
@@ -331,6 +338,17 @@ export function useAskConversation(deps: AskConversationDeps) {
   async function send(text: string) {
     const message = text.trim();
     if (message === "" || running.value) return;
+    // The walk's words never start a turn: an answer to its question is the section's, and words typed over a draft
+    // change that draft.
+    if (walk.awaiting.value !== null) {
+      walk.answer(message);
+      return;
+    }
+    const drafted = walk.draftedBlock.value;
+    if (drafted !== null) {
+      await walk.again(drafted.id, message);
+      return;
+    }
     // Typing instead of pressing a chip answers the question too.
     for (const item of items.value) if (item.kind === "ask") item.answered = true;
     push({ kind: "user", text: message });
@@ -357,6 +375,7 @@ export function useAskConversation(deps: AskConversationDeps) {
   /** Starts over in this campaign: the thread is replaced, so anything still running for the old one lands nowhere. */
   function newConversation() {
     stopTurn();
+    walk.leave();
     current = freshThread();
     items.value = current.items;
   }
@@ -366,6 +385,7 @@ export function useAskConversation(deps: AskConversationDeps) {
   // "Again" already under way keeps going and lands in the thread it started in.
   watch(() => deps.campaignId(), () => {
     stopTurn();
+    walk.leave();
     const parked = threads.get(keyOf());
     current = parked ?? freshThread();
     items.value = current.items;
@@ -564,5 +584,5 @@ export function useAskConversation(deps: AskConversationDeps) {
   /** The conversation's id on the server once its first turn has begun (what Ooru's clips are kept under), read when asked. */
   const sessionId = (): string | null => current.sessionId ?? null;
 
-  return { items, running, sessionId, generating, holding, speaking, freeLeft, send, choose, newConversation, handOff, openGenerator, setConcept, adjust, decide, cancel, confirm, quick, createPreview: previews.createPreview, actOnRow: previews.actOnRow, againPreview: previews.againPreview, discardPreview: previews.discardPreview, choosePreview: previews.choosePreview, retryPart, leavePart };
+  return { items, running, sessionId, walk, generating, holding, speaking, freeLeft, send, choose, newConversation, handOff, openGenerator, setConcept, adjust, decide, cancel, confirm, quick, createPreview: previews.createPreview, actOnRow: previews.actOnRow, againPreview: previews.againPreview, discardPreview: previews.discardPreview, choosePreview: previews.choosePreview, retryPart, leavePart };
 }

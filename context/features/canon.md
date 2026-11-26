@@ -170,9 +170,35 @@ words `forces`, `questions`) and `?backstory=<member>` resolve to the chapter th
   chapter, where `CanonReview` shows what to accept. An unknown title fails before anything is charged. No Suggest is
   offered where the server has no helper: a force's steps and a backstory's passages. The read's findings show above any
   chapter (`CanonReview mode="read"`).
-- **A new canon is led in** (`CanonWayIn`, `canonWayIn.ts`): until it has a pitch, three truths, a force and a secret with a
-  clue, the page shows four steps in place of the chapter, each writing into its real chapter, with "Bring in a book you
-  have" and "Let the Familiar walk you through it". **Skip to the chapters** is kept per campaign (`wayInDismissed`).
+- **Design it with me** (epic #1282, `src/lib/canon/canonWalk.ts`, the engine `src/composables/ask/useAskWalk.ts`) is a
+  wizard in the Familiar's pane, and the one guide through the whole canon: it replaced the way in (four steps for a new
+  canon) and the Familiar's "walk me through it" (one request with no state, which the helper read as a request for
+  truths). A first build put it on a page of its own and was taken out: it showed the chapters' fields one at a time,
+  which saves no writing, and writing is what the wizard is for (maintainer, 26 Nov 2026). See ask-grimoire.md, "Design
+  it with me", for the conversation; what belongs to the canon is here.
+  - **The sections**, in the contents' order with the premise split into its fields: pitch, themes, at the table, voice,
+    look, lines and veils, truths, forces, secrets with a clue, open questions, lore, arcs, peoples, habitats, then the
+    DM's notes on each character (one stop per party member, filled once its backstory holds a passage the DM wrote).
+    Each is **filled** (read from the canon, never stored, so finishing a section in its chapter ticks it), **skipped**
+    or **to do**; the walk resumes at the first stop to do.
+  - **Write it myself** writes the DM's answer as the section (`useWalkWrites.ts`): the pitch as its body, voice and look
+    as their text, one theme, table note, truth (known to all), force, secret, question, lore entry or arc per line, a
+    line or veil per line (`veil:` makes a veil), a character's notes as one untold DM passage. A written pitch, voice or
+    look is replaced only when asked. Peoples and habitats have no write from words: their block opens the chapter.
+  - **Enhance with AI** runs the section's helper with the DM's answer as the brief (see AI help: premise by section,
+    arcs, peoples, backstory), and its proposals are reviewed in the block by `CanonReview` on the walk's own scope.
+  - **The pitch comes first and cannot be skipped**: every draft reads it through the world block, so Enhance waits for
+    it (`draftHeldBecause`). **Habitats has no drafter yet**: the ecology model is being redesigned (#1283), and its
+    drafter comes on the new shape.
+  - **Skips** are `canon_walk_skips` (`20261126084426`): one row per campaign and section, DM-only, ringing the doorbell
+    under `CANON_KEY`, not copied with a demo. The section check is held equal to `WALK_SKIPPABLE` by `canonWalk.test.ts`. A
+    section written after it was skipped reads as filled. Skipping one character's notes stores nothing.
+  - **The ways in**: the Canon header's **Design it with me**, and the invite (`CanonWalkInvite`) above the Premise chapter,
+    never in place of it, while `invitesWalk`: the pitch is empty (however established the canon; a real campaign had
+    themes, voice, truths and forces and no pitch), or the canon is small and has a stop to do. Both open the Familiar on
+    the walk (`openWalk`) and show only where the DM may ask (`useCanAsk`): a table without AI writes its canon in the
+    chapters. "Not now" is kept per campaign in this browser (`walkInviteDismissed`, under the way in's old key, so a DM
+    who skipped that is not invited again).
 - **Rumours are not a chapter.** A rumour is a stage-1 quest: the quest tree already holds it, and a quest there can be
   hidden, rumoured or revealed (maintainer, 24 Nov 2026). A truth is true by definition; what the party hears and may
   not be so belongs on the quest tree.
@@ -206,7 +232,7 @@ premise entry never has it).
   a character spans arcs, so the part always lists the whole party (#1258 item 29; the entry's own Arc picker stays). The premise, How the world works, Peoples, Life,
   the table's lines and Deleted are never narrowed. A narrowed part (not Backstories) says "Showing <arc> only." in
   one quiet line, and its empty state "Nothing of this part is in <arc>." **The contents column's counts follow the
-  narrowing** (so they match the lists under it); the way in keeps reading the whole canon, because it asks whether
+  narrowing** (so they match the lists under it); Design it with me keeps reading the whole canon, because it asks whether
   the canon holds a thing at all. An entry that is open stays open when the DM moves it to another arc (the selection
   reads the whole list). A deleted arc lets go of the filter by itself.
 - **Search (#1258 item 21).** One field at the top of the page searches the whole canon: titles and bodies (plain text of
@@ -672,19 +698,30 @@ own `ai_system_prompts` row; the client reads each price through `canonSuggestio
   may name only those ids: a contradiction naming any other id (another campaign's, an invented one) is set aside whole,
   and one needs two distinct entries. An empty read is an answer and is charged; a canon of fewer than two entries skips
   the model and returns the loose ends free. Each finding links its entries to `/canon?entry=<id>`.
-- **Shape the world**, the walk of five steps, went in #1267: the way in leads a new canon, and "Walk me through building
-  my campaign's canon" is asked of the Familiar. Each step of the way in is done in place (#1279 item 1): the pitch is
-  written in `PremisePitch` inside step 1, because the guide stands in for the Premise chapter and a link to it was the
-  page already showing; no step may link to the chapter on screen.
+- **Shape the world**, the walk of five steps, went in #1267, and the way in that followed it went in #1282: Design it with
+  me (see The page) is the one guide, and every draft it offers is an ordinary run of the modes here, priced and confirmed
+  in the Familiar as any other. The walk itself costs nothing.
 - **Lore text is a passage** (#1279 item 2). Sorting a note into lore writes its text as the entry's first passage
   (`canon_lore_passages`, sort order 0), never to `canon_entries.body`, which the lore editor has no field for while the
   player's World tab renders it. A lore entry that still has a `body` shows it in "Text from before passages", with
   "Make this the first passage" (passage 0, the others shifted, then the body cleared).
-- **No Familiar on Arcs, Peoples or Life** (#1279 item 10): the canon helper has no mode for them (`canonSuggestionsAskAdapter`),
-  so the request came back as truths. Give one a mode before giving it a button again.
+- **Four more modes for Design it with me** (#1282, `20261126135058`, 1 credit each, each on its own price and prompt row):
+  - **Premise by section**: `premise` takes `kinds` (a non-empty list of premise kinds, else 400) and then drafts only
+    those, reading the DM's words as the brief for exactly them; the sanitizer drops any other kind, and the DM's words
+    become the pitch only when `kinds` is absent or names the pitch.
+  - **`arcs`** (`canon_arc_suggestion`): up to four arcs with a line, the question and the stakes, carrying a premise theme
+    only by an id it was given (an unknown id is dropped, the arc kept); accepted as planned, after the last arc.
+  - **`peoples`** (`canon_people_suggestion`): species chosen only from the campaign's own and those of the library books it
+    has switched on (`campaign_enabled_sources`, its edition, less `disabled_species_ids`), each with a share; an unknown
+    id, a repeat, or a share that would take the total past 100 is set aside with the reason. Creatures are never proposed
+    as a people but count towards the 100.
+  - **`backstory`** (`canon_backstory_suggestion`): up to three DM passages for one character (`party_member_id`, which
+    must be this campaign's: 404 before any credit is held), from the sheet, the player's Before play (wrapped as user
+    input) and the titles already written; accepted as untold passages at the end of the backstory.
+  - **Habitats still has no mode** (#1279 item 10): it waits for the ecology model of #1283.
 
 None of the three could be run against a model in the test environment (no AI keys): the tests cover everything around
-the model call, and the two new prompt rows need a run against a real key before they are trusted.
+the model call, and the new prompt rows (#1282's three among them) need a run against a real key before they are trusted.
 
 ## The look, shown (#1252)
 

@@ -56,8 +56,11 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useAskUiStore } from "@/stores/ui/ask";
+import { useCanonUiStore } from "@/stores/ui/canon";
 import { useModalStack } from "@/components/common/overlays/modalStack";
 import AskSurface from "@/components/ask/AskSurface.vue";
+import { stopChapterPath, type AskWalkView } from "@/lib/ask/askWalkCopy";
+import { stopKey, type WalkStopRef } from "@/lib/canon/canonWalk";
 import AskResultNotice from "@/components/ask/AskResultNotice.vue";
 
 const ui = useAskUiStore();
@@ -147,8 +150,32 @@ const voiceNote = computed(() => {
   return null;
 });
 
+/** What "Design it with me" shows the pane; the engine itself stays in the conversation. */
+const walkView = computed<AskWalkView>(() => ({
+  active: convo.walk.active.value,
+  progress: convo.walk.progress.value,
+  pitchWritten: convo.walk.progress.value.some((s) => s.step === "pitch" && s.state === "filled"),
+  awaiting: convo.walk.awaiting.value,
+  drafted: convo.walk.draftedBlock.value !== null,
+}));
+
+// The page follows the walk: as the Familiar asks about a section, the Canon opens its chapter and brings it into view.
+// Only on the Canon itself: a DM who has gone to another page is not pulled back by the next question.
+const canonUi = useCanonUiStore();
+let asked = 0;
+watch(
+  () => (convo.walk.current.value === null ? null : stopKey(convo.walk.current.value)),
+  () => {
+    const stop = convo.walk.current.value;
+    if (stop === null || route.name !== "canon") return;
+    canonUi.walkFocus = { step: stop.step, asked: ++asked };
+    void router.replace(stopChapterPath(stop));
+  },
+);
+
 const surfaceProps = computed(() => ({
   items: convo.items.value,
+  walk: walkView.value,
   adapters,
   running: convo.running.value,
   startingOverBlocked: convo.generating.value,
@@ -194,6 +221,15 @@ const surfaceHandlers = {
   decide: convo.decide,
   retry: (id: number, i: number) => void convo.retryPart(id, i),
   leave: convo.leavePart,
+  "walk-jump": (stop: WalkStopRef) => convo.walk.jump(stop),
+  "walk-leave": () => convo.walk.leave(),
+  "walk-decide": () => convo.walk.youDecide(),
+  "walk-ideas": () => convo.walk.justIdeas(),
+  "walk-skip": (stop: WalkStopRef) => void convo.walk.skip(stop),
+  "walk-write": (id: number, text: string) => void convo.walk.writeMyself(id, text),
+  "walk-enhance": (id: number, text: string) => void convo.walk.enhance(id, text),
+  "walk-again": (id: number) => void convo.walk.again(id),
+  "walk-next": (id: number) => void convo.walk.done(id),
   credits: (needed: number) => openOutOfCredits(needed),
   upgrade: () => void router.push("/billing"),
   review: (report: AskReportDraft) => {
@@ -235,6 +271,9 @@ watch(
   { immediate: true },
 );
 
+// "Design it with me" asked for from the Canon: the walk starts in the thread, nothing is charged.
+watch(() => ui.pendingWalk, (pending) => { if (pending && ui.takePendingWalk()) void convo.walk.start(); }, { immediate: true });
+
 // A request written into the box unsent (the Canon's Suggest) also starts a fresh conversation; the composer takes the text.
 watch(
   () => ui.prefill,
@@ -252,6 +291,15 @@ watch(
     surface.value?.focus();
   },
   { immediate: true },
+);
+
+// Each question of Design it with me is answered by typing: the box takes the focus as it is asked, or the DM's first
+// words land on the page's own shortcuts (a run on 26 Nov 2026 opened the sound deck that way).
+watch(
+  () => convo.walk.awaitingId.value,
+  (id) => {
+    if (id !== null) ui.focusRequest += 1;
+  },
 );
 
 // A conversation belongs to one campaign: the old one's answer must not carry on speaking in the new.

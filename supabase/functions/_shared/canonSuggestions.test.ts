@@ -4,6 +4,10 @@ import {
   MAX_FORCE_STEPS,
   MAX_QUESTION_SUGGESTIONS,
   MAX_TRUTH_SUGGESTIONS,
+  readPremiseKinds,
+  sanitizeArcs,
+  sanitizeBackstory,
+  sanitizePeoples,
   sanitizeClues,
   sanitizeForces,
   sanitizeLore,
@@ -294,5 +298,132 @@ describe("sanitizeSecrets", () => {
     ] }, spots, ["known"]);
     expect(out.suggestions.map((s) => s.title)).toEqual(["Fresh"]);
     expect(out.setAside).toEqual([{ claim: "No clues", reason: expect.stringContaining("no clues") }]);
+  });
+});
+
+describe("premise by section (#1282)", () => {
+  // Bug caught: "Enhance with AI" on the themes section also wrote a pitch and a voice the DM never asked to change.
+  it("keeps only the kinds asked for, whatever else the model wrote", () => {
+    const out = sanitizePremise({ suggestions: [{ kind: "theme", text: "Mercy" }, { kind: "pitch", text: "A pitch" }, { kind: "voice", text: "Dry" }] }, [], ["theme"]);
+    expect(out.suggestions).toEqual([{ kind: "theme", text: "Mercy" }]);
+  });
+
+  // Bug caught: a narrowing that is not a list of real kinds (empty, a string, a made-up kind) was accepted and widened to the whole starter.
+  it.each([[[]], ["theme"], [["theme", "plot"]], [[1]]])("refuses kinds %j", (kinds) => {
+    expect(readPremiseKinds(kinds)).toEqual({ ok: false });
+  });
+
+  it("reads absent kinds as the whole starter and drops a repeated kind", () => {
+    expect(readPremiseKinds(undefined)).toEqual({ ok: true, kinds: null });
+    expect(readPremiseKinds(["theme", "theme", "voice"])).toEqual({ ok: true, kinds: ["theme", "voice"] });
+  });
+});
+
+describe("sanitizePremise, in sections", () => {
+  // Bug caught: a walk draft of the pitch keeping only the first version, so the DM had nothing to choose between
+  // (maintainer, 26 Nov 2026: "the first closer to what they typed, the remaining slots a bit more creative").
+  it("keeps up to three versions of a pitch when drafting by section, and one for the whole starter", () => {
+    const versions = { suggestions: ["One.", "Two.", "Three.", "Four."].map((text) => ({ kind: "pitch", text })) };
+    expect(sanitizePremise(versions, [], ["pitch"]).suggestions.map((s) => s.text)).toEqual(["One.", "Two.", "Three."]);
+    expect(sanitizePremise(versions, []).suggestions.filter((s) => s.kind === "pitch")).toHaveLength(1);
+  });
+});
+
+describe("sanitizeArcs", () => {
+  const themes = [{ id: "t1", text: "Mercy" }];
+
+  // Bug caught: an invented theme id became a tie the database refuses (or, worse, a tie to a row of another campaign).
+  it("keeps the arc but drops a theme id it was not given", () => {
+    const out = sanitizeArcs({ suggestions: [{ name: "The Thaw", summary: "Winter ends", theme_id: "t1" }, { name: "The Frost", summary: "Winter stays", theme_id: "elsewhere" }] }, themes, []);
+    expect(out.suggestions.map((a) => [a.name, a.themeId])).toEqual([["The Thaw", "t1"], ["The Frost", null]]);
+  });
+
+  // Bug caught: an arc the campaign already has was proposed again, so accepting made a twin.
+  it("skips a name the campaign already has, case aside, and one repeated in the answer", () => {
+    const out = sanitizeArcs({ suggestions: [{ name: "the thaw", summary: "x" }, { name: "New", summary: "x" }, { name: "NEW", summary: "y" }] }, themes, ["The Thaw"]);
+    expect(out.suggestions.map((a) => a.name)).toEqual(["New"]);
+  });
+
+  // Bug caught: the name's 80-character limit was not held, so the arc could not be written.
+  it("cuts a name to 80 characters and keeps six arcs at most", () => {
+    const many = Array.from({ length: 9 }, (_, i) => ({ name: `${i}${"n".repeat(100)}`, summary: "s" }));
+    const out = sanitizeArcs({ suggestions: many }, themes, []);
+    expect(out.suggestions).toHaveLength(6);
+    expect(out.suggestions[0]!.name).toHaveLength(80);
+  });
+
+  // Bug caught: an arc with no summary or no name was offered as an empty card.
+  it("drops an arc with no name or no summary", () => {
+    expect(sanitizeArcs({ suggestions: [{ name: "", summary: "x" }, { name: "A", summary: " " }] }, themes, []).suggestions).toEqual([]);
+  });
+});
+
+describe("sanitizePeoples", () => {
+  const candidates = [
+    { kind: "species" as const, id: "s-own", name: "Vell" },
+    { kind: "library_species" as const, id: "lib-elf", name: "Elf" },
+    { kind: "library_species" as const, id: "lib-orc", name: "Orc" },
+  ];
+
+  // Bug caught: the model's invented id, or a real id under the wrong kind, was written as a people.
+  it("sets aside an id that is not a candidate, or is one under the other kind", () => {
+    const out = sanitizePeoples({ suggestions: [
+      { kind: "species", record_id: "nope", percent: 10 },
+      { kind: "library_species", record_id: "s-own", percent: 10 },
+      { kind: "library_species", record_id: "lib-elf", percent: 10 },
+    ] }, candidates, []);
+    expect(out.suggestions.map((p) => p.recordId)).toEqual(["lib-elf"]);
+    expect(out.setAside).toHaveLength(2);
+    expect(out.setAside[0]!.reason).toContain("not a species");
+  });
+
+  // Bug caught: a record already listed was proposed again (the table refuses it unless it has its own name).
+  it("sets aside a record and name already listed, but offers the same record under a new culture name", () => {
+    const listed = [{ kind: "library_species", recordId: "lib-elf", name: null, percent: 20 }];
+    const out = sanitizePeoples({ suggestions: [
+      { kind: "library_species", record_id: "lib-elf", percent: 10 },
+      { kind: "library_species", record_id: "lib-elf", name: "The Vael", percent: 10 },
+    ] }, candidates, listed);
+    expect(out.suggestions.map((p) => p.name)).toEqual(["The Vael"]);
+    expect(out.setAside[0]!.reason).toBe("this people is already listed");
+  });
+
+  // Bug caught: shares past 100 reached the database, whose commit-time check then failed the accept.
+  it("keeps the shares to 100 with what is listed, setting aside the last ones that do not fit", () => {
+    const listed = [{ kind: "monster", recordId: "m1", name: null, percent: 50 }];
+    const out = sanitizePeoples({ suggestions: [
+      { kind: "species", record_id: "s-own", percent: 30 },
+      { kind: "library_species", record_id: "lib-elf", percent: 20 },
+      { kind: "library_species", record_id: "lib-orc", percent: 1 },
+    ] }, candidates, listed);
+    expect(out.suggestions.map((p) => p.percent)).toEqual([30, 20]);
+    expect(out.setAside).toEqual([{ claim: "Orc", reason: "its 1% would take the peoples past 100%" }]);
+  });
+
+  // Bug caught: a share of 0, a negative or a non-number was written as a people with no weight.
+  it("skips a share outside 1 to 100", () => {
+    const out = sanitizePeoples({ suggestions: [
+      { kind: "species", record_id: "s-own", percent: 0 },
+      { kind: "species", record_id: "s-own", percent: 101 },
+      { kind: "species", record_id: "s-own", percent: "40" },
+    ] }, candidates, []);
+    expect(out.suggestions).toEqual([]);
+  });
+});
+
+describe("sanitizeBackstory", () => {
+  // Bug caught: a passage the backstory already has, or one with no words, was offered again.
+  it("skips a repeated title and a passage with no body, and keeps five at most", () => {
+    const out = sanitizeBackstory({ suggestions: [
+      { title: "The fire", body: "x" },
+      { title: "A", body: "a" }, { title: "B", body: "b" }, { title: "", body: "c" }, { title: "C", body: " " }, { title: "D", body: "d" }, { title: "E", body: "e" },
+      { title: "F", body: "f" }, { title: "G", body: "g" },
+    ] }, ["the fire"]);
+    expect(out.suggestions.map((p) => p.title)).toEqual(["A", "B", "D", "E", "F"]);
+  });
+
+  // Bug caught: paragraphs were flattened into one line.
+  it("keeps the paragraph breaks of a body", () => {
+    expect(sanitizeBackstory({ suggestions: [{ title: "T", body: "One.\n\nTwo." }] }, []).suggestions[0]!.body).toBe("One.\n\nTwo.");
   });
 });

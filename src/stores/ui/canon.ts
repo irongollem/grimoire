@@ -62,8 +62,17 @@ export const useCanonUiStore = defineStore("ui:canon", () => {
   /** What Tonight is narrowed to (#1258 item 1); the default is where the party is. */
   const tonightScope = ref<TonightScope>(DEFAULT_TONIGHT_SCOPE);
 
-  /** Campaigns whose DM chose "Skip to the chapters" on the way in; kept, since a skipped way in should stay skipped. */
-  const wayInDismissed = useStorage<Record<string, boolean>>("canon-way-in-dismissed", {}, safeLocalStorage());
+  /**
+   * Campaigns whose DM chose "Not now" on the invitation to Design it with me (#1282). The storage key is the old way
+   * in's, kept on purpose: a DM who skipped the way in must not be invited again.
+   */
+  const walkInviteDismissed = useStorage<Record<string, boolean>>("canon-way-in-dismissed", {}, safeLocalStorage());
+
+  /**
+   * The section the Familiar is asking about in Design it with me, which the page brings into view: a walk step's id
+   * (`data-walk-section` on the premise's fields), with a counter so asking about the same section again scrolls again.
+   */
+  const walkFocus = ref<{ step: string; asked: number } | null>(null);
 
   const hasActiveFilters = computed(
     () => arcFilter.value !== null || tonightScope.value !== DEFAULT_TONIGHT_SCOPE || query.value.trim() !== "",
@@ -83,7 +92,7 @@ export const useCanonUiStore = defineStore("ui:canon", () => {
   return {
     tableFactFilter, tableFactsHasActiveFilters, resetTableFactFilters,
     lastPart, arcFilter, query, tonightScope, hasActiveFilters, resetFilters,
-    truthFilter, truthsGrouped, truthsHaveActiveFilters, resetTruthFilters, secretsView, wayInDismissed,
+    truthFilter, truthsGrouped, truthsHaveActiveFilters, resetTruthFilters, secretsView, walkInviteDismissed, walkFocus,
     loreKindFilter, loreHasActiveFilters, resetLoreFilters,
     fieldGuideKingdom, fieldGuideHasActiveFilters, resetFieldGuideFilters,
   };

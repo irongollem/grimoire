@@ -34,8 +34,11 @@
     <!-- Why Ooru went quiet, in the context line's own voice. -->
     <p v-if="voice.note" class="shrink-0 border-b border-border/60 px-4 py-1.5 text-caption text-muted-foreground" role="status" data-testid="ask-voice-note">{{ voice.note }}</p>
 
+    <AskWalkProgress v-if="walk?.active" :progress="walk.progress" @jump="emit('walk-jump', $event)" @leave="emit('walk-leave')" />
+
     <AskThread
       :items="items"
+      :walk="walk"
       :adapters="adapters"
       :running="running"
       :replayable="voice.shown && voice.note === null"
@@ -59,9 +62,16 @@
       @credits="emit('credits', $event)"
       @upgrade="emit('upgrade')"
       @review="emit('review', $event)"
+      @walk-decide="emit('walk-decide')"
+      @walk-ideas="emit('walk-ideas')"
+      @walk-skip="emit('walk-skip', $event)"
+      @walk-write="(id, text) => emit('walk-write', id, text)"
+      @walk-enhance="(id, text) => emit('walk-enhance', id, text)"
+      @walk-again="emit('walk-again', $event)"
+      @walk-next="emit('walk-next', $event)"
     />
 
-    <AskComposer ref="composer" :running="running" :line="allowanceLine" @send="emit('send', $event)" />
+    <AskComposer ref="composer" :running="running" :line="allowanceLine" :placeholder="walk ? composerPlaceholder(walk) : null" @send="emit('send', $event)" />
   </div>
 </template>
 
@@ -77,6 +87,9 @@ import type { AskItem } from "@/composables/ask/useAskConversation";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AskThread from "@/components/ask/AskThread.vue";
 import AskComposer from "@/components/ask/AskComposer.vue";
+import AskWalkProgress from "@/components/ask/AskWalkProgress.vue";
+import { composerPlaceholder, type AskWalkView } from "@/lib/ask/askWalkCopy";
+import type { WalkStopRef } from "@/lib/canon/canonWalk";
 
 const props = defineProps<{
   /** In the right-hand dock, whose tab strip closes it: no close of its own. */
@@ -93,6 +106,8 @@ const props = defineProps<{
   campaignName: string;
   pageTitle: string | null;
   allowanceLine: string;
+  /** "Design it with me" (#1282): its progress line, and what the composer and the cards read. */
+  walk?: AskWalkView;
   /** Ooru reading replies aloud: the switch (hidden where voices are off), its price, and why it went quiet. */
   voice: { shown: boolean; on: boolean; perMinute: number | null; note: string | null; playingText: string | null };
 }>();
@@ -121,6 +136,15 @@ const emit = defineEmits<{
   voice: [on: boolean];
   /** Read this reply of Ooru's again. */
   replay: [text: string];
+  "walk-jump": [stop: WalkStopRef];
+  "walk-leave": [];
+  "walk-decide": [];
+  "walk-ideas": [];
+  "walk-skip": [stop: WalkStopRef];
+  "walk-write": [blockId: number, text: string];
+  "walk-enhance": [blockId: number, text: string];
+  "walk-again": [blockId: number];
+  "walk-next": [blockId: number];
 }>();
 
 const voiceLabel = computed(() => {

@@ -14,7 +14,7 @@ import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 
 /**
  * Rows of `ai_generation_credit_costs` a quote may price: the generators' keys as production has them (23 Nov 2026), plus
- * `canon_secret_suggestion` and `canon_read_through` (#1255 item 7), which need their migration before they are charged.
+ * `canon_secret_suggestion` and `canon_read_through` (#1255 item 7) and the arc, people and backstory helpers (#1282), which need their migration before they are charged.
  * A key not in this list does not compile, because `costOf` would quote it as 1 credit whatever it costs.
  */
 export type QuoteCostKey =
@@ -26,7 +26,8 @@ export type QuoteCostKey =
   | "recipe_generation" | "room_generation" | "quest_beat_generation" | "npc_relationship_suggestion"
   | "scriptorium_draft" | "music_track" | "map_style_generation" | "complication_generation"
   | "canon_premise_suggestion" | "canon_truth_suggestion" | "canon_clue_suggestion" | "canon_question_suggestion"
-  | "canon_force_suggestion" | "canon_lore_suggestion" | "canon_secret_suggestion" | "canon_read_through";
+  | "canon_force_suggestion" | "canon_lore_suggestion" | "canon_secret_suggestion" | "canon_read_through"
+  | "canon_arc_suggestion" | "canon_people_suggestion" | "canon_backstory_suggestion";
 
 /** The picture size both entity pictures render at (`PURPOSES` in useImageGeneration). */
 const ART_SIZE = "1024x1536";

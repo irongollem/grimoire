@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import { ASK_OFF_TOPIC_MESSAGE, type AskEvent, type AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskPreview, AskPreviewAdapter, AskQuote, AskRunResult } from "@/lib/ask/askAdapter";
+import { fakeWalkPorts } from "@/test/askWalkPorts";
 import { refusalMessage, SPEAKING_MAX_MS, SPEAKING_MS_PER_CHAR, SPEAKING_TAIL_MS, speakingUntil, useAskConversation, type AskConversationDeps, type AskItem } from "./useAskConversation";
 
 function sse(events: unknown[]): Response {
@@ -32,6 +33,7 @@ function setup(over: { responses?: Response[]; quote?: AskQuote; run?: AskAdapte
     context: () => ({ route: "/dashboard" }),
     adapters: { adapterFor: (id) => (id === "npc" && !over.lazy ? adapter : undefined), hasAdapter: () => false, loadAdapter: async (id) => (id === "npc" ? adapter : undefined), screenFor: () => undefined },
     routePath: () => "/dashboard",
+    walk: fakeWalkPorts().ports,
     transport,
     onFinished,
     ...(over.onReplied ? { onReplied: over.onReplied } : {}),
@@ -475,7 +477,7 @@ describe("useAskConversation: campaign, allowance and withheld proposals", () =>
     const adapter: AskPreviewAdapter = { id: "npc", quote: () => readyQuote, preview: () => (outcomes.shift() ?? outcomes[0])() };
     const convo = useAskConversation({
       campaignId: () => campaign.value, campaignName: () => "K", context: () => ({ route: "/" }),
-      adapters: { adapterFor: () => adapter, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined }, routePath: () => "/",
+      adapters: { adapterFor: () => adapter, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined }, routePath: () => "/", walk: fakeWalkPorts().ports,
       transport: vi.fn(async () => sse([{ type: "propose", proposal }, done])),
     });
     await convo.send("a baker");
@@ -662,7 +664,7 @@ describe("useAskConversation: a card a button opened", () => {
       const adapter: AskAdapter = { id: "npc", quote, run, quick };
       const convo = useAskConversation({
         campaignId: () => "c1", campaignName: () => "K", context: () => ({ route: "/" }),
-        adapters: { adapterFor: () => adapter, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined }, routePath: () => "/", transport: vi.fn(async () => sse([done])),
+        adapters: { adapterFor: () => adapter, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined }, routePath: () => "/", walk: fakeWalkPorts().ports, transport: vi.fn(async () => sse([done])),
       });
       convo.openGenerator({ generatorId: "npc", inputs: { related_npc_id: "n9", relation: "child" } });
       const card = convo.items.value.find((i) => i.kind === "proposal");
@@ -717,6 +719,7 @@ describe("useAskConversation: a held generation", () => {
       context: () => ({ route: "/dashboard" }),
       adapters: { adapterFor: () => adapter, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined },
       routePath: () => "/dashboard",
+      walk: fakeWalkPorts().ports,
       transport,
       onFinished,
     });
@@ -926,7 +929,7 @@ describe("useAskConversation: a held generation", () => {
     const adapter: AskPreviewAdapter = { id: "npc", quote: () => readyQuote, preview: () => pending };
     const convo = useAskConversation({
       campaignId: () => "c1", campaignName: () => "K", context: () => ({ route: "/" }),
-      adapters: { adapterFor: () => adapter, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined }, routePath: () => "/",
+      adapters: { adapterFor: () => adapter, hasAdapter: () => false, loadAdapter: async () => undefined, screenFor: () => undefined }, routePath: () => "/", walk: fakeWalkPorts().ports,
       transport: vi.fn(async () => sse([{ type: "propose", proposal }, done])),
     });
     await convo.send("x");

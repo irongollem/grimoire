@@ -8,9 +8,10 @@ import type { User } from "@supabase/supabase-js";
 import { useAuthStore } from "@/stores/auth";
 import { useAskUiStore } from "@/stores/ui/ask";
 
-const route = { fullPath: "/dashboard", path: "/dashboard", query: {}, meta: { title: "Dashboard" } };
+const route: { fullPath: string; path: string; name?: string; query: object; meta: { title: string } } = { fullPath: "/dashboard", path: "/dashboard", query: {}, meta: { title: "Dashboard" } };
 const push = vi.fn();
-vi.mock("vue-router", () => ({ useRoute: () => route, useRouter: () => ({ push }), RouterLink: { template: "<a><slot /></a>" } }));
+const replace = vi.fn();
+vi.mock("vue-router", () => ({ useRoute: () => route, useRouter: () => ({ push, replace }), RouterLink: { template: "<a><slot /></a>" } }));
 vi.mock("@/composables/useBreakpoint", async (importOriginal) => ({ ...(await importOriginal<object>()), useIsMobile: () => ref(false) }));
 vi.mock("@/lib/motion", () => ({ railTransition: () => ({}), drawerTransition: () => ({}), prefersReducedMotion: () => true }));
 vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ openOutOfCredits: vi.fn() }) }));
@@ -48,6 +49,12 @@ const stoppedClips: string[] = [];
 let voicePlayer = (_src: string) => ({ done: Promise.resolve(), stop: () => undefined as void });
 
 import FamiliarAvatar from "@/components/ask/FamiliarAvatar.vue";
+vi.mock("@/composables/ask/useAskWalkPorts", async () => {
+  const { fakeWalkPorts } = await import("@/test/askWalkPorts");
+  return { useAskWalkPorts: () => fakeWalkPorts().ports };
+});
+// The progress line reads the skips it can bring back; no canon is behind this panel.
+vi.mock("@/composables/canon/useCanonWalkSkips", () => ({ useCanonWalkSkipActions: () => ({ bringBack: { mutate: vi.fn() } }) }));
 vi.mock("@/components/ask/AskGreeting.vue", () => ({ default: { template: '<p data-testid="ask-greeting-stub" />' } }));
 
 import AskPanel from "./AskPanel.vue";
@@ -62,7 +69,9 @@ describe("AskPanel", () => {
     confirmStartOver.mockClear().mockResolvedValue(true);
     transport.mockClear();
     push.mockClear();
+    replace.mockClear();
     route.fullPath = "/dashboard";
+    route.name = undefined;
     voiceTransport.mockClear();
     stoppedClips.length = 0;
     voicePlayer = () => ({ done: Promise.resolve(), stop: () => undefined });
@@ -80,6 +89,70 @@ describe("AskPanel", () => {
     expect(transport).toHaveBeenCalledTimes(1);
     expect(w.findAll('[data-testid="ask-user-message"]').map((m) => m.text())).toEqual(["who is Mara"]);
     w.unmount();
+  });
+
+  // Bug caught: the Canon's "Design it with me" opening the panel and leaving the walk waiting in the store, so nothing
+  // is asked; or the request taken twice (a remount) and the walk started twice.
+  it("starts the walk once when a page asks for it, and asks the model nothing", async () => {
+    const ui = useAskUiStore();
+    ui.openWalk();
+    const w = mount(AskPanel, { global: { stubs } });
+    await flushPromises();
+    expect(ui.pendingWalk).toBe(false);
+    expect(w.text()).toContain("design your campaign together");
+    // The walk is drawn in the pane: its progress line, and the first question as a block of the thread.
+    expect(w.find("[data-testid=walk-progress]").exists()).toBe(true);
+    expect(w.find("[data-testid=walk-question]").exists()).toBe(true);
+    expect(transport).not.toHaveBeenCalled();
+    w.unmount();
+  });
+
+  // Bug caught: a walk question asked with the focus elsewhere (on the button just pressed, or the page), so the DM's
+  // answer typed straight away fired the page's shortcuts instead (a live run opened the sound deck that way).
+  it("puts the focus in the box each time the walk asks a question", async () => {
+    const ui = useAskUiStore();
+    ui.openWalk();
+    const opened = ui.focusRequest;
+    const w = mount(AskPanel, { global: { stubs } });
+    await flushPromises();
+    expect(w.find("[data-testid=walk-question]").exists()).toBe(true);
+    expect(ui.focusRequest).toBeGreaterThan(opened);
+    w.unmount();
+  });
+
+  // Bug caught: the follow-up asked about the same stop as the question before it, so the focus watcher (keyed on the
+  // stop) stayed quiet and the DM's answer typed straight away landed on the page's shortcuts.
+  it("puts the focus back in the box when a thin answer is followed up", async () => {
+    const ui = useAskUiStore();
+    ui.openWalk();
+    const w = mount(AskPanel, { global: { stubs } });
+    await flushPromises();
+    const before = ui.focusRequest;
+    await w.get('[data-testid="ask-input"]').setValue("A drowned kingdom");
+    await w.get('[data-testid="ask-input"]').trigger("keydown", { key: "Enter" });
+    await flushPromises();
+    expect(w.findAll("[data-testid=walk-question]")).toHaveLength(2);
+    expect(ui.focusRequest).toBeGreaterThan(before);
+    w.unmount();
+  });
+
+  // Bug caught: the page behind staying put while the Familiar asks about a section (the DM cannot see what is being
+  // written); or a DM who went to another page being pulled back to the Canon by the next question.
+  it("brings the asked section's chapter into view on the Canon, and nowhere else", async () => {
+    route.name = "canon";
+    useAskUiStore().openWalk();
+    const onCanon = mount(AskPanel, { global: { stubs } });
+    await flushPromises();
+    expect(replace).toHaveBeenCalledWith("/canon/premise");
+    onCanon.unmount();
+
+    replace.mockClear();
+    route.name = "npcs";
+    useAskUiStore().openWalk();
+    const elsewhere = mount(AskPanel, { global: { stubs } });
+    await flushPromises();
+    expect(replace).not.toHaveBeenCalled();
+    elsewhere.unmount();
   });
 
   // Bug caught: Suggest sending the request itself, or leaving the box empty, so the DM could not change it first.

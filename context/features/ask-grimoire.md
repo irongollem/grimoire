@@ -98,6 +98,30 @@ The owl in the Familiar box is Ooru, and it can read its replies aloud in a voic
 - The owl moves while the words arrive and while Ooru reads them. **A new turn silences the answer before**, however it starts (typed, a chip, a question carried over): one watch on the conversation's `running`, not a call at each way in. A new conversation and a change of campaign silence it too.
 - The queue, the clip fetch and the stop-asking flags (out of credits, allowance spent, voices off) are the table's own player (`useClipQueue`, `src/composables/voices/`), shared rather than copied; a change of signed-in account stops the audio and forgets the last account's flags.
 
+## Design it with me (#1282)
+
+A wizard through the DM's whole canon, run by the Familiar (the canon's half is in canon.md, "Design it with me"). The
+maintainer's words: "it acts like a wizard and we can answer in a few short sentences and then the AI does the rest per
+section ... it needs to feel like you are discussing with your familiar and he helps fill it all since its a lot of writing."
+
+- **Scripted, not chatted.** `useAskWalk` (`src/composables/ask/`, made inside the conversation like `useAskPreviews`,
+  its canon reads and writes behind `AskWalkPorts` / `useAskWalkPorts`) asks each section's question (`question` on the
+  step in `canonWalk.ts`) as a `walk-question` item. While a question waits, what the DM types is its answer
+  (`send` hands it to the walk) and starts no `ask-turn`, so the walk costs none of the day's free questions; only
+  Enhance calls a model.
+- **A section block** (`walk-block`) follows each answer: **Write it myself** (the answer becomes the section, free),
+  **Enhance with AI** (the section's `suggest-canon` mode, the answer as the brief; the price is on the button before
+  anything is spent, from `canonSuggestionsQuote`, and the gate is `useAskGate` as for any card) or **Skip**. A drafted
+  block shows `CanonReview` on the walk's scope (`walkScope`); while it is the newest block, typed words are a change
+  ("Change: …" added to the brief) and Again runs it. **You decide** answers with nothing (the draft reads the pitch and the
+  canon alone); it is not offered on lore, whose draft needs words to title it.
+- **One draft at a time**, and none while another generation runs. The block counts what it has spent.
+- **The progress line** under the pane's header lists every section with its state; a press jumps there, a skipped one
+  can be brought back, and **Leave the walk** ends it (the thread stays). A new conversation or a change of campaign ends
+  it too. Starting again resumes at the first section to do, since filled is read from the canon.
+- **Ways in**: the store's `openWalk()`, called by the Canon header's "Design it with me" and its invite; the panel takes
+  the request once and starts the walk.
+
 ## Not built yet
 
 - Tools that work inside an open editor (text enhance, the Illuminator, brush tips, a sculpted miniature) are not offered.

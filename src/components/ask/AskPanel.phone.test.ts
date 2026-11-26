@@ -16,6 +16,10 @@ vi.mock("@/ai/ask/useAskAdapters", () => ({ useAskAdapters: () => ({ adapterFor:
 
 vi.mock("@/composables/table/useTableVoice", async (importOriginal) => ({ ...(await importOriginal<object>()), useTableVoiceRates: () => ({ data: ref(undefined) }) }));
 
+vi.mock("@/composables/ask/useAskWalkPorts", async () => {
+  const { fakeWalkPorts } = await import("@/test/askWalkPorts");
+  return { useAskWalkPorts: () => fakeWalkPorts().ports };
+});
 vi.mock("@/components/ask/AskGreeting.vue", () => ({ default: { template: '<p data-testid="ask-greeting-stub" />' } }));
 
 import AskPanel from "./AskPanel.vue";

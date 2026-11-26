@@ -2,7 +2,7 @@ import { serve } from "std/http/server.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { rulesetContextKey } from "../_shared/gameSystem.ts";
+import { gameSystemEdition, rulesetContextKey } from "../_shared/gameSystem.ts";
 import { fetchCreditCost, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
@@ -25,14 +25,21 @@ import type { AiProvenance } from "../_shared/provenance/types.ts";
 import {
   clueShape,
   forceShape,
+  arcShape,
+  backstoryShape,
   isLoreKind,
   loreShape,
   MAX_PREMISE_SUGGESTIONS,
+  peopleShape,
   premiseShape,
   questionShape,
+  readPremiseKinds,
+  sanitizeArcs,
+  sanitizeBackstory,
   sanitizeClues,
   sanitizeForces,
   sanitizeLore,
+  sanitizePeoples,
   sanitizePremise,
   sanitizeQuestions,
   sanitizeSecrets,
@@ -42,9 +49,13 @@ import {
   type ForceQuestRef,
   type ForceWho,
   type KnowerCandidate,
+  type ListedPeople,
   type LoreKind,
+  type PeopleCandidate,
   type SpotCandidate,
+  type ThemeCandidate,
 } from "../_shared/canonSuggestions.ts";
+import { canonDigestLines, DIGEST_MAX_ENTRIES } from "../_shared/canonDigest.ts";
 import { looseEndFindings, readShape, sanitizeContradictions, type ReadFinding } from "../_shared/canonReadThrough.ts";
 import type { LooseClue, LooseEntry } from "../_shared/canonLooseEnds.ts";
 
@@ -68,9 +79,20 @@ const admin = createClient(
 
 interface CanonCampaign extends BaseCampaign {
   game_system: string | null;
+  disabled_species_ids: string[] | null;
 }
 
-type Mode = "premise" | "truths" | "clues" | "questions" | "forces" | "lore" | "secrets" | "read";
+interface BackstoryMember {
+  name: string;
+  class: string | null;
+  subclass: string | null;
+  subrace: string | null;
+  level: number | null;
+  species_id: string | null;
+  player_description: string | null;
+}
+
+type Mode = "premise" | "truths" | "clues" | "questions" | "forces" | "lore" | "secrets" | "read" | "arcs" | "peoples" | "backstory";
 
 const MODES: Record<Mode, { promptRow: string; ledger: string }> = {
   premise: { promptRow: "canon_premise", ledger: "canon_premise_suggestion" },
@@ -80,6 +102,9 @@ const MODES: Record<Mode, { promptRow: string; ledger: string }> = {
   forces: { promptRow: "canon_forces", ledger: "canon_force_suggestion" },
   lore: { promptRow: "canon_lore", ledger: "canon_lore_suggestion" },
   secrets: { promptRow: "canon_secrets", ledger: "canon_secret_suggestion" },
+  arcs: { promptRow: "canon_arcs", ledger: "canon_arc_suggestion" },
+  peoples: { promptRow: "canon_peoples", ledger: "canon_people_suggestion" },
+  backstory: { promptRow: "canon_backstory", ledger: "canon_backstory_suggestion" },
   // "Read it through" is priced as its own row: it reads the whole canon, so it is not a suggester's price.
   read: { promptRow: "canon_read_through", ledger: "canon_read_through" },
 };
@@ -96,6 +121,12 @@ const MAX_TEXT_CHARS = 4000;
 /** "Read it through" lists this many entries to the model, each with this much of its text. */
 const MAX_READ_ENTRIES = 150;
 const READ_EXCERPT_CHARS = 300;
+const MAX_ARCS = 30;
+const MAX_THEMES = 20;
+const MAX_LIBRARY_SPECIES = 150;
+const MAX_CUSTOM_SPECIES = 60;
+const MAX_PASSAGES = 40;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Every read is filtered by campaign in the query: the service-role client has no RLS to lean on. */
 async function readRows<T>(query: PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
@@ -182,6 +213,52 @@ function spotLinesWithIds(spots: SpotCandidate[], beatQuest: Map<string, string>
   }).join("\n");
 }
 
+/**
+ * What a walk draft asks for besides its section (#1282): range, so a DM who wrote little still has real choices. The
+ * caps are each mode's own (`MAX_*` in canonSuggestions.ts); the model is told to fill them.
+ */
+const WALK_RANGE = "Your first job is to convert what the DM told you: every concrete fact, name or idea in their words becomes its own proposal, developed into a full entry but keeping its meaning, before anything of your own. " +
+  "Then fill the rest with new proposals, each a bolder, more inventive step, still consistent with everything above, so there are at least five where the format allows more than one (three versions for a pitch, voice or look: the first closest to the DM's words). " +
+  "The DM keeps only what they like.";
+
+/** The canon beyond its premise, as the digest lines every helper reads (`_shared/canonDigest.ts`). */
+async function loadCanonDigest(db: SupabaseClient, campaignId: string): Promise<string[]> {
+  const [rows, arcs] = await Promise.all([
+    readRows<{ part: string; title: string; body: string | null; closed_as: string | null }>(
+      db.from("canon_entries").select("part, title, body, closed_as").eq("campaign_id", campaignId).neq("part", "premise")
+        .order("part", { ascending: true }).order("sort_order", { ascending: true }).limit(DIGEST_MAX_ENTRIES * 2),
+    ),
+    readRows<{ name: string; question: string | null; status: string }>(
+      db.from("canon_arcs").select("name, question, status").eq("campaign_id", campaignId).order("sort_order", { ascending: true }).limit(MAX_ARCS),
+    ),
+  ]);
+  const nameOf = await loadMentionNames(db, campaignId, rows.flatMap((r) => collectMentions(r.body)));
+  return canonDigestLines(rows.map((r) => ({ part: r.part, title: r.title, text: toPlainText(r.body, nameOf), closed: r.closed_as !== null })), arcs);
+}
+
+/** The source books a campaign has switched on, plus the always-on bundle, as `source_document_key`s. */
+async function enabledSourceKeys(db: SupabaseClient, campaignId: string): Promise<string[]> {
+  const rows = await readRows<{ source_slug: string }>(db.from("campaign_enabled_sources").select("source_slug").eq("campaign_id", campaignId));
+  return ["grimoire-bundled", ...rows.map((r) => r.source_slug)];
+}
+
+/** The species a campaign may use as a people: its own, and the shared books' it has switched on (opt-in per source). */
+async function loadPeopleCandidates(db: SupabaseClient, campaign: CanonCampaign): Promise<PeopleCandidate[]> {
+  const edition = gameSystemEdition(campaign.game_system);
+  const sourceKeys = await enabledSourceKeys(db, campaign.id);
+  let library = db.from("library_species").select("id, name").in("source_document_key", sourceKeys);
+  if (edition) library = library.or(`ruleset.is.null,ruleset.eq.${edition}`);
+  const [own, shared] = await Promise.all([
+    readRows<{ id: string; name: string }>(db.from("species").select("id, name").eq("campaign_id", campaign.id).order("name", { ascending: true }).limit(MAX_CUSTOM_SPECIES)),
+    readRows<{ id: string; name: string }>(library.order("name", { ascending: true }).limit(MAX_LIBRARY_SPECIES)),
+  ]);
+  const disabled = new Set(campaign.disabled_species_ids ?? []);
+  return [
+    ...own.map((r) => ({ kind: "species" as const, id: r.id, name: r.name })),
+    ...shared.map((r) => ({ kind: "library_species" as const, id: r.id, name: r.name })),
+  ].filter((c) => !disabled.has(c.id));
+}
+
 serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
@@ -199,6 +276,12 @@ serve(serveUser(async ({ user, req, report }) => {
   const loreTitle = typeof body.title === "string" ? body.title.trim() : "";
   const loreKind: LoreKind | null = isLoreKind(body.lore_kind) ? body.lore_kind : null;
   const loreText = typeof body.text === "string" ? body.text.trim() : "";
+  const partyMemberId = typeof body.party_member_id === "string" ? body.party_member_id : "";
+  const premiseKinds = readPremiseKinds(body.kinds);
+  // Design it with me (#1282) asks for range: several proposals, from the DM's notes to bolder ones, to choose between.
+  const walkDraft = body.walk === true;
+  if (!premiseKinds.ok) return invalidBody("kinds must be a non-empty list of premise kinds.");
+  if (mode === "backstory" && partyMemberId === "") return invalidBody("A party_member_id is required.");
   if (mode === "clues" && secretId === "") return invalidBody("A secret_id is required.");
   if (mode === "lore" && loreTitle === "") return invalidBody("A title is required.");
   for (const field of [loreTitle, loreText]) {
@@ -214,10 +297,21 @@ serve(serveUser(async ({ user, req, report }) => {
   // DMs only: the helper reads every truth, including secrets, with the service role, and a player must not
   // be able to ask the model to echo them.
   const load = await loadAiCampaign<CanonCampaign>(admin, campaign_id, user.id, {
-    columns: ["game_system"],
+    columns: ["game_system", "disabled_species_ids"],
   });
   if (!load.ok) return load.response;
   const campaign = load.campaign;
+
+  // A character of another campaign is not found, however well the id is spelt: asked before any credit is held.
+  let backstoryMember: BackstoryMember | null = null;
+  if (mode === "backstory") {
+    const members = await readRows<BackstoryMember>(
+      admin.from("party_members").select("name, class, subclass, subrace, level, species_id, player_description")
+        .eq("campaign_id", campaign.id).eq("id", partyMemberId),
+    );
+    backstoryMember = members[0] ?? null;
+    if (!backstoryMember) return jsonError(404, "party_member_not_found", "Character not found.");
+  }
 
   const { promptRow: PROMPT_ROW, ledger: LEDGER_REASON } = MODES[mode];
   const rulesetKey = rulesetContextKey(campaign.game_system);
@@ -268,15 +362,19 @@ serve(serveUser(async ({ user, req, report }) => {
         const nameOf = await loadMentionNames(admin, campaign.id, rows.flatMap((r) => collectMentions(r.body, { skipSecrets: true })));
         const existing = rows.map((r) => ({ kind: r.premise_kind, text: premiseEntryText(r.premise_kind, r.title, r.body, nameOf) }))
           .filter((r) => r.text !== "");
-        system = base(premiseShape());
-        user_ = `${steer}The DM's pitch is above. Entries the campaign already has (do not repeat them):\n` +
+        const kinds = premiseKinds.kinds;
+        system = base(premiseShape(kinds));
+        const brief = kinds
+          ? `The DM's words above are their notes for exactly these sections: ${kinds.join(", ")}. Develop them into the finished sections, fuller and more specific than the notes, from the pitch, the premise and the canon below. Write only those sections. Entries the campaign already has (do not repeat them):\n`
+          : "The DM's pitch is above. Entries the campaign already has (do not repeat them):\n";
+        user_ = `${steer}${brief}` +
           (existing.length > 0 ? existing.map((e) => `- ${e.kind}: ${e.text}`).join("\n") : "(none yet)");
         sanitize = (parsed) => {
-          const result = sanitizePremise(parsed, existing);
+          const result = sanitizePremise(parsed, existing, kinds);
           const hasPitch = existing.some((entry) => entry.kind === "pitch");
           const proposedPitch = result.suggestions.some((entry) => entry.kind === "pitch");
           // The DM's own first pitch is canonical input, not a model-dependent optional suggestion.
-          if (!hasPitch && !proposedPitch) {
+          if (!hasPitch && !proposedPitch && (kinds === null || kinds.includes("pitch"))) {
             if (result.suggestions.length >= MAX_PREMISE_SUGGESTIONS) result.suggestions.pop();
             result.suggestions.unshift({ kind: "pitch", text: prompt });
           }
@@ -324,6 +422,74 @@ serve(serveUser(async ({ user, req, report }) => {
           "Places, people and quest beats a clue may lie at. Every clue's 'at' id must be copied exactly from the second field of one of these lines (kind|id|name):\n" +
           `---BEGIN SPOTS---\n${spotLinesWithIds(found.spots, found.beatQuest)}\n---END SPOTS---`;
         sanitize = (parsed) => sanitizeSecrets(parsed, found.spots, existing);
+      } else if (mode === "arcs") {
+        const [arcs, themeRows] = await Promise.all([
+          readRows<{ name: string }>(admin.from("canon_arcs").select("name").eq("campaign_id", campaign.id).order("sort_order", { ascending: true }).limit(MAX_ARCS)),
+          readRows<{ id: string; premise_kind: string | null; title: string; body: string | null }>(
+            admin.from("canon_entries").select("id, premise_kind, title, body").eq("campaign_id", campaign.id).eq("part", "premise").eq("premise_kind", "theme")
+              .order("sort_order", { ascending: true }).limit(MAX_THEMES),
+          ),
+        ]);
+        const themes: ThemeCandidate[] = themeRows
+          .map((r) => ({ id: r.id, text: premiseEntryText(r.premise_kind, r.title, r.body).replace(/\s+/g, " ") }))
+          .filter((t) => t.text !== "");
+        const names = arcs.map((a) => a.name.trim()).filter((n) => n !== "");
+        system = base(arcShape());
+        user_ = `${steer}Arcs the campaign already has (do not repeat them):\n${bullets(names)}\n\n` +
+          "Theme lines of the premise an arc may carry. A theme_id must be copied exactly from the first field of one of these lines (id|text):\n" +
+          `---BEGIN THEMES---\n${themes.length > 0 ? themes.map((t) => `${t.id}|${t.text}`).join("\n") : "(no themes yet: leave theme_id out)"}\n---END THEMES---`;
+        sanitize = (parsed) => sanitizeArcs(parsed, themes, names);
+      } else if (mode === "peoples") {
+        const [candidates, rows] = await Promise.all([
+          loadPeopleCandidates(admin, campaign),
+          readRows<{ species_id: string | null; library_species_id: string | null; monster_id: string | null; library_monster_id: string | null; percent: number | string; name: string | null }>(
+            admin.from("campaign_peoples").select("species_id, library_species_id, monster_id, library_monster_id, percent, name").eq("campaign_id", campaign.id),
+          ),
+        ]);
+        // Exactly one record column is set on a people (the table's check); its share still counts towards the 100.
+        const listed: ListedPeople[] = rows.flatMap((r): ListedPeople[] => {
+          const own = { name: r.name?.trim() || null, percent: Number(r.percent) };
+          if (r.species_id) return [{ kind: "species", recordId: r.species_id, ...own }];
+          if (r.library_species_id) return [{ kind: "library_species", recordId: r.library_species_id, ...own }];
+          if (r.monster_id) return [{ kind: "monster", recordId: r.monster_id, ...own }];
+          if (r.library_monster_id) return [{ kind: "library_monster", recordId: r.library_monster_id, ...own }];
+          return [];
+        });
+        const nameOfRecord = new Map(candidates.map((c) => [`${c.kind}|${c.id}`, c.name]));
+        const listedLines = listed.map((p) => `${p.name ?? nameOfRecord.get(`${p.kind}|${p.recordId}`) ?? `a ${p.kind.replace("_", " ")}`}: ${p.percent}%`);
+        system = base(peopleShape());
+        user_ = `${steer}Peoples the campaign already lists, with their shares (do not repeat them; the total of all shares never passes 100%):\n${bullets(listedLines)}\n\n` +
+          "Species a people may be. Every record_id must be copied exactly from the second field of one of these lines (kind|id|name):\n" +
+          `---BEGIN SPECIES---\n${candidates.length > 0 ? candidates.map((c) => `${c.kind}|${c.id}|${c.name}`).join("\n") : "(no species available: propose nothing)"}\n---END SPECIES---`;
+        sanitize = (parsed) => sanitizePeoples(parsed, candidates, listed);
+      } else if (mode === "backstory") {
+        const member = backstoryMember!;
+        const [entries, speciesRows] = await Promise.all([
+          readRows<{ id: string }>(admin.from("canon_entries").select("id").eq("campaign_id", campaign.id).eq("part", "backstory").eq("party_member_id", partyMemberId)),
+          member.species_id
+            ? readRows<{ name: string }>(
+              UUID.test(member.species_id)
+                ? admin.from("species").select("name").eq("id", member.species_id).eq("campaign_id", campaign.id)
+                : admin.from("library_species").select("name").eq("id", member.species_id),
+            )
+            : Promise.resolve([] as { name: string }[]),
+        ]);
+        const passages = entries[0]
+          ? await readRows<{ title: string }>(admin.from("canon_lore_passages").select("title").eq("campaign_id", campaign.id).eq("entry_id", entries[0].id).limit(MAX_PASSAGES))
+          : [];
+        const titles = listOfTitles(passages);
+        const sheet = [
+          speciesRows[0]?.name ?? member.subrace,
+          member.class ? `${member.class}${member.subclass ? ` (${member.subclass})` : ""}` : null,
+          member.level ? `level ${member.level}` : null,
+        ].filter((t): t is string => !!t && t.trim() !== "").join(", ");
+        const before = toPlainText(member.player_description).trim();
+        system = base(backstoryShape());
+        user_ = `${steer}The character: ${wrapUserInput(member.name)}\n` +
+          `What the sheet says: ${sheet !== "" ? sheet : "(nothing readable)"}\n\n` +
+          `Before play, as the character's player wrote it:\n${before !== "" ? wrapUserInput(before) : "(nothing written yet)"}\n\n` +
+          `Passages of the backstory already written (do not repeat them):\n${bullets(titles)}`;
+        sanitize = (parsed) => sanitizeBackstory(parsed, titles);
       } else if (mode === "read") {
         const [entries, clues, steps, entryQuests, links, arcs, quests, sessions] = await Promise.all([
           readRows<LooseEntry & { body: string | null }>(
@@ -428,6 +594,16 @@ serve(serveUser(async ({ user, req, report }) => {
           "\n---END PEOPLE---";
         sanitize = (parsed) => sanitizeTruths(parsed, candidates, titles);
       }
+      // Every helper but the read (which lists the whole canon itself) reads what the canon already holds, so a draft builds
+      // on what the DM has written so far instead of starting cold (#1282: the walk's later sections ignored its earlier).
+      if (mode !== "read") {
+        const digest = await loadCanonDigest(admin, campaign.id);
+        if (digest.length > 0) {
+          user_ += "\n\nWhat the canon already holds, beyond its premise. Build on it, stay consistent with it, and do not repeat it:\n" +
+            wrapUserInput(digest.join("\n"));
+        }
+      }
+      if (walkDraft) user_ += `\n\n${WALK_RANGE}`;
       // Nothing to read two of: the loose ends are free, no model is called and nothing is charged.
       if (skipModelWith) return json({ suggestions: skipModelWith, setAside: [], ai_provenance: null });
       let textResult: TextResult;

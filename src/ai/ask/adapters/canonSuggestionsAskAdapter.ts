@@ -3,9 +3,9 @@
  *
  * The Canon has no AI of its own; its Suggest buttons open the Familiar with a written request. Which helper runs is
  * decided from that request, not asked of the model (the contract has no mode): the words name it (clues, questions,
- * forces or steps, secrets, premise, lore, a read of the whole canon), and truths are the rest. A request that names an
- * entry in double quotes ("the secret \"X\"") is looked up by title, and a title the canon does not hold fails the quote
- * rather than suggesting for nothing.
+ * forces or steps, secrets, arcs, peoples, a character's backstory, premise, lore, a read of the whole canon), and truths
+ * are the rest. A request that names an entry in double quotes ("the secret \"X\"") is looked up by title, a backstory's
+ * character by name in the party, and a title or name that is not there fails the quote rather than suggesting for nothing.
  *
  * The suggestions are `useCanonSuggestions`' module state, keyed by mode and scope (a secret's id for its clues, an
  * entry's id for a lore split, `new` for a lore draft): the chapter mounts `CanonReview` on the same key, so the
@@ -21,6 +21,7 @@ import { useCanonSuggestions, type CanonSuggestionMode } from "@/ai/useCanonSugg
 import { useCampaignStore } from "@/stores/campaign";
 import { useCanonSuggestionsQuote } from "@/composables/ai/quotes/canonSuggestionsQuote";
 import { useCanonEntries } from "@/composables/canon/useCanonEntries";
+import { useParty } from "@/composables/party/useParty";
 import { chapterOf, type CanonSectionId } from "@/lib/canon/canonParts";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { CanonEntry, CanonPart } from "@/types/canon.types";
@@ -38,6 +39,9 @@ const CHAPTER_OF_MODE: Record<CanonSuggestionMode, CanonSectionId> = {
   secrets: "secrets",
   lore: "lore",
   read: "premise",
+  arcs: "arcs",
+  peoples: "peoples",
+  backstory: "backstories",
 };
 
 /** What a request that names an entry in quotes is naming, by mode. */
@@ -64,10 +68,13 @@ function quotedTitle(concept: string): string | null {
 export function canonModeFor(concept: string): CanonSuggestionMode {
   const words = concept.replace(new RegExp(QUOTED.source, "g"), " ");
   if (/contradict|loose|hold together|read (?:my|the) (?:whole )?canon/i.test(words)) return "read";
+  if (/\bbackstor(?:y|ies)\b/i.test(words)) return "backstory";
   if (/\bclues?\b/i.test(words) && (quotedTitle(concept) !== null || !/\bsecrets?\b/i.test(words))) return "clues";
   if (/\bquestions?\b/i.test(words)) return "questions";
   if (/\bforces?\b|\bsteps?\b/i.test(words)) return "forces";
   if (/\bsecrets?\b/i.test(words)) return "secrets";
+  if (/\barcs?\b|\bacts?\b/i.test(words)) return "arcs";
+  if (/\bpeoples?\b|\bcultures?\b|\bwho lives\b/i.test(words)) return "peoples";
   if (/\bpremise\b|\bpitch\b|\bthemes?\b/i.test(words)) return "premise";
   if (/\blore\b|\bpassage/i.test(words)) return "lore";
   return "truths";
@@ -80,17 +87,29 @@ export function loreTitleFrom(concept: string): string {
 
 /** What a helper is run for: its key, what it sends besides the steer, and where its proposals are reviewed. */
 export type CanonTarget =
-  | { ok: true; mode: CanonSuggestionMode; scope: string | undefined; input: { secret_id: string } | { title: string; lore_kind?: CanonEntry["lore_kind"]; text?: string } | undefined; chapter: CanonSectionId; entryId: string | null }
+  | { ok: true; mode: CanonSuggestionMode; scope: string | undefined; input: { secret_id: string } | { party_member_id: string } | { title: string; lore_kind?: CanonEntry["lore_kind"]; text?: string } | undefined; chapter: CanonSectionId; entryId: string | null }
   | { ok: false; message: string };
 
 const sameTitle = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 /** Reads a request against the canon: the helper, the entry it names, and where the result is reviewed. */
-export function resolveCanonRequest(concept: string, entries: readonly CanonEntry[] | undefined): CanonTarget {
+export function resolveCanonRequest(
+  concept: string,
+  entries: readonly CanonEntry[] | undefined,
+  party: readonly { id: string; name: string }[] | undefined = undefined,
+): CanonTarget {
   const mode = canonModeFor(concept);
   const chapter = CHAPTER_OF_MODE[mode];
   const named = quotedTitle(concept);
   const wanted = PART_OF_MODE[mode];
+
+  if (mode === "backstory") {
+    if (named === null) return { ok: false, message: 'Say which character in double quotes, like: Suggest a backstory for "Tilda".' };
+    if (party === undefined) return { ok: false, message: "Your party is still loading. Try again in a moment." };
+    const member = party.find((m) => sameTitle(m.name, named));
+    if (!member) return { ok: false, message: `There is no character named "${named}" in your party.` };
+    return { ok: true, mode, scope: member.id, input: { party_member_id: member.id }, chapter, entryId: null };
+  }
 
   if (wanted === undefined || (named === null && mode !== "clues")) {
     return {
@@ -127,6 +146,9 @@ const NOUN: Record<CanonSuggestionMode, [one: string, many: string]> = {
   secrets: ["secret suggestion is", "secret suggestions are"],
   lore: ["lore suggestion is", "lore suggestions are"],
   read: ["finding is", "findings are"],
+  arcs: ["arc suggestion is", "arc suggestions are"],
+  peoples: ["people suggestion is", "people suggestions are"],
+  backstory: ["backstory suggestion is", "backstory suggestions are"],
 };
 
 export function useCanonSuggestionsAskAdapter(): AskAdapter {
@@ -134,10 +156,11 @@ export function useCanonSuggestionsAskAdapter(): AskAdapter {
   const quoteFor = useCanonSuggestionsQuote();
   const { blockFor } = useAskGate(null, "canon suggestion");
   const { data: entries } = useCanonEntries();
+  const { data: party } = useParty();
 
   function quote(proposal: AskProposal): AskQuote {
     const concept = proposal.concept.trim();
-    const target = resolveCanonRequest(concept, entries.value);
+    const target = resolveCanonRequest(concept, entries.value, party.value);
     const priced = quoteFor(target.ok ? target.mode : "truths");
 
     const lines: AskQuoteLine[] = [
@@ -158,7 +181,7 @@ export function useCanonSuggestionsAskAdapter(): AskAdapter {
     if (current.block) return failedRun("Canon suggestions", current.block.message);
     if (isAnyAiGenerating.value) return failedRun("Canon suggestions", "Another generation is already in progress.");
     const concept = proposal.concept.trim();
-    const target = resolveCanonRequest(concept, entries.value);
+    const target = resolveCanonRequest(concept, entries.value, party.value);
     if (!target.ok) return failedRun("Canon suggestions", target.message);
 
     const helper = useCanonSuggestions(target.mode, target.scope);

@@ -90,6 +90,24 @@
         @leave="emit('leave', item.id, $event)"
       />
       <AskUpsell v-else-if="item.kind === 'upsell'" @credits="emit('credits', 1)" @upgrade="emit('upgrade')" />
+      <AskWalkQuestion
+        v-else-if="item.kind === 'walk-question'"
+        :item="item"
+        :progress="walk?.progress ?? []"
+        @decide="emit('walk-decide')"
+        @ideas="emit('walk-ideas')"
+        @skip="emit('walk-skip', item.stop)"
+      />
+      <AskWalkBlock
+        v-else-if="item.kind === 'walk-block'"
+        :item="item"
+        :pitch-written="walk?.pitchWritten ?? false"
+        @write="emit('walk-write', item.id, $event)"
+        @enhance="emit('walk-enhance', item.id, $event)"
+        @again="emit('walk-again', item.id)"
+        @next="emit('walk-next', item.id)"
+        @skip="emit('walk-skip', item.stop)"
+      />
       <p v-else-if="item.kind === 'error'" class="text-body text-destructive" role="alert">{{ item.message }}</p>
     </div>
     <div v-if="running" class="flex items-center gap-2 text-caption text-muted-foreground" data-testid="ask-running">
@@ -121,8 +139,12 @@ import { canAnimate } from "@/lib/motion";
 import AskResultCard from "@/components/ask/AskResultCard.vue";
 import AskReportCard from "@/components/ask/AskReportCard.vue";
 import AskUpsell from "@/components/ask/AskUpsell.vue";
+import AskWalkQuestion from "@/components/ask/AskWalkQuestion.vue";
+import AskWalkBlock from "@/components/ask/AskWalkBlock.vue";
+import type { AskWalkView } from "@/lib/ask/askWalkCopy";
+import type { WalkStopRef } from "@/lib/canon/canonWalk";
 
-const { items, adapters, running = false, replayable = false, playingText = null } = defineProps<{
+const { items, adapters, running = false, replayable = false, playingText = null, walk = undefined } = defineProps<{
   items: AskItem[];
   adapters: AskAdapters;
   running?: boolean;
@@ -130,6 +152,8 @@ const { items, adapters, running = false, replayable = false, playingText = null
   replayable?: boolean;
   /** The reply being read on its speaker button, to show Stop on it. */
   playingText?: string | null;
+  /** "Design it with me" (#1282), while it has something to show. */
+  walk?: AskWalkView;
 }>();
 const emit = defineEmits<{
   choose: [itemId: number, choice: AskChoice];
@@ -151,6 +175,13 @@ const emit = defineEmits<{
   credits: [needed: number];
   upgrade: [];
   review: [report: AskReportDraft];
+  "walk-decide": [];
+  "walk-ideas": [];
+  "walk-skip": [stop: WalkStopRef];
+  "walk-write": [blockId: number, text: string];
+  "walk-enhance": [blockId: number, text: string];
+  "walk-again": [blockId: number];
+  "walk-next": [blockId: number];
 }>();
 
 const scroller = ref<HTMLElement | null>(null);

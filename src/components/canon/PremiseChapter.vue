@@ -12,16 +12,18 @@
 
       <CanonReview mode="premise" :entries="entries" />
       <PremiseWorld :campaign="campaign" />
-      <PremisePitch :pitches="ofKind('pitch')" :calendar-id="campaign.calendar_id" />
+      <!-- `data-walk-section`: where Design it with me (#1282) brings each section into view as the Familiar asks about it. -->
+      <div data-walk-section="pitch"><PremisePitch :pitches="ofKind('pitch')" :calendar-id="campaign.calendar_id" /></div>
 
       <!-- Side by side only when the column itself is wide enough, whatever the screen. -->
       <div class="grid items-start gap-4 @3xl:grid-cols-2">
-        <PremiseLines title="Themes" item-label="Theme" placeholder="Kindness is a kind of courage…" :kinds="['theme']" :entries="premise" />
-        <PremiseLines title="At the table" item-label="Table note" placeholder="Talk and wandering more than fights…" :kinds="['table']" :entries="premise" />
+        <div data-walk-section="themes"><PremiseLines title="Themes" item-label="Theme" placeholder="Kindness is a kind of courage…" :kinds="['theme']" :entries="premise" /></div>
+        <div data-walk-section="table"><PremiseLines title="At the table" item-label="Table note" placeholder="Talk and wandering more than fights…" :kinds="['table']" :entries="premise" /></div>
       </div>
 
       <LineRequestInbox :sort-order="lineAndVeilCount" />
       <PremiseLines
+        data-walk-section="lines"
         title="Lines and veils"
         item-label="Line or veil"
         placeholder="What must never, or only off screen, happen…"
@@ -37,6 +39,7 @@
       <CanonBlock title="For the AI, never printed" data-testid="premise-ai">
         <div class="grid items-start gap-4 @3xl:grid-cols-2">
           <PremiseTextField
+            data-walk-section="voice"
             kind="voice"
             label="Voice"
             placeholder="How its text reads and its names sound: dry and warm, gothic and slow…"
@@ -44,7 +47,7 @@
             :campaign-id="campaign.id"
             :entry="ofKind('voice')[0]"
           />
-          <PremiseLook :campaign="campaign" :entry="ofKind('look')[0]" />
+          <div data-walk-section="look"><PremiseLook :campaign="campaign" :entry="ofKind('look')[0]" /></div>
         </div>
       </CanonBlock>
     </div>

@@ -18,6 +18,29 @@ function thread(items: AskItem[]) {
 }
 
 describe("AskThread", () => {
+  // Bug caught: the walk's items drawn as nothing (a kind the chain does not know), or its answers not reaching the panel.
+  it("draws the walk's question and block and passes their answers up", async () => {
+    const stop = { step: "voice", memberId: null, memberName: null } as const;
+    const w = mount(AskThread, {
+      props: {
+        items: [
+          { kind: "walk-question", id: 1, stop, text: "How should it sound?", answered: false },
+          { kind: "walk-block", id: 2, stop, answer: "warm", phase: "open" },
+        ] satisfies AskItem[],
+        adapters,
+        walk: { active: true, progress: [{ ...stop, state: "todo", current: true }], pitchWritten: true, awaiting: stop, drafted: false },
+      },
+      global: { stubs: { AskWalkBlock: { template: '<button data-testid="blk" @click="$emit(\'write\', \'x\'); $emit(\'next\')" />', emits: ["write", "next"] } } },
+    });
+    expect(w.get("[data-testid=walk-question]").text()).toContain("How should it sound?");
+    await w.get("[data-testid=blk]").trigger("click");
+    expect(w.emitted("walk-write")).toEqual([[2, "x"]]);
+    // Next names its block, so the walk settles that section and not whichever was asked last.
+    expect(w.emitted("walk-next")).toEqual([[2]]);
+    await w.get("[data-testid=walk-skip-question]").trigger("click");
+    expect(w.emitted("walk-skip")?.[0]?.[0]).toMatchObject({ step: "voice" });
+  });
+
   // Bug caught: a confirmed run drawn as a live quote (a second press, or no sign it is under way).
   it("holds a running proposal's place with the pending block, not the quote", () => {
     const w = thread([{ kind: "proposal", id: 1, proposal, state: "running", choices: {} }]);

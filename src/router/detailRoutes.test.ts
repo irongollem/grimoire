@@ -36,10 +36,12 @@ const NESTED_LISTS = [
 
 const router = createRouter({ history: createMemoryHistory(), routes });
 
-it("redirects the old web address to the World Web", async () => {
+// Read through `resolve`, not a navigation: pushing loaded the World Web's whole page to check where a redirect points,
+// which took more than the five seconds a test is given whenever the full suite ran beside it (26 Nov 2026).
+it("redirects the old web address to the World Web", () => {
   const r = createRouter({ history: createMemoryHistory(), routes });
-  await r.push("/npcs/web");
-  expect(r.currentRoute.value.path).toBe("/web");
+  expect(r.resolve("/npcs/web").matched.at(-1)?.redirect).toBe("/web");
+  expect(r.resolve("/web").name).toBe("world-web");
 });
 
 describe.each(NESTED_LISTS)("$label detail route", ({ list, detail, siblings }) => {

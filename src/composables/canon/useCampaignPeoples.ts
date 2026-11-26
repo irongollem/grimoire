@@ -33,17 +33,18 @@ export function peopleColumn(kind: People["kind"], fromLibrary: boolean): "speci
   return fromLibrary ? "library_monster_id" : "monster_id";
 }
 
-/** Adds a people after the last one. */
-export async function insertPeople(campaignId: string, people: NewPeople): Promise<void> {
+/** Adds a people after the last one, and answers its id (an accept's undo removes exactly that row). */
+export async function insertPeople(campaignId: string, people: NewPeople): Promise<string> {
   const sortOrder = await nextSortOrder("campaign_peoples", campaignId);
-  const { error } = await supabase.from("campaign_peoples").insert({
+  const { data, error } = await supabase.from("campaign_peoples").insert({
     campaign_id: campaignId,
     [peopleColumn(people.kind, people.fromLibrary)]: people.recordId,
     percent: people.percent,
     name: people.name?.trim() || null,
     sort_order: sortOrder,
-  });
+  }).select("id").single();
   if (error) throw error;
+  return data.id;
 }
 
 export interface PeoplePlace {
@@ -136,7 +137,7 @@ export function usePeoplesEditing() {
   const { peoples, isLoading } = useCampaignPeoples();
   const { places } = useCampaignPeoplePlaces();
 
-  function write<A>(run: (arg: A) => Promise<void>) {
+  function write<A, R = void>(run: (arg: A) => Promise<R>) {
     return useMutation({
       mutationFn: run,
       onError: (e) => toast.error(habitatWriteMessage(e, "That people is already listed. Give this one a name of its own to list it again.")),
@@ -147,7 +148,7 @@ export function usePeoplesEditing() {
   const add = write(async (people: NewPeople) => {
     const campaignId = campaign.activeCampaignId;
     if (!campaignId) throw new Error("No campaign is open.");
-    await insertPeople(campaignId, people);
+    return insertPeople(campaignId, people);
   });
   const setPercentOf = write(({ id, percent }: { id: string; percent: number }) => updatePeoplePercent(id, percent));
   const removeOne = write(deletePeople);
@@ -172,8 +173,12 @@ export function usePeoplesEditing() {
     isLoading,
     // `mutate`, not `mutateAsync`: a failure is already a toast, and a rejected promise nobody awaits is noise.
     addPeople: (people: NewPeople) => add.mutate(people),
+    // For an accept that must know whether the share was written (the Familiar's proposals): it rejects after the toast.
+    addPeopleAsync: (people: NewPeople) => add.mutateAsync(people),
     setPercent: (id: string, percent: number) => setPercentOf.mutate({ id, percent }),
     removePeople: (id: string) => removeOne.mutate(id),
+    // For an accept's undo, which must know the people is gone before the proposal goes back to pending.
+    removePeopleAsync: (id: string) => removeOne.mutateAsync(id),
     saveBody,
     renamePeople: (id: string, name: string | null) => rename.mutate({ id, name }),
     places,

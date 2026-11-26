@@ -3,6 +3,7 @@
  * `useAskConversation` so the conversation and its preview step (`useAskPreviews`) share them without importing each other.
  */
 import { askGenerator, type AskChoice, type AskIdea, type AskProposal, type AskRecordRef, type AskReportDraft } from "@edge-shared/agent/askContract";
+import type { WalkStopRef } from "@/lib/canon/canonWalk";
 import type { AskPreview, AskPreviewShown, AskQuote, AskResultLink, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
 
 export type ResultPart = AskRunPart & { left?: boolean; retrying?: boolean };
@@ -81,6 +82,29 @@ export type AskItem =
       /** The picture the run made, shown on the card. */
       picture?: string;
       parts: ResultPart[];
+    }
+  /** "Design it with me" (#1282): the question the Familiar asks at a stop; answered once the DM's words have become a block. */
+  | { kind: "walk-question"; id: number; stop: WalkStopRef; text: string; answered: boolean; /** Asked to draw more out of a thin answer, once per stop per walk. */ followUp?: boolean }
+  /**
+   * The section the DM's answer became: written as it stands, drafted by AI from it, or skipped. `drafted` waits for the
+   * proposals to be reviewed on the same helper and scope (`walkScope`), where typed words change the draft.
+   */
+  | {
+      kind: "walk-block";
+      id: number;
+      stop: WalkStopRef;
+      /** The DM's words, editable until the block is saved. */
+      answer: string;
+      /**
+       * `left`: the walk moved on with nothing of this section kept. A block the walk moves on from settles (`saved` when
+       * its section is now filled, else `left`), so the thread never shows two sections open at once.
+       */
+      phase: "open" | "saving" | "saved" | "drafting" | "drafted" | "skipped" | "left" | "failed";
+      error?: string;
+      /** A word to the DM that does not take the block away: the pitch cannot be declared done empty. */
+      notice?: string;
+      /** What drafts for this block cost so far: each "Again" adds its own. */
+      credits?: number;
     }
   | { kind: "upsell"; id: number }
   | { kind: "error"; id: number; message: string };

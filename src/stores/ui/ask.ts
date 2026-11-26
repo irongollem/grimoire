@@ -26,6 +26,8 @@ export const useAskUiStore = defineStore("ask-ui", () => {
   const prefill = ref<string | null>(null);
   /** A generator's card to open in the thread (a page's Generate button); no question is sent and nothing is charged. */
   const pendingGenerator = ref<PendingGenerator | null>(null);
+  /** "Design it with me" asked for from a page (#1282): the panel takes it once and starts the walk in its thread. */
+  const pendingWalk = ref(false);
   /** Rises each time the input should take focus (the hotkey, the button). */
   const focusRequest = ref(0);
 
@@ -44,6 +46,12 @@ export const useAskUiStore = defineStore("ask-ui", () => {
   function openGenerator(generatorId: string, options: Omit<PendingGenerator, "generatorId"> = {}) {
     openPanel();
     pendingGenerator.value = { generatorId, ...options };
+  }
+
+  /** Opens the Familiar on the walk through the canon: the first question is asked, nothing is charged. */
+  function openWalk() {
+    openPanel();
+    pendingWalk.value = true;
   }
 
   function closePanel() {
@@ -80,5 +88,12 @@ export const useAskUiStore = defineStore("ask-ui", () => {
     return pending;
   }
 
-  return { open, everOpened, hasUnread, pendingQuery, prefill, takePrefill, pendingGenerator, takePendingGenerator, openGenerator, focusRequest, openPanel, closePanel, togglePanel, markUnread, takePendingQuery };
+  /** Takes the waiting walk request once: a second call, or a remount, gets false, so the walk never starts twice. */
+  function takePendingWalk(): boolean {
+    const pending = pendingWalk.value;
+    pendingWalk.value = false;
+    return pending;
+  }
+
+  return { pendingWalk, takePendingWalk, openWalk, open, everOpened, hasUnread, pendingQuery, prefill, takePrefill, pendingGenerator, takePendingGenerator, openGenerator, focusRequest, openPanel, closePanel, togglePanel, markUnread, takePendingQuery };
 });

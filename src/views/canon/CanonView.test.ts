@@ -18,6 +18,7 @@ function go(to: { path?: string; query?: Record<string, string | undefined> }) {
   else if (to.path !== undefined) route.query = {};
 }
 const loading = ref(false);
+const canAsk = ref(true);
 const data = ref<CanonEntry[]>([]);
 const clues = ref<unknown[]>([]);
 const forceData = ref<{ steps: unknown[] }>({ steps: [] });
@@ -45,6 +46,9 @@ vi.mock("@/composables/canon/useCanonForces", () => ({ useCanonForceData: () => 
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaign: { id: "c1" } }) }));
 
+// Whether the Familiar exists for this user and campaign: the walk is its, so the page offers it only then.
+vi.mock("@/composables/ask/useCanAsk", () => ({ useCanAsk: () => canAsk }));
+vi.mock("@/composables/canon/useCanonWalkSkips", () => ({ useCanonWalkSkips: () => ({ skipped: ref(new Set()), isSuccess: ref(true) }) }));
 vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
 // The page's search also reads peoples, habitats and the table's lines (#1279 item 24); none of these tests searches them.
 vi.mock("@/composables/canon/useCampaignPeoples", () => ({ useCampaignPeoples: () => ({ peoples: ref([]) }) }));
@@ -53,6 +57,7 @@ vi.mock("@/composables/canon/useCampaignSpecies", () => ({ useCampaignSpecies: (
 vi.mock("@/composables/canon/useTableFacts", () => ({ useTableFacts: () => ({ facts: { data: ref([]) } }) }));
 
 import { useCanonUiStore } from "@/stores/ui/canon";
+import { useAskUiStore } from "@/stores/ui/ask";
 import CanonView from "./CanonView.vue";
 
 const truth = (id: string, title: string): CanonEntry => canonEntry({ id, campaign_id: "c1", part: "truth", knowledge: "all", title });
@@ -114,9 +119,9 @@ const STUBS = {
   TruthsChapter: TruthsStub, LoreChapter: LoreStub, SecretsChapter: SecretsStub, ForcesChapter: ForcesStub, BackstoriesChapter: BackstoriesStub, PremiseChapter: PremiseStub,
 };
 
-// The fixtures are small canons, which the page would lead in through the way in; the chapters' tests skip it, as a DM can.
-function mountView(stubs: Record<string, unknown> = {}, { wayIn = false }: { wayIn?: boolean } = {}) {
-  if (!wayIn) useCanonUiStore().wayInDismissed.c1 = true;
+// The fixtures are small canons, which the page would invite into the walk; the chapters' tests dismiss it, as a DM can.
+function mountView(stubs: Record<string, unknown> = {}, { invite = false }: { invite?: boolean } = {}) {
+  if (!invite) useCanonUiStore().walkInviteDismissed.c1 = true;
   const w = mount(CanonView, { attachTo: document.body, global: { stubs: { ...STUBS, ...stubs } } });
   mounted.push(w);
   return w;
@@ -236,6 +241,23 @@ describe("CanonView", () => {
     expect(route.params.part).toBe("lore");
     expect(w.findComponent({ name: "TruthsChapter" }).exists()).toBe(false);
     expect(mocks.scroll.mock.calls[0]?.[0]).toBe(document.getElementById("canon-entry-l1"));
+  });
+
+  // Bug caught: the Familiar asking about the voice while the page showed the pitch, so the DM could not see the field
+  // being written; and asking about the same section a second time (a jump back) scrolling nowhere.
+  it("brings the section the Familiar asks about into view, again when it is asked again", async () => {
+    route.params = { part: "premise" };
+    const w = mountView({ PremiseChapter: { template: "<section><div data-walk-section='pitch' /><div data-walk-section='voice' /></section>" } });
+    await settle();
+    mocks.scroll.mockReset();
+    const ui = useCanonUiStore();
+    ui.walkFocus = { step: "voice", asked: 1 };
+    await settle();
+    expect(mocks.scroll).toHaveBeenLastCalledWith(w.find("[data-walk-section=voice]").element);
+    mocks.scroll.mockReset();
+    ui.walkFocus = { step: "voice", asked: 2 };
+    await settle();
+    expect(mocks.scroll).toHaveBeenCalledWith(w.find("[data-walk-section=voice]").element);
   });
 
   // Bug caught: a tapped row opening its entry off screen on a phone, with nothing bringing it into view, or scrolling
@@ -693,39 +715,65 @@ describe("CanonView", () => {
   });
 });
 
-describe("CanonView, a new canon", () => {
+describe("CanonView, the invitation to Design it with me", () => {
+  const Invite = { template: "<div data-testid='invite' />" };
+  const PremiseHere = { template: "<div data-testid='premise' />" };
   beforeEach(() => {
-    // The skip is kept in local storage, so an earlier test's skip must not carry into these.
+    // The dismissal is kept in local storage, so an earlier test's must not carry into these.
     localStorage.clear();
     route.query = {};
-    route.params = { part: "truths" };
+    route.params = { part: "premise" };
     setActivePinia(createPinia());
+    data.value = [];
+    canAsk.value = true;
   });
   afterEach(() => mounted.splice(0).forEach((w) => w.unmount()));
 
-  // Bug caught: a new canon opened straight on an empty chapter, with nothing saying where to begin.
-  it("leads a new canon in through the way in, in place of the first chapter", () => {
-    data.value = [];
-    route.params = { part: "premise" };
-    const w = mountView({ CanonWayIn: { template: "<div data-testid='way-in' />" } }, { wayIn: true });
-    expect(w.find("[data-testid=way-in]").exists()).toBe(true);
+  // Bug caught: a new canon opened straight on an empty chapter, with nothing saying where to begin; and (24 Nov 2026) an
+  // invitation that stood in place of the chapter, trapping the DM, so the chapter must still be there under it.
+  it("invites a new canon above the Premise chapter, which is still drawn", () => {
+    const w = mountView({ CanonWalkInvite: Invite, PremiseChapter: PremiseHere }, { invite: true });
+    expect(w.find("[data-testid=invite]").exists()).toBe(true);
+    expect(w.find("[data-testid=premise]").exists()).toBe(true);
   });
 
-  // Bug caught (production, 24 Nov 2026): the way in stood in front of every chapter, so choosing one in the contents or
-  // the chapter picker changed the address and nothing on screen: the DM was trapped on one landing page.
-  it("opens the chapter the DM chose, even for a new canon", () => {
-    data.value = [];
+  // Bug caught (production, 24 Nov 2026): the invitation stood in front of every chapter, so choosing another one changed the address and nothing on screen.
+  it("shows nothing but the chapter the DM chose, even for a new canon", () => {
     route.params = { part: "truths" };
-    const w = mountView({ CanonWayIn: { template: "<div data-testid='way-in' />" }, TruthsChapter: { template: "<div data-testid='truths' />" } }, { wayIn: true });
-    expect(w.find("[data-testid=way-in]").exists()).toBe(false);
+    const w = mountView({ CanonWalkInvite: Invite, TruthsChapter: { template: "<div data-testid='truths' />" } }, { invite: true });
+    expect(w.find("[data-testid=invite]").exists()).toBe(false);
     expect(w.find("[data-testid=truths]").exists()).toBe(true);
   });
 
-  // Bug caught: Skip to the chapters wrote its flag but the page kept showing the way in.
-  it("shows the chapter once the DM has skipped the way in for this campaign", () => {
-    data.value = [];
-    useCanonUiStore().wayInDismissed.c1 = true;
-    const w = mountView({ CanonWayIn: { template: "<div data-testid='way-in' />" } }, { wayIn: true });
-    expect(w.find("[data-testid=way-in]").exists()).toBe(false);
+  // Bug caught: Not now wrote its flag but the page kept inviting, or a DM who skipped the old way in was invited again.
+  it("does not invite once the DM has dismissed it for this campaign", () => {
+    useCanonUiStore().walkInviteDismissed.c1 = true;
+    const w = mountView({ CanonWalkInvite: Invite }, { invite: true });
+    expect(w.find("[data-testid=invite]").exists()).toBe(false);
+  });
+
+  // Bug caught: a table without AI offered a walk it cannot run (a button that opens an empty Familiar).
+  it("offers neither the Design button nor the invitation when the user cannot ask the Familiar", () => {
+    canAsk.value = false;
+    const w = mountView({ CanonWalkInvite: Invite }, { invite: true });
+    expect(w.find("[data-testid=canon-design]").exists()).toBe(false);
+    expect(w.find("[data-testid=canon-design-phone]").exists()).toBe(false);
+    expect(w.find("[data-testid=invite]").exists()).toBe(false);
+  });
+
+  // Bug caught: the buttons still navigating to the retired walk page instead of opening the walk in the Familiar.
+  it.each(["canon-design", "canon-design-phone"])("%s opens the walk in the Familiar and goes nowhere", async (id) => {
+    const w = mountView();
+    await w.get(`[data-testid=${id}]`).trigger("click");
+    expect(useAskUiStore().pendingWalk).toBe(true);
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: the saved skip of the old way in no longer read, so every DM who skipped it was asked again.
+  it("keeps the old way in's storage key for the dismissal", () => {
+    localStorage.setItem("canon-way-in-dismissed", JSON.stringify({ c1: true }));
+    setActivePinia(createPinia());
+    const w = mountView({ CanonWalkInvite: Invite }, { invite: true });
+    expect(w.find("[data-testid=invite]").exists()).toBe(false);
   });
 });

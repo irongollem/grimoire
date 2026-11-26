@@ -34,7 +34,10 @@ export type CanonArcStatus = CanonArc["status"];
 export type CanonArcPatch = Partial<Pick<CanonArc, "name" | "summary" | "sort_order" | "status" | "question" | "stakes" | "ending" | "theme_id">>;
 
 
-export async function createCanonArc(campaignId: string, input: { name: string; summary?: string | null; sort_order?: number }): Promise<CanonArc> {
+/** What a new arc may be written with; an arc proposed by the AI arrives planned, with its question, stakes and theme. */
+export type NewCanonArc = { name: string; summary?: string | null; sort_order?: number } & Partial<Pick<CanonArc, "status" | "question" | "stakes" | "theme_id">>;
+
+export async function createCanonArc(campaignId: string, input: NewCanonArc): Promise<CanonArc> {
   const user = getCurrentUser();
   if (!user) throw new Error("Not authenticated");
   const { data, error } = await supabase
@@ -81,7 +84,7 @@ export function useCanonArcActions() {
   const onError = (e: unknown) => toast.error(toast.fromError(e));
 
   const add = useMutation({
-    mutationFn: (input: { name: string; summary?: string | null; sort_order: number }) => {
+    mutationFn: (input: NewCanonArc & { sort_order: number }) => {
       const cid = campaign.activeCampaignId;
       if (cid === null) throw new Error("useCanonArcActions added without a campaign");
       return createCanonArc(cid, input);

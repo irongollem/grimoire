@@ -1,15 +1,19 @@
-import { computed, ref } from "vue";
+import { computed, ref, toRaw } from "vue";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import type {
+  ArcSuggestion,
+  BackstorySuggestion,
   CanonSetAside,
   ClueSuggestion,
   ForceSuggestion,
   LoreKind,
   LoreSuggestion,
+  PeopleSuggestion,
   PremiseSuggestion,
   QuestionSuggestion,
   SecretSuggestion,
+  SuggestedPremiseKind,
   TruthSuggestion,
 } from "@edge-shared/canonSuggestions.ts";
 import type { ReadFinding } from "@edge-shared/canonReadThrough.ts";
@@ -18,9 +22,9 @@ import { isAnyAiGenerating } from "./aiGeneratorRegistry";
 import type { AiProvenance } from "./provenance";
 import { useCampaignStore } from "@/stores/campaign";
 
-export type { ClueSuggestion, ForceSuggestion, LoreSuggestion, PremiseSuggestion, QuestionSuggestion, ReadFinding, SecretSuggestion, TruthSuggestion };
+export type { ArcSuggestion, BackstorySuggestion, ClueSuggestion, ForceSuggestion, LoreSuggestion, PeopleSuggestion, PremiseSuggestion, QuestionSuggestion, ReadFinding, SecretSuggestion, SuggestedPremiseKind, TruthSuggestion };
 
-export type CanonSuggestionMode = "premise" | "truths" | "clues" | "questions" | "forces" | "lore" | "secrets" | "read";
+export type CanonSuggestionMode = "premise" | "truths" | "clues" | "questions" | "forces" | "lore" | "secrets" | "read" | "arcs" | "peoples" | "backstory";
 
 interface Shapes {
   premise: PremiseSuggestion;
@@ -30,16 +34,22 @@ interface Shapes {
   forces: ForceSuggestion;
   lore: LoreSuggestion;
   secrets: SecretSuggestion;
+  arcs: ArcSuggestion;
+  peoples: PeopleSuggestion;
+  backstory: BackstorySuggestion;
   /** Findings, not proposals: nothing in them can be accepted, and none is ever written. */
   read: ReadFinding;
 }
 
 /** What a mode sends besides the steer: the secret the clues are for, or the lore entry's title, kind and text. */
 interface Inputs {
+  /** Narrows the premise to these sections ("Enhance with AI" on one); absent drafts the whole starter. */
+  premise: { kinds?: SuggestedPremiseKind[] };
   clues: { secret_id: string };
+  backstory: { party_member_id: string };
   lore: { title: string; lore_kind?: LoreKind | null; text?: string };
 }
-type ExtraArgs<M extends CanonSuggestionMode> = M extends keyof Inputs ? [input: Inputs[M]] : [];
+type ExtraArgs<M extends CanonSuggestionMode> = M extends "premise" ? [input?: Inputs["premise"]] : M extends keyof Inputs ? [input: Inputs[M]] : [];
 
 interface CanonSuggestionsResponse<T> {
   suggestions: T[];
@@ -61,11 +71,22 @@ const _results = ref<Partial<Record<string, ModeResult>>>({});
 const _generating = ref<string | null>(null);
 const _errorFor = ref<string | null>(null);
 
+/**
+ * What an accepted proposal wrote, held beside the proposals so every review on one key shows the same state (the
+ * Familiar's walk and a chapter). `undo` takes back exactly that write; null when it cannot be taken back safely.
+ */
+export interface KeptWrite {
+  undo: (() => Promise<void>) | null;
+}
+// Compared through `toRaw` on both sides: a ref hands its contents back as proxies, the proposal arrives as either.
+const _kept = ref<Record<string, { suggestion: object; write: KeptWrite }[]>>({});
+
 /** Test seam: drop every stored result and in-flight marker. */
 export function resetCanonSuggestions() {
   _results.value = {};
   _generating.value = null;
   _errorFor.value = null;
+  _kept.value = {};
   _state.isGenerating.value = false;
   _state.error.value = null;
 }
@@ -96,7 +117,8 @@ export function useCanonSuggestions<M extends CanonSuggestionMode>(mode: M, scop
       if (!campaignId) throw new Error("No active campaign selected.");
 
       const { data, error } = await supabase.functions.invoke("suggest-canon", {
-        body: { campaign_id: campaignId, mode, prompt: steer.trim(), ...input },
+        // A draft held under a walk scope is Design it with me's (#1282), which asks the helper for range to choose from.
+        body: { campaign_id: campaignId, mode, prompt: steer.trim(), ...input, ...(scope?.startsWith("walk:") ? { walk: true } : {}) },
       });
       if (error) throw new Error(await edgeErrorMessage(error));
       if (data?.error) throw new Error(data.error);
@@ -126,6 +148,21 @@ export function useCanonSuggestions<M extends CanonSuggestionMode>(mode: M, scop
   const hasResult = computed(() => mine() !== undefined);
   const error = computed(() => (_errorFor.value === key ? _state.error.value : null));
 
+  const keptHere = () => _kept.value[key] ?? [];
+  /** An accepted proposal stays in place, settled; `write.undo` is how it is taken back. */
+  function markKept(suggestion: S, write: KeptWrite) {
+    _kept.value = { ..._kept.value, [key]: [...keptHere().filter((k) => toRaw(k.suggestion) !== toRaw(suggestion)), { suggestion: toRaw(suggestion), write }] };
+  }
+  const isKept = (suggestion: S) => keptHere().some((k) => toRaw(k.suggestion) === toRaw(suggestion));
+  const canUndo = (suggestion: S) => keptHere().some((k) => toRaw(k.suggestion) === toRaw(suggestion) && k.write.undo !== null);
+  /** Reverses the write and puts the proposal back to pending. A failed undo throws and leaves it kept. */
+  async function undoKept(suggestion: S): Promise<void> {
+    const found = keptHere().find((k) => toRaw(k.suggestion) === toRaw(suggestion));
+    if (!found?.write.undo) return;
+    await found.write.undo();
+    _kept.value = { ..._kept.value, [key]: keptHere().filter((k) => k !== found) };
+  }
+
   function dismiss(suggestion: S) {
     const current = mine();
     if (!current) return;
@@ -138,5 +175,5 @@ export function useCanonSuggestions<M extends CanonSuggestionMode>(mode: M, scop
     if (_errorFor.value === key) _state.error.value = null;
   }
 
-  return { suggest, suggestions, setAside, provenance, isGenerating, hasResult, error, dismiss, dismissAll };
+  return { suggest, suggestions, setAside, provenance, isGenerating, hasResult, error, dismiss, dismissAll, isKept, canUndo, markKept, undoKept };
 }

@@ -4,7 +4,7 @@ import type { AskProposal } from "@edge-shared/agent/askContract";
 import { canonEntry } from "@/test/canonEntry";
 
 const calls = vi.hoisted(() => ({ made: [] as { mode: string; scope: string | undefined }[], suggest: vi.fn() }));
-const canon = vi.hoisted(() => ({ entries: undefined as unknown }));
+const canon = vi.hoisted(() => ({ entries: undefined as unknown, party: undefined as unknown }));
 const state = vi.hoisted(() => ({
   aiEnabled: true, affordable: true, error: "" as string, count: 3, generating: false,
 }));
@@ -21,6 +21,7 @@ vi.mock("@/composables/ai/useCampaignProviders", () => ({
 vi.mock("@/composables/billing/useQuota", () => ({ useQuota: () => ({ canCreate: ref(true) }) }));
 vi.mock("@/composables/rules/useGameSystem", () => ({ useGameSystem: () => ({ offers: () => true }) }));
 vi.mock("@/composables/canon/useCanonEntries", () => ({ useCanonEntries: () => ({ data: { get value() { return canon.entries; } } }) }));
+vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: { get value() { return canon.party; } } }) }));
 vi.mock("@/ai/aiGeneratorRegistry", () => ({ isAnyAiGenerating: { get value() { return state.generating; } } }));
 vi.mock("@/ai/useCanonSuggestions", () => ({
   useCanonSuggestions: (mode: string, scope?: string) => {
@@ -61,6 +62,12 @@ describe("canonModeFor", () => {
     ["Suggest three truths for my canon.", "truths"],
     ["something the guild keeps quiet", "truths"],
     ["the folklore of the valley", "truths"],
+    ["Suggest three arcs for my campaign.", "arcs"],
+    ["Plan the acts of the story.", "arcs"],
+    ["Suggest peoples for my world.", "peoples"],
+    ["Who lives in the marsh?", "peoples"],
+    ["Which cultures keep the river?", "peoples"],
+    ['Suggest a backstory for "Tilda".', "backstory"],
   ] as const)("%s -> %s", (request, mode) => {
     expect(canonModeFor(request)).toBe(mode);
   });
@@ -83,6 +90,7 @@ describe("useCanonSuggestionsAskAdapter", () => {
     calls.suggest.mockReset().mockResolvedValue(true);
     Object.assign(state, { aiEnabled: true, affordable: true, error: "", count: 3, generating: false });
     canon.entries = [secret, lore, force];
+    canon.party = [{ id: "pm1", name: "Tilda" }];
   });
 
   it("quotes the price of the mode it will run and names the chapter the result lands in", () => {
@@ -164,6 +172,28 @@ describe("useCanonSuggestionsAskAdapter", () => {
     expect(await route("Suggest a secret for my canon, with clues.")).toBe("/canon/secrets");
     expect(await route("Suggest a premise for my campaign: a pitch.")).toBe("/canon/premise");
     expect(calls.suggest.mock.calls.map(([mode]) => mode)).toEqual(["truths", "questions", "secrets", "premise"]);
+  });
+
+  // Bug caught: a backstory request ran for no character, or for one the party does not have, and spent credits on nothing.
+  it("resolves a backstory's character by name in the party, and fails the quote and run for a name it does not hold", async () => {
+    const adapter = useCanonSuggestionsAskAdapter();
+    const ok = await adapter.run(proposal('Suggest a backstory for "tilda".'));
+    expect(calls.made).toContainEqual({ mode: "backstory", scope: "pm1" });
+    expect(calls.suggest).toHaveBeenCalledExactlyOnceWith("backstory", expect.any(String), { party_member_id: "pm1" });
+    expect(ok.route).toBe("/canon/backstories");
+    calls.suggest.mockClear();
+    const request = proposal('Suggest a backstory for "Gruk".');
+    expect(adapter.quote(request).block).toEqual({ reason: "missing", message: 'There is no character named "Gruk" in your party.' });
+    expect((await adapter.run(request)).parts[0]).toMatchObject({ ok: false });
+    expect((await adapter.run(proposal("Suggest a backstory."))).parts[0]!.error).toContain("double quotes");
+    expect(calls.suggest).not.toHaveBeenCalled();
+  });
+
+  it("runs arcs and peoples on their own chapters and prices", async () => {
+    const adapter = useCanonSuggestionsAskAdapter();
+    expect((await adapter.run(proposal("Suggest three arcs."))).route).toBe("/canon/arcs");
+    expect((await adapter.run(proposal("Suggest peoples for the marsh."))).route).toBe("/canon/peoples");
+    expect(adapter.quote(proposal("Suggest three arcs.")).total).toBe(useCanonSuggestionsQuote()("arcs").total);
   });
 
   it("a read finds what it finds, and ending with no findings is still a success", async () => {

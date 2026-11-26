@@ -30,6 +30,14 @@ beforeEach(() => {
 });
 
 describe("insertPeople", () => {
+  // Bug: the id was not answered (or was another people's), so an accepted proposal's Undo removed the wrong row.
+  it("answers the id of the row it wrote", async () => {
+    fake.seed("campaign_peoples", [{ id: "old", campaign_id: "c1", sort_order: 0 }]);
+    const id = await insertPeople("c1", { kind: "species", recordId: "srd_elf", fromLibrary: true, percent: 0 });
+    expect(fake.rows("campaign_peoples").find((r) => r.library_species_id === "srd_elf")?.id).toBe(id);
+    expect(id).not.toBe("old");
+  });
+
   // Bug: a record went in the wrong column (a library species id in species_id, a uuid FK), which the table refuses
   // or, worse, files under another kind. Exactly one of the four is set, and it is the one the kind and source name.
   it.each([

@@ -9,7 +9,7 @@
           data-hand="text"
           rows="1"
           maxlength="4000"
-          placeholder="Ask about your campaign, or ask for something to be made"
+          :placeholder="placeholder ?? 'Ask about your campaign, or ask for something to be made'"
           class="ask-composer field-sizing-content max-h-40 min-h-6 flex-1 resize-none bg-transparent text-base leading-6 text-foreground placeholder:font-fell placeholder:italic placeholder:text-muted-foreground focus:outline-none"
           data-testid="ask-input"
           @keydown="onKeydown"
@@ -28,7 +28,12 @@ import { useAskUiStore } from "@/stores/ui/ask";
 import { IconSend } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 
-const { running = false, line = "" } = defineProps<{ running?: boolean; line?: string }>();
+const { running = false, line = "", placeholder = null } = defineProps<{
+  running?: boolean;
+  line?: string;
+  /** What the box says while something else is waiting on the DM's words (the walk's question); null is its usual line. */
+  placeholder?: string | null;
+}>();
 const emit = defineEmits<{ send: [text: string] }>();
 
 const ui = useAskUiStore();

@@ -57,6 +57,34 @@ describe("useCanonSuggestions", () => {
     expect(truths.suggestions.value).toEqual([]);
   });
 
+  // Bug caught: a section's "Enhance with AI" asked for the whole starter because `kinds` never left the client.
+  it("sends the premise's kinds with the pitch, and none when the whole starter is asked for", async () => {
+    invoke.mockResolvedValue(reply([{ kind: "theme", text: "Mercy" }]));
+    await useCanonSuggestions("premise", "themes").suggest("kind folk", { kinds: ["theme"] });
+    expect(invoke).toHaveBeenLastCalledWith("suggest-canon", { body: { campaign_id: "c1", mode: "premise", prompt: "kind folk", kinds: ["theme"] } });
+    await useCanonSuggestions("premise").suggest("kind folk");
+    expect(invoke.mock.calls.at(-1)![1].body).not.toHaveProperty("kinds");
+  });
+
+  // Bug caught: a backstory request went without its character, so the server could not tell whose past it was.
+  it("sends the character with a backstory request, and holds the proposals under that character", async () => {
+    invoke.mockResolvedValueOnce(reply([{ title: "The fire", body: "x" }]));
+    const helper = useCanonSuggestions("backstory", "pm1");
+    await helper.suggest("", { party_member_id: "pm1" });
+    expect(invoke).toHaveBeenLastCalledWith("suggest-canon", { body: { campaign_id: "c1", mode: "backstory", prompt: "", party_member_id: "pm1" } });
+    expect(useCanonSuggestions("backstory", "pm2").suggestions.value).toEqual([]);
+  });
+
+  // Bug caught: a walk draft sent like a chapter's Suggest, so the server never asked for range and a DM who wrote little
+  // got one proposal back; or a chapter's Suggest asking for walk range it did not want.
+  it("asks for range only for a draft held under a walk scope", async () => {
+    invoke.mockResolvedValue(reply([{ title: "The sea is salt", knowledge: "all", knowers: [] }]));
+    await useCanonSuggestions("truths", "walk:truths").suggest("salt");
+    expect(invoke.mock.calls.at(-1)![1].body).toMatchObject({ walk: true });
+    await useCanonSuggestions("truths").suggest("salt");
+    expect(invoke.mock.calls.at(-1)![1].body).not.toHaveProperty("walk");
+  });
+
   it("sends the secret with a clues request and the title, kind and text with a lore request", async () => {
     invoke.mockResolvedValueOnce(reply([{ title: "c", spot: { kind: "npc", id: "n", name: "N" } }]));
     invoke.mockResolvedValueOnce(reply([{ title: "Lore", kind: "history", passages: [] }]));
@@ -95,5 +123,39 @@ describe("useCanonSuggestions", () => {
     const secrets = useCanonSuggestions("secrets");
     expect(await secrets.suggest("")).toBe(false);
     expect(secrets.error.value).toContain("No usable suggestions");
+  });
+
+  describe("kept proposals (#1282)", () => {
+    const truths = async () => {
+      invoke.mockResolvedValueOnce(reply([{ title: "A", knowledge: "all", knowers: [] }, { title: "B", knowledge: "all", knowers: [] }]));
+      const review = useCanonSuggestions("truths");
+      await review.suggest("");
+      return review;
+    };
+
+    // Bug caught: the kept state lived in one component, so the walk's block and a chapter on the same key disagreed.
+    it("is shared by every review on one key and never leaks to another key", async () => {
+      const first = await truths();
+      const [a] = first.suggestions.value;
+      first.markKept(a!, { undo: null });
+      const second = useCanonSuggestions("truths");
+      expect(second.isKept(a!)).toBe(true);
+      expect(useCanonSuggestions("truths", "walk:truths").isKept(a!)).toBe(false);
+    });
+
+    // Bug caught: undo returned the row to pending before the write was reversed (or when it failed), so Accept wrote a duplicate.
+    it("runs the undo, then returns the proposal to pending; a failed undo leaves it kept", async () => {
+      const review = await truths();
+      const [a, b] = review.suggestions.value;
+      const undo = vi.fn().mockRejectedValueOnce(new Error("no")).mockResolvedValueOnce(undefined);
+      review.markKept(a!, { undo });
+      review.markKept(b!, { undo: null });
+      await expect(review.undoKept(a!)).rejects.toThrow("no");
+      expect(review.isKept(a!)).toBe(true);
+      await review.undoKept(a!);
+      expect(review.isKept(a!)).toBe(false);
+      expect(review.isKept(b!)).toBe(true);
+      expect(review.canUndo(b!)).toBe(false);
+    });
   });
 });

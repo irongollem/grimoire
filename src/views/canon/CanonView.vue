@@ -5,6 +5,7 @@
       <CanonSearchField class="w-72 min-w-0 shrink @max-3xl/header:w-40" />
       <AppButton to="/canon/import" variant="outline" size="md" :icon="IconUpload" label="Bring in a book" collapse-label-on-mobile collapse-below="header" />
       <CanonOpenAsBook />
+      <AppButton v-if="canAsk" variant="outline" size="md" :icon="IconCompassRose" label="Design it with me" collapse-label-on-mobile collapse-below="header" data-testid="canon-design" @click="askUi.openWalk()" />
       <!-- Short, so the header keeps to one row on a laptop; the tooltip says what it opens. -->
       <AppButton to="/canon/tonight" variant="outline" size="md" :icon="IconMoon" label="Tonight" tooltip="Prepare tonight: what the canon has waiting for the session" collapse-label-on-mobile collapse-below="header" class="@min-[60rem]/canon:hidden" />
     </template>
@@ -13,6 +14,7 @@
       <CanonSearchField />
       <div class="flex flex-wrap gap-2">
         <AppButton to="/canon/import" variant="outline" size="sm" :icon="IconUpload" label="Bring in a book" />
+        <AppButton v-if="canAsk" variant="outline" size="sm" :icon="IconCompassRose" label="Design it with me" data-testid="canon-design-phone" @click="askUi.openWalk()" />
         <AppButton to="/canon/tonight" variant="outline" size="sm" :icon="IconMoon" label="Tonight" />
       </div>
     </div>
@@ -34,9 +36,9 @@
           <!-- What the Familiar's whole-canon read found (asked for in Ask Grimoire), above whichever chapter is open. -->
           <CanonReview mode="read" />
           <CanonSearchResults v-if="searching" class="mx-auto w-full max-w-3xl" :groups="hitGroups" :query="ui.query" @open="ui.query = ''" />
-          <!-- A new canon is led in by the page itself, until its four steps are done or the DM skips them. -->
-          <CanonWayIn v-else-if="showWayIn" :entries="entries" :clues="allClues ?? []" :calendar-id="campaign?.calendar_id ?? null" />
           <template v-else>
+            <!-- A canon that is new or unfinished is invited into the walk, above the chapter and never in place of it. -->
+            <CanonWalkInvite v-if="showInvite" />
             <TruthsChapter
               v-if="active === 'truths'"
               :truths="shownTruths"
@@ -85,7 +87,7 @@ import CanonSearchField from "@/components/canon/CanonSearchField.vue";
 import CanonNextSession from "@/components/canon/CanonNextSession.vue";
 import CanonOpenAsBook from "@/components/canon/CanonOpenAsBook.vue";
 import CanonReview from "@/components/canon/CanonReview.vue";
-import CanonWayIn from "@/components/canon/CanonWayIn.vue";
+import CanonWalkInvite from "@/components/canon/walk/CanonWalkInvite.vue";
 import CanonContents from "@/components/canon/CanonContents.vue";
 import ArcsChapter from "@/components/canon/ArcsChapter.vue";
 import BackstoriesChapter from "@/components/canon/BackstoriesChapter.vue";
@@ -100,7 +102,7 @@ import LifeChapter from "@/components/canon/ecology/LifeChapter.vue";
 import FieldGuideChapter from "@/components/canon/ecology/FieldGuideChapter.vue";
 import PeoplesChapter from "@/components/canon/ecology/PeoplesChapter.vue";
 import { narrowToArc } from "@/lib/canon/canonNarrow";
-import { isNewCanon, wayInSteps } from "@/lib/canon/canonWayIn";
+import { invitesWalk } from "@/lib/canon/canonWalk";
 import { searchCanon } from "@/lib/canon/canonSearch";
 import { useCanonArcs } from "@/composables/canon/useCanonArcs";
 import { useCampaignHabitats } from "@/composables/canon/useCampaignHabitats";
@@ -110,11 +112,14 @@ import { useTableFacts } from "@/composables/canon/useTableFacts";
 import { useCanonUiStore } from "@/stores/ui/canon";
 import { ARC_NARROWED_SECTIONS, isSectionId, sectionCounts, sectionFromWord, sectionOfPart, type CanonSectionId } from "@/lib/canon/canonParts";
 import { useCanonClues } from "@/composables/canon/useCanonClues";
+import { useCanAsk } from "@/composables/ask/useCanAsk";
+import { useAskUiStore } from "@/stores/ui/ask";
+import { useCanonWalkSteps } from "@/composables/canon/useCanonWalkSteps";
 import { useCanonEntries, useTrashCanonEntry } from "@/composables/canon/useCanonEntries";
 import { useCanonForceData } from "@/composables/canon/useCanonForces";
 import { useCanonPassages } from "@/composables/canon/useCanonPassages";
 import { useParty } from "@/composables/party/useParty";
-import { IconMoon, IconUpload } from "@/lib/icons";
+import { IconCompassRose, IconMoon, IconUpload } from "@/lib/icons";
 import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
 import { prefersReducedMotion } from "@/lib/motion";
@@ -134,15 +139,18 @@ const backstories = computed(() => entries.value.filter((e) => e.part === "backs
 const { data: partyData } = useParty();
 const party = computed(() => partyData.value ?? []);
 const { data: allPassages } = useCanonPassages();
-const { data: allClues, isSuccess: cluesLoaded } = useCanonClues();
-// Only once the canon and its clues have loaded, or a canon still on its way would flash as new.
-const showWayIn = computed(() => {
+const { data: allClues } = useCanonClues();
+// Only once the canon, its clues and the skips have loaded, or a canon still on its way would read as new.
+const { steps: walkSteps, loaded: walkLoaded } = useCanonWalkSteps();
+// The walk is the Familiar's: a table without AI uses the chapters, so it is neither offered nor invited.
+const canAsk = useCanAsk();
+const askUi = useAskUiStore();
+const showInvite = computed(() => {
   const id = campaign.value?.id;
-  if (id === undefined || !ready.value || !cluesLoaded.value) return false;
-  // Only in place of the first chapter: choosing any other in the contents must open it. In front of every chapter it
-  // trapped the DM on one landing page that no click could leave (production, 24 Nov 2026).
+  if (!canAsk.value || id === undefined || !ready.value || !walkLoaded.value) return false;
+  // Only above the first chapter: the invitation belongs to the page's front, not to every chapter.
   if (active.value !== "premise") return false;
-  return isNewCanon(entries.value, wayInSteps(entries.value, allClues.value ?? [])) && ui.wayInDismissed[id] !== true;
+  return invitesWalk(entries.value, walkSteps.value) && ui.walkInviteDismissed[id] !== true;
 });
 const { data: forceData } = useCanonForceData();
 
@@ -306,6 +314,23 @@ function clearLanded() {
   landedEl = null;
 }
 onBeforeUnmount(clearLanded);
+
+// Design it with me (#1282): the section the Familiar is asking about comes into view, marked for a moment like a
+// landed-on row. A section with no field of its own on the page (a whole chapter: truths, lore) opens at its top.
+watch(
+  [() => ui.walkFocus, active, ready],
+  async ([focus, , isReady]) => {
+    if (focus === null || !isReady) return;
+    await nextTick();
+    const el = document.querySelector<HTMLElement>(`[data-walk-section="${focus.step}"]`);
+    if (!el) return void toPageTop();
+    scrollWithin(el, { block: "center", smooth: !prefersReducedMotion() });
+    clearLanded();
+    landedEl = el;
+    el.classList.add(...LANDED);
+    landedTimer = setTimeout(clearLanded, LANDED_MS);
+  },
+);
 
 watch([entryParam, entries, isLoading, active], async ([id]) => {
   const target = entries.value.find((e) => e.id === id);
