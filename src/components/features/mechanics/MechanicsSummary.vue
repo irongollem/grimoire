@@ -13,10 +13,13 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useSpellsByIds } from "@/composables/spells/useSpellsByIds";
 import type { FeatureMechanics } from "@/rules/features/mechanics.types";
 import { summarizeMechanics } from "./mechanicsSummary";
 
 /** What a feature does in the app, as labelled lines (the read view of the Mechanics editor). */
 const { mechanics } = defineProps<{ mechanics: FeatureMechanics }>();
-const groups = computed(() => summarizeMechanics(mechanics));
+const { data: spells } = useSpellsByIds(() => mechanics.grants?.spells?.map((grant) => grant.spell_id) ?? []);
+const spellNames = computed(() => new Map(Array.from(spells.value ?? new Map(), ([id, spell]) => [id, spell.name])));
+const groups = computed(() => summarizeMechanics(mechanics, spellNames.value));
 </script>

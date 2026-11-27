@@ -80,8 +80,12 @@
       </ListEditor>
     </MechSection>
 
-    <MechSection v-if="mechanics.grants" title="Proficiencies granted" hint="Given outright when the feature is gained, with no choice." @remove="set('grants', undefined)">
+    <MechSection v-if="mechanics.grants && hasProficiencies" title="Proficiencies granted" hint="Given outright when the feature is gained, with no choice." @remove="removeProficiencies">
       <GrantsFields :grants="mechanics.grants" @update:grants="set('grants', $event)" />
+    </MechSection>
+
+    <MechSection v-if="mechanics.grants?.spells" title="Spells granted" remove-label="Remove spell grants" @remove="removeSpellGrants">
+      <GrantedSpellsFields :grants="mechanics.grants.spells" :ruleset="ruleset" @update:grants="set('grants', { ...mechanics.grants, spells: $event })" />
     </MechSection>
 
     <MechSection v-if="mechanics.replaces !== undefined" title="Replaces" hint="An optional feature a table can take instead of another of the same class." @remove="set('replaces', undefined)">
@@ -103,6 +107,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import type { Activation, FeatureMechanics } from "@/rules/features/mechanics.types";
+import type { RulesetKey } from "@/types/ruleset.types";
 import {
   ACTIVATION_OPTIONS,
   newChoice,
@@ -118,6 +123,7 @@ import {
 import ByLevelTable from "./ByLevelTable.vue";
 import ChoiceFields from "./ChoiceFields.vue";
 import EffectFields from "./EffectFields.vue";
+import GrantedSpellsFields from "./GrantedSpellsFields.vue";
 import GrantsFields from "./GrantsFields.vue";
 import ListEditor from "./ListEditor.vue";
 import MechField from "./MechField.vue";
@@ -133,16 +139,30 @@ import UsesEditor from "./UsesEditor.vue";
  * added, so a plain passive feature is one select and a row of "Add…" buttons.
  * `errors` are `parseMechanics`' messages, computed by the owner of the draft.
  */
-const { mechanics, errors = [] } = defineProps<{ mechanics: FeatureMechanics; errors?: readonly string[] }>();
+const { mechanics, ruleset, errors = [] } = defineProps<{ mechanics: FeatureMechanics; ruleset?: RulesetKey; errors?: readonly string[] }>();
 const emit = defineEmits<{ "update:mechanics": [value: FeatureMechanics] }>();
+
+const hasProficiencies = computed(() => {
+  const grants = mechanics.grants;
+  return grants && (grants.skills !== undefined || grants.tools !== undefined || grants.languages !== undefined);
+});
 
 function set<K extends keyof FeatureMechanics>(key: K, value: FeatureMechanics[K] | undefined) {
   const next = withPart(mechanics, key, value);
   const tidy = tidyMechanics(next);
-  // An empty grants part stays while it is being edited (it is what "Proficiencies
-  // granted" adds); whoever saves the draft tidies it away.
+  // Empty grants lists keep their section open until the owner saves the draft.
   if (next.grants) tidy.grants = next.grants;
   emit("update:mechanics", tidy);
+}
+
+function removeProficiencies() {
+  const spells = mechanics.grants?.spells;
+  set("grants", spells?.length ? { spells } : undefined);
+}
+
+function removeSpellGrants() {
+  const { spells: _spells, ...proficiencies } = mechanics.grants ?? {};
+  set("grants", hasProficiencies.value ? proficiencies : undefined);
 }
 
 function setActivation(value: Activation | "") {
@@ -159,7 +179,8 @@ const addable = computed(() => {
   if (!mechanics.effect) out.push({ label: "Add a roll", add: () => set("effect", newEffect()) });
   if (!mechanics.actions) out.push({ label: "Add actions it allows", add: () => set("actions", [newSubAction()]) });
   if (!mechanics.choices) out.push({ label: "Add a choice", add: () => set("choices", [newChoice()]) });
-  if (!mechanics.grants) out.push({ label: "Proficiencies granted", add: () => set("grants", newGrants()) });
+  if (!hasProficiencies.value) out.push({ label: "Proficiencies granted", add: () => set("grants", { ...mechanics.grants, ...newGrants() }) });
+  if (!mechanics.grants?.spells) out.push({ label: "Spells granted", add: () => set("grants", { ...mechanics.grants, spells: [] }) });
   if (mechanics.replaces === undefined) out.push({ label: "Replaces another feature", add: () => set("replaces", "") });
   return out;
 });

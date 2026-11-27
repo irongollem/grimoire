@@ -23,6 +23,7 @@ import type {
   LevelChoiceEntry,
   LevelChoices,
 } from "@/types/party.types";
+import type { CharacterSpell } from "@/types/spell.types";
 import { applyFeatureGrants, mergeSkillChanges, type FeatureSpellInput, featureSpellRows } from "./featureGrants";
 import { applyMasteryChanges, applySkillChanges, type ResolvedPicks } from "./levelPicks";
 
@@ -33,6 +34,7 @@ export interface SpellRow {
   always_prepared?: boolean;
   source_type?: string;
   source_label?: string;
+  casting_ability?: CharacterSpell["casting_ability"];
   uses_per_day?: number | null;
   uses_remaining?: number | null;
   resets_on?: string | null;
@@ -108,11 +110,11 @@ export interface BuildLevelUpPayloadInput {
   newClassDefinitionKind: "system" | "custom" | null;
   /** The option picked from the subclass's `spell_variants` at this level, or null when none was asked. */
   subclassVariant: string | null;
-  /** All spell ids the character already has — feature spell picks skip these. */
+  /** All spell ids the character already has — feature spell grants and picks skip these. */
   existingSpellIds: Set<string>;
   /** The `grants` of every feature newly granted at this level (class, subclass, and the feats taken). */
   featureGrants: (FeatureGrants | undefined)[];
-  /** What the level's spell picks need to become rows; `existingSpellIds` is added here. */
+  /** What the level's feature spell grants and picks need to become rows. `existingSpellIds` is added here. */
   featureSpells: Omit<FeatureSpellInput, "existingSpellIds">;
 }
 
@@ -294,7 +296,7 @@ export function buildLevelUpPayload(input: BuildLevelUpPayloadInput): LevelUpPay
     });
   }
 
-  // Spells a feature's pick adds (a feat's cantrip, a class feature's "counts as a cleric spell").
+  // Spells granted outright or picked through a feat or other feature.
   const taken = new Set(spellRows.map((r) => r.spell_id));
   const fromFeatures = featureSpellRows({ ...featureSpells, existingSpellIds: new Set([...existingSpellIds, ...taken]) });
   spellRows.push(...fromFeatures.rows);

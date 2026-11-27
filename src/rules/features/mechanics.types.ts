@@ -276,13 +276,24 @@ export interface FeatureChoice {
   replace_on_level_up: boolean;
 }
 
-/** Proficiencies the feature gives outright, with no choice (2014 Arcana Domain's Arcane Initiate: Arcana). */
+/** A spell a feature grants outright, rather than asking the player to choose from a list. */
+export interface FeatureSpellGrant {
+  spell_id: string;
+  /** For feats such as Telekinetic, use the ability the character chose to increase for this feat. */
+  casting_ability?: "int" | "wis" | "cha" | "feat_ability_increase";
+  /** A limited free cast tracked on the character's innate spell list. */
+  free_cast?: { uses: number; resets_on: "short_rest" | "long_rest" };
+}
+
 export interface FeatureGrants {
+  /** Proficiencies the feature gives outright, with no choice (2014 Arcana Domain's Arcane Initiate: Arcana). */
   skills?: SkillKey[];
   /** Tool names as the sheet stores them in `tool_proficiencies`. */
   tools?: string[];
   /** Language names as the sheet stores them in `languages`. */
   languages?: string[];
+  /** Fixed spell ids granted when this feature or feat is gained. */
+  spells?: FeatureSpellGrant[];
 }
 
 export interface FeatureMechanics {

@@ -8,6 +8,7 @@ import type {
   FeatureChoice,
   FeatureEffect,
   FeatureMechanics,
+  FeatureSpellGrant,
   FeatureUses,
   Recharge,
   RiderDice,
@@ -115,6 +116,18 @@ function describeChoice(choice: FeatureChoice): string {
   return `${choice.label || choice.key}: ${describePick(choice.pick)}, ${describeCount(choice.count)}${swap}`;
 }
 
+function describeSpellGrant(grant: FeatureSpellGrant, spellName: string): string {
+  const parts = [spellName];
+  if (grant.casting_ability === "feat_ability_increase") parts.push("uses the ability increased by this feat");
+  else if (grant.casting_ability) parts.push(ability(grant.casting_ability));
+  if (grant.free_cast) {
+    const { uses, resets_on } = grant.free_cast;
+    const rest = resets_on === "short_rest" ? "short rest" : "long rest";
+    parts.push(`${uses} free ${uses === 1 ? "cast" : "casts"} per ${rest}`);
+  }
+  return parts.join(", ");
+}
+
 function describeAdd(add: EffectAdd): string {
   switch (add.kind) {
     case "ability": return `${ability(add.ability)} modifier`;
@@ -148,7 +161,7 @@ export function describeEffect(effect: FeatureEffect): string[] {
 }
 
 /** Groups in a fixed reading order; a feature with no mechanics has none. */
-export function summarizeMechanics(mechanics: FeatureMechanics): SummaryGroup[] {
+export function summarizeMechanics(mechanics: FeatureMechanics, spellNames?: ReadonlyMap<string, string>): SummaryGroup[] {
   const groups: SummaryGroup[] = [];
   if (mechanics.activation) groups.push({ heading: "Takes", lines: [ACTIVATION_LABELS[mechanics.activation]] });
   if (mechanics.spends) groups.push({ heading: "Spends", lines: [`${mechanics.spends.amount} from ${mechanics.spends.key}`] });
@@ -177,7 +190,13 @@ export function summarizeMechanics(mechanics: FeatureMechanics): SummaryGroup[] 
     if (mechanics.grants.skills) lines.push(`Skills: ${mechanics.grants.skills.map((s) => s.replace(/_/g, " ")).join(", ")}`);
     if (mechanics.grants.tools) lines.push(`Tools: ${mechanics.grants.tools.join(", ")}`);
     if (mechanics.grants.languages) lines.push(`Languages: ${mechanics.grants.languages.join(", ")}`);
-    groups.push({ heading: "Proficiency", lines });
+    if (lines.length > 0) groups.push({ heading: "Proficiency", lines });
+    if (mechanics.grants.spells?.length) {
+      groups.push({
+        heading: "Spells granted",
+        lines: mechanics.grants.spells.map((grant) => describeSpellGrant(grant, spellNames?.get(grant.spell_id) ?? grant.spell_id)),
+      });
+    }
   }
   if (mechanics.choices) groups.push({ heading: "Choices", lines: mechanics.choices.map(describeChoice) });
   if (mechanics.replaces) groups.push({ heading: "Replaces", lines: [mechanics.replaces] });

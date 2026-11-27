@@ -72,6 +72,7 @@ function skillLevel(skills: SkillProficiencies, key: SkillKey): SkillProfLevel |
 export function resolveLevelPicks(input: ResolveInput): ResolvedPicks {
   const choices: ChoiceDelta = {};
   const feats: string[] = [];
+  const featAbilityChoices = new Map<string, AbilityKey>();
   const abilityIncreases: Partial<Record<AbilityKey, number>> = {};
   const skillChanges: Record<string, LevelSkillChange> = {};
   const masteries = { added: [] as string[], removed: [] as string[] };
@@ -81,6 +82,22 @@ export function resolveLevelPicks(input: ResolveInput): ResolvedPicks {
   const setSkill = (key: SkillKey, to: SkillProfLevel) => {
     const earlier = Object.hasOwn(skillChanges, key) ? skillChanges[key].from : skillLevel(input.skills, key);
     skillChanges[key] = { from: earlier, to };
+  };
+
+  const takeFeat = (value: ChoiceValue) => {
+    const id = value.picks[0];
+    if (id === undefined) return;
+    feats.push(...value.picks);
+    const feat = input.featsById.get(id);
+    const { primary, secondary } = value.ability;
+    if (feat === undefined || primary === null) return;
+    const delta = abilityDeltaFor(running, feat, {
+      primary,
+      ...(secondary === null ? {} : { secondary }),
+    });
+    // A repeatable feat's first grant supplies the spell when the same feat is picked twice in a level.
+    if (!featAbilityChoices.has(id)) featAbilityChoices.set(id, primary);
+    mergeIncrease(abilityIncreases, running, delta);
   };
 
   for (const due of input.due) {
@@ -93,7 +110,7 @@ export function resolveLevelPicks(input: ResolveInput): ResolvedPicks {
       const asi = value.asi;
       if (asi === null) continue;
       if (asi.mode === "feat") {
-        takeFeat(value, input.featsById, running, feats, abilityIncreases);
+        takeFeat(value);
       } else if (asi.primary !== null) {
         const secondary = asi.mode === "plus1plus1" && asi.secondary !== null ? asi.secondary : undefined;
         const after = applyAbilityIncrease(running, asiIncrease(asi), { primary: asi.primary, secondary });
@@ -104,7 +121,7 @@ export function resolveLevelPicks(input: ResolveInput): ResolvedPicks {
       continue;
     }
     if (pick.kind === "feat") {
-      takeFeat(value, input.featsById, running, feats, abilityIncreases);
+      takeFeat(value);
       continue;
     }
 
@@ -137,29 +154,16 @@ export function resolveLevelPicks(input: ResolveInput): ResolvedPicks {
   }
 
   return {
-    record: { choices, abilityIncreases, feats, swaps: { ...input.swaps } },
+    record: {
+      choices,
+      abilityIncreases,
+      feats,
+      ...(featAbilityChoices.size > 0 ? { featAbilityChoices: Object.fromEntries(featAbilityChoices) } : {}),
+      swaps: { ...input.swaps },
+    },
     skills: skillChanges,
     masteries,
   };
-}
-
-function takeFeat(
-  value: ChoiceValue,
-  featsById: ReadonlyMap<string, ClassFeature>,
-  running: Record<AbilityKey, number>,
-  feats: string[],
-  abilityIncreases: Partial<Record<AbilityKey, number>>,
-): void {
-  if (value.picks.length === 0) return;
-  const id = value.picks[0];
-  feats.push(...value.picks);
-  const feat = featsById.get(id);
-  if (feat === undefined || value.ability.primary === null) return;
-  const delta = abilityDeltaFor(running, feat, {
-    primary: value.ability.primary,
-    ...(value.ability.secondary === null ? {} : { secondary: value.ability.secondary }),
-  });
-  mergeIncrease(abilityIncreases, running, delta);
 }
 
 /** The skill proficiencies after applying a level's changes (`to`) or undoing them (`from`). */

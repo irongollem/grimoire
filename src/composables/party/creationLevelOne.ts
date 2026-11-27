@@ -80,7 +80,7 @@ export interface LevelOneInput {
   picks: ResolvedPicks;
   /** Fixed grants of the features and feats in force at level 1 (the origin feat included). */
   featureGrants: readonly (FeatureGrants | undefined)[];
-  /** The level's spell picks; the character holds no spells yet, so nothing is skipped as already known. */
+  /** The level's feature spell grants and picks. The character holds no spells yet. */
   featureSpells: Omit<FeatureSpellInput, "existingSpellIds">;
   /** `class_resources` from the projected pools, level 1 maxima. */
   classResources: StoredClassResources;
@@ -98,7 +98,7 @@ export interface LevelOneWrites {
   weapon_masteries: string[];
   class_resources: StoredClassResources;
   level_choices: LevelChoices;
-  /** `character_spells` rows the spell picks become; written once the class row exists. */
+  /** `character_spells` rows from feature grants and picks, written once the class row exists. */
   spellRows: SpellRow[];
 }
 

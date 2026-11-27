@@ -25,7 +25,7 @@ import {
 } from "@/rules/features/levelUpChoices";
 import { parseMechanics } from "@/rules/features/mechanics";
 import type { PrerequisiteCharacter } from "@/rules/features/prerequisites";
-import { dueKey, pickedFeatId, type ChoiceValue } from "@/components/features/choiceValue";
+import { dueKey, entryTakesFeat, type ChoiceValue } from "@/components/features/choiceValue";
 import type { ClassFeature } from "@/types/feature.types";
 import type { PartyMember } from "@/types/party.types";
 import type { RulesetKey } from "@/types/ruleset.types";
@@ -150,8 +150,7 @@ export function useLevelUpFeatures(input: LevelUpFeaturesInput) {
     const ids: string[] = [];
     for (const due of firstDue.value) {
       const value = input.values.value[dueKey(due)];
-      const id = value === undefined ? null : pickedFeatId(due, value);
-      if (id !== null) ids.push(id);
+      if (value !== undefined && entryTakesFeat(due, value)) ids.push(...value.picks);
     }
     return ids;
   });
@@ -258,12 +257,20 @@ export function useLevelUpFeatures(input: LevelUpFeaturesInput) {
     const feats = grantedAfter.value.filter(
       (g) =>
         g.grant.kind === "feat" &&
-        (pickedFeats.value.includes(g.feature.id) || (firstLevel && g.grant.via === "origin")),
+        (g.grant.via === "origin" ? firstLevel : pickedFeats.value.includes(g.feature.id)),
     );
     return [...gained.value, ...feats];
   });
   const featureGrants = computed<(FeatureGrants | undefined)[]>(() => grantedNow.value.map((g) => g.mechanics.grants));
   const featureSpells = computed<Omit<FeatureSpellInput, "existingSpellIds">>(() => ({
+    fixed: grantedNow.value.map((g) => ({
+      featureName: g.feature.name,
+      sourceType: g.grant.kind === "feat" ? "feat" : "other",
+      spells: g.mechanics.grants?.spells ?? [],
+      featAbilityChoice: g.grant.kind === "feat" && g.grant.via === "level"
+        ? resolved.value.record.featAbilityChoices?.[g.feature.id]
+        : undefined,
+    })),
     due: due.value,
     values: input.values.value,
     isFeat: (id) => featuresById.value.get(id)?.kind === "feat",

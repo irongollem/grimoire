@@ -980,11 +980,11 @@ export function useCharacterCreationForm() {
           classRowId = classRow.id;
         }
 
-        // The spells the level's feature picks became (Magic Initiate, a class feature's cantrip).
+        // The spells the level's features grant or ask the player to pick.
         if (featureSpellRows.length > 0) {
           const { error: spellError } = await supabase
             .from("character_spells")
-            .insert(characterSpellInserts(created.id, featureSpellRows, classRowId));
+            .insert(characterSpellInserts(created.id, featureSpellRows, classRowId), { defaultToNull: false });
           if (spellError) throw spellError;
         }
 

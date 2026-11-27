@@ -69,7 +69,7 @@
           What the app does with it: the character sheet, rolls and level-up read these fields. The description stays the rules text.
         </p>
       </div>
-      <MechanicsEditor :mechanics="draft.mechanics" :errors="check.mechanicsErrors" @update:mechanics="draft.mechanics = $event" />
+      <MechanicsEditor :mechanics="draft.mechanics" :ruleset="ruleset" :errors="check.mechanicsErrors" @update:mechanics="draft.mechanics = $event" />
     </section>
   </div>
 </template>

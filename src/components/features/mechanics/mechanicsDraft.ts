@@ -152,6 +152,7 @@ export function tidyMechanics(mechanics: FeatureMechanics): FeatureMechanics {
     if (grants.skills && grants.skills.length === 0) delete grants.skills;
     if (grants.tools && grants.tools.length === 0) delete grants.tools;
     if (grants.languages && grants.languages.length === 0) delete grants.languages;
+    if (grants.spells && grants.spells.length === 0) delete grants.spells;
     if (Object.keys(grants).length === 0) delete next.grants;
     else next.grants = grants;
   }
@@ -200,7 +201,7 @@ export function setSpellLevel(pick: SpellPick, level: number): SpellPick {
 
 /** The starting value for the "Proficiencies granted" part; `tidyMechanics` drops it again if left empty. */
 export function newGrants(): FeatureGrants {
-  return {};
+  return { skills: [] };
 }
 
 // ── Rolls ─────────────────────────────────────────────────────────────────────

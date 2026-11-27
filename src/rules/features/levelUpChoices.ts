@@ -151,6 +151,8 @@ export interface LevelChoiceRecord {
   abilityIncreases: Partial<Record<AbilityKey, number>>;
   /** Feat ids taken this level, appended to `class_choices.feats`. */
   feats: string[];
+  /** Primary ability chosen for each feat, including when the score was already at the cap. */
+  featAbilityChoices?: Record<string, AbilityKey>;
   /** Replaced conceptual key -> replacement feature id. */
   swaps: Record<string, string>;
 }

@@ -68,14 +68,15 @@ async function fetchCustomSpellIndex(campaignId: string | null, ruleset: Ruleset
 
 /** Enabled library sources plus custom spells, sorted level then name, without the descriptions. A row opens in
  *  full through `useSpellsByIds`. */
-export function useSpellIndex(getOptions?: () => { enabled?: boolean }) {
+export function useSpellIndex(getOptions?: () => { enabled?: boolean; ruleset?: RulesetKey }) {
   const campaign = useCampaignStore();
   const { ruleset } = useRuleset();
+  const activeRuleset = computed(() => getOptions?.().ruleset ?? ruleset.value);
   const { slugs, isLoading: sourcesLoading } = useLibrarySourceSlugs();
   const on = () => getOptions?.().enabled !== false;
 
   const libraryQuery = useQuery({
-    queryKey: computed(() => [LIBRARY_INDEX_KEY, INDEX_SHAPE, slugs.value, ruleset.value] as const),
+    queryKey: computed(() => [LIBRARY_INDEX_KEY, INDEX_SHAPE, slugs.value, activeRuleset.value] as const),
     queryFn: ({ queryKey: [, , enabledSlugs, activeRuleset] }) => {
       if (enabledSlugs === null) throw new Error("useSpellIndex fetched without enabled sources");
       return fetchLibrarySpellIndex(enabledSlugs, activeRuleset);
@@ -85,7 +86,7 @@ export function useSpellIndex(getOptions?: () => { enabled?: boolean }) {
   });
 
   const customQuery = useQuery({
-    queryKey: computed(() => ["spells", "index", campaign.activeCampaignId, ruleset.value] as const),
+    queryKey: computed(() => ["spells", "index", campaign.activeCampaignId, activeRuleset.value] as const),
     queryFn: ({ queryKey: [, , campaignId, activeRuleset] }) => fetchCustomSpellIndex(campaignId, activeRuleset),
     enabled: on,
     staleTime: Infinity,

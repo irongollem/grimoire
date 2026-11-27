@@ -1,13 +1,13 @@
 import { dueKey, type ChoiceValue } from "@/components/features/choiceValue";
+import type { AbilityKey } from "@/rules/characterCreation";
 import type { DueChoice } from "@/rules/features/levelUpChoices";
-import type { FeatureGrants } from "@/rules/features/mechanics.types";
+import type { FeatureGrants, FeatureSpellGrant } from "@/rules/features/mechanics.types";
 import type { LevelSkillChange, SkillProficiencies } from "@/types/party.types";
 import type { SpellRow } from "./buildLevelUpPayload";
 
 /**
- * What a feature gives outright (proficiencies) and what its spell picks become
- * (`character_spells` rows), as pure functions so level-up, de-level, character
- * creation and the sheet all read one answer (#994).
+ * What a feature gives outright and what its spell grants and picks become
+ * (`character_spells` rows), as pure functions shared by level-up and creation.
  */
 
 export interface GrantHoldings {
@@ -102,7 +102,16 @@ export function mergeSkillChanges(
   return out;
 }
 
+interface FixedSpellSource {
+  featureName: string;
+  sourceType: "feat" | "other";
+  spells: readonly FeatureSpellGrant[];
+  featAbilityChoice?: AbilityKey;
+}
+
 export interface FeatureSpellInput {
+  /** Spells named outright by features gained at this level. */
+  fixed?: readonly FixedSpellSource[];
   due: readonly DueChoice[];
   values: Readonly<Record<string, ChoiceValue>>;
   /** Whether a feature is a feat; everything else is a class or subclass feature. */
@@ -118,19 +127,35 @@ export interface FeatureSpellInput {
 }
 
 /**
- * The `character_spells` rows the level's spell picks become, with the ids they
- * add (what the history keeps so a de-level can remove them).
+ * The `character_spells` rows the level's grants and picks add, with ids for de-level.
+ * A fixed grant is innate, labelled with the feature that gives it.
  *
  * - a feat's pick: source "feat", labelled with the feat;
  * - a class feature's pick on a spellcasting class: an always-prepared class row,
  *   so it casts with the class's DC and attack and counts toward no limit;
  * - a class feature's pick on a class that does not cast: source "other".
  *
- * A free cast (levelled spells only; cantrips need none) is one use per long rest.
+ * For picks, a free cast of a levelled spell is one use per long rest.
  */
 export function featureSpellRows(input: FeatureSpellInput): { rows: SpellRow[]; spellIds: string[] } {
   const rows: SpellRow[] = [];
   const seen = new Set(input.existingSpellIds);
+  for (const source of input.fixed ?? []) {
+    for (const spell of source.spells) {
+      if (seen.has(spell.spell_id)) continue;
+      seen.add(spell.spell_id);
+      const ability = spell.casting_ability === "feat_ability_increase" ? source.featAbilityChoice : spell.casting_ability;
+      const uses = spell.free_cast;
+      rows.push({
+        spell_id: spell.spell_id,
+        source_type: source.sourceType,
+        source_label: source.featureName,
+        is_prepared: false,
+        ...(ability === "int" || ability === "wis" || ability === "cha" ? { casting_ability: ability } : {}),
+        ...(uses === undefined ? {} : { uses_per_day: uses.uses, uses_remaining: uses.uses, resets_on: uses.resets_on }),
+      });
+    }
+  }
   for (const entry of input.due) {
     const pick = entry.choice.pick;
     if (pick.kind !== "spell") continue;

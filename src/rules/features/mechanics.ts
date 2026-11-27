@@ -16,6 +16,7 @@ import {
   type FeatPrerequisites,
   type FeatureChoice,
   type FeatureGrants,
+  type FeatureSpellGrant,
   type FeatureMechanics,
   type FeatureScaling,
   type FeatureToggle,
@@ -478,6 +479,46 @@ function parseGrants(value: unknown, errors: string[]): FeatureGrants | null {
     const names = uniqueNames(raw);
     if (names.length !== raw.length) errors.push(`grants.${field}: expected non-empty, distinct names`);
     if (names.length > 0) grants[field] = names;
+  }
+  if (value.spells !== undefined) {
+    if (!Array.isArray(value.spells)) errors.push("grants.spells: expected a list of spell grants");
+    else {
+      const spells: FeatureSpellGrant[] = [];
+      const seen = new Set<string>();
+      value.spells.forEach((raw, index) => {
+        const path = `grants.spells[${index}]`;
+        if (!isRecord(raw)) {
+          errors.push(`${path}: expected an object`);
+          return;
+        }
+        if (!isNonEmptyString(raw.spell_id)) {
+          errors.push(`${path}.spell_id: expected a spell id`);
+          return;
+        }
+        const spellId = raw.spell_id.trim();
+        if (seen.has(spellId)) {
+          errors.push(`${path}.spell_id: '${spellId}' is granted more than once`);
+          return;
+        }
+        const grant: FeatureSpellGrant = { spell_id: spellId };
+        if (raw.casting_ability !== undefined) {
+          if (raw.casting_ability === "feat_ability_increase" || raw.casting_ability === "int" || raw.casting_ability === "wis" || raw.casting_ability === "cha") {
+            grant.casting_ability = raw.casting_ability as FeatureSpellGrant["casting_ability"];
+          } else errors.push(`${path}.casting_ability: expected an ability or feat_ability_increase`);
+        }
+        if (raw.free_cast !== undefined) {
+          if (!isRecord(raw.free_cast)) errors.push(`${path}.free_cast: expected an object`);
+          else if (!isCount(raw.free_cast.uses) || raw.free_cast.uses < 1) {
+            errors.push(`${path}.free_cast.uses: expected a whole number of at least 1`);
+          } else if (raw.free_cast.resets_on !== "short_rest" && raw.free_cast.resets_on !== "long_rest") {
+            errors.push(`${path}.free_cast.resets_on: expected short_rest or long_rest`);
+          } else grant.free_cast = { uses: raw.free_cast.uses, resets_on: raw.free_cast.resets_on };
+        }
+        seen.add(spellId);
+        spells.push(grant);
+      });
+      if (spells.length > 0) grants.spells = spells;
+    }
   }
   return Object.keys(grants).length > 0 ? grants : null;
 }
