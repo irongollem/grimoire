@@ -335,6 +335,8 @@ import {
   useImportCost,
   useAbandonDocumentImport,
 } from "@/composables/campaign/useDocumentImport";
+import { IMPORT_SCREEN_ID } from "@/lib/ask/askInterviewStory";
+import { useAskPrefillStore } from "@/stores/ui/askPrefill";
 import { countPages, type PageCountResult } from "@/lib/documentImport/pageCount";
 import {
   validateUpload,
@@ -518,6 +520,17 @@ const SOURCE_MODE_OPTIONS = computed<SegmentedOption<ImportSourceMode>[]>(() => 
 watch(aiEnabled, (on) => {
   if (!on) sourceMode.value = "archive";
 });
+
+// The Familiar's interview (#1282) leaves what the DM told for the paste step: it is shown there, not on the source the
+// DM last used. Before the wiki-export rule below, which an interrupted import's review outranks.
+const askPrefill = useAskPrefillStore();
+watch(
+  () => askPrefill.pending[IMPORT_SCREEN_ID],
+  (offered) => {
+    if (offered && aiEnabled.value) sourceMode.value = "paste";
+  },
+  { immediate: true },
+);
 
 // An interrupted wiki import (a row in review after a reload) is only ever resolved on its own source.
 watch(

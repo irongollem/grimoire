@@ -9,6 +9,14 @@ describe("parseAskBody", () => {
     expect(parseAskBody({ campaignId: CAMPAIGN, message: "  who runs the mill?  " })).toEqual({ ok: true, body: { campaignId: CAMPAIGN, message: "who runs the mill?" } });
   });
 
+  // Bug caught: an arbitrary string from the browser reaching the prompt as a mode, or the interview mode being lost.
+  it("keeps mode interview and drops any other mode value", () => {
+    expect(parseAskBody({ campaignId: CAMPAIGN, message: "x", mode: "interview" })).toEqual({ ok: true, body: { campaignId: CAMPAIGN, message: "x", mode: "interview" } });
+    for (const mode of ["Interview", "admin", 1, null, { a: 1 }]) {
+      expect((parseAskBody({ campaignId: CAMPAIGN, message: "x", mode }) as { body: object }).body).not.toHaveProperty("mode");
+    }
+  });
+
   it("refuses a body that cannot be read as one: no campaign id, a bad session id, an empty or oversize message", () => {
     expect(parseAskBody(null).ok).toBe(false);
     expect(parseAskBody({ message: "x" }).ok).toBe(false);

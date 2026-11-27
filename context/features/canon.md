@@ -193,6 +193,10 @@ words `forces`, `questions`) and `?backstory=<member>` resolve to the chapter th
   - **Skips** are `canon_walk_skips` (`20261126084426`): one row per campaign and section, DM-only, ringing the doorbell
     under `CANON_KEY`, not copied with a demo. The section check is held equal to `WALK_SKIPPABLE` by `canonWalk.test.ts`. A
     section written after it was skipped reads as filled. Skipping one character's notes stores nothing.
+  - **Two ways**: the walk opens by asking how. **Section by section** is the walk above; **Just tell you** is the
+    interview (ask-grimoire.md, "The interview"), which hands the told story to the document import ("Bring in a
+    book") to be filed. **Prices**: a draft names its price on its button only from 3 credits (`showsPrice`); below
+    that the opening says it once and the progress line keeps the running total.
   - **The ways in**: the Canon header's **Design it with me**, and the invite (`CanonWalkInvite`) above the Premise chapter,
     never in place of it, while `invitesWalk`: the pitch is empty (however established the canon; a real campaign had
     themes, voice, truths and forces and no pitch), or the canon is small and has a stop to do. Both open the Familiar on

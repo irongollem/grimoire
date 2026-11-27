@@ -87,6 +87,20 @@ describe("askState", () => {
     expect(text).not.toContain("open:");
   });
 
+  // Bug caught: the interview text leaking into ordinary turns, or the digest dropped so it asks about what is written.
+  it("adds the interview section and the canon digest only in interview mode, and leaves the where-line as it was", () => {
+    const base = { context: undefined, recordName: null };
+    const plain = askState(base);
+    expect(plain).not.toContain("Interviewing the DM");
+    expect(askState({ ...base, digest: ["Truth: x"] })).toBe(plain);
+    const iv = askState({ ...base, mode: "interview", digest: ["Truth: Salt keeps the dead quiet"] });
+    expect(iv.startsWith(plain)).toBe(true);
+    expect(iv).toContain("## Interviewing the DM");
+    expect(iv).toContain("import_story");
+    expect(iv).toContain("Truth: Salt keeps the dead quiet");
+    expect(askState({ ...base, mode: "interview" })).toContain("holds nothing yet");
+  });
+
   it("has a sentence for a DM with no context", () => {
     expect(askState({ context: undefined, recordName: null })).toContain("no record open");
   });

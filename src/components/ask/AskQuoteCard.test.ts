@@ -1,3 +1,4 @@
+import { askGenerator } from "@edge-shared/agent/askContract";
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
 import { computed } from "vue";
@@ -119,11 +120,15 @@ describe("AskQuoteCard", () => {
     expect(w.find('[data-testid="ask-confirm"]').exists()).toBe(false);
   });
 
-  // Bug caught: a screen generator showing a price or a Confirm that would run nothing.
-  it("offers a screen generator's own screen instead of a quote", async () => {
+  // Bug caught: a screen generator showing a price or a Confirm that would run nothing; or its button saying "Open story"
+  // where the action ("Turn this into my canon") says what pressing it does.
+  it("offers a screen generator's own screen instead of a quote, under the generator's action", async () => {
     const w = card(null, { screen: true });
     expect(w.text()).toContain("This one works in its own screen.");
-    await w.findAll("button").find((b) => b.text() === "Open NPC")?.trigger("click");
+    const action = askGenerator("npc")!.action;
+    const open = w.findAll("button").find((b) => b.text() === action);
+    expect(open).toBeDefined();
+    await open!.trigger("click");
     expect(push).toHaveBeenCalledWith("/quests/design?from=ask");
   });
 

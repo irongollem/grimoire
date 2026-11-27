@@ -122,6 +122,27 @@ section ... it needs to feel like you are discussing with your familiar and he h
 - **Ways in**: the store's `openWalk()`, called by the Canon header's "Design it with me" and its invite; the panel takes
   the request once and starts the walk.
 
+### The interview (#1282 story 8)
+
+The second way through Design it with me. The walk opens by asking how (`walk-choose`): **Section by section** starts
+the scripted walk above, **Just tell you** starts the interview (`useAskInterview`). The maintainer's goal for both:
+"people tell their story in whatever format they like telling it, and we convert it into our story structures".
+
+- **The model leads, in ordinary turns.** While the interview is active every turn's body carries `mode: "interview"`
+  (`AskTurnBody`, kept only for exactly that value by `parseAskBody`), and `askState` adds an "Interviewing the DM"
+  section at the head of the newest message: ask one open question at a time, follow up on what is thin or unexplained,
+  steer to what the canon does not hold yet, never draft canon in the chat; the rules about not adding details and about
+  asking with choices are relaxed for it. The section carries the canon digest (`loadCanonDigest`, shared with
+  `suggest-canon`). The system text is untouched, so the prompt cache holds. Interview turns are ordinary answers: five
+  free a day, then credits.
+- **Turn this into my canon** (the interview line under the header, or the model's `import_story` proposal, a
+  `screen` generator) composes the told story (`composeStory`: the DM's words verbatim, each after the question it
+  answered) and opens the document import's paste step filled with it, own writing ticked (`offerToldStory`, the
+  `document_import` prefill). The DM ticks the rights, sees the price and presses Start; the import's own review files it
+  into canon parts, people, places, factions and quests. One converter, two ways to feed it. The screen adapter reads the
+  story from `useAskUiStore().interviewStory`, because a proposal carries only the model's concept.
+- A screen card's button says its generator's action ("Turn this into my canon", "Design quest"), not "Open" and a noun.
+
 ## Not built yet
 
 - Tools that work inside an open editor (text enhance, the Illuminator, brush tips, a sculpted miniature) are not offered.

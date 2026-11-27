@@ -4,6 +4,7 @@ import type { AskGenerator } from "../askContract.ts";
 
 export const SCREENS_GENERATORS: readonly AskGenerator[] = [
   { id: "quest_designer", action: "Design quest", noun: "quest", ending: "screen", describe: "Design a whole quest in conversation, in the Quest Designer.", inputs: {} },
+  { id: "import_story", action: "Turn this into my canon", noun: "story", ending: "screen", describe: "Offered only in an interview with the DM (the conversation is about telling their campaign's story), and only once they have told enough to fill several parts of a campaign, or asked for it. Takes what they told and files it into the campaign's canon.", inputs: {} },
   { id: "map_style", action: "Style map", noun: "map", ending: "screen", describe: "Restyle a Cartographer map.", inputs: {
     preset: { type: "string", description: "The look: playable, explorer, isometric, tactical, tome or woodcut.", label: "Style", enum: ["playable", "explorer", "isometric", "tactical", "tome", "woodcut"], optionLabels: { playable: "Playable", explorer: "Explorer's Sketch", isometric: "Isometric", tactical: "Tactical Grid", tome: "Ancient Tome", woodcut: "Woodcut Print" } },
   }, target: ["location"] },

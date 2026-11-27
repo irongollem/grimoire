@@ -140,9 +140,20 @@ export async function beginAsk(input: { userId: string; body: unknown; deps: Ask
           dmMessages: [...dmWordsOf(history), body.message],
         });
 
+        // An interview reads what the canon already holds, so it asks about what is missing. A failed read costs the
+        // digest, never the turn.
+        let digest: string[] = [];
+        if (body.mode === "interview") {
+          try {
+            digest = await deps.loadCanonDigest(campaign);
+          } catch (error) {
+            console.error("ask-turn: reading the canon for the interview failed:", error);
+          }
+        }
+
         const result = await runTurn({
           system: systemWithSummary(askSystem({ campaignName: campaign.name, fiveE }), session.summary),
-          state: askState({ context: body.context, recordName }),
+          state: askState({ context: body.context, recordName, mode: body.mode, digest }),
           headings: ASK_HEADINGS,
           history,
           user: body.message,

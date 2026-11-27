@@ -3,6 +3,7 @@
 // The rules are `handler.ts`'s; this file wires the database, the provider, the MCP readers and the search to them.
 // The gates run before the stream opens so a refusal is a real status code; the turn itself runs inside the stream.
 // The conversation shell (gates, saving, the stream) is `_shared/agent/conversation/`, shared with `agent-turn`.
+import { loadCanonDigest } from "../_shared/canonDigest.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { generationRefusal } from "../_shared/accountGate.ts";
@@ -231,6 +232,9 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
       if (retrieved.allFailed) return null;
       return retrieved.ranked.map((h) => ({ type: FOUND_TYPE[h.kind], id: h.id, name: h.name, descriptor: h.descriptor }));
     },
+
+    // The service role reads the canon (a DM-only surface; the caller is already checked as the campaign's DM).
+    loadCanonDigest: (campaign) => loadCanonDigest(admin, campaign.id),
 
     // As the caller: what they may read is the database's to decide. The campaign filter is in the query, so an id
     // from another campaign (or no row at all) is "not found" either way.

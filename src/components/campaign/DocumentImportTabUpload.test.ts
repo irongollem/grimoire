@@ -1,5 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
 import { computed, ref } from "vue";
 
 const mocks = vi.hoisted(() => ({ mutateAsync: vi.fn() }));
@@ -47,7 +48,10 @@ async function upload(tickOwn: boolean) {
 }
 
 describe("DocumentImportTab upload own writing", () => {
-  beforeEach(() => mocks.mutateAsync.mockReset().mockResolvedValue({}));
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    mocks.mutateAsync.mockReset().mockResolvedValue({});
+  });
 
   it("sends ownWriting true when ticked", async () => {
     await upload(true);

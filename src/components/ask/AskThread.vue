@@ -98,6 +98,7 @@
         @ideas="emit('walk-ideas')"
         @skip="emit('walk-skip', item.stop)"
       />
+      <AskWalkChoose v-else-if="item.kind === 'walk-choose'" :item="item" @choose="emit('walk-way', item.id, $event)" />
       <AskWalkBlock
         v-else-if="item.kind === 'walk-block'"
         :item="item"
@@ -137,6 +138,7 @@ import AskForm from "@/components/ask/AskForm.vue";
 import { askGenerator } from "@edge-shared/agent/askContract";
 import { canAnimate } from "@/lib/motion";
 import AskResultCard from "@/components/ask/AskResultCard.vue";
+import AskWalkChoose from "@/components/ask/AskWalkChoose.vue";
 import AskReportCard from "@/components/ask/AskReportCard.vue";
 import AskUpsell from "@/components/ask/AskUpsell.vue";
 import AskWalkQuestion from "@/components/ask/AskWalkQuestion.vue";
@@ -175,6 +177,7 @@ const emit = defineEmits<{
   credits: [needed: number];
   upgrade: [];
   review: [report: AskReportDraft];
+  "walk-way": [itemId: number, way: "sections" | "story"];
   "walk-decide": [];
   "walk-ideas": [];
   "walk-skip": [stop: WalkStopRef];

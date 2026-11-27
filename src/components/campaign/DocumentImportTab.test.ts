@@ -1,5 +1,6 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
 import { computed, ref } from "vue";
 import type { DocumentImport } from "@/types/documentImport.types";
 
@@ -27,6 +28,7 @@ vi.mock("@/components/campaign/ArchiveImportPanel.vue", () => ({
   default: { name: "ArchiveImportPanel", props: ["importRow"], template: "<div class='archive' />" },
 }));
 
+import { useAskPrefillStore } from "@/stores/ui/askPrefill";
 import DocumentImportTab from "./DocumentImportTab.vue";
 
 function row(over: Partial<DocumentImport>): DocumentImport {
@@ -46,6 +48,21 @@ function row(over: Partial<DocumentImport>): DocumentImport {
     ...over,
   } as DocumentImport;
 }
+
+beforeEach(() => setActivePinia(createPinia()));
+
+describe("DocumentImportTab and the Familiar's told story", () => {
+  // Bug caught: the DM pressing Turn this into my canon and landing on Upload, where nothing shows what they told.
+  it("opens on the paste step when the Familiar has left a story for it, and not otherwise", () => {
+    mocks.active.value = null;
+    mocks.aiEnabled = true;
+    expect(mount(DocumentImportTab).find(".paste").exists()).toBe(false);
+    useAskPrefillStore().offer("document_import", "I said: hi");
+    expect(mount(DocumentImportTab).find(".paste").exists()).toBe(true);
+    // The tab only switches the source: taking the text is the paste step's, so it is still waiting.
+    expect(useAskPrefillStore().pending.document_import).toBeDefined();
+  });
+});
 
 describe("DocumentImportTab and a wiki export", () => {
   it("offers Wiki export as a third source", () => {

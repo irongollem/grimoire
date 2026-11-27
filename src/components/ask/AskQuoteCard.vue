@@ -23,7 +23,7 @@
     <!-- A generator that works in its own screen has nothing to quote: Ask opens it with the request filled in. -->
     <template v-if="screen">
       <p class="text-body">This one works in its own screen.</p>
-      <AppButton variant="primary" size="sm" class="self-start" :label="`Open ${generator.noun}`" @click="router.push(screen.route(item.proposal))" />
+      <AppButton variant="primary" size="sm" class="self-start" :label="generator.action" @click="router.push(screen.route(item.proposal))" />
     </template>
 
     <!-- Its adapter file is still arriving (it loads when the card first needs it): the card waits, it does not say no. -->

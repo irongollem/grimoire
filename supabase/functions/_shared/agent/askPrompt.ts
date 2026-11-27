@@ -90,7 +90,12 @@ After ask_choice or propose, stop: the next thing that happens is the DM's. Do n
 }
 
 /** Where the DM is, for the head of their newest message. The record's name is the campaign's own, read by id; the route is the page's. */
-export function askState(input: { context: AskContext | undefined; recordName: string | null }): string {
+export function askState(input: { context: AskContext | undefined; recordName: string | null; mode?: "interview"; digest?: readonly string[] }): string {
+  const where = whereTheDmIs(input);
+  return input.mode === "interview" ? `${where}\n\n${interviewSection(input.digest ?? [])}` : where;
+}
+
+function whereTheDmIs(input: { context: AskContext | undefined; recordName: string | null }): string {
   const { context } = input;
   if (context === undefined) return "The DM asked from the tome's main screen, with no record open.";
   const lines = [`The DM is on the screen at ${context.route}.`];
@@ -98,6 +103,17 @@ export function askState(input: { context: AskContext | undefined; recordName: s
     lines.push(`They have this ${context.record.type.replace(/_/g, " ")} open: "${input.recordName}" (id ${context.record.id}). A request that says "this" or "here" is about it.`);
   }
   return lines.join(" ");
+}
+
+/** The interview's instructions (#1282), set in the newest message and never stored, so the system text stays cached. */
+export const INTERVIEW_HEADING = "Interviewing the DM";
+const INTERVIEW_TEXT = `You are interviewing the DM about their campaign so they can tell its story in their own way. Ask one open question at a time, in your own words, warm and curious. Follow up on what is thin, surprising or unexplained: a place named once, a person with no motive, a threat with no face. Steer toward what the canon below does not hold yet, and do not ask about what it already says. Do not draft or invent canon in the conversation, and do not summarise it back at length. In this interview the rules about not adding details and about asking with choices are relaxed: chips are allowed but optional. When the DM has told enough to fill several parts of a campaign, or asks for it, call propose with generator import_story and a one-line concept naming what the story is about.`;
+
+function interviewSection(digest: readonly string[]): string {
+  const held = digest.length === 0
+    ? "The canon holds nothing yet beyond its premise."
+    : `What the canon already holds, beyond its premise:\n${digest.join("\n")}`;
+  return `## ${INTERVIEW_HEADING}\n${INTERVIEW_TEXT}\n\n${held}`;
 }
 
 /** The headings the newest message is set under (`runTurn`'s `headings`). */

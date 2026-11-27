@@ -7,6 +7,7 @@ import type { AnyAskAdapter, AskAdapter, AskRunResult } from "@/lib/ask/askAdapt
 import type { User } from "@supabase/supabase-js";
 import { useAuthStore } from "@/stores/auth";
 import { useAskUiStore } from "@/stores/ui/ask";
+import { useAskPrefillStore } from "@/stores/ui/askPrefill";
 
 const route: { fullPath: string; path: string; name?: string; query: object; meta: { title: string } } = { fullPath: "/dashboard", path: "/dashboard", query: {}, meta: { title: "Dashboard" } };
 const push = vi.fn();
@@ -59,6 +60,12 @@ vi.mock("@/components/ask/AskGreeting.vue", () => ({ default: { template: '<p da
 
 import AskPanel from "./AskPanel.vue";
 
+/** "Design it with me" asks how first: the walk begins on this press. */
+async function pickSections(w: ReturnType<typeof mount>) {
+  await w.get("[data-testid=walk-way-sections]").trigger("click");
+  await flushPromises();
+}
+
 let accounts = 0;
 const stubs = { Teleport: true, Transition: false, RouterLink: { template: "<a><slot /></a>" } };
 
@@ -99,6 +106,9 @@ describe("AskPanel", () => {
     const w = mount(AskPanel, { global: { stubs } });
     await flushPromises();
     expect(ui.pendingWalk).toBe(false);
+    // Nothing is asked until the DM chooses a way.
+    expect(w.find("[data-testid=walk-progress]").exists()).toBe(false);
+    await pickSections(w);
     expect(w.text()).toContain("design your campaign together");
     // The walk is drawn in the pane: its progress line, and the first question as a block of the thread.
     expect(w.find("[data-testid=walk-progress]").exists()).toBe(true);
@@ -115,6 +125,7 @@ describe("AskPanel", () => {
     const opened = ui.focusRequest;
     const w = mount(AskPanel, { global: { stubs } });
     await flushPromises();
+    await pickSections(w);
     expect(w.find("[data-testid=walk-question]").exists()).toBe(true);
     expect(ui.focusRequest).toBeGreaterThan(opened);
     w.unmount();
@@ -127,6 +138,7 @@ describe("AskPanel", () => {
     ui.openWalk();
     const w = mount(AskPanel, { global: { stubs } });
     await flushPromises();
+    await pickSections(w);
     const before = ui.focusRequest;
     await w.get('[data-testid="ask-input"]').setValue("A drowned kingdom");
     await w.get('[data-testid="ask-input"]').trigger("keydown", { key: "Enter" });
@@ -143,6 +155,7 @@ describe("AskPanel", () => {
     useAskUiStore().openWalk();
     const onCanon = mount(AskPanel, { global: { stubs } });
     await flushPromises();
+    await pickSections(onCanon);
     expect(replace).toHaveBeenCalledWith("/canon/premise");
     onCanon.unmount();
 
@@ -151,8 +164,34 @@ describe("AskPanel", () => {
     useAskUiStore().openWalk();
     const elsewhere = mount(AskPanel, { global: { stubs } });
     await flushPromises();
+    await pickSections(elsewhere);
     expect(replace).not.toHaveBeenCalled();
     elsewhere.unmount();
+  });
+
+  // Bug caught: the interview's button (or its line) not wired: Turn this into my canon opening the import without the
+  // DM's words, or an interview turn sent as an ordinary one, or the line still shown after leaving.
+  it("tells the story as an interview, then Turn this into my canon opens the import with it", async () => {
+    const ui = useAskUiStore();
+    ui.openWalk();
+    const w = mount(AskPanel, { global: { stubs } });
+    await flushPromises();
+    await w.get("[data-testid=walk-way-story]").trigger("click");
+    await flushPromises();
+    expect(w.find("[data-testid=interview-line]").exists()).toBe(true);
+    expect(w.get("[data-testid=interview-turn]").attributes("disabled")).toBeDefined();
+    expect(w.get('[data-testid="ask-input"]').attributes("placeholder")).toBe("Tell me about your campaign, in any order");
+    await w.get('[data-testid="ask-input"]').setValue("A drowned kingdom");
+    await w.get('[data-testid="ask-input"]').trigger("keydown", { key: "Enter" });
+    await flushPromises();
+    expect(transport).toHaveBeenCalledWith(expect.objectContaining({ mode: "interview" }), expect.anything());
+    await w.get("[data-testid=interview-turn]").trigger("click");
+    expect(push).toHaveBeenCalledWith("/canon/import");
+    const offer = useAskPrefillStore().takeOffer("document_import");
+    expect(offer?.text).toContain("I said: A drowned kingdom");
+    await w.get("[data-testid=interview-leave]").trigger("click");
+    expect(w.find("[data-testid=interview-line]").exists()).toBe(false);
+    w.unmount();
   });
 
   // Bug caught: Suggest sending the request itself, or leaving the box empty, so the DM could not change it first.

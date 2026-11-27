@@ -55,6 +55,8 @@ export function parseAskBody(raw: unknown): ParsedAskBody {
       ...(b.sessionId === undefined ? {} : { sessionId: b.sessionId as string }),
       message,
       ...(context === undefined ? {} : { context }),
+      // Exactly one value is a mode; anything else is dropped, so an unknown string never reaches the prompt.
+      ...(b.mode === "interview" ? { mode: "interview" as const } : {}),
     },
   };
 }

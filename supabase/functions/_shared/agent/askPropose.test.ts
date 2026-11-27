@@ -34,6 +34,11 @@ describe("checkProposal", () => {
     expect((out as { error: string }).error).not.toContain("npc_sheet");
   });
 
+  it("accepts import_story as a screen proposal with a concept and drops an input it does not take", async () => {
+    expect(await checkProposal({ generator: "import_story", concept: "a drowned kingdom and its heirs" }, five)).toMatchObject({ ok: true, proposal: { generator: "import_story" } });
+    expect(await checkProposal({ generator: "import_story", concept: "x", inputs: { bogus: 1 } }, five)).toMatchObject({ ok: true, dropped: ["bogus"] });
+  });
+
   it("needs a concept", async () => {
     expect(await checkProposal({ generator: "npc", concept: "   " }, five)).toMatchObject({ ok: false });
   });

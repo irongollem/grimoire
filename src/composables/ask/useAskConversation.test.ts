@@ -1005,3 +1005,82 @@ describe("the last conversation after a reload", () => {
   });
 });
 
+
+describe("the interview (#1282, story 8b)", () => {
+  const sentBodies = (transport: ReturnType<typeof setup>["transport"]) => transport.mock.calls.map((c) => (c as unknown as [{ mode?: string }])[0]);
+
+  // Bug caught: "Design it with me" starting the walk at once (so a DM who wants to just talk is asked section
+  // questions), or a model call made to ask how.
+  it("asks how first, with no turn sent and neither way begun", () => {
+    const { convo, transport } = setup();
+    convo.offerWays();
+    expect(convo.items.value.map((i) => i.kind)).toEqual(["walk-choose"]);
+    expect(convo.walk.active.value).toBe(false);
+    expect(convo.interview.active.value).toBe(false);
+    expect(transport).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: "Section by section" starting the interview (or both), or its chips staying live afterwards.
+  it("starts the walk, and only the walk, on Section by section, and the chips go quiet", () => {
+    const { convo } = setup();
+    convo.offerWays();
+    const id = convo.items.value[0]!.id;
+    convo.chooseWay(id, "sections");
+    expect(convo.walk.active.value).toBe(true);
+    expect(convo.interview.active.value).toBe(false);
+    const choose = convo.items.value[0];
+    expect(choose?.kind === "walk-choose" && choose.answered).toBe(true);
+  });
+
+  // Bug caught: "Just tell you" starting the walk; a second press on the quiet chips starting the other way as well.
+  it("starts the interview, and only it, on Just tell you; a later press starts nothing", () => {
+    const { convo } = setup();
+    convo.offerWays();
+    const id = convo.items.value[0]!.id;
+    convo.chooseWay(id, "story");
+    expect(convo.interview.active.value).toBe(true);
+    expect(convo.walk.active.value).toBe(false);
+    expect(convo.items.value.at(-1)?.kind).toBe("reply");
+    const before = convo.items.value.length;
+    convo.chooseWay(id, "sections");
+    expect(convo.walk.active.value).toBe(false);
+    expect(convo.items.value).toHaveLength(before);
+  });
+
+  // Bug caught: an interview turn sent as an ordinary conversation (the model then answers instead of interviewing),
+  // or the mode left on after the DM left or started over (every later question interviewed).
+  it("marks every turn an interview while it runs, and not after leaving or a new conversation", async () => {
+    const { convo, transport } = setup();
+    convo.offerWays();
+    convo.chooseWay(convo.items.value[0]!.id, "story");
+    await convo.send("It is a drowned kingdom");
+    convo.interview.leave();
+    await convo.send("What is a kobold?");
+    convo.offerWays();
+    convo.chooseWay(convo.items.value.at(-1)!.id, "story");
+    convo.newConversation();
+    await convo.send("Hello");
+    expect(sentBodies(transport).map((b) => b.mode)).toEqual(["interview", undefined, undefined]);
+  });
+
+  // Bug caught: the interview surviving a campaign switch, so the other campaign's questions are interview turns.
+  it("ends with a campaign switch", async () => {
+    const campaign = ref("c1");
+    const { convo } = setup({ campaignId: () => campaign.value });
+    convo.offerWays();
+    convo.chooseWay(convo.items.value[0]!.id, "story");
+    campaign.value = "c2";
+    await flushPromises();
+    expect(convo.interview.active.value).toBe(false);
+  });
+
+  // Bug caught: a second "Design it with me" press while one is running stacking another set of chips.
+  it("asks nothing twice while a walk or an interview runs", () => {
+    const { convo } = setup();
+    convo.offerWays();
+    convo.chooseWay(convo.items.value[0]!.id, "story");
+    const before = convo.items.value.length;
+    convo.offerWays();
+    expect(convo.items.value).toHaveLength(before);
+  });
+});

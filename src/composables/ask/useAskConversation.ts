@@ -25,9 +25,11 @@ import type { AskAdapters } from "@/ai/ask/useAskAdapters";
 import type { PendingGenerator } from "@/stores/ui/ask";
 import { sendToAskTurn, type AskTransport } from "./askTransport";
 import { findItem, partsCredits, quickWaitsOnLoad, type AskItem, type AskThreadState, type NewItem, type ReplyItem } from "./askItems";
+import { useAskInterview } from "./useAskInterview";
 import { useAskPreviews } from "./useAskPreviews";
 import { useAskWalk, type AskWalkPorts } from "./useAskWalk";
 import { useAskWalkPorts } from "./useAskWalkPorts";
+import { WALK_WAY_QUESTION } from "@/lib/ask/askWalkCopy";
 
 export { previewRowKey, type AskItem, type ResultPart } from "./askItems";
 
@@ -204,6 +206,24 @@ export function useAskConversation(deps: AskConversationDeps) {
 
   const push = pushTo;
 
+  // The other way through it: the DM tells their story and the Familiar interviews. Every turn carries its mode.
+  const interview = useAskInterview({ items, push: (item) => pushTo(item) });
+
+  /** "Design it with me" first asks how: the chips below it start the walk or the interview. No model is asked. */
+  function offerWays() {
+    if (walk.active.value || interview.active.value) return;
+    push({ kind: "walk-choose", text: WALK_WAY_QUESTION, answered: false });
+  }
+
+  /** The DM's pick of a way. Once: a second press, or a pick after the chips went quiet, starts nothing. */
+  function chooseWay(itemId: number, way: "sections" | "story") {
+    const item = find(itemId, "walk-choose");
+    if (!item || item.answered) return;
+    item.answered = true;
+    if (way === "sections") void walk.start();
+    else interview.start();
+  }
+
   function find<K extends AskItem["kind"]>(id: number, kind: K): Extract<AskItem, { kind: K }> | undefined {
     return findItem(current.items, id, kind);
   }
@@ -217,7 +237,7 @@ export function useAskConversation(deps: AskConversationDeps) {
       push({ kind: "error", message: "Pick a campaign first, then ask." });
       return;
     }
-    const body: AskTurnBody = { campaignId, message, context: deps.context(), ...(thread.sessionId ? { sessionId: thread.sessionId } : {}) };
+    const body: AskTurnBody = { campaignId, message, context: deps.context(), ...(interview.active.value ? { mode: "interview" as const } : {}), ...(thread.sessionId ? { sessionId: thread.sessionId } : {}) };
     controller = new AbortController();
     const mine = controller;
     running.value = true;
@@ -376,6 +396,7 @@ export function useAskConversation(deps: AskConversationDeps) {
   function newConversation() {
     stopTurn();
     walk.leave();
+    interview.leave();
     current = freshThread();
     items.value = current.items;
   }
@@ -386,6 +407,7 @@ export function useAskConversation(deps: AskConversationDeps) {
   watch(() => deps.campaignId(), () => {
     stopTurn();
     walk.leave();
+    interview.leave();
     const parked = threads.get(keyOf());
     current = parked ?? freshThread();
     items.value = current.items;
@@ -584,5 +606,5 @@ export function useAskConversation(deps: AskConversationDeps) {
   /** The conversation's id on the server once its first turn has begun (what Ooru's clips are kept under), read when asked. */
   const sessionId = (): string | null => current.sessionId ?? null;
 
-  return { items, running, sessionId, walk, generating, holding, speaking, freeLeft, send, choose, newConversation, handOff, openGenerator, setConcept, adjust, decide, cancel, confirm, quick, createPreview: previews.createPreview, actOnRow: previews.actOnRow, againPreview: previews.againPreview, discardPreview: previews.discardPreview, choosePreview: previews.choosePreview, retryPart, leavePart };
+  return { items, running, sessionId, walk, interview, offerWays, chooseWay, generating, holding, speaking, freeLeft, send, choose, newConversation, handOff, openGenerator, setConcept, adjust, decide, cancel, confirm, quick, createPreview: previews.createPreview, actOnRow: previews.actOnRow, againPreview: previews.againPreview, discardPreview: previews.discardPreview, choosePreview: previews.choosePreview, retryPart, leavePart };
 }

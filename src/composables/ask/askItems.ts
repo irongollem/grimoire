@@ -106,6 +106,11 @@ export type AskItem =
       /** What drafts for this block cost so far: each "Again" adds its own. */
       credits?: number;
     }
+  /**
+   * "Design it with me" asks how first (#1282): section by section, or the DM just tells their story. Answered once
+   * pressed (or when the walk or the interview has begun), so the chips go quiet.
+   */
+  | { kind: "walk-choose"; id: number; text: string; answered: boolean }
   | { kind: "upsell"; id: number }
   | { kind: "error"; id: number; message: string };
 

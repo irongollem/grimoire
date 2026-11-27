@@ -132,6 +132,8 @@ export interface AskTurnDeps extends GateDeps<AskCampaignRow, AskSessionRow> {
    * owner's rows set to all campaigns, as the campaign's own lists do (`campaignScopeFilter`).
    */
   loadRecord(campaign: AskCampaignRow, type: AskRecordType, id: string): Promise<AskRecordLookup | null>;
+  /** What the canon already holds, as digest lines (`_shared/canonDigest.ts`); read in an interview so it asks about what is missing. */
+  loadCanonDigest(campaign: AskCampaignRow): Promise<string[]>;
   /**
    * `read_rules`: the campaign's own enabled books, in its edition (`askRulesRead.ts`). Read as the caller, so RLS
    * decides; a campaign that plays no 5e system answers `no_system` without a query.

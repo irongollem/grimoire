@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <DocumentPasteEditor ref="pasteEditorRef" v-model="content" />
+    <DocumentPasteEditor :key="editorSeed" ref="pasteEditorRef" v-model="content" />
 
     <DocumentImportSizeNote
       :char-count="charCount"
@@ -70,6 +70,9 @@ import { useToast } from "@/composables/useToast";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useCreateDocumentImport } from "@/composables/campaign/useDocumentImport";
 import { pagesForText, validateTextImport, type UploadValidationResult } from "@/lib/documentImport/limits";
+import { useAskPrefill } from "@/ai/ask/screens/useAskPrefill";
+import { IMPORT_SCREEN_ID } from "@/lib/ask/askInterviewStory";
+import { plainTextToTiptap } from "@/lib/canon/canonParts";
 import { tiptapToMarkdown } from "@/lib/tiptap/tiptapToMarkdown";
 
 const toast = useToast();
@@ -111,6 +114,17 @@ const canSubmit = computed(
     displayName.value.trim().length > 0 &&
     !createImport.isPending.value,
 );
+
+// What the DM told the Familiar (#1282) arrives here as plain text: it fills the box, ticks "own writing" and names the
+// import. The rights box stays the DM's to tick, and the price shows as for any paste. `editorSeed` remounts the editor,
+// which reads its content only once.
+const editorSeed = ref(0);
+useAskPrefill(IMPORT_SCREEN_ID, (text, inputs) => {
+  content.value = plainTextToTiptap(text);
+  editorSeed.value++;
+  if (inputs.ownWriting === "true") ownWriting.value = true;
+  if (inputs.displayName) displayName.value = inputs.displayName;
+});
 
 function resetForm() {
   pasteEditorRef.value?.reset();

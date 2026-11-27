@@ -79,6 +79,7 @@ function harness(): Harness {
     accountRefusal: async () => null,
     loadCampaign: async (id) => (id === CAMPAIGN ? { id: CAMPAIGN, user_id: DM, name: "Kind Country", game_system: "dnd5e-2024", ai_enabled: true } : null),
     isDm: async (_c, userId) => userId === DM,
+    loadCanonDigest: async () => ["Truth: Salt keeps the dead quiet"],
     loadSession: async (id) => { const s = h.sessions.get(id); return s ? { ...s } : null; },
     rateLimit: async () => true,
     resolveProvider: async () => ({ provider: "openai", model: "m1", callModel }),
@@ -347,6 +348,33 @@ describe("an answer", () => {
     await ask(h, { body: { campaignId: CAMPAIGN, message: "who is this?", context: { route: "/npcs/x", record: { type: "npc", id: NPC } } } });
     expect(loadRecord).toHaveBeenCalledWith(expect.objectContaining({ id: CAMPAIGN }), "npc", NPC);
     expect(JSON.stringify(h.requests[0].messages)).not.toContain(NPC);
+  });
+
+  // Bug caught: the mode never reaching the prompt (interview indistinguishable from a chat), or leaking into ordinary turns.
+  it("sets the interview instructions and the canon digest in the newest message only when the body asks for interview mode", async () => {
+    const plain = harness();
+    plain.steps.push(say("x"));
+    const readPlain = vi.spyOn(plain.deps, "loadCanonDigest");
+    await ask(plain, { body: { campaignId: CAMPAIGN, message: "hello" } });
+    expect((plain.requests[0].messages.at(-1)!.blocks[0] as { text: string }).text).not.toContain("Interviewing the DM");
+    expect(readPlain).not.toHaveBeenCalled();
+
+    const iv = harness();
+    iv.steps.push(say("x"));
+    await ask(iv, { body: { campaignId: CAMPAIGN, message: "hello", mode: "interview" } });
+    const text = (iv.requests[0].messages.at(-1)!.blocks[0] as { text: string }).text;
+    expect(text).toContain("Interviewing the DM");
+    expect(text).toContain("Truth: Salt keeps the dead quiet");
+    expect(iv.requests[0].system).not.toContain("Interviewing the DM");
+  });
+
+  // Bug caught: a failed canon read failing the whole interview turn.
+  it("still runs an interview turn when the canon cannot be read", async () => {
+    const h = harness();
+    h.steps.push(say("x"));
+    h.deps.loadCanonDigest = async () => { throw new Error("db down"); };
+    await ask(h, { body: { campaignId: CAMPAIGN, message: "hello", mode: "interview" } });
+    expect((h.requests[0].messages.at(-1)!.blocks[0] as { text: string }).text).toContain("Interviewing the DM");
   });
 
   it("tells the browser what an answer read, by name", async () => {

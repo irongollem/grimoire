@@ -36,6 +36,8 @@
 
     <AskWalkProgress v-if="walk?.active" :progress="walk.progress" :spent="walk.spent" @jump="emit('walk-jump', $event)" @leave="emit('walk-leave')" />
 
+    <AskInterviewLine v-if="interview?.active" :can-turn="interview.told" @turn="emit('interview-turn')" @leave="emit('interview-leave')" />
+
     <AskThread
       :items="items"
       :walk="walk"
@@ -62,6 +64,7 @@
       @credits="emit('credits', $event)"
       @upgrade="emit('upgrade')"
       @review="emit('review', $event)"
+      @walk-way="(id, way) => emit('walk-way', id, way)"
       @walk-decide="emit('walk-decide')"
       @walk-ideas="emit('walk-ideas')"
       @walk-skip="emit('walk-skip', $event)"
@@ -71,7 +74,7 @@
       @walk-next="emit('walk-next', $event)"
     />
 
-    <AskComposer ref="composer" :running="running" :line="allowanceLine" :placeholder="walk ? composerPlaceholder(walk) : null" @send="emit('send', $event)" />
+    <AskComposer ref="composer" :running="running" :line="allowanceLine" :placeholder="(walk ? composerPlaceholder(walk) : null) ?? (interview?.active ? INTERVIEW_PLACEHOLDER : null)" @send="emit('send', $event)" />
   </div>
 </template>
 
@@ -88,7 +91,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AskThread from "@/components/ask/AskThread.vue";
 import AskComposer from "@/components/ask/AskComposer.vue";
 import AskWalkProgress from "@/components/ask/AskWalkProgress.vue";
-import { composerPlaceholder, type AskWalkView } from "@/lib/ask/askWalkCopy";
+import AskInterviewLine from "@/components/ask/AskInterviewLine.vue";
+import { composerPlaceholder, INTERVIEW_PLACEHOLDER, type AskWalkView } from "@/lib/ask/askWalkCopy";
 import type { WalkStopRef } from "@/lib/canon/canonWalk";
 
 const props = defineProps<{
@@ -108,6 +112,8 @@ const props = defineProps<{
   allowanceLine: string;
   /** "Design it with me" (#1282): its progress line, and what the composer and the cards read. */
   walk?: AskWalkView;
+  /** "Tell me your story" (#1282): whether the interview runs, and whether the DM has told enough to turn it into canon. */
+  interview?: { active: boolean; told: boolean };
   /** Ooru reading replies aloud: the switch (hidden where voices are off), its price, and why it went quiet. */
   voice: { shown: boolean; on: boolean; perMinute: number | null; note: string | null; playingText: string | null };
 }>();
@@ -136,6 +142,9 @@ const emit = defineEmits<{
   voice: [on: boolean];
   /** Read this reply of Ooru's again. */
   replay: [text: string];
+  "walk-way": [itemId: number, way: "sections" | "story"];
+  "interview-turn": [];
+  "interview-leave": [];
   "walk-jump": [stop: WalkStopRef];
   "walk-leave": [];
   "walk-decide": [];

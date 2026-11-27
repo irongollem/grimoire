@@ -8,6 +8,10 @@
  * cheap. The premise is left out: the world block already carries it whole.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { toPlainText } from "./ai-prompt.ts";
+import { collectMentions, loadMentionNames } from "./mentionNames.ts";
+
 /** The parts in the book's order, with the word a line is led by. */
 const PART_LABEL: ReadonlyArray<readonly [part: string, label: string]> = [
   ["truth", "Truth"],
@@ -57,4 +61,23 @@ export function canonDigestLines(entries: readonly DigestEntry[], arcs: readonly
     }
   }
   return lines;
+}
+
+const DIGEST_MAX_ARCS = 30;
+
+/** The canon beyond its premise, as the digest lines every helper reads. Every read is filtered by campaign in the query: the service-role client has no RLS to lean on. */
+export async function loadCanonDigest(db: SupabaseClient, campaignId: string): Promise<string[]> {
+  const [entries, arcs] = await Promise.all([
+    db.from("canon_entries").select("part, title, body, closed_as").eq("campaign_id", campaignId).neq("part", "premise")
+      .order("part", { ascending: true }).order("sort_order", { ascending: true }).limit(DIGEST_MAX_ENTRIES * 2),
+    db.from("canon_arcs").select("name, question, status").eq("campaign_id", campaignId).order("sort_order", { ascending: true }).limit(DIGEST_MAX_ARCS),
+  ]);
+  if (entries.error) throw new Error(entries.error.message);
+  if (arcs.error) throw new Error(arcs.error.message);
+  const rows = (entries.data ?? []) as { part: string; title: string; body: string | null; closed_as: string | null }[];
+  const nameOf = await loadMentionNames(db, campaignId, rows.flatMap((r) => collectMentions(r.body)));
+  return canonDigestLines(
+    rows.map((r) => ({ part: r.part, title: r.title, text: toPlainText(r.body, nameOf), closed: r.closed_as !== null })),
+    (arcs.data ?? []) as DigestArc[],
+  );
 }

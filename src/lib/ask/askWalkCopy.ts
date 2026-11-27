@@ -43,3 +43,14 @@ export function composerPlaceholder(walk: Pick<AskWalkView, "awaiting" | "drafte
   if (walk.drafted) return "Type what to change, or keep what you like";
   return null;
 }
+
+/** What the Familiar says when "Design it with me" begins: the two ways in, as chips under it. */
+export const WALK_WAY_QUESTION =
+  "We can go through your canon section by section, or you can just tell me about your campaign however you like and I will ask as we go.";
+
+/** The Familiar's opening of an interview: an invitation to tell it in any order, and the way out into the canon. */
+export const INTERVIEW_OPENING =
+  "Tell me about your campaign in your own words: where it happens, who is in it, what is going wrong, anything at all. I will ask as we go, and whenever you like you can turn what you have told me into your canon.";
+
+/** What the composer says while the interview is running. */
+export const INTERVIEW_PLACEHOLDER = "Tell me about your campaign, in any order";

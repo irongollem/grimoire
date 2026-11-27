@@ -207,6 +207,8 @@ export interface AskTurnBody {
   sessionId?: string;
   message: string;
   context?: AskContext;
+  /** `interview`: the Familiar interviews the DM about their campaign (#1282); absent is an ordinary conversation. */
+  mode?: "interview";
 }
 
 export type AskTurnEnd = "done" | "step_limit" | "budget" | "max_tokens" | "refusal" | "aborted";

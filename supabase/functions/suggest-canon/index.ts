@@ -55,7 +55,7 @@ import {
   type SpotCandidate,
   type ThemeCandidate,
 } from "../_shared/canonSuggestions.ts";
-import { canonDigestLines, DIGEST_MAX_ENTRIES } from "../_shared/canonDigest.ts";
+import { loadCanonDigest } from "../_shared/canonDigest.ts";
 import { looseEndFindings, readShape, sanitizeContradictions, type ReadFinding } from "../_shared/canonReadThrough.ts";
 import type { LooseClue, LooseEntry } from "../_shared/canonLooseEnds.ts";
 
@@ -220,21 +220,6 @@ function spotLinesWithIds(spots: SpotCandidate[], beatQuest: Map<string, string>
 const WALK_RANGE = "Your first job is to convert what the DM told you: every concrete fact, name or idea in their words becomes its own proposal, developed into a full entry but keeping its meaning, before anything of your own. " +
   "Then fill the rest with new proposals, each a bolder, more inventive step, still consistent with everything above, so there are at least five where the format allows more than one (three versions for a pitch, voice or look: the first closest to the DM's words). " +
   "The DM keeps only what they like.";
-
-/** The canon beyond its premise, as the digest lines every helper reads (`_shared/canonDigest.ts`). */
-async function loadCanonDigest(db: SupabaseClient, campaignId: string): Promise<string[]> {
-  const [rows, arcs] = await Promise.all([
-    readRows<{ part: string; title: string; body: string | null; closed_as: string | null }>(
-      db.from("canon_entries").select("part, title, body, closed_as").eq("campaign_id", campaignId).neq("part", "premise")
-        .order("part", { ascending: true }).order("sort_order", { ascending: true }).limit(DIGEST_MAX_ENTRIES * 2),
-    ),
-    readRows<{ name: string; question: string | null; status: string }>(
-      db.from("canon_arcs").select("name, question, status").eq("campaign_id", campaignId).order("sort_order", { ascending: true }).limit(MAX_ARCS),
-    ),
-  ]);
-  const nameOf = await loadMentionNames(db, campaignId, rows.flatMap((r) => collectMentions(r.body)));
-  return canonDigestLines(rows.map((r) => ({ part: r.part, title: r.title, text: toPlainText(r.body, nameOf), closed: r.closed_as !== null })), arcs);
-}
 
 /** The source books a campaign has switched on, plus the always-on bundle, as `source_document_key`s. */
 async function enabledSourceKeys(db: SupabaseClient, campaignId: string): Promise<string[]> {

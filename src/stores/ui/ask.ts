@@ -28,6 +28,11 @@ export const useAskUiStore = defineStore("ask-ui", () => {
   const pendingGenerator = ref<PendingGenerator | null>(null);
   /** "Design it with me" asked for from a page (#1282): the panel takes it once and starts the walk in its thread. */
   const pendingWalk = ref(false);
+  /**
+   * What the DM has told the Familiar in the running interview (#1282), kept here by the panel so the `import_story`
+   * screen can offer exactly what the pane's button does; null with no interview or nothing told yet.
+   */
+  const interviewStory = ref<string | null>(null);
   /** Rises each time the input should take focus (the hotkey, the button). */
   const focusRequest = ref(0);
 
@@ -95,5 +100,5 @@ export const useAskUiStore = defineStore("ask-ui", () => {
     return pending;
   }
 
-  return { pendingWalk, takePendingWalk, openWalk, open, everOpened, hasUnread, pendingQuery, prefill, takePrefill, pendingGenerator, takePendingGenerator, openGenerator, focusRequest, openPanel, closePanel, togglePanel, markUnread, takePendingQuery };
+  return { interviewStory, pendingWalk, takePendingWalk, openWalk, open, everOpened, hasUnread, pendingQuery, prefill, takePrefill, pendingGenerator, takePendingGenerator, openGenerator, focusRequest, openPanel, closePanel, togglePanel, markUnread, takePendingQuery };
 });

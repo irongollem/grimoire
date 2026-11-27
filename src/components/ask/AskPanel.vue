@@ -61,6 +61,7 @@ import { useModalStack } from "@/components/common/overlays/modalStack";
 import AskSurface from "@/components/ask/AskSurface.vue";
 import { stopChapterPath, type AskWalkView } from "@/lib/ask/askWalkCopy";
 import { stopKey, type WalkStopRef } from "@/lib/canon/canonWalk";
+import { offerToldStory } from "@/lib/ask/askInterviewStory";
 import AskResultNotice from "@/components/ask/AskResultNotice.vue";
 
 const ui = useAskUiStore();
@@ -174,9 +175,13 @@ watch(
   },
 );
 
+// What the DM has told in the interview waits in the store, for the `import_story` screen to offer as the button does.
+watch(() => convo.interview.story.value, (story) => { ui.interviewStory = story; }, { immediate: true });
+
 const surfaceProps = computed(() => ({
   items: convo.items.value,
   walk: walkView.value,
+  interview: { active: convo.interview.active.value, told: convo.interview.told.value },
   adapters,
   running: convo.running.value,
   startingOverBlocked: convo.generating.value,
@@ -222,6 +227,12 @@ const surfaceHandlers = {
   decide: convo.decide,
   retry: (id: number, i: number) => void convo.retryPart(id, i),
   leave: convo.leavePart,
+  "walk-way": (id: number, way: "sections" | "story") => convo.chooseWay(id, way),
+  "interview-leave": () => convo.interview.leave(),
+  "interview-turn": () => {
+    const story = convo.interview.story.value;
+    if (story !== null) void router.push(offerToldStory(story));
+  },
   "walk-jump": (stop: WalkStopRef) => convo.walk.jump(stop),
   "walk-leave": () => convo.walk.leave(),
   "walk-decide": () => convo.walk.youDecide(),
@@ -272,8 +283,8 @@ watch(
   { immediate: true },
 );
 
-// "Design it with me" asked for from the Canon: the walk starts in the thread, nothing is charged.
-watch(() => ui.pendingWalk, (pending) => { if (pending && ui.takePendingWalk()) void convo.walk.start(); }, { immediate: true });
+// "Design it with me" asked for from the Canon: the Familiar asks how (the walk or the interview), nothing is charged.
+watch(() => ui.pendingWalk, (pending) => { if (pending && ui.takePendingWalk()) convo.offerWays(); }, { immediate: true });
 
 // A request written into the box unsent (the Canon's Suggest) also starts a fresh conversation; the composer takes the text.
 watch(
