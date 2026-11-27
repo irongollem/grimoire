@@ -747,6 +747,15 @@ export const useSoundboardStore = defineStore("soundboard", () => {
       });
   });
 
+  /** The file of a sound that has played on `bus` this session, for the CarPlay buffered-playback test (bufferedPlaybackTest.ts). */
+  function lastFileUrl(bus: AudioBus): string | null {
+    let url: string | null = null;
+    playMeta.forEach((meta) => {
+      if (meta.bus === bus) url = meta.fileUrl;
+    });
+    return url;
+  }
+
   /**
    * Silence everything without losing where anything was.
    *
@@ -1415,6 +1424,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     setSolo,
     isPausedAll,
     loosePlaying,
+    lastFileUrl,
     stopAll,
     releaseSound,
     pauseForCast,
