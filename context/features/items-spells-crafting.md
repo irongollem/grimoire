@@ -238,6 +238,11 @@ Any item can carry `items.content` — the object's own in-world writing (a ledg
 
 **Player writing (`item_entries` table)** — append-only, never a shared column, so entries survive concurrent writers without clobbering and carry their own authorship:
 
+Entries belong to UUID-backed Vault items only: `item_entries.item_id` references
+`items(id)`, while shared-library item ids are text slugs. The inventory and
+item-detail surfaces therefore do not offer the composer for shared-library
+items; copy one to the Vault before adding campaign writing.
+
 - Each row carries `item_id`, `campaign_id`, `user_id` (author), `party_member_id` (the in-fiction hand — null for the DM, or for a departed character), and `content` (Tiptap JSON, capped at 50,000 characters — the app's first player-writable long-text column).
 - **Soft ink** — authors may revise their own entries while still in the campaign (`item_entries_update` policy). Dropping that policy would make entries immutable ("hard ink") if that is ever wanted.
 - **DM moderation** — the DM can delete any entry at their table regardless of authorship; an author can also delete their own. Nobody else can touch another author's entry — "nobody rewrites someone else's ink" is RLS structure, not an app-level rule.
@@ -245,7 +250,7 @@ Any item can carry `items.content` — the object's own in-world writing (a ledg
 - Reading follows campaign membership alone (`private.is_campaign_member`), deliberately with no item-visibility gate: entries are the table's own writing, not a DM secret. Anything players must not read yet belongs in `items.content` (masked by the projection until identified), never in an entry.
 - Live: `item_entries` rings the campaign doorbell on every write, and `SIGNAL_KEYS` maps it to the `item-entries` key — the object is a prop passed around the table, so a new entry has to reach everyone, not just refetch for whoever wrote it.
 
-**Rendering** — one shared component, `ItemDocumentSection`, mounts in the DM's `ItemSheet`, the DM's `ItemDetail` editor (with `hideContent`, thread-only, below the content editor box), the player's inventory `ItemDetailPanel`, and the player journal's `PlayerJournalTomeTab` (see `player-portal.md`). It renders `content` read-only (unless `hideContent`), then the `item_entries` thread with a composer shown only when `canWriteEntries`; every parent decides who can write, who can moderate, and which party member id to stamp via props — the component itself has no DM/player branching.
+**Rendering** — one shared component, `ItemDocumentSection`, mounts in the DM's `ItemSheet`, the DM's `ItemDetail` editor (with `hideContent`, thread-only, below the content editor box), the player's inventory `ItemDetailPanel`, and the player journal's `PlayerJournalTomeTab` (see `player-portal.md`). It renders `content` read-only (unless `hideContent`), then the `item_entries` thread with a composer only when `canWriteEntries`, a campaign is active and the id is a UUID-backed Vault item. A DM opening a library item is told to copy it into the Vault before adding writing. Every parent decides who can write, who can moderate, and which party member id to stamp via props — the component itself has no DM/player branching.
 
 ---
 

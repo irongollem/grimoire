@@ -4,31 +4,31 @@
     :role="isStatic ? 'img' : 'group'"
     :aria-label="isStatic ? current : 'What players know'"
   >
-    <!-- What players know, as three circles on a line: the circles on top, the
-         current step named and centred beneath them. The beat boxes on the flow
-         use "xs", which is the circles alone. -->
-    <span class="inline-flex items-center">
+    <!-- Flow nodes stay a compact static track; interactive controls name each
+         state so the DM can see that Hidden, Rumored and Revealed are actions. -->
+    <span v-if="isStatic" class="inline-flex items-center">
       <span v-for="(step, i) in VISIBILITY_STEPS" :key="step" class="flex items-center">
         <span v-if="i > 0" :class="[lineBase, lineWidth]" aria-hidden="true" />
-        <span v-if="isStatic" :class="[dotBase, dotSize, fillOf(step)]" />
-        <!-- The circle is drawn small; the press area around it is not (padding
-             taken back by a negative margin, so the line still meets the circle). -->
-        <button
-          v-else
-          type="button"
-          class="-m-1.5 rounded-full p-1.5 focus-visible:outline-2 focus-visible:outline-primary"
-          :class="belowFloor(step) ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'"
-          :aria-label="step"
-          :aria-pressed="step === current"
-          :disabled="belowFloor(step)"
-          :title="belowFloor(step) ? floorHint : undefined"
-          @click="pick(step)"
-        >
-          <span class="block" :class="[dotBase, dotSize, fillOf(step)]" />
-        </button>
+        <span :class="[dotBase, dotSize, fillOf(step)]" />
       </span>
     </span>
-    <span v-if="size !== 'xs'" class="text-caption capitalize" :class="size === 'lg' ? 'font-bold text-foreground' : 'text-muted-foreground'">{{ current }}</span>
+    <span v-else class="inline-flex flex-wrap items-center gap-1">
+      <button
+        v-for="step in VISIBILITY_STEPS"
+        :key="step"
+        type="button"
+        class="rounded-md border text-caption font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50"
+        :class="[
+          size === 'lg' ? 'min-h-9 px-3' : 'min-h-8 px-2',
+          step === current ? 'border-primary bg-primary/15 text-primary' : 'border-border bg-card text-muted-foreground hover:bg-muted',
+        ]"
+        :aria-label="step"
+        :aria-pressed="step === current"
+        :disabled="belowFloor(step)"
+        :title="belowFloor(step) && size !== 'lg' ? floorHint : undefined"
+        @click="pick(step)"
+      >{{ stepLabel(step) }}</button>
+    </span>
   </span>
 </template>
 
@@ -56,6 +56,10 @@ const dotBase = "box-border shrink-0 rounded-full border border-foreground";
 const lineBase = "h-px bg-foreground";
 const dotSize = computed(() => ({ xs: "h-2 w-2", sm: "h-3 w-3", lg: "h-5 w-5" })[size]);
 const lineWidth = computed(() => ({ xs: "w-1.5", sm: "w-3", lg: "w-8" })[size]);
+
+function stepLabel(step: QuestBeatVisibility): string {
+  return step === "revealed" ? "Revealed" : step === "rumored" ? "Rumored" : "Hidden";
+}
 
 function fillOf(step: QuestBeatVisibility): string {
   return filled(step) ? "bg-[var(--live,var(--primary))]" : "bg-card";

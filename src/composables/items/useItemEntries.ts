@@ -52,6 +52,9 @@ export function useItemEntries(itemId: Ref<string | undefined>, campaignId: Ref<
 }
 
 async function addItemEntry(insert: ItemEntryInsert): Promise<ItemEntry> {
+  if (!isUuid(insert.item_id)) {
+    throw new Error("Shared-library items cannot hold added writing. Copy the item to your Vault first.");
+  }
   const user = getCurrentUser();
   const { data, error } = await supabase
     .from("item_entries")

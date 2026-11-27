@@ -7,6 +7,10 @@
       <RichTextViewer :content="item.content" />
     </div>
 
+    <p v-if="cannotWriteLibraryItem" class="rounded-md border border-border bg-muted/30 px-3 py-2 text-caption text-muted-foreground">
+      Copy this shared item to your Vault to add writing for this campaign.
+    </p>
+
     <!-- Entries added at the table. Only meaningful within a campaign — the
          table is scoped by campaign_id, so with no active campaign there is
          nothing to fetch and nothing to write into. -->
@@ -108,6 +112,7 @@ import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { useCampaignDmIds } from "@/composables/campaign/useCampaignDmIds";
 import type { Item, ItemEntry } from "@/types/item.types";
+import { isUuid } from "@/lib/library/contentIdentity";
 
 const {
   item,
@@ -136,6 +141,7 @@ const dmIds = useCampaignDmIds();
 const { confirm } = useConfirm();
 
 const itemId = computed(() => item.id);
+const isVaultItem = computed(() => isUuid(item.id));
 const campaignIdRef = computed(() => campaignId ?? undefined);
 
 // Both DM and player call sites resolve `campaignId` from the same active-
@@ -149,10 +155,11 @@ const { mutateAsync: updateEntryMut } = useUpdateItemEntry(itemId, campaignIdRef
 const { mutateAsync: deleteEntryMut } = useDeleteItemEntry(itemId, campaignIdRef);
 
 const hasEntries = computed(() => (entries.value?.length ?? 0) > 0);
-const canCompose = computed(() => canWriteEntries && campaignId !== null);
+const canCompose = computed(() => canWriteEntries && isVaultItem.value && campaignId !== null);
+const cannotWriteLibraryItem = computed(() => canWriteEntries && !isVaultItem.value && campaignId !== null);
 const showEntriesBlock = computed(() => hasEntries.value || canCompose.value);
 const hasNothingToShow = computed(
-  () => (hideContent || item.content === null) && !showEntriesBlock.value,
+  () => (hideContent || item.content === null) && !showEntriesBlock.value && !cannotWriteLibraryItem.value,
 );
 
 /** A doc with no text and no embedded images carries nothing worth saving. */

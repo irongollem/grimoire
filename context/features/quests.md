@@ -1577,8 +1577,8 @@ _Provenance signature:_ the draft carries `ai_provenance` plus `ai_content`, a s
 
 ### What players know: visibility is written by moves (#1194, frame 08)
 
-A beat's `visibility` is `hidden`, `rumored` or `revealed`, and **a move writes it**
-rather than the DM tapping a control:
+A beat's `visibility` is `hidden`, `rumored` or `revealed`. Moves update it
+automatically, and the DM can also choose a state with the labeled controls:
 
 - **Arriving reveals** the beat.
 - **One route away rumors** a beat on its own, unless the beat is **Secret**
@@ -1586,10 +1586,12 @@ rather than the DM tapping a control:
 - **Undo and a step back take it back.** `private.quest_arrival_visibility`
   (a trigger on `quest_beat_transitions`) records what it changed on the
   transition (`visibility_changes`), so Undo restores exactly that and no more.
-- **The DM may raise a beat by hand, never below its floor.** `visibilityFloor`
+- **The DM may set a beat's visibility with labeled Hidden, Rumored and Revealed buttons, never below its floor.** `visibilityFloor`
   (`lib/quests/visibility.ts`): a beat the party has stood on is at least
   revealed, a non-secret beat one route ahead of a live thread is at least
-  rumored. The beat's small track offers only the steps at or above the floor.
+  rumored. The beat's controls disable only the steps below the floor. Whole
+  party is a separate audience setting: it says who sees the beat once its
+  visibility is Rumored or Revealed; it does not itself change a Hidden beat.
 - **No sharing step.** A quest shows when one of its beats does, so a move that
   shows a beat shows the quest; nothing is shared with anyone. The first beat that
   becomes visible posts the "Quest shared" chat message, server-side in a trigger.
