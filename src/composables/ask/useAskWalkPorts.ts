@@ -25,6 +25,7 @@ export function useAskWalkPorts(): AskWalkPorts {
     stops: () => stops.value,
     loaded: () => loaded.value,
     pitchWritten: () => steps.value.find((s) => s.id === "pitch")?.state === "filled",
+    speciesKept: () => steps.value.find((s) => s.id === "species")?.state === "filled",
     skip: async (step) => {
       await skip.mutateAsync(step);
     },
@@ -55,7 +56,9 @@ export function useAskWalkPorts(): AskWalkPorts {
         case "secrets":
         case "questions":
         case "arcs":
-        case "peoples": {
+        case "peoples":
+        case "species":
+        case "habitats": {
           const helper = useCanonSuggestions(draft.mode, scope);
           return done(await helper.suggest(steer), helper.error.value);
         }

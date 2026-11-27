@@ -22,6 +22,7 @@ import { readEventStream } from "@/lib/agentStream/readEventStream";
 import { parseAskEvent } from "@/lib/agentStream/parseAskEvent";
 import { isPreviewAdapter, type AskRunResult } from "@/lib/ask/askAdapter";
 import type { AskAdapters } from "@/ai/ask/useAskAdapters";
+import { BIND_RECORD_TYPE, type AskBinder } from "@/lib/ask/askBind";
 import type { PendingGenerator } from "@/stores/ui/ask";
 import { sendToAskTurn, type AskTransport } from "./askTransport";
 import { findItem, partsCredits, quickWaitsOnLoad, type AskItem, type AskThreadState, type NewItem, type ReplyItem } from "./askItems";
@@ -83,6 +84,8 @@ export interface AskConversationDeps {
   restore?: (campaignId: string) => Promise<{ sessionId: string; turns: StoredTurn[] } | null>;
   /** What "Design it with me" (#1282) reads and writes the canon through; the panel's own canon queries when left out. */
   walk?: AskWalkPorts;
+  /** Ties a made record to what a page's card asked (`AskBind`); without it a card's bind is ignored. */
+  bind?: AskBinder;
 }
 
 const NOT_ANSWERED = "Your Familiar could not answer that. Try again.";
@@ -434,7 +437,7 @@ export function useAskConversation(deps: AskConversationDeps) {
    * A page's Generate button: the generator's card, opened with its starting inputs and no model call. Unlike a
    * proposal from the model, the DM writes the concept into the card themselves.
    */
-  function openGenerator({ generatorId, inputs, target, concept }: PendingGenerator) {
+  function openGenerator({ generatorId, inputs, target, concept, bind }: PendingGenerator) {
     const generator = askGenerator(generatorId);
     if (!generator) return;
     push({
@@ -449,6 +452,7 @@ export function useAskConversation(deps: AskConversationDeps) {
         inputs: { ...generator.opened, ...inputs },
         ...(target ? { target } : {}),
       },
+      ...(bind ? { bind } : {}),
     });
   }
 
@@ -577,7 +581,26 @@ export function useAskConversation(deps: AskConversationDeps) {
     if (alive(thread)) {
       item.landedAt = push({ kind: "result", name, noun: generator.noun, review, record: result.record, route: result.route, ...(result.links ? { links: result.links } : {}), ...(result.open ? { open: result.open } : {}), ...(result.picture ? { picture: result.picture } : {}), parts: result.parts.map((p) => ({ ...p })) }, thread).id;
     }
+    void tie(thread, item, result);
     deps.onFinished?.({ name, noun: generator.noun, review, route: result.route, ...(result.open ? { open: result.open } : {}), credits: from.credits, campaign: from.campaignName, startedAt: from.startedAt });
+  }
+
+  /**
+   * A card a page opened may ask for its record to be tied to something on that page. Done once, when a record of the
+   * type that bind takes lands; the card is told how it went. A failure leaves the record made.
+   */
+  async function tie(thread: AskThreadState, item: Extract<AskItem, { kind: "proposal" }>, result: AskRunResult) {
+    const bind = item.bind;
+    const record = result.record;
+    if (!bind || !record || !deps.bind || record.type !== BIND_RECORD_TYPE[bind.kind]) return;
+    let bound: { ok: boolean; text: string };
+    try {
+      bound = await deps.bind(bind, record);
+    } catch {
+      bound = { ok: false, text: `${record.name} was made, but it could not be tied to ${bind.formLabel}. Try it from the form in the Field guide.` };
+    }
+    const landed = item.landedAt === undefined ? undefined : findItem(thread.items, item.landedAt, "result");
+    if (landed) landed.bound = bound;
   }
 
   async function retryPart(resultId: number, index: number) {

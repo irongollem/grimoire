@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ABUNDANCES, ACTIVITIES, KINGDOMS, LINK_KINDS, LIVES_AS } from "@/lib/canon/ecologyTypes";
 import {
   MAX_CLUE_SUGGESTIONS,
   MAX_FORCE_STEPS,
@@ -10,6 +11,13 @@ import {
   sanitizePeoples,
   sanitizeClues,
   sanitizeForces,
+  sanitizeHabitats,
+  sanitizeSpecies,
+  SPECIES_ACTIVITIES,
+  SPECIES_KINGDOMS,
+  SPECIES_LINK_KINDS,
+  SPECIES_LIVES_AS,
+  HABITAT_ABUNDANCES,
   sanitizeLore,
   sanitizePremise,
   sanitizeQuestions,
@@ -425,5 +433,133 @@ describe("sanitizeBackstory", () => {
   // Bug caught: paragraphs were flattened into one line.
   it("keeps the paragraph breaks of a body", () => {
     expect(sanitizeBackstory({ suggestions: [{ title: "T", body: "One.\n\nTwo." }] }, []).suggestions[0]!.body).toBe("One.\n\nTwo.");
+  });
+});
+
+describe("the field guide's closed lists", () => {
+  // Bug caught: a list here drifted from the database check, so a proposal passed the sanitizer and the write was refused.
+  it("equal the client's (and so the database's) lists", () => {
+    expect([...SPECIES_KINGDOMS]).toEqual([...KINGDOMS]);
+    expect([...SPECIES_ACTIVITIES]).toEqual([...ACTIVITIES]);
+    expect([...SPECIES_LINK_KINDS]).toEqual([...LINK_KINDS]);
+    expect([...SPECIES_LIVES_AS].sort()).toEqual([...LIVES_AS].sort());
+    expect([...HABITAT_ABUNDANCES].sort()).toEqual([...ABUNDANCES].sort());
+  });
+});
+
+describe("sanitizeSpecies", () => {
+  const guide = [{ id: "sp-fox", name: "Red Fox" }];
+  const clades = [{ id: "cl-canid", name: "Canids" }];
+  const run = (suggestions: unknown[]) => sanitizeSpecies({ suggestions }, guide, clades);
+
+  // Bug caught: a species the guide already has was proposed again, and its accept hit the unique name.
+  it("sets aside a name the guide already has, in any case", () => {
+    const out = run([{ name: "  red   FOX " }, { name: "Marsh Heron" }]);
+    expect(out.suggestions.map((s) => s.name)).toEqual(["Marsh Heron"]);
+    expect(out.setAside).toEqual([{ claim: "red FOX", reason: "the field guide already has it" }]);
+  });
+
+  // Bug caught: a model's made-up kingdom, habit or hour reached the database check and refused the accept.
+  it("keeps only the words of the closed lists, and calls a missing kingdom an animal", () => {
+    const [s] = run([{ name: "Glowcap", kingdom: "mineral", lives_as: "swarm", activity: "dusk" }]).suggestions;
+    expect(s).toMatchObject({ kingdom: "animal", livesAs: null, activity: null });
+    const [t] = run([{ name: "Glowcap", kingdom: "fungus", lives_as: "colony", activity: "night" }]).suggestions;
+    expect(t).toMatchObject({ kingdom: "fungus", livesAs: "colony", activity: "night" });
+  });
+
+  // Bug caught: a long name, scientific name, form label or note was written past the column's length check.
+  it("cuts each text to its column's length", () => {
+    const [s] = run([{
+      name: "n".repeat(200), scientific_name: "s".repeat(300),
+      forms: [{ label: "f".repeat(100) }],
+      links: [{ kind: "eats", to: "sp-fox", note: "x".repeat(500) }],
+    }]).suggestions;
+    expect([s!.name.length, s!.scientificName!.length, s!.forms[0]!.label.length, s!.links[0]!.note!.length]).toEqual([80, 120, 40, 200]);
+  });
+
+  // Bug caught: a species with no description was written with the text "undefined", or a long one past the paragraph cap.
+  it("keeps a description to a paragraph's length and empty when the model gave none", () => {
+    const [bare, long] = run([{ name: "A" }, { name: "B", description: "d".repeat(3000) }]).suggestions;
+    expect(bare!.description).toBe("");
+    expect(long!.description).toHaveLength(1500);
+  });
+
+  // Bug caught: more than six forms or eight links per species, or a form twice, was written.
+  it("allows at most 6 forms and 8 links, and no form or link twice", () => {
+    const forms = Array.from({ length: 9 }, (_, i) => ({ label: `Stage ${i}` }));
+    const links = Array.from({ length: 12 }, (_, i) => ({ kind: "helps", to: `sp-${i}` }));
+    const many = sanitizeSpecies({ suggestions: [{ name: "A", forms: [{ label: "Pup" }, { label: "pup" }, ...forms], links: [{ kind: "eats", to: "sp-fox" }, { kind: "eats", to: "Red Fox" }, ...links] }] },
+      [{ id: "sp-fox", name: "Red Fox" }, ...links.map((l) => ({ id: l.to, name: `Beast ${l.to}` }))], clades);
+    const [s] = many.suggestions;
+    expect(s!.forms).toHaveLength(6);
+    expect(s!.forms.filter((f) => f.label.toLowerCase() === "pup")).toHaveLength(1);
+    expect(s!.links).toHaveLength(8);
+    expect(s!.links.filter((l) => l.kind === "eats")).toHaveLength(1);
+  });
+
+  // Bug caught: a link to an invented species was written (a foreign key refusal), or dropped its whole species with it.
+  it("drops a link whose target is neither a known id nor in this answer, and keeps the species", () => {
+    const out = run([{ name: "Heron", links: [{ kind: "eats", to: "sp-ghost" }, { kind: "eats", to: "Frog" }] }, { name: "Frog" }]);
+    expect(out.suggestions[0]!.links).toEqual([{ kind: "eats", toSpeciesId: null, toName: "Frog", toLabel: "Frog", note: null }]);
+    expect(out.suggestions.map((s) => s.name)).toEqual(["Heron", "Frog"]);
+  });
+
+  // Bug caught: a link to a species that was set aside or cut by the cap survived and waited for an accept that never comes.
+  it("does not link to a name that did not survive, nor to itself", () => {
+    const out = run([{ name: "Heron", links: [{ kind: "eats", to: "heron" }, { kind: "competes", to: "Red Fox " }] }, { name: "Red Fox" }]);
+    expect(out.suggestions).toHaveLength(1);
+    // The set-aside fox is an existing species: the link resolves to its id, not to a batch name.
+    expect(out.suggestions[0]!.links).toEqual([{ kind: "competes", toSpeciesId: "sp-fox", toName: null, toLabel: "Red Fox", note: null }]);
+  });
+
+  // Bug caught: a link with no target was written for a kind that needs one (the database check refuses it).
+  it("allows no target only for shelters and carries", () => {
+    const [s] = run([{ name: "Oak", links: [{ kind: "shelters" }, { kind: "carries", to: "" }, { kind: "eats" }, { kind: "helps", to: "" }] }]).suggestions;
+    expect(s!.links.map((l) => l.kind)).toEqual(["shelters", "carries"]);
+    expect(s!.links.every((l) => l.toSpeciesId === null && l.toName === null)).toBe(true);
+  });
+
+  // Bug caught: an unknown clade id was taken for a new clade's name, or a known id made a duplicate clade.
+  it("resolves a clade by id or name to the existing one, and treats anything else as a new clade", () => {
+    const out = run([{ name: "A", clade: "cl-canid" }, { name: "B", clade: "canids" }, { name: "C", clade: "Herons" }, { name: "D" }]).suggestions;
+    expect(out.map((s) => s.clade)).toEqual([{ id: "cl-canid", name: "Canids" }, { id: "cl-canid", name: "Canids" }, { id: null, name: "Herons" }, null]);
+  });
+
+  // Bug caught: the answer's ninth species was written, past the cap.
+  it("keeps at most 8 species", () => {
+    expect(run(Array.from({ length: 12 }, (_, i) => ({ name: `Beast ${i}` }))).suggestions).toHaveLength(8);
+  });
+});
+
+describe("sanitizeHabitats", () => {
+  const guide = [{ id: "sp-fox", name: "Red Fox" }, { id: "sp-heron", name: "Heron" }];
+  const run = (suggestions: unknown[], existing: string[] = []) => sanitizeHabitats({ suggestions }, existing, guide);
+
+  // Bug caught: a habitat the campaign already lists was proposed again.
+  it("sets aside a habitat name already listed or repeated in the answer", () => {
+    const out = run([{ name: "Salt Marsh" }, { name: "Deep Wood" }, { name: "deep wood" }], ["salt marsh"]);
+    expect(out.suggestions.map((h) => h.name)).toEqual(["Deep Wood"]);
+    expect(out.setAside).toHaveLength(2);
+  });
+
+  // Bug caught: an invented species id reached insertHabitatSpecies (a foreign key refusal that threw away the habitat).
+  it("drops an unknown species id with a reason and keeps the habitat", () => {
+    const out = run([{ name: "Marsh", species: [{ species_id: "sp-ghost", abundance: "common" }, { species_id: "sp-heron", abundance: "common" }] }]);
+    expect(out.suggestions[0]!.species).toEqual([{ speciesId: "sp-heron", speciesName: "Heron", abundance: "common" }]);
+    expect(out.setAside[0]!.reason).toContain("not a species in the field guide");
+  });
+
+  // Bug caught: a species listed twice in one habitat hit the unique (habitat, species) and failed the whole accept.
+  it("drops a species repeated in one habitat", () => {
+    const out = run([{ name: "Marsh", species: [{ species_id: "sp-fox", abundance: "rare" }, { species_id: "sp-fox", abundance: "common" }] }]);
+    expect(out.suggestions[0]!.species).toEqual([{ speciesId: "sp-fox", speciesName: "Red Fox", abundance: "rare" }]);
+    expect(out.setAside).toHaveLength(1);
+  });
+
+  // Bug caught: a model's percentage was carried to the write, overriding the shares worked out in code; an odd abundance word was refused by the check.
+  it("never carries a percent, and calls an unknown abundance none", () => {
+    const [h] = run([{ name: "Marsh", species: [{ species_id: "sp-fox", abundance: "plentiful", percent: 60 }] }]).suggestions;
+    expect(h!.species[0]).toEqual({ speciesId: "sp-fox", speciesName: "Red Fox", abundance: null });
+    expect(JSON.stringify(h)).not.toContain("percent");
   });
 });

@@ -42,6 +42,8 @@ const CHAPTER_OF_MODE: Record<CanonSuggestionMode, CanonSectionId> = {
   arcs: "arcs",
   peoples: "peoples",
   backstory: "backstories",
+  species: "species",
+  habitats: "life",
 };
 
 /** What a request that names an entry in quotes is naming, by mode. */
@@ -75,6 +77,8 @@ export function canonModeFor(concept: string): CanonSuggestionMode {
   if (/\bsecrets?\b/i.test(words)) return "secrets";
   if (/\barcs?\b|\bacts?\b/i.test(words)) return "arcs";
   if (/\bpeoples?\b|\bcultures?\b|\bwho lives\b/i.test(words)) return "peoples";
+  if (/\bfield guide\b|\bspecies\b|\bcreatures?\b|\bplants?\b/i.test(words)) return "species";
+  if (/\bhabitats?\b|\bkinds? of country\b/i.test(words)) return "habitats";
   if (/\bpremise\b|\bpitch\b|\bthemes?\b/i.test(words)) return "premise";
   if (/\blore\b|\bpassage/i.test(words)) return "lore";
   return "truths";
@@ -149,6 +153,8 @@ const NOUN: Record<CanonSuggestionMode, [one: string, many: string]> = {
   arcs: ["arc suggestion is", "arc suggestions are"],
   peoples: ["people suggestion is", "people suggestions are"],
   backstory: ["backstory suggestion is", "backstory suggestions are"],
+  species: ["species suggestion is", "species suggestions are"],
+  habitats: ["habitat suggestion is", "habitat suggestions are"],
 };
 
 export function useCanonSuggestionsAskAdapter(): AskAdapter {

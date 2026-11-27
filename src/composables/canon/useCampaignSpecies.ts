@@ -169,10 +169,11 @@ async function removeOne(table: string, id: string): Promise<void> {
 }
 
 /** The field guide's writes. Each resolves (a failure is already a toast and resolves to null or undefined) and the screen re-reads what the server has. */
-export function useSpeciesEditing() {
+export function useSpeciesEditing(wanted: () => boolean = () => true) {
   const campaign = useCampaignStore();
   const qc = useQueryClient();
-  const reads = useCampaignSpecies();
+  // `wanted` lets a caller that only writes (the Canon review accepts) leave the five reads off until it needs them.
+  const reads = useCampaignSpecies(wanted);
 
   const campaignId = (): string => {
     const id = campaign.activeCampaignId;

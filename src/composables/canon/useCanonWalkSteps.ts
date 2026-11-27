@@ -3,6 +3,7 @@ import { useCanonEntries } from "@/composables/canon/useCanonEntries";
 import { useCanonClues } from "@/composables/canon/useCanonClues";
 import { useCanonArcs } from "@/composables/canon/useCanonArcs";
 import { useCampaignPeoples } from "@/composables/canon/useCampaignPeoples";
+import { useSpeciesNames } from "@/composables/canon/useSpeciesNames";
 import { useCampaignHabitats } from "@/composables/canon/useCampaignHabitats";
 import { useCanonWalkSkips } from "@/composables/canon/useCanonWalkSkips";
 import { useParty } from "@/composables/party/useParty";
@@ -19,6 +20,7 @@ export function useCanonWalkSteps() {
   const cluesQuery = useCanonClues();
   const { data: arcs } = useCanonArcs();
   const { peoples } = useCampaignPeoples();
+  const { species } = useSpeciesNames();
   const { habitats } = useCampaignHabitats();
   const { data: partyData } = useParty();
   const { skipped, isSuccess: skipsLoaded } = useCanonWalkSkips();
@@ -37,6 +39,7 @@ export function useCanonWalkSteps() {
       clues: clues.value,
       arcCount: arcList.value.length,
       peopleCount: peoples.value.length,
+      speciesCount: species.value.length,
       habitatCount: habitats.value.length,
       party: party.value,
       notedIds: notedIds.value,

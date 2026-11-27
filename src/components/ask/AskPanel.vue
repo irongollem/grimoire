@@ -62,6 +62,7 @@ import AskSurface from "@/components/ask/AskSurface.vue";
 import { stopChapterPath, type AskWalkView } from "@/lib/ask/askWalkCopy";
 import { stopKey, type WalkStopRef } from "@/lib/canon/canonWalk";
 import { offerToldStory } from "@/lib/ask/askInterviewStory";
+import { useStatBlockBinder } from "@/composables/canon/useStatBlockBinding";
 import AskResultNotice from "@/components/ask/AskResultNotice.vue";
 
 const ui = useAskUiStore();
@@ -90,6 +91,7 @@ const auth = useAuthStore();
 const rates = useTableVoiceRates();
 
 const convo = useAskConversation({
+  bind: useStatBlockBinder(),
   campaignId: () => campaign.activeCampaignId,
   context: () => askContextFor({ path: route.path, query: route.query }, route.meta.title),
   adapters,
@@ -156,6 +158,7 @@ const walkView = computed<AskWalkView>(() => ({
   active: convo.walk.active.value,
   progress: convo.walk.progress.value,
   pitchWritten: convo.walk.progress.value.some((s) => s.step === "pitch" && s.state === "filled"),
+  speciesKept: convo.walk.progress.value.some((s) => s.step === "species" && s.state === "filled"),
   awaiting: convo.walk.awaiting.value,
   drafted: convo.walk.draftedBlock.value !== null,
   spent: convo.walk.spent.value,

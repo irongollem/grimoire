@@ -28,7 +28,7 @@ describe("AskThread", () => {
           { kind: "walk-block", id: 2, stop, answer: "warm", phase: "open" },
         ] satisfies AskItem[],
         adapters,
-        walk: { active: true, progress: [{ ...stop, state: "todo", current: true }], pitchWritten: true, awaiting: stop, drafted: false, spent: 0 },
+        walk: { active: true, progress: [{ ...stop, state: "todo", current: true }], pitchWritten: true, speciesKept: true, awaiting: stop, drafted: false, spent: 0 },
       },
       global: { stubs: { AskWalkBlock: { template: '<button data-testid="blk" @click="$emit(\'write\', \'x\'); $emit(\'next\')" />', emits: ["write", "next"] } } },
     });

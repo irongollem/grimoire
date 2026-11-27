@@ -17,11 +17,11 @@ import CanonReview from "@/components/canon/CanonReview.vue";
 import AskWalkBlock from "./AskWalkBlock.vue";
 
 type Block = Extract<AskItem, { kind: "walk-block" }>;
-function block(step: WalkStepId, over: Partial<Block> = {}, props: { pitchWritten?: boolean; memberId?: string } = {}) {
+function block(step: WalkStepId, over: Partial<Block> = {}, props: { pitchWritten?: boolean; speciesKept?: boolean; memberId?: string } = {}) {
   const stop = { step, memberId: props.memberId ?? null, memberName: props.memberId ? "Mira" : null };
   const item: Block = { kind: "walk-block", id: 7, stop, answer: "dry and warm", phase: "open", ...over };
   return mount(AskWalkBlock, {
-    props: { item, pitchWritten: props.pitchWritten ?? true },
+    props: { item, pitchWritten: props.pitchWritten ?? true, speciesKept: props.speciesKept ?? true },
     global: { stubs: { CanonReview: { props: ["mode", "scope", "entries", "partyMemberId", "lore"], template: "<div data-testid='review' />" }, RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" } } },
   });
 }
@@ -49,6 +49,14 @@ describe("AskWalkBlock", () => {
     const w = block("voice", {}, { pitchWritten: false });
     expect(w.find("[data-testid=walk-enhance]").exists()).toBe(false);
     expect(w.get("[data-testid=walk-held]").text()).toBe("Write the pitch first: every draft is written from it.");
+  });
+
+  // Bug caught: Enhance offered on Habitats with no species in the field guide, so the draft invents what lives there.
+  it("shows why instead of Enhance on Habitats until the field guide has a species", () => {
+    const held = block("habitats", {}, { speciesKept: false });
+    expect(held.find("[data-testid=walk-enhance]").exists()).toBe(false);
+    expect(held.get("[data-testid=walk-held]").text()).toBe("Fill the Field guide first: a habitat is drafted from its species.");
+    expect(block("habitats").find("[data-testid=walk-enhance]").exists()).toBe(true);
   });
 
   // Bug caught: Write it myself enabled on nothing (an empty entry), or sending the original answer instead of the edit.

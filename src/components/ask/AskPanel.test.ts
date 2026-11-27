@@ -50,6 +50,7 @@ const stoppedClips: string[] = [];
 let voicePlayer = (_src: string) => ({ done: Promise.resolve(), stop: () => undefined as void });
 
 import FamiliarAvatar from "@/components/ask/FamiliarAvatar.vue";
+vi.mock("@/composables/canon/useStatBlockBinding", () => ({ useStatBlockBinder: () => async () => ({ ok: true, text: "" }) }));
 vi.mock("@/composables/ask/useAskWalkPorts", async () => {
   const { fakeWalkPorts } = await import("@/test/askWalkPorts");
   return { useAskWalkPorts: () => fakeWalkPorts().ports };

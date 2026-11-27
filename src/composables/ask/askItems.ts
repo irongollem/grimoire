@@ -3,6 +3,7 @@
  * `useAskConversation` so the conversation and its preview step (`useAskPreviews`) share them without importing each other.
  */
 import { askGenerator, type AskChoice, type AskIdea, type AskProposal, type AskRecordRef, type AskReportDraft } from "@edge-shared/agent/askContract";
+import type { AskBind } from "@/lib/ask/askBind";
 import type { WalkStopRef } from "@/lib/canon/canonWalk";
 import type { AskPreview, AskPreviewShown, AskQuote, AskResultLink, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
 
@@ -39,6 +40,8 @@ export type AskItem =
       choices: Record<string, boolean>;
       /** Set when a page's button opened the card, so the DM fills it in; a card the model proposed has no such mark. */
       origin?: "button";
+      /** Set with the card by the page that opened it: the record the run makes is tied to this, once, when it lands. */
+      bind?: AskBind;
       /**
        * Where the finished run landed: a run never holds up the conversation, so its result (or its failure) is added
        * at the bottom when it ends, and the proposal's own place links to it.
@@ -82,6 +85,8 @@ export type AskItem =
       /** The picture the run made, shown on the card. */
       picture?: string;
       parts: ResultPart[];
+      /** What tying the record to the page that asked for it came to ("Bound to Young"); absent when nothing was asked. */
+      bound?: { ok: boolean; text: string };
     }
   /** "Design it with me" (#1282): the question the Familiar asks at a stop; answered once the DM's words have become a block. */
   | { kind: "walk-question"; id: number; stop: WalkStopRef; text: string; answered: boolean; /** Asked to draw more out of a thin answer, once per stop per walk. */ followUp?: boolean }

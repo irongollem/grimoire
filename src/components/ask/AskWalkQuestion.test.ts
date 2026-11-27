@@ -19,9 +19,14 @@ describe("AskWalkQuestion", () => {
     expect(chips(question("pitch"))).toEqual({ decide: false, skip: false });
   });
 
-  // Bug caught: You decide on lore (nothing to title it from) or on habitats (no draft exists to run).
-  it.each<WalkStepId>(["lore", "habitats"])("withholds You decide on %s but still lets it be skipped", (step) => {
-    expect(chips(question(step))).toEqual({ decide: false, skip: true });
+  // Bug caught: You decide on lore (nothing to title it from).
+  it("withholds You decide on lore but still lets it be skipped", () => {
+    expect(chips(question("lore"))).toEqual({ decide: false, skip: true });
+  });
+
+  // Bug caught: the Field guide and Habitats (which have drafters now) offered no You decide, as when habitats had no draft.
+  it.each<WalkStepId>(["species", "habitats"])("offers You decide on %s", (step) => {
+    expect(chips(question(step))).toEqual({ decide: true, skip: true });
   });
 
   // Bug caught: chips pressable after the DM has answered, starting a second answer on a closed question.

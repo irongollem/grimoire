@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { ref, toRaw } from "vue";
-import type { ClueSuggestion, ForceSuggestion, LoreSuggestion, PremiseSuggestion, QuestionSuggestion, ReadFinding, SecretSuggestion, TruthSuggestion, ArcSuggestion, PeopleSuggestion, BackstorySuggestion } from "@/ai/useCanonSuggestions";
+import type { ClueSuggestion, ForceSuggestion, LoreSuggestion, PremiseSuggestion, QuestionSuggestion, ReadFinding, SecretSuggestion, TruthSuggestion, ArcSuggestion, PeopleSuggestion, BackstorySuggestion, SpeciesSuggestion, HabitatSuggestion } from "@/ai/useCanonSuggestions";
 import type { CanonEntry } from "@/types/canon.types";
 import type { CanonSuggestionMode } from "@/ai/useCanonSuggestions";
 import { canonEntry } from "@/test/canonEntry";
@@ -22,12 +22,14 @@ const mocks = vi.hoisted(() => ({
   acceptArc: vi.fn(),
   acceptPeople: vi.fn(),
   acceptBackstory: vi.fn(),
+  acceptSpecies: vi.fn(),
+  acceptHabitat: vi.fn(),
   trashEntry: vi.fn(),
   removeClue: vi.fn(),
 }));
 // The kept state the real `useCanonSuggestions` holds, in the same shape: a proposal is kept until its undo succeeds.
 const keptRows = ref<{ suggestion: object; write: { undo: (() => Promise<void>) | null } }[]>([]);
-const suggestions = ref<(PremiseSuggestion | TruthSuggestion | ClueSuggestion | QuestionSuggestion | ForceSuggestion | LoreSuggestion | SecretSuggestion | ReadFinding | ArcSuggestion | PeopleSuggestion | BackstorySuggestion)[]>([]);
+const suggestions = ref<(PremiseSuggestion | TruthSuggestion | ClueSuggestion | QuestionSuggestion | ForceSuggestion | LoreSuggestion | SecretSuggestion | ReadFinding | ArcSuggestion | PeopleSuggestion | BackstorySuggestion | SpeciesSuggestion | HabitatSuggestion)[]>([]);
 const setAside = ref<{ claim: string; reason: string }[]>([]);
 const provenance = ref<{ generatorType: string } | null>({ generatorType: "canon_premise_suggestion" });
 const hasResult = ref(false);
@@ -52,7 +54,7 @@ vi.mock("@/composables/canon/useAcceptLore", async (importOriginal) => ({
 }));
 vi.mock("@/composables/canon/useCanonForces", () => ({ useAcceptForce: () => mocks.acceptForce }));
 vi.mock("@/composables/canon/useCanonReviewAccept", () => ({
-  useCanonReviewAccept: () => ({ acceptArc: mocks.acceptArc, acceptPeople: mocks.acceptPeople, acceptBackstory: mocks.acceptBackstory, trashEntry: mocks.trashEntry, removeClue: mocks.removeClue }),
+  useCanonReviewAccept: () => ({ acceptArc: mocks.acceptArc, acceptPeople: mocks.acceptPeople, acceptBackstory: mocks.acceptBackstory, acceptSpecies: mocks.acceptSpecies, acceptHabitat: mocks.acceptHabitat, trashEntry: mocks.trashEntry, removeClue: mocks.removeClue }),
 }));
 vi.mock("@/composables/canon/useKnownTo", () => ({ useKnownTo: () => ({ nameKnower: mocks.nameKnower }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: mocks.toastError }) }));
@@ -95,7 +97,7 @@ const click = async (w: ReturnType<typeof mountIt>, label: string) => {
 };
 
 beforeEach(() => {
-  for (const m of [mocks.create, mocks.createClue, mocks.update, mocks.nameKnower, mocks.acceptForce, mocks.loreDraft, mocks.loreSplit, mocks.keyed, mocks.dismiss, mocks.dismissAll, mocks.confirm, mocks.toastError, mocks.acceptArc, mocks.acceptPeople, mocks.acceptBackstory, mocks.trashEntry, mocks.removeClue]) m.mockReset();
+  for (const m of [mocks.create, mocks.createClue, mocks.update, mocks.nameKnower, mocks.acceptForce, mocks.loreDraft, mocks.loreSplit, mocks.keyed, mocks.dismiss, mocks.dismissAll, mocks.confirm, mocks.toastError, mocks.acceptArc, mocks.acceptPeople, mocks.acceptBackstory, mocks.acceptSpecies, mocks.acceptHabitat, mocks.trashEntry, mocks.removeClue]) m.mockReset();
   keptRows.value = [];
   hasResult.value = false;
   generating.value = false;
@@ -110,6 +112,8 @@ beforeEach(() => {
   mocks.acceptArc.mockResolvedValue({ undo: async () => {} });
   mocks.acceptPeople.mockResolvedValue({ undo: async () => {} });
   mocks.acceptBackstory.mockResolvedValue({ undo: async () => {} });
+  mocks.acceptSpecies.mockResolvedValue({ undo: async () => {} });
+  mocks.acceptHabitat.mockResolvedValue({ undo: async () => {} });
   existingClues.value = [];
   passages.value = [];
   suggestions.value = [];
@@ -475,6 +479,42 @@ describe("CanonReview, what it shows", () => {
     expect(mocks.acceptBackstory).toHaveBeenCalledWith(passage, "pm1");
     expect(mocks.create).not.toHaveBeenCalled();
     expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: a species or habitat rendered as a premise entry (no tag) or its links lost their target words.
+  it("shows a species with its habits, forms and links, and a habitat with each species and how common it is", () => {
+    suggestions.value = [{
+      name: "Marsh Heron", scientificName: null, kingdom: "animal", livesAs: "pairs", activity: "twilight", clade: { id: null, name: "Waders" }, description: "Grey and patient.",
+      forms: [{ label: "Chick", domesticated: false }, { label: "Kept", domesticated: true }],
+      links: [{ kind: "eats", toSpeciesId: null, toName: "Frog", toLabel: "Frog", note: null }, { kind: "shelters", toSpeciesId: null, toName: null, toLabel: null, note: null }],
+    }];
+    const species = mountIt("species").text();
+    expect(species).toContain("A species");
+    expect(species).toContain("Animal, lives in pairs, at twilight, of the Waders (new kin).");
+    expect(species).toContain("Forms: Chick, Kept (kept).");
+    expect(species).toContain("Links: eats Frog; shelters other animals.");
+    suggestions.value = [{ name: "Salt Marsh", description: "Wet.", species: [{ speciesId: "s1", speciesName: "Heron", abundance: "very_rare" }, { speciesId: "s2", speciesName: "Frog", abundance: null }] }];
+    const habitats = mountIt("habitats").text();
+    expect(habitats).toContain("A habitat");
+    expect(habitats).toContain("Lives here: Heron (very rare), Frog.");
+  });
+
+  // Bug caught: Accept on a species or a habitat went down the premise path, or a refused write still folded the proposal to Kept.
+  it("sends a species and a habitat to their own writes, and keeps the proposal when the write says no", async () => {
+    const species: SpeciesSuggestion = { name: "Heron", scientificName: null, kingdom: "animal", livesAs: null, activity: null, clade: null, description: "", forms: [], links: [] };
+    suggestions.value = [species];
+    await click(mountIt("species"), "Accept");
+    expect(mocks.acceptSpecies).toHaveBeenCalledWith(species);
+    expect(keptRows.value.map((k) => k.suggestion)).toEqual([species]);
+
+    const habitat: HabitatSuggestion = { name: "Marsh", description: "", species: [] };
+    suggestions.value = [habitat];
+    mocks.acceptHabitat.mockResolvedValue(null);
+    keptRows.value = [];
+    await click(mountIt("habitats"), "Accept");
+    expect(mocks.acceptHabitat).toHaveBeenCalledWith(habitat);
+    expect(keptRows.value).toEqual([]);
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 
   // Bug caught: the backstory review read the wrong key, so the Familiar's passages were never on screen.

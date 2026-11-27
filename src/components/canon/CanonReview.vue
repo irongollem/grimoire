@@ -61,7 +61,7 @@
           <CanonRef v-if="p.who" :kind="p.who.kind" :name="p.who.name" />
         </div>
         <p class="text-body text-foreground">{{ p.text }}</p>
-        <p v-if="p.detail" class="text-caption text-muted-foreground">{{ p.detail }}</p>
+        <p v-if="p.detail" class="whitespace-pre-line text-caption text-muted-foreground">{{ p.detail }}</p>
         <div class="flex justify-end gap-1">
           <AppButton variant="primary" size="sm" :icon="IconCheck" icon-size="xs" label="Accept" :disabled="isAccepting" @click="accept(p.source)" />
           <AppButton variant="subtle" size="sm" label="Dismiss" :disabled="isAccepting" @click="dismiss(p.source)" />
@@ -101,12 +101,12 @@ import { useKnownTo } from "@/composables/canon/useKnownTo";
 import { useCanonReviewAccept, type Accepted } from "@/composables/canon/useCanonReviewAccept";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
-import { useCanonSuggestions, type ArcSuggestion, type BackstorySuggestion, type CanonSuggestionMode, type ClueSuggestion, type ForceSuggestion, type LoreSuggestion, type PeopleSuggestion, type PremiseSuggestion, type QuestionSuggestion, type ReadFinding, type SecretSuggestion, type TruthSuggestion } from "@/ai/useCanonSuggestions";
+import { useCanonSuggestions, type ArcSuggestion, type BackstorySuggestion, type CanonSuggestionMode, type ClueSuggestion, type ForceSuggestion, type LoreSuggestion, type HabitatSuggestion, type PeopleSuggestion, type PremiseSuggestion, type QuestionSuggestion, type ReadFinding, type SecretSuggestion, type SpeciesSuggestion, type TruthSuggestion } from "@/ai/useCanonSuggestions";
 import type { AiProvenance } from "@/ai/provenance";
 import { premiseEntryText } from "@edge-shared/worldBlock.ts";
 import type { CanonEntry, LoreKind, PremiseKind } from "@/types/canon.types";
 
-type Suggestion = PremiseSuggestion | TruthSuggestion | ClueSuggestion | QuestionSuggestion | ForceSuggestion | LoreSuggestion | SecretSuggestion | ArcSuggestion | PeopleSuggestion | BackstorySuggestion;
+type Suggestion = PremiseSuggestion | TruthSuggestion | ClueSuggestion | QuestionSuggestion | ForceSuggestion | LoreSuggestion | SecretSuggestion | ArcSuggestion | PeopleSuggestion | BackstorySuggestion | SpeciesSuggestion | HabitatSuggestion;
 
 const { mode, entries = [], secretId = null, lore = null, scope = undefined, partyMemberId = null } = defineProps<{
   mode: CanonSuggestionMode;
@@ -138,6 +138,8 @@ const COPY = {
   split: { heading: "Suggested passages", waiting: "Reading the entry to split it into passages. This takes a little while." },
   arcs: { heading: "Suggested arcs", waiting: "Reading your premise and your story so far for arcs. This takes a little while." },
   peoples: { heading: "Suggested peoples", waiting: "Reading your species and your world for peoples. This takes a little while." },
+  species: { heading: "Suggested species", waiting: "Reading your world and your field guide for species. This takes a little while." },
+  habitats: { heading: "Suggested habitats", waiting: "Reading your world and your field guide for habitats. This takes a little while." },
   backstory: { heading: "Suggested passages for the DM", waiting: "Reading the character and their past for what you could hold back. This takes a little while." },
   read: { heading: "What the read found", waiting: "Reading the whole canon for what does not hold together. This takes a little while." },
 } as const;
@@ -173,7 +175,7 @@ const { data: allPassages } = useCanonPassages(() => mode === "lore");
 // No entry yet: only `nameKnower`, which takes the new truth's id, is used.
 const { nameKnower } = useKnownTo(() => null);
 
-const { acceptArc, acceptPeople, acceptBackstory, trashEntry, removeClue } = useCanonReviewAccept({ mode: () => mode, provenance: () => provenance.value });
+const { acceptArc, acceptPeople, acceptBackstory, acceptSpecies, acceptHabitat, trashEntry, removeClue } = useCanonReviewAccept({ mode: () => mode, provenance: () => provenance.value });
 
 const isAccepting = ref(false);
 const pendingCount = computed(() => proposals.value.filter((p) => !isKept(p.source)).length);
@@ -218,6 +220,12 @@ function isArc(s: Suggestion): s is ArcSuggestion {
 function isPeople(s: Suggestion): s is PeopleSuggestion {
   return "recordId" in s;
 }
+function isSpecies(s: Suggestion): s is SpeciesSuggestion {
+  return "kingdom" in s;
+}
+function isHabitat(s: Suggestion): s is HabitatSuggestion {
+  return "species" in s;
+}
 function isBackstory(s: Suggestion): s is BackstorySuggestion {
   return "body" in s;
 }
@@ -239,6 +247,8 @@ interface Proposal {
 const proposals = computed<Proposal[]>(() =>
   (mode === "read" ? [] : (suggestions.value as Suggestion[])).map((source, i) => {
     if (isArc(source)) return { key: `${i}:${source.name}`, source, tag: "An arc, planned", text: source.name, knowers: null, spot: null, detail: arcDetail(source) };
+    if (isSpecies(source)) return { key: `${i}:${source.name}`, source, tag: "A species", text: source.name, knowers: null, spot: null, detail: speciesDetail(source) };
+    if (isHabitat(source)) return { key: `${i}:${source.name}`, source, tag: "A habitat", text: source.name, knowers: null, spot: null, detail: habitatDetail(source) };
     if (isPeople(source)) return { key: `${i}:${source.recordId}:${source.name ?? ""}`, source, tag: "A people", text: `${source.name ?? source.recordName}: ${source.percent}%`, knowers: null, spot: null, detail: source.name ? `A culture of ${source.recordName}.` : null };
     if (isBackstory(source)) return { key: `${i}:${source.title}`, source, tag: "For you to hold back", text: source.title, knowers: null, spot: null, detail: source.body };
     if (isSecret(source)) return { key: `${i}:${source.title}`, source, tag: "A secret", text: source.title, knowers: null, spot: null, detail: secretDetail(source) };
@@ -255,6 +265,28 @@ const visible = computed(() => error.value !== null || isGenerating.value || (mo
 
 function arcDetail(s: ArcSuggestion): string {
   return [s.summary, s.question ? `Asks: ${s.question}` : null, s.stakes ? `At stake: ${s.stakes}` : null].filter((t) => t !== null).join(" ");
+}
+
+const LIVES_AS_WORDS = { alone: "lives alone", pairs: "lives in pairs", family: "lives in families", harem: "lives in harems", herd: "lives in herds", colony: "lives in colonies" } as const;
+const ACTIVITY_WORDS = { day: "by day", twilight: "at twilight", night: "by night", any: "at any hour" } as const;
+const ABUNDANCE_WORDS = { very_rare: "very rare", rare: "rare", uncommon: "uncommon", common: "common", abundant: "abundant" } as const;
+
+/** One line each: how it lives, its forms, its links. The description is the DM's to read in full once it is kept. */
+function speciesDetail(s: SpeciesSuggestion): string {
+  const habits = [s.kingdom, s.livesAs ? LIVES_AS_WORDS[s.livesAs] : null, s.activity ? ACTIVITY_WORDS[s.activity] : null, s.clade ? `of the ${s.clade.name}${s.clade.id === null ? " (new kin)" : ""}` : null]
+    .filter((t) => t !== null).join(", ");
+  const lines = [`${habits.charAt(0).toUpperCase()}${habits.slice(1)}.`];
+  if (s.description !== "") lines.push(s.description);
+  if (s.forms.length > 0) lines.push(`Forms: ${s.forms.map((f) => (f.domesticated ? `${f.label} (kept)` : f.label)).join(", ")}.`);
+  if (s.links.length > 0) lines.push(`Links: ${s.links.map((l) => `${l.kind.replace("_", " ")} ${l.toLabel ?? "other animals"}`).join("; ")}.`);
+  return lines.join("\n");
+}
+
+function habitatDetail(s: HabitatSuggestion): string {
+  const living = s.species.length > 0
+    ? `Lives here: ${s.species.map((sp) => (sp.abundance ? `${sp.speciesName} (${ABUNDANCE_WORDS[sp.abundance]})` : sp.speciesName)).join(", ")}.`
+    : "No species named yet.";
+  return [s.description, living].filter((t) => t !== "").join("\n");
 }
 
 function secretDetail(s: SecretSuggestion): string {
@@ -405,7 +437,7 @@ async function undo(s: Suggestion) {
 async function accept(s: Suggestion) {
   isAccepting.value = true;
   try {
-    const done = isArc(s) ? await acceptArc(s) : isPeople(s) ? await acceptPeople(s) : isBackstory(s) ? await acceptBackstory(s, requiredMember()) : isSecret(s) ? await acceptSecret(s) : isLore(s) ? await acceptLore(s) : isForce(s) ? await acceptForce(s) : isTruth(s) ? await acceptTruth(s) : isClue(s) ? await acceptClue(s) : isQuestion(s) ? await acceptQuestion(s) : await acceptPremise(s);
+    const done = isSpecies(s) ? await acceptSpecies(s) : isHabitat(s) ? await acceptHabitat(s) : isArc(s) ? await acceptArc(s) : isPeople(s) ? await acceptPeople(s) : isBackstory(s) ? await acceptBackstory(s, requiredMember()) : isSecret(s) ? await acceptSecret(s) : isLore(s) ? await acceptLore(s) : isForce(s) ? await acceptForce(s) : isTruth(s) ? await acceptTruth(s) : isClue(s) ? await acceptClue(s) : isQuestion(s) ? await acceptQuestion(s) : await acceptPremise(s);
     if (done) markKept(s as never, done);
   } catch (e) {
     toast.error(e instanceof Error ? e.message : "Could not save that suggestion.");

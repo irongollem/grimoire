@@ -27,6 +27,7 @@ import {
   forceShape,
   arcShape,
   backstoryShape,
+  habitatShape,
   isLoreKind,
   loreShape,
   MAX_PREMISE_SUGGESTIONS,
@@ -38,13 +39,16 @@ import {
   sanitizeBackstory,
   sanitizeClues,
   sanitizeForces,
+  sanitizeHabitats,
   sanitizeLore,
   sanitizePeoples,
   sanitizePremise,
   sanitizeQuestions,
   sanitizeSecrets,
+  sanitizeSpecies,
   sanitizeTruths,
   secretShape,
+  speciesShape,
   truthShape,
   type ForceQuestRef,
   type ForceWho,
@@ -92,7 +96,7 @@ interface BackstoryMember {
   player_description: string | null;
 }
 
-type Mode = "premise" | "truths" | "clues" | "questions" | "forces" | "lore" | "secrets" | "read" | "arcs" | "peoples" | "backstory";
+type Mode = "premise" | "truths" | "clues" | "questions" | "forces" | "lore" | "secrets" | "read" | "arcs" | "peoples" | "backstory" | "species" | "habitats";
 
 const MODES: Record<Mode, { promptRow: string; ledger: string }> = {
   premise: { promptRow: "canon_premise", ledger: "canon_premise_suggestion" },
@@ -105,6 +109,8 @@ const MODES: Record<Mode, { promptRow: string; ledger: string }> = {
   arcs: { promptRow: "canon_arcs", ledger: "canon_arc_suggestion" },
   peoples: { promptRow: "canon_peoples", ledger: "canon_people_suggestion" },
   backstory: { promptRow: "canon_backstory", ledger: "canon_backstory_suggestion" },
+  species: { promptRow: "canon_species", ledger: "canon_species_suggestion" },
+  habitats: { promptRow: "canon_habitats", ledger: "canon_habitat_suggestion" },
   // "Read it through" is priced as its own row: it reads the whole canon, so it is not a suggester's price.
   read: { promptRow: "canon_read_through", ledger: "canon_read_through" },
 };
@@ -126,6 +132,9 @@ const MAX_THEMES = 20;
 const MAX_LIBRARY_SPECIES = 150;
 const MAX_CUSTOM_SPECIES = 60;
 const MAX_PASSAGES = 40;
+const MAX_FIELD_GUIDE_SPECIES = 150;
+const MAX_CLADES = 60;
+const MAX_HABITATS = 40;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Every read is filtered by campaign in the query: the service-role client has no RLS to lean on. */
@@ -447,6 +456,34 @@ serve(serveUser(async ({ user, req, report }) => {
           "Species a people may be. Every record_id must be copied exactly from the second field of one of these lines (kind|id|name):\n" +
           `---BEGIN SPECIES---\n${candidates.length > 0 ? candidates.map((c) => `${c.kind}|${c.id}|${c.name}`).join("\n") : "(no species available: propose nothing)"}\n---END SPECIES---`;
         sanitize = (parsed) => sanitizePeoples(parsed, candidates, listed);
+      } else if (mode === "species") {
+        const [speciesRows, cladeRows] = await Promise.all([
+          readRows<{ id: string; name: string }>(
+            admin.from("campaign_species").select("id, name").eq("campaign_id", campaign.id).order("sort_order", { ascending: true }).limit(MAX_FIELD_GUIDE_SPECIES),
+          ),
+          readRows<{ id: string; name: string }>(
+            admin.from("campaign_clades").select("id, name").eq("campaign_id", campaign.id).order("sort_order", { ascending: true }).limit(MAX_CLADES),
+          ),
+        ]);
+        system = base(speciesShape());
+        user_ = `${steer}Species the field guide already has (do not repeat them; a link may point at one by its id, copied exactly from the first field of its line, id|name):\n` +
+          `---BEGIN SPECIES---\n${speciesRows.length > 0 ? speciesRows.map((r) => `${r.id}|${r.name}`).join("\n") : "(none yet)"}\n---END SPECIES---\n\n` +
+          "Clades (kin) the field guide already has. A clade must be copied exactly from the first field of one of these lines (id|name), or be the name of a new clade:\n" +
+          `---BEGIN CLADES---\n${cladeRows.length > 0 ? cladeRows.map((r) => `${r.id}|${r.name}`).join("\n") : "(none yet)"}\n---END CLADES---`;
+        sanitize = (parsed) => sanitizeSpecies(parsed, speciesRows, cladeRows);
+      } else if (mode === "habitats") {
+        const [habitatRows, speciesRows] = await Promise.all([
+          readRows<{ name: string }>(admin.from("campaign_habitats").select("name").eq("campaign_id", campaign.id).order("sort_order", { ascending: true }).limit(MAX_HABITATS)),
+          readRows<{ id: string; name: string; lives_as: string | null }>(
+            admin.from("campaign_species").select("id, name, lives_as").eq("campaign_id", campaign.id).order("sort_order", { ascending: true }).limit(MAX_FIELD_GUIDE_SPECIES),
+          ),
+        ]);
+        const names = habitatRows.map((r) => r.name.trim()).filter((n) => n !== "");
+        system = base(habitatShape());
+        user_ = `${steer}Habitats the campaign already lists (do not repeat them):\n${bullets(names)}\n\n` +
+          "Species of the field guide that may live in a habitat. Every species_id must be copied exactly from the first field of one of these lines (id|name|how it lives):\n" +
+          `---BEGIN SPECIES---\n${speciesRows.length > 0 ? speciesRows.map((r) => `${r.id}|${r.name}|${r.lives_as ?? "unknown"}`).join("\n") : "(no species yet: leave species empty)"}\n---END SPECIES---`;
+        sanitize = (parsed) => sanitizeHabitats(parsed, names, speciesRows);
       } else if (mode === "backstory") {
         const member = backstoryMember!;
         const [entries, speciesRows] = await Promise.all([
@@ -593,7 +630,7 @@ serve(serveUser(async ({ user, req, report }) => {
       if (skipModelWith) return json({ suggestions: skipModelWith, setAside: [], ai_provenance: null });
       let textResult: TextResult;
       try {
-        const maxTokens = mode === "premise" || mode === "forces" ? 5000 : mode === "lore" || mode === "secrets" ? 4000 : 2500;
+        const maxTokens = mode === "premise" || mode === "forces" ? 5000 : mode === "lore" || mode === "secrets" || mode === "species" ? 4000 : 2500;
         textResult = await callText({ text, model: text.config?.text_model, system, user: user_, maxTokens });
       } catch (e) {
         console.error("Canon suggestion text generation failed:", e);

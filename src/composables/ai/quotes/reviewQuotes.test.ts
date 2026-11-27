@@ -16,6 +16,8 @@ const PRICES: Record<string, number> = {
   canon_arc_suggestion: 29,
   canon_people_suggestion: 30,
   canon_backstory_suggestion: 31,
+  canon_species_suggestion: 32,
+  canon_habitat_suggestion: 33,
 };
 
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: (key: string) => PRICES[key] }) }));
@@ -51,5 +53,7 @@ describe("the review generators' quotes", () => {
     expect(quoteFor("arcs").total).toBe(29);
     expect(quoteFor("peoples").total).toBe(30);
     expect(quoteFor("backstory").total).toBe(31);
+    expect(quoteFor("species").total).toBe(32);
+    expect(quoteFor("habitats").total).toBe(33);
   });
 });

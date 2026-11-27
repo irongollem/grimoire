@@ -16,6 +16,7 @@ vi.mock("@/ai/ask/useAskAdapters", () => ({ useAskAdapters: () => ({ adapterFor:
 
 vi.mock("@/composables/table/useTableVoice", async (importOriginal) => ({ ...(await importOriginal<object>()), useTableVoiceRates: () => ({ data: ref(undefined) }) }));
 
+vi.mock("@/composables/canon/useStatBlockBinding", () => ({ useStatBlockBinder: () => async () => ({ ok: true, text: "" }) }));
 vi.mock("@/composables/ask/useAskWalkPorts", async () => {
   const { fakeWalkPorts } = await import("@/test/askWalkPorts");
   return { useAskWalkPorts: () => fakeWalkPorts().ports };

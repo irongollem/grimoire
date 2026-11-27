@@ -7,12 +7,14 @@ import type {
   CanonSetAside,
   ClueSuggestion,
   ForceSuggestion,
+  HabitatSuggestion,
   LoreKind,
   LoreSuggestion,
   PeopleSuggestion,
   PremiseSuggestion,
   QuestionSuggestion,
   SecretSuggestion,
+  SpeciesSuggestion,
   SuggestedPremiseKind,
   TruthSuggestion,
 } from "@edge-shared/canonSuggestions.ts";
@@ -22,9 +24,9 @@ import { isAnyAiGenerating } from "./aiGeneratorRegistry";
 import type { AiProvenance } from "./provenance";
 import { useCampaignStore } from "@/stores/campaign";
 
-export type { ArcSuggestion, BackstorySuggestion, ClueSuggestion, ForceSuggestion, LoreSuggestion, PeopleSuggestion, PremiseSuggestion, QuestionSuggestion, ReadFinding, SecretSuggestion, SuggestedPremiseKind, TruthSuggestion };
+export type { ArcSuggestion, BackstorySuggestion, ClueSuggestion, ForceSuggestion, HabitatSuggestion, LoreSuggestion, PeopleSuggestion, PremiseSuggestion, QuestionSuggestion, ReadFinding, SecretSuggestion, SpeciesSuggestion, SuggestedPremiseKind, TruthSuggestion };
 
-export type CanonSuggestionMode = "premise" | "truths" | "clues" | "questions" | "forces" | "lore" | "secrets" | "read" | "arcs" | "peoples" | "backstory";
+export type CanonSuggestionMode = "premise" | "truths" | "clues" | "questions" | "forces" | "lore" | "secrets" | "read" | "arcs" | "peoples" | "backstory" | "species" | "habitats";
 
 interface Shapes {
   premise: PremiseSuggestion;
@@ -37,6 +39,8 @@ interface Shapes {
   arcs: ArcSuggestion;
   peoples: PeopleSuggestion;
   backstory: BackstorySuggestion;
+  species: SpeciesSuggestion;
+  habitats: HabitatSuggestion;
   /** Findings, not proposals: nothing in them can be accepted, and none is ever written. */
   read: ReadFinding;
 }

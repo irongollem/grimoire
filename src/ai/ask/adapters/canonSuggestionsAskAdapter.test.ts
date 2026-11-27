@@ -68,6 +68,10 @@ describe("canonModeFor", () => {
     ["Who lives in the marsh?", "peoples"],
     ["Which cultures keep the river?", "peoples"],
     ['Suggest a backstory for "Tilda".', "backstory"],
+    ["Fill out the field guide with the marsh's creatures.", "species"],
+    ["Suggest some plants for my world.", "species"],
+    ["Suggest habitats for my world.", "habitats"],
+    ["What kinds of country lie east of the river?", "habitats"],
   ] as const)("%s -> %s", (request, mode) => {
     expect(canonModeFor(request)).toBe(mode);
   });

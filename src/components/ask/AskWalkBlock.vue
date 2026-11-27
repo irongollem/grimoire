@@ -13,6 +13,7 @@
     <p v-else-if="item.phase === 'saved'" class="text-body" data-testid="walk-saved">
       Written into your canon.
       <AppButton variant="link" size="inline-body" label="See it in the canon" :to="stopChapterPath(item.stop)" />
+      <span v-if="step.id === 'species'" class="block text-caption text-muted-foreground" data-testid="walk-stat-block-note">{{ STAT_BLOCK_NOTE }}</span>
     </p>
 
     <template v-else-if="item.phase === 'drafted'">
@@ -42,6 +43,7 @@
           data-testid="walk-answer"
         />
       </label>
+      <p v-if="step.id === 'species'" class="text-caption text-muted-foreground" data-testid="walk-stat-block-note">{{ STAT_BLOCK_NOTE }}</p>
       <div class="flex flex-wrap items-center gap-2">
         <AppButton v-if="step.canWrite" variant="outline" size="sm" label="Write it myself" :disabled="text.trim() === ''" data-testid="walk-write" @click="emit('write', text)" />
         <AppButton v-else variant="outline" size="sm" :label="`Open ${step.title}`" :to="stopChapterPath(item.stop)" data-testid="walk-open-chapter" />
@@ -71,17 +73,22 @@ import { stopChapterPath, stopTitle } from "@/lib/ask/askWalkCopy";
 import { draftHeldBecause, stepOf, walkScope } from "@/lib/canon/canonWalk";
 import type { CanonEntry } from "@/types/canon.types";
 
-const { item, pitchWritten } = defineProps<{
+const { item, pitchWritten, speciesKept } = defineProps<{
   item: Extract<AskItem, { kind: "walk-block" }>;
   /** Every draft is written from the pitch: before it, Enhance is replaced by why. */
   pitchWritten: boolean;
+  /** A habitat is drafted from the field guide's species: before one, Enhance is replaced by why. */
+  speciesKept: boolean;
 }>();
 const emit = defineEmits<{ write: [text: string]; enhance: [text: string]; again: []; next: []; skip: [] }>();
+
+/** The Field guide says where a species' stat block comes from, so the walk does not seem to leave it out. */
+const STAT_BLOCK_NOTE = "A species' stat block is made from its form in the Field guide.";
 
 const step = computed(() => stepOf(item.stop.step));
 const title = computed(() => stopTitle(item.stop));
 const draft = computed(() => step.value.draft);
-const held = computed(() => draftHeldBecause(step.value, pitchWritten));
+const held = computed(() => draftHeldBecause(step.value, pitchWritten, speciesKept));
 const canSkip = computed(() => step.value.id !== "pitch");
 
 // The DM's words, editable until the block is saved; a retry after a failure starts from what they last wrote.

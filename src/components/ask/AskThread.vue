@@ -103,6 +103,7 @@
         v-else-if="item.kind === 'walk-block'"
         :item="item"
         :pitch-written="walk?.pitchWritten ?? false"
+        :species-kept="walk?.speciesKept ?? false"
         @write="emit('walk-write', item.id, $event)"
         @enhance="emit('walk-enhance', item.id, $event)"
         @again="emit('walk-again', item.id)"

@@ -15,12 +15,12 @@ import type { CanonClue, CanonEntry, PremiseKind } from "@/types/canon.types";
 export type WalkStepId =
   | "pitch" | "themes" | "table" | "voice" | "look" | "lines"
   | "truths" | "forces" | "secrets" | "questions" | "lore"
-  | "arcs" | "peoples" | "habitats" | "backstories";
+  | "arcs" | "peoples" | "species" | "habitats" | "backstories";
 
 export type WalkState = "filled" | "skipped" | "todo";
 
 /** The helpers the walk's Enhance runs: modes of `useCanonSuggestions` (a test holds the two equal). */
-export type WalkDraftMode = "premise" | "truths" | "forces" | "secrets" | "questions" | "lore" | "arcs" | "peoples" | "backstory";
+export type WalkDraftMode = "premise" | "truths" | "forces" | "secrets" | "questions" | "lore" | "arcs" | "peoples" | "backstory" | "species" | "habitats";
 
 /** What "Enhance with AI" runs for a step: the helper, and for the premise which of its kinds (it drafts only those). */
 export type WalkDraft = { mode: "premise"; kinds: PremiseKind[] } | { mode: Exclude<WalkDraftMode, "premise"> };
@@ -138,11 +138,18 @@ export const WALK_STEPS: readonly WalkStepDef[] = [
     draft: { mode: "peoples" }, canWrite: false,
   },
   {
+    id: "species", chapter: "species", title: "Field guide", hint: "The creatures and plants of your world, one line each.",
+    question: "What lives in your world? Tell me about the creatures and plants in your own words: what is common and what is rare, what eats what, what people keep or hunt, and what they fear. Say as much as you like and I will pick the species out of it.",
+    followUp: "Which creature would a traveller meet on the first day, and which would they hope never to meet? Anything about what it eats, where it sleeps and what it is used for helps.",
+    placeholder: "Marsh herons that nest on the old pilings\nEels, thick as a wrist, that the fishers smoke\nA pale moss that glows when it rains",
+    draft: { mode: "species" }, canWrite: true,
+  },
+  {
     id: "habitats", chapter: "life", title: "Habitats", hint: "Kinds of country, and what lives in each.",
     question: "What kinds of country are there, and what lives in each? Tell me about the land, its weather and the creatures you would expect to meet there.",
     followUp: "Which place would you most want the party to cross? Describe it, and what makes it dangerous or beautiful.",
-    placeholder: "Salt marsh with herons and eels, chalk downs with sheep and wolves",
-    draft: null, noDraft: "Habitats are being reworked, so for now write them in their chapter or skip this one.", canWrite: false,
+    placeholder: "Salt marsh with herons and eels\nChalk downs with sheep and wolves",
+    draft: { mode: "habitats" }, canWrite: true,
   },
   {
     id: "backstories", chapter: "backstories", title: "Backstories", hint: "Each character's past, written with their player.",
@@ -166,6 +173,8 @@ export interface WalkInput {
   clues: readonly CanonClue[];
   arcCount: number;
   peopleCount: number;
+  /** The species of the field guide: the Field guide step, and what a habitat is drafted from. */
+  speciesCount: number;
   habitatCount: number;
   /** The party: a backstory is one stop per character. */
   party: readonly WalkMember[];
@@ -233,6 +242,7 @@ function counted(id: WalkStepId, input: WalkInput): { filled: boolean; count?: n
     case "lore": return many(ofPart("lore"));
     case "arcs": return many(input.arcCount);
     case "peoples": return many(input.peopleCount);
+    case "species": return many(input.speciesCount);
     case "habitats": return many(input.habitatCount);
     // A character's backstory is filled by the DM's own notes on it; the step is filled when every character has some.
     case "backstories": {
@@ -257,11 +267,13 @@ export function firstOpenStep(steps: readonly WalkStep[]): WalkStepId | null {
 }
 
 /** Why "Enhance with AI" is not offered on a step, or null when it is. A draft before the pitch would be written cold. */
-export function draftHeldBecause(step: Pick<WalkStepDef, "draft" | "noDraft">, pitchWritten: boolean): string | null {
+export function draftHeldBecause(step: Pick<WalkStepDef, "draft" | "noDraft">, pitchWritten: boolean, speciesKept: boolean): string | null {
   if (step.draft === null) return step.noDraft ?? "The Familiar cannot draft this part yet, so write it yourself or skip it.";
   // The pitch is drafted from the DM's own words, so it is the one draft that never waits for a pitch.
   const draftsThePitch = step.draft.mode === "premise" && step.draft.kinds.includes("pitch");
   if (!pitchWritten && !draftsThePitch) return "Write the pitch first: every draft is written from it.";
+  // A habitat is drafted from the species that live in it, so there must be some to name.
+  if (!speciesKept && step.draft.mode === "habitats") return "Fill the Field guide first: a habitat is drafted from its species.";
   return null;
 }
 

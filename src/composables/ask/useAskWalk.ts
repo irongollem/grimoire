@@ -26,6 +26,8 @@ export interface AskWalkPorts {
   /** The canon, its clues, passages and skips are in: a walk begun before would read a canon on its way as empty. */
   loaded: () => boolean;
   pitchWritten: () => boolean;
+  /** The field guide holds a species: a habitat is drafted from them. */
+  speciesKept: () => boolean;
   /** Stores a section's skip. Throws on failure. */
   skip: (step: WalkStop["step"]) => Promise<void>;
   /** "Write it myself" (`writeWalk`). Throws on failure, with a sentence for the DM. */
@@ -274,7 +276,7 @@ export function useAskWalk(deps: AskWalkDeps) {
     if (busyPhase(b)) return;
     delete b.error;
     const step = stepOf(b.stop.step);
-    const held = draftHeldBecause(step, ports.pitchWritten());
+    const held = draftHeldBecause(step, ports.pitchWritten(), ports.speciesKept());
     if (held !== null || step.draft === null) return fail(held ?? "There is nothing to draft here.");
     const draft = step.draft;
     // Nothing is spent unless the gate says yes, and a second generation never starts beside the first.

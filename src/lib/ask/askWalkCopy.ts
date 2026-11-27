@@ -9,6 +9,8 @@ export interface AskWalkView {
   active: boolean;
   progress: readonly (WalkStop & { current: boolean })[];
   pitchWritten: boolean;
+  /** The field guide holds a species, so a habitat can be drafted from them. */
+  speciesKept: boolean;
   /** The stop whose question is waiting for words. */
   awaiting: WalkStopRef | null;
   /** A block holds a draft: typed words change it. */

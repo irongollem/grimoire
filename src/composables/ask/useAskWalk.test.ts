@@ -164,8 +164,8 @@ describe("the walk: Enhance with AI", () => {
     expect(s.lastBlock().error).toMatch(/Another generation/);
   });
 
-  // Bug caught: a draft before the pitch, written cold; and a step with no helper (habitats) calling one anyway.
-  it("holds the draft before the pitch is written, and where there is no helper", async () => {
+  // Bug caught: a draft before the pitch, written cold.
+  it("holds the draft before the pitch is written", async () => {
     const cold = setup();
     await cold.walk.start();
     cold.walk.jump(section("truths"));
@@ -173,14 +173,23 @@ describe("the walk: Enhance with AI", () => {
     await cold.walk.enhance(cold.lastBlock().id);
     expect(cold.lastBlock().error).toMatch(/pitch first/);
 
+    expect(cold.draft).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: the engine drafting habitats from an empty field guide (the block hides the button, the engine is the
+  // real guard), or never drafting them once a species exists.
+  it("holds the habitats draft until the field guide has a species", async () => {
     const s = setup({ withPitch: true });
     await s.walk.start();
     s.walk.jump(section("habitats"));
     await s.convo.send(FULL);
     await s.walk.enhance(s.lastBlock().id);
-    expect(s.lastBlock().error).toMatch(/being reworked/);
-    expect(cold.draft).not.toHaveBeenCalled();
+    expect(s.lastBlock().error).toBe("Fill the Field guide first: a habitat is drafted from its species.");
     expect(s.draft).not.toHaveBeenCalled();
+
+    s.set({ speciesCount: 1 });
+    await s.walk.enhance(s.lastBlock().id);
+    expect(s.draft).toHaveBeenCalledTimes(1);
   });
 
   // Bug caught: the pitch drafted from the DM's words, which is the wizard's first promise, being held until a pitch

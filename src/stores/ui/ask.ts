@@ -4,6 +4,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { AskRecordRef } from "@edge-shared/agent/askContract";
+import type { AskBind } from "@/lib/ask/askBind";
 
 /** A generator its button asked the Familiar to open: its card waits here until the conversation takes it. */
 export interface PendingGenerator {
@@ -13,6 +14,8 @@ export interface PendingGenerator {
   /** The record a `fill` generator works on. */
   target?: AskRecordRef;
   concept?: string;
+  /** What the record this card makes is tied to once it lands (a species' form for its stat block). */
+  bind?: AskBind;
 }
 
 export const useAskUiStore = defineStore("ask-ui", () => {

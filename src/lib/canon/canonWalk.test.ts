@@ -9,7 +9,7 @@ const entry = (over: Partial<CanonEntry>): CanonEntry => ({ id: "e", part: "trut
 const doc = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
 const pitch = entry({ id: "p", part: "premise", premise_kind: "pitch", body: doc("A drowned kingdom") });
 const input = (over: Partial<WalkInput> = {}): WalkInput => ({
-  entries: [], clues: [], arcCount: 0, peopleCount: 0, habitatCount: 0, party: [], notedIds: new Set(), skipped: new Set(), ...over,
+  entries: [], clues: [], arcCount: 0, peopleCount: 0, speciesCount: 0, habitatCount: 0, party: [], notedIds: new Set(), skipped: new Set(), ...over,
 });
 const stateOf = (id: WalkStepId, i: WalkInput) => walkSteps(i).find((s) => s.id === id)?.state;
 
@@ -50,9 +50,9 @@ describe("walkSteps", () => {
   });
 
   // Bug caught: the arcs, peoples and habitats (kept outside canon_entries) never counting, so the walk nags for ever.
-  it("reads the arcs, peoples and habitats from their own counts", () => {
-    const filled = walkSteps(input({ arcCount: 1, peopleCount: 2, habitatCount: 1 }));
-    expect(filled.filter((s) => ["arcs", "peoples", "habitats"].includes(s.id)).map((s) => s.state)).toEqual(["filled", "filled", "filled"]);
+  it("reads the arcs, peoples, species and habitats from their own counts", () => {
+    const filled = walkSteps(input({ arcCount: 1, peopleCount: 2, speciesCount: 3, habitatCount: 1 }));
+    expect(filled.filter((s) => ["arcs", "peoples", "species", "habitats"].includes(s.id)).map((s) => s.state)).toEqual(["filled", "filled", "filled", "filled"]);
   });
 
   // Bug caught: a skip hiding a section the DM later wrote, or the pitch being skippable through a stale row.
@@ -80,10 +80,30 @@ describe("draftHeldBecause", () => {
   it("holds drafts until the pitch, and always where there is no helper", () => {
     const steps = walkSteps(input());
     const step = (id: WalkStepId) => steps.find((s) => s.id === id)!;
-    expect(draftHeldBecause(step("truths"), false)).toMatch(/pitch first/);
-    expect(draftHeldBecause(step("truths"), true)).toBeNull();
-    expect(draftHeldBecause(step("habitats"), true)).toMatch(/being reworked/);
-    expect(draftHeldBecause(step("arcs"), true)).toBeNull();
+    expect(draftHeldBecause(step("truths"), false, true)).toMatch(/pitch first/);
+    expect(draftHeldBecause(step("truths"), true, true)).toBeNull();
+    expect(draftHeldBecause(step("arcs"), true, true)).toBeNull();
+  });
+
+  // Bug caught: a habitat drafted before any species exists (it can only invent what lives there), or the hold leaking
+  // onto the Field guide itself, which is what fills the guide in the first place.
+  it("holds a habitat draft until the field guide has a species, and offers it after", () => {
+    const steps = walkSteps(input());
+    const step = (id: WalkStepId) => steps.find((s) => s.id === id)!;
+    expect(draftHeldBecause(step("habitats"), true, false)).toBe("Fill the Field guide first: a habitat is drafted from its species.");
+    expect(draftHeldBecause(step("habitats"), true, true)).toBeNull();
+    expect(draftHeldBecause(step("species"), true, false)).toBeNull();
+  });
+
+  // Bug caught: the Field guide stepped in the wrong place (after habitats, whose draft needs its species), or one
+  // species not filling it.
+  it("walks the Field guide between the peoples and the habitats, filled by one species", () => {
+    const ids = WALK_STEPS.map((s) => s.id);
+    expect(ids.indexOf("species")).toBe(ids.indexOf("peoples") + 1);
+    expect(ids.indexOf("habitats")).toBe(ids.indexOf("species") + 1);
+    expect(stateOf("species", input())).toBe("todo");
+    expect(stateOf("species", input({ speciesCount: 1 }))).toBe("filled");
+    expect(walkSteps(input()).find((s) => s.id === "species")).toMatchObject({ chapter: "species", draft: { mode: "species" }, canWrite: true });
   });
 
   // Bug caught: the pitch held "until the pitch is written" (a draft that could never be offered), so the DM's two
@@ -91,8 +111,8 @@ describe("draftHeldBecause", () => {
   it("offers the pitch's own draft before any pitch exists, and only the pitch's", () => {
     const steps = walkSteps(input());
     const step = (id: WalkStepId) => steps.find((s) => s.id === id)!;
-    expect(draftHeldBecause(step("pitch"), false)).toBeNull();
-    expect(draftHeldBecause(step("themes"), false)).toMatch(/pitch first/);
+    expect(draftHeldBecause(step("pitch"), false, true)).toBeNull();
+    expect(draftHeldBecause(step("themes"), false, true)).toMatch(/pitch first/);
   });
 });
 
@@ -203,7 +223,7 @@ describe("invitesWalk", () => {
 describe("the skippable sections", () => {
   // Bug caught: a step added here that the database's check refuses, so Skip fails with a 23514 at the table.
   it("match the canon_walk_skips check in the migration", () => {
-    const sql = readFileSync(resolve(__dirname, "../../../supabase/migrations/20261126084426_canon_walk_skips.sql"), "utf8");
+    const sql = readFileSync(resolve(__dirname, "../../../supabase/migrations/20261127065537_canon_walk_field_guide.sql"), "utf8");
     const check = /canon_walk_skips_section check \(section in \(([^)]*)\)/.exec(sql)?.[1] ?? "";
     const listed = [...check.matchAll(/'([a-z]+)'/g)].map((m) => m[1]);
     expect(listed.sort()).toEqual([...WALK_SKIPPABLE].sort());

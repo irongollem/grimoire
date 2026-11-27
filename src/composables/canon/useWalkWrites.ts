@@ -6,6 +6,8 @@ import { createCanonArc, useCanonArcs } from "@/composables/canon/useCanonArcs";
 import { openBackstory } from "@/composables/canon/useBackstory";
 import { createCanonPassage } from "@/lib/canon/canonPassageWrites";
 import { plainTextToTiptap } from "@/lib/canon/canonParts";
+import { insertHabitat } from "@/composables/canon/useCampaignHabitats";
+import { useSpeciesEditing } from "@/composables/canon/useCampaignSpecies";
 import { stepOf, type WalkStopRef } from "@/lib/canon/canonWalk";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { CanonEntry, PremiseKind } from "@/types/canon.types";
@@ -21,6 +23,10 @@ export interface WalkWriteContext {
   arcCount: number;
   /** A character's backstory entry id, made on first use (the definer `open_backstory`). */
   openBackstory: (memberId: string) => Promise<string>;
+  /** Adds a species by name and returns its id; null when the write was refused (the composable has already said why). */
+  addSpecies: (name: string) => Promise<string | null>;
+  /** Adds a habitat by name and returns its id. Throws on failure. */
+  addHabitat: (campaignId: string, name: string) => Promise<string>;
 }
 
 /** The non-empty lines of an answer, each without a list marker the DM may have typed. */
@@ -107,8 +113,14 @@ export async function writeWalk(ctx: WalkWriteContext, stop: WalkStopRef, text: 
       await createCanonPassage(campaignId, { entry_id: entryId, title: "Notes", body: plainTextToTiptap(body), player_visible_to: [] });
       return;
     }
-    case "peoples":
+    case "species":
+      // One species a line, by name: the rest of a species (its forms, how it lives) is the field guide's own page.
+      return writeLines(lines, async (name) => {
+        if ((await ctx.addSpecies(name)) === null) throw new Error(`"${name}" could not be added to the field guide. Check the guide, then try again.`);
+      }, 0);
     case "habitats":
+      return writeLines(lines, (name) => ctx.addHabitat(campaignId, name), 0);
+    case "peoples":
       throw new Error(`${stepOf(stop.step).title} are written in their chapter.`);
   }
 }
@@ -118,13 +130,15 @@ export function useWalkWrites() {
   const campaign = useCampaignStore();
   const { data: entries } = useCanonEntries();
   const { data: arcs } = useCanonArcs();
+  // Only writes: the field guide's reads stay off until something else wants them.
+  const { addSpecies } = useSpeciesEditing(() => false);
 
   async function write(stop: WalkStopRef, text: string, options: { replace?: boolean } = {}): Promise<void> {
     const campaignId = campaign.activeCampaignId;
     if (campaignId === null) throw new Error("Pick a campaign first.");
     if (entries.value === undefined || arcs.value === undefined) throw new Error("Your canon is still loading. Try again in a moment.");
     try {
-      await writeWalk({ campaignId, entries: entries.value, arcCount: arcs.value.length, openBackstory }, stop, text, options);
+      await writeWalk({ campaignId, entries: entries.value, arcCount: arcs.value.length, openBackstory, addSpecies, addHabitat: insertHabitat }, stop, text, options);
     } finally {
       // Whatever part-way a write got is on the page too.
       await qc.invalidateQueries({ queryKey: [CANON_KEY] });

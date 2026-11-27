@@ -52,6 +52,7 @@ vi.mock("@/composables/canon/useCanonWalkSkips", () => ({ useCanonWalkSkips: () 
 vi.mock("@/composables/canon/useCanonArcs", () => ({ useCanonArcs: () => ({ data: ref([]), isSuccess: ref(true) }) }));
 // The page's search also reads peoples, habitats and the table's lines (#1279 item 24); none of these tests searches them.
 vi.mock("@/composables/canon/useCampaignPeoples", () => ({ useCampaignPeoples: () => ({ peoples: ref([]) }) }));
+vi.mock("@/composables/canon/useSpeciesNames", () => ({ useSpeciesNames: () => ({ species: ref([]) }) }));
 vi.mock("@/composables/canon/useCampaignHabitats", () => ({ useCampaignHabitats: () => ({ habitats: ref([]) }) }));
 vi.mock("@/composables/canon/useCampaignSpecies", () => ({ useCampaignSpecies: () => ({ species: ref([]) }) }));
 vi.mock("@/composables/canon/useTableFacts", () => ({ useTableFacts: () => ({ facts: { data: ref([]) } }) }));

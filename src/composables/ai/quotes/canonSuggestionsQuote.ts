@@ -17,6 +17,8 @@ const LEDGER: Record<CanonSuggestionMode, QuoteCostKey> = {
   arcs: "canon_arc_suggestion",
   peoples: "canon_people_suggestion",
   backstory: "canon_backstory_suggestion",
+  species: "canon_species_suggestion",
+  habitats: "canon_habitat_suggestion",
   read: "canon_read_through",
 };
 

@@ -11,6 +11,7 @@
  *    truth left with nobody is set aside rather than offered as a truth nobody knows.
  */
 import { KNOWLEDGE_MARKS, PREMISE_KINDS, type KnowledgeMark, LORE_KINDS, type LoreKind } from "../../../src/types/canon.types.ts";
+import { ABUNDANCE_WEIGHT, LIVES_AS_FACTOR, type AbundanceKey, type LivesAsKey } from "./ecologyShares.ts";
 
 /** Every premise kind the campaign starter may propose, including private line and veil drafts. */
 export const SUGGESTED_PREMISE_KINDS = PREMISE_KINDS;
@@ -660,6 +661,223 @@ export function sanitizeBackstory(
     suggestions.push({ title, body });
   }
   return { suggestions, setAside: [] };
+}
+
+// ── Design it with me (#1282 story 5a): the field guide's species and the habitats they live in ──────────────────────
+
+// The closed lists of `20261126162306_habitat_ecology.sql`. This file runs in Deno, which cannot import the client's
+// `@/lib/canon/ecologyTypes`; the test holds each list equal to that one.
+export const SPECIES_KINGDOMS = ["animal", "plant", "fungus", "other"] as const;
+export const SPECIES_ACTIVITIES = ["day", "twilight", "night", "any"] as const;
+export const SPECIES_LINK_KINDS = ["eats", "competes", "helps", "lives_on", "shelters", "carries"] as const;
+export const SPECIES_LIVES_AS = Object.keys(LIVES_AS_FACTOR) as LivesAsKey[];
+export const HABITAT_ABUNDANCES = Object.keys(ABUNDANCE_WEIGHT) as AbundanceKey[];
+export type SuggestedKingdom = (typeof SPECIES_KINGDOMS)[number];
+export type SuggestedActivity = (typeof SPECIES_ACTIVITIES)[number];
+export type SuggestedLinkKind = (typeof SPECIES_LINK_KINDS)[number];
+
+export const MAX_SPECIES_SUGGESTIONS = 8;
+export const MAX_SPECIES_FORMS = 6;
+export const MAX_SPECIES_LINKS = 8;
+export const MAX_SPECIES_NAME_CHARS = 80;
+export const MAX_SCIENTIFIC_NAME_CHARS = 120;
+export const MAX_FORM_LABEL_CHARS = 40;
+export const MAX_LINK_NOTE_CHARS = 200;
+export const MAX_HABITAT_SUGGESTIONS = 6;
+export const MAX_HABITAT_SPECIES = 12;
+
+/** A species or clade the campaign already has, offered to the model by id. */
+export interface NamedRecord {
+  id: string;
+  name: string;
+}
+
+export interface HabitatSpeciesCandidate extends NamedRecord {
+  livesAs: string | null;
+}
+
+export interface SpeciesLinkSuggestion {
+  kind: SuggestedLinkKind;
+  /** An existing species of the field guide, or null (only for shelters and carries, or when `toName` is set). */
+  toSpeciesId: string | null;
+  /** The name of another species in the same answer: the link is written when that one is accepted too. */
+  toName: string | null;
+  /** The target's name for the review to show; null when the link has no target. */
+  toLabel: string | null;
+  note: string | null;
+}
+
+export interface SpeciesSuggestion {
+  name: string;
+  scientificName: string | null;
+  kingdom: SuggestedKingdom;
+  livesAs: LivesAsKey | null;
+  activity: SuggestedActivity | null;
+  /** An existing clade by id, a new clade by name, or none. */
+  clade: { id: string; name: string } | { id: null; name: string } | null;
+  /** Plain text: the client turns it into the rich description when it writes. */
+  description: string;
+  forms: { label: string; domesticated: boolean }[];
+  links: SpeciesLinkSuggestion[];
+}
+
+const oneOf = <T extends string>(list: readonly T[], v: unknown): T | null => (typeof v === "string" && (list as readonly string[]).includes(v) ? (v as T) : null);
+
+/**
+ * Species of the field guide. A name the guide already has (any case) is set aside. A clade is an existing one (by id,
+ * or by its name) or a new name. A link's target is an id of the list given, the name of an existing species, or the
+ * name of another species kept in this same answer; any other target drops that link and the species stays. A link with
+ * no target survives only as shelters or carries ("other animals"), and a species never links to itself.
+ */
+export function sanitizeSpecies(
+  parsed: unknown,
+  existingSpecies: readonly NamedRecord[],
+  clades: readonly NamedRecord[],
+): { suggestions: SpeciesSuggestion[]; setAside: CanonSetAside[] } {
+  const setAside: CanonSetAside[] = [];
+  const existingByName = new Map(existingSpecies.map((s) => [norm(s.name), s.id]));
+  const nameById = new Map(existingSpecies.map((s) => [s.id, s.name]));
+  const cladeById = new Map(clades.map((c) => [c.id, c]));
+  const cladeByName = new Map(clades.map((c) => [norm(c.name), c]));
+
+  // First pass: which species survive, so a link may point at one later in the answer.
+  const kept: { raw: Record<string, unknown>; name: string }[] = [];
+  const seen = new Set<string>();
+  for (const raw of listOf(parsed, "suggestions")) {
+    if (kept.length >= MAX_SPECIES_SUGGESTIONS) break;
+    if (!isRecord(raw)) continue;
+    const name = clean(raw.name, MAX_SPECIES_NAME_CHARS);
+    if (name === "" || seen.has(norm(name))) continue;
+    if (existingByName.has(norm(name))) {
+      setAside.push({ claim: name, reason: "the field guide already has it" });
+      continue;
+    }
+    seen.add(norm(name));
+    kept.push({ raw, name });
+  }
+
+  const suggestions: SpeciesSuggestion[] = kept.map(({ raw, name }) => {
+    const cladeRaw = clean(raw.clade, MAX_SPECIES_NAME_CHARS);
+    const knownClade = cladeById.get(cladeRaw) ?? cladeByName.get(norm(cladeRaw));
+    const clade = cladeRaw === "" ? null : knownClade ? { id: knownClade.id, name: knownClade.name } : { id: null, name: cladeRaw };
+
+    const forms: SpeciesSuggestion["forms"] = [];
+    const formLabels = new Set<string>();
+    for (const f of Array.isArray(raw.forms) ? raw.forms : []) {
+      if (forms.length >= MAX_SPECIES_FORMS) break;
+      if (!isRecord(f)) continue;
+      const label = clean(f.label, MAX_FORM_LABEL_CHARS);
+      if (label === "" || formLabels.has(norm(label))) continue;
+      formLabels.add(norm(label));
+      forms.push({ label, domesticated: f.domesticated === true });
+    }
+
+    const links: SpeciesLinkSuggestion[] = [];
+    const linkKeys = new Set<string>();
+    for (const l of Array.isArray(raw.links) ? raw.links : []) {
+      if (links.length >= MAX_SPECIES_LINKS) break;
+      if (!isRecord(l)) continue;
+      const kind = oneOf(SPECIES_LINK_KINDS, l.kind);
+      if (kind === null) continue;
+      const note = clean(l.note, MAX_LINK_NOTE_CHARS) || null;
+      const to = typeof l.to === "string" ? l.to.trim() : "";
+      let toSpeciesId: string | null = null;
+      let toName: string | null = null;
+      if (to === "") {
+        if (kind !== "shelters" && kind !== "carries") continue;
+      } else if (nameById.has(to)) {
+        toSpeciesId = to;
+      } else if (existingByName.has(norm(to))) {
+        toSpeciesId = existingByName.get(norm(to)) ?? null;
+      } else {
+        const inBatch = kept.find((k) => norm(k.name) === norm(to));
+        if (!inBatch || norm(inBatch.name) === norm(name)) continue;
+        toName = inBatch.name;
+      }
+      const key = `${kind}|${toSpeciesId ?? ""}|${toName ? norm(toName) : ""}`;
+      if (linkKeys.has(key)) continue;
+      linkKeys.add(key);
+      links.push({ kind, toSpeciesId, toName, toLabel: toSpeciesId ? (nameById.get(toSpeciesId) ?? null) : toName, note });
+    }
+
+    return {
+      name,
+      scientificName: clean(raw.scientific_name, MAX_SCIENTIFIC_NAME_CHARS) || null,
+      kingdom: oneOf(SPECIES_KINGDOMS, raw.kingdom) ?? "animal",
+      livesAs: oneOf(SPECIES_LIVES_AS, raw.lives_as),
+      activity: oneOf(SPECIES_ACTIVITIES, raw.activity),
+      clade,
+      description: clean(raw.description, MAX_PARAGRAPH_CHARS),
+      forms,
+      links,
+    };
+  });
+  return { suggestions, setAside };
+}
+
+export interface HabitatSuggestion {
+  name: string;
+  /** Plain text: the client turns it into the rich description when it writes. */
+  description: string;
+  /** Each species with how common it is there. Never a share: the code works the percentages out. */
+  species: { speciesId: string; speciesName: string; abundance: AbundanceKey | null }[];
+}
+
+/**
+ * Habitats. A name already listed, or twice in the answer, is set aside. Every species is matched by id to the field
+ * guide the server read: an unknown id, or a species twice in one habitat, is set aside and the habitat stays. A share is
+ * never read: it is worked out in code from the abundance.
+ */
+export function sanitizeHabitats(
+  parsed: unknown,
+  existingNames: readonly string[],
+  candidates: readonly NamedRecord[],
+): { suggestions: HabitatSuggestion[]; setAside: CanonSetAside[] } {
+  const byId = new Map(candidates.map((c) => [c.id, c]));
+  const seen = new Set(existingNames.map(norm));
+  const suggestions: HabitatSuggestion[] = [];
+  const setAside: CanonSetAside[] = [];
+  for (const raw of listOf(parsed, "suggestions")) {
+    if (suggestions.length >= MAX_HABITAT_SUGGESTIONS) break;
+    if (!isRecord(raw)) continue;
+    const name = clean(raw.name, MAX_SPECIES_NAME_CHARS);
+    if (name === "") continue;
+    if (seen.has(norm(name))) {
+      setAside.push({ claim: name, reason: "the campaign already has a habitat by that name" });
+      continue;
+    }
+    seen.add(norm(name));
+    const species: HabitatSuggestion["species"] = [];
+    const here = new Set<string>();
+    for (const s of Array.isArray(raw.species) ? raw.species : []) {
+      if (species.length >= MAX_HABITAT_SPECIES) break;
+      if (!isRecord(s)) continue;
+      const id = typeof s.species_id === "string" ? s.species_id : "";
+      const found = byId.get(id);
+      if (!found) {
+        setAside.push({ claim: `${name}: ${id || "a species"}`, reason: "it is not a species in the field guide, so it cannot live there" });
+        continue;
+      }
+      if (here.has(id)) {
+        setAside.push({ claim: `${name}: ${found.name}`, reason: "it is already listed in this habitat" });
+        continue;
+      }
+      here.add(id);
+      species.push({ speciesId: id, speciesName: found.name, abundance: oneOf(HABITAT_ABUNDANCES, s.abundance) });
+    }
+    suggestions.push({ name, description: clean(raw.description, MAX_PARAGRAPH_CHARS), species });
+  }
+  return { suggestions, setAside };
+}
+
+export function speciesShape(): string {
+  return `\n\nReturn a single JSON object {"suggestions":[...]}, up to ${MAX_SPECIES_SUGGESTIONS} suggestions, each {"name":"the species' name, up to ${MAX_SPECIES_NAME_CHARS} characters","scientific_name":"a made-up Latin-style name, or leave out","kingdom":"${SPECIES_KINGDOMS.join("|")}","lives_as":"${SPECIES_LIVES_AS.join("|")}, or leave out","activity":"${SPECIES_ACTIVITIES.join("|")}, or leave out","clade":"the id of one clade given, copied exactly, or the name of a new clade, or leave out","description":"plain text, what it looks like, how it lives and what a traveller notices, one or two short paragraphs","forms":[{"label":"an age or breed, up to ${MAX_FORM_LABEL_CHARS} characters, such as Young or Household","domesticated":true or leave out}],"links":[{"kind":"${SPECIES_LINK_KINDS.join("|")}","to":"the id of a species given, copied exactly, or the name of another species in your own answer; leave out only for shelters or carries","note":"up to ${MAX_LINK_NOTE_CHARS} characters, or leave out"}]}. At most ${MAX_SPECIES_FORMS} forms and ${MAX_SPECIES_LINKS} links each.\n` +
+    "Return only the JSON object. No markdown fences, no explanation.";
+}
+
+export function habitatShape(): string {
+  return `\n\nReturn a single JSON object {"suggestions":[...]}, up to ${MAX_HABITAT_SUGGESTIONS} suggestions, each {"name":"the habitat's name, up to ${MAX_SPECIES_NAME_CHARS} characters","description":"plain text, what the country is like, one or two short paragraphs","species":[{"species_id":"the id copied exactly from the first field of one line given","abundance":"${HABITAT_ABUNDANCES.join("|")}"}]}. Never give a percentage: shares are worked out from the abundance.\n` +
+    "Return only the JSON object. No markdown fences, no explanation.";
 }
 
 export function arcShape(): string {

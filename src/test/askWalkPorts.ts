@@ -12,7 +12,7 @@ export const PITCH = {
 export interface FakeWalk {
   ports: AskWalkPorts;
   /** Change what the canon holds; the next read of `stops` sees it. */
-  set: (over: Partial<Pick<WalkInput, "entries" | "skipped" | "notedIds">>) => void;
+  set: (over: Partial<Pick<WalkInput, "entries" | "skipped" | "notedIds" | "speciesCount">>) => void;
   state: { loaded: boolean; busy: boolean; total: number | null; blocked: string | null };
   skip: ReturnType<typeof vi.fn>;
   write: ReturnType<typeof vi.fn>;
@@ -21,7 +21,7 @@ export interface FakeWalk {
 
 /** The walk's ports over an in-memory canon: nothing is fetched, and each call is a spy the test can fail or resolve. */
 export function fakeWalkPorts({ withPitch = false, party = [] }: { withPitch?: boolean; party?: WalkMember[] } = {}): FakeWalk {
-  let input: WalkInput = { entries: withPitch ? [PITCH] : [], clues: [], arcCount: 0, peopleCount: 0, habitatCount: 0, party, notedIds: new Set(), skipped: new Set() };
+  let input: WalkInput = { entries: withPitch ? [PITCH] : [], clues: [], arcCount: 0, peopleCount: 0, speciesCount: 0, habitatCount: 0, party, notedIds: new Set(), skipped: new Set() };
   // Reactive, as the real canon queries are: a walk that waits for the load wakes when it flips.
   const state = reactive({ loaded: true, busy: false, total: 4 as number | null, blocked: null as string | null });
   const stops = (): WalkStop[] => walkStops(walkSteps(input), input.party, input.notedIds);
@@ -32,6 +32,7 @@ export function fakeWalkPorts({ withPitch = false, party = [] }: { withPitch?: b
     stops,
     loaded: () => state.loaded,
     pitchWritten: () => stops().find((s) => s.step === "pitch")?.state === "filled",
+    speciesKept: () => stops().find((s) => s.step === "species")?.state === "filled",
     skip,
     write,
     price: () => state.total,

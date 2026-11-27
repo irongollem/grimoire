@@ -101,10 +101,10 @@ export async function deleteHabitatPlace(id: string): Promise<void> {
  * Puts a species in a habitat, and on its roll puts each of its forms that has a stat block and is not a domesticated
  * breed (a household cat is not met in the wild), each with no share of its own: the code works one out.
  */
-export async function insertHabitatSpecies(campaignId: string, habitatId: string, speciesId: string): Promise<void> {
+export async function insertHabitatSpecies(campaignId: string, habitatId: string, speciesId: string, abundance: Abundance | null = null): Promise<void> {
   const sortOrder = await nextSortOrder("campaign_habitat_species", campaignId, habitatId);
   const forms = await fetchFormsOfSpecies(campaignId, speciesId);
-  const { error } = await supabase.from("campaign_habitat_species").insert({ campaign_id: campaignId, habitat_id: habitatId, species_id: speciesId, sort_order: sortOrder });
+  const { error } = await supabase.from("campaign_habitat_species").insert({ campaign_id: campaignId, habitat_id: habitatId, species_id: speciesId, abundance, sort_order: sortOrder });
   if (error) throw error;
   const onRoll = forms.filter((f) => !f.domesticated && (f.monsterId !== null || f.libraryMonsterId !== null));
   if (onRoll.length === 0) return;

@@ -184,12 +184,18 @@ words `forces`, `questions`) and `?backstory=<member>` resolve to the chapter th
   - **Write it myself** writes the DM's answer as the section (`useWalkWrites.ts`): the pitch as its body, voice and look
     as their text, one theme, table note, truth (known to all), force, secret, question, lore entry or arc per line, a
     line or veil per line (`veil:` makes a veil), a character's notes as one untold DM passage. A written pitch, voice or
-    look is replaced only when asked. Peoples and habitats have no write from words: their block opens the chapter.
+    look is replaced only when asked. One species (Field guide) or habitat per line too. Peoples have no write from
+    words: their block opens the chapter.
   - **Enhance with AI** runs the section's helper with the DM's answer as the brief (see AI help: premise by section,
     arcs, peoples, backstory), and its proposals are reviewed in the block by `CanonReview` on the walk's own scope.
   - **The pitch comes first and cannot be skipped**: every draft reads it through the world block, so Enhance waits for
-    it (`draftHeldBecause`). **Habitats has no drafter yet**: the ecology model is being redesigned (#1283), and its
-    drafter comes on the new shape.
+    it (`draftHeldBecause`). **The ecology of #1283** comes in two steps: the **Field guide** (`species`, between Peoples
+    and Habitats; filled by one species) and **Habitats**, whose draft waits for the field guide's first species, since a
+    habitat is drafted from its species. A species' stat block is never drafted: **Make its stat block** on a form with
+    none (`SpeciesForms.vue`) opens the Familiar's monster card filled in from the species (`statBlockRequest`) and carries
+    a bind (`{ kind: "species_form", formId }`) onto the card; when that card's run lands a monster, the conversation calls
+    the binder (`useStatBlockBinding`, `updateForm(formId, { monsterId })`) and the result card says it was bound, or why
+    not (a stat block belongs to one form per campaign). The monster stays made either way.
   - **Skips** are `canon_walk_skips` (`20261126084426`): one row per campaign and section, DM-only, ringing the doorbell
     under `CANON_KEY`, not copied with a demo. The section check is held equal to `WALK_SKIPPABLE` by `canonWalk.test.ts`. A
     section written after it was skipped reads as filled. Skipping one character's notes stores nothing.
@@ -722,7 +728,14 @@ own `ai_system_prompts` row; the client reads each price through `canonSuggestio
   - **`backstory`** (`canon_backstory_suggestion`): up to three DM passages for one character (`party_member_id`, which
     must be this campaign's: 404 before any credit is held), from the sheet, the player's Before play (wrapped as user
     input) and the titles already written; accepted as untold passages at the end of the backstory.
-  - **Habitats still has no mode** (#1279 item 10): it waits for the ecology model of #1283.
+  - **`species`** (`canon_species_suggestion`, `20261127065537`): up to eight field-guide species from the DM's words
+    (name, kingdom, habits, clade, description, forms, links), the DM's own creatures first. A name the guide already has
+    is set aside; a link to neither a known species nor one of the same proposal is dropped; a null target only for
+    shelters and carries. Accept writes clade, species, forms (a bare "Adult" when none) and links; a link to another
+    species of the same proposal is written once both are accepted, in either order. Undo removes what it wrote.
+  - **`habitats`** (`canon_habitat_suggestion`): up to six habitats, each with species chosen by id and how common each is
+    (very rare to abundant). **Never a percentage**: the shares are worked out from abundance and how a species lives
+    (`workedOutShares`). Accept writes the habitat, its description and its species; Undo deletes it.
 
 None of the three could be run against a model in the test environment (no AI keys): the tests cover everything around
 the model call, and the new prompt rows (#1282's three among them) need a run against a real key before they are trusted.

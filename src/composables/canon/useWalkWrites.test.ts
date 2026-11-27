@@ -15,11 +15,15 @@ const stop = (step: WalkStepId, over: Partial<WalkStopRef> = {}): WalkStopRef =>
 const doc = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
 const entry = (over: Partial<CanonEntry>): CanonEntry => ({ id: "e", part: "truth", premise_kind: null, title: "", body: null, party_member_id: null, ...over }) as CanonEntry;
 const openBackstory = vi.fn(async () => "made-entry");
-const ctx = (over: Partial<WalkWriteContext> = {}): WalkWriteContext => ({ campaignId: "c1", entries: [], arcCount: 0, openBackstory, ...over });
+const addSpecies = vi.fn<(name: string) => Promise<string | null>>(async (name) => `species-${name}`);
+const addHabitat = vi.fn(async (_campaignId: string, name: string) => `habitat-${name}`);
+const ctx = (over: Partial<WalkWriteContext> = {}): WalkWriteContext => ({ campaignId: "c1", entries: [], arcCount: 0, openBackstory, addSpecies, addHabitat, ...over });
 
 beforeEach(() => {
   fake.reset();
   openBackstory.mockClear();
+  addSpecies.mockClear();
+  addHabitat.mockClear();
 });
 
 describe("linesOf", () => {
@@ -128,6 +132,26 @@ describe("writeWalk", () => {
     const attempt = writeWalk(ctx(), stop(step, step === "backstories" ? { memberId: "a", memberName: "Ada" } : {}), "Something");
     if (canWrite) await expect(attempt).resolves.toBeUndefined();
     else await expect(attempt).rejects.toThrow(/chapter/);
+  });
+
+  // Bug caught: a pasted list becoming one species named with every line, or a list marker left in the name.
+  it("adds one species per line, in order", async () => {
+    await writeWalk(ctx(), stop("species"), "- Marsh heron\n\nSmoked eel");
+    expect(addSpecies.mock.calls.map(([name]) => name)).toEqual(["Marsh heron", "Smoked eel"]);
+  });
+
+  // Bug caught: a refused species (the composable answers null and only toasts) reported as written, so the block says
+  // "Written into your canon" over nothing, and the lines after it still being attempted.
+  it("fails the block when a species is refused, and stops there", async () => {
+    addSpecies.mockResolvedValueOnce(null);
+    await expect(writeWalk(ctx(), stop("species"), "Heron\nEel")).rejects.toThrow(/"Heron" could not be added/);
+    expect(addSpecies).toHaveBeenCalledTimes(1);
+  });
+
+  // Bug caught: habitats written into the wrong campaign, or a line left joined to the next.
+  it("adds one habitat per line to the campaign", async () => {
+    await writeWalk(ctx(), stop("habitats"), "Salt marsh\nChalk downs");
+    expect(addHabitat.mock.calls).toEqual([["c1", "Salt marsh"], ["c1", "Chalk downs"]]);
   });
 
   // Bug caught: a failed insert reported as saved (the error dropped).

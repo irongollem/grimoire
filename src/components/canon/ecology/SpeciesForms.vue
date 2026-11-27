@@ -4,7 +4,10 @@
       <li v-for="f in mine" :key="f.id" class="flex flex-wrap items-center gap-x-3 gap-y-1" data-testid="species-form">
         <InlineEditText :model-value="f.label" required placeholder="A stage" :ariaLabel="`Stage of ${f.label}`" :maxlength="FORM_LABEL_MAX" text-class="text-body font-semibold" @commit="(v) => v !== null && updateForm(f.id, { label: v })" />
         <EntityMentionChip v-if="statBlockOf(f) !== null" entity-type="monster" :id="statBlockOf(f) as string" :editable="false" data-testid="form-stat-block" />
-        <span v-else class="text-caption italic text-muted-foreground">No stat block</span>
+        <template v-else>
+          <span class="text-caption italic text-muted-foreground">No stat block</span>
+          <AppButton variant="outline" size="xs" label="Make its stat block" data-testid="make-stat-block" @click="makeStatBlock(f)" />
+        </template>
         <span class="ml-auto flex items-center gap-2">
           <AppCheckbox :model-value="f.domesticated" label="Domesticated" label-role="caption" @update:model-value="(v: boolean) => updateForm(f.id, { domesticated: v })" />
           <AppButton variant="ghost" size="icon-sm" :icon="IconClose" :aria-label="`Remove the ${f.label} form`" data-testid="remove-form" @click="removeForm(f.id)" />
@@ -36,7 +39,8 @@
  * A species' forms (#1283): one row per age or breed, each with its stat block as a chip, a Domesticated mark and a remove.
  * The add line is one line of words: the text before an @ is the stage and the @ picks a stat block from the bestiary
  * ("Young @Rime_Cub"); a stat block alone is an Adult. A stat block another species already uses is refused by the
- * composable, which says so.
+ * composable, which says so. A form with no stat block can make one: the Familiar's monster card opens filled in from the
+ * species, and the monster it makes is bound to the form (`AskBind`).
  */
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -46,6 +50,8 @@ import MentionTextarea from "@/components/common/controls/MentionTextarea.vue";
 import EntityMentionChip from "@/components/tiptap/EntityMentionChip.vue";
 import { useSpeciesEditing } from "@/composables/canon/useCampaignSpecies";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
+import { useOpenGenerator } from "@/composables/ask/useOpenGenerator";
+import { statBlockRequest } from "@/lib/canon/speciesStatBlockConcept";
 import { FORM_LABEL_MAX, splitStageInput } from "@/lib/canon/fieldGuide";
 import type { Species, SpeciesForm } from "@/lib/canon/ecologyTypes";
 import { IconAdd, IconClose } from "@/lib/icons";
@@ -56,6 +62,14 @@ const { forms, addForm, updateForm, removeForm } = useSpeciesEditing();
 const mine = computed(() => forms.value.filter((f) => f.speciesId === species.id).sort((a, b) => a.stageOrder - b.stageOrder));
 /** The form's stat block id (the DM's own or a book's), or null when it has none. */
 const statBlockOf = (f: SpeciesForm): string | null => (f.monsterId !== null ? f.monsterId : f.libraryMonsterId);
+
+const { open: openGenerator } = useOpenGenerator();
+
+/** Opens the Familiar's monster card on this form, the monster it makes to be bound to the form once it lands. */
+function makeStatBlock(form: SpeciesForm) {
+  const { concept, inputs } = statBlockRequest(species, form);
+  openGenerator("monster", { concept, inputs, bind: { kind: "species_form", formId: form.id, formLabel: form.label } });
+}
 
 const { data: index } = useMonsterIndex();
 const bestiary = computed(() => (index.value ?? []).map((m) => ({ id: m.id, label: m.name, entityType: "monster" as const })));

@@ -4,6 +4,7 @@ import { ref } from "vue";
 const suggest = vi.hoisted(() => vi.fn(async () => true));
 const helperFor = vi.hoisted(() => vi.fn());
 const skipAsync = vi.hoisted(() => vi.fn(async () => {}));
+const walkSteps = vi.hoisted(() => ({ value: [] as { id: string; state: string }[] }));
 const gate = vi.hoisted(() => ({ message: null as string | null }));
 
 vi.mock("@/ai/useCanonSuggestions", () => ({
@@ -15,7 +16,7 @@ vi.mock("@/ai/useCanonSuggestions", () => ({
 vi.mock("@/ai/aiGeneratorRegistry", () => ({ isAnyAiGenerating: ref(false) }));
 vi.mock("@/ai/ask/useAskGate", () => ({ useAskGate: () => ({ blockFor: () => (gate.message === null ? null : { reason: "credits", message: gate.message }) }) }));
 vi.mock("@/composables/ai/quotes/canonSuggestionsQuote", () => ({ useCanonSuggestionsQuote: () => (mode: string) => ({ lines: [], total: mode === "premise" ? 3 : 5 }) }));
-vi.mock("@/composables/canon/useCanonWalkSteps", () => ({ useCanonWalkSteps: () => ({ stops: ref([]), steps: ref([]), loaded: ref(true) }) }));
+vi.mock("@/composables/canon/useCanonWalkSteps", () => ({ useCanonWalkSteps: () => ({ stops: ref([]), steps: { get value() { return walkSteps.value; } }, loaded: ref(true) }) }));
 vi.mock("@/composables/canon/useWalkWrites", () => ({ useWalkWrites: () => ({ write: vi.fn() }) }));
 vi.mock("@/composables/canon/useCanonWalkSkips", () => ({ useCanonWalkSkipActions: () => ({ skip: { mutateAsync: skipAsync } }) }));
 
@@ -65,6 +66,24 @@ describe("useAskWalkPorts", () => {
   it("reports the helper's own error when it fails", async () => {
     suggest.mockResolvedValue(false);
     expect(await request({ mode: "truths" })).toEqual({ ok: false, error: "the helper's own words" });
+  });
+
+  // Bug caught: the Field guide or Habitats step falling through to no helper (the switch missing its case), or sending
+  // the premise's kinds with them.
+  it.each(["species", "habitats"] as const)("drafts %s through its own helper with only the steer", async (mode) => {
+    expect(await request({ mode })).toEqual({ ok: true });
+    expect(helperFor).toHaveBeenCalledWith(mode, "walk");
+    expect(suggest).toHaveBeenCalledWith("the steer");
+  });
+
+  // Bug caught: Habitats judged to have species by any step being filled (or by the wrong step), so its draft is
+  // offered with an empty guide.
+  it("reads the field guide's own step for whether a species is kept", () => {
+    const ports = useAskWalkPorts();
+    walkSteps.value = [{ id: "peoples", state: "filled" }, { id: "species", state: "todo" }];
+    expect(ports.speciesKept()).toBe(false);
+    walkSteps.value = [{ id: "peoples", state: "todo" }, { id: "species", state: "filled" }];
+    expect(ports.speciesKept()).toBe(true);
   });
 
   // Bug caught: the price read from the wrong mode's row (a character's draft priced as the premise).

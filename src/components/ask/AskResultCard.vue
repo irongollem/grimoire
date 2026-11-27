@@ -38,6 +38,11 @@
         </div>
       </li>
     </ul>
+    <p v-if="item.bound" class="flex items-start gap-2 text-body" :class="item.bound.ok ? '' : 'text-muted-foreground'" data-testid="ask-result-bound">
+      <IconCheck v-if="item.bound.ok" class="mt-1 size-3.5 shrink-0 text-ink-success" aria-label="Done" />
+      <IconClose v-else class="mt-1 size-3.5 shrink-0 text-destructive" aria-label="Not done" />
+      <span class="min-w-0 flex-1">{{ item.bound.text }}</span>
+    </p>
     <div v-if="item.route || (item.links?.length ?? 0) > 0" class="flex flex-wrap items-center gap-2">
       <AppButton v-if="item.route && item.open" variant="primary" size="sm" :label="openLabel" @click="openInPage(item.route, item.open)" />
       <AppButton v-else-if="item.route" variant="primary" size="sm" :label="openLabel" :to="item.route" />

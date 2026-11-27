@@ -3,6 +3,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import MentionTextarea from "@/components/common/controls/MentionTextarea.vue";
 
+const openGenerator = vi.hoisted(() => vi.fn());
 const mocks = vi.hoisted(() => ({ addForm: vi.fn(), updateForm: vi.fn(), removeForm: vi.fn() }));
 const state = vi.hoisted(() => ({ forms: [] as unknown[] }));
 
@@ -15,6 +16,7 @@ vi.mock("@/composables/canon/useCampaignSpecies", () => ({
     removeForm: mocks.removeForm,
   }),
 }));
+vi.mock("@/composables/ask/useOpenGenerator", () => ({ useOpenGenerator: () => ({ open: openGenerator }) }));
 vi.mock("@/composables/monsters/useMonsterIndex", () => ({
   useMonsterIndex: () => ({ data: ref([{ id: "own-1", name: "Rime cub", is_shared: false }, { id: "lib_bear", name: "Rime bear", is_shared: true }]) }),
 }));
@@ -46,6 +48,22 @@ describe("SpeciesForms", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0].get("[data-testid=form-stat-block]").text()).toBe("monster:own-1");
     expect(rows[1].text()).toContain("No stat block");
+  });
+
+  // Bug: the button offered on a form that already has a stat block (a second monster for one form), or opening the card
+  // with no bind (the monster made and never tied to the form), or tying it to the wrong form.
+  it("offers Make its stat block only where there is none, and opens the monster card bound to that form", async () => {
+    openGenerator.mockClear();
+    const w = mountIt();
+    const rows = w.findAll("[data-testid=species-form]");
+    expect(rows[1].find("[data-testid=make-stat-block]").exists()).toBe(true);
+    expect(rows[0].find("[data-testid=make-stat-block]").exists()).toBe(false);
+    await rows[1].get("[data-testid=make-stat-block]").trigger("click");
+    expect(openGenerator).toHaveBeenCalledExactlyOnceWith("monster", {
+      concept: expect.stringContaining("Old Rime bear"),
+      inputs: { monster_type: "beast" },
+      bind: { kind: "species_form", formId: "f2", formLabel: "Old" },
+    });
   });
 
   // Bug: the words before the @ were lost, so every form was "Adult"; or a book's stat block was written as the DM's own.
