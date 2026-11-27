@@ -349,7 +349,8 @@ export const routes: RouteRecordRaw[] = [
     // The songs page: the music a DM shared with players, as big picture buttons for a phone, pinned to the home
     // screen as its own app (index.html picks its manifest at load, so links to it are full page loads). Signed-in only: a player, a young player or the DM reads their
     // own campaigns' songs through get_player_songs. The public layout gives it the whole screen with no app chrome,
-    // and accountScoped + playerReadable let either lens reach it, since it reads every campaign the account is in.
+    // and accountScoped + playerReadable let either lens reach it. It shows the active campaign's songs, or every
+    // campaign the account is in when none is active (a pinned page keeps its own storage).
     path: "/songs",
     name: "songs",
     component: () => import("@/views/soundboard/SongsView.vue"),

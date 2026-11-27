@@ -17,6 +17,8 @@ Only music playlists can be shared.
 2. Tick **Players can listen**. The hint says "Everyone at the table can play these songs on their own phone, on the Songs page."
 3. Press **Save playlist**. **Open the Songs page** appears under the box to take you straight there and see what your players see.
 
+Once a playlist is shared, a **Songs** button sits at the top of the Soundboard page, so you can open the Songs page any time without opening a playlist.
+
 Untick it and the playlist disappears from their Songs page.
 
 Spotify tracks cannot be shared this way. Only sounds you have in Grimoire are listed, and only those that belong to this campaign.
@@ -31,7 +33,7 @@ The player's **Settings** shows a **Songs** card with **Open Songs** once someth
 - The lock screen shows the song while it plays.
 - A song that cannot play shows a muted speaker. If the page says "The songs did not load.", **Try again** reloads it.
 
-Players must be signed in. There is no public link, so nothing about your campaign can be reached without an account. A player in several campaigns sees the songs of each, with the campaign's name above them.
+Players must be signed in. There is no public link, so nothing about your campaign can be reached without an account. The page shows the songs of the campaign you have open in Grimoire. Pinned to a home screen it has no open campaign, so someone in several campaigns sees the songs of each there, with the campaign's name above them.
 
 ### Pinning it on a phone
 

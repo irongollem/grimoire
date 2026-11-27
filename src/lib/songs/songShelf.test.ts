@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type PlayerSongRow, songVolume, toShelves } from "./songShelf";
+import { type PlayerSongRow, shelvesInCampaign, songVolume, toShelves } from "./songShelf";
 
 const row = (over: Partial<PlayerSongRow>): PlayerSongRow => ({
   campaign_id: "c1",
@@ -40,6 +40,25 @@ describe("toShelves", () => {
     const alone = toShelves([row({ sound_id: "song-x" })], 20)[0]!.songs[0]!;
     const later = toShelves([row({ sound_id: "first" }), row({ sound_id: "song-x" })], 20)[0]!.songs[1]!;
     expect([later.picture, later.colour]).toEqual([alone.picture, alone.colour]);
+  });
+});
+
+describe("shelvesInCampaign", () => {
+  // The DM who keeps the same playlist in two campaigns saw every page twice.
+  const twoCampaigns = toShelves(
+    [
+      row({ campaign_id: "c1", playlist_id: "p1" }),
+      row({ campaign_id: "c2", playlist_id: "p2" }),
+    ],
+    20,
+  );
+
+  it("shows only the active campaign's playlists", () => {
+    expect(shelvesInCampaign(twoCampaigns, "c2").map((s) => s.playlistId)).toEqual(["p2"]);
+  });
+
+  it("shows every campaign's playlists when no campaign is active", () => {
+    expect(shelvesInCampaign(twoCampaigns, null).map((s) => s.playlistId)).toEqual(["p1", "p2"]);
   });
 });
 

@@ -36,6 +36,20 @@
       <!-- Below lg there is no drawer: the deck's own mixer popover stands in. -->
       <DeckMixerPopover class="lg:hidden" />
 
+      <!-- The Songs page shows every shared playlist of the campaign at once, so its way in is here, beside the board,
+           not only inside one playlist's editor. Shown once a music playlist is shared. A full page load in a new tab,
+           so the page arrives with its own manifest and pins as Grimoire Songs (index.html). -->
+      <AppButton
+        v-if="sharesSongs"
+        variant="subtle"
+        size="sm"
+        :icon="IconMusic"
+        label="Songs"
+        tooltip="Open the Songs page: what your players can play on their own phones"
+        href="/songs"
+        target="_blank"
+      />
+
       <!-- Spotify connect/disconnect (only for the owner user) -->
       <template v-if="spotifyStore.isEnabled">
         <AppButton
@@ -309,13 +323,14 @@ import { useLazyMount } from "@/composables/useLazyMount";
 import { useAbove, useBelow } from "@/composables/useBreakpoint";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { useToast } from "@/composables/useToast";
-import { IconList, IconMixer, IconSettings } from "@/lib/icons";
+import { IconList, IconMixer, IconMusic, IconSettings } from "@/lib/icons";
 import { emptyDeckCell, firstFreeSlot } from "@/lib/audio/deck/deckModel";
 import { DECK_LANES } from "@/lib/audio/deck/deckSurface";
 import { useDeck } from "@/composables/soundboard/useDeck";
 import { useAddTake, useCreatePad, useDeckPads, useMovePad } from "@/composables/soundboard/useDeckPads";
 import { useSoundboardPages, useCreateSoundboardPage } from "@/composables/soundboard/useSoundboardPages";
 import { useSounds } from "@/composables/soundboard/useSounds";
+import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useQuota } from "@/composables/billing/useQuota";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useAuthStore } from "@/stores/auth";
@@ -385,6 +400,8 @@ const settingsMounted = useLazyMount(computed(() => soundboardUi.soundboardSetti
 onMounted(() => spotifyStore.initSDK());
 
 const { data: sounds, isPending: soundsPending } = useSounds();
+const { data: playlists } = usePlaylists();
+const sharesSongs = computed(() => playlists.value?.some((p) => p.players_can_listen && p.playlist_type === "music") === true);
 const { data: pages, isSuccess: pagesReady } = useSoundboardPages();
 const { data: padRows, isPending: padsPending } = useDeckPads();
 const { mutate: createPage } = useCreateSoundboardPage();

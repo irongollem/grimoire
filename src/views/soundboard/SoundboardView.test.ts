@@ -34,6 +34,7 @@ const addTake = vi.fn();
 const createPage = vi.fn();
 const toastError = vi.fn();
 const replace = vi.fn();
+const playlists = ref<{ players_can_listen: boolean; playlist_type: "music" | "scene" }[]>([]);
 
 vi.mock("vue-router", () => ({ useRoute: () => route, useRouter: () => ({ replace }) }));
 // Wide (lg and up) by default; a test sets it false for the phone and tablet sheets.
@@ -43,6 +44,7 @@ vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: toastError, fromError: (_e: unknown, f: string) => f }) }));
 vi.mock("@/composables/billing/useQuota", () => ({ useQuota: () => ({ canCreate: ref(true) }) }));
 vi.mock("@/composables/soundboard/useSounds", () => ({ useSounds: () => ({ data: ref([{ id: "s1" }]), isPending: ref(false) }) }));
+vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({ usePlaylists: () => ({ data: playlists }) }));
 vi.mock("@/composables/soundboard/useSoundboardPages", () => ({
   useSoundboardPages: () => ({ data: pages, isSuccess: pagesReady }),
   useCreateSoundboardPage: () => ({ mutate: createPage }),
@@ -126,7 +128,22 @@ beforeEach(() => {
   dmMode.dmMode = "prep";
   route.query = {};
   screen.wide = true;
+  playlists.value = [];
   for (const m of [createPad, movePad, addTake, createPage, toastError, replace]) m.mockReset();
+});
+
+describe("the Songs button", () => {
+  const songsButton = (w: VueWrapper) => w.findAllComponents({ name: "AppButton" }).find((b) => b.attributes("href") === "/songs");
+
+  it("opens the Songs page once a music playlist is shared with players", () => {
+    playlists.value = [{ players_can_listen: true, playlist_type: "music" }];
+    expect(songsButton(mountView())).toBeDefined();
+  });
+
+  it("is absent while nothing is shared, so it never opens an empty page", () => {
+    playlists.value = [{ players_can_listen: false, playlist_type: "music" }];
+    expect(songsButton(mountView())).toBeUndefined();
+  });
 });
 
 describe("dropping on a slot", () => {

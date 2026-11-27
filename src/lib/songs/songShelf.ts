@@ -110,6 +110,18 @@ export function toShelves(rows: readonly PlayerSongRow[], pictureCount: number):
   return [...shelves.values()];
 }
 
+/**
+ * The shelves the page shows: only the active campaign's, like every other page
+ * of the app, so a DM who keeps a copy of the same playlist in two campaigns
+ * does not see each page twice. With no active campaign (the page pinned to a
+ * home screen keeps its own storage, so the app never picked one there) it is
+ * every campaign the account is in, each page named with its campaign.
+ */
+export function shelvesInCampaign(shelves: readonly SongShelf[], activeCampaignId: string | null): SongShelf[] {
+  if (!activeCampaignId) return [...shelves];
+  return shelves.filter((s) => s.campaignId === activeCampaignId);
+}
+
 /** The element volume for a song: its loudness trim, never above full. */
 export function songVolume(gainTrim: number): number {
   if (!Number.isFinite(gainTrim) || gainTrim <= 0) return 1;

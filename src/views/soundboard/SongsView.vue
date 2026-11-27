@@ -95,6 +95,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { storeToRefs } from "pinia";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import BrandLogo from "@/components/brand/BrandLogo.vue";
 import SongCover from "@/components/soundboard/songs/SongCover.vue";
@@ -104,6 +105,8 @@ import { useSongPlayer } from "@/composables/soundboard/useSongPlayer";
 import { useTermsGate } from "@/composables/account/useTermsGate";
 import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
 import { IconMusic } from "@/lib/icons";
+import { shelvesInCampaign } from "@/lib/songs/songShelf";
+import { useCampaignStore } from "@/stores/campaign";
 import { prefersReducedMotion } from "@/lib/motion";
 
 const { visible: termsWaiting } = useTermsGate();
@@ -111,7 +114,8 @@ const { visible: termsWaiting } = useTermsGate();
 // unsharing a playlist, or a player leaving the table, reaches the open page. Other campaigns refresh on refocus.
 useCampaignLiveSync();
 const { data, isPending, isError, refetch } = usePlayerSongs();
-const shelves = computed(() => data.value ?? []);
+const { activeCampaignId } = storeToRefs(useCampaignStore());
+const shelves = computed(() => shelvesInCampaign(data.value ?? [], activeCampaignId.value));
 const manyCampaigns = computed(() => new Set(shelves.value.map((s) => s.campaignId)).size > 1);
 
 // The page in view, read back from the pager's own scroll position so a swipe and a tap in the bar agree.
