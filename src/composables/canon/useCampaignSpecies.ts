@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "@/lib/toast";
 import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { useCampaignStore } from "@/stores/campaign";
-import { CHECK_VIOLATION, nextSortOrder } from "@/composables/canon/useCampaignHabitats";
+import { CHECK_VIOLATION, nextSortOrder, putFormOnRolls } from "@/composables/canon/useCampaignHabitats";
 import { fetchClades, fetchSpecies, fetchSpeciesForms, fetchSpeciesLinks, fetchSpeciesYields, fetchStatBlockNames } from "@/lib/canon/canonCampaignReads";
 import type { Activity, Clade, Kingdom, LinkKind, LivesAs, Species, SpeciesForm, SpeciesLink, SpeciesSeason, SpeciesYield } from "@/lib/canon/ecologyTypes";
 import type { SeasonKind } from "@/types/calendar.types";
@@ -238,7 +238,7 @@ export function useSpeciesEditing(wanted: () => boolean = () => true) {
     const last = await supabase.from("campaign_species_forms").select("stage_order").eq("campaign_id", cid).eq("species_id", speciesId).order("stage_order", { ascending: false }).limit(1);
     if (last.error) throw last.error;
     const stageOrder = last.data.length > 0 ? (last.data[0] as { stage_order: number }).stage_order + 1 : 0;
-    return insertReturningId("campaign_species_forms", {
+    const id = await insertReturningId("campaign_species_forms", {
       campaign_id: cid,
       species_id: speciesId,
       label: form.label,
@@ -247,10 +247,16 @@ export function useSpeciesEditing(wanted: () => boolean = () => true) {
       monster_id: form.monsterId ?? null,
       library_monster_id: form.libraryMonsterId ?? null,
     });
+    // A form with a stat block is met in every habitat its species already lives in.
+    if ((form.monsterId ?? null) !== null || (form.libraryMonsterId ?? null) !== null) await putFormOnRolls(cid, id);
+    return id;
   }, "That stat block is already a form of another species.");
   const updateForm = write(
-    ({ id, patch }: { id: string; patch: FormPatch }) =>
-      writeOne("campaign_species_forms", id, defined({ label: patch.label, domesticated: patch.domesticated, monster_id: patch.monsterId, library_monster_id: patch.libraryMonsterId }), "That form is gone, or you may not change it."),
+    async ({ id, patch }: { id: string; patch: FormPatch }) => {
+      await writeOne("campaign_species_forms", id, defined({ label: patch.label, domesticated: patch.domesticated, monster_id: patch.monsterId, library_monster_id: patch.libraryMonsterId }), "That form is gone, or you may not change it.");
+      // Given a stat block, or no longer a kept breed: it can now be met where its species lives.
+      if ((patch.monsterId ?? null) !== null || (patch.libraryMonsterId ?? null) !== null || patch.domesticated === false) await putFormOnRolls(campaignId(), id);
+    },
     "That stat block is already a form of another species.",
   );
   const removeForm = write((id: string) => removeOne("campaign_species_forms", id));

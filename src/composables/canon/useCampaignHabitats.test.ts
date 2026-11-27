@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => 
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
 vi.mock("@/lib/toast", () => ({ toast: { error: toasts.error, fromError: (e: unknown) => (e instanceof Error ? e.message : "failed") } }));
 
-import { insertHabitat, useHabitatEditing } from "./useCampaignHabitats";
+import { insertHabitat, putFormOnRolls, useHabitatEditing } from "./useCampaignHabitats";
 import { fetchHabitatLife, fetchHabitats } from "@/lib/canon/canonCampaignReads";
 
 function inSetup<T>(use: () => T): T {
@@ -183,5 +183,32 @@ describe("the writes", () => {
     await flushPromises();
     expect(fake.rows("campaign_habitats").find((r) => r.id === "b")?.sort_order).toBe(0);
     expect(fake.rows("campaign_habitats").find((r) => r.id === "a")?.sort_order).toBe(1);
+  });
+});
+
+describe("putFormOnRolls", () => {
+  const form = (id: string, over: Record<string, unknown> = {}) => ({ id, campaign_id: "c1", species_id: "s1", label: "Adult", stage_order: 0, domesticated: false, monster_id: null, library_monster_id: null, ...over });
+  beforeEach(() => {
+    fake.seed("campaign_habitat_species", [
+      { id: "hs1", campaign_id: "c1", habitat_id: "h1", species_id: "s1", abundance: "rare", sort_order: 0 },
+      { id: "hs2", campaign_id: "c1", habitat_id: "h2", species_id: "s1", abundance: null, sort_order: 0 },
+    ]);
+    fake.seed("campaign_habitat_life", [{ id: "l0", campaign_id: "c1", habitat_id: "h2", species_id: "s1", form_id: "f1", percent: 30, sort_order: 4 }]);
+  });
+  const rollOf = (formId: string) => fake.rows("campaign_habitat_life").filter((r) => r.form_id === formId).map((r) => ({ habitat: r.habitat_id, percent: r.percent }));
+
+  // Bug: a form given its stat block after its species was placed (the walk's order) was never met in those habitats.
+  it("puts a form with a stat block on the roll of every habitat its species lives in, keeping a row it already has", async () => {
+    fake.seed("campaign_species_forms", [form("f1", { monster_id: "m1" })]);
+    await putFormOnRolls("c1", "f1");
+    expect(rollOf("f1")).toEqual([{ habitat: "h2", percent: 30 }, { habitat: "h1", percent: null }]);
+  });
+
+  // Bug: a kept breed or a form with nothing to roll went on the roll (a household cat met in the wild).
+  it("leaves a domesticated form and a form with no stat block off the roll", async () => {
+    fake.seed("campaign_species_forms", [form("f2", { domesticated: true, monster_id: "m2" }), form("f3")]);
+    await putFormOnRolls("c1", "f2");
+    await putFormOnRolls("c1", "f3");
+    expect([...rollOf("f2"), ...rollOf("f3")]).toEqual([]);
   });
 });

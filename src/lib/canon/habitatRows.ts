@@ -5,7 +5,7 @@
  * thing. It imports no component and no query.
  */
 import { sharesLine } from "@edge-shared/worldBlock.ts";
-import { LIVES_AS_LABEL, KINGDOM_LABEL, speciesShare, thumbnailFormId, workedOutShares, type WorkedOut } from "./ecology";
+import { ABUNDANCE_LABEL, LIVES_AS_LABEL, KINGDOM_LABEL, speciesShare, thumbnailFormId, workedOutShares, type WorkedOut } from "./ecology";
 import type { Abundance, HabitatSpecies, Species, SpeciesForm } from "./ecologyTypes";
 import type { Habitat, HabitatLife } from "./habitats";
 import { sharesProblem } from "./shares";
@@ -99,7 +99,11 @@ export function buildHabitatRows(input: HabitatRowsInput): { species: SpeciesRow
 /** "Marsh eel 40%, Giant frog 20%, anything else 40%": the worked-out shares by species, for a list row and a place page. */
 export function habitatSummary(input: HabitatRowsInput): string {
   const { species } = buildHabitatRows(input);
-  return sharesLine(species.flatMap((s) => (s.total === null ? [] : [{ name: s.name, percent: s.total }])), "anything else");
+  const shares = sharesLine(species.flatMap((s) => (s.total === null ? [] : [{ name: s.name, percent: s.total }])), "anything else");
+  // A species with no stat block yet has nothing on the roll, but it still lives here (one the walk drafted, say): it is
+  // named with how common it is, so a habitat with species never reads as empty.
+  const offRoll = species.filter((s) => s.total === null).map((s) => (s.abundance === null ? s.name : `${s.name} (${ABUNDANCE_LABEL[s.abundance].toLowerCase()})`));
+  return [shares, offRoll.join(", ")].filter((part) => part !== "").join("; ");
 }
 
 /** What a share the DM is about to type would break (the table would refuse a total past 100), or null. */

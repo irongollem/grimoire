@@ -508,7 +508,8 @@ country, each with a description, the Atlas places it covers and the creatures t
 
 The list (`LifeChapter.vue`, a habitat opening beside it on the kit) shows each habitat's name, its places as plain
 words and a one-line summary of what lives there by species, with worked-out shares ("Pith Piper 90%, anything else
-10%", `habitatSummary` in `lib/canon/habitatRows.ts`), up and down to reorder (the DM's order is the world block's) and
+10%", `habitatSummary` in `lib/canon/habitatRows.ts`; a species with nothing on the roll yet is named with how common
+it is, "Salt eel (common)", so a habitat with species never reads as empty), up and down to reorder (the DM's order is the world block's) and
 an add row, "A new kind of country...", which opens the new habitat. The open habitat (`HabitatEditor.vue`) has a
 **letterhead** (`CanonEntryPane` with `letterhead`: "Habitat · N places" over the name in type, a double rule under it);
 the name is `InlineEditText` (`components/common/controls/`, the maintainer's rule of 26 Nov 2026: "no edit and save
@@ -525,7 +526,9 @@ value, in ink, is the DM's own number; clearing it goes back to worked out. Noth
 with several forms on the roll shows their sum and lists the forms under its name, each with its own share. Under the
 slips, **Anything else** (placeholder 10) and "Adds up to 100%." or the problem sentence. A species is added with @ (a
 one-line `MentionTextarea` over the field guide's species); adding one puts each of its wild forms with a stat block on
-the roll with no share (domesticated forms and forms without a stat block never go on).
+the roll with no share (domesticated forms and forms without a stat block never go on). A form given its stat block
+later, by @ or by **Make its stat block**, or no longer marked domesticated, joins the roll of every habitat its
+species already lives in (`putFormOnRolls`), since the walk drafts species and habitats before any stat block exists.
 
 **Worked-out shares.** `workedOutShares` (`supabase/functions/_shared/ecologyShares.ts`, shared by the screen, the
 roll, the world block and the book) weighs each species by how common it is (very rare 1, rare 3, uncommon 8, common

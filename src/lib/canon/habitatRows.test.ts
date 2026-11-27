@@ -77,6 +77,16 @@ describe("habitatSummary", () => {
     });
     expect(line).toBe("eel 40%, anything else 60%");
   });
+
+  // Bug: a habitat whose species have no stat block yet (so nothing on the roll, as after the walk drafts it) read
+  // "Nothing lives here yet" while species lived there.
+  it("names a species with nothing on the roll, with how common it is", () => {
+    const line = habitatSummary({
+      habitat, habitatSpecies: [here("eel"), { ...here("heron", 1), abundance: "rare" }], species: [kind("eel"), kind("heron")],
+      forms: [form("young", "eel"), form("adult", "heron", { libraryMonsterId: null })], life: [onRoll("young", "eel", 40)],
+    });
+    expect(line).toBe("eel 40%, anything else 60%; heron (rare)");
+  });
 });
 
 describe("proposedSharesProblem", () => {

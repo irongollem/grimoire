@@ -6,7 +6,7 @@ import { CANON_KEY } from "@/lib/campaignLiveSync/registry";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Habitat, HabitatLife } from "@/lib/canon/habitats";
 import { fetchFormsOfSpecies, fetchHabitatLife, fetchHabitats, fetchHabitatSpecies } from "@/lib/canon/canonCampaignReads";
-import type { Abundance, HabitatSpecies } from "@/lib/canon/ecologyTypes";
+import type { Abundance, HabitatSpecies, SpeciesForm } from "@/lib/canon/ecologyTypes";
 
 /**
  * The ecology of the world (#1255 item 31): `campaign_habitats`, the Atlas places each covers
@@ -97,6 +97,35 @@ export async function deleteHabitatPlace(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** A form is met on a habitat's roll when it has a stat block and is not a domesticated breed. */
+const goesOnRoll = (f: Pick<SpeciesForm, "domesticated" | "monsterId" | "libraryMonsterId">): boolean => !f.domesticated && (f.monsterId !== null || f.libraryMonsterId !== null);
+
+/**
+ * Puts a form on the roll of every habitat its species already lives in, once it can be met there: when it is given a
+ * stat block after its species was placed (the walk drafts species and habitats before any stat block exists, #1282),
+ * or stops being a domesticated breed. Adding the species to a habitat only rolled the forms it had then, so without
+ * this a habitat never rolled a creature whose stat block came later. A form already on a roll keeps its row and share.
+ */
+export async function putFormOnRolls(campaignId: string, formId: string): Promise<void> {
+  const own = await supabase.from("campaign_species_forms").select("species_id").eq("campaign_id", campaignId).eq("id", formId).maybeSingle();
+  if (own.error) throw own.error;
+  if (own.data === null) return;
+  const speciesId = (own.data as { species_id: string }).species_id;
+  const form = (await fetchFormsOfSpecies(campaignId, speciesId)).find((f) => f.id === formId);
+  if (form === undefined || !goesOnRoll(form)) return;
+  const lives = await supabase.from("campaign_habitat_species").select("habitat_id").eq("campaign_id", campaignId).eq("species_id", speciesId);
+  if (lives.error) throw lives.error;
+  const rolled = await supabase.from("campaign_habitat_life").select("habitat_id").eq("campaign_id", campaignId).eq("form_id", formId);
+  if (rolled.error) throw rolled.error;
+  const already = new Set((rolled.data as { habitat_id: string }[]).map((r) => r.habitat_id));
+  for (const { habitat_id: habitatId } of lives.data as { habitat_id: string }[]) {
+    if (already.has(habitatId)) continue;
+    const sortOrder = await nextSortOrder("campaign_habitat_life", campaignId, habitatId);
+    const { error } = await supabase.from("campaign_habitat_life").insert({ campaign_id: campaignId, habitat_id: habitatId, species_id: speciesId, form_id: formId, percent: null, sort_order: sortOrder });
+    if (error) throw error;
+  }
+}
+
 /**
  * Puts a species in a habitat, and on its roll puts each of its forms that has a stat block and is not a domesticated
  * breed (a household cat is not met in the wild), each with no share of its own: the code works one out.
@@ -106,7 +135,7 @@ export async function insertHabitatSpecies(campaignId: string, habitatId: string
   const forms = await fetchFormsOfSpecies(campaignId, speciesId);
   const { error } = await supabase.from("campaign_habitat_species").insert({ campaign_id: campaignId, habitat_id: habitatId, species_id: speciesId, abundance, sort_order: sortOrder });
   if (error) throw error;
-  const onRoll = forms.filter((f) => !f.domesticated && (f.monsterId !== null || f.libraryMonsterId !== null));
+  const onRoll = forms.filter(goesOnRoll);
   if (onRoll.length === 0) return;
   try {
     let next = await nextSortOrder("campaign_habitat_life", campaignId, habitatId);

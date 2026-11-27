@@ -23,7 +23,7 @@
         </template>
       </CanonRow>
     </ul>
-    <!-- No Familiar here: the canon helper has no habitats mode, so a request would come back as truths. -->
+    <!-- Habitats are drafted in the walk's Habitats step (Design it with me, #1282), from the field guide's species. -->
     <CanonEmpty v-else-if="!isLoading" title="Nothing lives here yet" :text="EMPTY_TEXT" />
 
     <template #add>

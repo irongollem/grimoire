@@ -97,6 +97,15 @@ describe("the field guide writes", () => {
     expect(row).toMatchObject({ stage_order: 4, species_id: "a", monster_id: "m1", library_monster_id: null, domesticated: false });
   });
 
+  // Bug: binding a stat block to a form of a species already living somewhere left it off those habitats' rolls.
+  it("puts a form on its species' habitat rolls once it is given a stat block", async () => {
+    fake.seed("campaign_species_forms", [{ id: "f1", campaign_id: "c1", species_id: "a", label: "Adult", stage_order: 0, domesticated: false, monster_id: null, library_monster_id: null }]);
+    fake.seed("campaign_habitat_species", [{ id: "hs1", campaign_id: "c1", habitat_id: "h1", species_id: "a", abundance: null, sort_order: 0 }]);
+    const { updateForm } = inSetup(useSpeciesEditing);
+    await updateForm("f1", { monsterId: "m1" });
+    expect(fake.rows("campaign_habitat_life").map((r) => [r.habitat_id, r.form_id])).toEqual([["h1", "f1"]]);
+  });
+
   // Bug: the unique stat block refusal (23505) surfaced as a raw index name.
   it("says a stat block already used in plain words", async () => {
     const { addForm } = inSetup(useSpeciesEditing);
