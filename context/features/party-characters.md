@@ -1050,6 +1050,8 @@ The `LevelUpWizard` (at `src/levelup/LevelUpWizard.vue`) asks for every choice t
 
 Spell and cantrip choices come from `useLevelUpSpellCandidates`, which reads the merged Spellbook library — see [player-portal.md](player-portal.md) § "Where the spell pickers get their spells" for why it must not query the `spells` table, and for the three guards that keep an empty picker from producing a level-up that can never be confirmed (#736).
 
+The system class definition's `cantrips_known` table supplies the class-level total to the level-up picker where no revised-edition policy overrides it. For a 2014 Cleric, that is three through level 3 and four from level 4 onward (migration `20261127195331`).
+
 ---
 
 ## Class features, subclass features and feats (#976)
