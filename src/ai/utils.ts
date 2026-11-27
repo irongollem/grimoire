@@ -7,6 +7,9 @@ export function b64ToBlob(b64: string, mimeType = "image/webp"): Blob {
 
 export const AI_PROMPT_LIMIT = 1000;
 export const AI_PROMPT_LIMIT_SHORT = 500;
+// Monster requests can include a supplied stat block, rather than just a concept.
+// Mirror of the edge function's AI_PROMPT_LIMIT_LONG.
+export const AI_PROMPT_LIMIT_LONG = 5000;
 // Chronicle input is raw session notes — mirror of the edge function's limit.
 export const AI_PROMPT_LIMIT_CHRONICLE = 10000;
 

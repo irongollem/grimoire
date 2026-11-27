@@ -26,7 +26,7 @@ export const EDITORS_GENERATORS: readonly AskGenerator[] = [
       image: { ...image, label: "Portrait art" },
     },
     opened: { image: true },
-    concept: { label: "What to make", placeholder: "A colossal spider deity that dwells in the Underdark, commanding its cultists through webs of illusion and dreams…", required: true, max: 1000 },
+    concept: { label: "What to make", placeholder: "A colossal spider deity that dwells in the Underdark, commanding its cultists through webs of illusion and dreams…", required: true, max: 2000 },
   },
   {
     id: "spell_sheet", action: "Fill the sheet", noun: "spell", ending: "fill", fiveE: true,

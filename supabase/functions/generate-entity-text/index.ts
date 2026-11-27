@@ -72,7 +72,8 @@ const GENERATORS = {
   spell:           { promptKey: "spell",           reason: "spell_generation", fiveE: true, extraInstructions: SPELL_CONDITION_EFFECT_PROMPT },
   // `monster_stat_block` is the row the admin prices and the page quotes. This read `monster_generation` until
   // #1253, a key with no row, so the server always charged the 1-credit fallback whatever the admin set.
-  monster:         { promptKey: "monster",         reason: "monster_stat_block", fiveE: true },
+  // A Familiar request can carry the complete supplied stat block, so allow the long concept limit.
+  monster:         { promptKey: "monster",         reason: "monster_stat_block", fiveE: true, promptLimit: AI_PROMPT_LIMIT_LONG },
   item:            { promptKey: "item",            reason: "item_generation", fiveE: true },
   faction:         { promptKey: "faction",         reason: "faction_generation" },
   feature:         { promptKey: "feature",         reason: "feature_generation", fiveE: true },

@@ -8,6 +8,7 @@
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskQuoteLine, AskRunResult } from "@/lib/ask/askAdapter";
 import { conceptBlock, failedRun } from "@/ai/ask/adapters/askAdapterKit";
+import { AI_PROMPT_LIMIT_LONG } from "@/ai/utils";
 import { formClosedBlock, landInForm } from "@/ai/ask/adapters/formFillKit";
 import { askFlag, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
@@ -53,7 +54,7 @@ export function useMonsterSheetAskAdapter(): AskAdapter {
     lines.push({ label: "Campaign", value: campaign.activeCampaign?.name ?? "This campaign", credits: null });
     lines.push(...priced.lines);
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
-    const block = blockFor({ total: priced.total, fiveE: true }) ?? formClosedBlock(ID, FORM, proposal) ?? conceptBlock(read.concept, "monster", { empty: "Say what this monster is like first.", shorten: "concept" });
+    const block = blockFor({ total: priced.total, fiveE: true }) ?? formClosedBlock(ID, FORM, proposal) ?? conceptBlock(read.concept, "monster", { empty: "Say what this monster is like first.", shorten: "concept", limit: AI_PROMPT_LIMIT_LONG });
     return { lines, total: priced.total, block };
   }
 

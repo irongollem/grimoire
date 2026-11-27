@@ -10,7 +10,7 @@ describe("the catalogue generators' cards (#1270)", () => {
     for (const id of CATALOGUE) {
       const concept = askGenerator(id)?.concept;
       expect(concept?.required, id).toBe(true);
-      expect(concept?.max, id).toBe(1000);
+      expect(concept?.max, id).toBe(id === "monster" ? 2000 : 1000);
       expect(concept?.placeholder.length, id).toBeGreaterThan(20);
     }
   });

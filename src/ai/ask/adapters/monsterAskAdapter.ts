@@ -9,6 +9,7 @@
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskAdapter, AskQuote, AskQuoteLine, AskRunPart, AskRunResult } from "@/lib/ask/askAdapter";
 import { conceptBlock, failedRun, picturePart, spent } from "@/ai/ask/adapters/askAdapterKit";
+import { AI_PROMPT_LIMIT_LONG } from "@/ai/utils";
 import { askFlag, askString, readAskInputs } from "@/ai/ask/askInputs";
 import { useAskGate } from "@/ai/ask/useAskGate";
 import { useMissingPortrait } from "@/ai/useMissingPortrait";
@@ -54,7 +55,7 @@ export function useMonsterAskAdapter(): AskAdapter {
     if (!read.image) lines.push({ label: "Picture", value: "None", credits: null });
 
     let block = blockFor({ total: priced.total, fiveE: true });
-    block = block ?? conceptBlock(read.concept, "monster");
+    block = block ?? conceptBlock(read.concept, "monster", { limit: AI_PROMPT_LIMIT_LONG });
     return { lines, total: priced.total, block };
   }
 
