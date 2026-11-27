@@ -25,9 +25,9 @@ describe("QuestVisibilityTrack", () => {
     expect(w.emitted("update:modelValue")).toBeUndefined();
   });
 
-  it("fills every step up to the current one", () => {
+  it("highlights only the current step", () => {
     const w = mount(QuestVisibilityTrack, { props: { modelValue: "rumored" } });
-    expect(buttons(w).map((b) => b.get("span").classes().includes("bg-card"))).toEqual([false, false, true]);
+    expect(buttons(w).map((b) => b.classes().includes("bg-primary/15"))).toEqual([false, true, false]);
   });
 
   it("marks only the current step pressed and disables steps under the floor", () => {
@@ -43,10 +43,10 @@ describe("QuestVisibilityTrack", () => {
     expect(w.attributes("aria-label")).toBe("hidden");
   });
 
-  // Fails if the current step stops being named under the circles, or the flow's boxes start naming it.
-  it("names the current step beneath the circles, except on the flow's boxes", () => {
-    expect(mount(QuestVisibilityTrack, { props: { modelValue: "rumored", size: "sm" } }).text()).toBe("rumored");
-    expect(mount(QuestVisibilityTrack, { props: { modelValue: "rumored", size: "lg" } }).text()).toBe("rumored");
+  // Fails if the interactive steps lose their visible names, or the flow's static track gains labels.
+  it("labels each interactive step, except on the flow's static track", () => {
+    expect(buttons(mount(QuestVisibilityTrack, { props: { modelValue: "rumored", size: "sm" } })).map((b) => b.text())).toEqual(["Hidden", "Rumored", "Revealed"]);
+    expect(buttons(mount(QuestVisibilityTrack, { props: { modelValue: "rumored", size: "lg" } })).map((b) => b.text())).toEqual(["Hidden", "Rumored", "Revealed"]);
     expect(mount(QuestVisibilityTrack, { props: { modelValue: "rumored", size: "xs" } }).text()).toBe("");
   });
 });
