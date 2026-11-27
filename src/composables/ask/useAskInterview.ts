@@ -5,7 +5,8 @@
  */
 import { computed, ref, type Ref } from "vue";
 import { INTERVIEW_OPENING } from "@/lib/ask/askWalkCopy";
-import { composeStory, hasTold } from "@/lib/ask/askInterviewStory";
+import { IMPORT_PATH, IMPORT_SCREEN_ID, TOLD_STORY_NAME, composeStory, hasTold } from "@/lib/ask/askInterviewStory";
+import { useAskPrefillStore } from "@/stores/ui/askPrefill";
 import type { AskItem, NewItem } from "./askItems";
 
 export interface AskInterviewDeps {
@@ -38,3 +39,9 @@ export function useAskInterview(deps: AskInterviewDeps) {
 }
 
 export type AskInterview = ReturnType<typeof useAskInterview>;
+
+/** Leaves the told story for the import's paste step and returns where it is: the button and the screen both end here. */
+export function offerToldStory(text: string): string {
+  useAskPrefillStore().offer(IMPORT_SCREEN_ID, text, { ownWriting: "true", displayName: TOLD_STORY_NAME });
+  return IMPORT_PATH;
+}

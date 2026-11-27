@@ -61,7 +61,7 @@ import { useModalStack } from "@/components/common/overlays/modalStack";
 import AskSurface from "@/components/ask/AskSurface.vue";
 import { stopChapterPath, type AskWalkView } from "@/lib/ask/askWalkCopy";
 import { stopKey, type WalkStopRef } from "@/lib/canon/canonWalk";
-import { offerToldStory } from "@/lib/ask/askInterviewStory";
+import { offerToldStory } from "@/composables/ask/useAskInterview";
 import { useStatBlockBinder } from "@/composables/canon/useStatBlockBinding";
 import AskResultNotice from "@/components/ask/AskResultNotice.vue";
 

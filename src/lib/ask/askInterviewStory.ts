@@ -1,10 +1,10 @@
 /**
  * What the DM told the Familiar in an interview (#1282, story 8b), as the text the document import reads. One place
  * makes it, so the pane's "Turn this into my canon" button and the model's `import_story` proposal hand over the same
- * words: the DM's messages verbatim, each after the Familiar's question it answered, in order.
+ * words: the DM's messages verbatim, each after the Familiar's question it answered, in order. Handing it to the
+ * import's paste step is `offerToldStory` in `composables/ask/useAskInterview.ts` (a store write, which `lib/` may not make).
  */
 import type { AskItem } from "@/composables/ask/askItems";
-import { useAskPrefillStore } from "@/stores/ui/askPrefill";
 
 /** The screen the told story is offered to, and where it lives. */
 export const IMPORT_SCREEN_ID = "document_import";
@@ -35,10 +35,4 @@ export function composeStory(items: readonly AskItem[], from: number): string | 
     }
   }
   return parts.length === 0 ? null : parts.join("\n\n");
-}
-
-/** Leaves the told story for the import's paste step and returns where it is: the button and the screen both end here. */
-export function offerToldStory(text: string): string {
-  useAskPrefillStore().offer(IMPORT_SCREEN_ID, text, { ownWriting: "true", displayName: TOLD_STORY_NAME });
-  return IMPORT_PATH;
 }

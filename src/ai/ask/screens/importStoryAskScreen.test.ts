@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import type { AskProposal } from "@edge-shared/agent/askContract";
-import { offerToldStory } from "@/lib/ask/askInterviewStory";
+import { offerToldStory } from "@/composables/ask/useAskInterview";
 import { useAskPrefillStore } from "@/stores/ui/askPrefill";
 import { useAskUiStore } from "@/stores/ui/ask";
 import { useImportStoryAskScreen } from "./importStoryAskScreen";

@@ -10,7 +10,7 @@
  */
 import type { AskProposal } from "@edge-shared/agent/askContract";
 import type { AskScreenAdapter } from "@/lib/ask/askAdapter";
-import { offerToldStory } from "@/lib/ask/askInterviewStory";
+import { offerToldStory } from "@/composables/ask/useAskInterview";
 import { useAskUiStore } from "@/stores/ui/ask";
 
 export function useImportStoryAskScreen(): AskScreenAdapter {
